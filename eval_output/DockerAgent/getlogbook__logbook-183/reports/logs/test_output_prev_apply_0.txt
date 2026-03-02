@@ -1,0 +1,87 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.25, pytest-8.4.2, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /testbed
+collecting ... collected 1 item
+
+tests/test_mail_handler.py::test_mail_handler_arguments FAILED           [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_mail_handler_arguments __________________________
+
+    def test_mail_handler_arguments():
+        with patch('smtplib.SMTP', autospec=True) as mock_smtp:
+    
+            # Test the mail handler with supported arguments before changes to
+            # secure, credentials, and starttls
+            mail_handler = logbook.MailHandler(
+                from_addr='from@example.com',
+                recipients='to@example.com',
+                server_addr=('server.example.com', 465),
+                credentials=('username', 'password'),
+                secure=('keyfile', 'certfile'))
+    
+            mail_handler.get_connection()
+    
+>           assert mock_smtp.call_args == call('server.example.com', 465)
+E           AssertionError: assert call() == call('server....ple.com', 465)
+E             
+E             Full diff:
+E             - call('server.example.com', 465)
+E             + call()
+
+tests/test_mail_handler.py:128: AssertionError
+=============================== warnings summary ===============================
+tests/test_mail_handler.py:43
+  /testbed/tests/test_mail_handler.py:43: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', data)
+
+tests/test_mail_handler.py:46
+  /testbed/tests/test_mail_handler.py:46: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, data)
+
+tests/test_mail_handler.py:47
+  /testbed/tests/test_mail_handler.py:47: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler', data)
+
+tests/test_mail_handler.py:75
+  /testbed/tests/test_mail_handler.py:75: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', body)
+
+tests/test_mail_handler.py:76
+  /testbed/tests/test_mail_handler.py:76: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, body)
+
+tests/test_mail_handler.py:77
+  /testbed/tests/test_mail_handler.py:77: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler_batching', body)
+
+tests/test_mail_handler.py:81
+  /testbed/tests/test_mail_handler.py:81: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:82
+  /testbed/tests/test_mail_handler.py:82: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+tests/test_mail_handler.py:105
+  /testbed/tests/test_mail_handler.py:105: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+' + __name__, body)
+
+tests/test_mail_handler.py:106
+  /testbed/tests/test_mail_handler.py:106: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_group_handler_mail_combo', body)
+
+tests/test_mail_handler.py:110
+  /testbed/tests/test_mail_handler.py:110: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:111
+  /testbed/tests/test_mail_handler.py:111: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_mail_handler.py::test_mail_handler_arguments - AssertionErr...
+======================== 1 failed, 12 warnings in 0.05s ========================
+echo OMNIGRIL_EXIT_CODE=1

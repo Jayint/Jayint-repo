@@ -1,4 +1,5 @@
 import os
+import re
 import argparse
 import subprocess
 import shutil
@@ -12,19 +13,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class DockerAgent:
-    def __init__(self, repo_url, base_image="python:3.10", model="gpt-5", workplace="workplace"):
+    def __init__(self, repo_url, base_image="python:3.9", model="gpt-5", workplace="workplace"):
         self.repo_url = repo_url
         self.workplace = os.path.abspath(workplace)
         
         # 1. Prepare local workplace and clone repo
         self._prepare_workplace()
         
-        # 2. Setup Sandbox with volume mounting
+        # 2. Auto-detect base image from project files if not explicitly overridden
+        if base_image.startswith("python:"):
+            detected = self._detect_python_image()
+            if detected:
+                print(f"[Auto-detect] Using base image: {detected} (from project files)")
+                base_image = detected
+        
+        # 3. Setup Sandbox with volume mounting
         # Mapping local workplace to /app in container
         volumes = {self.workplace: {'bind': '/app', 'mode': 'rw'}}
         self.sandbox = Sandbox(base_image=base_image, workdir="/app", volumes=volumes)
         
-        # 3. Initialize LLM client
+        # 4. Initialize LLM client
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
         if not api_key:
@@ -36,6 +44,119 @@ class DockerAgent:
         )
         self.planner = Planner(self.client, model=model)
         self.synthesizer = Synthesizer(base_image=base_image)
+
+    def _detect_python_image(self):
+        """
+        Scan project files to determine the required Python version.
+        Returns a docker image tag like 'python:3.9', or None if undetermined.
+        Priority: .python-version > pyproject.toml > setup.cfg > setup.py > CI configs > tox.ini
+        """
+        wp = self.workplace
+
+        def _usable(ver_str):
+            """Only accept Python 3.6+; discard Python 2.x or very old 3.x"""
+            try:
+                parts = ver_str.split('.')
+                major, minor = int(parts[0]), int(parts[1])
+                return major == 3 and minor >= 6
+            except Exception:
+                return False
+
+        def _parse_version_spec(spec):
+            """Extract a concrete version from a specifier like '>=3.8,<3.11' or '==3.9.*'"""
+            spec = spec.strip().replace(' ', '')
+            # exact: ==3.9 or ==3.9.*
+            m = re.search(r'==\s*(\d+\.\d+)', spec)
+            if m and _usable(m.group(1)):
+                return m.group(1)
+            # lower-bound: >=3.x
+            m = re.search(r'>=\s*(\d+\.\d+)', spec)
+            if m and _usable(m.group(1)):
+                return m.group(1)
+            # ~=3.x
+            m = re.search(r'~=\s*(\d+\.\d+)', spec)
+            if m and _usable(m.group(1)):
+                return m.group(1)
+            return None
+
+        # 1. .python-version (e.g. "3.9.7" or "3.9")
+        pv_file = os.path.join(wp, ".python-version")
+        if os.path.exists(pv_file):
+            with open(pv_file) as f:
+                ver = f.read().strip().split('\n')[0]
+            m = re.match(r'(\d+\.\d+)', ver)
+            if m and _usable(m.group(1)):
+                return f"python:{m.group(1)}"
+
+        # 2. pyproject.toml  requires-python
+        pp = os.path.join(wp, "pyproject.toml")
+        if os.path.exists(pp):
+            with open(pp) as f:
+                content = f.read()
+            m = re.search(r'requires-python\s*=\s*["\']([^"\']+)["\']', content)
+            if m:
+                ver = _parse_version_spec(m.group(1))
+                if ver:
+                    return f"python:{ver}"
+
+        # 3. setup.cfg  python_requires
+        sc = os.path.join(wp, "setup.cfg")
+        if os.path.exists(sc):
+            with open(sc) as f:
+                content = f.read()
+            m = re.search(r'python_requires\s*=\s*(.+)', content)
+            if m:
+                ver = _parse_version_spec(m.group(1))
+                if ver:
+                    return f"python:{ver}"
+
+        # 4. setup.py  python_requires
+        sp = os.path.join(wp, "setup.py")
+        if os.path.exists(sp):
+            with open(sp) as f:
+                content = f.read()
+            m = re.search(r'python_requires\s*=\s*["\']([^"\']+)["\']', content)
+            if m:
+                ver = _parse_version_spec(m.group(1))
+                if ver:
+                    return f"python:{ver}"
+
+        # 5. GitHub Actions workflow files
+        actions_dir = os.path.join(wp, ".github", "workflows")
+        if os.path.isdir(actions_dir):
+            for fname in os.listdir(actions_dir):
+                if not fname.endswith(('.yml', '.yaml')):
+                    continue
+                with open(os.path.join(actions_dir, fname)) as f:
+                    content = f.read()
+                # python-version: "3.x" or ["3.x", ...]
+                versions = re.findall(r'python-version["\s:]+["\[]*(3\.\d+)', content)
+                usable = [v for v in versions if _usable(v)]
+                if usable:
+                    return f"python:{sorted(usable)[0]}"  # lowest usable
+
+        # 6. .travis.yml
+        travis = os.path.join(wp, ".travis.yml")
+        if os.path.exists(travis):
+            with open(travis) as f:
+                content = f.read()
+            versions = re.findall(r'["\s-]+(3\.\d+)["\s]', content)
+            usable = [v for v in versions if _usable(v)]
+            if usable:
+                return f"python:{sorted(usable)[0]}"
+
+        # 7. tox.ini  envlist (pyXY style, Python 3.6+)
+        tox = os.path.join(wp, "tox.ini")
+        if os.path.exists(tox):
+            with open(tox) as f:
+                content = f.read()
+            versions = [(int(a), int(b)) for a, b in re.findall(r'py(\d)(\d+)', content)
+                        if int(a) == 3 and int(b) >= 6]
+            if versions:
+                major, minor = sorted(versions)[0]
+                return f"python:{major}.{minor}"
+
+        return None
 
     def _prepare_workplace(self):
         """Clones the repository to the local workplace directory."""
@@ -113,7 +234,9 @@ class DockerAgent:
             # 4. Final Output - 只有配置成功才生成文档
             if configuration_success:
                 print(f"\n{'='*20} Environment Configuration Complete {'='*20}")
-                self.synthesizer.generate_dockerfile()
+                # 生成 Dockerfile 到 workplace 目录
+                dockerfile_path = os.path.join(self.workplace, "Dockerfile")
+                self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
                 self.synthesizer.generate_quickstart_with_llm(self.workplace, self.client, model=self.planner.model)
             else:
                 print(f"\n{'='*20} Environment Configuration FAILED {'='*20}")

@@ -40,6 +40,30 @@ python agent.py <GITHUB_REPO_URL>
 python agent.py https://github.com/psf/requests
 ```
 
+## Multi-Docker-Eval 评估
+
+本项目已适配 **Multi-Docker-Eval** benchmark，可用于评估自动化环境配置能力。
+
+### 快速开始
+
+```bash
+# 1. 运行适配测试
+./verify_multi_docker_eval.sh
+
+# 2. 处理 Multi-Docker-Eval 数据集
+python multi_docker_eval_adapter.py \
+    path/to/Multi-Docker-Eval/task.jsonl \
+    --output-dir ./eval_results \
+    --model gpt-4o
+```
+
+详细文档见 [`doc/MULTI_DOCKER_EVAL.md`](doc/MULTI_DOCKER_EVAL.md)
+
+**相关资源**:
+- [Multi-Docker-Eval 论文](https://arxiv.org/abs/2512.06915)
+- [Multi-Docker-Eval GitHub](https://github.com/Z2sJ4t/Multi-Docker-Eval)
+- [数据集](https://huggingface.co/datasets/litble/Multi-Docker-Eval)
+
 ## 注意事项
 
 - 运行此 Agent 需要本地已安装并运行 Docker Engine。

@@ -8,11 +8,21 @@ class Synthesizer:
 
     def record_success(self, command):
         """Records a successful bash command as a RUN instruction."""
+        # 跳过测试命令，避免在 Dockerfile 构建时运行测试
+        if self._is_test_command(command):
+            return
+        
         self.instructions.append(f"RUN {command}")
         
         # 同时记录用于 QuickStart 的原始指令
         if self._is_setup_command(command):
             self.setup_commands.append(command)
+    
+    def _is_test_command(self, command):
+        """判断指令是否是测试命令（不应加入 Dockerfile）"""
+        test_keywords = ['pytest', 'py.test', 'unittest', 'test', 'tox', 'nose']
+        cmd_lower = command.strip().lower()
+        return any(kw in cmd_lower for kw in test_keywords)
     
     def record_api_key_hint(self, key_name, detection_context=""):
         """记录检测到的 API Key 需求"""
