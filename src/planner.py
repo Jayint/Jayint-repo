@@ -1,11 +1,14 @@
 import re
+from typing import Optional
+from src.language_handlers import LanguageHandler
 
 class Planner:
-    def __init__(self, client, model="gpt-4o"):
+    def __init__(self, client, model="gpt-4o", language_handler: Optional[LanguageHandler] = None):
         self.client = client
         self.model = model
         self.history = []
         self.total_cost = 0.0  # 累计成本
+        self.language_handler = language_handler
         
         # 2026年2月官方价格 (美元/1M tokens)
         self.pricing = {
@@ -40,10 +43,16 @@ class Planner:
             "o4-mini": {"input": 1.10, "output": 4.40},
         }
         
+        # Build system prompt with language-specific instructions if available
+        language_instructions = ""
+        if self.language_handler:
+            language_instructions = self.language_handler.get_setup_instructions() + "\n"
+        
         self.system_prompt = (
             "You are an expert environment configuration agent. Your task is to set up a Docker "
             "environment for a given GitHub repository so that its code can run successfully.\n"
             "Current State: The repository has already been cloned and mounted into the working directory .\n\n"
+            + language_instructions +
             "Use the following ReAct format:\n"
             "Thought: <your reasoning>\n"
             "Action: <bash command to execute>\n"
@@ -53,14 +62,14 @@ class Planner:
             "2. **Read README**: After setup, read `README.md` to find 'QuickStart' or startup instructions.\n"
             "3. **Verification**:\n"
             "   - If 'QuickStart' instructions are found, execute them to verify the environment.\n"
-            "   - If no 'QuickStart' is found, analyze entry points (like `main.py`, `app.py`, etc.) and attempt to start the project for verification.\n"
+            "   - If no 'QuickStart' is found, analyze entry points (like main.py, app.py, index.js, main.go, src/main.rs, etc.) and attempt to start the project for verification.\n"
             "   - **Secret/API_KEY Handling**: If verification fails due to missing API_KEYs or other secrets (which you cannot provide), identify exactly which keys are needed and how they should be configured.\n"
             "4. **Finalize**: Only output 'Final Answer: Success' after the environment is configured and verified (as much as possible).\n\n"
             "CRITICAL CONSTRAINTS (Environment Limitations):\n"
             "- You are running INSIDE a Docker container, NOT on a host machine.\n"
             "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `service`, `dockerd`, `sudo`\n"
-            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers (pip, apt, npm, etc.).\n"
-            "- Use ONLY: package managers (pip/uv/apt/yum/npm/etc.), language runtimes (python/node/etc.), and the project's own entry points.\n\n"
+            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers (pip, apt, npm, cargo, go, mvn, gem, etc.).\n"
+            "- Use ONLY: package managers (pip/uv/apt/yum/npm/yarn/cargo/go/mvn/gradle/gem/bundle/etc.), language runtimes (python/node/go/rust/java/ruby/etc.), and the project's own entry points.\n\n"
             "IMPORTANT:\n"
             "- Only output ONE Thought and ONE Action at a time.\n"
             "- Stop immediately after the Action."

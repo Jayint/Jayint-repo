@@ -1,0 +1,16 @@
+{
+  "instance_id": "rigetti__pyquil-177",
+  "repo_url": "https://github.com/rigetti/pyquil.git",
+  "language": "python",
+  "dockerfile": "FROM python:3.10\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/rigetti/pyquil.git /testbed\nRUN cd /testbed && git checkout e10881922b799ab015f750d07156f03b2bca7046\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat requirements.txt\nRUN cat setup.py\nRUN pip install -e .\nRUN cat README.md\nRUN python -c \"import pyquil; print('pyQuil version:', pyquil.__version__)\"\nRUN python -c \"import pyquil.quil as pq; from pyquil.gates import *; p = pq.Program(H(0), CNOT(0,1)); print('Program created successfully:', p)\"\nRUN echo \"Environment setup complete and verified\"\nRUN pip install pytest",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\npython -m pytest -v\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "build_success": true,
+  "test_success": false,
+  "logs": {
+    "agent_steps": [],
+    "error": null
+  },
+  "setup_scripts": {
+    "test.patch": "diff --git a/pyquil/tests/test_quil.py b/pyquil/tests/test_quil.py\n--- a/pyquil/tests/test_quil.py\n+++ b/pyquil/tests/test_quil.py\n@@ -520,11 +520,11 @@ def test_kraus():\n \n     ret = pq.out()\n     assert ret == \"\"\"X 0\n-PRAGMA ADD-KRAUS 0 \"(0.0+0.0i 1.0+0.0i 1.0+0.0i 0.0+0.0i)\"\n-PRAGMA ADD-KRAUS 0 \"(0.0+0.0i 0.0+0.0i 0.0+0.0i 0.0+0.0i)\"\n+PRAGMA ADD-KRAUS X 0 \"(0.0+0.0i 1.0+0.0i 1.0+0.0i 0.0+0.0i)\"\n+PRAGMA ADD-KRAUS X 0 \"(0.0+0.0i 0.0+0.0i 0.0+0.0i 0.0+0.0i)\"\n X 1\n-PRAGMA ADD-KRAUS 1 \"(0.0+0.0i 1.0+0.0i 1.0+0.0i 0.0+0.0i)\"\n-PRAGMA ADD-KRAUS 1 \"(0.0+0.0i 0.0+0.0i 0.0+0.0i 0.0+0.0i)\"\n+PRAGMA ADD-KRAUS X 1 \"(0.0+0.0i 1.0+0.0i 1.0+0.0i 0.0+0.0i)\"\n+PRAGMA ADD-KRAUS X 1 \"(0.0+0.0i 0.0+0.0i 0.0+0.0i 0.0+0.0i)\"\n \"\"\"\n     # test error due to bad normalization\n     with pytest.raises(ValueError):\n"
+  }
+}

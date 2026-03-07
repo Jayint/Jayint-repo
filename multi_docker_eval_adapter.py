@@ -101,7 +101,7 @@ class MultiDockerEvalAdapter:
             print(f"[Step 1/4] Running DockerAgent for environment configuration...")
             agent = DockerAgent(
                 repo_url=repo_url,
-                base_image=self._select_base_image(language, base_image),
+                base_image="auto",  # Use LLM-based 4-step image selection
                 model=model,
                 workplace=workplace
             )
@@ -134,16 +134,19 @@ class MultiDockerEvalAdapter:
                     f"RUN git clone {repo_url} /testbed\n"
                     f"RUN cd /testbed && git checkout {base_commit}"
                 )
-                # 确保测试工具已安装（eval_script 需要 pytest）
-                test_deps = "RUN pip install pytest"
+                # 确保测试工具已安装（仅 Python 项目需要 pytest）
+                test_deps = ""
+                if language.lower() == "python":
+                    test_deps = "RUN pip install pytest"
+                
                 lines = dockerfile_content.split('\n')
                 new_lines = []
                 for i, line in enumerate(lines):
                     new_lines.append(line)
                     if line.startswith('WORKDIR') and i > 0:
                         new_lines.append(git_commands)
-                # 在 Dockerfile 末尾添加测试依赖安装（如果还没有的话）
-                if 'pytest' not in dockerfile_content:
+                # 在 Dockerfile 末尾添加测试依赖安装（仅 Python 且还没有 pytest）
+                if test_deps and 'pytest' not in dockerfile_content:
                     new_lines.append(test_deps)
                 result["dockerfile"] = '\n'.join(new_lines)
                 result["build_success"] = True
@@ -187,20 +190,8 @@ class MultiDockerEvalAdapter:
         return result
     
     def _select_base_image(self, language: str, default: str) -> str:
-        """根据编程语言选择合适的基础镜像（Python 版本由 DockerAgent 自动检测）"""
-        image_map = {
-            "python": "python:3.9",  # fallback; DockerAgent will auto-detect actual version
-            "javascript": "node:18",
-            "typescript": "node:18",
-            "java": "openjdk:17",
-            "go": "golang:1.21",
-            "rust": "rust:1.75",
-            "ruby": "ruby:3.2",
-            "php": "php:8.2",
-            "cpp": "gcc:13",
-            "c": "gcc:13"
-        }
-        return image_map.get(language.lower(), default)
+        """已废弃：镜像选择由 DockerAgent auto 模式（四步 LLM 流程）接管"""
+        return "auto"
     
     def _checkout_commit(self, workplace: str, commit: str):
         """切换到指定的 git commit"""
@@ -215,7 +206,7 @@ class MultiDockerEvalAdapter:
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
     
-    def _parse_test_patch(self, test_patch: str) -> Dict[str, Any]:
+    def _parse_test_patch(self, test_patch: str, language: str = "python") -> Dict[str, Any]:
         """从 test_patch diff 中提取测试文件路径和新增的测试函数名"""
         test_files = []
         new_test_funcs = []  # (file, func_name)
@@ -228,10 +219,34 @@ class MultiDockerEvalAdapter:
                 current_file = m.group(1)
                 if current_file not in test_files:
                     test_files.append(current_file)
-            # 提取新增的测试函数
-            m = re.match(r'^\+def (test_\w+)', line)
-            if m and current_file:
-                new_test_funcs.append((current_file, m.group(1)))
+            
+            # 根据语言提取测试函数
+            if language.lower() == "python":
+                # Python: def test_xxx(
+                m = re.match(r'^\+def (test_\w+)', line)
+                if m and current_file:
+                    new_test_funcs.append((current_file, m.group(1)))
+            elif language.lower() in ("javascript", "typescript"):
+                # JS/TS: test('xxx' or it('xxx' or describe('xxx'
+                m = re.match(r"^\+\s*(?:test|it|describe)\(['\"]([^'\"]+)", line)
+                if m and current_file:
+                    new_test_funcs.append((current_file, m.group(1)))
+            elif language.lower() == "go":
+                # Go: func TestXxx(
+                m = re.match(r'^\+func (Test\w+)\(', line)
+                if m and current_file:
+                    new_test_funcs.append((current_file, m.group(1)))
+            elif language.lower() == "rust":
+                # Rust: #[test] fn test_xxx(
+                m = re.match(r'^\+fn (\w+)\(', line)
+                if m and current_file:
+                    new_test_funcs.append((current_file, m.group(1)))
+            elif language.lower() == "java":
+                # Java: @Test public void testXxx(
+                m = re.match(r'^\+\s*public void (\w+)\(', line)
+                if m and current_file:
+                    new_test_funcs.append((current_file, m.group(1)))
+            # C/C++ 没有标准测试函数格式，通常通过 Makefile 运行
 
         return {"test_files": test_files, "new_test_funcs": new_test_funcs}
 
@@ -245,7 +260,7 @@ class MultiDockerEvalAdapter:
             (eval_script, setup_scripts, updated_dockerfile)
         """
         workplace_path = Path(workplace)
-        patch_info = self._parse_test_patch(test_patch) if test_patch else {}
+        patch_info = self._parse_test_patch(test_patch, language) if test_patch else {}
         new_test_funcs = patch_info.get("new_test_funcs", [])
 
         # 基于语言的默认测试命令
@@ -263,6 +278,9 @@ class MultiDockerEvalAdapter:
             base_command = "bundle exec rspec"
         elif language.lower() == "php":
             base_command = "vendor/bin/phpunit"
+        elif language.lower() in ("c", "c++", "cpp"):
+            # C/C++ projects often use Makefile for testing
+            base_command = "cd test && make all"
         else:
             base_command = "echo 'No default test command'"
 
@@ -327,7 +345,7 @@ exit $TEST_EXIT_CODE
         print(f"\nResult saved to: {output_file}")
     
     def process_dataset(self, dataset_path: str, 
-                       base_image: str = "python:3.10",
+                       base_image: str = "auto",
                        model: str = "gpt-4o",
                        max_steps: int = 30,
                        limit: Optional[int] = None) -> str:
@@ -408,7 +426,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="gpt-4o",
+        default="qwen3-max-2026-01-23",
         help="LLM model to use"
     )
     parser.add_argument(

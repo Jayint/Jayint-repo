@@ -1,0 +1,16 @@
+{
+  "instance_id": "pinojs__pino-pretty-434",
+  "repo_url": "https://github.com/pinojs/pino-pretty.git",
+  "language": "javascript",
+  "dockerfile": "FROM node:20\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/pinojs/pino-pretty.git /testbed\nRUN cd /testbed && git checkout bf973c749b8516998e8aeab3dac39591db314586\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat package.json\nRUN npm install\nRUN cat Readme.md\nRUN echo '{\"level\":30,\"time\":1522431328992,\"msg\":\"hello world\",\"pid\":42,\"hostname\":\"foo\",\"v\":1}' | npx pino-pretty",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\nnpm test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "build_success": true,
+  "test_success": false,
+  "logs": {
+    "agent_steps": [],
+    "error": null
+  },
+  "setup_scripts": {
+    "test.patch": "diff --git a/test/basic.test.js b/test/basic.test.js\n--- a/test/basic.test.js\n+++ b/test/basic.test.js\n@@ -118,6 +118,70 @@ test('basic prettifier tests', (t) => {\n     log.info('foo')\n   })\n \n+  t.test('can print message key value when its a string', (t) => {\n+    t.plan(1)\n+    const pretty = prettyFactory()\n+    const log = pino({}, new Writable({\n+      write (chunk, enc, cb) {\n+        const formatted = pretty(chunk.toString())\n+        t.equal(\n+          formatted,\n+          `[${formattedEpoch}] INFO (${pid}): baz\\n`\n+        )\n+        cb()\n+      }\n+    }))\n+    log.info('baz')\n+  })\n+\n+  t.test('can print message key value when its a number', (t) => {\n+    t.plan(1)\n+    const pretty = prettyFactory()\n+    const log = pino({}, new Writable({\n+      write (chunk, enc, cb) {\n+        const formatted = pretty(chunk.toString())\n+        t.equal(\n+          formatted,\n+          `[${formattedEpoch}] INFO (${pid}): 42\\n`\n+        )\n+        cb()\n+      }\n+    }))\n+    log.info(42)\n+  })\n+\n+  t.test('can print message key value when its a Number(0)', (t) => {\n+    t.plan(1)\n+    const pretty = prettyFactory()\n+    const log = pino({}, new Writable({\n+      write (chunk, enc, cb) {\n+        const formatted = pretty(chunk.toString())\n+        t.equal(\n+          formatted,\n+          `[${formattedEpoch}] INFO (${pid}): 0\\n`\n+        )\n+        cb()\n+      }\n+    }))\n+    log.info(0)\n+  })\n+\n+  t.test('can print message key value when its a boolean', (t) => {\n+    t.plan(1)\n+    const pretty = prettyFactory()\n+    const log = pino({}, new Writable({\n+      write (chunk, enc, cb) {\n+        const formatted = pretty(chunk.toString())\n+        t.equal(\n+          formatted,\n+          `[${formattedEpoch}] INFO (${pid}): true\\n`\n+        )\n+        cb()\n+      }\n+    }))\n+    log.info(true)\n+  })\n+\n   t.test('can use different message keys', (t) => {\n     t.plan(1)\n     const pretty = prettyFactory({ messageKey: 'bar' })\n"
+  }
+}

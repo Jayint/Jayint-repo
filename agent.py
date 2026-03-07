@@ -7,32 +7,22 @@ from openai import OpenAI
 from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
+from src.image_selector import select_base_image
 from dotenv import load_dotenv
 
 # Load environment variables (OPENAI_API_KEY, etc.)
-load_dotenv()
+# override=True ensures .env values take precedence over system env vars
+load_dotenv(override=True)
 
 class DockerAgent:
-    def __init__(self, repo_url, base_image="python:3.9", model="gpt-5", workplace="workplace"):
+    def __init__(self, repo_url, base_image="auto", model="qwen3-max-2026-01-23", workplace="workplace"):
         self.repo_url = repo_url
         self.workplace = os.path.abspath(workplace)
         
         # 1. Prepare local workplace and clone repo
         self._prepare_workplace()
         
-        # 2. Auto-detect base image from project files if not explicitly overridden
-        if base_image.startswith("python:"):
-            detected = self._detect_python_image()
-            if detected:
-                print(f"[Auto-detect] Using base image: {detected} (from project files)")
-                base_image = detected
-        
-        # 3. Setup Sandbox with volume mounting
-        # Mapping local workplace to /app in container
-        volumes = {self.workplace: {'bind': '/app', 'mode': 'rw'}}
-        self.sandbox = Sandbox(base_image=base_image, workdir="/app", volumes=volumes)
-        
-        # 4. Initialize LLM client
+        # 2. Initialize LLM client first (needed for image selection)
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
         if not api_key:
@@ -42,7 +32,40 @@ class DockerAgent:
             api_key=api_key,
             base_url=base_url if base_url else None
         )
-        self.planner = Planner(self.client, model=model)
+        
+        # 3. Auto-detect base image if set to "auto" or not specified
+        if base_image == "auto":
+            print("[DockerAgent] Analyzing repository to select optimal base image...")
+            log_dir = os.path.join(self.workplace, "image_selector_logs")
+            selected_image, language_handler, docs = select_base_image(
+                repo_path=self.workplace,
+                client=self.client,
+                model=model,
+                platform="linux",
+                log_dir=log_dir
+            )
+            base_image = selected_image
+            self.language_handler = language_handler
+            self.repo_docs = docs
+            print(f"[DockerAgent] Selected base image: {base_image}")
+            print(f"[DockerAgent] Image selection logs saved to: {log_dir}")
+        else:
+            # Use specified base image with legacy detection for Python
+            if base_image.startswith("python:"):
+                detected = self._detect_python_image()
+                if detected:
+                    print(f"[Auto-detect] Using base image: {detected} (from project files)")
+                    base_image = detected
+            self.language_handler = None
+            self.repo_docs = ""
+        
+        # 4. Setup Sandbox with volume mounting
+        # Mapping local workplace to /app in container
+        volumes = {self.workplace: {'bind': '/app', 'mode': 'rw'}}
+        self.sandbox = Sandbox(base_image=base_image, workdir="/app", volumes=volumes)
+        
+        # 5. Initialize Planner and Synthesizer
+        self.planner = Planner(self.client, model=model, language_handler=self.language_handler)
         self.synthesizer = Synthesizer(base_image=base_image)
 
     def _detect_python_image(self):
@@ -202,9 +225,20 @@ class DockerAgent:
                 if is_finished:
                     print("\n[Finished] Agent has reached a conclusion.")
                     print(raw_llm_output)
-                    # 检查是否是成功结论
+                    # 检查是否是成功结论：LLM声明成功 AND 有实质性构建指令
                     if "Final Answer: Success" in raw_llm_output:
-                        configuration_success = True
+                        effective_instructions = [
+                            instr for instr in self.synthesizer.instructions
+                            if not any(
+                                instr.strip().startswith(f"RUN {noop}")
+                                for noop in ["ls", "cat", "echo", "pwd", "env", "grep", "find", "head", "tail"]
+                            )
+                        ]
+                        if effective_instructions:
+                            configuration_success = True
+                        else:
+                            print("[Warning] Agent claimed success but no effective build instructions were recorded.")
+                            print("[Warning] Dockerfile would be empty/useless. Marking as FAILED.")
                     break
 
                 if thought:
@@ -271,8 +305,8 @@ class DockerAgent:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LLM-based Docker Environment Configuration Agent")
     parser.add_argument("repo_url", help="GitHub repository URL to configure")
-    parser.add_argument("--image", default="python:3.10", help="Base Docker image (default: python:3.10)")
-    parser.add_argument("--model", default="gpt-4o", help="LLM model to use (default: gpt-4o)")
+    parser.add_argument("--image", default="auto", help="Base Docker image (default: auto-detect, or specify like 'python:3.10', 'node:18')")
+    parser.add_argument("--model", default="qwen3-max-2026-01-23", help="LLM model to use (default: qwen3-max-2026-01-23)")
     parser.add_argument("--steps", type=int, default=30, help="Maximum number of steps (default: 30)")
     parser.add_argument("--keep-container", action="store_true", help="Keep container running after completion for inspection")
     

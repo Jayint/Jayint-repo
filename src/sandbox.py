@@ -2,7 +2,7 @@ import docker
 import time
 
 class Sandbox:
-    def __init__(self, base_image="python:3.10", workdir="/app", volumes=None):
+    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None):
         self.client = docker.from_env()
         self.base_image = base_image
         self.workdir = workdir

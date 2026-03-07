@@ -20,7 +20,27 @@ class Synthesizer:
     
     def _is_test_command(self, command):
         """判断指令是否是测试命令（不应加入 Dockerfile）"""
-        test_keywords = ['pytest', 'py.test', 'unittest', 'test', 'tox', 'nose']
+        # 多语言测试框架关键词
+        test_keywords = [
+            # Python
+            'pytest', 'py.test', 'unittest', 'tox', 'nose', 'nosetests',
+            # JavaScript/TypeScript
+            'jest', 'mocha', 'karma', 'vitest', 'cypress',
+            # Rust
+            'cargo test',
+            # Go
+            'go test',
+            # Java
+            'mvn test', 'gradle test', 'gradlew test',
+            # Ruby
+            'rspec', 'ruby test', 'rake test',
+            # PHP
+            'phpunit', 'pest',
+            # C/C++
+            'ctest', 'googletest',
+            # Generic
+            ' test',  # 宽泛匹配
+        ]
         cmd_lower = command.strip().lower()
         return any(kw in cmd_lower for kw in test_keywords)
     
@@ -33,9 +53,27 @@ class Synthesizer:
     def _is_setup_command(self, command):
         """判断指令是否是环境配置相关的（用于 QuickStart）"""
         setup_keywords = [
-            'pip install', 'apt', 'yum', 'npm install', 'yarn add',
-            'git clone', 'wget', 'curl', 'make', 'cmake',
-            'python -m', 'poetry install', 'conda install'
+            # Python
+            'pip install', 'pip3 install', 'poetry install', 'uv pip', 'uv install',
+            'conda install', 'pipenv install',
+            # JavaScript/TypeScript
+            'npm install', 'npm i ', 'yarn add', 'yarn install', 'pnpm install',
+            # Rust
+            'cargo build', 'cargo install',
+            # Go
+            'go mod download', 'go get ', 'go install',
+            # Java
+            'mvn install', 'mvn dependency:resolve', 'gradle build', 'gradlew build',
+            # Ruby
+            'bundle install', 'gem install',
+            # PHP
+            'composer install', 'composer require',
+            # C/C++
+            'make', 'cmake', 'ninja',
+            # Dart
+            'flutter pub get', 'dart pub get',
+            # General
+            'git clone', 'wget', 'curl', 'apt install', 'apt-get install', 'yum install',
         ]
         return any(keyword in command.lower() for keyword in setup_keywords)
 

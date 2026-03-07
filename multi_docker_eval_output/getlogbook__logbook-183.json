@@ -2,7 +2,7 @@
   "instance_id": "getlogbook__logbook-183",
   "repo_url": "https://github.com/getlogbook/logbook.git",
   "language": "python",
-  "dockerfile": "FROM python:3.9\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/getlogbook/logbook.git /testbed\nRUN cd /testbed && git checkout 1d999a784d0d8f5f7423f25c684cc1100843ccc5\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat setup.py\nRUN pip install .\nRUN cat README.md\nRUN pip install pytest",
+  "dockerfile": "FROM python:3.9\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/getlogbook/logbook.git /testbed\nRUN cd /testbed && git checkout 1d999a784d0d8f5f7423f25c684cc1100843ccc5\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat setup.py\nRUN cat README.md\nRUN pip install pytest",
   "eval_script": "#!/bin/bash\n\ncd /testbed\n\npython -m pytest tests/test_mail_handler.py::test_mail_handler_arguments -v\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
   "build_success": true,
   "test_success": false,
