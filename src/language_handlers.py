@@ -450,11 +450,21 @@ class PHPHandler(LanguageHandler):
         return "php"
     
     def base_images(self, platform: str = "linux") -> List[str]:
-        """Return candidate PHP base images."""
+        """Return candidate PHP base images.
+        
+        Strategy: Provide PHP CLI images with version range for LLM to select based on
+        project requirements. The agent will need to install git/zip/unzip if needed.
+        composer images are included as options but not prioritized since they have
+        fixed PHP versions that may not match project requirements.
+        """
         if platform == "linux":
-            return [f"php:{v}-cli" for v in ["7.4", "8.0", "8.1", "8.2", "8.3"]]
+            # PHP CLI 镜像（主要选项）- LLM 根据项目 PHP 版本需求选择
+            php_cli_images = [f"php:{v}-cli" for v in ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]]
+            # composer 镜像作为备选（已包含 git/zip/unzip，但 PHP 版本固定）
+            composer_images = ["composer:2"]
+            return php_cli_images + composer_images
         else:
-            return [f"php:{v}" for v in ["8.1", "8.2", "8.3"]]
+            return [f"php:{v}" for v in ["8.4", "8.3", "8.2", "8.1"]]
     
     def detect_language(self, repo_structure: str, files_content: Dict[str, str]) -> bool:
         """Detect PHP project by composer.json. Distinguish from JS by .php extension."""
@@ -473,6 +483,11 @@ class PHPHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### PHP-Specific Instructions:
+- **PRE-REQUISITE**: Before running `composer install`, ensure the following system tools are available:
+  - `git` - required by composer for source downloads
+  - `zip`/`unzip` - required for extracting packages
+  - If using php-cli image, install with: `apt-get update && apt-get install -y git zip unzip`
+- Check composer.json for PHP version requirement (e.g., `"php": "^8.1"`) and ensure compatibility
 - Use `composer install` to install dependencies from composer.json
 - Use `./vendor/bin/phpunit` to run PHPUnit tests
 - Check phpunit.xml or phpunit.xml.dist for test configuration

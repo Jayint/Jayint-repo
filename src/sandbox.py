@@ -2,11 +2,12 @@ import docker
 import time
 
 class Sandbox:
-    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None):
+    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None, platform=None):
         self.client = docker.from_env()
         self.base_image = base_image
         self.workdir = workdir
         self.volumes = volumes  # Mapping of {local_path: {'bind': container_path, 'mode': 'rw'}}
+        self.platform = platform  # Docker platform (e.g., "linux/amd64" for x86_64 emulation on ARM64)
         self.current_image = base_image
         self.container = None
         self.last_success_image = None  # 记录上一次成功状态的镜像
@@ -15,13 +16,22 @@ class Sandbox:
     def _setup_initial_container(self):
         """Initializes the container from the base image."""
         print(f"Initializing container from {self.current_image}...")
+        if self.platform:
+            print(f"[Platform] Using platform: {self.platform}")
+            # Pull the image with the correct platform if different from cached version
+            try:
+                print(f"[Platform] Pulling {self.current_image} for platform {self.platform}...")
+                self.client.images.pull(self.current_image, platform=self.platform)
+            except Exception as e:
+                print(f"[Platform] Pull failed (may already exist): {e}")
         self.container = self.client.containers.run(
             self.current_image,
             detach=True,
             tty=True,
             working_dir=self.workdir,
             command="/bin/bash",
-            volumes=self.volumes
+            volumes=self.volumes,
+            platform=self.platform
         )
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
@@ -86,7 +96,8 @@ class Sandbox:
                 tty=True,
                 working_dir=self.workdir,
                 command="/bin/bash",
-                volumes=self.volumes
+                volumes=self.volumes,
+                platform=self.platform
             )
             return False, output
     
@@ -114,6 +125,7 @@ class Sandbox:
     def _is_informational_exit(self, exit_code, output):
         """
         判断是否为信息性退出（如显示帮助信息），而非真正的错误。
+        测试命令的失败（如测试未通过）不应被视为信息性退出。
         """
         # Exit code 1-2 通常是参数错误或显示帮助
         if exit_code not in [1, 2]:
@@ -130,7 +142,31 @@ class Sandbox:
             'optional arguments:'
         ]
         
+        # 测试失败的特征（不应被误判为信息性退出）
+        test_failure_indicators = [
+            'failures:',
+            'errors:',
+            'FAILED',
+            'Test failed',
+            'assertion failed',
+            'expected',
+            'actual',
+            'diff:',
+            'Traceback (most recent call last):',
+            'NameError',
+            'ImportError',
+            'ModuleNotFoundError',
+            'LoadError',
+            'Gem::LoadError',
+            'bundler: command not found'
+        ]
+        
         output_lower = output.lower()
+        
+        # 如果包含测试失败特征，则不是信息性退出
+        if any(indicator.lower() in output_lower for indicator in test_failure_indicators):
+            return False
+        
         return any(indicator.lower() in output_lower for indicator in help_indicators)
 
     def get_container_info(self):

@@ -12,11 +12,28 @@ class Synthesizer:
         if self._is_test_command(command):
             return
         
-        self.instructions.append(f"RUN {command}")
+        # 跳过只读/信息查询命令，不影响环境
+        if self._is_readonly_command(command):
+            return
         
-        # 同时记录用于 QuickStart 的原始指令
-        if self._is_setup_command(command):
+        # 去重：跳过已记录的相同命令
+        run_instruction = f"RUN {command}"
+        if run_instruction in self.instructions:
+            return
+        
+        self.instructions.append(run_instruction)
+        
+        # 同时记录用于 QuickStart 的原始指令（也要去重）
+        if self._is_setup_command(command) and command not in self.setup_commands:
             self.setup_commands.append(command)
+    
+    def _is_readonly_command(self, command):
+        """判断指令是否是只读/信息查询命令（不应加入 Dockerfile）"""
+        readonly_first_words = ['ls', 'cat', 'echo', 'pwd', 'env', 'grep', 'find',
+                                'head', 'tail', 'which', 'type', 'file', 'du', 'df',
+                                'ps', 'top', 'hostname', 'whoami', 'date', 'id']
+        first_word = command.strip().split()[0].lower() if command.strip() else ""
+        return first_word in readonly_first_words
     
     def _is_test_command(self, command):
         """判断指令是否是测试命令（不应加入 Dockerfile）"""

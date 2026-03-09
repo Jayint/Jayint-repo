@@ -27,6 +27,8 @@ List the most relevant files for setting up a development environment and select
 0. CI/CD configuration files (.github/workflows, .travis.yml, .circleci/config.yml, appveyor.yml, etc.)
 1. README files and documentation
 2. Dependency configuration files (requirements.txt, package.json, Cargo.toml, go.mod, pom.xml, build.gradle, Gemfile, composer.json, pubspec.yaml, etc.)
+   - IMPORTANT: Include ALL pom.xml/build.gradle files from ALL subdirectories/submodules, not just the root
+   - Test dependencies in submodules may reveal architecture-specific requirements (e.g., embedded-postgres, embedded-mysql)
 3. Version specification files (.python-version, .nvmrc, rust-toolchain, .ruby-version, .tool-versions, etc.)
 4. Dockerfile or docker-compose files (for reference only)
 5. Build configuration files (Makefile, CMakeLists.txt, build.sbt, etc.)
@@ -36,12 +38,14 @@ Only list files that are critical for understanding:
 - Programming language and version requirements
 - System dependencies and external libraries
 - Build and test requirements
+- Test dependencies that may have architecture-specific binaries (embedded databases, native extensions)
 
 Format each file with its relative path (relative to project root) wrapped with tag <file></file>, one per line.
 Example:
 <file>README.md</file>
 <file>requirements.txt</file>
 <file>.github/workflows/ci.yml</file>
+<file>db-scheduler/pom.xml</file>
 """
 
 
@@ -83,6 +87,12 @@ Rules:
 - Do NOT infer language from partial string matches in file names (e.g., a file named "eslint.config.js" does not make the project a C project just because it contains ".c").
 - Base your decision on concrete evidence from the files provided.
 
+CRITICAL RULES FOR MIXED-LANGUAGE PROJECTS:
+- Python projects with Rust extensions (pyo3, setuptools-rust, maturin): These are PYTHON projects, not Rust projects. The Rust code is compiled as a native extension for Python. Look for Python build files (setup.py, pyproject.toml, requirements.txt, tox.ini, noxfile.py) - if present alongside Cargo.toml/pyo3, the PRIMARY language is Python.
+- Python projects with C/C++ extensions: Similarly, these are Python projects with native extensions.
+- Node.js projects with native addons: These are JavaScript/TypeScript projects.
+- The key indicator is: which language's package manager and test runner is the PRIMARY interface? setup.py/pyproject.toml → Python, package.json → JavaScript, Cargo.toml alone → Rust.
+
 Wrap your answer in <lang> tags, e.g.: <lang>typescript</lang>
 Also provide one sentence of evidence: <evidence>Found tsconfig.json and @types/node in package.json devDependencies.</evidence>
 """
@@ -90,6 +100,13 @@ Also provide one sentence of evidence: <evidence>Found tsconfig.json and @types/
 
 # Prompt for selecting base image
 SELECT_BASE_IMAGE_PROMPT = """Based on the following repository information, recommend a suitable base Docker image.
+
+IMPORTANT CONTEXT: This Docker image will be used to set up a DEVELOPMENT/TEST environment, NOT just for running the application. The container MUST be able to:
+- Install all dependencies (including test dependencies)
+- Run the project's test suite successfully
+- Support the full development workflow
+
+Therefore, TEST DEPENDENCIES are just as critical as runtime dependencies for image selection.
 
 ------ BEGIN REPOSITORY FILES ------
 {docs}
@@ -102,15 +119,31 @@ Please recommend a suitable base Docker image. Consider:
 2. Minimum version requirements (e.g., requires-python, engines.node, rust-version in Cargo.toml, java version in pom.xml)
 3. CI/CD configuration that shows which versions are tested
 4. Use the most specific version that satisfies constraints (avoid 'latest' if possible)
-5. IMPORTANT: Do NOT blindly pick the oldest version in the candidate list. Dev dependencies and transitive dependencies may require a newer runtime than the stated minimum. Choose a version that is stable and recent enough to avoid hidden compatibility issues — when in doubt, prefer a newer version over the oldest.
+5. VERSION SELECTION STRATEGY (CRITICAL):
+   - FIRST, check setup.py/pyproject.toml classifiers or requires-python for explicitly declared Python version support
+   - The `Programming Language :: Python :: X.Y` classifiers in setup.py ARE the authoritative version list for that codebase
+   - If classifiers list only up to e.g. 3.5, choose the HIGHEST version from that list (e.g. python:3.5), NOT a newer one
+   - CI/CD config (noxfile.py, tox.ini, .travis.yml) may reflect the CURRENT HEAD's support range, not the base_commit's range — do NOT use CI config to justify choosing a version beyond what setup.py classifiers declare
+   - Only fall back to "prefer newer" when there are NO explicit version declarations at all
    - For Rust: prefer rust:1.75 or newer unless a specific older version is clearly required
-   - For Python: use the version explicitly specified in project files; if unclear, prefer a recent stable version
    - For Node.js: prefer the LTS version (e.g., node:20) unless a lower version is explicitly required
+6. For PHP projects specifically:
+   - php:X.x-cli images are minimal and require installing git/zip/unzip manually for composer
+   - composer:2 image includes git/zip/unzip pre-installed but has a FIXED PHP version (currently 8.5)
+   - Choose composer:2 ONLY if the project has no strict PHP version requirement AND you want the convenience of pre-installed tools
+   - Otherwise, choose a php:X.x-cli image matching the project's PHP requirement
+7. ARCHITECTURE COMPATIBILITY (CRITICAL for test environments):
+   - Java projects using embedded databases (embedded-postgres, embedded-mysql, zonky-pg-embedded, etc.) often lack ARM64 binaries
+   - Native extensions (Rust crates with C bindings, Python packages with C extensions) may have ARM64 issues
+   - TEST DEPENDENCIES with architecture-specific binaries WILL cause test failures on ARM64 hosts (Apple Silicon Macs)
+   - If you see ANY such dependencies in the project (including test scope), you MUST add an <arch_note> tag
+   - Example: <arch_note>This project uses embedded-postgres which lacks ARM64 binaries. Consider using linux/amd64 platform.</arch_note>
 
 Select a base image from the following candidate list:
 {candidate_images}
 Wrap the image name in a block like <image>python:3.9</image> to indicate your choice.
 You MUST select an image from the candidate list above.
+If there are architecture compatibility concerns, wrap them in <arch_note>...</arch_note> tags.
 """
 
 
@@ -217,7 +250,7 @@ class ImageSelector:
         platform: str = "linux",
         language_hint: Optional[str] = None,
         log_dir: Optional[str] = None
-    ) -> Tuple[str, LanguageHandler, str]:
+    ) -> Tuple[str, LanguageHandler, str, Optional[str]]:
         """
         Analyze repository and select optimal base image.
         
@@ -228,7 +261,8 @@ class ImageSelector:
             log_dir: Directory to write LLM call logs (RepoLaunch examples format)
             
         Returns:
-            Tuple of (selected_image, language_handler, docs_content)
+            Tuple of (selected_image, language_handler, docs_content, platform_override)
+            platform_override is "linux/amd64" if ARM64 compatibility issues detected, else None
         """
         if log_dir:
             self._init_log_dir(log_dir)
@@ -274,7 +308,7 @@ class ImageSelector:
         candidate_images = language_handler.base_images(platform)
         
         # Step 8: Use LLM to select base image
-        selected_image = self._llm_select_base_image(
+        selected_image, platform_override = self._llm_select_base_image(
             docs, detected_language, candidate_images
         )
         
@@ -282,7 +316,7 @@ class ImageSelector:
 
         self._write_summary_log(potential_files, relevant_files, detected_language, selected_image, detection_method)
         
-        return selected_image, language_handler, docs
+        return selected_image, language_handler, docs, platform_override
     
     def _generate_repo_structure(self, repo_path: str) -> str:
         """Generate a text representation of repository structure."""
@@ -406,11 +440,30 @@ class ImageSelector:
         
         return content_dict
     
+    # Files that explicitly declare language/version requirements — always show first
+    VERSION_PRIORITY_FILES = [
+        'setup.py', 'setup.cfg', 'pyproject.toml', 'requirements.txt',
+        'package.json', 'Cargo.toml', 'go.mod', 'pom.xml', 'build.gradle',
+        'Gemfile', 'composer.json', 'pubspec.yaml',
+        '.python-version', '.nvmrc', 'rust-toolchain', '.ruby-version',
+        'tox.ini', 'Makefile',
+    ]
+
     def _build_docs_content(self, files_content: Dict[str, str]) -> str:
-        """Build combined docs content from files."""
+        """Build combined docs content from files, version-declaration files first."""
+        # Sort: priority files first (by their rank in VERSION_PRIORITY_FILES), then the rest
+        def sort_key(file_path):
+            basename = os.path.basename(file_path)
+            try:
+                return self.VERSION_PRIORITY_FILES.index(basename)
+            except ValueError:
+                return len(self.VERSION_PRIORITY_FILES)
+
+        sorted_files = sorted(files_content.keys(), key=sort_key)
+
         docs_parts = ["------ BEGIN RELEVANT FILES ------\n"]
-        
-        for file_path, content in files_content.items():
+        for file_path in sorted_files:
+            content = files_content[file_path]
             docs_parts.append(f"File: {file_path}\n```")
             docs_parts.append(content)
             docs_parts.append("```\n")
@@ -423,24 +476,19 @@ class ImageSelector:
         docs: str, 
         language: str, 
         candidate_images: List[str]
-    ) -> str:
-        """Use LLM to select the best base image from candidates."""
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Use LLM to select the best base image from candidates.
+        
+        Returns:
+            Tuple of (selected_image, platform_override)
+            platform_override is "linux/amd64" if ARM64 compatibility issues detected, else None
+        """
         prompt = SELECT_BASE_IMAGE_PROMPT.format(
             docs=docs,
             language=language,
             candidate_images=candidate_images
         )
-        
-        # Truncate if too long
-        if len(prompt) > 12000:
-            # Keep essential parts
-            docs_lines = docs.split('\n')[:200]
-            truncated_docs = '\n'.join(docs_lines)
-            prompt = SELECT_BASE_IMAGE_PROMPT.format(
-                docs=truncated_docs,
-                language=language,
-                candidate_images=candidate_images
-            )
         
         max_retries = 5
         messages = [{"role": "user", "content": prompt}]
@@ -464,7 +512,17 @@ class ImageSelector:
             if match:
                 selected_image = match.group(1).strip()
                 if selected_image in candidate_images:
-                    return selected_image
+                    # Check for architecture note
+                    arch_match = re.search(r'<arch_note>(.*?)</arch_note>', content, re.DOTALL)
+                    platform_override = None
+                    if arch_match:
+                        arch_note = arch_match.group(1).strip()
+                        print(f"[ImageSelector] Architecture note: {arch_note}")
+                        # If ARM64 issues detected, suggest linux/amd64 platform
+                        if 'arm64' in arch_note.lower() or 'amd64' in arch_note.lower():
+                            platform_override = "linux/amd64"
+                            print(f"[ImageSelector] Suggesting platform override: {platform_override}")
+                    return selected_image, platform_override
                 else:
                     # Image not in candidates, ask again
                     messages.append({"role": "assistant", "content": content})
@@ -483,7 +541,7 @@ class ImageSelector:
         
         # Fallback: return first candidate if all retries failed
         print(f"[ImageSelector] Warning: Could not get valid selection, using fallback")
-        return candidate_images[len(candidate_images) // 2]  # Middle option
+        return candidate_images[len(candidate_images) // 2], None  # Middle option
 
 
 # Convenience function for direct usage
@@ -494,12 +552,13 @@ def select_base_image(
     platform: str = "linux",
     language_hint: Optional[str] = None,
     log_dir: Optional[str] = None
-) -> Tuple[str, LanguageHandler, str]:
+) -> Tuple[str, LanguageHandler, str, Optional[str]]:
     """
     Convenience function to select base image without instantiating class.
     
     Returns:
-        Tuple of (selected_image, language_handler, docs_content)
+        Tuple of (selected_image, language_handler, docs_content, platform_override)
+        platform_override is "linux/amd64" if ARM64 compatibility issues detected, else None
     """
     selector = ImageSelector(client, model)
     return selector.select_base_image(repo_path, platform, language_hint, log_dir=log_dir)

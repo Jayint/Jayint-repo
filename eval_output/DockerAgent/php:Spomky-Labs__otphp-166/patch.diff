@@ -1,0 +1,648 @@
+diff --git a/doc/AppConfig.md b/doc/AppConfig.md
+--- a/doc/AppConfig.md
++++ b/doc/AppConfig.md
+@@ -15,7 +15,7 @@ You just have to:
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
+ $totp->setLabel('alice@google.com'); // The label (string)
+ 
+ $totp->getProvisioningUri(); // Will return otpauth://totp/alice%40google.com?secret=JBSWY3DPEHPK3PXP
+@@ -34,7 +34,7 @@ Hereafter two examples using the Google Chart API (this API is deprecated since
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(); // New TOTP
++$totp = TOTP::generate(); // New TOTP
+ $totp->setLabel('alice@google.com'); // The label (string)
+ 
+ $google_chart = $totp->getQrCodeUri('https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl={PROVISIONING_URI}', '{PROVISIONING_URI}');
+@@ -48,7 +48,7 @@ Please note that this URI MUST contain a placeholder for the OTP Provisioning UR
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(); // New TOTP
++$totp = TOTP::generate(); // New TOTP
+ $totp->setLabel('alice@google.com'); // The label (string)
+ 
+ $goqr_me = $totp->getQrCodeUri(
+@@ -74,7 +74,7 @@ Now run the following and compare the output
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
+ $totp->setLabel('alice@google.com'); // The label (string)
+ 
+ echo 'Current OTP: ' . $totp->now();
+@@ -92,13 +92,11 @@ Now run the following and compare the output
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(
+-    'JBSWY3DPEHPK3PXP', // New TOTP with custom secret
+-    10,                 // The period (int)
+-    'sha512',           // The digest algorithm (string)
+-    8                   // The number of digits (int)
+-);
+-$totp->setLabel('alice@google.com'); // The label (string)
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
++$totp->setPeriod(10);                   // The period (int)
++$totp->setDigest('sha512');             // The digest algorithm (string)
++$totp->setDigits(8);                    // The number of digits (int)
++$totp->setLabel('alice@google.com');    // The label (string)
+ 
+ echo 'Current OTP: ' . $totp->now();
+ ```
+diff --git a/doc/Customize.md b/doc/Customize.md
+--- a/doc/Customize.md
++++ b/doc/Customize.md
+@@ -21,7 +21,7 @@ use OTPHP\TOTP;
+ use ParagonIE\ConstantTime\Base32;
+ 
+ $mySecret = trim(Base32::encodeUpper(random_bytes(128)), '='); // We generate our own 1024 bits secret
+-$otp = TOTP::create($mySecret);
++$otp = TOTP::createFromSecret($mySecret);
+ ```
+ 
+ *Please note that the trailing `=` are automatically removed by the library.*
+@@ -35,15 +35,11 @@ By default, the period for a TOTP is 30 seconds and the counter for a HOTP is 0.
+ use OTPHP\TOTP;
+ use OTPHP\HOTP;
+ 
+-$otp = TOTP::create(
+-    null, // Let the secret be defined by the class
+-    10    // The period is now 10 seconds
+-);
++$otp = TOTP::generate();
++$otp->setPeriod(10);    // The period is now 10 seconds
+ 
+-$otp = HOTP::create(
+-    null, // Let the secret be defined by the class
+-    1000  // The counter is now 1000. We recommend you start at `0`, but you can set any value (at least 0)
+-);
++$otp = HOTP::generate();
++$otp->setCounter(1000); // The counter is now 1000. We recommend you start at `0`, but you can set any value (at least 0)
+ ```
+ 
+ ## Digest
+@@ -59,11 +55,9 @@ You must verify that the algorithm you want to use is supported by the applicati
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(
+-    null,       // Let the secret be defined by the class
+-    30,         // The period (30 seconds)
+-    'ripemd160' // The digest algorithm
+-);
++$totp = TOTP::generate();
++$totp->setPeriod(30);           // The period (30 seconds)
++$totp->setDigest('ripemd160');  // The digest algorithm
+ ```
+ 
+ ## Digits
+@@ -75,12 +69,10 @@ You can decide to use more (or less) digits. More than 10 may be difficult to us
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(
+-    null,   // Let the secret be defined by the class
+-    30,     // The period (30 seconds)
+-    'sha1', // The digest algorithm
+-    8       // The output will generate 8 digits
+-);
++$totp = TOTP::generate();
++$totp->setPeriod(30);       // The period (30 seconds)
++$totp->setDigest('sha1');   // The digest algorithm
++$totp->setDigits(8);        // The output will generate 8 digits
+ ```
+ 
+ ## Epoch (TOTP only)
+@@ -100,12 +92,10 @@ example encode the timestamp in the secret to make it different each time.
+ use OTPHP\TOTP;
+ 
+ // Without epoch
+-$otp = TOTP::create(
+-    null, // Let the secret be defined by the class
+-    5,     // The period (5 seconds)
+-    'sha1', // The digest algorithm
+-    6      // The output will generate 6 digits
+-);
++$otp = TOTP::generate();
++$otp->setPeriod(5);         // The period (5 seconds)
++$otp->setDigest('sha1');    // The digest algorithm
++$otp->setDigits(6);         // The output will generate 6 digits
+ 
+ $password = $otp->at(1519401289); // Current period is: 1519401285 - 1519401289
+ 
+@@ -113,13 +103,11 @@ $otp->verify($password, 1519401289); // Second 1: true
+ $otp->verify($password, 1519401290); // Second 2: false
+ 
+ // With epoch
+-$otp = TOTP::create(
+-    null, // Let the secret be defined by the class
+-    5,     // The period (5 seconds)
+-    'sha1', // The digest algorithm
+-    6,      // The output will generate 6 digits
+-    1519401289 // The epoch is now 02/23/2018 @ 3:54:49pm (UTC)
+-);
++$otp = TOTP::generate();
++$otp->setPeriod(5);         // The period (30 seconds)
++$otp->setDigest('sha1');    // The digest algorithm
++$otp->setDigits(6);         // The output will generate 8 digits
++$otp->setEpoch(1519401289); // The epoch is now 02/23/2018 @ 3:54:49pm (UTC)
+ 
+ $password = $otp->at(1519401289);  // Current period is: 1519401289 - 1519401293
+ 
+@@ -140,7 +128,7 @@ These parameters are available in the provisioning URI or from the method `getPa
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create('JBSWY3DPEHPK3PXP'); // New TOTP
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP
+ $totp->setLabel('alice@google.com'); // The label
+ $totp->setParameter('foo', 'bar');
+ 
+@@ -156,7 +144,7 @@ it is useful to set the issuer parameter to identify the service that provided t
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
+ $totp->setLabel('alice@google.com'); // The label (string)
+ $totp->setIssuer('My Service');
+ ```
+@@ -187,7 +175,7 @@ Some applications such as FreeOTP can load images from an URI (`image` parameter
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
++$totp = TOTP::createFromSecret('JBSWY3DPEHPK3PXP'); // New TOTP with custom secret
+ $totp->setLabel('alice@google.com'); // The label (string)
+ $totp->setParameter('image', 'https://foo.bar/otp.png');
+ 
+diff --git a/doc/QA.md b/doc/QA.md
+--- a/doc/QA.md
++++ b/doc/QA.md
+@@ -24,12 +24,10 @@ $digits = 6;
+ $digest = 'sha1';
+ $period = 30;
+ 
+-$totp = TOTP::create(
+-    $user->getOtpSecret(),
+-    $period,
+-    $digest,
+-    $digits
+-);
++$totp = TOTP::createFromSecret($user->getOtpSecret());
++$totp->setPeriod($period);
++$totp->setDigest($digest);
++$totp->setDigits($digits);
+ $totp->setLabel($user->getEmail());
+ 
+ $totp->verify($_POST['otp']);
+@@ -76,7 +74,7 @@ If you try the following code lines, you may see 2 different OTPs.
+ <?php
+ use OTPHP\TOTP;
+ 
+-$totp = TOTP::create(null, 10); // TOTP with an 10 seconds period
++$totp = TOTP::generate(10); // TOTP with an 10 seconds period
+ 
+ for ($i = 0; $i < 10; $i++) {
+     echo 'Current OTP is: '. $totp->now();
+diff --git a/doc/index.md b/doc/index.md
+--- a/doc/index.md
++++ b/doc/index.md
+@@ -42,13 +42,13 @@ use OTPHP\TOTP;
+ 
+ // A random secret will be generated from this.
+ // You should store the secret with the user for verification.
+-$otp = TOTP::create();
++$otp = TOTP::generate();
+ echo "The OTP secret is: {$otp->getSecret()}\n";
+ 
+ // Note: use your own way to load the user secret.
+ // The function "load_user_secret" is simply a placeholder.
+ $secret = load_user_secret();
+-$otp = TOTP::create($secret);
++$otp = TOTP::createFromSecret($secret);
+ echo "The current OTP is: {$otp->now()}\n";
+ ```
+ 
+@@ -74,7 +74,7 @@ echo "<img src='{$grCodeUri}'>";
+ Now that your applications are configured, you can verify the generated OTPs:
+ 
+ ```php
+-$otp = TOTP::create($secret); // create TOTP object from the secret.
++$otp = TOTP::createFromSecret($secret); // create TOTP object from the secret.
+ $otp->verify($input); // Returns true if the input is verified, otherwise false.
+ ```
+ 
+diff --git a/phpstan.neon b/phpstan.neon
+--- a/phpstan.neon
++++ b/phpstan.neon
+@@ -5,6 +5,7 @@ parameters:
+         - tests
+     ignoreErrors:
+         - '#Variable property access on \$this\(OTPHP\\OTP\)\.#'
++        - '#^Method OTPHP\\OTP::generateSecret\(\) should return non-empty-string but returns string\.$#'
+ 
+ includes:
+     - vendor/phpstan/phpstan-strict-rules/rules.neon
+diff --git a/src/Factory.php b/src/Factory.php
+--- a/src/Factory.php
++++ b/src/Factory.php
+@@ -62,12 +62,12 @@ private static function createOTP(Url $parsed_url): OTPInterface
+     {
+         switch ($parsed_url->getHost()) {
+             case 'totp':
+-                $totp = TOTP::create($parsed_url->getSecret());
++                $totp = TOTP::createFromSecret($parsed_url->getSecret());
+                 $totp->setLabel(self::getLabel($parsed_url->getPath()));
+ 
+                 return $totp;
+             case 'hotp':
+-                $hotp = HOTP::create($parsed_url->getSecret());
++                $hotp = HOTP::createFromSecret($parsed_url->getSecret());
+                 $hotp->setLabel(self::getLabel($parsed_url->getPath()));
+ 
+                 return $hotp;
+diff --git a/src/HOTP.php b/src/HOTP.php
+--- a/src/HOTP.php
++++ b/src/HOTP.php
+@@ -12,19 +12,36 @@
+  */
+ final class HOTP extends OTP implements HOTPInterface
+ {
+-    protected function __construct(null|string $secret, int $counter, string $digest, int $digits)
+-    {
+-        parent::__construct($secret, $digest, $digits);
+-        $this->setCounter($counter);
+-    }
+-
+     public static function create(
+         null|string $secret = null,
+-        int $counter = 0,
+-        string $digest = 'sha1',
+-        int $digits = 6
++        int $counter = self::DEFAULT_COUNTER,
++        string $digest = self::DEFAULT_DIGEST,
++        int $digits = self::DEFAULT_DIGITS
+     ): self {
+-        return new self($secret, $counter, $digest, $digits);
++        $htop = $secret !== null
++            ? self::createFromSecret($secret)
++            : self::generate()
++        ;
++        $htop->setCounter($counter);
++        $htop->setDigest($digest);
++        $htop->setDigits($digits);
++
++        return $htop;
++    }
++
++    public static function createFromSecret(string $secret): self
++    {
++        $htop = new self($secret);
++        $htop->setCounter(self::DEFAULT_COUNTER);
++        $htop->setDigest(self::DEFAULT_DIGEST);
++        $htop->setDigits(self::DEFAULT_DIGITS);
++
++        return $htop;
++    }
++
++    public static function generate(): self
++    {
++        return self::createFromSecret(self::generateSecret());
+     }
+ 
+     public function getCounter(): int
+@@ -58,7 +75,7 @@ public function verify(string $otp, null|int $counter = null, null|int $window =
+         return $this->verifyOtpWithWindow($otp, $counter, $window);
+     }
+ 
+-    protected function setCounter(int $counter): void
++    public function setCounter(int $counter): void
+     {
+         $this->setParameter('counter', $counter);
+     }
+diff --git a/src/HOTPInterface.php b/src/HOTPInterface.php
+--- a/src/HOTPInterface.php
++++ b/src/HOTPInterface.php
+@@ -6,15 +6,22 @@
+ 
+ interface HOTPInterface extends OTPInterface
+ {
++    public const DEFAULT_COUNTER = 0;
++
+     /**
+      * The initial counter (a positive integer).
+      */
+     public function getCounter(): int;
+ 
+     /**
+-     * Create a new TOTP object.
++     * Create a new HOTP object.
+      *
+      * If the secret is null, a random 64 bytes secret will be generated.
++     *
++     * @param null|non-empty-string $secret
++     * @param non-empty-string $digest
++     *
++     * @deprecated Deprecated since v11.1, use ::createFromSecret or ::generate instead
+      */
+     public static function create(
+         null|string $secret = null,
+@@ -22,4 +29,6 @@ public static function create(
+         string $digest = 'sha1',
+         int $digits = 6
+     ): self;
++
++    public function setCounter(int $counter): void;
+ }
+diff --git a/src/OTP.php b/src/OTP.php
+--- a/src/OTP.php
++++ b/src/OTP.php
+@@ -17,11 +17,12 @@ abstract class OTP implements OTPInterface
+ {
+     use ParameterTrait;
+ 
+-    protected function __construct(null|string $secret, string $digest, int $digits)
++    /**
++     * @param non-empty-string $secret
++     */
++    protected function __construct(string $secret)
+     {
+         $this->setSecret($secret);
+-        $this->setDigest($digest);
+-        $this->setDigits($digits);
+     }
+ 
+     public function getQrCodeUri(string $uri, string $placeholder): string
+@@ -36,6 +37,14 @@ public function at(int $input): string
+         return $this->generateOTP($input);
+     }
+ 
++    /**
++     * @return non-empty-string
++     */
++    final protected static function generateSecret(): string
++    {
++        return Base32::encodeUpper(random_bytes(64));
++    }
++
+     /**
+      * The OTP at the specified input.
+      */
+diff --git a/src/OTPInterface.php b/src/OTPInterface.php
+--- a/src/OTPInterface.php
++++ b/src/OTPInterface.php
+@@ -6,6 +6,34 @@
+ 
+ interface OTPInterface
+ {
++    public const DEFAULT_DIGITS = 6;
++
++    public const DEFAULT_DIGEST = 'sha1';
++
++    /**
++     * Create a OTP object from an existing secret.
++     *
++     * @param non-empty-string $secret
++     */
++    public static function createFromSecret(string $secret): self;
++
++    /**
++     * Create a new OTP object. A random 64 bytes secret will be generated.
++     */
++    public static function generate(): self;
++
++    /**
++     * @param non-empty-string $secret
++     */
++    public function setSecret(string $secret): void;
++
++    public function setDigits(int $digits): void;
++
++    /**
++     * @param non-empty-string $digest
++     */
++    public function setDigest(string $digest): void;
++
+     /**
+      * @return string Return the OTP at the specified timestamp
+      */
+diff --git a/src/ParameterTrait.php b/src/ParameterTrait.php
+--- a/src/ParameterTrait.php
++++ b/src/ParameterTrait.php
+@@ -9,7 +9,6 @@
+ use InvalidArgumentException;
+ use function is_int;
+ use function is_string;
+-use ParagonIE\ConstantTime\Base32;
+ 
+ trait ParameterTrait
+ {
+@@ -122,6 +121,21 @@ public function setParameter(string $parameter, mixed $value): void
+         }
+     }
+ 
++    public function setSecret(string $secret): void
++    {
++        $this->setParameter('secret', $secret);
++    }
++
++    public function setDigits(int $digits): void
++    {
++        $this->setParameter('digits', $digits);
++    }
++
++    public function setDigest(string $digest): void
++    {
++        $this->setParameter('algorithm', $digest);
++    }
++
+     /**
+      * @return array<string, callable>
+      */
+@@ -136,10 +150,6 @@ protected function getParameterMap(): array
+                 return $value;
+             },
+             'secret' => static function ($value): string {
+-                if ($value === null) {
+-                    $value = Base32::encodeUpper(random_bytes(64));
+-                }
+-
+                 return mb_strtoupper(trim($value, '='));
+             },
+             'algorithm' => static function ($value): string {
+@@ -166,21 +176,6 @@ protected function getParameterMap(): array
+         ];
+     }
+ 
+-    private function setSecret(null|string $secret): void
+-    {
+-        $this->setParameter('secret', $secret);
+-    }
+-
+-    private function setDigits(int $digits): void
+-    {
+-        $this->setParameter('digits', $digits);
+-    }
+-
+-    private function setDigest(string $digest): void
+-    {
+-        $this->setParameter('algorithm', $digest);
+-    }
+-
+     private function hasColon(string $value): bool
+     {
+         $colons = [':', '%3A', '%3a'];
+diff --git a/src/TOTP.php b/src/TOTP.php
+--- a/src/TOTP.php
++++ b/src/TOTP.php
+@@ -12,21 +12,39 @@
+  */
+ final class TOTP extends OTP implements TOTPInterface
+ {
+-    protected function __construct(null|string $secret, int $period, string $digest, int $digits, int $epoch = 0)
+-    {
+-        parent::__construct($secret, $digest, $digits);
+-        $this->setPeriod($period);
+-        $this->setEpoch($epoch);
+-    }
+-
+     public static function create(
+         null|string $secret = null,
+-        int $period = 30,
+-        string $digest = 'sha1',
+-        int $digits = 6,
+-        int $epoch = 0
++        int $period = self::DEFAULT_PERIOD,
++        string $digest = self::DEFAULT_DIGEST,
++        int $digits = self::DEFAULT_DIGITS,
++        int $epoch = self::DEFAULT_EPOCH
+     ): self {
+-        return new self($secret, $period, $digest, $digits, $epoch);
++        $totp = $secret !== null
++            ? self::createFromSecret($secret)
++            : self::generate()
++        ;
++        $totp->setPeriod($period);
++        $totp->setDigest($digest);
++        $totp->setDigits($digits);
++        $totp->setEpoch($epoch);
++
++        return $totp;
++    }
++
++    public static function createFromSecret(string $secret): self
++    {
++        $totp = new self($secret);
++        $totp->setPeriod(self::DEFAULT_PERIOD);
++        $totp->setDigest(self::DEFAULT_DIGEST);
++        $totp->setDigits(self::DEFAULT_DIGITS);
++        $totp->setEpoch(self::DEFAULT_EPOCH);
++
++        return $totp;
++    }
++
++    public static function generate(): self
++    {
++        return self::createFromSecret(self::generateSecret());
+     }
+ 
+     public function getPeriod(): int
+@@ -99,11 +117,16 @@ public function getProvisioningUri(): string
+         return $this->generateURI('totp', $params);
+     }
+ 
+-    protected function setPeriod(int $period): void
++    public function setPeriod(int $period): void
+     {
+         $this->setParameter('period', $period);
+     }
+ 
++    public function setEpoch(int $epoch): void
++    {
++        $this->setParameter('epoch', $epoch);
++    }
++
+     /**
+      * @return array<string, callable>
+      */
+@@ -142,11 +165,6 @@ protected function filterOptions(array &$options): void
+         ksort($options);
+     }
+ 
+-    private function setEpoch(int $epoch): void
+-    {
+-        $this->setParameter('epoch', $epoch);
+-    }
+-
+     private function timecode(int $timestamp): int
+     {
+         return (int) floor(($timestamp - $this->getEpoch()) / $this->getPeriod());
+diff --git a/src/TOTPInterface.php b/src/TOTPInterface.php
+--- a/src/TOTPInterface.php
++++ b/src/TOTPInterface.php
+@@ -6,18 +6,31 @@
+ 
+ interface TOTPInterface extends OTPInterface
+ {
++    public const DEFAULT_PERIOD = 30;
++
++    public const DEFAULT_EPOCH = 0;
++
+     /**
+      * Create a new TOTP object.
+      *
+      * If the secret is null, a random 64 bytes secret will be generated.
++     *
++     * @param null|non-empty-string $secret
++     * @param non-empty-string $digest
++     *
++     * @deprecated Deprecated since v11.1, use ::createFromSecret or ::generate instead
+      */
+     public static function create(
+         null|string $secret = null,
+-        int $period = 30,
+-        string $digest = 'sha1',
+-        int $digits = 6
++        int $period = self::DEFAULT_PERIOD,
++        string $digest = self::DEFAULT_DIGEST,
++        int $digits = self::DEFAULT_DIGITS
+     ): self;
+ 
++    public function setPeriod(int $period): void;
++
++    public function setEpoch(int $epoch): void;
++
+     /**
+      * Return the TOTP at the current time.
+      */
+diff --git a/src/Url.php b/src/Url.php
+--- a/src/Url.php
++++ b/src/Url.php
+@@ -13,6 +13,9 @@
+  */
+ final class Url
+ {
++    /**
++     * @param non-empty-string $secret
++     */
+     public function __construct(
+         private readonly string $scheme,
+         private readonly string $host,
+@@ -38,6 +41,9 @@ public function getPath(): string
+         return $this->path;
+     }
+ 
++    /**
++     * @return non-empty-string
++     */
+     public function getSecret(): string
+     {
+         return $this->secret;

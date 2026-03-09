@@ -2,8 +2,8 @@
   "instance_id": "servo__rust-url-537",
   "repo_url": "https://github.com/servo/rust-url.git",
   "language": "rust",
-  "dockerfile": "FROM rust:1.75\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/servo/rust-url.git /testbed\nRUN cd /testbed && git checkout 622d26020491aa08c5a3c10ace046b2f35274576\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat Cargo.toml\nRUN cat README.md\nRUN ls -la src/\nRUN cargo build",
-  "eval_script": "#!/bin/bash\n\ncd /testbed\n\ncargo test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "dockerfile": "FROM rust:1.82\nWORKDIR /testbed\n\n# Install git for cloning\nRUN apt-get update && apt-get install -y git\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/servo/rust-url.git /testbed\nRUN cd /testbed && git checkout 622d26020491aa08c5a3c10ace046b2f35274576\n\n# Agent's verified setup instructions\nRUN cargo build\n\n\n# Apply test patch and reinstall dependencies\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\ncargo test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
   "build_success": true,
   "test_success": false,
   "logs": {

@@ -86,6 +86,7 @@ class MultiDockerEvalAdapter:
             "eval_script": None,  # 评估框架期望的字段名
             "build_success": False,
             "test_success": False,
+            "platform": None,  # Docker platform override (e.g., linux/amd64 for ARM hosts)
             "logs": {
                 "agent_steps": [],
                 "error": None
@@ -103,54 +104,127 @@ class MultiDockerEvalAdapter:
                 repo_url=repo_url,
                 base_image="auto",  # Use LLM-based 4-step image selection
                 model=model,
-                workplace=workplace
+                workplace=workplace,
+                base_commit=base_commit  # checkout before image selection for accurate LLM analysis
             )
             
-            # 如果指定了 base_commit，先切换到该提交
-            if base_commit:
-                self._checkout_commit(workplace, base_commit)
+            # base_commit 已在 DockerAgent.__init__ 中完成 checkout
+            # 此处无需再次 checkout
             
             # 运行 agent 配置环境
             agent.run(max_steps=max_steps, keep_container=False)
             
-            # 2. 提取 Dockerfile（在 WORKDIR 后插入 git clone + checkout）
+            # 记录 platform override（用于后续评估框架构建镜像时使用正确平台）
+            if hasattr(agent, 'platform_override') and agent.platform_override:
+                result["platform"] = agent.platform_override
+                print(f"[Adapter] Platform override recorded: {agent.platform_override}")
+            
+            # 2. 提取 Dockerfile（复用 Agent 的配置指令）
             print(f"\n[Step 2/4] Extracting Dockerfile...")
             dockerfile_path = Path(workplace) / "Dockerfile"
             if dockerfile_path.exists():
-                dockerfile_content = dockerfile_path.read_text()
-                # 为评估框架插入 git clone + checkout（取代 COPY）
-                # 评估框架在 /testbed 应用 patch，统一使用 /testbed
-                dockerfile_lines = dockerfile_content.split('\n')
-                new_dockerfile_lines = []
-                for dl in dockerfile_lines:
-                    new_dockerfile_lines.append(
-                        dl.replace('WORKDIR /app', 'WORKDIR /testbed')
-                           .replace('/app', '/testbed')
-                    )
-                dockerfile_content = '\n'.join(new_dockerfile_lines)
-
-                git_commands = (
-                    f"RUN apt-get update && apt-get install -y git\n"
-                    f"RUN git clone {repo_url} /testbed\n"
-                    f"RUN cd /testbed && git checkout {base_commit}"
-                )
-                # 确保测试工具已安装（仅 Python 项目需要 pytest）
-                test_deps = ""
-                if language.lower() == "python":
-                    test_deps = "RUN pip install pytest"
+                original_dockerfile = dockerfile_path.read_text()
                 
-                lines = dockerfile_content.split('\n')
-                new_lines = []
-                for i, line in enumerate(lines):
-                    new_lines.append(line)
-                    if line.startswith('WORKDIR') and i > 0:
-                        new_lines.append(git_commands)
-                # 在 Dockerfile 末尾添加测试依赖安装（仅 Python 且还没有 pytest）
-                if test_deps and 'pytest' not in dockerfile_content:
-                    new_lines.append(test_deps)
-                result["dockerfile"] = '\n'.join(new_lines)
-                result["build_success"] = True
-                print("✓ Dockerfile generated successfully (with git clone)")
+                # 从原始 Dockerfile 提取基础镜像和所有 RUN 指令
+                # 注意：RUN 指令可能是多行的（如 RUN python3 -c "..."）
+                base_image_line = None
+                agent_run_instructions = []
+                
+                lines = original_dockerfile.split('\n')
+                i = 0
+                while i < len(lines):
+                    line = lines[i]
+                    if line.startswith('FROM '):
+                        base_image_line = line
+                    elif line.startswith('RUN '):
+                        # 检测是否为多行指令（引号未闭合）
+                        full_instruction = line
+                        # 统计引号数量（排除转义引号）
+                        quote_count = line.count('"') - line.count('\\"')
+                        
+                        # 如果引号数量为奇数，说明引号未闭合，需要继续读取
+                        while quote_count % 2 == 1 and i + 1 < len(lines):
+                            i += 1
+                            next_line = lines[i]
+                            full_instruction += '\n' + next_line
+                            quote_count += next_line.count('"') - next_line.count('\\"')
+                        
+                        agent_run_instructions.append(full_instruction)
+                    i += 1
+                
+                if not base_image_line:
+                    print("✗ No FROM Dockerfile: missing FROM instruction")
+                    result["logs"]["error"] = "Invalid Dockerfile: missing FROM instruction"
+                else:
+                    # 处理多行 RUN 指令：将多行 python3 -c "..." 转为 BuildKit heredoc 格式
+                    # Docker BuildKit 支持: RUN <<'EOF'\npython3 - <<'PYEOF'\n...\nPYEOF\nEOF
+                    processed_instructions = []
+                    script_counter = [0]
+                    
+                    for instr in agent_run_instructions:
+                        if '\n' in instr and instr.startswith('RUN '):
+                            lines = instr.split('\n')
+                            first_line = lines[0]
+                            if 'python3 -c "' in first_line or 'python -c "' in first_line or "python3 -c '" in first_line:
+                                cmd_match = re.match(r'(RUN\s+)(python3?\s+-c\s+)(["\'])(.*)', first_line)
+                                if cmd_match:
+                                    quote = cmd_match.group(3)    # " or '
+                                    first_content = cmd_match.group(4)  # 第一行内容
+                                    
+                                    # 收集所有代码行（去除最后的闭合引号行）
+                                    remaining_lines = lines[1:]
+                                    if remaining_lines and remaining_lines[-1].strip() == quote:
+                                        remaining_lines = remaining_lines[:-1]
+                                    
+                                    # 拼接完整脚本
+                                    script_lines = []
+                                    if first_content:
+                                        script_lines.append(first_content)
+                                    script_lines.extend(remaining_lines)
+                                    script_content = '\n'.join(script_lines)
+                                    
+                                    # 使用 Docker BuildKit heredoc 格式（已验证可行）:
+                                    # RUN <<'SH_EOF'
+                                    # python3 - <<'PYTHON_EOF'
+                                    # <script content>
+                                    # PYTHON_EOF
+                                    # SH_EOF
+                                    script_counter[0] += 1
+                                    processed_instr = f"RUN <<'SH_EOF_{script_counter[0]}'\npython3 - <<'PYTHON_EOF_{script_counter[0]}'\n{script_content}\nPYTHON_EOF_{script_counter[0]}\nSH_EOF_{script_counter[0]}"
+                                    processed_instructions.append(processed_instr)
+                                    continue
+                            # 其他多行指令：用反斜杠续行
+                            escaped_instr = ' \\\n'.join(lines)
+                            processed_instructions.append(escaped_instr)
+                        else:
+                            processed_instructions.append(instr)
+                    
+                    # 构建正确的 Dockerfile：
+                    # 1. 基础镜像
+                    # 2. 安装 git
+                    # 3. git clone + checkout
+                    # 4. Agent 的 RUN 指令（复用已验证的配置）
+                    
+                    # 检测是否有多行 heredoc 指令，需要启用 BuildKit 语法
+                    has_heredoc = any('<<' in instr for instr in processed_instructions)
+                    syntax_directive = "# syntax=docker/dockerfile:1\n" if has_heredoc else ""
+                    
+                    dockerfile_content = f"""{syntax_directive}{base_image_line}
+WORKDIR /testbed
+
+# Install git for cloning
+RUN apt-get update && apt-get install -y git
+
+# Clone repository and checkout base commit
+RUN git clone {repo_url} /testbed
+RUN cd /testbed && git checkout {base_commit}
+
+# Agent's verified setup instructions
+{chr(10).join(processed_instructions) if processed_instructions else '# No additional setup instructions from agent'}
+"""
+                    result["dockerfile"] = dockerfile_content
+                    result["build_success"] = True
+                    print(f"✓ Dockerfile generated with {len(agent_run_instructions)} agent instructions")
             else:
                 print("✗ Dockerfile not found")
                 result["logs"]["error"] = "Dockerfile generation failed"
@@ -275,7 +349,13 @@ class MultiDockerEvalAdapter:
         elif language.lower() == "rust":
             base_command = "cargo test"
         elif language.lower() == "ruby":
-            base_command = "bundle exec rspec"
+            # 根据 test_patch 检测使用 RSpec 还是 Minitest
+            if test_patch and ("RSpec" in test_patch or "RSpec.describe" in test_patch):
+                base_command = "bundle exec rspec"
+            else:
+                # 默认使用 Minitest (rake test)
+                # 使用 BUNDLE_WITHOUT 环境变量跳过 code_quality 组
+                base_command = "BUNDLE_WITHOUT=code_quality bundle exec rake test"
         elif language.lower() == "php":
             base_command = "vendor/bin/phpunit"
         elif language.lower() in ("c", "c++", "cpp"):
@@ -284,10 +364,41 @@ class MultiDockerEvalAdapter:
         else:
             base_command = "echo 'No default test command'"
 
+        # 生成 eval_script，包含依赖检查和重新安装逻辑
+        # 关键：gold_fix patch 可能在运行时被应用，需要检测并重新安装依赖
+        dependency_check = ""
+        if language.lower() == "ruby":
+            dependency_check = """
+# Check if Gemfile was modified by patch and reinstall if needed
+if [ -f Gemfile.lock ]; then
+    BUNDLE_CHECK=$(bundle check 2>&1 || true)
+    if echo "$BUNDLE_CHECK" | grep -q "The following gems are missing"; then
+        echo "Gemfile dependencies changed, reinstalling..."
+        rm -f Gemfile.lock
+        bundle install --without code_quality || bundle install
+    fi
+fi
+"""
+        elif language.lower() == "python":
+            dependency_check = """
+# Check if requirements.txt was modified and reinstall if needed
+if [ -f requirements.txt ]; then
+    pip install -r requirements.txt || true
+fi
+"""
+        elif language.lower() in ("javascript", "typescript"):
+            dependency_check = """
+# Check if package.json was modified and reinstall if needed
+if [ -f package.json ]; then
+    npm install || true
+fi
+"""
+
         eval_script = f"""#!/bin/bash
 
 cd /testbed
 
+{dependency_check}
 {base_command}
 TEST_EXIT_CODE=$?
 
@@ -300,23 +411,72 @@ exit $TEST_EXIT_CODE
         updated_dockerfile = ""
         if test_patch and dockerfile_content:
             setup_scripts["test.patch"] = test_patch
-            # 在 Dockerfile 中找到 git checkout 行后插入 git apply
+            
+            # 检测 test_patch 中使用的测试框架
+            test_framework = self._detect_test_framework(test_patch, language)
+            
+            # 在 Dockerfile 中找到最后一个 RUN 行后插入 test.patch 相关命令
+            # 关键：git apply 后必须重新安装依赖（patch 可能修改了 Gemfile/requirements.txt）
             lines = dockerfile_content.split('\n')
             new_lines = []
-            injected = False
             for line in lines:
                 new_lines.append(line)
-                if not injected and re.search(r'git checkout', line):
-                    new_lines.append("COPY test.patch /tmp/test.patch")
-                    new_lines.append("RUN cd /testbed && git apply /tmp/test.patch || true")
-                    injected = True
+            
+            # 添加 test.patch 处理
+            new_lines.append("")
+            new_lines.append("# Apply test patch and reinstall dependencies")
+            new_lines.append("COPY test.patch /tmp/test.patch")
+            new_lines.append("RUN cd /testbed && git apply /tmp/test.patch || true")
+            
+            # 根据 patch 是否修改了依赖文件，决定是否重新安装
+            if language.lower() == "ruby":
+                # Ruby: patch 可能修改 Gemfile，必须重新 bundle install
+                # 同时安装 mocha（Minitest stub 方法需要）
+                # 注意：mocha 需要 minitest 先加载，所以在 minitest/autorun 后添加 require
+                new_lines.append("RUN gem install mocha minitest-mock && bundle add mocha --group test || true")
+                # 使用 sed 在 minitest/autorun 行后插入 mocha/minitest require
+                new_lines.append("RUN sed -i '/require.*minitest\\/autorun/a require \"mocha/minitest\"' /testbed/test/test_helper.rb || true")
+                # Delete Gemfile.lock to avoid dependency conflicts
+                new_lines.append("RUN rm -f /testbed/Gemfile.lock")
+                new_lines.append("RUN bundle install --without code_quality || bundle install")
+            elif language.lower() == "python":
+                # Python: patch 可能修改 requirements.txt
+                new_lines.append("RUN pip install -r requirements.txt || true")
+            elif language.lower() in ("javascript", "typescript"):
+                # JS/TS: patch 可能修改 package.json
+                new_lines.append("RUN npm install || true")
+            
+            # 添加测试框架依赖安装
+            if test_framework:
+                new_lines.append(f"RUN {test_framework}")
+                print(f"  Installing test framework: {test_framework}")
+            
             updated_dockerfile = '\n'.join(new_lines)
-            if injected:
-                print("✓ test_patch injected into Dockerfile (baked into image)")
-            else:
-                updated_dockerfile = ""  # 未找到合适的注入点，保持原样
+            print("✓ test_patch injected into Dockerfile (baked into image)")
 
         return eval_script, setup_scripts, updated_dockerfile
+    
+    def _detect_test_framework(self, test_patch: str, language: str) -> str:
+        """检测 test_patch 中使用的测试框架，返回安装命令"""
+        if language.lower() == "ruby":
+            # 优先检测 RSpec（通过 RSpec 特有的语法）
+            if "RSpec" in test_patch or "RSpec.describe" in test_patch:
+                # 需要安装 rspec 并添加到 Gemfile，然后执行 bundle install 确保所有依赖安装
+                return "gem install rspec rspec-core && bundle add rspec --group development && bundle install || true"
+            # Minitest 格式（def test_xxx）是 Ruby 默认测试方式，不需要额外安装
+            # 注意：不要误判 describe/it，因为 Minitest 也可能用 minitest/spec 的 describe
+            return ""
+        elif language.lower() == "python":
+            # 检测 pytest vs unittest
+            if "def test_" in test_patch and "import unittest" not in test_patch:
+                return "pip install pytest"
+            return ""
+        elif language.lower() in ("javascript", "typescript"):
+            # 检测 jest vs mocha
+            if "describe(" in test_patch or "it(" in test_patch:
+                return "npm install --save-dev jest"
+            return ""
+        return ""
     
     def _generate_python_test(self, workplace_path: Path, test_patch: str,
                               new_test_funcs: List = None) -> str:

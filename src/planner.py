@@ -1,14 +1,22 @@
 import re
+import os
+import json
 from typing import Optional
 from src.language_handlers import LanguageHandler
 
 class Planner:
-    def __init__(self, client, model="gpt-4o", language_handler: Optional[LanguageHandler] = None):
+    def __init__(self, client, model="gpt-4o", language_handler: Optional[LanguageHandler] = None, repo_structure: str = "", log_dir: str = None):
         self.client = client
         self.model = model
         self.history = []
         self.total_cost = 0.0  # 累计成本
         self.language_handler = language_handler
+        self.log_dir = log_dir
+        self.log_counter = 0
+        
+        # Create log directory if specified
+        if self.log_dir:
+            os.makedirs(self.log_dir, exist_ok=True)
         
         # 2026年2月官方价格 (美元/1M tokens)
         self.pricing = {
@@ -48,10 +56,16 @@ class Planner:
         if self.language_handler:
             language_instructions = self.language_handler.get_setup_instructions() + "\n"
         
+        # Add repository structure if available
+        structure_section = ""
+        if repo_structure:
+            structure_section = f"Repository Structure:\n```\n{repo_structure}\n```\n\n"
+        
         self.system_prompt = (
             "You are an expert environment configuration agent. Your task is to set up a Docker "
             "environment for a given GitHub repository so that its code can run successfully.\n"
             "Current State: The repository has already been cloned and mounted into the working directory .\n\n"
+            + structure_section
             + language_instructions +
             "Use the following ReAct format:\n"
             "Thought: <your reasoning>\n"
@@ -60,11 +74,25 @@ class Planner:
             "Mission Guidelines:\n"
             "1. **Analyze & Setup**: Identify dependency files and install all necessary packages/tools.\n"
             "2. **Read README**: After setup, read `README.md` to find 'QuickStart' or startup instructions.\n"
-            "3. **Verification**:\n"
-            "   - If 'QuickStart' instructions are found, execute them to verify the environment.\n"
-            "   - If no 'QuickStart' is found, analyze entry points (like main.py, app.py, index.js, main.go, src/main.rs, etc.) and attempt to start the project for verification.\n"
-            "   - **Secret/API_KEY Handling**: If verification fails due to missing API_KEYs or other secrets (which you cannot provide), identify exactly which keys are needed and how they should be configured.\n"
-            "4. **Finalize**: Only output 'Final Answer: Success' after the environment is configured and verified (as much as possible).\n\n"
+            "3. **Verification** (MANDATORY - Must pass before claiming Success):\n"
+            "   - After setup, you MUST run the project's tests to verify the environment works correctly.\n"
+            "   - For Ruby projects with gemspec: Run `bundle exec rake` or `bundle exec rspec` or the test command in the project's test files.\n"
+            "   - For Python: Run `pytest` or `python -m pytest`.\n"
+            "   - For Node.js: Run `npm test` or `yarn test`.\n"
+            "   - For PHP: Run `vendor/bin/phpunit` (after composer install).\n"
+            "   - **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
+            "   - **No Excuses Rule**: You are STRICTLY FORBIDDEN from declaring success when tests are failing, regardless of any reasoning such as: 'the project is old', 'it is a compatibility issue', 'I have spent too much time', 'environment constraints prevent running tests', 'other tests pass', or 'I manually verified functionality'. ALL tests must pass. No exceptions.\n"
+            "   - **No Bypassing Tests**: You MUST run the PROJECT'S test command (e.g., `vendor/bin/phpunit`, `pytest`, `npm test`). You are NOT allowed to:\n"
+            "     * Create your own test scripts to verify functionality\n"
+            "     * Use alternative verification methods (e.g., manual PHP scripts, simple load tests)\n"
+            "     * Claim success based on 'core functionality works' without running the actual test suite\n"
+            "   - **Environment Limits Are Not Excuses**: If the environment lacks required tools (e.g., zip, git for composer), you must find a solution (e.g., install them, use alternative base image approach), NOT bypass the tests.\n"
+            "   - **Test Dependency Fix**: If tests fail due to missing test libraries (e.g., Ruby's `stub` method not found), install the required library (e.g., `gem install mocha` or add to Gemfile). DO NOT skip tests with `--exclude`.\n"
+            "   - **Rollback Mechanism**: The system automatically rolls back to the pre-execution state if a command fails. You do not need to manually revert changes; simply continue with the next approach after a failure.\n"
+            "   - **Secret/API_KEY Handling**: Only if tests fail due to missing API_KEYs/secrets (not setup issues), document the required keys and continue.\n"
+            "4. **Finalize**: ONLY output 'Final Answer: Success' when:\n"
+            "   - All dependencies are installed AND\n"
+            "   - The PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets, not setup issues)\n\n"
             "CRITICAL CONSTRAINTS (Environment Limitations):\n"
             "- You are running INSIDE a Docker container, NOT on a host machine.\n"
             "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `service`, `dockerd`, `sudo`\n"
@@ -91,6 +119,9 @@ class Planner:
         # 3. Construct the message list for the API call
         messages = [{"role": "system", "content": self.system_prompt}] + self.history
 
+        # Log the LLM call input if logging is enabled
+        self._log_llm_call("input", messages)
+
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -99,6 +130,16 @@ class Planner:
         )
 
         content = response.choices[0].message.content
+        
+        # Log the LLM call output
+        self._log_llm_call("output", {
+            "content": content,
+            "usage": {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+        })
         
         # 4. Append the assistant's response (Thought and Action) to history
         self.history.append({"role": "assistant", "content": content})
@@ -112,6 +153,41 @@ class Planner:
         is_finished = "Final Answer:" in content
 
         return thought, action, content, is_finished, cost_info
+    
+    def _log_llm_call(self, call_type, data):
+        """Log LLM call input/output to file, similar to image_selector_logs format"""
+        if not self.log_dir:
+            return
+        
+        log_file = os.path.join(self.log_dir, f"{self.log_counter}.md")
+        
+        if call_type == "input":
+            # Format similar to image_selector_logs
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write(f"##### LLM INPUT (setup call #{self.log_counter}) #####\n")
+                f.write("================================ Human Message =================================\n\n")
+                for msg in data:
+                    role = msg.get("role", "unknown")
+                    content = msg.get("content", "")
+                    if role == "system":
+                        f.write(f"[{role.upper()}]\n{content}\n\n")
+                    elif role == "user":
+                        f.write(f"{content}\n\n")
+                    elif role == "assistant":
+                        f.write(f"[{role.upper()}]\n{content}\n\n")
+        else:
+            # Append output to the same file
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write("================================ AI Message =================================\n\n")
+                f.write(f"{data['content']}\n\n")
+                f.write("================================ Metadata =================================\n\n")
+                f.write(f"- Model: {self.model}\n")
+                f.write(f"- Prompt Tokens: {data['usage']['prompt_tokens']}\n")
+                f.write(f"- Completion Tokens: {data['usage']['completion_tokens']}\n")
+                f.write(f"- Total Tokens: {data['usage']['total_tokens']}\n")
+            
+            # Increment counter after completing a full input/output pair
+            self.log_counter += 1
 
     def _calculate_cost(self, usage):
         """计算单次 API 调用的成本"""

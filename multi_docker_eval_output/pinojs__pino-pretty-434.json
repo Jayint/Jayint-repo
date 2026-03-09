@@ -2,10 +2,11 @@
   "instance_id": "pinojs__pino-pretty-434",
   "repo_url": "https://github.com/pinojs/pino-pretty.git",
   "language": "javascript",
-  "dockerfile": "FROM node:20\nWORKDIR /testbed\nRUN apt-get update && apt-get install -y git\nRUN git clone https://github.com/pinojs/pino-pretty.git /testbed\nRUN cd /testbed && git checkout bf973c749b8516998e8aeab3dac39591db314586\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\n\nRUN ls -la\nRUN cat package.json\nRUN npm install\nRUN cat Readme.md\nRUN echo '{\"level\":30,\"time\":1522431328992,\"msg\":\"hello world\",\"pid\":42,\"hostname\":\"foo\",\"v\":1}' | npx pino-pretty",
-  "eval_script": "#!/bin/bash\n\ncd /testbed\n\nnpm test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "dockerfile": "FROM node:18\nWORKDIR /testbed\n\n# Install git for cloning\nRUN apt-get update && apt-get install -y git\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/pinojs/pino-pretty.git /testbed\nRUN cd /testbed && git checkout bf973c749b8516998e8aeab3dac39591db314586\n\n# Agent's verified setup instructions\nRUN npm install\n\n\n# Apply test patch and reinstall dependencies\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true\nRUN npm install || true",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\n# Check if package.json was modified and reinstall if needed\nif [ -f package.json ]; then\n    npm install || true\nfi\n\nnpm test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
   "build_success": true,
   "test_success": false,
+  "platform": null,
   "logs": {
     "agent_steps": [],
     "error": null

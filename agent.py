@@ -15,14 +15,20 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 class DockerAgent:
-    def __init__(self, repo_url, base_image="auto", model="qwen3-max-2026-01-23", workplace="workplace"):
+    def __init__(self, repo_url, base_image="auto", model="qwen3-max-2026-01-23", workplace="workplace", base_commit=None):
         self.repo_url = repo_url
         self.workplace = os.path.abspath(workplace)
         
         # 1. Prepare local workplace and clone repo
         self._prepare_workplace()
         
-        # 2. Initialize LLM client first (needed for image selection)
+        # 2. If base_commit is specified, checkout before image selection
+        # so that LLM analyzes the actual files at base_commit, not the latest HEAD
+        if base_commit:
+            self._checkout_commit(base_commit)
+            print(f"Checked out commit: {base_commit}")
+        
+        # 3. Initialize LLM client first (needed for image selection)
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
         if not api_key:
@@ -33,11 +39,12 @@ class DockerAgent:
             base_url=base_url if base_url else None
         )
         
-        # 3. Auto-detect base image if set to "auto" or not specified
+        # 4. Auto-detect base image if set to "auto" or not specified
+        platform_override = None
         if base_image == "auto":
             print("[DockerAgent] Analyzing repository to select optimal base image...")
             log_dir = os.path.join(self.workplace, "image_selector_logs")
-            selected_image, language_handler, docs = select_base_image(
+            selected_image, language_handler, docs, platform_override = select_base_image(
                 repo_path=self.workplace,
                 client=self.client,
                 model=model,
@@ -48,6 +55,8 @@ class DockerAgent:
             self.language_handler = language_handler
             self.repo_docs = docs
             print(f"[DockerAgent] Selected base image: {base_image}")
+            if platform_override:
+                print(f"[DockerAgent] Platform override: {platform_override} (for ARM64 compatibility)")
             print(f"[DockerAgent] Image selection logs saved to: {log_dir}")
         else:
             # Use specified base image with legacy detection for Python
@@ -59,14 +68,71 @@ class DockerAgent:
             self.language_handler = None
             self.repo_docs = ""
         
-        # 4. Setup Sandbox with volume mounting
+        # 5. Setup Sandbox with volume mounting
         # Mapping local workplace to /app in container
         volumes = {self.workplace: {'bind': '/app', 'mode': 'rw'}}
-        self.sandbox = Sandbox(base_image=base_image, workdir="/app", volumes=volumes)
+        self.sandbox = Sandbox(
+            base_image=base_image, 
+            workdir="/app", 
+            volumes=volumes,
+            platform=platform_override  # Use linux/amd64 if ARM64 issues detected
+        )
+        self.platform_override = platform_override  # Expose for adapter to read
         
-        # 5. Initialize Planner and Synthesizer
-        self.planner = Planner(self.client, model=model, language_handler=self.language_handler)
+        # 6. Initialize Planner and Synthesizer
+        # Load repository structure and relevant config files from image_selector_logs if available
+        repo_structure = ""
+        config_files_content = ""
+        
+        # Load structure.txt
+        structure_file = os.path.join(log_dir, "structure.txt")
+        if os.path.exists(structure_file):
+            try:
+                with open(structure_file, 'r') as f:
+                    repo_structure = f.read()
+                print(f"[DockerAgent] Loaded repository structure from: {structure_file}")
+            except Exception as e:
+                print(f"[DockerAgent] Warning: Could not read structure.txt: {e}")
+        
+        # Load relevant config files from summary.json
+        summary_file = os.path.join(log_dir, "summary.json")
+        if os.path.exists(summary_file):
+            try:
+                with open(summary_file, 'r') as f:
+                    summary = json.load(f)
+                relevant_files = summary.get("relevant_files", [])
+                config_contents = []
+                for rel_file in relevant_files:
+                    file_path = os.path.join(self.workplace, rel_file)
+                    if os.path.exists(file_path) and os.path.getsize(file_path) < 50000:  # Skip files > 50KB
+                        try:
+                            with open(file_path, 'r') as f:
+                                content = f.read()
+                            # Truncate very long files to first 200 lines
+                            lines = content.split('\n')
+                            if len(lines) > 200:
+                                content = '\n'.join(lines[:200]) + f"\n... ({len(lines) - 200} more lines truncated)"
+                            config_contents.append(f"=== {rel_file} ===\n{content}\n")
+                        except Exception as e:
+                            print(f"[DockerAgent] Warning: Could not read {rel_file}: {e}")
+                if config_contents:
+                    config_files_content = "\n".join(config_contents)
+                    print(f"[DockerAgent] Loaded {len(config_contents)} relevant config files")
+            except Exception as e:
+                print(f"[DockerAgent] Warning: Could not read summary.json: {e}")
+        
+        # Combine structure and config files
+        combined_repo_info = repo_structure
+        if config_files_content:
+            combined_repo_info += "\n\n=== Relevant Configuration Files ===\n\n" + config_files_content
+        
+        # Setup log directory for LLM calls (similar to image_selector_logs)
+        setup_log_dir = os.path.join(self.workplace, "setup_logs")
+        os.makedirs(setup_log_dir, exist_ok=True)
+        
+        self.planner = Planner(self.client, model=model, language_handler=self.language_handler, repo_structure=combined_repo_info, log_dir=setup_log_dir)
         self.synthesizer = Synthesizer(base_image=base_image)
+        print(f"[DockerAgent] Setup logs will be saved to: {setup_log_dir}")
 
     def _detect_python_image(self):
         """
@@ -200,6 +266,18 @@ class DockerAgent:
         except subprocess.CalledProcessError as e:
             print(f"Clone failed: {e.stderr.decode()}")
             raise e
+
+    def _checkout_commit(self, commit: str):
+        """Checkout a specific git commit in the workplace directory."""
+        try:
+            subprocess.run(
+                ["git", "checkout", commit],
+                cwd=self.workplace,
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
 
     def run(self, max_steps=30, keep_container=False):
         """Runs the ReAct loop to configure the environment."""
