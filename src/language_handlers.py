@@ -1,6 +1,5 @@
 """
 Language-specific handlers for base image selection and environment setup.
-Inspired by RepoLaunch's language handler architecture.
 Supports: Python, JavaScript, TypeScript, Rust, Go, Java, C#, C, C++, Ruby, PHP, Swift, Kotlin, Scala, R, Julia, Dart, Elixir, Haskell, Lua, Perl, Zig
 """
 from abc import ABC, abstractmethod

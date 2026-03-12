@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import argparse
 import subprocess
 import shutil
@@ -41,9 +42,9 @@ class DockerAgent:
         
         # 4. Auto-detect base image if set to "auto" or not specified
         platform_override = None
+        log_dir = os.path.join(self.workplace, "image_selector_logs")
         if base_image == "auto":
             print("[DockerAgent] Analyzing repository to select optimal base image...")
-            log_dir = os.path.join(self.workplace, "image_selector_logs")
             selected_image, language_handler, docs, platform_override = select_base_image(
                 repo_path=self.workplace,
                 client=self.client,

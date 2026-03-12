@@ -348,10 +348,10 @@ class ImageSelector:
         prompt = LOCATE_FILES_PROMPT.format(structure=repo_structure)
         
         # Truncate if too long
-        if len(prompt) > 8000:
-            lines = repo_structure.split('\n')[:500]
-            truncated_structure = '\n'.join(lines)
-            prompt = LOCATE_FILES_PROMPT.format(structure=truncated_structure)
+        # if len(prompt) > 8000:
+        #     lines = repo_structure.split('\n')[:500]
+        #     truncated_structure = '\n'.join(lines)
+        #     prompt = LOCATE_FILES_PROMPT.format(structure=truncated_structure)
         
         response = self.client.chat.completions.create(
             model=self.model,

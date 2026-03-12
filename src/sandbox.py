@@ -1,3 +1,4 @@
+import re
 import docker
 import time
 
@@ -56,6 +57,9 @@ class Sandbox:
         # 判断是否为"信息性退出"（非真正错误）
         is_informational_exit = self._is_informational_exit(exit_code, output)
         
+        # 检测输出中是否有测试失败信号（用于 Observation 前缀注入）
+        test_fail_prefix = self._get_test_failure_prefix(exit_code, output)
+        
         if exit_code == 0 or is_informational_exit:
             # Success: 保存当前成功状态
             if is_informational_exit:
@@ -99,6 +103,9 @@ class Sandbox:
                 volumes=self.volumes,
                 platform=self.platform
             )
+            # 如果检测到测试失败，在 output 前注入强制提示
+            if test_fail_prefix:
+                output = test_fail_prefix + output
             return False, output
     
     def _should_commit(self, command):
@@ -147,6 +154,8 @@ class Sandbox:
             'failures:',
             'errors:',
             'FAILED',
+            'Failed:',        # run_all / TAP 格式：Failed: 3
+            'not ok',         # TAP 协议失败行
             'Test failed',
             'assertion failed',
             'expected',
@@ -168,6 +177,46 @@ class Sandbox:
             return False
         
         return any(indicator.lower() in output_lower for indicator in help_indicators)
+
+    def _get_test_failure_prefix(self, exit_code, output):
+        """
+        检测命令输出是否包含测试失败信号。
+        若是，返回注入到 Observation 头部的强制警告；否则返回空字符串。
+        目的：阻止 LLM 以"核心功能通过"为由自我合理化，绕过 No Excuses Rule。
+        """
+        if exit_code == 0:
+            return ""
+
+        # TAP 格式失败：run_all 输出的 "Failed: N"
+        tap_fail = re.search(r'Failed:\s+([1-9]\d*)', output)
+        if tap_fail:
+            failed_count = tap_fail.group(1)
+            return (
+                f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
+                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                f"until ALL tests pass. Partial pass ({failed_count} failures) is NOT acceptable. "
+                f"You MUST fix the failing tests.\n\n"
+            )
+
+        # pytest / unittest 格式失败
+        pytest_fail = re.search(r'(\d+) failed', output, re.IGNORECASE)
+        if pytest_fail:
+            failed_count = pytest_fail.group(1)
+            return (
+                f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
+                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                f"until ALL tests pass.\n\n"
+            )
+
+        # 通用 FAILED 关键词
+        if 'FAILED' in output or 'not ok' in output.lower():
+            return (
+                "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
+                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                "until ALL tests pass.\n\n"
+            )
+
+        return ""
 
     def get_container_info(self):
         """返回容器的详细信息，用于调试验证"""

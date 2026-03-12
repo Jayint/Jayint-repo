@@ -82,6 +82,8 @@ class Planner:
             "   - For PHP: Run `vendor/bin/phpunit` (after composer install).\n"
             "   - **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
             "   - **No Excuses Rule**: You are STRICTLY FORBIDDEN from declaring success when tests are failing, regardless of any reasoning such as: 'the project is old', 'it is a compatibility issue', 'I have spent too much time', 'environment constraints prevent running tests', 'other tests pass', or 'I manually verified functionality'. ALL tests must pass. No exceptions.\n"
+            "   - **Partial Pass Is NOT Success**: If the test output shows 'Failed: N' or 'N failed' or any 'not ok' lines, even N=1, you MUST NOT declare success. 400/403 passing is a FAILURE, not a success. Only 0 failures qualifies as success.\n"
+            "   - **[SYSTEM] Warnings Are Binding**: If the Observation starts with '[SYSTEM] ⚠️  TEST FAILURE DETECTED', you are ABSOLUTELY FORBIDDEN from outputting 'Final Answer: Success' in your next response. You must attempt to fix the failing tests.\n"
             "   - **No Bypassing Tests**: You MUST run the PROJECT'S test command (e.g., `vendor/bin/phpunit`, `pytest`, `npm test`). You are NOT allowed to:\n"
             "     * Create your own test scripts to verify functionality\n"
             "     * Use alternative verification methods (e.g., manual PHP scripts, simple load tests)\n"

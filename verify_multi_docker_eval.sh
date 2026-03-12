@@ -84,8 +84,18 @@ if not results:
     print("❌ 结果列表为空")
     exit(1)
 
-result = results[0]
-required_fields = ['instance_id', 'dockerfile', 'test_script', 'build_success']
+# 兼容两种格式：
+# 1) 旧格式：list[dict]
+# 2) 新格式：{instance_id: dict}
+if isinstance(results, dict):
+    result = next(iter(results.values()))
+elif isinstance(results, list):
+    result = results[0]
+else:
+    print(f"❌ 不支持的 docker_res.json 结构: {type(results).__name__}")
+    exit(1)
+
+required_fields = ['instance_id', 'dockerfile', 'eval_script', 'build_success']
 
 for field in required_fields:
     if field not in result:
@@ -97,7 +107,7 @@ print(f"\n输出摘要:")
 print(f"  Instance ID: {result['instance_id']}")
 print(f"  Build Success: {result['build_success']}")
 print(f"  Dockerfile 长度: {len(result.get('dockerfile', '') or '')} 字符")
-print(f"  Test Script 长度: {len(result.get('test_script', '') or '')} 字符")
+print(f"  Eval Script 长度: {len(result.get('eval_script', '') or '')} 字符")
 EOF
 
 # 5. 总结

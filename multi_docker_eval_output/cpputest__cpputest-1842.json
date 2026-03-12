@@ -1,0 +1,17 @@
+{
+  "instance_id": "cpputest__cpputest-1842",
+  "repo_url": "https://github.com/cpputest/cpputest.git",
+  "language": "cpp",
+  "dockerfile": "FROM gcc:14\nWORKDIR /testbed\n\n# Install git for cloning\nRUN apt-get update && apt-get install -y git\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/cpputest/cpputest.git /testbed\nRUN cd /testbed && git checkout ed6176f611f18c5d06fa01c562935a1a8d4c702d\n\n# Agent's verified setup instructions\nRUN apt-get update && apt-get install -y cmake ninja-build build-essential\nRUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17\nRUN cmake --build build --parallel\n\n\n# Apply test patch and reinstall dependencies\nCOPY test.patch /tmp/test.patch\nRUN cd /testbed && git apply /tmp/test.patch || true",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\nctest --test-dir build --output-on-failure\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "build_success": true,
+  "test_success": false,
+  "platform": null,
+  "logs": {
+    "agent_steps": [],
+    "error": null
+  },
+  "setup_scripts": {
+    "test.patch": "diff --git a/tests/AllTests.vcproj b/tests/AllTests.vcproj\n--- a/tests/AllTests.vcproj\n+++ b/tests/AllTests.vcproj\n@@ -136,7 +136,7 @@\n \t\t\t\tWarningLevel=\"3\"\n \t\t\t\tSuppressStartupBanner=\"true\"\n \t\t\t\tDebugInformationFormat=\"4\"\n-\t\t\t\tForcedIncludeFiles=\"CppUTest/MemoryLeakDetectorMallocMacros.h,CppUTest/MemoryLeakDetectorNewMacros.h\"\n+\t\t\t\tForcedIncludeFiles=\"CppUTest/MemoryLeakDetectorForceInclude.h\"\n \t\t\t/>\n \t\t\t<Tool\n \t\t\t\tName=\"VCManagedResourceCompilerTool\"\n"
+  }
+}

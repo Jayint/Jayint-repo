@@ -149,6 +149,12 @@ class MultiDockerEvalAdapter:
                             full_instruction += '\n' + next_line
                             quote_count += next_line.count('"') - next_line.count('\\"')
                         
+                        # 将 Agent sandbox 中的工作目录替换为评估框架要求的 /testbed
+                        # Agent 默认工作目录为 /app，评估框架统一使用 /testbed
+                        full_instruction = full_instruction.replace('/app/', '/testbed/')
+                        full_instruction = full_instruction.replace('cd /app', 'cd /testbed')
+                        full_instruction = full_instruction.replace('"/app"', '"/testbed"')
+                        full_instruction = full_instruction.replace("'/app'", "'/testbed'")
                         agent_run_instructions.append(full_instruction)
                     i += 1
                 
@@ -324,11 +330,79 @@ RUN cd /testbed && git checkout {base_commit}
 
         return {"test_files": test_files, "new_test_funcs": new_test_funcs}
 
+    def _extract_test_command_from_setup_logs(self, workplace: str) -> Optional[str]:
+        """
+        从 setup_logs 中提取 Agent 实际验证成功的测试命令。
+        策略：在含 'Final Answer: Success' 的日志中，提取 Final Answer 之前
+        最后一次出现的测试命令（Agent 最终验证通过所用的那条），而非第一次出现的。
+        """
+        setup_logs_dir = Path(workplace) / "setup_logs"
+        if not setup_logs_dir.exists():
+            return None
+
+        # 按编号排序查找所有 setup log 文件
+        log_files = sorted(setup_logs_dir.glob("*.md"), key=lambda x: int(x.stem))
+
+        # 匹配 Action 行中整条命令（取行内 Action: 后的全部内容，再后处理判断是否为测试命令）
+        # 格式：Action: <cmd>  或  Action: `<cmd>`
+        action_line_pattern = re.compile(
+            r'^Action:\s*`?([^\n`]+?)`?\s*$',
+            re.MULTILINE
+        )
+        # 测试命令关键词：只要命令含这些词之一，就认为是测试命令
+        test_keywords = (
+            'ctest', 'pytest', 'python -m pytest', 'python3 -m pytest',
+            'make test', 'make check', 'npm test', 'bundle exec rake',
+            'bundle exec rspec', 'go test', 'cargo test', 'mvn test',
+            'vendor/bin/phpunit', 'run_all', 'run_tests',
+            '--target test',  # cmake --build build --target test
+        )
+        # 排除纯查看/安装类命令（不是测试命令）
+        exclude_keywords = (
+            'cat ', 'ls ', 'find ', 'echo ', 'apt-get', 'pip install',
+            'gem install', 'npm install', 'make -j',
+        )
+
+        for log_file in reversed(log_files):  # 从最新的开始查找
+            content = log_file.read_text()
+            # 仅处理包含成功验证的日志
+            if "Final Answer: Success" not in content and "100% tests passed" not in content:
+                continue
+
+            # 截取 Final Answer 之前的内容，避免提取到 Final Answer 后面的无关内容
+            success_pos = content.find("Final Answer: Success")
+            if success_pos == -1:
+                success_pos = len(content)
+            content_before_success = content[:success_pos]
+
+            # 找出所有 Action 行，过滤出测试命令，取最后一个（Agent 最终使用的）
+            last_test_cmd = None
+            for m in action_line_pattern.finditer(content_before_success):
+                cmd = m.group(1).strip()
+                cmd_lower = cmd.lower()
+                # 检查是否含测试关键词
+                is_test = any(kw in cmd_lower for kw in test_keywords)
+                # 排除明显的非测试命令
+                is_excluded = any(kw in cmd_lower for kw in exclude_keywords)
+                if is_test and not is_excluded:
+                    last_test_cmd = cmd
+            if last_test_cmd:
+                cmd = last_test_cmd
+                # 清理多余空格
+                cmd = re.sub(r'\s+', ' ', cmd)
+                # 替换 Agent sandbox 路径 /app 为评估框架路径 /testbed
+                cmd = cmd.replace('/app/', '/testbed/')
+                cmd = cmd.replace('cd /app', 'cd /testbed')
+                print(f"  Extracted test command from setup_logs: {cmd}")
+                return cmd
+        return None
+
     def _generate_test_script(self, workplace: str, language: str,
                               problem_statement: str, test_patch: str,
                               dockerfile_content: str = "") -> tuple:
         """
         生成测试脚本，并将 test_patch 注入 Dockerfile。
+        优先从 setup_logs 中提取 Agent 实际验证成功的测试命令。
 
         Returns:
             (eval_script, setup_scripts, updated_dockerfile)
@@ -337,33 +411,91 @@ RUN cd /testbed && git checkout {base_commit}
         patch_info = self._parse_test_patch(test_patch, language) if test_patch else {}
         new_test_funcs = patch_info.get("new_test_funcs", [])
 
-        # 基于语言的默认测试命令
+        # 首先尝试从 setup_logs 中提取实际验证成功的测试命令
+        extracted_command = self._extract_test_command_from_setup_logs(workplace)
+        if extracted_command:
+            base_command = extracted_command
+            print(f"  Using extracted test command: {base_command}")
+        else:
+            # 回退到基于语言的默认测试命令
+            print(f"  No test command found in setup_logs, using default for {language}")
+            base_command = self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)
+
+        # 根据工作目录调整命令路径
+        # 如果命令包含 cd 到子目录，需要处理
+        base_command = self._adjust_test_command_for_testbed(base_command)
+
+        return self._build_eval_script(base_command, language, test_patch, dockerfile_content)
+
+    def _get_default_test_command(self, language: str, workplace_path: Path,
+                                   test_patch: str, new_test_funcs: List) -> str:
+        """获取基于语言的默认测试命令"""
         if language.lower() == "python":
-            base_command = self._generate_python_test(workplace_path, test_patch, new_test_funcs)
+            return self._generate_python_test(workplace_path, test_patch, new_test_funcs)
         elif language.lower() in ("javascript", "typescript"):
-            base_command = "npm test"
+            return "npm test"
         elif language.lower() == "java":
-            base_command = "mvn test"
+            return "mvn test"
         elif language.lower() == "go":
-            base_command = "go test ./..."
+            return "go test ./..."
         elif language.lower() == "rust":
-            base_command = "cargo test"
+            return "cargo test"
         elif language.lower() == "ruby":
             # 根据 test_patch 检测使用 RSpec 还是 Minitest
             if test_patch and ("RSpec" in test_patch or "RSpec.describe" in test_patch):
-                base_command = "bundle exec rspec"
+                return "bundle exec rspec"
             else:
                 # 默认使用 Minitest (rake test)
                 # 使用 BUNDLE_WITHOUT 环境变量跳过 code_quality 组
-                base_command = "BUNDLE_WITHOUT=code_quality bundle exec rake test"
+                return "BUNDLE_WITHOUT=code_quality bundle exec rake test"
         elif language.lower() == "php":
-            base_command = "vendor/bin/phpunit"
+            return "vendor/bin/phpunit"
         elif language.lower() in ("c", "c++", "cpp"):
-            # C/C++ projects often use Makefile for testing
-            base_command = "cd test && make all"
+            # C/C++ 项目可能有多种测试方式，尝试检测
+            return self._detect_cpp_test_command(workplace_path)
         else:
-            base_command = "echo 'No default test command'"
+            return "echo 'No default test command'"
 
+    def _detect_cpp_test_command(self, workplace_path: Path) -> str:
+        """检测 C/C++ 项目的测试命令"""
+        # 检查是否有 cmake 构建目录
+        if (workplace_path / "cmake_build").exists():
+            return "cd cmake_build && ctest --output-on-failure"
+        if (workplace_path / "build").exists():
+            return "cd build && ctest --output-on-failure"
+        # 检查 Makefile
+        if (workplace_path / "Makefile").exists():
+            return "make test"
+        if (workplace_path / "test" / "Makefile").exists():
+            return "cd test && make all"
+        # 默认回退
+        return "cd test && make all"
+
+    def _adjust_test_command_for_testbed(self, command: str) -> str:
+        """
+        调整测试命令，确保在 /testbed 目录下正确执行。
+        处理相对路径问题。
+        """
+        if not command:
+            return command
+
+        # 如果命令以 cd 开头，确保它从 /testbed 开始
+        if command.startswith("cd "):
+            # 已经有 cd，保持不变（假设 Dockerfile 中 WORKDIR 是 /testbed）
+            return command
+
+        # 如果命令是相对路径的可执行文件，确保路径正确
+        # 例如 "./run_tests.sh" -> 保持不变
+        return command
+
+    def _build_eval_script(self, base_command: str, language: str,
+                           test_patch: str, dockerfile_content: str) -> tuple:
+        """
+        构建最终的 eval_script，处理依赖检查和 test_patch 注入。
+
+        Returns:
+            (eval_script, setup_scripts, updated_dockerfile)
+        """
         # 生成 eval_script，包含依赖检查和重新安装逻辑
         # 关键：gold_fix patch 可能在运行时被应用，需要检测并重新安装依赖
         dependency_check = ""
