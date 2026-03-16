@@ -32,7 +32,7 @@ import subprocess
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
 
 
@@ -42,6 +42,7 @@ class MultiDockerEvalAdapter:
     def __init__(self, output_dir: str = "./multi_docker_eval_output"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._last_test_command_source = None
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "python:3.10",
@@ -89,7 +90,9 @@ class MultiDockerEvalAdapter:
             "platform": None,  # Docker platform override (e.g., linux/amd64 for ARM hosts)
             "logs": {
                 "agent_steps": [],
-                "error": None
+                "error": None,
+                "verified_test_command": None,
+                "test_command_source": None,
             }
         }
         
@@ -242,10 +245,13 @@ RUN cd /testbed && git checkout {base_commit}
                 language=language,
                 problem_statement=problem_statement,
                 test_patch=test_patch,
-                dockerfile_content=result.get("dockerfile", "")
+                dockerfile_content=result.get("dockerfile", ""),
+                structured_test_command=getattr(agent, "verified_test_command", None)
             )
             result["eval_script"] = test_script
             result["setup_scripts"] = setup_scripts
+            result["logs"]["verified_test_command"] = getattr(agent, "verified_test_command", None)
+            result["logs"]["test_command_source"] = getattr(self, "_last_test_command_source", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch
             
@@ -397,12 +403,59 @@ RUN cd /testbed && git checkout {base_commit}
                 return cmd
         return None
 
+    def _load_run_summary(self, workplace: str) -> Optional[Dict[str, Any]]:
+        """Load the structured runtime summary emitted by DockerAgent."""
+        summary_file = Path(workplace) / "agent_run_summary.json"
+        if not summary_file.exists():
+            return None
+
+        try:
+            return json.loads(summary_file.read_text())
+        except Exception as e:
+            print(f"  Warning: Failed to read agent_run_summary.json: {e}")
+            return None
+
+    def _extract_structured_test_command(self, workplace: str) -> Tuple[Optional[str], Optional[str]]:
+        """Read the best available structured test command and its source."""
+        summary = self._load_run_summary(workplace)
+        if not summary:
+            return None, None
+
+        command = summary.get("verified_test_command")
+        if command:
+            print(f"  Loaded structured test command: {command}")
+            return command, "runtime_verified_test_command"
+
+        successful_commands = summary.get("successful_test_commands") or []
+        if successful_commands:
+            command = successful_commands[-1]
+            print(f"  Falling back to last successful structured test command: {command}")
+            return command, "runtime_successful_test_commands"
+
+        return None, None
+
+    def _resolve_test_command(self, workplace: str, structured_test_command: Optional[str]) -> Tuple[Optional[str], str]:
+        """Resolve the best available test command and record where it came from."""
+        if structured_test_command:
+            return structured_test_command, "agent_runtime_argument"
+
+        command, source = self._extract_structured_test_command(workplace)
+        if command:
+            return command, source or "runtime_summary"
+
+        command = self._extract_test_command_from_setup_logs(workplace)
+        if command:
+            return command, "legacy_setup_logs"
+
+        return None, "language_default"
+
     def _generate_test_script(self, workplace: str, language: str,
                               problem_statement: str, test_patch: str,
-                              dockerfile_content: str = "") -> tuple:
+                              dockerfile_content: str = "",
+                              structured_test_command: Optional[str] = None) -> tuple:
         """
         生成测试脚本，并将 test_patch 注入 Dockerfile。
-        优先从 setup_logs 中提取 Agent 实际验证成功的测试命令。
+        优先使用 Agent 运行时记录的结构化测试命令，老数据再回退到 setup_logs。
 
         Returns:
             (eval_script, setup_scripts, updated_dockerfile)
@@ -411,14 +464,15 @@ RUN cd /testbed && git checkout {base_commit}
         patch_info = self._parse_test_patch(test_patch, language) if test_patch else {}
         new_test_funcs = patch_info.get("new_test_funcs", [])
 
-        # 首先尝试从 setup_logs 中提取实际验证成功的测试命令
-        extracted_command = self._extract_test_command_from_setup_logs(workplace)
+        # 优先使用运行时结构化记录，旧数据才回退到 setup_logs。
+        extracted_command, command_source = self._resolve_test_command(workplace, structured_test_command)
+        self._last_test_command_source = command_source
         if extracted_command:
             base_command = extracted_command
-            print(f"  Using extracted test command: {base_command}")
+            print(f"  Using test command from {command_source}: {base_command}")
         else:
             # 回退到基于语言的默认测试命令
-            print(f"  No test command found in setup_logs, using default for {language}")
+            print(f"  No structured or legacy test command found, using default for {language}")
             base_command = self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)
 
         # 根据工作目录调整命令路径
@@ -479,13 +533,14 @@ RUN cd /testbed && git checkout {base_commit}
         if not command:
             return command
 
-        # 如果命令以 cd 开头，确保它从 /testbed 开始
+        command = command.replace("/app/", "/testbed/")
+        command = command.replace("cd /app", "cd /testbed")
+
+        # 如果命令以 cd 开头，允许它在 /testbed 或子目录中自行切换。
         if command.startswith("cd "):
-            # 已经有 cd，保持不变（假设 Dockerfile 中 WORKDIR 是 /testbed）
             return command
 
-        # 如果命令是相对路径的可执行文件，确保路径正确
-        # 例如 "./run_tests.sh" -> 保持不变
+        # 相对路径可执行文件保持不变，依赖前面的 `cd /testbed` 作为工作目录。
         return command
 
     def _build_eval_script(self, base_command: str, language: str,
@@ -543,6 +598,7 @@ exit $TEST_EXIT_CODE
         updated_dockerfile = ""
         if test_patch and dockerfile_content:
             setup_scripts["test.patch"] = test_patch
+            setup_scripts["apply_test_patch.sh"] = self._build_test_patch_apply_script()
             
             # 检测 test_patch 中使用的测试框架
             test_framework = self._detect_test_framework(test_patch, language)
@@ -558,7 +614,8 @@ exit $TEST_EXIT_CODE
             new_lines.append("")
             new_lines.append("# Apply test patch and reinstall dependencies")
             new_lines.append("COPY test.patch /tmp/test.patch")
-            new_lines.append("RUN cd /testbed && git apply /tmp/test.patch || true")
+            new_lines.append("COPY apply_test_patch.sh /tmp/apply_test_patch.sh")
+            new_lines.append("RUN chmod +x /tmp/apply_test_patch.sh && /bin/bash /tmp/apply_test_patch.sh")
             
             # 根据 patch 是否修改了依赖文件，决定是否重新安装
             if language.lower() == "ruby":
@@ -587,6 +644,36 @@ exit $TEST_EXIT_CODE
             print("✓ test_patch injected into Dockerfile (baked into image)")
 
         return eval_script, setup_scripts, updated_dockerfile
+
+    def _build_test_patch_apply_script(self) -> str:
+        """Build a strict test patch applicator for the Docker build context."""
+        return """#!/bin/bash
+set -euo pipefail
+
+cd /testbed
+
+echo "[test_patch] validating patch with git apply --check"
+if git apply --check /tmp/test.patch; then
+    echo "[test_patch] git apply --check passed"
+    git apply /tmp/test.patch
+    echo "[test_patch] git apply succeeded"
+    exit 0
+fi
+
+echo "[test_patch] git apply --check failed, trying patch fallback"
+if command -v patch >/dev/null 2>&1; then
+    if patch --batch --fuzz=5 -p1 -i /tmp/test.patch; then
+        echo "[test_patch] patch fallback succeeded"
+        exit 0
+    fi
+    echo "[test_patch] patch fallback failed"
+else
+    echo "[test_patch] patch command is not available for fallback"
+fi
+
+echo "[test_patch] unable to apply /tmp/test.patch"
+exit 1
+"""
     
     def _detect_test_framework(self, test_patch: str, language: str) -> str:
         """检测 test_patch 中使用的测试框架，返回安装命令"""

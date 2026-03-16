@@ -19,6 +19,10 @@ class DockerAgent:
     def __init__(self, repo_url, base_image="auto", model="qwen3-max-2026-01-23", workplace="workplace", base_commit=None):
         self.repo_url = repo_url
         self.workplace = os.path.abspath(workplace)
+        self.successful_test_commands = []
+        self.verified_test_command = None
+        self.test_run_attempts = []
+        self.run_summary_path = os.path.join(self.workplace, "agent_run_summary.json")
         
         # 1. Prepare local workplace and clone repo
         self._prepare_workplace()
@@ -69,14 +73,12 @@ class DockerAgent:
             self.language_handler = None
             self.repo_docs = ""
         
-        # 5. Setup Sandbox with volume mounting
-        # Mapping local workplace to /app in container
-        volumes = {self.workplace: {'bind': '/app', 'mode': 'rw'}}
+        # 5. Setup Sandbox with a copied workspace so rollback restores repo state too.
         self.sandbox = Sandbox(
             base_image=base_image, 
             workdir="/app", 
-            volumes=volumes,
-            platform=platform_override  # Use linux/amd64 if ARM64 issues detected
+            platform=platform_override,  # Use linux/amd64 if ARM64 issues detected
+            seed_dir=self.workplace
         )
         self.platform_override = platform_override  # Expose for adapter to read
         
@@ -285,6 +287,7 @@ class DockerAgent:
         print(f"Starting agent for repository: {self.repo_url}")
         observation = None
         configuration_success = False  # 成功标志位
+        run_error = None
         
         try:
             for step in range(max_steps):
@@ -341,6 +344,7 @@ class DockerAgent:
                 # 3. Synthesize if successful
                 if success:
                     self.synthesizer.record_success(action)
+                    self._record_successful_test_command(action, observation)
                 else:
                     print(f"\n[System] Command failed. Sandbox rolled back to previous state.")
 
@@ -356,9 +360,49 @@ class DockerAgent:
                 print("[Warning] Configuration did not complete successfully. No documentation will be generated.")
             
         except Exception as e:
+            run_error = str(e)
             print(f"An error occurred during execution: {e}")
         finally:
+            self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
+
+    def _record_successful_test_command(self, action, observation):
+        """Track the last successful real test command as structured runtime metadata."""
+        analysis = self.synthesizer.analyze_test_run(action, observation)
+        if not analysis["is_test_command"]:
+            return
+
+        self.test_run_attempts.append({
+            "command": action,
+            "effective": analysis["is_effective_test_run"],
+            "confidence": analysis["confidence"],
+            "reason": analysis["reason"],
+        })
+
+        if not analysis["is_effective_test_run"]:
+            print(f"[Skipped Test Command] {action} ({analysis['reason']}).")
+            return
+
+        self.successful_test_commands.append(action)
+        self.verified_test_command = action
+        print(f"[Recorded Test Command] {action}")
+
+    def _write_run_summary(self, configuration_success, run_error=None):
+        """Persist structured run metadata so the adapter does not need to parse markdown logs."""
+        summary = {
+            "repo_url": self.repo_url,
+            "configuration_success": configuration_success,
+            "verified_test_command": self.verified_test_command,
+            "successful_test_commands": self.successful_test_commands,
+            "test_run_attempts": self.test_run_attempts,
+            "error": run_error,
+        }
+        try:
+            with open(self.run_summary_path, "w", encoding="utf-8") as f:
+                json.dump(summary, f, indent=2, ensure_ascii=False)
+            print(f"[DockerAgent] Run summary saved to: {self.run_summary_path}")
+        except Exception as e:
+            print(f"[DockerAgent] Warning: Could not write run summary: {e}")
 
     def _detect_api_key_issues(self, observation):
         """检测命令输出中是否包含 API Key 相关错误"""

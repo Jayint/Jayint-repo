@@ -64,7 +64,7 @@ class Planner:
         self.system_prompt = (
             "You are an expert environment configuration agent. Your task is to set up a Docker "
             "environment for a given GitHub repository so that its code can run successfully.\n"
-            "Current State: The repository has already been cloned and mounted into the working directory .\n\n"
+            "Current State: The repository has already been cloned and copied into the working directory inside the container.\n\n"
             + structure_section
             + language_instructions +
             "Use the following ReAct format:\n"

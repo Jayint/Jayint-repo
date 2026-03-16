@@ -1,3 +1,6 @@
+import re
+
+
 class Synthesizer:
     def __init__(self, base_image="python:3.10", workdir="/app"):
         self.base_image = base_image
@@ -9,7 +12,7 @@ class Synthesizer:
     def record_success(self, command):
         """Records a successful bash command as a RUN instruction."""
         # 跳过测试命令，避免在 Dockerfile 构建时运行测试
-        if self._is_test_command(command):
+        if self.is_test_command(command):
             return
         
         # 跳过只读/信息查询命令，不影响环境
@@ -35,31 +38,203 @@ class Synthesizer:
         first_word = command.strip().split()[0].lower() if command.strip() else ""
         return first_word in readonly_first_words
     
-    def _is_test_command(self, command):
-        """判断指令是否是测试命令（不应加入 Dockerfile）"""
-        # 多语言测试框架关键词
-        test_keywords = [
+    def is_test_command(self, command):
+        """判断指令是否是测试命令。"""
+        if not command or not command.strip():
+            return False
+
+        # Read-only commands such as `echo "tests passed"` must never be treated as test runs.
+        if self._is_readonly_command(command):
+            return False
+
+        test_patterns = [
             # Python
-            'pytest', 'py.test', 'unittest', 'tox', 'nose', 'nosetests',
-            # JavaScript/TypeScript
-            'jest', 'mocha', 'karma', 'vitest', 'cypress',
-            # Rust
-            'cargo test',
-            # Go
-            'go test',
-            # Java
-            'mvn test', 'gradle test', 'gradlew test',
-            # Ruby
-            'rspec', 'ruby test', 'rake test',
-            # PHP
-            'phpunit', 'pest',
-            # C/C++
-            'ctest', 'googletest',
-            # Generic
-            ' test',  # 宽泛匹配
+            r"^pytest\b",
+            r"^py\.test\b",
+            r"^python3?\s+-m\s+pytest\b",
+            r"^python3?\s+-m\s+unittest\b",
+            r"^tox\b",
+            r"^nox\b",
+            r"^nosetests\b",
+            r"^nose\b",
+            # JavaScript / TypeScript
+            r"^(?:npm|yarn|pnpm)\s+test\b",
+            r"^jest\b",
+            r"^mocha\b",
+            r"^karma\b",
+            r"^vitest\b",
+            r"^cypress\b",
+            # Rust / Go / Java / Ruby / PHP
+            r"^cargo\s+test\b",
+            r"^go\s+test\b",
+            r"^(?:mvn|\.?/mvnw)\s+test\b",
+            r"^(?:gradle|\.?/gradlew)\s+test\b",
+            r"^bundle\s+exec\s+rspec\b",
+            r"^bundle\s+exec\s+rake\b",
+            r"^rake\s+test\b",
+            r"^rspec\b",
+            r"^(?:vendor/bin/)?phpunit\b",
+            r"^(?:vendor/bin/)?pest\b",
+            # C / C++
+            r"^ctest\b",
+            r"^cmake\b.*\b--target\b\s*(?:test|tests)\b",
+            r"^(?:make|gmake|mingw32-make|ninja)\b.*\b(?:test|tests|check|tdd)\b",
         ]
-        cmd_lower = command.strip().lower()
-        return any(kw in cmd_lower for kw in test_keywords)
+
+        for normalized in self._iter_command_segments(command):
+            if any(re.match(pattern, normalized) for pattern in test_patterns):
+                return True
+
+            if self._looks_like_test_executable(normalized):
+                return True
+
+        return False
+
+    def analyze_test_run(self, command, observation=""):
+        """Judge whether a successful command actually executed meaningful tests."""
+        result = {
+            "is_test_command": False,
+            "is_effective_test_run": False,
+            "confidence": "none",
+            "reason": "not_test_command",
+        }
+
+        if not self.is_test_command(command):
+            return result
+
+        result["is_test_command"] = True
+
+        if self._is_readonly_command(command):
+            result["reason"] = "readonly_command"
+            return result
+
+        if self._observation_looks_like_help_text(observation):
+            result["reason"] = "help_or_usage_output"
+            return result
+
+        if self._observation_has_empty_test_run_signal(observation):
+            result["reason"] = "no_tests_executed"
+            return result
+
+        if self._observation_has_effective_test_signal(observation):
+            result["is_effective_test_run"] = True
+            result["confidence"] = "high"
+            result["reason"] = "observed_test_execution_signal"
+            return result
+
+        if observation and any(self._looks_like_test_executable(seg) for seg in self._iter_command_segments(command)):
+            result["is_effective_test_run"] = True
+            result["confidence"] = "medium"
+            result["reason"] = "direct_test_executable_with_output"
+            return result
+
+        result["reason"] = "no_reliable_test_execution_signal"
+        return result
+
+    def _iter_command_segments(self, command):
+        """Yield normalized shell command segments split on common separators."""
+        for segment in re.split(r"(?:&&|\|\||;|\n)+", command):
+            normalized = segment.strip().lower()
+            if not normalized:
+                continue
+
+            # Strip leading environment assignments and `time` prefixes.
+            normalized = re.sub(
+                r"^(?:[a-z_][a-z0-9_]*=(?:\"[^\"]*\"|'[^']*'|\S+)\s+)+",
+                "",
+                normalized,
+            )
+            normalized = re.sub(r"^time\s+", "", normalized)
+            yield normalized
+
+    def _looks_like_test_executable(self, normalized_command):
+        """Detect direct execution of built test binaries such as ./FooTests."""
+        if not normalized_command:
+            return False
+
+        executable = normalized_command.split()[0]
+        if not (executable.startswith("./") or executable.startswith("/") or "/" in executable):
+            return False
+
+        basename = executable.rsplit("/", 1)[-1]
+        if basename in {"configure", "install-sh", "test-driver"}:
+            return False
+
+        test_suffixes = (
+            "test",
+            "tests",
+            "unittest",
+            "unittests",
+            "spec",
+            "specs",
+            "test.exe",
+            "tests.exe",
+            "spec.exe",
+            "specs.exe",
+        )
+        if basename.endswith(test_suffixes):
+            return True
+
+        return bool(
+            re.search(r"(test|tests|unittest|unittests|spec|specs)", basename)
+            and ("/test" in executable or "/tests" in executable or executable.startswith("./"))
+        )
+
+    def _observation_has_empty_test_run_signal(self, observation):
+        """Detect successful commands that clearly did not run any tests."""
+        if not observation:
+            return False
+
+        normalized = observation.lower()
+        empty_run_patterns = [
+            r"no tests were found",
+            r"no tests found",
+            r"collected\s+0\s+items",
+            r"ran\s+0\s+tests?",
+            r"\b0\s+tests?\s+ran\b",
+            r"\[no test files\]",
+            r"no test cases matched",
+            r"no tests to run",
+            r"\b0\s+examples?,\s+0\s+failures?\b",
+        ]
+        return any(re.search(pattern, normalized, re.MULTILINE) for pattern in empty_run_patterns)
+
+    def _observation_has_effective_test_signal(self, observation):
+        """Detect observation text that strongly suggests real tests were executed."""
+        if not observation:
+            return False
+
+        positive_patterns = [
+            r"collected\s+[1-9]\d*\s+items",
+            r"ran\s+[1-9]\d*\s+tests?",
+            r"\b[1-9]\d*\s+passed\b",
+            r"\b[1-9]\d*\s+failed\b",
+            r"\b[1-9]\d*\s+skipped\b",
+            r"\bok\s+\([1-9]\d*\s+tests?,",
+            r"\b[1-9]\d*\s+tests?,\s+[1-9]\d*\s+ran\b",
+            r"\[=+\]\s+running\s+[1-9]\d*\s+tests?",
+            r"test result:\s+(?:ok|failed)\.",
+            r"\b[1-9]\d*%\s+tests\s+passed\b",
+            r"^\s*ok\s+\S+\s+\d+(?:\.\d+)?s(?:\s|$)",
+            r"\b[1-9]\d*\s+examples?,\s+\d+\s+failures?\b",
+            r"\b[1-9]\d*\s+checks?,\s+\d+\s+ignored\b",
+            r"start\s+\d+:",
+        ]
+        return any(re.search(pattern, observation, re.IGNORECASE | re.MULTILINE) for pattern in positive_patterns)
+
+    def _observation_looks_like_help_text(self, observation):
+        """Exclude `--help` or usage screens from being treated as test execution."""
+        if not observation:
+            return False
+
+        normalized = observation.lower()
+        help_markers = [
+            "usage:",
+            "optional arguments:",
+            "positional arguments:",
+            "show this help",
+        ]
+        return any(marker in normalized for marker in help_markers)
     
     def record_api_key_hint(self, key_name, detection_context=""):
         """记录检测到的 API Key 需求"""

@@ -1,14 +1,18 @@
+import io
+import os
 import re
+import tarfile
 import docker
 import time
 
 class Sandbox:
-    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None, platform=None):
+    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None, platform=None, seed_dir=None):
         self.client = docker.from_env()
         self.base_image = base_image
         self.workdir = workdir
         self.volumes = volumes  # Mapping of {local_path: {'bind': container_path, 'mode': 'rw'}}
         self.platform = platform  # Docker platform (e.g., "linux/amd64" for x86_64 emulation on ARM64)
+        self.seed_dir = os.path.abspath(seed_dir) if seed_dir else None
         self.current_image = base_image
         self.container = None
         self.last_success_image = None  # 记录上一次成功状态的镜像
@@ -36,6 +40,32 @@ class Sandbox:
         )
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
+        if self.seed_dir:
+            self._seed_workdir_from_host()
+        # Always keep a baseline snapshot so the first failed command can roll back
+        # to the initialized workspace rather than the raw base image.
+        baseline_image = self.container.commit()
+        self.last_success_image = baseline_image.id
+        print(f"[Baseline Snapshot] {self.last_success_image[:12]}")
+
+    def _seed_workdir_from_host(self):
+        """Copy the host workspace into the container so rollback includes repo state."""
+        if not os.path.isdir(self.seed_dir):
+            raise ValueError(f"seed_dir does not exist or is not a directory: {self.seed_dir}")
+
+        self.container.exec_run(
+            ["/bin/bash", "-lc", f"rm -rf {self.workdir}/* {self.workdir}/.[!.]* {self.workdir}/..?* 2>/dev/null || true"]
+        )
+
+        archive_stream = io.BytesIO()
+        with tarfile.open(fileobj=archive_stream, mode="w") as tar:
+            for entry in sorted(os.listdir(self.seed_dir)):
+                entry_path = os.path.join(self.seed_dir, entry)
+                tar.add(entry_path, arcname=entry, recursive=True)
+        archive_stream.seek(0)
+
+        if not self.container.put_archive(self.workdir, archive_stream.getvalue()):
+            raise RuntimeError(f"Failed to copy workspace from {self.seed_dir} into container")
 
     def execute(self, command):
         """
@@ -103,6 +133,7 @@ class Sandbox:
                 volumes=self.volumes,
                 platform=self.platform
             )
+            self.container.exec_run(f"mkdir -p {self.workdir}")
             # 如果检测到测试失败，在 output 前注入强制提示
             if test_fail_prefix:
                 output = test_fail_prefix + output
