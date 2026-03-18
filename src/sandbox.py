@@ -1,21 +1,31 @@
 import io
 import os
 import re
+import shlex
 import tarfile
 import docker
-import time
 
 class Sandbox:
-    def __init__(self, base_image="ubuntu:22.04", workdir="/app", volumes=None, platform=None, seed_dir=None):
+    def __init__(
+        self,
+        base_image="ubuntu:22.04",
+        workdir="/app",
+        volumes=None,
+        platform=None,
+        seed_dir=None,
+        command_timeout_seconds=1200,
+    ):
         self.client = docker.from_env()
         self.base_image = base_image
         self.workdir = workdir
         self.volumes = volumes  # Mapping of {local_path: {'bind': container_path, 'mode': 'rw'}}
         self.platform = platform  # Docker platform (e.g., "linux/amd64" for x86_64 emulation on ARM64)
         self.seed_dir = os.path.abspath(seed_dir) if seed_dir else None
+        self.command_timeout_seconds = command_timeout_seconds
         self.current_image = base_image
         self.container = None
         self.last_success_image = None  # 记录上一次成功状态的镜像
+        self.snapshot_image_ids = set()
         self._setup_initial_container()
 
     def _setup_initial_container(self):
@@ -45,6 +55,7 @@ class Sandbox:
         # Always keep a baseline snapshot so the first failed command can roll back
         # to the initialized workspace rather than the raw base image.
         baseline_image = self.container.commit()
+        self._register_snapshot(baseline_image.id)
         self.last_success_image = baseline_image.id
         print(f"[Baseline Snapshot] {self.last_success_image[:12]}")
 
@@ -77,12 +88,18 @@ class Sandbox:
         
         # Execute the command
         exec_result = self.container.exec_run(
-            ["/bin/bash", "-c", command],
+            ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
             workdir=self.workdir
         )
         
         exit_code = exec_result.exit_code
         output = exec_result.output.decode('utf-8', errors='replace')
+
+        if self._is_timeout_exit(exit_code):
+            output = (
+                f"[SYSTEM] Command timed out after {self.command_timeout_seconds} seconds.\n\n"
+                f"{output}"
+            )
         
         # 判断是否为"信息性退出"（非真正错误）
         is_informational_exit = self._is_informational_exit(exit_code, output)
@@ -99,18 +116,13 @@ class Sandbox:
             
             # 优化：只对会对环境产生影响的指令进行 commit
             if self._should_commit(command):
-                # 只在成功时创建快照（用于可能的回滚）
-                if self.last_success_image:
-                    # 清理上一个成功快照，避免镜像堆积
-                    try:
-                        old_image = self.client.images.get(self.last_success_image)
-                        self.client.images.remove(old_image.id, force=True)
-                    except:
-                        pass
-                
                 # 创建新的成功快照
+                previous_snapshot = self.last_success_image
                 success_image = self.container.commit()
+                self._register_snapshot(success_image.id)
                 self.last_success_image = success_image.id
+                if previous_snapshot and previous_snapshot != self.last_success_image:
+                    self._remove_snapshot_image(previous_snapshot)
                 print(f"[Snapshot Created] {self.last_success_image[:12]}")
             else:
                 print("[Skip Snapshot] Command is read-only or informational.")
@@ -138,6 +150,41 @@ class Sandbox:
             if test_fail_prefix:
                 output = test_fail_prefix + output
             return False, output
+
+    def _register_snapshot(self, image_id):
+        if image_id:
+            self.snapshot_image_ids.add(image_id)
+
+    def _remove_snapshot_image(self, image_id):
+        if not image_id:
+            return
+        try:
+            image = self.client.images.get(image_id)
+            self.client.images.remove(image.id, force=True)
+        except (docker.errors.ImageNotFound, docker.errors.APIError):
+            return
+        finally:
+            self.snapshot_image_ids.discard(image_id)
+
+    def _wrap_command_with_timeout(self, command):
+        """Enforce a per-command timeout when GNU `timeout` is available in the container."""
+        if not self.command_timeout_seconds:
+            return command
+
+        timeout_seconds = int(self.command_timeout_seconds)
+        quoted_command = shlex.quote(command)
+        return (
+            "if command -v timeout >/dev/null 2>&1; then "
+            f"timeout --foreground --kill-after=30s {timeout_seconds}s /bin/bash -lc {quoted_command}; "
+            "else "
+            f"/bin/bash -lc {quoted_command}; "
+            "fi"
+        )
+
+    def _is_timeout_exit(self, exit_code):
+        if not self.command_timeout_seconds:
+            return False
+        return exit_code in {124, 137}
     
     def _should_commit(self, command):
         """
@@ -272,22 +319,12 @@ class Sandbox:
                     self.container.stop()
                     self.container.remove()
                     print("\n[Container Cleaned Up]")
-                except:
+                except docker.errors.DockerException:
                     pass
-        
-        # 清理最后的成功快照镜像
-        if self.last_success_image:
+
+        for snapshot_id in list(self.snapshot_image_ids):
             try:
-                old_image = self.client.images.get(self.last_success_image)
-                self.client.images.remove(old_image.id, force=True)
+                self._remove_snapshot_image(snapshot_id)
                 print("[Snapshot Image Cleaned]")
-            except:
+            except docker.errors.DockerException:
                 pass
-        
-        # 清理所有未使用的中间镜像
-        try:
-            pruned = self.client.images.prune(filters={'dangling': True})
-            if pruned.get('ImagesDeleted'):
-                print(f"[Pruned {len(pruned['ImagesDeleted'])} dangling images]")
-        except:
-            pass

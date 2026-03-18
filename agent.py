@@ -21,8 +21,11 @@ class DockerAgent:
         self.workplace = os.path.abspath(workplace)
         self.successful_test_commands = []
         self.verified_test_command = None
+        self.verified_test_commands = []
         self.test_run_attempts = []
         self.run_summary_path = os.path.join(self.workplace, "agent_run_summary.json")
+        self._environment_revision = 0
+        self._current_verification_group = []
         
         # 1. Prepare local workplace and clone repo
         self._prepare_workplace()
@@ -307,20 +310,13 @@ class DockerAgent:
                 if is_finished:
                     print("\n[Finished] Agent has reached a conclusion.")
                     print(raw_llm_output)
-                    # 检查是否是成功结论：LLM声明成功 AND 有实质性构建指令
+                    # Success must be backed by an actual effective test command observed at runtime.
                     if "Final Answer: Success" in raw_llm_output:
-                        effective_instructions = [
-                            instr for instr in self.synthesizer.instructions
-                            if not any(
-                                instr.strip().startswith(f"RUN {noop}")
-                                for noop in ["ls", "cat", "echo", "pwd", "env", "grep", "find", "head", "tail"]
-                            )
-                        ]
-                        if effective_instructions:
+                        if self.verified_test_command:
                             configuration_success = True
                         else:
-                            print("[Warning] Agent claimed success but no effective build instructions were recorded.")
-                            print("[Warning] Dockerfile would be empty/useless. Marking as FAILED.")
+                            print("[Warning] Agent claimed success but no effective verified test command was recorded.")
+                            print("[Warning] Marking this run as FAILED to avoid producing unverifiable artifacts.")
                     break
 
                 if thought:
@@ -344,9 +340,9 @@ class DockerAgent:
                 # 3. Synthesize if successful
                 if success:
                     self.synthesizer.record_success(action)
-                    self._record_successful_test_command(action, observation)
+                    self._record_successful_action(step + 1, action, observation)
                 else:
-                    print(f"\n[System] Command failed. Sandbox rolled back to previous state.")
+                    print("\n[System] Command failed. Sandbox rolled back to previous state.")
 
             # 4. Final Output - 只有配置成功才生成文档
             if configuration_success:
@@ -366,26 +362,53 @@ class DockerAgent:
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
 
-    def _record_successful_test_command(self, action, observation):
-        """Track the last successful real test command as structured runtime metadata."""
+    def _record_successful_action(self, step_index, action, observation):
+        """Track successful actions and maintain the final contiguous verification block."""
+        mutates_environment = self.synthesizer.command_mutates_environment(action)
+        is_readonly = self.synthesizer.is_readonly_command(action)
+
+        if mutates_environment:
+            self._environment_revision += 1
+            self._invalidate_verification_group("environment_mutation")
+
         analysis = self.synthesizer.analyze_test_run(action, observation)
         if not analysis["is_test_command"]:
+            if mutates_environment:
+                self._invalidate_verification_group("non_test_environment_mutation_after_verification")
             return
 
         self.test_run_attempts.append({
+            "step_index": step_index,
             "command": action,
+            "environment_revision": self._environment_revision,
             "effective": analysis["is_effective_test_run"],
             "confidence": analysis["confidence"],
             "reason": analysis["reason"],
         })
 
         if not analysis["is_effective_test_run"]:
+            self._invalidate_verification_group("ineffective_test_command")
             print(f"[Skipped Test Command] {action} ({analysis['reason']}).")
             return
 
         self.successful_test_commands.append(action)
-        self.verified_test_command = action
+        self._current_verification_group.append(action)
+        self.verified_test_commands = list(self._current_verification_group)
+        self.verified_test_command = self.verified_test_commands[-1]
         print(f"[Recorded Test Command] {action}")
+        print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
+
+    def _invalidate_verification_group(self, reason):
+        """Drop previously verified commands when later actions mean they no longer prove the final environment."""
+        if not self._current_verification_group:
+            self.verified_test_commands = []
+            self.verified_test_command = None
+            return
+
+        print(f"[Verification Reset] Clearing final verification block due to: {reason}.")
+        self._current_verification_group = []
+        self.verified_test_commands = []
+        self.verified_test_command = None
 
     def _write_run_summary(self, configuration_success, run_error=None):
         """Persist structured run metadata so the adapter does not need to parse markdown logs."""
@@ -393,6 +416,7 @@ class DockerAgent:
             "repo_url": self.repo_url,
             "configuration_success": configuration_success,
             "verified_test_command": self.verified_test_command,
+            "verified_test_commands": self.verified_test_commands,
             "successful_test_commands": self.successful_test_commands,
             "test_run_attempts": self.test_run_attempts,
             "error": run_error,

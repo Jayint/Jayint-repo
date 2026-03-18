@@ -1,0 +1,25 @@
+{
+  "instance_id": "yippee-fun__phlex-917",
+  "repo_url": "https://github.com/yippee-fun/phlex.git",
+  "language": "ruby",
+  "dockerfile": null,
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\n# Check if Gemfile was modified by patch and reinstall if needed\nif [ -f Gemfile.lock ]; then\n    BUNDLE_CHECK=$(bundle check 2>&1 || true)\n    if echo \"$BUNDLE_CHECK\" | grep -q \"The following gems are missing\"; then\n        echo \"Gemfile dependencies changed, reinstalling...\"\n        rm -f Gemfile.lock\n        bundle install --without code_quality || bundle install || exit 1\n    fi\nfi\n\nBUNDLE_WITHOUT=code_quality bundle exec rake test\nTEST_EXIT_CODE=$?\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "build_success": false,
+  "test_success": false,
+  "platform": "linux/amd64",
+  "logs": {
+    "agent_steps": [],
+    "error": "Dockerfile generation failed",
+    "verified_test_command": null,
+    "test_command_source": "language_default",
+    "skip_evaluation": true,
+    "platform_support": {
+      "supported": true,
+      "detected_runtime": "linux",
+      "required_platform": "linux",
+      "indicators": [],
+      "reason": null
+    }
+  },
+  "setup_scripts": {}
+}

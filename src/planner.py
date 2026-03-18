@@ -1,10 +1,11 @@
 import re
 import os
-import json
 from typing import Optional
 from src.language_handlers import LanguageHandler
 
 class Planner:
+    MAX_HISTORY_MESSAGES = 24
+
     def __init__(self, client, model="gpt-4o", language_handler: Optional[LanguageHandler] = None, repo_structure: str = "", log_dir: str = None):
         self.client = client
         self.model = model
@@ -92,6 +93,7 @@ class Planner:
             "   - **Test Dependency Fix**: If tests fail due to missing test libraries (e.g., Ruby's `stub` method not found), install the required library (e.g., `gem install mocha` or add to Gemfile). DO NOT skip tests with `--exclude`.\n"
             "   - **Rollback Mechanism**: The system automatically rolls back to the pre-execution state if a command fails. You do not need to manually revert changes; simply continue with the next approach after a failure.\n"
             "   - **Secret/API_KEY Handling**: Only if tests fail due to missing API_KEYs/secrets (not setup issues), document the required keys and continue.\n"
+            "   - **Final Verification Block**: Before declaring success, run every test command needed to prove the final environment in one final consecutive verification burst. Avoid doing new setup/build steps after the last successful verification command.\n"
             "4. **Finalize**: ONLY output 'Final Answer: Success' when:\n"
             "   - All dependencies are installed AND\n"
             "   - The PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets, not setup issues)\n\n"
@@ -117,6 +119,8 @@ class Planner:
         # 2. Append the last observation as a new user message
         if last_observation is not None:
             self.history.append({"role": "user", "content": f"Observation: {last_observation}"})
+
+        self._trim_history()
 
         # 3. Construct the message list for the API call
         messages = [{"role": "system", "content": self.system_prompt}] + self.history
@@ -145,6 +149,7 @@ class Planner:
         
         # 4. Append the assistant's response (Thought and Action) to history
         self.history.append({"role": "assistant", "content": content})
+        self._trim_history()
 
         # 5. 计算本次调用成本
         usage = response.usage
@@ -190,6 +195,15 @@ class Planner:
             
             # Increment counter after completing a full input/output pair
             self.log_counter += 1
+
+    #滑动窗口优化法
+    def _trim_history(self):
+        """Keep the repository URL seed plus the most recent turns to cap prompt growth."""
+        if len(self.history) <= self.MAX_HISTORY_MESSAGES:
+            return
+        repo_seed = self.history[0]
+        recent_history = self.history[-(self.MAX_HISTORY_MESSAGES - 1):]
+        self.history = [repo_seed] + recent_history
 
     def _calculate_cost(self, usage):
         """计算单次 API 调用的成本"""

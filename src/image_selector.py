@@ -4,7 +4,6 @@ Inspired by RepoLaunch's approach: analyze repo structure and files to select op
 """
 import os
 import re
-from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from openai import OpenAI
 import json
@@ -155,6 +154,9 @@ class ImageSelector:
     
     # Size threshold for file content (256KB)
     FILE_SIZE_THRESHOLD = 128 * 1000 * 2
+    MAX_STRUCTURE_LINES = 600
+    MAX_DOCS_CHARS = 24000
+    MAX_FILE_SNIPPET_CHARS = 6000
     
     def __init__(self, client: OpenAI, model: str = "gpt-4o"):
         self.client = client
@@ -345,13 +347,16 @@ class ImageSelector:
     
     def _locate_potential_files(self, repo_structure: str) -> List[str]:
         """Use LLM to identify potentially relevant files from structure."""
-        prompt = LOCATE_FILES_PROMPT.format(structure=repo_structure)
-        
-        # Truncate if too long
-        # if len(prompt) > 8000:
-        #     lines = repo_structure.split('\n')[:500]
-        #     truncated_structure = '\n'.join(lines)
-        #     prompt = LOCATE_FILES_PROMPT.format(structure=truncated_structure)
+        structure_lines = repo_structure.split('\n')
+        if len(structure_lines) > self.MAX_STRUCTURE_LINES:
+            truncated_structure = '\n'.join(structure_lines[:self.MAX_STRUCTURE_LINES])
+            truncated_structure += (
+                f"\n... ({len(structure_lines) - self.MAX_STRUCTURE_LINES} more lines truncated)"
+            )
+        else:
+            truncated_structure = repo_structure
+
+        prompt = LOCATE_FILES_PROMPT.format(structure=truncated_structure)
         
         response = self.client.chat.completions.create(
             model=self.model,
@@ -462,11 +467,20 @@ class ImageSelector:
         sorted_files = sorted(files_content.keys(), key=sort_key)
 
         docs_parts = ["------ BEGIN RELEVANT FILES ------\n"]
+        current_size = len(docs_parts[0])
         for file_path in sorted_files:
-            content = files_content[file_path]
-            docs_parts.append(f"File: {file_path}\n```")
-            docs_parts.append(content)
-            docs_parts.append("```\n")
+            content = files_content[file_path][:self.MAX_FILE_SNIPPET_CHARS]
+            if len(files_content[file_path]) > self.MAX_FILE_SNIPPET_CHARS:
+                content += f"\n... ({len(files_content[file_path]) - self.MAX_FILE_SNIPPET_CHARS} more characters truncated)"
+
+            block = f"File: {file_path}\n```\n{content}\n```\n"
+            if current_size + len(block) > self.MAX_DOCS_CHARS:
+                docs_parts.append(
+                    f"... additional relevant files truncated to stay within {self.MAX_DOCS_CHARS} characters ...\n"
+                )
+                break
+            docs_parts.append(block)
+            current_size += len(block)
         
         docs_parts.append("------ END RELEVANT FILES ------")
         return '\n'.join(docs_parts)
@@ -540,7 +554,7 @@ class ImageSelector:
                 })
         
         # Fallback: return first candidate if all retries failed
-        print(f"[ImageSelector] Warning: Could not get valid selection, using fallback")
+        print("[ImageSelector] Warning: Could not get valid selection, using fallback")
         return candidate_images[len(candidate_images) // 2], None  # Middle option
 
 

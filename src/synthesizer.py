@@ -11,24 +11,46 @@ class Synthesizer:
 
     def record_success(self, command):
         """Records a successful bash command as a RUN instruction."""
-        # 跳过测试命令，避免在 Dockerfile 构建时运行测试
-        if self.is_test_command(command):
+        recordable_commands = self._extract_recordable_setup_commands(command)
+        for recordable_command in recordable_commands:
+            self._record_setup_instruction(recordable_command)
+
+    def is_readonly_command(self, command):
+        """Public wrapper used by the agent when tracking verification state."""
+        return self._is_readonly_command(command)
+
+    def command_mutates_environment(self, command):
+        """Return True when a successful command changed the effective runtime environment."""
+        return self._command_has_meaningful_setup_activity(command)
+
+    def _record_setup_instruction(self, command):
+        """Persist a setup/build command into Dockerfile and QuickStart collections."""
+        if not command or not command.strip():
             return
-        
-        # 跳过只读/信息查询命令，不影响环境
         if self._is_readonly_command(command):
             return
-        
-        # 去重：跳过已记录的相同命令
+
         run_instruction = f"RUN {command}"
         if run_instruction in self.instructions:
             return
-        
+
         self.instructions.append(run_instruction)
-        
-        # 同时记录用于 QuickStart 的原始指令（也要去重）
         if self._is_setup_command(command) and command not in self.setup_commands:
             self.setup_commands.append(command)
+
+    def _extract_recordable_setup_commands(self, command):
+        """Keep setup/build prefixes of successful commands while excluding the test invocation itself."""
+        if not command or not command.strip():
+            return []
+        if self._is_readonly_command(command):
+            return []
+
+        if not self.is_test_command(command):
+            recordable_command = self._extract_recordable_non_test_command(command)
+            return [recordable_command] if recordable_command else []
+
+        setup_prefix = self._extract_setup_prefix_before_test(command)
+        return [setup_prefix] if setup_prefix else []
     
     def _is_readonly_command(self, command):
         """判断指令是否是只读/信息查询命令（不应加入 Dockerfile）"""
@@ -73,16 +95,16 @@ class Synthesizer:
             r"^bundle\s+exec\s+rake\b",
             r"^rake\s+test\b",
             r"^rspec\b",
-            r"^(?:vendor/bin/)?phpunit\b",
-            r"^(?:vendor/bin/)?pest\b",
+            r"^(?:\./)?(?:vendor/bin/)?phpunit\b",
+            r"^(?:\./)?(?:vendor/bin/)?pest\b",
             # C / C++
             r"^ctest\b",
             r"^cmake\b.*\b--target\b\s*(?:test|tests)\b",
             r"^(?:make|gmake|mingw32-make|ninja)\b.*\b(?:test|tests|check|tdd)\b",
         ]
 
-        for normalized in self._iter_command_segments(command):
-            if any(re.match(pattern, normalized) for pattern in test_patterns):
+        for _, normalized in self._iter_command_segments(command):
+            if self._segment_matches_test_pattern(normalized, test_patterns):
                 return True
 
             if self._looks_like_test_executable(normalized):
@@ -112,17 +134,23 @@ class Synthesizer:
             result["reason"] = "help_or_usage_output"
             return result
 
-        if self._observation_has_empty_test_run_signal(observation):
-            result["reason"] = "no_tests_executed"
-            return result
-
         if self._observation_has_effective_test_signal(observation):
             result["is_effective_test_run"] = True
             result["confidence"] = "high"
             result["reason"] = "observed_test_execution_signal"
             return result
 
-        if observation and any(self._looks_like_test_executable(seg) for seg in self._iter_command_segments(command)):
+        # Some runners (notably `go test ./...`) can mix real package results with
+        # informational lines such as `[no test files]`. Treat explicit positive
+        # execution signals as authoritative before falling back to empty-run hints.
+        if self._observation_has_empty_test_run_signal(observation):
+            result["reason"] = "no_tests_executed"
+            return result
+
+        if observation and any(
+            self._looks_like_test_executable(normalized)
+            for _, normalized in self._iter_command_segments(command)
+        ):
             result["is_effective_test_run"] = True
             result["confidence"] = "medium"
             result["reason"] = "direct_test_executable_with_output"
@@ -133,19 +161,217 @@ class Synthesizer:
 
     def _iter_command_segments(self, command):
         """Yield normalized shell command segments split on common separators."""
-        for segment in re.split(r"(?:&&|\|\||;|\n)+", command):
-            normalized = segment.strip().lower()
+        for segment, _ in self._split_shell_chain(command):
+            normalized = self._normalize_command_segment(segment)
+            if normalized:
+                yield segment.strip(), normalized
+
+    def _split_shell_chain(self, command):
+        """Split a shell command into ordered segments while preserving separators."""
+        tokens = re.split(r"(\s*(?:&&|\|\||;|\n)\s*)", command)
+        segments = []
+        i = 0
+        while i < len(tokens):
+            raw_segment = tokens[i]
+            separator = tokens[i + 1] if i + 1 < len(tokens) else ""
+            i += 2
+
+            if raw_segment is None:
+                continue
+            if not raw_segment.strip():
+                continue
+            segments.append((raw_segment, separator))
+        return segments
+
+    def _normalize_command_segment(self, segment):
+        normalized = segment.strip().lower()
+        if not normalized:
+            return ""
+
+        normalized = re.sub(
+            r"^(?:[a-z_][a-z0-9_]*=(?:\"[^\"]*\"|'[^']*'|\S+)\s+)+",
+            "",
+            normalized,
+        )
+        normalized = re.sub(r"^time\s+", "", normalized)
+        return normalized.strip()
+
+    def _segment_matches_test_pattern(self, normalized_command, test_patterns):
+        return any(re.match(pattern, normalized_command) for pattern in test_patterns)
+
+    def _extract_recordable_non_test_command(self, command):
+        """Drop runtime-only service startup/checks from setup commands while preserving useful context."""
+        return self._extract_recordable_command_segments(command, stop_before_test=False)
+
+    def _extract_setup_prefix_before_test(self, command):
+        """Return the setup/build prefix that ran before the first test segment, if any."""
+        return self._extract_recordable_command_segments(command, stop_before_test=True)
+
+    def _extract_recordable_command_segments(self, command, stop_before_test):
+        """Rebuild a command from recordable setup/build segments only."""
+        kept_segments = []
+        pending_navigation = []
+        has_recordable_segment = False
+
+        test_patterns = [
+            r"^pytest\b",
+            r"^py\.test\b",
+            r"^python3?\s+-m\s+pytest\b",
+            r"^python3?\s+-m\s+unittest\b",
+            r"^tox\b",
+            r"^nox\b",
+            r"^nosetests\b",
+            r"^nose\b",
+            r"^(?:npm|yarn|pnpm)\s+test\b",
+            r"^jest\b",
+            r"^mocha\b",
+            r"^karma\b",
+            r"^vitest\b",
+            r"^cypress\b",
+            r"^cargo\s+test\b",
+            r"^go\s+test\b",
+            r"^(?:mvn|\.?/mvnw)\s+test\b",
+            r"^(?:gradle|\.?/gradlew)\s+test\b",
+            r"^bundle\s+exec\s+rspec\b",
+            r"^bundle\s+exec\s+rake\b",
+            r"^rake\s+test\b",
+            r"^rspec\b",
+            r"^(?:\./)?(?:vendor/bin/)?phpunit\b",
+            r"^(?:\./)?(?:vendor/bin/)?pest\b",
+            r"^ctest\b",
+            r"^cmake\b.*\b--target\b\s*(?:test|tests)\b",
+            r"^(?:make|gmake|mingw32-make|ninja)\b.*\b(?:test|tests|check|tdd)\b",
+        ]
+
+        for raw_segment, separator in self._split_shell_chain(command):
+            normalized = self._normalize_command_segment(raw_segment)
             if not normalized:
                 continue
 
-            # Strip leading environment assignments and `time` prefixes.
-            normalized = re.sub(
-                r"^(?:[a-z_][a-z0-9_]*=(?:\"[^\"]*\"|'[^']*'|\S+)\s+)+",
-                "",
-                normalized,
-            )
-            normalized = re.sub(r"^time\s+", "", normalized)
-            yield normalized
+            if stop_before_test and (
+                self._segment_matches_test_pattern(normalized, test_patterns)
+                or self._looks_like_test_executable(normalized)
+            ):
+                break
+
+            if self._is_runtime_only_segment(normalized):
+                continue
+
+            if self._is_navigation_only_segment(normalized):
+                pending_navigation.append((raw_segment.strip(), separator.strip() if separator else ""))
+                continue
+
+            if not self._segment_has_meaningful_setup_activity(normalized):
+                pending_navigation = []
+                continue
+
+            has_recordable_segment = True
+            if pending_navigation:
+                kept_segments.extend(pending_navigation)
+                pending_navigation = []
+            kept_segments.append((raw_segment.strip(), separator.strip() if separator else ""))
+
+        if not has_recordable_segment:
+            return None
+
+        rebuilt_parts = []
+        for index, (segment, separator) in enumerate(kept_segments):
+            rebuilt_parts.append(segment)
+            if index < len(kept_segments) - 1:
+                rebuilt_parts.append(separator or "&&")
+
+        rebuilt_command = " ".join(part for part in rebuilt_parts if part).strip()
+        rebuilt_command = re.sub(r"\s+", " ", rebuilt_command)
+        rebuilt_command = re.sub(r"(?:&&|\|\||;)\s*$", "", rebuilt_command).strip()
+        return rebuilt_command or None
+
+    def _segment_has_meaningful_setup_activity(self, normalized_command):
+        """Treat navigation-only prefixes as non-recordable, but keep real setup/build work."""
+        if not normalized_command:
+            return False
+
+        if self._is_navigation_only_segment(normalized_command):
+            return False
+        if self._is_runtime_only_segment(normalized_command):
+            return False
+        return not self._is_readonly_command(normalized_command)
+
+    def _is_navigation_only_segment(self, normalized_command):
+        return normalized_command.startswith(("cd ", "pushd ", "popd"))
+
+    def _is_runtime_only_segment(self, normalized_command):
+        return (
+            self._is_runtime_service_segment(normalized_command)
+            or self._is_runtime_healthcheck_segment(normalized_command)
+        )
+
+    def _is_runtime_service_segment(self, normalized_command):
+        service_patterns = (
+            r"^service\s+\S+\s+(?:start|restart|reload|stop)\b",
+            r"^redis-server\b",
+            r"^rabbitmq-server\b.*\b-detached\b",
+            r"^memcached\b.*\b-d\b",
+            r"^mongod\b.*\b--fork\b",
+            r"^apache2ctl\s+start\b",
+            r"^nginx\b(?:\s|$)",
+        )
+        return any(re.search(pattern, normalized_command) for pattern in service_patterns)
+
+    def _is_runtime_healthcheck_segment(self, normalized_command):
+        healthcheck_patterns = (
+            r"^redis-cli\s+ping\b",
+            r"^pg_isready\b",
+            r"^mysqladmin\s+ping\b",
+            r"^rabbitmq-diagnostics\s+ping\b",
+            r"^curl\b.*\b127\.0\.0\.1\b",
+            r"^curl\b.*\blocalhost\b",
+            r"^wget\b.*\b127\.0\.0\.1\b",
+            r"^wget\b.*\blocalhost\b",
+        )
+        return any(re.search(pattern, normalized_command) for pattern in healthcheck_patterns)
+
+    def _command_has_meaningful_setup_activity(self, command):
+        """Detect whether a successful shell command materially changed the runtime environment."""
+        if not command or not command.strip():
+            return False
+        if self._is_readonly_command(command):
+            return False
+
+        for _, normalized in self._iter_command_segments(command):
+            if not normalized:
+                continue
+
+            if self._is_readonly_command(normalized):
+                continue
+
+            if self._is_runtime_service_segment(normalized):
+                return True
+
+            if self._is_setup_command(normalized):
+                return True
+
+            if self._segment_has_meaningful_setup_activity(normalized) and normalized.startswith(
+                (
+                    "./configure",
+                    "configure ",
+                    "meson ",
+                    "mkdir ",
+                    "rm ",
+                    "cp ",
+                    "mv ",
+                    "ln ",
+                    "chmod ",
+                    "chown ",
+                    "sed ",
+                    "patch ",
+                    "git apply",
+                    "git checkout",
+                    "python setup.py",
+                )
+            ):
+                return True
+
+        return False
 
     def _looks_like_test_executable(self, normalized_command):
         """Detect direct execution of built test binaries such as ./FooTests."""
@@ -185,7 +411,7 @@ class Synthesizer:
         if not observation:
             return False
 
-        normalized = observation.lower()
+        normalized = self._normalize_observation_text(observation).lower()
         empty_run_patterns = [
             r"no tests were found",
             r"no tests found",
@@ -204,6 +430,7 @@ class Synthesizer:
         if not observation:
             return False
 
+        normalized_observation = self._normalize_observation_text(observation)
         positive_patterns = [
             r"collected\s+[1-9]\d*\s+items",
             r"ran\s+[1-9]\d*\s+tests?",
@@ -219,15 +446,22 @@ class Synthesizer:
             r"\b[1-9]\d*\s+examples?,\s+\d+\s+failures?\b",
             r"\b[1-9]\d*\s+checks?,\s+\d+\s+ignored\b",
             r"start\s+\d+:",
+            r"suites:\s+\d+\s+of\s+[1-9]\d*\s+completed",
+            r"asserts:\s+\d+\s+of\s+[1-9]\d*",
+            r"^\s*#\s*subtest:",
+            r"^\s*not ok\b",
         ]
-        return any(re.search(pattern, observation, re.IGNORECASE | re.MULTILINE) for pattern in positive_patterns)
+        return any(
+            re.search(pattern, normalized_observation, re.IGNORECASE | re.MULTILINE)
+            for pattern in positive_patterns
+        )
 
     def _observation_looks_like_help_text(self, observation):
         """Exclude `--help` or usage screens from being treated as test execution."""
         if not observation:
             return False
 
-        normalized = observation.lower()
+        normalized = self._normalize_observation_text(observation).lower()
         help_markers = [
             "usage:",
             "optional arguments:",
@@ -235,6 +469,13 @@ class Synthesizer:
             "show this help",
         ]
         return any(marker in normalized for marker in help_markers)
+
+    def _normalize_observation_text(self, observation):
+        """Strip ANSI control codes and zero-width formatting artifacts before pattern matching."""
+        normalized = re.sub(r"\x1b\[[0-9;?]*[ -/]*[@-~]", "", observation)
+        normalized = normalized.replace("\u200b", "")
+        normalized = normalized.replace("\ufeff", "")
+        return normalized
     
     def record_api_key_hint(self, key_name, detection_context=""):
         """记录检测到的 API Key 需求"""
@@ -291,7 +532,7 @@ class Synthesizer:
             try:
                 with open(readme_path, "r", encoding="utf-8", errors="ignore") as f:
                     readme_content = f.read()
-            except:
+            except OSError:
                 readme_content = "(README.md not found or unreadable)"
         else:
             readme_content = "(README.md not found)"

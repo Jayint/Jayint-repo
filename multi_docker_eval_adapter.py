@@ -29,8 +29,6 @@ import json
 import argparse
 import re
 import subprocess
-import tempfile
-import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
@@ -45,7 +43,7 @@ class MultiDockerEvalAdapter:
         self._last_test_command_source = None
         
     def process_single_instance(self, instance: Dict[str, Any], 
-                               base_image: str = "python:3.10",
+                               base_image: str = "auto",
                                model: str = "gpt-4o",
                                max_steps: int = 30) -> Dict[str, Any]:
         """
@@ -69,7 +67,6 @@ class MultiDockerEvalAdapter:
             repo_url = repo_name
         base_commit = instance.get("base_commit")
         problem_statement = instance.get("problem_statement", "")
-        patch = instance.get("patch", "")
         test_patch = instance.get("test_patch", "")
         language = instance.get("language", "unknown")
         
@@ -92,9 +89,23 @@ class MultiDockerEvalAdapter:
                 "agent_steps": [],
                 "error": None,
                 "verified_test_command": None,
+                "verified_test_commands": [],
                 "test_command_source": None,
+                "skip_evaluation": False,
+                "platform_support": None,
             }
         }
+
+        platform_support = self._assess_platform_support(instance, language)
+        result["logs"]["platform_support"] = platform_support
+        if not platform_support["supported"]:
+            reason = platform_support["reason"]
+            print(f"⚠ Skipping {instance_id}: {reason}")
+            result["logs"]["error"] = reason
+            result["logs"]["test_command_source"] = "unsupported_platform"
+            result["logs"]["skip_evaluation"] = True
+            self._save_result(instance_id, result)
+            return result
         
         # 创建workplace目录（使用项目目录下的workplace，便于查看）
         workplace = os.path.join("./workplace", f"multi_docker_eval_{instance_id}")
@@ -102,10 +113,10 @@ class MultiDockerEvalAdapter:
         
         try:
             # 1. 运行 DockerAgent 进行环境配置
-            print(f"[Step 1/4] Running DockerAgent for environment configuration...")
+            print("[Step 1/4] Running DockerAgent for environment configuration...")
             agent = DockerAgent(
                 repo_url=repo_url,
-                base_image="auto",  # Use LLM-based 4-step image selection
+                base_image=base_image or "auto",
                 model=model,
                 workplace=workplace,
                 base_commit=base_commit  # checkout before image selection for accurate LLM analysis
@@ -123,7 +134,7 @@ class MultiDockerEvalAdapter:
                 print(f"[Adapter] Platform override recorded: {agent.platform_override}")
             
             # 2. 提取 Dockerfile（复用 Agent 的配置指令）
-            print(f"\n[Step 2/4] Extracting Dockerfile...")
+            print("\n[Step 2/4] Extracting Dockerfile...")
             dockerfile_path = Path(workplace) / "Dockerfile"
             if dockerfile_path.exists():
                 original_dockerfile = dockerfile_path.read_text()
@@ -158,6 +169,7 @@ class MultiDockerEvalAdapter:
                         full_instruction = full_instruction.replace('cd /app', 'cd /testbed')
                         full_instruction = full_instruction.replace('"/app"', '"/testbed"')
                         full_instruction = full_instruction.replace("'/app'", "'/testbed'")
+                        full_instruction = self._normalize_run_instruction_for_docker(full_instruction)
                         agent_run_instructions.append(full_instruction)
                     i += 1
                 
@@ -218,6 +230,12 @@ class MultiDockerEvalAdapter:
                     has_heredoc = any('<<' in instr for instr in processed_instructions)
                     syntax_directive = "# syntax=docker/dockerfile:1\n" if has_heredoc else ""
                     
+                    checkout_line = (
+                        f"RUN cd /testbed && git checkout {base_commit}"
+                        if base_commit
+                        else "# No base commit provided; using repository default branch HEAD"
+                    )
+
                     dockerfile_content = f"""{syntax_directive}{base_image_line}
 WORKDIR /testbed
 
@@ -226,37 +244,42 @@ RUN apt-get update && apt-get install -y git
 
 # Clone repository and checkout base commit
 RUN git clone {repo_url} /testbed
-RUN cd /testbed && git checkout {base_commit}
+{checkout_line}
 
 # Agent's verified setup instructions
 {chr(10).join(processed_instructions) if processed_instructions else '# No additional setup instructions from agent'}
 """
                     result["dockerfile"] = dockerfile_content
-                    result["build_success"] = True
                     print(f"✓ Dockerfile generated with {len(agent_run_instructions)} agent instructions")
             else:
                 print("✗ Dockerfile not found")
                 result["logs"]["error"] = "Dockerfile generation failed"
+                result["logs"]["skip_evaluation"] = True
             
             # 3. 生成测试脚本 & 将 test_patch 注入镜像
-            print(f"\n[Step 3/4] Generating test script...")
+            print("\n[Step 3/4] Generating test script...")
             test_script, setup_scripts, dockerfile_with_patch = self._generate_test_script(
                 workplace=workplace,
                 language=language,
                 problem_statement=problem_statement,
                 test_patch=test_patch,
                 dockerfile_content=result.get("dockerfile", ""),
-                structured_test_command=getattr(agent, "verified_test_command", None)
+                structured_test_command=getattr(agent, "verified_test_command", None),
+                structured_test_commands=getattr(agent, "verified_test_commands", None),
             )
             result["eval_script"] = test_script
             result["setup_scripts"] = setup_scripts
             result["logs"]["verified_test_command"] = getattr(agent, "verified_test_command", None)
+            result["logs"]["verified_test_commands"] = getattr(agent, "verified_test_commands", []) or []
             result["logs"]["test_command_source"] = getattr(self, "_last_test_command_source", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch
+            if not result["dockerfile"] or not result["eval_script"]:
+                result["logs"]["skip_evaluation"] = True
+            result["build_success"] = bool(result["dockerfile"] and result["eval_script"] and not result["logs"]["skip_evaluation"])
             
             # 4. 验证测试 (可选，取决于是否需要在适配器中执行)
-            print(f"\n[Step 4/4] Test script generated")
+            print("\n[Step 4/4] Test script generated")
             print("Test validation will be performed by Multi-Docker-Eval framework")
             
             # 保存结果
@@ -335,6 +358,90 @@ RUN cd /testbed && git checkout {base_commit}
             # C/C++ 没有标准测试函数格式，通常通过 Makefile 运行
 
         return {"test_files": test_files, "new_test_funcs": new_test_funcs}
+
+    def _assess_platform_support(self, instance: Dict[str, Any], language: str) -> Dict[str, Any]:
+        """
+        Detect benchmark instances that require a non-Linux toolchain/runtime.
+
+        The current adapter only produces Linux container specs, so these instances
+        must be skipped explicitly instead of being evaluated with misleading Linux tests.
+        """
+        problem_statement = instance.get("problem_statement", "")
+        patch = instance.get("patch", "")
+        test_patch = instance.get("test_patch", "")
+        evidence_blob = "\n".join([problem_statement, patch, test_patch]).lower()
+
+        windows_patterns = {
+            "visual_studio_project": [
+                r"\.vcproj\b",
+                r"\.vcxproj\b",
+            ],
+            "msvc_toolchain": [
+                r"\bmsvc\b",
+                r"visual c\+\+",
+                r"\bmsbuild\b",
+                r"\bnmake\b",
+                r"\bdevenv\b",
+                r"\bappveyor\b",
+                r"windowsservercore",
+            ],
+        }
+        embedded_patterns = {
+            "iar_toolchain": [
+                r"\.ewp\b",
+                r"\bembedded workbench\b",
+                r"\biar\b",
+                r"\bewarm\b",
+            ],
+        }
+        macos_patterns = {
+            "xcode_toolchain": [
+                r"\.xcodeproj\b",
+                r"\.xcworkspace\b",
+                r"\bxcodebuild\b",
+                r"\bcocoapods\b",
+                r"\bpod install\b",
+            ],
+        }
+
+        indicators: List[str] = []
+        required_platform = "linux"
+
+        for label, patterns in windows_patterns.items():
+            if any(re.search(pattern, evidence_blob) for pattern in patterns):
+                indicators.append(label)
+        if indicators:
+            required_platform = "windows"
+
+        if not indicators:
+            for label, patterns in embedded_patterns.items():
+                if any(re.search(pattern, evidence_blob) for pattern in patterns):
+                    indicators.append(label)
+            if indicators:
+                required_platform = "embedded"
+
+        if not indicators:
+            for label, patterns in macos_patterns.items():
+                if any(re.search(pattern, evidence_blob) for pattern in patterns):
+                    indicators.append(label)
+            if indicators:
+                required_platform = "macos"
+
+        supported = not indicators
+        reason = None
+        if not supported:
+            reason = (
+                f"This instance appears to require a {required_platform}-specific build/test path "
+                f"({', '.join(indicators)}), but the current adapter only generates Linux container evaluations."
+            )
+
+        return {
+            "supported": supported,
+            "detected_runtime": "linux",
+            "required_platform": required_platform,
+            "indicators": indicators,
+            "reason": reason,
+        }
 
     def _extract_test_command_from_setup_logs(self, workplace: str) -> Optional[str]:
         """
@@ -415,44 +522,73 @@ RUN cd /testbed && git checkout {base_commit}
             print(f"  Warning: Failed to read agent_run_summary.json: {e}")
             return None
 
-    def _extract_structured_test_command(self, workplace: str) -> Tuple[Optional[str], Optional[str]]:
-        """Read the best available structured test command and its source."""
+    def _normalize_test_commands(self, commands: Optional[List[str]]) -> List[str]:
+        """Drop empty entries while preserving order."""
+        if isinstance(commands, str):
+            commands = [commands]
+
+        normalized_commands: List[str] = []
+        for command in commands or []:
+            if not command:
+                continue
+            stripped = command.strip()
+            if stripped:
+                normalized_commands.append(stripped)
+        return normalized_commands
+
+    def _extract_structured_test_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
+        """Read the best available structured test command list and its source."""
         summary = self._load_run_summary(workplace)
         if not summary:
-            return None, None
+            return [], None
+
+        commands = self._normalize_test_commands(summary.get("verified_test_commands"))
+        if commands:
+            print(f"  Loaded structured test command list ({len(commands)}): {commands}")
+            return commands, "runtime_verified_test_commands"
 
         command = summary.get("verified_test_command")
         if command:
             print(f"  Loaded structured test command: {command}")
-            return command, "runtime_verified_test_command"
+            return [command], "runtime_verified_test_command"
 
         successful_commands = summary.get("successful_test_commands") or []
         if successful_commands:
             command = successful_commands[-1]
             print(f"  Falling back to last successful structured test command: {command}")
-            return command, "runtime_successful_test_commands"
+            return [command], "runtime_successful_test_commands"
 
-        return None, None
+        return [], None
 
-    def _resolve_test_command(self, workplace: str, structured_test_command: Optional[str]) -> Tuple[Optional[str], str]:
-        """Resolve the best available test command and record where it came from."""
+    def _resolve_test_commands(
+        self,
+        workplace: str,
+        structured_test_command: Optional[str],
+        structured_test_commands: Optional[List[str]],
+    ) -> Tuple[List[str], str]:
+        """Resolve the best available structured test command sequence and its source."""
+        commands = self._normalize_test_commands(structured_test_commands)
+        if commands:
+            return commands, "agent_runtime_argument_list"
+
         if structured_test_command:
-            return structured_test_command, "agent_runtime_argument"
+            return [structured_test_command], "agent_runtime_argument"
 
-        command, source = self._extract_structured_test_command(workplace)
-        if command:
-            return command, source or "runtime_summary"
+        commands, source = self._extract_structured_test_commands(workplace)
+        if commands:
+            return commands, source or "runtime_summary"
 
         command = self._extract_test_command_from_setup_logs(workplace)
         if command:
-            return command, "legacy_setup_logs"
+            return [command], "legacy_setup_logs"
 
-        return None, "language_default"
+        return [], "language_default"
 
     def _generate_test_script(self, workplace: str, language: str,
                               problem_statement: str, test_patch: str,
                               dockerfile_content: str = "",
-                              structured_test_command: Optional[str] = None) -> tuple:
+                              structured_test_command: Optional[str] = None,
+                              structured_test_commands: Optional[List[str]] = None) -> tuple:
         """
         生成测试脚本，并将 test_patch 注入 Dockerfile。
         优先使用 Agent 运行时记录的结构化测试命令，老数据再回退到 setup_logs。
@@ -465,21 +601,42 @@ RUN cd /testbed && git checkout {base_commit}
         new_test_funcs = patch_info.get("new_test_funcs", [])
 
         # 优先使用运行时结构化记录，旧数据才回退到 setup_logs。
-        extracted_command, command_source = self._resolve_test_command(workplace, structured_test_command)
+        extracted_commands, command_source = self._resolve_test_commands(
+            workplace,
+            structured_test_command,
+            structured_test_commands,
+        )
         self._last_test_command_source = command_source
-        if extracted_command:
-            base_command = extracted_command
-            print(f"  Using test command from {command_source}: {base_command}")
+        if extracted_commands:
+            base_commands = extracted_commands
+            print(f"  Using {len(base_commands)} test command(s) from {command_source}: {base_commands}")
         else:
             # 回退到基于语言的默认测试命令
             print(f"  No structured or legacy test command found, using default for {language}")
-            base_command = self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)
+            base_commands = [self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)]
 
         # 根据工作目录调整命令路径
         # 如果命令包含 cd 到子目录，需要处理
-        base_command = self._adjust_test_command_for_testbed(base_command)
+        base_commands = [
+            self._adjust_test_command_for_testbed(command)
+            for command in base_commands
+            if command
+        ]
 
-        return self._build_eval_script(base_command, language, test_patch, dockerfile_content)
+        rebuild_commands = self._infer_post_patch_rebuild_commands(
+            language=language,
+            dockerfile_content=dockerfile_content,
+            base_command=" && ".join(base_commands),
+            test_patch=test_patch,
+        )
+
+        return self._build_eval_script(
+            base_commands,
+            language,
+            test_patch,
+            dockerfile_content,
+            rebuild_commands=rebuild_commands,
+        )
 
     def _get_default_test_command(self, language: str, workplace_path: Path,
                                    test_patch: str, new_test_funcs: List) -> str:
@@ -543,8 +700,14 @@ RUN cd /testbed && git checkout {base_commit}
         # 相对路径可执行文件保持不变，依赖前面的 `cd /testbed` 作为工作目录。
         return command
 
-    def _build_eval_script(self, base_command: str, language: str,
-                           test_patch: str, dockerfile_content: str) -> tuple:
+    def _build_eval_script(
+        self,
+        base_commands: List[str],
+        language: str,
+        test_patch: str,
+        dockerfile_content: str,
+        rebuild_commands: Optional[List[str]] = None,
+    ) -> tuple:
         """
         构建最终的 eval_script，处理依赖检查和 test_patch 注入。
 
@@ -562,7 +725,7 @@ if [ -f Gemfile.lock ]; then
     if echo "$BUNDLE_CHECK" | grep -q "The following gems are missing"; then
         echo "Gemfile dependencies changed, reinstalling..."
         rm -f Gemfile.lock
-        bundle install --without code_quality || bundle install
+        bundle install --without code_quality || bundle install || exit 1
     fi
 fi
 """
@@ -570,24 +733,32 @@ fi
             dependency_check = """
 # Check if requirements.txt was modified and reinstall if needed
 if [ -f requirements.txt ]; then
-    pip install -r requirements.txt || true
+    pip install -r requirements.txt || exit 1
 fi
 """
         elif language.lower() in ("javascript", "typescript"):
             dependency_check = """
 # Check if package.json was modified and reinstall if needed
 if [ -f package.json ]; then
-    npm install || true
+    npm install || exit 1
 fi
 """
+
+        runtime_service_setup = self._infer_runtime_service_setup(base_commands, dockerfile_content)
+        rebuild_commands = rebuild_commands or []
+        eval_commands = list(rebuild_commands) + list(base_commands)
+        command_block = " && \\\n".join(f"(\n{command}\n)" for command in eval_commands)
 
         eval_script = f"""#!/bin/bash
 
 cd /testbed
 
 {dependency_check}
-{base_command}
+{runtime_service_setup}
+set +e
+{command_block}
 TEST_EXIT_CODE=$?
+set -e
 
 echo "echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE"
 exit $TEST_EXIT_CODE
@@ -639,11 +810,54 @@ exit $TEST_EXIT_CODE
             if test_framework:
                 new_lines.append(f"RUN {test_framework}")
                 print(f"  Installing test framework: {test_framework}")
+
+            for rebuild_command in rebuild_commands:
+                print(f"  Rebuilding during evaluation after patch application: {rebuild_command}")
             
             updated_dockerfile = '\n'.join(new_lines)
             print("✓ test_patch injected into Dockerfile (baked into image)")
 
         return eval_script, setup_scripts, updated_dockerfile
+
+    def _normalize_run_instruction_for_docker(self, instruction: str) -> str:
+        """Rewrite bash-only snippets into POSIX-compatible RUN instructions."""
+        if not instruction.startswith("RUN "):
+            return instruction
+
+        command = instruction[4:]
+        normalized_command = self._normalize_shell_command_for_docker_run(command)
+        return f"RUN {normalized_command}"
+
+    def _normalize_shell_command_for_docker_run(self, command: str) -> str:
+        """Docker RUN uses /bin/sh by default, so avoid bash-only `source`."""
+        if not command:
+            return command
+        return re.sub(r"(^|(?:&&|\|\||;)\s*)source\s+", r"\1. ", command)
+
+    def _infer_runtime_service_setup(self, base_commands: List[str], dockerfile_content: str) -> str:
+        """Start background services at runtime when tests depend on live daemons."""
+        combined_commands = "\n".join(base_commands or []).lower()
+        dockerfile_lower = (dockerfile_content or "").lower()
+        setup_blocks: List[str] = []
+
+        redis_needed = "redis-cli" in combined_commands or "redis-server" in combined_commands
+        redis_available = "redis-server" in dockerfile_lower or "apt-get install -y redis-server" in dockerfile_lower
+        redis_started_in_test = "redis-server --daemonize yes" in combined_commands
+        if redis_needed and redis_available and not redis_started_in_test:
+            setup_blocks.append(
+                """# Start Redis for tests that depend on a live server
+redis-server --daemonize yes || true
+for attempt in $(seq 1 30); do
+    if redis-cli ping >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+redis-cli ping >/dev/null 2>&1 || exit 1
+"""
+            )
+
+        return "\n".join(setup_blocks)
 
     def _build_test_patch_apply_script(self) -> str:
         """Build a strict test patch applicator for the Docker build context."""
@@ -696,6 +910,282 @@ exit 1
                 return "npm install --save-dev jest"
             return ""
         return ""
+
+    def _infer_post_patch_rebuild_commands(
+        self,
+        language: str,
+        dockerfile_content: str,
+        base_command: str,
+        test_patch: str,
+    ) -> List[str]:
+        """Rebuild compiled artifacts after test_patch is baked into the image."""
+        language_key = language.lower()
+        spec = self._get_rebuild_inference_spec(language_key)
+        if not spec:
+            return []
+        if not test_patch:
+            return []
+        if not dockerfile_content:
+            return []
+
+        if self._command_matches_any((base_command or "").lower(), spec["eval_rebuilding_patterns"]):
+            return []
+
+        rebuild_commands: List[str] = []
+        for line in dockerfile_content.splitlines():
+            if not line.startswith("RUN "):
+                continue
+            command = line[4:].strip()
+            command_lower = command.lower()
+
+            if any(skip in command_lower for skip in spec["common_skip_substrings"]):
+                continue
+            if self._command_matches_any(command_lower, spec["test_only_patterns"]):
+                continue
+
+            if not self._command_matches_any(command_lower, spec["candidate_patterns"]):
+                continue
+
+            sanitized = self._sanitize_rebuild_command(command, language_key)
+            if sanitized and sanitized not in rebuild_commands:
+                rebuild_commands.append(sanitized)
+
+        return rebuild_commands
+
+    def _get_rebuild_inference_spec(self, language: str) -> Optional[Dict[str, Any]]:
+        common_skip_substrings = (
+            "apt-get",
+            "yum ",
+            "apk ",
+            "dnf ",
+            "git clone",
+            "pip install",
+            "npm install",
+            "bundle install",
+            "composer install",
+        )
+        common_test_only_patterns = (
+            r"\bctest\b",
+            r"\bpytest\b",
+            r"\bnpm\s+test\b",
+            r"\bmake\s+test\b",
+            r"\bmake\s+check\b",
+        )
+
+        specs = {
+            "c": {
+                "candidate_patterns": (
+                    r"\bcmake\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\b",
+                    r"\./configure\b",
+                    r"\bautoreconf\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"\bcmake\s+--build\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\s+compile\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "c++": {
+                "candidate_patterns": (
+                    r"\bcmake\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\b",
+                    r"\./configure\b",
+                    r"\bautoreconf\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"\bcmake\s+--build\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\s+compile\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "cpp": {
+                "candidate_patterns": (
+                    r"\bcmake\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\b",
+                    r"\./configure\b",
+                    r"\bautoreconf\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"\bcmake\s+--build\b",
+                    r"\bmake\b",
+                    r"\bninja\b",
+                    r"\bmeson\s+compile\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "java": {
+                "candidate_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^mvn\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^(?:\./)?gradlew\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^gradle\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^sbt\b.*\b(?:compile|package|assembly|test:compile)\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:test|verify)\b",
+                    r"^mvn\b.*\b(?:test|verify)\b",
+                    r"^(?:\./)?gradlew\b.*\btest\b",
+                    r"^gradle\b.*\btest\b",
+                    r"^sbt\b.*\btest\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b(?!.*--no-run)",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "kotlin": {
+                "candidate_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^mvn\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^(?:\./)?gradlew\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^gradle\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^sbt\b.*\b(?:compile|package|assembly|test:compile)\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:test|verify)\b",
+                    r"^mvn\b.*\b(?:test|verify)\b",
+                    r"^(?:\./)?gradlew\b.*\btest\b",
+                    r"^gradle\b.*\btest\b",
+                    r"^sbt\b.*\btest\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b(?!.*--no-run)",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "scala": {
+                "candidate_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^mvn\b.*\b(?:compile|test-compile|package|install|verify|process-test-classes|process-classes)\b",
+                    r"^(?:\./)?gradlew\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^gradle\b.*\b(?:assemble|build|classes|testclasses|jar|bootjar|compilejava|compiletestjava)\b",
+                    r"^sbt\b.*\b(?:compile|package|assembly|test:compile)\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"^(?:\./)?mvnw?\b.*\b(?:test|verify)\b",
+                    r"^mvn\b.*\b(?:test|verify)\b",
+                    r"^(?:\./)?gradlew\b.*\btest\b",
+                    r"^gradle\b.*\btest\b",
+                    r"^sbt\b.*\btest\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"\bgo\s+test\b",
+                    r"\bcargo\s+test\b(?!.*--no-run)",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "rust": {
+                "candidate_patterns": (
+                    r"^cargo\s+build\b",
+                    r"^cargo\s+test\b.*--no-run",
+                    r"^cargo\s+nextest\b",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"^cargo\s+test\b",
+                    r"^cargo\s+nextest\s+run\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"^cargo\s+test\b(?!.*--no-run)",
+                    r"^cargo\s+nextest\s+run\b",
+                    r"\bgo\s+test\b",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+            "go": {
+                "candidate_patterns": (
+                    r"^go\s+build\b",
+                    r"^go\s+install\b",
+                    r"^go\s+test\b.*(?:\s-c\b|\s-o\b)",
+                ),
+                "eval_rebuilding_patterns": (
+                    r"^go\s+test\b",
+                ),
+                "test_only_patterns": common_test_only_patterns + (
+                    r"^go\s+test\b(?!.*(?:\s-c\b|\s-o\b))",
+                    r"\bcargo\s+test\b",
+                ),
+                "common_skip_substrings": common_skip_substrings,
+            },
+        }
+        return specs.get(language)
+
+    def _command_matches_any(self, command: str, patterns: Tuple[str, ...]) -> bool:
+        if not command:
+            return False
+        return any(re.search(pattern, command, re.IGNORECASE) for pattern in patterns)
+
+    def _sanitize_rebuild_command(self, command: str, language: str) -> str:
+        if language in {"c", "c++", "cpp"}:
+            return re.sub(r"\bmkdir\s+([^\s&;]+)", r"mkdir -p \1", command)
+        if language in {"java", "kotlin", "scala"}:
+            return self._sanitize_jvm_rebuild_command(command)
+        if language == "rust":
+            return self._sanitize_rust_rebuild_command(command)
+        if language == "go":
+            return self._sanitize_go_rebuild_command(command)
+        return command
+
+    def _sanitize_jvm_rebuild_command(self, command: str) -> str:
+        normalized = command.lower()
+        if normalized.startswith(("mvn ", "./mvnw", "mvnw ")):
+            sanitized = command
+            if "-DskipTests" not in sanitized and "-dskiptests" not in normalized:
+                sanitized += " -DskipTests"
+            if "-DskipITs" not in sanitized and "-dskipits" not in normalized:
+                sanitized += " -DskipITs"
+            return sanitized
+
+        if normalized.startswith(("gradle ", "./gradlew")):
+            sanitized = command
+            if "testclasses" not in normalized:
+                sanitized += " testClasses"
+            if " -x test" not in normalized:
+                sanitized += " -x test"
+            return sanitized
+
+        if normalized.startswith("sbt "):
+            return "sbt Test/compile"
+
+        return command
+
+    def _sanitize_rust_rebuild_command(self, command: str) -> str:
+        normalized = command.lower()
+        if normalized.startswith("cargo test") and "--no-run" not in normalized:
+            return command + " --no-run"
+        if normalized.startswith("cargo nextest run"):
+            return "cargo test --no-run"
+        return command
+
+    def _sanitize_go_rebuild_command(self, command: str) -> str:
+        normalized = command.lower()
+        if normalized.startswith("go test") and " -c" not in normalized and "\t-c" not in normalized:
+            return command.replace("go test", "go build", 1)
+        return command
     
     def _generate_python_test(self, workplace_path: Path, test_patch: str,
                               new_test_funcs: List = None) -> str:
@@ -720,7 +1210,7 @@ exit 1
         """保存结果到文件"""
         output_file = self.output_dir / f"{instance_id}.json"
         with open(output_file, "w") as f:
-            json.dump(result, f, indent=2)
+            json.dump(result, f, indent=2, ensure_ascii=False)
         print(f"\nResult saved to: {output_file}")
     
     def process_dataset(self, dataset_path: str, 
@@ -766,18 +1256,26 @@ exit 1
         
         # 保存汇总结果（评估框架期望字典格式，以 instance_id 为 key）
         summary_file = self.output_dir / "docker_res.json"
-        docker_res_dict = {r["instance_id"]: r for r in results}
+        docker_res_dict = {
+            r["instance_id"]: r
+            for r in results
+            if not r["logs"].get("skip_evaluation") and r.get("dockerfile") and r.get("eval_script")
+        }
         with open(summary_file, "w") as f:
             json.dump(docker_res_dict, f, indent=2)
         
         # 打印统计信息
         total = len(results)
         build_success = sum(1 for r in results if r["build_success"])
+        skipped = sum(1 for r in results if r["logs"].get("skip_evaluation"))
+        evaluable = len(docker_res_dict)
         
         print(f"\n{'='*60}")
-        print(f"SUMMARY")
+        print("SUMMARY")
         print(f"{'='*60}")
         print(f"Total instances: {total}")
+        print(f"Evaluable instances: {evaluable}/{total}")
+        print(f"Skipped instances: {skipped}/{total}")
         print(f"Build success: {build_success}/{total} ({100*build_success/total:.1f}%)")
         print(f"Results saved to: {summary_file}")
         print(f"{'='*60}\n")
@@ -800,7 +1298,7 @@ def main():
     )
     parser.add_argument(
         "--base-image",
-        default="python:3.10",
+        default="auto",
         help="Default Docker base image"
     )
     parser.add_argument(
