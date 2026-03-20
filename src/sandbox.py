@@ -296,17 +296,6 @@ class Sandbox:
 
         return ""
 
-    def get_container_info(self):
-        """返回容器的详细信息，用于调试验证"""
-        if self.container:
-            return {
-                'id': self.container.id,
-                'short_id': self.container.short_id,
-                'name': self.container.name,
-                'status': self.container.status
-            }
-        return None
-    
     def close(self, keep_alive=False):
         """关闭容器，可选择保持容器运行以供验证"""
         if self.container:

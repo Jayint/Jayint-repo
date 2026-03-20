@@ -674,13 +674,6 @@ def get_language_handler(language: str) -> LanguageHandler:
         raise ValueError(f"Language '{language}' is not supported. "
                         f"Available: {list(LANGUAGE_HANDLERS.keys())}")
     return LANGUAGE_HANDLERS[language]
-
-
-def get_supported_languages() -> List[str]:
-    """Get list of supported programming languages."""
-    return list(LANGUAGE_HANDLERS.keys())
-
-
 def detect_language(repo_structure: str, files_content: Dict[str, str]) -> Optional[str]:
     """
     Auto-detect the primary language of the repository.

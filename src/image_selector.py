@@ -576,23 +576,3 @@ class ImageSelector:
         # Fallback: return first candidate if all retries failed
         print("[ImageSelector] Warning: Could not get valid selection, using fallback")
         return candidate_images[len(candidate_images) // 2], None  # Middle option
-
-
-# Convenience function for direct usage
-def select_base_image(
-    repo_path: str,
-    client: OpenAI,
-    model: str = "gpt-4o",
-    platform: str = "linux",
-    language_hint: Optional[str] = None,
-    log_dir: Optional[str] = None
-) -> Tuple[str, LanguageHandler, str, Optional[str]]:
-    """
-    Convenience function to select base image without instantiating class.
-    
-    Returns:
-        Tuple of (selected_image, language_handler, docs_content, platform_override)
-        platform_override is "linux/amd64" if ARM64 compatibility issues detected, else None
-    """
-    selector = ImageSelector(client, model)
-    return selector.select_base_image(repo_path, platform, language_hint, log_dir=log_dir)

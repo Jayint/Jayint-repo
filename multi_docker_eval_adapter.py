@@ -28,7 +28,6 @@ import os
 import json
 import argparse
 import re
-import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
@@ -313,23 +312,6 @@ RUN git clone {repo_url} /testbed
             #     shutil.rmtree(workplace)
         
         return result
-    
-    def _select_base_image(self, language: str, default: str) -> str:
-        """已废弃：镜像选择由 DockerAgent auto 模式（四步 LLM 流程）接管"""
-        return "auto"
-    
-    def _checkout_commit(self, workplace: str, commit: str):
-        """切换到指定的 git commit"""
-        try:
-            subprocess.run(
-                ["git", "checkout", commit],
-                cwd=workplace,
-                check=True,
-                capture_output=True
-            )
-            print(f"Checked out commit: {commit}")
-        except subprocess.CalledProcessError as e:
-            print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
     
     def _parse_test_patch(self, test_patch: str, language: str = "python") -> Dict[str, Any]:
         """从 test_patch diff 中提取测试文件路径和新增的测试函数名"""
@@ -766,10 +748,6 @@ RUN git clone {repo_url} /testbed
 
         # 相对路径可执行文件保持不变，依赖前面的 `cd /testbed` 作为工作目录。
         return command
-
-    def _adjust_test_command_for_testbed(self, command: str) -> str:
-        """Backward-compatible wrapper for older tests and call sites."""
-        return self._adjust_command_for_testbed(command)
 
     def _build_eval_script(
         self,
