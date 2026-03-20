@@ -3,6 +3,7 @@ import os
 from typing import Optional
 from src.language_handlers import LanguageHandler
 
+
 class Planner:
     MAX_HISTORY_MESSAGES = 24
 
@@ -10,7 +11,9 @@ class Planner:
         self.client = client
         self.model = model
         self.history = []
-        self.total_cost = 0.0  # 累计成本
+        self.managed_history = []
+        self.managed_history_meta = []
+        self.managed_step_to_history_index = {}
         self.language_handler = language_handler
         self.log_dir = log_dir
         self.log_counter = 0
@@ -18,39 +21,6 @@ class Planner:
         # Create log directory if specified
         if self.log_dir:
             os.makedirs(self.log_dir, exist_ok=True)
-        
-        # 2026年2月官方价格 (美元/1M tokens)
-        self.pricing = {
-            # GPT-5 系列
-            "gpt-5.2": {"input": 1.75, "output": 14.00},
-            "gpt-5.2-pro": {"input": 21.00, "output": 168.00},
-            "gpt-5.2-codex": {"input": 1.75, "output": 14.00},
-            "gpt-5.1": {"input": 1.25, "output": 10.00},
-            "gpt-5.1-codex": {"input": 1.25, "output": 10.00},
-            "gpt-5": {"input": 1.25, "output": 10.00},
-            "gpt-5-pro": {"input": 15.00, "output": 120.00},
-            "gpt-5-mini": {"input": 0.25, "output": 2.00},
-            "gpt-5-nano": {"input": 0.05, "output": 0.40},
-            
-            # GPT-4 系列
-            "gpt-4o": {"input": 2.50, "output": 10.00},
-            "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-            "gpt-4-turbo": {"input": 10.00, "output": 30.00},
-            "gpt-4": {"input": 30.00, "output": 60.00},
-            "gpt-4.1": {"input": 2.00, "output": 8.00},
-            "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
-            "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-            
-            # GPT-3.5 系列
-            "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
-            
-            # o 系列（推理模型）
-            "o1": {"input": 15.00, "output": 60.00},
-            "o1-pro": {"input": 150.00, "output": 600.00},
-            "o3": {"input": 2.00, "output": 8.00},
-            "o3-mini": {"input": 1.10, "output": 4.40},
-            "o4-mini": {"input": 1.10, "output": 4.40},
-        }
         
         # Build system prompt with language-specific instructions if available
         language_instructions = ""
@@ -96,7 +66,19 @@ class Planner:
             "   - **Final Verification Block**: Before declaring success, run every test command needed to prove the final environment in one final consecutive verification burst. Avoid doing new setup/build steps after the last successful verification command.\n"
             "4. **Finalize**: ONLY output 'Final Answer: Success' when:\n"
             "   - All dependencies are installed AND\n"
-            "   - The PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets, not setup issues)\n\n"
+            "   - The PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets, not setup issues)\n"
+            "   - Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys:\n"
+            "     * `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution (for example, daemon startup commands like `redis-server --daemonize yes`). Use `[]` if none are required.\n"
+            "     * `test_commands`: exact previously successful commands whose output proved the final environment works. Wrapper commands such as `make all` are allowed if they really executed tests.\n"
+            "   - Every command inside the bundle must exactly match a command you already executed successfully.\n"
+            "   - Exclude read-only checks such as `redis-cli ping` from `runtime_preparation_commands`.\n"
+            "   - Do NOT put installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands into `runtime_preparation_commands`. Examples that must stay OUT of runtime preparation: `apt-get install ...`, `pip install ...`, `composer install ...`, `npm install ...`, `bundle install`, `git clone ...`, `make build`.\n"
+            "   - `runtime_preparation_commands` should usually be short and often empty. It is only for ephemeral runtime actions such as starting a local service, exporting a runtime variable, or preparing a daemon needed by the final tests.\n"
+            "   - Success responses must follow this exact shape:\n"
+            "     Thought: <brief final reasoning>\n"
+            "     Verification Bundle:\n"
+            "     {\"runtime_preparation_commands\": [...], \"test_commands\": [...]} \n"
+            "     Final Answer: Success\n\n"
             "CRITICAL CONSTRAINTS (Environment Limitations):\n"
             "- You are running INSIDE a Docker container, NOT on a host machine.\n"
             "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `service`, `dockerd`, `sudo`\n"
@@ -107,23 +89,32 @@ class Planner:
             "- Stop immediately after the Action."
         )
 
-    def plan(self, repo_url, last_observation=None):
+    def plan(self, repo_url=None, last_observation=None, manage_history=True):
         """
         Generates the next step in the ReAct loop.
-        Returns: thought, action, content, is_finished, cost_info
+        Returns: thought, action, content, is_finished, usage_info
         """
-        # 1. Initialize history with repository information on the first turn
-        if not self.history:
-            self.history.append({"role": "user", "content": f"Repository URL: {repo_url}"})
+        if manage_history:
+            if repo_url is None:
+                raise ValueError("repo_url is required when manage_history=True")
 
-        # 2. Append the last observation as a new user message
-        if last_observation is not None:
-            self.history.append({"role": "user", "content": f"Observation: {last_observation}"})
+            # 1. Initialize history with repository information on the first turn
+            if not self.history:
+                self.history.append({"role": "user", "content": f"Repository URL: {repo_url}"})
 
-        self._trim_history()
+            # 2. Append the last observation as a new user message
+            if last_observation is not None:
+                self.history.append({"role": "user", "content": f"Observation: {last_observation}"})
+
+            self._trim_history()
+            message_history = self.history
+        else:
+            if repo_url and not self.managed_history:
+                self.init_managed_history(repo_url)
+            message_history = self.managed_history
 
         # 3. Construct the message list for the API call
-        messages = [{"role": "system", "content": self.system_prompt}] + self.history
+        messages = [{"role": "system", "content": self.system_prompt}] + message_history
 
         # Log the LLM call input if logging is enabled
         self._log_llm_call("input", messages)
@@ -147,19 +138,57 @@ class Planner:
             }
         })
         
-        # 4. Append the assistant's response (Thought and Action) to history
-        self.history.append({"role": "assistant", "content": content})
-        self._trim_history()
+        if manage_history:
+            # 4. Append the assistant's response (Thought and Action) to history
+            self.history.append({"role": "assistant", "content": content})
+            self._trim_history()
 
-        # 5. 计算本次调用成本
+        # 5. 提取 token 使用量
         usage = response.usage
-        cost_info = self._calculate_cost(usage)
+        usage_info = self._extract_usage(usage)
 
         thought = self._extract_tag(content, "Thought")
         action = self._extract_tag(content, "Action")
         is_finished = "Final Answer:" in content
 
-        return thought, action, content, is_finished, cost_info
+        return thought, action, content, is_finished, usage_info
+
+    def init_managed_history(self, repo_url):
+        self.managed_history = [{"role": "user", "content": f"Repository URL: {repo_url}"}]
+        self.managed_history_meta = [{"step_id": None, "kind": "seed"}]
+        self.managed_step_to_history_index = {}
+
+    def append_step(self, step_id, assistant_content, observation_content):
+        if not self.managed_history:
+            raise ValueError("Managed history is not initialized.")
+
+        assistant_index = len(self.managed_history)
+        self.managed_history.append({"role": "assistant", "content": assistant_content})
+        self.managed_history_meta.append({"step_id": step_id, "kind": "assistant"})
+
+        observation_index = len(self.managed_history)
+        self.managed_history.append(
+            {"role": "user", "content": f"Observation: {observation_content}"}
+        )
+        self.managed_history_meta.append({"step_id": step_id, "kind": "observation"})
+
+        self.managed_step_to_history_index[step_id] = {
+            "assistant": assistant_index,
+            "observation": observation_index,
+        }
+        self._trim_managed_history()
+
+    def replace_observation(self, step_id, observation_content):
+        indices = self.managed_step_to_history_index.get(step_id)
+        if not indices:
+            return False
+        observation_index = indices.get("observation")
+        if observation_index is None or observation_index >= len(self.managed_history):
+            return False
+        self.managed_history[observation_index]["content"] = (
+            f"Observation: {observation_content}"
+        )
+        return True
     
     def _log_llm_call(self, call_type, data):
         """Log LLM call input/output to file, similar to image_selector_logs format"""
@@ -205,28 +234,34 @@ class Planner:
         recent_history = self.history[-(self.MAX_HISTORY_MESSAGES - 1):]
         self.history = [repo_seed] + recent_history
 
-    def _calculate_cost(self, usage):
-        """计算单次 API 调用的成本"""
-        input_tokens = usage.prompt_tokens
-        output_tokens = usage.completion_tokens
-        total_tokens = usage.total_tokens
-        
-        # 获取当前模型的价格，如果没有则使用 gpt-4o 的价格
-        price = self.pricing.get(self.model, self.pricing["gpt-4o"])
-        
-        # 计算成本（美元）
-        input_cost = (input_tokens / 1_000_000) * price["input"]
-        output_cost = (output_tokens / 1_000_000) * price["output"]
-        step_cost = input_cost + output_cost
-        
-        self.total_cost += step_cost
-        
+    def _trim_managed_history(self):
+        if len(self.managed_history) <= self.MAX_HISTORY_MESSAGES:
+            return
+
+        repo_seed = self.managed_history[0]
+        repo_seed_meta = self.managed_history_meta[0]
+        recent_history = self.managed_history[-(self.MAX_HISTORY_MESSAGES - 1):]
+        recent_meta = self.managed_history_meta[-(self.MAX_HISTORY_MESSAGES - 1):]
+
+        self.managed_history = [repo_seed] + recent_history
+        self.managed_history_meta = [repo_seed_meta] + recent_meta
+        self._rebuild_managed_step_index()
+
+    def _rebuild_managed_step_index(self):
+        rebuilt = {}
+        for index, meta in enumerate(self.managed_history_meta):
+            step_id = meta.get("step_id")
+            kind = meta.get("kind")
+            if step_id is None or kind not in {"assistant", "observation"}:
+                continue
+            rebuilt.setdefault(step_id, {})[kind] = index
+        self.managed_step_to_history_index = rebuilt
+
+    def _extract_usage(self, usage):
         return {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "total_tokens": total_tokens,
-            "step_cost": step_cost,
-            "total_cost": self.total_cost
+            "input_tokens": usage.prompt_tokens,
+            "output_tokens": usage.completion_tokens,
+            "total_tokens": usage.total_tokens,
         }
 
     def _extract_tag(self, text, tag):

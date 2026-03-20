@@ -1,0 +1,34 @@
+{
+  "cpputest__cpputest-1502": {
+    "instance_id": "cpputest__cpputest-1502",
+    "repo_url": "https://github.com/cpputest/cpputest.git",
+    "language": "cpp",
+    "dockerfile": "FROM gcc:11\nWORKDIR /testbed\n\n# Install git for cloning\nRUN apt-get update && apt-get install -y git\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/cpputest/cpputest.git /testbed\nRUN cd /testbed && git checkout 2e177fa09f2f46f6bd936227433fc56a7b4292b7\n\n# Agent's verified setup instructions\nRUN apt-get update && apt-get install -y build-essential cmake autoconf automake libtool\nRUN cd build && cmake .. && make -j$(nproc)\n\n\n# Apply test patch and reinstall dependencies\nCOPY test.patch /tmp/test.patch\nCOPY apply_test_patch.sh /tmp/apply_test_patch.sh\nRUN chmod +x /tmp/apply_test_patch.sh && /bin/bash /tmp/apply_test_patch.sh",
+    "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\n\nset +e\n(\ncd build && cmake .. && make -j$(nproc)\n) && \\\n(\nbuild/tests/CppUTest/CppUTestTests\n) && \\\n(\n./build/tests/CppUTestExt/CppUTestExtTests\n)\nTEST_EXIT_CODE=$?\nset -e\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+    "build_success": true,
+    "test_success": false,
+    "platform": null,
+    "logs": {
+      "agent_steps": [],
+      "error": null,
+      "verified_test_command": "./build/tests/CppUTestExt/CppUTestExtTests",
+      "verified_test_commands": [
+        "build/tests/CppUTest/CppUTestTests",
+        "./build/tests/CppUTestExt/CppUTestExtTests"
+      ],
+      "test_command_source": "agent_runtime_argument_list",
+      "skip_evaluation": false,
+      "platform_support": {
+        "supported": true,
+        "detected_runtime": "linux",
+        "required_platform": "linux",
+        "indicators": [],
+        "reason": null
+      }
+    },
+    "setup_scripts": {
+      "test.patch": "diff --git a/tests/CppUTest/CommandLineTestRunnerTest.cpp b/tests/CppUTest/CommandLineTestRunnerTest.cpp\n--- a/tests/CppUTest/CommandLineTestRunnerTest.cpp\n+++ b/tests/CppUTest/CommandLineTestRunnerTest.cpp\n@@ -269,6 +269,16 @@ TEST(CommandLineTestRunner, listTestGroupAndCaseNamesShouldWorkProperly)\n     STRCMP_CONTAINS(\"group1.test1\", commandLineTestRunner.fakeConsoleOutputWhichIsReallyABuffer->getOutput().asCharString());\n }\n \n+TEST(CommandLineTestRunner, listTestLocationsShouldWorkProperly)\n+{\n+    const char* argv[] = { \"tests.exe\", \"-ll\" };\n+\n+    CommandLineTestRunnerWithStringBufferOutput commandLineTestRunner(2, argv, &registry);\n+    commandLineTestRunner.runAllTestsMain();\n+\n+    STRCMP_CONTAINS(\"group1.test1\", commandLineTestRunner.fakeConsoleOutputWhichIsReallyABuffer->getOutput().asCharString());\n+}\n+\n TEST(CommandLineTestRunner, randomShuffleSeedIsPrintedAndRandFuncIsExercised)\n {\n     // more than 1 item in test list ensures that shuffle algorithm calls rand_()\ndiff --git a/tests/CppUTest/TestRegistryTest.cpp b/tests/CppUTest/TestRegistryTest.cpp\n--- a/tests/CppUTest/TestRegistryTest.cpp\n+++ b/tests/CppUTest/TestRegistryTest.cpp\n@@ -361,6 +361,29 @@ TEST(TestRegistry, listTestGroupAndCaseNames_shouldListBackwardsGroupATestaAfter\n     STRCMP_EQUAL(\"GROUP_A.test_aa GROUP_B.test_b GROUP_A.test_a\", s.asCharString());\n }\n \n+TEST(TestRegistry, listTestLocations_shouldListBackwardsGroupATestaAfterGroupAtestaa)\n+{\n+    test1->setGroupName(\"GROUP_A\");\n+    test1->setTestName(\"test_a\");\n+    test1->setFileName(\"cpptest_simple/my_tests/testa.cpp\");\n+    test1->setLineNumber(100);\n+    myRegistry->addTest(test1);\n+    test2->setGroupName(\"GROUP_B\");\n+    test2->setTestName(\"test_b\");\n+    test2->setFileName(\"cpptest_simple/my tests/testb.cpp\");\n+    test2->setLineNumber(200);\n+    myRegistry->addTest(test2);\n+    test3->setGroupName(\"GROUP_A\");\n+    test3->setTestName(\"test_aa\");\n+    test3->setFileName(\"cpptest_simple/my_tests/testaa.cpp\");\n+    test3->setLineNumber(300);\n+    myRegistry->addTest(test3);\n+\n+    myRegistry->listTestLocations(*result);\n+    SimpleString s = output->getOutput();\n+    STRCMP_EQUAL(\"GROUP_A.test_aa.cpptest_simple/my_tests/testaa.cpp.300\\nGROUP_B.test_b.cpptest_simple/my tests/testb.cpp.200\\nGROUP_A.test_a.cpptest_simple/my_tests/testa.cpp.100\\n\", s.asCharString());\n+}\n+\n TEST(TestRegistry, shuffleEmptyListIsNoOp)\n {\n     CHECK_TRUE(myRegistry->getFirstTest() == NULLPTR);\n",
+      "apply_test_patch.sh": "#!/bin/bash\nset -euo pipefail\n\ncd /testbed\n\necho \"[test_patch] validating patch with git apply --check\"\nif git apply --check /tmp/test.patch; then\n    echo \"[test_patch] git apply --check passed\"\n    git apply /tmp/test.patch\n    echo \"[test_patch] git apply succeeded\"\n    exit 0\nfi\n\necho \"[test_patch] git apply --check failed, trying patch fallback\"\nif command -v patch >/dev/null 2>&1; then\n    if patch --batch --fuzz=5 -p1 -i /tmp/test.patch; then\n        echo \"[test_patch] patch fallback succeeded\"\n        exit 0\n    fi\n    echo \"[test_patch] patch fallback failed\"\nelse\n    echo \"[test_patch] patch command is not available for fallback\"\nfi\n\necho \"[test_patch] unable to apply /tmp/test.patch\"\nexit 1\n"
+    }
+  }
+}

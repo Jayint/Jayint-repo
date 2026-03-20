@@ -1,0 +1,145 @@
+============================= test session starts ==============================
+platform linux -- Python 3.6.15, pytest-7.0.1, pluggy-1.0.0
+rootdir: /testbed
+plugins: cov-4.0.0
+collected 1 item
+
+tests/test_ticketing.py .                                                [100%]
+
+=============================== warnings summary ===============================
+tests/test_ticketing.py::test_basic_ticketing
+  /usr/local/lib/python3.6/site-packages/sqlalchemy/dialects/sqlite/base.py:1533: SADeprecationWarning: The create_engine.convert_unicode parameter and corresponding dialect-level parameters are deprecated, and will be removed in a future release.  Modern DBAPIs support Python Unicode natively and this parameter is unnecessary.
+    default.DefaultDialect.__init__(self, **kwargs)
+
+tests/test_ticketing.py::test_basic_ticketing
+  /testbed/logbook/ticketing.py:246: SADeprecationWarning: The FromClause.count() method is deprecated, and will be removed in a future release.   Please use the count function available from the func namespace.
+    return self.engine.execute(self.tickets.count()).fetchone()[0]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 2 warnings in 2.45s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.6.15, pytest-7.0.1, pluggy-1.0.0
+rootdir: /testbed
+plugins: cov-4.0.0
+collected 135 items
+
+tests/test_ci.py ss                                                      [  1%]
+tests/test_deadlock.py .                                                 [  2%]
+tests/test_file_handler.py ................                              [ 14%]
+tests/test_fingers_crossed_handler.py ......                             [ 18%]
+tests/test_flags.py ..                                                   [ 20%]
+tests/test_groups.py .                                                   [ 20%]
+tests/test_handler_errors.py ...                                         [ 22%]
+tests/test_handlers.py ...........                                       [ 31%]
+tests/test_helpers.py ..                                                 [ 32%]
+tests/test_log_record.py ..........                                      [ 40%]
+tests/test_logbook.py ...                                                [ 42%]
+tests/test_logger.py ..                                                  [ 43%]
+tests/test_logging_api.py .............                                  [ 53%]
+tests/test_logging_compat.py ....                                        [ 56%]
+tests/test_logging_times.py ss                                           [ 57%]
+tests/test_mail_handler.py ......F                                       [ 62%]
+tests/test_more.py .........                                             [ 69%]
+tests/test_nteventlog_handler.py s                                       [ 70%]
+tests/test_null_handler.py ......                                        [ 74%]
+tests/test_processors.py ....                                            [ 77%]
+tests/test_syslog_handler.py ..                                          [ 79%]
+tests/test_test_handler.py ....                                          [ 82%]
+tests/test_ticketing.py .                                                [ 82%]
+tests/test_unicode.py .......                                            [ 88%]
+tests/test_utils.py ................                                     [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_mail_handler_arguments __________________________
+
+    def test_mail_handler_arguments():
+        with patch('smtplib.SMTP', autospec=True) as mock_smtp:
+    
+            # Test the mail handler with supported arguments before changes to
+            # secure, credentials, and starttls
+            mail_handler = logbook.MailHandler(
+                from_addr='from@example.com',
+                recipients='to@example.com',
+                server_addr=('server.example.com', 465),
+                credentials=('username', 'password'),
+                secure=('keyfile', 'certfile'))
+    
+            mail_handler.get_connection()
+    
+>           assert mock_smtp.call_args == call('server.example.com', 465)
+E           AssertionError: assert call() == call('server....ple.com', 465)
+E             (pytest_assertion plugin: representation of details failed: /usr/local/lib/python3.6/site-packages/_pytest/assertion/util.py:432: ValueError: too many values to unpack (expected 2).
+E              Probably an object has a faulty __repr__.)
+
+tests/test_mail_handler.py:128: AssertionError
+=============================== warnings summary ===============================
+tests/test_mail_handler.py:43
+  /testbed/tests/test_mail_handler.py:43: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', data)
+
+tests/test_mail_handler.py:46
+  /testbed/tests/test_mail_handler.py:46: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, data)
+
+tests/test_mail_handler.py:47
+  /testbed/tests/test_mail_handler.py:47: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler', data)
+
+tests/test_mail_handler.py:75
+  /testbed/tests/test_mail_handler.py:75: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', body)
+
+tests/test_mail_handler.py:76
+  /testbed/tests/test_mail_handler.py:76: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, body)
+
+tests/test_mail_handler.py:77
+  /testbed/tests/test_mail_handler.py:77: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler_batching', body)
+
+tests/test_mail_handler.py:81
+  /testbed/tests/test_mail_handler.py:81: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:82
+  /testbed/tests/test_mail_handler.py:82: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+tests/test_mail_handler.py:105
+  /testbed/tests/test_mail_handler.py:105: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+' + __name__, body)
+
+tests/test_mail_handler.py:106
+  /testbed/tests/test_mail_handler.py:106: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_group_handler_mail_combo', body)
+
+tests/test_mail_handler.py:110
+  /testbed/tests/test_mail_handler.py:110: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:111
+  /testbed/tests/test_mail_handler.py:111: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+tests/test_logging_compat.py::test_basic_compat[True]
+tests/test_logging_compat.py::test_basic_compat[False]
+  /testbed/tests/test_logging_compat.py:36: DeprecationWarning: The 'warn' method is deprecated, use 'warning' instead
+    logger.warn('This is from the old %s', 'system')
+
+tests/test_more.py::test_jinja_formatter
+  /testbed/logbook/more.py:32: DeprecationWarning: Flags not at the start of the expression '(\\s+)(?u)'
+    _ws_re = re.compile(r'(\s+)(?u)')
+
+tests/test_ticketing.py::test_basic_ticketing
+  /usr/local/lib/python3.6/site-packages/sqlalchemy/dialects/sqlite/base.py:1533: SADeprecationWarning: The create_engine.convert_unicode parameter and corresponding dialect-level parameters are deprecated, and will be removed in a future release.  Modern DBAPIs support Python Unicode natively and this parameter is unnecessary.
+    default.DefaultDialect.__init__(self, **kwargs)
+
+tests/test_ticketing.py::test_basic_ticketing
+  /testbed/logbook/ticketing.py:246: SADeprecationWarning: The FromClause.count() method is deprecated, and will be removed in a future release.   Please use the count function available from the func namespace.
+    return self.engine.execute(self.tickets.count()).fetchone()[0]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_mail_handler.py::test_mail_handler_arguments - AssertionErr...
+============ 1 failed, 129 passed, 5 skipped, 17 warnings in 3.86s =============
+echo OMNIGRIL_EXIT_CODE=1

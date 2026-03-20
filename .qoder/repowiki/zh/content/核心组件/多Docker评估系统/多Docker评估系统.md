@@ -15,6 +15,8 @@
 - [requirements.txt](file://requirements.txt)
 - [Multi-Docker-Eval/evaluation/main.py](file://Multi-Docker-Eval/evaluation/main.py)
 - [Multi-Docker-Eval/evaluation/docker_build.py](file://Multi-Docker-Eval/evaluation/docker_build.py)
+- [eval_output/DockerAgent/final_report.json](file://eval_output/DockerAgent/final_report.json)
+- [multi_docker_eval_output/docker_res.json](file://multi_docker_eval_output/docker_res.json)
 </cite>
 
 ## 更新摘要
@@ -24,6 +26,8 @@
 - 新增结构化测试命令分析和验证功能
 - 增强测试命令解析能力，支持更精确的测试执行控制
 - 改进适配器系统，支持从运行时元数据中提取测试命令
+- 重构基础镜像选择系统，支持多个测试命令处理和改进的平台检测能力
+- 新增自动基础镜像选择功能，提升系统智能化水平
 
 ## 目录
 1. [简介](#简介)
@@ -48,6 +52,9 @@
 - **新增**：结构化测试命令分析和验证
 - **新增**：工作区种子复制机制
 - **新增**：运行时元数据跟踪系统
+- **新增**：多个测试命令处理能力
+- **新增**：改进的平台检测能力
+- **新增**：自动基础镜像选择功能
 
 ## 项目结构
 
@@ -81,8 +88,8 @@ end
 ```
 
 **图表来源**
-- [agent.py:1-440](file://agent.py#L1-L440)
-- [multi_docker_eval_adapter.py:1-837](file://multi_docker_eval_adapter.py#L1-L837)
+- [agent.py:1-464](file://agent.py#L1-L464)
+- [multi_docker_eval_adapter.py:1-800](file://multi_docker_eval_adapter.py#L1-L800)
 - [Multi-Docker-Eval/README.md:33-41](file://Multi-Docker-Eval/README.md#L33-L41)
 
 **章节来源**
@@ -284,7 +291,7 @@ Sandbox的核心功能：
 
 ### 基础镜像选择器
 
-ImageSelector采用多阶段分析策略，确保选择最适合的基础镜像：
+**重构** ImageSelector采用多阶段分析策略，确保选择最适合的基础镜像：
 
 ```mermaid
 flowchart TD
@@ -303,6 +310,11 @@ ReturnResult --> End([结束])
 **图表来源**
 - [src/image_selector.py:247-320](file://src/image_selector.py#L247-L320)
 
+**新增** 支持多个测试命令处理的镜像选择系统：
+- **智能测试命令分析**：能够识别和验证多个测试命令的有效性
+- **平台检测增强**：改进的ARM64架构兼容性检测
+- **自动镜像选择**：基于项目特征自动选择最优基础镜像
+
 语言处理器系统支持多种编程语言：
 
 | 语言 | 基础镜像范围 | 特定处理 |
@@ -314,7 +326,7 @@ ReturnResult --> End([结束])
 | Java | eclipse-temurin:11/17/21 | Maven/Gradle构建 |
 
 **章节来源**
-- [src/image_selector.py:1-565](file://src/image_selector.py#L1-L565)
+- [src/image_selector.py:1-579](file://src/image_selector.py#L1-L579)
 - [src/language_handlers.py:1-714](file://src/language_handlers.py#L1-L714)
 
 ### 运行时元数据跟踪系统
@@ -601,6 +613,8 @@ O --> G
 - **结构化测试命令解析**：提供精确的测试命令识别和验证能力
 - **智能适配器系统**：支持从多种来源提取和解析测试命令
 - **增强的评估框架**：提供更全面的测试执行和报告生成功能
+- **重构的基础镜像选择系统**：支持多个测试命令处理和改进的平台检测能力
+- **自动基础镜像选择功能**：提升系统智能化水平
 
 系统的主要优势包括：
 - **全面的语言支持**：覆盖主流编程语言和开发环境

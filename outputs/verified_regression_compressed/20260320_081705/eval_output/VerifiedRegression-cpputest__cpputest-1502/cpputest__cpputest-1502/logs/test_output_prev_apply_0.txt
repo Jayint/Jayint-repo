@@ -1,0 +1,47 @@
+
+-------------------------------------------------------
+CppUTest Version 4.0
+
+Current compiler options:
+    CC:                                 /usr/bin/cc
+    CXX:                                /usr/local/bin/c++
+    CppUTest CFLAGS:                     -include "/testbed/include/CppUTest/MemoryLeakDetectorMallocMacros.h"  -Wall -Wextra -pedantic -Wshadow -Wswitch-default -Wswitch-enum -Wconversion -Wsign-conversion -Wno-padded -Wno-long-long -Wstrict-prototypes
+    CppUTest CXXFLAGS:                   -include "/testbed/include/CppUTest/MemoryLeakDetectorNewMacros.h" -include "/testbed/include/CppUTest/MemoryLeakDetectorMallocMacros.h"  -Wall -Wextra -pedantic -Wshadow -Wswitch-default -Wswitch-enum -Wconversion -Wsign-conversion -Wno-padded -Wno-long-long -Woverloaded-virtual -Wno-old-style-cast
+    CppUTest LDFLAGS:                   
+
+Features configured in CppUTest:
+    Memory Leak Detection:              ON
+    Compiling Extensions:               ON
+    Support Long Long:                  OFF
+    Use CppUTest flags:                 ON
+
+    Using Standard C library:           ON
+    Using Standard C++ library:         ON
+    Using C++11 library:                OFF
+
+    Generating map file:                OFF
+    Compiling with coverage:            OFF
+
+    Compile and run self-tests          ON
+    Run self-tests separately           OFF
+
+-------------------------------------------------------
+
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /testbed/build
+[ 35%] Built target CppUTestExt
+[ 36%] Built target CppUTest
+Scanning dependencies of target CppUTestTests
+[ 64%] Built target CppUTestExtTests
+[ 65%] Building CXX object tests/CppUTest/CMakeFiles/CppUTestTests.dir/CommandLineTestRunnerTest.cpp.o
+[ 66%] Building CXX object tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o
+/testbed/tests/CppUTest/TestRegistryTest.cpp: In member function 'virtual void TEST_TestRegistry_listTestLocations_shouldListBackwardsGroupATestaAfterGroupAtestaa_Test::testBody()':
+/testbed/tests/CppUTest/TestRegistryTest.cpp:382:17: error: 'class TestRegistry' has no member named 'listTestLocations'
+  382 |     myRegistry->listTestLocations(*result);
+      |                 ^~~~~~~~~~~~~~~~~
+make[2]: *** [tests/CppUTest/CMakeFiles/CppUTestTests.dir/build.make:381: tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+make[1]: *** [CMakeFiles/Makefile2:1014: tests/CppUTest/CMakeFiles/CppUTestTests.dir/all] Error 2
+make: *** [Makefile:160: all] Error 2
+echo OMNIGRIL_EXIT_CODE=2

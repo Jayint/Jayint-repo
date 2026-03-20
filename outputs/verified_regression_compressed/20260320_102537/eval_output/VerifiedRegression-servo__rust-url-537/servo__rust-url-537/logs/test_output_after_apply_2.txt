@@ -1,0 +1,414 @@
+ Downloading crates ...
+  Downloaded semver-parser v0.7.0
+  Downloaded rustc_version v0.2.3
+  Downloaded itoa v1.0.18
+  Downloaded semver v0.9.0
+  Downloaded bencher v0.1.5
+  Downloaded getopts v0.2.24
+  Downloaded zmij v1.0.21
+  Downloaded time v0.1.45
+  Downloaded quote v1.0.45
+  Downloaded rustc-serialize v0.3.25
+  Downloaded rustc-test v0.3.1
+  Downloaded serde_core v1.0.228
+  Downloaded unicode-ident v1.0.24
+  Downloaded term v0.4.6
+  Downloaded serde v1.0.228
+  Downloaded memchr v2.8.0
+  Downloaded serde_json v1.0.149
+  Downloaded serde_derive v1.0.228
+  Downloaded proc-macro2 v1.0.106
+  Downloaded unicode-width v0.2.2
+  Downloaded syn v2.0.117
+  Downloaded libc v0.2.183
+   Compiling semver-parser v0.7.0
+   Compiling proc-macro2 v1.0.106
+   Compiling serde_core v1.0.228
+   Compiling libc v0.2.183
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling zmij v1.0.21
+   Compiling unicode-width v0.2.2
+   Compiling serde_json v1.0.149
+   Compiling memchr v2.8.0
+   Compiling serde v1.0.228
+   Compiling semver v0.9.0
+   Compiling getopts v0.2.24
+   Compiling itoa v1.0.18
+   Compiling term v0.4.6
+   Compiling rustc-serialize v0.3.25
+   Compiling bencher v0.1.5
+   Compiling rustc_version v0.2.3
+   Compiling data-url v0.1.0 (/testbed/data-url)
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:31
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                               ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+    = note: `#[warn(ellipsis_inclusive_range_patterns)]` on by default
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:48
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                                                ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:22
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:67
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                                                                   ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:18
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                  ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:38
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+   Compiling rustc-test v0.3.1
+   Compiling syn v2.0.117
+warning: `data-url` (lib) generated 6 warnings (run `cargo fix --lib -p data-url` to apply 6 suggestions)
+   Compiling time v0.1.45
+   Compiling serde_derive v1.0.228
+   Compiling idna v0.2.0 (/testbed/idna)
+warning: panic message is not a string literal
+  --> idna/tests/punycode.rs:22:17
+   |
+22 | /                 format!(
+23 | |                     "Incorrect decoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+24 | |                     encoded, result, decoded
+25 | |                 )
+   | |_________________^
+   |
+   = note: this usage of `assert!()` is deprecated; it will be a hard error in Rust 2021
+   = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/panic-macro-consistency.html>
+   = note: the `assert!()` macro supports formatting, so there's no need for the `format!()` macro here
+   = note: `#[warn(non_fmt_panics)]` on by default
+help: remove the `format!(..)` macro call
+   |
+22 ~                 
+23 |                     "Incorrect decoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+24 |                     encoded, result, decoded
+25 ~                 
+   |
+
+warning: panic message is not a string literal
+  --> idna/tests/punycode.rs:34:13
+   |
+34 | /             format!(
+35 | |                 "Incorrect encoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+36 | |                 decoded, result, encoded
+37 | |             )
+   | |_____________^
+   |
+   = note: this usage of `assert!()` is deprecated; it will be a hard error in Rust 2021
+   = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/panic-macro-consistency.html>
+   = note: the `assert!()` macro supports formatting, so there's no need for the `format!()` macro here
+help: remove the `format!(..)` macro call
+   |
+34 ~             
+35 |                 "Incorrect encoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+36 |                 decoded, result, encoded
+37 ~             
+   |
+
+warning: `idna` (test "tests") generated 2 warnings (run `cargo fix --test "tests"` to apply 2 suggestions)
+   Compiling url v2.1.0 (/testbed)
+warning: unnecessary trailing semicolon
+  --> data-url/tests/wpt.rs:36:6
+   |
+36 |     };
+   |      ^ help: remove this semicolon
+   |
+   = note: `#[warn(redundant_semicolons)]` on by default
+
+warning: use of deprecated method `std::error::Error::description`: use the Display impl or to_string()
+  --> src/parser.rs:95:32
+   |
+95 |         fmt::Display::fmt(self.description(), f)
+   |                                ^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `std::error::Error::description`: use the Display impl or to_string()
+    --> src/lib.rs:2452:82
+     |
+2452 |                     .map_err(|err| Error::invalid_value(Unexpected::Str(s), &err.description()))
+     |                                                                                  ^^^^^^^^^^^
+
+warning: unused borrow that must be used
+   --> src/form_urlencoded.rs:233:9
+    |
+233 |         &target.as_mut_string()[start_position..]; // Panic if out of bounds
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the borrow produces a value
+    |
+    = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+233 |         let _ = &target.as_mut_string()[start_position..]; // Panic if out of bounds
+    |         +++++++
+
+warning: `data-url` (test "wpt") generated 1 warning
+warning: `url` (lib) generated 3 warnings
+warning: unnecessary trailing semicolon
+  --> tests/data.rs:64:19
+   |
+64 |                 )+;
+   |                   ^ help: remove this semicolon
+...
+69 |     assert_attributes!(href protocol username password host hostname port pathname search hash);
+   |     ------------------------------------------------------------------------------------------- in this macro invocation
+   |
+   = note: `#[warn(redundant_semicolons)]` on by default
+   = note: this warning originates in the macro `assert_attributes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `url` (test "data") generated 1 warning
+    Finished test [unoptimized + debuginfo] target(s) in 11.19s
+     Running tests/wpt.rs (target/debug/deps/wpt-dd5d02e9844dc57d)
+
+running 1072 tests
+......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................thread 'data: URL "data://test:test/,X"' panicked at data-url/tests/wpt.rs:21:9:
+Mime { type_: "text", subtype: "plain", parameters: [("charset", "US-ASCII")] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+..........................................................
+test result: ok. 1072 passed; 0 failed; 0 ignored; 0 measured
+
+     Running tests/tests.rs (target/debug/deps/tests-8fabc0a56365f0aa)
+
+running 7787 tests
+...........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+test result: ok. 7787 passed; 0 failed; 0 ignored; 0 measured
+
+     Running tests/unit.rs (target/debug/deps/unit-7b83986dca22cc75)
+
+running 2 tests
+test test_v5 ... ok
+test test_v8_bidi_rules ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/data.rs (target/debug/deps/data-022f72a9add3ed4a)
+
+running 713 tests
+.........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+test result: ok. 713 passed; 0 failed; 0 ignored; 0 measured
+
+     Running tests/unit.rs (target/debug/deps/unit-5ec22eb4112615d5)
+
+running 35 tests
+test append_empty_segment_then_mutate ... ok
+test append_trailing_slash ... ok
+test extend_query_pairs_then_mutate ... ok
+test form_urlencoded_encoding_override ... ok
+test issue_241 ... ok
+test from_str ... ok
+test issue_124 ... ok
+test host ... ok
+test host_serialization ... ok
+test new_file_paths ... ok
+test new_path_bad_utf8 ... ok
+test issue_61 ... ok
+test new_path_windows_fun ... ok
+test issue_197 ... ok
+test new_directory_paths ... ok
+test size ... ok
+test parse_with_params ... ok
+test path_backslash_fun ... ok
+test test_form_serialize ... ok
+test test_form_urlencoded ... ok
+test test_options_reuse ... ok
+test test_idna ... ok
+test test_equality ... ok
+test test_leading_dots ... ok
+test test_set_empty_host ... ok
+test test_relative_empty ... ok
+test test_relative ... ok
+test test_windows_unc_path ... ok
+test test_syntax_violation_callback ... ok
+test test_origin_hash ... ok
+test test_syntax_violation_callback_lifetimes ... ok
+test test_url_from_file_path ... ok
+test test_set_empty_hostname ... ok
+test test_set_host ... ok
+test test_serialization ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests data-url
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:31
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                               ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+    = note: `#[warn(ellipsis_inclusive_range_patterns)]` on by default
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:48
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                                                ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:22
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:67
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                                                                   ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:18
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                  ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:38
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: 6 warnings emitted
+
+
+running 1 test
+test data-url/src/lib.rs - (line 5) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+   Doc-tests percent-encoding
+
+running 6 tests
+test percent_encoding/lib.rs - AsciiSet (line 52) ... ok
+test percent_encoding/lib.rs - percent_encode (line 210) ... ok
+test percent_encoding/lib.rs - (line 31) ... ok
+test percent_encoding/lib.rs - percent_decode (line 330) ... ok
+test percent_encoding/lib.rs - utf8_percent_encode (line 229) ... ok
+test percent_encoding/lib.rs - percent_encode_byte (line 170) ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+   Doc-tests url
+
+running 65 tests
+test src/form_urlencoded.rs - form_urlencoded::Serializer<'a,T>::finish (line 301) ... ok
+test src/lib.rs - (line 18) ... ok
+test src/lib.rs - (line 94) ... ok
+test src/lib.rs - Url::cannot_be_a_base (line 674) ... ok
+test src/lib.rs - (line 57) ... ok
+test src/lib.rs - (line 86) ... ok
+test src/lib.rs - Url::domain (line 872) ... ok
+test src/lib.rs - (line 26) ... ok
+test src/lib.rs - Url::as_str (line 376) ... ok
+test src/lib.rs - ParseOptions<'a>::syntax_violation_callback (line 205) ... ok
+test src/lib.rs - Url::from_file_path (line 2115) ... ok
+test src/lib.rs - Url::fragment (line 1174) ... ok
+test src/lib.rs - Url::has_authority (line 643) ... ok
+test src/lib.rs - Url::host (line 839) ... ok
+test src/lib.rs - Url::join (line 315) ... ok
+test src/lib.rs - Url::options (line 349) ... ok
+test src/lib.rs - Url::has_host (line 768) ... ok
+test src/lib.rs - Url::origin (line 548) ... ok
+test src/lib.rs - Url::into_string (line 399) ... ok
+test src/lib.rs - Url::host_str (line 801) ... ok
+test src/lib.rs - Url::origin (line 599) ... ok
+test src/lib.rs - Url::origin (line 565) ... ok
+test src/lib.rs - Url::parse (line 244) ... ok
+test src/lib.rs - Url::parse_with_params (line 272) ... ok
+test src/lib.rs - Url::password (line 730) ... ok
+test src/lib.rs - Url::path (line 1019) ... ok
+test src/lib.rs - Url::path_segments (line 1055) ... ok
+test src/lib.rs - Url::port (line 903) ... ok
+test src/lib.rs - Url::origin (line 582) ... ok
+test src/lib.rs - Url::port_or_known_default (line 935) ... ok
+test src/lib.rs - Url::query (line 1095) ... ok
+test src/lib.rs - Url::query_pairs (line 1134) ... ok
+test src/lib.rs - Url::scheme (line 619) ... ok
+test src/lib.rs - Url::query_pairs_mut (line 1312) ... ok
+test src/lib.rs - Url::set_fragment (line 1208) ... ok
+test src/lib.rs - Url::set_host (line 1575) ... ok
+test src/lib.rs - Url::set_host (line 1559) ... ok
+test src/lib.rs - Url::set_host (line 1591) ... ok
+test src/lib.rs - Url::set_ip_host (line 1742) ... ok
+test src/lib.rs - Url::set_host (line 1607) ... ok
+test src/lib.rs - Url::set_ip_host (line 1757) ... ok
+test src/lib.rs - Url::set_path (line 1374) ... ok
+test src/lib.rs - Url::set_password (line 1790) ... ok
+test src/lib.rs - Url::set_port (line 1448) ... ok
+test src/lib.rs - Url::set_port (line 1483) ... ok
+test src/lib.rs - Url::set_port (line 1467) ... ok
+test src/lib.rs - Url::set_query (line 1265) ... ok
+test src/lib.rs - Url::set_scheme (line 1965) ... ok
+test src/lib.rs - Url::set_scheme (line 1980) ... ok
+test src/lib.rs - Url::set_scheme (line 1996) ... ok
+test src/lib.rs - Url::socket_addrs (line 968) - compile ... ok
+test src/lib.rs - Url::set_scheme (line 2012) ... ok
+test src/lib.rs - Url::socket_addrs (line 975) ... ok
+test src/lib.rs - Url::set_scheme (line 2042) ... ok
+test src/lib.rs - Url::set_scheme (line 2027) ... ok
+test src/lib.rs - Url::to_file_path (line 2273) ... ok
+test src/lib.rs - Url::set_username (line 1889) ... ok
+test src/lib.rs - Url::set_username (line 1874) ... ok
+test src/lib.rs - Url::username (line 701) ... ok
+test src/path_segments.rs - path_segments::PathSegmentsMut<'a>::clear (line 79) ... ok
+test src/slicing.rs - slicing::Position (line 44) ... ok
+test src/path_segments.rs - path_segments::PathSegmentsMut<'a>::extend (line 176) ... ok
+test src/path_segments.rs - path_segments::PathSegmentsMut (line 20) ... ok
+test src/path_segments.rs - path_segments::PathSegmentsMut<'a>::extend (line 196) ... ok
+test src/path_segments.rs - path_segments::PathSegmentsMut<'a>::pop_if_empty (line 107) ... ok
+
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+
+echo OMNIGRIL_EXIT_CODE=0

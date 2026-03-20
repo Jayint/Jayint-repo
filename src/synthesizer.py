@@ -23,6 +23,30 @@ class Synthesizer:
         """Return True when a successful command changed the effective runtime environment."""
         return self._command_has_meaningful_setup_activity(command)
 
+    def is_runtime_service_command(self, command):
+        """Public wrapper for runtime service startup commands such as redis-server."""
+        return self._command_matches_segment_predicate(command, self._is_runtime_service_segment)
+
+    def is_runtime_healthcheck_command(self, command):
+        """Public wrapper for healthcheck-only commands such as redis-cli ping."""
+        return self._command_matches_segment_predicate(command, self._is_runtime_healthcheck_segment)
+
+    def observation_has_effective_test_signal(self, observation):
+        """Expose test-output validation for agent-reported wrapper commands."""
+        return self._observation_has_effective_test_signal(observation)
+
+    def observation_has_empty_test_run_signal(self, observation):
+        """Expose empty test-run detection for agent-reported wrapper commands."""
+        return self._observation_has_empty_test_run_signal(observation)
+
+    def observation_looks_like_help_text(self, observation):
+        """Expose help-text detection for agent-reported wrapper commands."""
+        return self._observation_looks_like_help_text(observation)
+
+    def is_persistent_setup_command(self, command):
+        """Return True when a successful command would already be replayed via Dockerfile setup."""
+        return bool(self._extract_recordable_setup_commands(command))
+
     def _record_setup_instruction(self, command):
         """Persist a setup/build command into Dockerfile and QuickStart collections."""
         if not command or not command.strip():
@@ -165,6 +189,15 @@ class Synthesizer:
             normalized = self._normalize_command_segment(segment)
             if normalized:
                 yield segment.strip(), normalized
+
+    def _command_matches_segment_predicate(self, command, predicate):
+        if not command or not command.strip():
+            return False
+
+        for _, normalized in self._iter_command_segments(command):
+            if predicate(normalized):
+                return True
+        return False
 
     def _split_shell_chain(self, command):
         """Split a shell command into ordered segments while preserving separators."""

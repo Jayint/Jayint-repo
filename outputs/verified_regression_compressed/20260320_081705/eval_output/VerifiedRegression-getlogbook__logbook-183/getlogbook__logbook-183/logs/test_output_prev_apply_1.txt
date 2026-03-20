@@ -1,0 +1,619 @@
+============================= test session starts ==============================
+platform linux -- Python 3.6.15, pytest-7.0.1, pluggy-1.0.0
+rootdir: /testbed
+plugins: cov-4.0.0
+collected 147 items
+
+tests/test_ci.py ss                                                      [  1%]
+tests/test_deadlock.py .                                                 [  2%]
+tests/test_file_handler.py ................                              [ 12%]
+tests/test_fingers_crossed_handler.py ......                             [ 17%]
+tests/test_flags.py ..                                                   [ 18%]
+tests/test_groups.py .                                                   [ 19%]
+tests/test_handler_errors.py ...                                         [ 21%]
+tests/test_handlers.py ...........                                       [ 28%]
+tests/test_helpers.py ..                                                 [ 29%]
+tests/test_log_record.py ..........                                      [ 36%]
+tests/test_logbook.py ...                                                [ 38%]
+tests/test_logger.py ..                                                  [ 40%]
+tests/test_logging_api.py .............                                  [ 48%]
+tests/test_logging_compat.py ....                                        [ 51%]
+tests/test_logging_times.py ss                                           [ 53%]
+tests/test_mail_handler.py ......F                                       [ 57%]
+tests/test_more.py .........                                             [ 63%]
+tests/test_nteventlog_handler.py s                                       [ 64%]
+tests/test_null_handler.py ......                                        [ 68%]
+tests/test_processors.py ....                                            [ 71%]
+tests/test_queues.py .........FFF                                        [ 79%]
+tests/test_syslog_handler.py ..                                          [ 80%]
+tests/test_test_handler.py ....                                          [ 83%]
+tests/test_ticketing.py .                                                [ 84%]
+tests/test_unicode.py .......                                            [ 89%]
+tests/test_utils.py ................                                     [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_mail_handler_arguments __________________________
+
+    def test_mail_handler_arguments():
+        with patch('smtplib.SMTP', autospec=True) as mock_smtp:
+    
+            # Test the mail handler with supported arguments before changes to
+            # secure, credentials, and starttls
+            mail_handler = logbook.MailHandler(
+                from_addr='from@example.com',
+                recipients='to@example.com',
+                server_addr=('server.example.com', 465),
+                credentials=('username', 'password'),
+                secure=('keyfile', 'certfile'))
+    
+            mail_handler.get_connection()
+    
+>           assert mock_smtp.call_args == call('server.example.com', 465)
+E           AssertionError: assert call() == call('server....ple.com', 465)
+E             (pytest_assertion plugin: representation of details failed: /usr/local/lib/python3.6/site-packages/_pytest/assertion/util.py:432: ValueError: too many values to unpack (expected 2).
+E              Probably an object has a faulty __repr__.)
+
+tests/test_mail_handler.py:128: AssertionError
+______________________________ test_redis_handler ______________________________
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+>               lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <redis.retry.Retry object at 0x7ffffa7d4898>
+do = <function Connection.connect.<locals>.<lambda> at 0x7ffffa7d6048>
+fail = <function Connection.connect.<locals>.<lambda> at 0x7ffffa7d60d0>
+
+    def call_with_retry(self, do, fail):
+        """
+        Execute an operation that might fail and returns its result, or
+        raise the exception that was thrown depending on the `Backoff` object.
+        `do`: the operation to call. Expects no argument.
+        `fail`: the failure handler, expects the last error that was thrown
+        """
+        self._backoff.reset()
+        failures = 0
+        while True:
+            try:
+>               return do()
+
+/usr/local/lib/python3.6/site-packages/redis/retry.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>       lambda: self._connect(), lambda error: self.disconnect(error)
+    )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+                sock.connect(socket_address)
+    
+                # set the socket_timeout now that we're connected
+                sock.settimeout(self.socket_timeout)
+                return sock
+    
+            except OSError as _:
+                err = _
+                if sock is not None:
+                    sock.close()
+    
+        if err is not None:
+>           raise err
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:677: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [Errno 111] Connection refused
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:665: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+    @require_module('redis')
+    def test_redis_handler():
+        import redis
+        from logbook.queues import RedisHandler
+    
+        KEY = 'redis'
+        FIELDS = ['message', 'host']
+        r = redis.Redis(decode_responses=True)
+>       redis_handler = RedisHandler(level=logbook.INFO, bubble=True)
+
+tests/test_queues.py:170: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+logbook/queues.py:60: in __init__
+    self.redis.ping()
+/usr/local/lib/python3.6/site-packages/redis/commands/core.py:1132: in ping
+    return self.execute_command("PING", **kwargs)
+/usr/local/lib/python3.6/site-packages/redis/client.py:1235: in execute_command
+    conn = self.connection or pool.get_connection(command_name, **options)
+/usr/local/lib/python3.6/site-packages/redis/connection.py:1387: in get_connection
+    connection.connect()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+                lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+        except socket.timeout:
+            raise TimeoutError("Timeout connecting to server")
+        except OSError as e:
+>           raise ConnectionError(self._error_message(e))
+E           redis.exceptions.ConnectionError: Error 111 connecting to 127.0.0.1:6379. Connection refused.
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:617: ConnectionError
+___________________________ test_redis_handler_lpush ___________________________
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+>               lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <redis.retry.Retry object at 0x7ffffa8e1c88>
+do = <function Connection.connect.<locals>.<lambda> at 0x7ffff8632488>
+fail = <function Connection.connect.<locals>.<lambda> at 0x7ffff8632d90>
+
+    def call_with_retry(self, do, fail):
+        """
+        Execute an operation that might fail and returns its result, or
+        raise the exception that was thrown depending on the `Backoff` object.
+        `do`: the operation to call. Expects no argument.
+        `fail`: the failure handler, expects the last error that was thrown
+        """
+        self._backoff.reset()
+        failures = 0
+        while True:
+            try:
+>               return do()
+
+/usr/local/lib/python3.6/site-packages/redis/retry.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>       lambda: self._connect(), lambda error: self.disconnect(error)
+    )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+                sock.connect(socket_address)
+    
+                # set the socket_timeout now that we're connected
+                sock.settimeout(self.socket_timeout)
+                return sock
+    
+            except OSError as _:
+                err = _
+                if sock is not None:
+                    sock.close()
+    
+        if err is not None:
+>           raise err
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:677: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [Errno 111] Connection refused
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:665: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+    @require_module('redis')
+    def test_redis_handler_lpush():
+        """
+        Test if lpush stores messages in the right order
+        new items should be first on list
+        """
+        import redis
+        from logbook.queues import RedisHandler
+        null_handler = logbook.NullHandler()
+    
+        redis_handler = RedisHandler(key='lpushed', push_method='lpush',
+>                                    level=logbook.INFO, bubble=True)
+
+tests/test_queues.py:238: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+logbook/queues.py:60: in __init__
+    self.redis.ping()
+/usr/local/lib/python3.6/site-packages/redis/commands/core.py:1132: in ping
+    return self.execute_command("PING", **kwargs)
+/usr/local/lib/python3.6/site-packages/redis/client.py:1235: in execute_command
+    conn = self.connection or pool.get_connection(command_name, **options)
+/usr/local/lib/python3.6/site-packages/redis/connection.py:1387: in get_connection
+    connection.connect()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+                lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+        except socket.timeout:
+            raise TimeoutError("Timeout connecting to server")
+        except OSError as e:
+>           raise ConnectionError(self._error_message(e))
+E           redis.exceptions.ConnectionError: Error 111 connecting to 127.0.0.1:6379. Connection refused.
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:617: ConnectionError
+___________________________ test_redis_handler_rpush ___________________________
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+>               lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <redis.retry.Retry object at 0x7ffffa78c940>
+do = <function Connection.connect.<locals>.<lambda> at 0x7ffff8632510>
+fail = <function Connection.connect.<locals>.<lambda> at 0x7ffffa77d7b8>
+
+    def call_with_retry(self, do, fail):
+        """
+        Execute an operation that might fail and returns its result, or
+        raise the exception that was thrown depending on the `Backoff` object.
+        `do`: the operation to call. Expects no argument.
+        `fail`: the failure handler, expects the last error that was thrown
+        """
+        self._backoff.reset()
+        failures = 0
+        while True:
+            try:
+>               return do()
+
+/usr/local/lib/python3.6/site-packages/redis/retry.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>       lambda: self._connect(), lambda error: self.disconnect(error)
+    )
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:612: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+                sock.connect(socket_address)
+    
+                # set the socket_timeout now that we're connected
+                sock.settimeout(self.socket_timeout)
+                return sock
+    
+            except OSError as _:
+                err = _
+                if sock is not None:
+                    sock.close()
+    
+        if err is not None:
+>           raise err
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:677: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [Errno 111] Connection refused
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:665: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+    @require_module('redis')
+    def test_redis_handler_rpush():
+        """
+        Test if rpush stores messages in the right order
+        old items should be first on list
+        """
+        import redis
+        from logbook.queues import RedisHandler
+        null_handler = logbook.NullHandler()
+    
+        redis_handler = RedisHandler(key='rpushed', push_method='rpush',
+>                                    level=logbook.INFO, bubble=True)
+
+tests/test_queues.py:265: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+logbook/queues.py:60: in __init__
+    self.redis.ping()
+/usr/local/lib/python3.6/site-packages/redis/commands/core.py:1132: in ping
+    return self.execute_command("PING", **kwargs)
+/usr/local/lib/python3.6/site-packages/redis/client.py:1235: in execute_command
+    conn = self.connection or pool.get_connection(command_name, **options)
+/usr/local/lib/python3.6/site-packages/redis/connection.py:1387: in get_connection
+    connection.connect()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Connection<host=127.0.0.1,port=6379,db=0>
+
+    def connect(self):
+        "Connects to the Redis server if not already connected"
+        if self._sock:
+            return
+        try:
+            sock = self.retry.call_with_retry(
+                lambda: self._connect(), lambda error: self.disconnect(error)
+            )
+        except socket.timeout:
+            raise TimeoutError("Timeout connecting to server")
+        except OSError as e:
+>           raise ConnectionError(self._error_message(e))
+E           redis.exceptions.ConnectionError: Error 111 connecting to 127.0.0.1:6379. Connection refused.
+
+/usr/local/lib/python3.6/site-packages/redis/connection.py:617: ConnectionError
+=============================== warnings summary ===============================
+tests/test_mail_handler.py:43
+  /testbed/tests/test_mail_handler.py:43: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', data)
+
+tests/test_mail_handler.py:46
+  /testbed/tests/test_mail_handler.py:46: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, data)
+
+tests/test_mail_handler.py:47
+  /testbed/tests/test_mail_handler.py:47: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler', data)
+
+tests/test_mail_handler.py:75
+  /testbed/tests/test_mail_handler.py:75: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+ERROR', body)
+
+tests/test_mail_handler.py:76
+  /testbed/tests/test_mail_handler.py:76: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+%s' % __name__, body)
+
+tests/test_mail_handler.py:77
+  /testbed/tests/test_mail_handler.py:77: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_mail_handler_batching', body)
+
+tests/test_mail_handler.py:81
+  /testbed/tests/test_mail_handler.py:81: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:82
+  /testbed/tests/test_mail_handler.py:82: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+tests/test_mail_handler.py:105
+  /testbed/tests/test_mail_handler.py:105: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Module:\s+' + __name__, body)
+
+tests/test_mail_handler.py:106
+  /testbed/tests/test_mail_handler.py:106: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Function:\s+test_group_handler_mail_combo', body)
+
+tests/test_mail_handler.py:110
+  /testbed/tests/test_mail_handler.py:110: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+WARNING', related[0])
+
+tests/test_mail_handler.py:111
+  /testbed/tests/test_mail_handler.py:111: DeprecationWarning: invalid escape sequence \s
+    assert re.search('Message type:\s+DEBUG', related[1])
+
+tests/test_logging_compat.py::test_basic_compat[True]
+tests/test_logging_compat.py::test_basic_compat[False]
+  /testbed/tests/test_logging_compat.py:36: DeprecationWarning: The 'warn' method is deprecated, use 'warning' instead
+    logger.warn('This is from the old %s', 'system')
+
+tests/test_more.py::test_jinja_formatter
+  /testbed/logbook/more.py:32: DeprecationWarning: Flags not at the start of the expression '(\\s+)(?u)'
+    _ws_re = re.compile(r'(\s+)(?u)')
+
+tests/test_ticketing.py::test_basic_ticketing
+  /usr/local/lib/python3.6/site-packages/sqlalchemy/dialects/sqlite/base.py:1533: SADeprecationWarning: The create_engine.convert_unicode parameter and corresponding dialect-level parameters are deprecated, and will be removed in a future release.  Modern DBAPIs support Python Unicode natively and this parameter is unnecessary.
+    default.DefaultDialect.__init__(self, **kwargs)
+
+tests/test_ticketing.py::test_basic_ticketing
+  /testbed/logbook/ticketing.py:246: SADeprecationWarning: The FromClause.count() method is deprecated, and will be removed in a future release.   Please use the count function available from the func namespace.
+    return self.engine.execute(self.tickets.count()).fetchone()[0]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_mail_handler.py::test_mail_handler_arguments - AssertionErr...
+FAILED tests/test_queues.py::test_redis_handler - redis.exceptions.Connection...
+FAILED tests/test_queues.py::test_redis_handler_lpush - redis.exceptions.Conn...
+FAILED tests/test_queues.py::test_redis_handler_rpush - redis.exceptions.Conn...
+============ 4 failed, 138 passed, 5 skipped, 17 warnings in 6.83s =============
+echo OMNIGRIL_EXIT_CODE=1

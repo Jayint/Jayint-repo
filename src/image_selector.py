@@ -163,6 +163,11 @@ class ImageSelector:
         self.model = model
         self._log_dir: Optional[str] = None
         self._log_counter: int = 0
+        self.token_usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
 
     def _init_log_dir(self, log_dir: str):
         """Initialize log directory and reset counter."""
@@ -199,6 +204,17 @@ class ImageSelector:
             f.write(structure)
             f.write("\n------ END REPOSITORY STRUCTURE ------\n")
 
+    def _record_usage(self, response):
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return
+        self.token_usage["input_tokens"] += usage.prompt_tokens
+        self.token_usage["output_tokens"] += usage.completion_tokens
+        self.token_usage["total_tokens"] += usage.total_tokens
+
+    def get_token_usage(self) -> Dict[str, int]:
+        return dict(self.token_usage)
+
     def _llm_detect_language(self, docs: str) -> Optional[str]:
         """Use LLM to detect the primary language from relevant file contents."""
         available_languages = list(LANGUAGE_HANDLERS.keys())
@@ -212,6 +228,7 @@ class ImageSelector:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0
             )
+            self._record_usage(response)
             content = response.choices[0].message.content
             self._write_llm_log(prompt, content, label="detect_language")
 
@@ -363,6 +380,7 @@ class ImageSelector:
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
+        self._record_usage(response)
         
         content = response.choices[0].message.content
         self._write_llm_log(prompt, content, label="locate_files")
@@ -418,6 +436,7 @@ class ImageSelector:
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0
                 )
+                self._record_usage(response)
                 
                 result = response.choices[0].message.content
                 self._write_llm_log(prompt, result, label=f"relevance:{file_path}")
@@ -513,6 +532,7 @@ class ImageSelector:
                 messages=messages,
                 temperature=0
             )
+            self._record_usage(response)
             
             content = response.choices[0].message.content
             self._write_llm_log(

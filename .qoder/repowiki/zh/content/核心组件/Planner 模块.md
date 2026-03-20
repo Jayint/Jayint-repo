@@ -15,6 +15,7 @@
 
 ## 更新摘要
 **变更内容**
+- 增强决策逻辑：Planner 组件增加了15行改进，优化了历史记录管理和成本计算机制
 - 强化 No Excuses 规则：明确禁止在测试失败时声明成功，无论任何理由
 - 部分通过不算成功：即使是少量失败也不算成功，必须全部测试通过
 - 系统警告绑定规则：当观察结果以 `[SYSTEM]` 警告开头时，绝对禁止输出成功
@@ -72,16 +73,16 @@ C --> H["测试失败检测<br/>自动警告注入"]
 ```
 
 **图表来源**
-- [agent.py](file://agent.py#L17-L70)
-- [src/planner.py](file://src/planner.py#L5-L159)
-- [src/sandbox.py](file://src/sandbox.py#L4-L178)
-- [src/synthesizer.py](file://src/synthesizer.py#L1-L144)
-- [src/image_selector.py](file://src/image_selector.py#L117-L506)
-- [src/language_handlers.py](file://src/language_handlers.py#L10-L700)
+- [agent.py:17-70](file://agent.py#L17-L70)
+- [src/planner.py:5-159](file://src/planner.py#L5-L159)
+- [src/sandbox.py:4-178](file://src/sandbox.py#L4-L178)
+- [src/synthesizer.py:1-144](file://src/synthesizer.py#L1-L144)
+- [src/image_selector.py:117-506](file://src/image_selector.py#L117-L506)
+- [src/language_handlers.py:10-700](file://src/language_handlers.py#L10-L700)
 
 **章节来源**
-- [README.md](file://README.md#L1-L71)
-- [requirements.txt](file://requirements.txt#L1-L4)
+- [README.md:1-71](file://README.md#L1-L71)
+- [requirements.txt:1-4](file://requirements.txt#L1-L4)
 
 ## 核心组件
 - **Planner**：负责根据系统提示词与历史消息生成下一步 ReAct 步骤（Thought/Action），并解析 LLM 输出，同时计算本次调用的成本。**新增**：支持语言处理器参数，动态注入语言特定的设置指导；支持 LLM 交互日志记录；强化 No Excuses 规则约束。
@@ -91,11 +92,11 @@ C --> H["测试失败检测<br/>自动警告注入"]
 - **Synthesizer**：记录成功执行的命令，生成最终 Dockerfile 与 QuickStart 文档，辅助用户快速复现环境。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L5-L159)
-- [src/language_handlers.py](file://src/language_handlers.py#L10-L700)
-- [src/image_selector.py](file://src/image_selector.py#L117-L506)
-- [src/sandbox.py](file://src/sandbox.py#L4-L178)
-- [src/synthesizer.py](file://src/synthesizer.py#L1-L144)
+- [src/planner.py:5-159](file://src/planner.py#L5-L159)
+- [src/language_handlers.py:10-700](file://src/language_handlers.py#L10-L700)
+- [src/image_selector.py:117-506](file://src/image_selector.py#L117-L506)
+- [src/sandbox.py:4-178](file://src/sandbox.py#L4-L178)
+- [src/synthesizer.py:1-144](file://src/synthesizer.py#L1-L144)
 
 ## 架构总览
 下图展示了 ReAct 循环在本项目中的端到端流程：Planner 生成 Action，Sandbox 执行 Action 并返回 Observation，Planner 将 Observation 追加到历史并继续迭代，直至满足"Final Answer"完成条件。**新增**：语言处理器系统提供上下文感知的设置指导，智能镜像选择器提供最优的基础镜像，Planner 支持 LLM 交互日志记录，Sandbox 实现智能测试失败检测。
@@ -134,11 +135,11 @@ end
 ```
 
 **图表来源**
-- [agent.py](file://agent.py#L36-L69)
-- [src/planner.py](file://src/planner.py#L83-L159)
-- [src/sandbox.py](file://src/sandbox.py#L29-L91)
-- [src/image_selector.py](file://src/image_selector.py#L214-L286)
-- [src/language_handlers.py](file://src/language_handlers.py#L670-L700)
+- [agent.py:36-69](file://agent.py#L36-L69)
+- [src/planner.py:83-159](file://src/planner.py#L83-L159)
+- [src/sandbox.py:29-91](file://src/sandbox.py#L29-L91)
+- [src/image_selector.py:214-286](file://src/image_selector.py#L214-L286)
+- [src/language_handlers.py:670-700](file://src/language_handlers.py#L670-L700)
 
 ## 详细组件分析
 
@@ -175,7 +176,7 @@ class Planner {
 ```
 
 **图表来源**
-- [src/planner.py](file://src/planner.py#L5-L159)
+- [src/planner.py:5-159](file://src/planner.py#L5-L159)
 
 #### ReAct 工作流详解
 - 初始化阶段：首次调用时向历史记录追加仓库 URL；随后每次迭代将上一轮的 Observation 作为用户消息加入历史。
@@ -207,10 +208,10 @@ Cost --> Return(["返回 (thought, action, content, is_finished, cost_info)"])
 ```
 
 **图表来源**
-- [src/planner.py](file://src/planner.py#L83-L159)
+- [src/planner.py:83-159](file://src/planner.py#L83-L159)
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L5-L159)
+- [src/planner.py:5-159](file://src/planner.py#L5-L159)
 
 #### 提示词模板与约束
 - 系统提示词明确角色定位、当前状态、ReAct 格式要求与任务指导（分析与安装、阅读 README、验证、最终化等）。
@@ -220,15 +221,15 @@ Cost --> Return(["返回 (thought, action, content, is_finished, cost_info)"])
 - 关键约束：仅允许在容器内执行、禁止特定命令（如 docker build/run/compose/systemctl/service 等）、禁止 sudo、若存在 Dockerfile 则需分析依赖并通过包管理器安装。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L64-L104)
+- [src/planner.py:64-104](file://src/planner.py#L64-L104)
 
 #### 响应解析与正则提取
 - 使用正则按标签提取 Thought 与 Action，支持去除代码块与单引号包裹的命令格式，保证后续执行的安全性与正确性。
 - 若未检测到 Action，Planner 将提示澄清并等待修正。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L151-L155)
-- [agent.py](file://agent.py#L247-L250)
+- [src/planner.py:151-155](file://src/planner.py#L151-L155)
+- [agent.py:247-250](file://agent.py#L247-L250)
 
 #### 成本计算机制
 **更新**：增强成本计算机制，支持多种模型定价
@@ -240,8 +241,8 @@ Cost --> Return(["返回 (thought, action, content, is_finished, cost_info)"])
 - 返回值包含 input_tokens、output_tokens、total_tokens、step_cost、total_cost，便于监控与预算控制。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L21-L52)
-- [src/planner.py](file://src/planner.py#L192-L214)
+- [src/planner.py:21-52](file://src/planner.py#L21-L52)
+- [src/planner.py:192-214](file://src/planner.py#L192-L214)
 
 #### LLM 交互日志记录
 **新增**：改进的 LLM 交互日志记录机制
@@ -254,7 +255,7 @@ Cost --> Return(["返回 (thought, action, content, is_finished, cost_info)"])
 - **新增**：自动创建日志目录，支持重复运行而不覆盖之前的日志。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L157-L190)
+- [src/planner.py:157-190](file://src/planner.py#L157-L190)
 
 ### 语言处理器系统分析
 **新增**：语言处理器系统提供多语言环境规划能力，支持 16 种编程语言，包含自动检测、基础镜像选择和语言特定的设置指导。
@@ -367,7 +368,7 @@ LanguageHandler <|-- DartHandler
 ```
 
 **图表来源**
-- [src/language_handlers.py](file://src/language_handlers.py#L10-L700)
+- [src/language_handlers.py:10-700](file://src/language_handlers.py#L10-L700)
 
 #### 语言检测机制
 - **LLM 检测**：使用专门的提示词分析仓库文件内容，识别主要编程语言。
@@ -375,7 +376,7 @@ LanguageHandler <|-- DartHandler
 - **冲突解决**：定义优先级顺序，避免 TypeScript/JavaScript 等相似语言的误判。
 
 **章节来源**
-- [src/language_handlers.py](file://src/language_handlers.py#L670-L700)
+- [src/language_handlers.py:670-700](file://src/language_handlers.py#L670-L700)
 
 #### 支持的编程语言
 系统支持 16 种主流编程语言：
@@ -393,7 +394,7 @@ LanguageHandler <|-- DartHandler
 - **Dart**：支持 Flutter 和 Dart SDK
 
 **章节来源**
-- [src/language_handlers.py](file://src/language_handlers.py#L637-L667)
+- [src/language_handlers.py:637-667](file://src/language_handlers.py#L637-L667)
 
 ### 智能镜像选择器分析
 **新增**：智能镜像选择器分析仓库结构和文件内容，使用 LLM 和规则基础方法选择最优的基础 Docker 镜像。
@@ -423,7 +424,7 @@ N --> O
 ```
 
 **图表来源**
-- [src/image_selector.py](file://src/image_selector.py#L214-L286)
+- [src/image_selector.py:214-286](file://src/image_selector.py#L214-L286)
 
 #### 语言检测流程
 - **LLM 检测**：使用专门的提示词分析仓库文件，识别主要编程语言。
@@ -431,7 +432,7 @@ N --> O
 - **默认回退**：如果所有检测方法都失败，回退到 Python。
 
 **章节来源**
-- [src/image_selector.py](file://src/image_selector.py#L167-L194)
+- [src/image_selector.py:167-194](file://src/image_selector.py#L167-L194)
 
 #### 基础镜像选择策略
 - **语言特定版本**：根据项目文件中的版本要求选择合适的语言版本。
@@ -439,7 +440,7 @@ N --> O
 - **稳定性优先**：优先选择稳定且较新的版本，避免隐藏的兼容性问题。
 
 **章节来源**
-- [src/image_selector.py](file://src/image_selector.py#L91-L114)
+- [src/image_selector.py:91-114](file://src/image_selector.py#L91-L114)
 
 ### Sandbox 组件分析
 - 容器初始化：基于 base_image 启动交互式 bash 容器，挂载本地工作区至 /app。
@@ -466,13 +467,13 @@ NoWarn --> Fail["返回 (False, output)"]
 ```
 
 **图表来源**
-- [src/sandbox.py](file://src/sandbox.py#L29-L91)
-- [src/sandbox.py](file://src/sandbox.py#L93-L112)
-- [src/sandbox.py](file://src/sandbox.py#L114-L134)
-- [src/sandbox.py](file://src/sandbox.py#L181-L219)
+- [src/sandbox.py:29-91](file://src/sandbox.py#L29-L91)
+- [src/sandbox.py:93-112](file://src/sandbox.py#L93-L112)
+- [src/sandbox.py:114-134](file://src/sandbox.py#L114-L134)
+- [src/sandbox.py:181-219](file://src/sandbox.py#L181-L219)
 
 **章节来源**
-- [src/sandbox.py](file://src/sandbox.py#L4-L178)
+- [src/sandbox.py:4-178](file://src/sandbox.py#L4-L178)
 
 #### 测试失败检测机制
 **新增**：智能测试失败检测机制
@@ -484,7 +485,7 @@ NoWarn --> Fail["返回 (False, output)"]
 - **No Excuses 规则执行**：严格遵守"部分通过不算成功"原则
 
 **章节来源**
-- [src/sandbox.py](file://src/sandbox.py#L181-L219)
+- [src/sandbox.py:181-219](file://src/sandbox.py#L181-L219)
 
 ### Synthesizer 组件分析
 - 记录成功命令：将执行成功的指令转换为 Dockerfile 的 RUN 指令，并保留用于 QuickStart 的安装类命令。
@@ -502,12 +503,12 @@ A4 --> A5["写入文件并返回内容"]
 ```
 
 **图表来源**
-- [src/synthesizer.py](file://src/synthesizer.py#L9-L31)
-- [src/synthesizer.py](file://src/synthesizer.py#L32-L122)
-- [src/synthesizer.py](file://src/synthesizer.py#L130-L144)
+- [src/synthesizer.py:9-31](file://src/synthesizer.py#L9-L31)
+- [src/synthesizer.py:32-122](file://src/synthesizer.py#L32-L122)
+- [src/synthesizer.py:130-144](file://src/synthesizer.py#L130-L144)
 
 **章节来源**
-- [src/synthesizer.py](file://src/synthesizer.py#L1-L192)
+- [src/synthesizer.py:1-192](file://src/synthesizer.py#L1-L192)
 
 ### DockerAgent 调度与 ReAct 循环
 - 初始化：准备本地工作区、挂载目录、创建 LLM 客户端、实例化 Planner 与 Synthesizer。**新增**：集成智能镜像选择器，自动选择最优基础镜像，支持日志目录参数。
@@ -538,11 +539,11 @@ end
 ```
 
 **图表来源**
-- [agent.py](file://agent.py#L36-L69)
+- [agent.py:36-69](file://agent.py#L36-L69)
 
 **章节来源**
-- [agent.py](file://agent.py#L17-L317)
-- [agent.py](file://agent.py#L36-L69)
+- [agent.py:17-317](file://agent.py#L17-L317)
+- [agent.py:36-69](file://agent.py#L36-L69)
 
 ## 依赖关系分析
 - Planner 依赖 LLM 客户端（OpenAI）进行对话生成，并依赖定价表进行成本计算。**新增**：依赖日志系统记录 LLM 交互；依赖语言处理器系统提供上下文感知的设置指导；依赖 No Excuses 规则约束。
@@ -568,16 +569,16 @@ LH --> PL
 ```
 
 **图表来源**
-- [agent.py](file://agent.py#L1-L317)
-- [src/planner.py](file://src/planner.py#L1-L159)
-- [src/sandbox.py](file://src/sandbox.py#L1-L178)
-- [src/synthesizer.py](file://src/synthesizer.py#L1-L144)
-- [src/image_selector.py](file://src/image_selector.py#L1-L506)
-- [src/language_handlers.py](file://src/language_handlers.py#L1-L700)
+- [agent.py:1-317](file://agent.py#L1-L317)
+- [src/planner.py:1-159](file://src/planner.py#L1-L159)
+- [src/sandbox.py:1-178](file://src/sandbox.py#L1-L178)
+- [src/synthesizer.py:1-144](file://src/synthesizer.py#L1-L144)
+- [src/image_selector.py:1-506](file://src/image_selector.py#L1-L506)
+- [src/language_handlers.py:1-700](file://src/language_handlers.py#L1-L700)
 
 **章节来源**
-- [agent.py](file://agent.py#L1-L317)
-- [requirements.txt](file://requirements.txt#L1-L4)
+- [agent.py:1-317](file://agent.py#L1-L317)
+- [requirements.txt:1-4](file://requirements.txt#L1-L4)
 
 ## 性能考量
 - 令牌成本控制
@@ -603,34 +604,34 @@ LH --> PL
   - 规则基础检测提供快速回退，提高整体响应速度。
 
 **章节来源**
-- [src/planner.py](file://src/planner.py#L83-L104)
-- [src/sandbox.py](file://src/sandbox.py#L56-L74)
-- [src/synthesizer.py](file://src/synthesizer.py#L47-L57)
-- [src/image_selector.py](file://src/image_selector.py#L167-L194)
+- [src/planner.py:83-104](file://src/planner.py#L83-L104)
+- [src/sandbox.py:56-74](file://src/sandbox.py#L56-L74)
+- [src/synthesizer.py:47-57](file://src/synthesizer.py#L47-L57)
+- [src/image_selector.py:167-194](file://src/image_selector.py#L167-L194)
 
 ## 故障排查指南
 - 无 Action 输出
   - 现象：Planner 返回的 Action 为空。
   - 处理：Agent 会提示澄清并等待修正；确认系统提示词中 ReAct 格式要求被严格遵循。
-  - 参考路径：[agent.py](file://agent.py#L247-L250)
+  - 参考路径：[agent.py:247-250](file://agent.py#L247-L250)
 - API Key 缺失
   - 现象：命令执行失败且输出包含 API Key 相关关键词。
   - 处理：Synthesizer 检测到后记录所需密钥名称与上下文；可在 QuickStart.md 中提供两种配置方法（环境变量与 .env 文件）。
-  - 参考路径：[agent.py](file://agent.py#L284-L303)，[src/synthesizer.py](file://src/synthesizer.py#L17-L21)
+  - 参考路径：[agent.py:284-303](file://agent.py#L284-L303)，[src/synthesizer.py:17-21](file://src/synthesizer.py#L17-L21)
 - 容器执行失败
   - 现象：Sandbox 返回失败并触发回滚。
   - 处理：检查 Action 是否符合容器内可用工具与权限；确认禁用命令未被使用；必要时增加依赖安装步骤。
   - **新增**：检查是否出现测试失败警告，严格遵守 No Excuses 规则。
-  - 参考路径：[src/sandbox.py](file://src/sandbox.py#L76-L91)
+  - 参考路径：[src/sandbox.py:76-91](file://src/sandbox.py#L76-L91)
 - 成本异常
   - 现象：累计成本远高于预期。
   - 处理：检查模型选择与定价表；确认 stop 参数生效；避免冗余历史消息。
   - **新增**：检查是否使用了高成本模型（如 gpt-5-pro、o1-pro 等）。
-  - 参考路径：[src/planner.py](file://src/planner.py#L192-L214)
+  - 参考路径：[src/planner.py:192-214](file://src/planner.py#L192-L214)
 - **新增**：No Excuses 规则违规
   - 现象：尝试在测试失败时声明成功。
   - 处理：Sandbox 会自动检测测试失败并注入 `[SYSTEM]` 警告，阻止成功声明；必须修复所有测试失败。
-  - 参考路径：[src/sandbox.py](file://src/sandbox.py#L181-L219)，[src/planner.py](file://src/planner.py#L83-L86)
+  - 参考路径：[src/sandbox.py:181-219](file://src/sandbox.py#L181-L219)，[src/planner.py:83-86](file://src/planner.py#L83-L86)
 - **新增**：部分通过不算成功
   - 现象：测试中有少量失败但尝试声明成功。
   - 处理：严格遵守"部分通过不算成功"原则，必须所有测试通过才能声明成功。
@@ -638,26 +639,26 @@ LH --> PL
 - **新增**：系统警告绑定规则失效
   - 现象：观察结果以 `[SYSTEM]` 警告开头但仍声明成功。
   - 处理：Agent 会严格检查 Final Answer: Success 的有效性，拒绝任何带有系统警告的成功声明。
-  - 参考路径：[agent.py](file://agent.py#L307-L321)
+  - 参考路径：[agent.py:307-321](file://agent.py#L307-L321)
 - **新增**：日志记录问题
   - 现象：LLM 交互日志未生成或格式不正确。
   - 处理：确认 `log_dir` 参数设置正确；检查日志目录权限；确认 Planner 初始化时传入了正确的日志目录。
-  - 参考路径：[src/planner.py](file://src/planner.py#L157-L190)
+  - 参考路径：[src/planner.py:157-190](file://src/planner.py#L157-L190)
 - **新增**：语言检测失败
   - 现象：智能镜像选择器无法确定项目语言。
   - 处理：检查仓库文件结构；确认关键配置文件是否存在；系统会自动回退到 Python。
-  - 参考路径：[src/image_selector.py](file://src/image_selector.py#L263-L269)
+  - 参考路径：[src/image_selector.py:263-269](file://src/image_selector.py#L263-L269)
 - **新增**：基础镜像选择不当
   - 现象：选择的基础镜像版本过旧或过新。
   - 处理：检查项目中的版本要求文件；确认 CI/CD 配置；重新运行镜像选择流程。
-  - 参考路径：[src/image_selector.py](file://src/image_selector.py#L105-L108)
+  - 参考路径：[src/image_selector.py:105-108](file://src/image_selector.py#L105-L108)
 
 **章节来源**
-- [agent.py](file://agent.py#L247-L250)
-- [agent.py](file://agent.py#L284-L303)
-- [src/sandbox.py](file://src/sandbox.py#L76-L91)
-- [src/planner.py](file://src/planner.py#L192-L214)
-- [src/image_selector.py](file://src/image_selector.py#L263-L269)
+- [agent.py:247-250](file://agent.py#L247-L250)
+- [agent.py:284-303](file://agent.py#L284-L303)
+- [src/sandbox.py:76-91](file://src/sandbox.py#L76-L91)
+- [src/planner.py:192-214](file://src/planner.py#L192-L214)
+- [src/image_selector.py:263-269](file://src/image_selector.py#L263-L269)
 
 ## 结论
 Planner 模块通过 ReAct 框架实现了可控、可观测的 LLM 决策循环：清晰的消息历史管理、严格的输出解析与成本计算，辅以 Sandbox 的安全执行与 Synthesizer 的产物生成，形成了从"环境配置到可复现文档"的完整闭环。**新增**：强化的 No Excuses 规则确保测试质量，智能测试失败检测防止绕过，系统警告绑定规则严格执行，显著提升了自动化环境配置的可靠性和准确性。增强的成本跟踪和定价模型支持多种模型选择，改进的 LLM 交互日志便于调试和审计，语言处理器系统提供了多语言环境规划能力，智能镜像选择器能够根据项目特点推荐最优的基础镜像，大大提升了自动化环境配置的准确性和效率。在实际使用中，建议优先采用低 token 的模型与 stop 控制，合理裁剪历史，关注 API Key 配置与容器权限，充分利用语言特定的设置指导、日志记录功能和 No Excuses 规则，以获得更稳定与经济的运行效果。
@@ -667,34 +668,34 @@ Planner 模块通过 ReAct 框架实现了可控、可观测的 LLM 决策循环
 ### 使用示例与最佳实践
 - 基本用法
   - 准备 OPENAI_API_KEY 环境变量，克隆目标仓库到本地工作区，启动 Agent。
-  - 参考路径：[README.md](file://README.md#L28-L47)，[agent.py](file://agent.py#L305-L317)
+  - 参考路径：[README.md:28-47](file://README.md#L28-L47)，[agent.py:305-317](file://agent.py#L305-L317)
 - 错误处理
   - 若 Action 为空，Agent 会提示澄清；若命令失败，Sandbox 回滚至上一成功状态。
   - **新增**：严格遵守 No Excuses 规则，测试失败时必须修复问题。
-  - 参考路径：[agent.py](file://agent.py#L247-L250)，[src/sandbox.py](file://src/sandbox.py#L76-L91)
+  - 参考路径：[agent.py:247-250](file://agent.py#L247-L250)，[src/sandbox.py:76-91](file://src/sandbox.py#L76-L91)
 - 性能优化
   - 选择合适模型与 stop 参数；仅记录有副作用的命令；及时清理镜像与快照。
   - **新增**：合理使用日志功能，避免产生过多日志文件；根据需要选择合适的模型以平衡成本和性能。
   - **新增**：利用智能测试失败检测减少无效尝试，提高整体效率。
-  - 参考路径：[src/planner.py](file://src/planner.py#L83-L104)，[src/sandbox.py](file://src/sandbox.py#L56-L74)，[src/sandbox.py](file://src/sandbox.py#L181-L219)
+  - 参考路径：[src/planner.py:83-104](file://src/planner.py#L83-L104)，[src/sandbox.py:56-74](file://src/sandbox.py#L56-L74)，[src/sandbox.py:181-219](file://src/sandbox.py#L181-L219)
 - 产物参考
   - 成功后生成的 QuickStart.md 示例可参考项目中的 workplace/QuickStart.md。
-  - 参考路径：[workplace/QuickStart.md](file://workplace/QuickStart.md#L1-L46)
+  - 参考路径：[workplace/QuickStart.md:1-46](file://workplace/QuickStart.md#L1-L46)
 - **新增**：多语言支持
   - 系统支持 16 种编程语言的自动环境配置，包括 Python、JavaScript、TypeScript、Rust、Go、Java、C#、C++、Ruby、PHP、Kotlin、Scala、R、Dart 等。
-  - 参考路径：[src/language_handlers.py](file://src/language_handlers.py#L637-L667)
+  - 参考路径：[src/language_handlers.py:637-667](file://src/language_handlers.py#L637-L667)
 - **新增**：智能镜像选择
   - 使用智能镜像选择器自动分析项目并推荐最优的基础 Docker 镜像，提升环境配置准确性。
-  - 参考路径：[src/image_selector.py](file://src/image_selector.py#L214-L286)
+  - 参考路径：[src/image_selector.py:214-286](file://src/image_selector.py#L214-L286)
 - **新增**：No Excuses 规则应用
   - 严格遵守"测试必须全部通过才能声明成功"的原则，部分通过不算成功。
-  - 参考路径：[src/planner.py](file://src/planner.py#L83-L86)，[src/planner.py](file://src/planner.py#L85)
+  - 参考路径：[src/planner.py:83-86](file://src/planner.py#L83-L86)，[src/planner.py](file://src/planner.py#L85)
 - **新增**：系统警告处理
   - 当观察结果以 `[SYSTEM]` 警告开头时，必须修复问题后再继续，不能声明成功。
   - 参考路径：[src/planner.py](file://src/planner.py#L86)
 - **新增**：成本控制
   - 根据项目需求选择合适的模型，GPT-4o 适合大多数场景，gpt-5 系列适合复杂任务，o 系列适合推理任务。
-  - 参考路径：[src/planner.py](file://src/planner.py#L21-L52)
+  - 参考路径：[src/planner.py:21-52](file://src/planner.py#L21-L52)
 - **新增**：日志管理
   - 使用 `log_dir` 参数指定日志目录，便于组织和管理 LLM 交互日志。
-  - 参考路径：[src/planner.py](file://src/planner.py#L8-L15)，[src/planner.py](file://src/planner.py#L157-L190)
+  - 参考路径：[src/planner.py:8-15](file://src/planner.py#L8-L15)，[src/planner.py:157-190](file://src/planner.py#L157-L190)

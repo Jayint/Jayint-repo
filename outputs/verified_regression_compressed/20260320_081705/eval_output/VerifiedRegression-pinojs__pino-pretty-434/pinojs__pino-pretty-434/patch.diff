@@ -1,0 +1,33 @@
+diff --git a/index.js b/index.js
+--- a/index.js
++++ b/index.js
+@@ -162,7 +162,7 @@ function prettyFactory (options) {
+       line += ':'
+     }
+ 
+-    if (prettifiedMessage) {
++    if (prettifiedMessage !== undefined) {
+       if (line.length > 0) {
+         line = `${line} ${prettifiedMessage}`
+       } else {
+@@ -186,7 +186,7 @@ function prettyFactory (options) {
+       if (singleLine) line += EOL
+       line += prettifiedErrorLog
+     } else if (!hideObject) {
+-      const skipKeys = [messageKey, levelKey, timestampKey].filter(key => typeof log[key] === 'string' || typeof log[key] === 'number')
++      const skipKeys = [messageKey, levelKey, timestampKey].filter(key => typeof log[key] === 'string' || typeof log[key] === 'number' || typeof log[key] === 'boolean')
+       const prettifiedObject = prettifyObject({
+         input: log,
+         skipKeys,
+diff --git a/lib/utils.js b/lib/utils.js
+--- a/lib/utils.js
++++ b/lib/utils.js
+@@ -280,7 +280,7 @@ function prettifyMessage ({ log, messageFormat, messageKey = MESSAGE_KEY, colori
+     return colorizer.message(msg)
+   }
+   if (messageKey in log === false) return undefined
+-  if (typeof log[messageKey] !== 'string') return undefined
++  if (typeof log[messageKey] !== 'string' && typeof log[messageKey] !== 'number' && typeof log[messageKey] !== 'boolean') return undefined
+   return colorizer.message(log[messageKey])
+ }
+ 

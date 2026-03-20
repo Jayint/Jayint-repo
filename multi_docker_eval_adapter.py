@@ -41,11 +41,13 @@ class MultiDockerEvalAdapter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._last_test_command_source = None
+        self._last_runtime_preparation_source = None
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "auto",
                                model: str = "gpt-4o",
-                               max_steps: int = 30) -> Dict[str, Any]:
+                               max_steps: int = 30,
+                               enable_observation_compression: bool = False) -> Dict[str, Any]:
         """
         处理单个评估实例
         
@@ -85,16 +87,19 @@ class MultiDockerEvalAdapter:
             "build_success": False,
             "test_success": False,
             "platform": None,  # Docker platform override (e.g., linux/amd64 for ARM hosts)
-            "logs": {
-                "agent_steps": [],
-                "error": None,
-                "verified_test_command": None,
-                "verified_test_commands": [],
-                "test_command_source": None,
-                "skip_evaluation": False,
-                "platform_support": None,
+                "logs": {
+                    "agent_steps": [],
+                    "error": None,
+                    "verified_test_command": None,
+                    "verified_test_commands": [],
+                    "verified_runtime_preparation_commands": [],
+                    "test_command_source": None,
+                    "runtime_preparation_source": None,
+                    "verification_source": None,
+                    "skip_evaluation": False,
+                    "platform_support": None,
+                }
             }
-        }
 
         platform_support = self._assess_platform_support(instance, language)
         result["logs"]["platform_support"] = platform_support
@@ -119,7 +124,8 @@ class MultiDockerEvalAdapter:
                 base_image=base_image or "auto",
                 model=model,
                 workplace=workplace,
-                base_commit=base_commit  # checkout before image selection for accurate LLM analysis
+                base_commit=base_commit,  # checkout before image selection for accurate LLM analysis
+                enable_observation_compression=enable_observation_compression,
             )
             
             # base_commit 已在 DockerAgent.__init__ 中完成 checkout
@@ -264,6 +270,7 @@ RUN git clone {repo_url} /testbed
                 problem_statement=problem_statement,
                 test_patch=test_patch,
                 dockerfile_content=result.get("dockerfile", ""),
+                structured_runtime_preparation_commands=getattr(agent, "verified_runtime_preparation_commands", None),
                 structured_test_command=getattr(agent, "verified_test_command", None),
                 structured_test_commands=getattr(agent, "verified_test_commands", None),
             )
@@ -271,7 +278,16 @@ RUN git clone {repo_url} /testbed
             result["setup_scripts"] = setup_scripts
             result["logs"]["verified_test_command"] = getattr(agent, "verified_test_command", None)
             result["logs"]["verified_test_commands"] = getattr(agent, "verified_test_commands", []) or []
+            result["logs"]["verified_runtime_preparation_commands"] = (
+                getattr(agent, "verified_runtime_preparation_commands", []) or []
+            )
             result["logs"]["test_command_source"] = getattr(self, "_last_test_command_source", None)
+            result["logs"]["runtime_preparation_source"] = getattr(
+                self,
+                "_last_runtime_preparation_source",
+                None,
+            )
+            result["logs"]["verification_source"] = getattr(agent, "verification_source", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch
             if not result["dockerfile"] or not result["eval_script"]:
@@ -522,7 +538,7 @@ RUN git clone {repo_url} /testbed
             print(f"  Warning: Failed to read agent_run_summary.json: {e}")
             return None
 
-    def _normalize_test_commands(self, commands: Optional[List[str]]) -> List[str]:
+    def _normalize_commands(self, commands: Optional[List[str]]) -> List[str]:
         """Drop empty entries while preserving order."""
         if isinstance(commands, str):
             commands = [commands]
@@ -536,13 +552,36 @@ RUN git clone {repo_url} /testbed
                 normalized_commands.append(stripped)
         return normalized_commands
 
+    def _extract_structured_runtime_preparation_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
+        """Read runtime preparation commands reported by DockerAgent."""
+        summary = self._load_run_summary(workplace)
+        if not summary:
+            return [], None
+
+        commands = self._normalize_commands(summary.get("verified_runtime_preparation_commands"))
+        if commands:
+            print(
+                f"  Loaded structured runtime preparation command list ({len(commands)}): {commands}"
+            )
+            return commands, "runtime_verified_runtime_preparation_commands"
+
+        bundle = summary.get("verification_bundle") or {}
+        commands = self._normalize_commands(bundle.get("runtime_preparation_commands"))
+        if commands:
+            print(
+                f"  Loaded runtime preparation commands from verification_bundle ({len(commands)}): {commands}"
+            )
+            return commands, "runtime_verification_bundle"
+
+        return [], None
+
     def _extract_structured_test_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
         """Read the best available structured test command list and its source."""
         summary = self._load_run_summary(workplace)
         if not summary:
             return [], None
 
-        commands = self._normalize_test_commands(summary.get("verified_test_commands"))
+        commands = self._normalize_commands(summary.get("verified_test_commands"))
         if commands:
             print(f"  Loaded structured test command list ({len(commands)}): {commands}")
             return commands, "runtime_verified_test_commands"
@@ -567,7 +606,7 @@ RUN git clone {repo_url} /testbed
         structured_test_commands: Optional[List[str]],
     ) -> Tuple[List[str], str]:
         """Resolve the best available structured test command sequence and its source."""
-        commands = self._normalize_test_commands(structured_test_commands)
+        commands = self._normalize_commands(structured_test_commands)
         if commands:
             return commands, "agent_runtime_argument_list"
 
@@ -584,9 +623,25 @@ RUN git clone {repo_url} /testbed
 
         return [], "language_default"
 
+    def _resolve_runtime_preparation_commands(
+        self,
+        workplace: str,
+        structured_runtime_preparation_commands: Optional[List[str]],
+    ) -> Tuple[List[str], str]:
+        commands = self._normalize_commands(structured_runtime_preparation_commands)
+        if commands:
+            return commands, "agent_runtime_argument_list"
+
+        commands, source = self._extract_structured_runtime_preparation_commands(workplace)
+        if commands:
+            return commands, source or "runtime_summary"
+
+        return [], "runtime_inferred_service_setup"
+
     def _generate_test_script(self, workplace: str, language: str,
                               problem_statement: str, test_patch: str,
                               dockerfile_content: str = "",
+                              structured_runtime_preparation_commands: Optional[List[str]] = None,
                               structured_test_command: Optional[str] = None,
                               structured_test_commands: Optional[List[str]] = None) -> tuple:
         """
@@ -615,11 +670,22 @@ RUN git clone {repo_url} /testbed
             print(f"  No structured or legacy test command found, using default for {language}")
             base_commands = [self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)]
 
+        runtime_preparation_commands, runtime_source = self._resolve_runtime_preparation_commands(
+            workplace,
+            structured_runtime_preparation_commands,
+        )
+        self._last_runtime_preparation_source = runtime_source
+
         # 根据工作目录调整命令路径
         # 如果命令包含 cd 到子目录，需要处理
         base_commands = [
-            self._adjust_test_command_for_testbed(command)
+            self._adjust_command_for_testbed(command)
             for command in base_commands
+            if command
+        ]
+        runtime_preparation_commands = [
+            self._adjust_command_for_testbed(command)
+            for command in runtime_preparation_commands
             if command
         ]
 
@@ -635,6 +701,7 @@ RUN git clone {repo_url} /testbed
             language,
             test_patch,
             dockerfile_content,
+            runtime_preparation_commands=runtime_preparation_commands,
             rebuild_commands=rebuild_commands,
         )
 
@@ -682,9 +749,9 @@ RUN git clone {repo_url} /testbed
         # 默认回退
         return "cd test && make all"
 
-    def _adjust_test_command_for_testbed(self, command: str) -> str:
+    def _adjust_command_for_testbed(self, command: str) -> str:
         """
-        调整测试命令，确保在 /testbed 目录下正确执行。
+        调整命令，确保在 /testbed 目录下正确执行。
         处理相对路径问题。
         """
         if not command:
@@ -700,12 +767,17 @@ RUN git clone {repo_url} /testbed
         # 相对路径可执行文件保持不变，依赖前面的 `cd /testbed` 作为工作目录。
         return command
 
+    def _adjust_test_command_for_testbed(self, command: str) -> str:
+        """Backward-compatible wrapper for older tests and call sites."""
+        return self._adjust_command_for_testbed(command)
+
     def _build_eval_script(
         self,
         base_commands: List[str],
         language: str,
         test_patch: str,
         dockerfile_content: str,
+        runtime_preparation_commands: Optional[List[str]] = None,
         rebuild_commands: Optional[List[str]] = None,
     ) -> tuple:
         """
@@ -744,7 +816,10 @@ if [ -f package.json ]; then
 fi
 """
 
-        runtime_service_setup = self._infer_runtime_service_setup(base_commands, dockerfile_content)
+        runtime_preparation_commands = runtime_preparation_commands or []
+        runtime_service_setup = self._build_runtime_preparation_block(runtime_preparation_commands)
+        if not runtime_service_setup:
+            runtime_service_setup = self._infer_runtime_service_setup(base_commands, dockerfile_content)
         rebuild_commands = rebuild_commands or []
         eval_commands = list(rebuild_commands) + list(base_commands)
         command_block = " && \\\n".join(f"(\n{command}\n)" for command in eval_commands)
@@ -755,6 +830,8 @@ cd /testbed
 
 {dependency_check}
 {runtime_service_setup}
+cd /testbed
+
 set +e
 {command_block}
 TEST_EXIT_CODE=$?
@@ -818,6 +895,18 @@ exit $TEST_EXIT_CODE
             print("✓ test_patch injected into Dockerfile (baked into image)")
 
         return eval_script, setup_scripts, updated_dockerfile
+
+    def _build_runtime_preparation_block(self, runtime_preparation_commands: List[str]) -> str:
+        """Run agent-verified runtime preparation commands before the final tests."""
+        if not runtime_preparation_commands:
+            return ""
+
+        return (
+            "# Runtime preparation commands verified by the setup agent\n"
+            "set -e\n"
+            f"{chr(10).join(runtime_preparation_commands)}\n"
+            "set +e\n"
+        )
 
     def _normalize_run_instruction_for_docker(self, instruction: str) -> str:
         """Rewrite bash-only snippets into POSIX-compatible RUN instructions."""
@@ -1217,6 +1306,7 @@ exit 1
                        base_image: str = "auto",
                        model: str = "gpt-4o",
                        max_steps: int = 30,
+                       enable_observation_compression: bool = False,
                        limit: Optional[int] = None) -> str:
         """
         批量处理数据集
@@ -1250,7 +1340,8 @@ exit 1
                 instance=instance,
                 base_image=base_image,
                 model=model,
-                max_steps=max_steps
+                max_steps=max_steps,
+                enable_observation_compression=enable_observation_compression,
             )
             results.append(result)
         
@@ -1313,6 +1404,11 @@ def main():
         help="Maximum steps per instance"
     )
     parser.add_argument(
+        "--enable-observation-compression",
+        action="store_true",
+        help="Enable AgentDiet-style observation compression"
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         help="Limit number of instances to process (for testing)"
@@ -1326,6 +1422,7 @@ def main():
         base_image=args.base_image,
         model=args.model,
         max_steps=args.max_steps,
+        enable_observation_compression=args.enable_observation_compression,
         limit=args.limit
     )
 

@@ -143,6 +143,41 @@ RUN go build ./...
         self.assertIn(") && \\", eval_script)
         self.assertEqual(adapter._last_test_command_source, "runtime_verified_test_commands")
 
+    def test_uses_verified_runtime_preparation_commands_when_building_eval_script(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+
+        with tempfile.TemporaryDirectory() as workplace:
+            summary_path = Path(workplace) / "agent_run_summary.json"
+            summary_path.write_text(
+                json.dumps(
+                    {
+                        "verified_runtime_preparation_commands": [
+                            "redis-server --daemonize yes",
+                        ],
+                        "verified_test_commands": [
+                            "pytest tests",
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            eval_script, _, _ = adapter._generate_test_script(
+                workplace=workplace,
+                language="python",
+                problem_statement="",
+                test_patch="",
+                dockerfile_content="FROM python:3.11\nWORKDIR /testbed\n",
+            )
+
+        self.assertIn("# Runtime preparation commands verified by the setup agent", eval_script)
+        self.assertIn("redis-server --daemonize yes", eval_script)
+        self.assertIn("pytest tests", eval_script)
+        self.assertEqual(
+            adapter._last_runtime_preparation_source,
+            "runtime_verified_runtime_preparation_commands",
+        )
+
     def test_adds_runtime_redis_setup_when_eval_commands_need_redis(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
 

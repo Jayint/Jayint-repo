@@ -1,473 +1,443 @@
-# DockerAgent 轨迹压缩设计笔记
+#### 1. 对 Observation 做摘要
 
-## 目标
+在每一次执行完操作后，对于 bundle install、pytest -v 这类会输出超长结果的指令，需要及时地做摘要。
 
-借鉴论文 `Improving the Efficiency of LLM Agent Systems through Trajectory Reduction` 的思路，
-在不明显伤害环境配置成功率的前提下，降低这个项目中的 prompt 膨胀问题。
+#### 2. AgentDiet 式 reflection
 
-这份文档刻意写成“实现备忘录”，而不是论文摘要。它的目的，是把后续值得做的事情先整理成一份
-可执行的 backlog。
+每次压缩第 s - a 步（现在是第 s 步），a = 2
 
-## 为什么这个项目很适合做这件事
+具体做法是把 [s - b - a, s]（b = 1） 这些步骤交给压缩 llm，让它进行压缩。如果压缩前后 token 差距小于 $\theta$  则不压缩。
 
-当前 agent loop 和论文里分析的问题非常像：
+#### 3. 把 “状态” 从 “历史” 剥出来
 
-- `src/planner.py` 会把每一步的 observation 和 assistant 回复不断追加到 `history`
-- 工具输出经常很长，比如：
-  - 包管理器安装日志
-  - 完整测试日志
-  - 文件列表
-  - README / 配置文件的大段内容
-  - 编译输出
-- 这些长输出会在后续很多轮里被重复喂给模型
+Agent 在执行中已经维护了不少结构化信息，但是没有回灌给 Planer
 
-这个项目尤其适合做 trajectory reduction，因为它的很多上下文是高度结构化、重复性强、而且可规则化压缩的。
-很多内容甚至不需要第二个 LLM，先用规则就能安全压短。
+可以单独为维护一个 state summary，包括：当前base image/platform、最近一次成功的环境变更 、当前怀疑的缺依赖、最后一个有效的测试命令、当前验证块状态等
 
-## 从论文里得到的核心启发
+#### 4. Prompt 只放压缩视图
 
-最重要的启发，不是“把旧文本总结一下”。
+因为原先就会记录 setup_logs/image_selector_logs
 
-真正重要的是：
+所以发给 Planner 的可以只是压缩后的版本
 
-1. 把轨迹压缩当成一个独立的系统能力
-2. 不要让主 planner 自己决定怎么压缩
-3. 在运行过程中持续做，而不是等上下文满了再处理
-4. 只有当规则压缩不够时，再让一个便宜模型接手
 
-映射到这个仓库里，最自然的做法就是：在 `Sandbox.execute()` 和 `Planner.plan()` 之间增加一层 reducer。
 
-## 当前仓库里的几个明显痛点
+#### 压缩时机：
 
-### 1. 完整 observation 会一直保留
+- 每轮执行完命令后，先把 raw observation 存起来
+- 如果不是长 observation，直接 observation_prompt = observation_raw
+- 如果是长 observation，并且满足 a=2 的延迟策略，就对旧 step 的 <result> 做压缩
+- 最新两步不压
 
-`Planner.history` 是单调增长的，目前保存的是原始 observation。
+## 压缩规则
 
-### 2. 很多长输出在过一两步之后就没什么价值
+#### 安装日志压缩规则
 
-典型例子：
+保留：
 
-- `pip install` 成功后的安装日志
-- `pytest` 中大量 PASS 行
-- `ls`、`find`、`tree`、`sed -n`、`cat` 的探索输出
-- 编译和下载进度日志
+- 包管理器类型：apt / pip / npm / bundle / cargo / go
+- 成功安装的包名列表
+- 已存在/已满足依赖列表
+- 关键版本信息
+- warning
+- 第一处真实错误和错误上下文
 
-### 3. planner 没有“上下文已过期”的概念
+压缩掉：
 
-一旦某个问题已经解决，或者某条路径已经排除，相关的大段日志依然留在 prompt 里。
+- 下载进度条
+- 重复编译输出
+- 大段镜像源拉取日志
+- 重复的 wheel/build 细节
 
-### 4. 日志和 prompt 状态耦合过深
+```json
+[pip install summary]
+Successfully installed:
+- pytest==9.0.2
+- pluggy==1.6.0
+Already satisfied:
+- setuptools==68.2.2
+Warnings:
+- Running pip as root user
+```
 
-项目现在已经把详细日志落盘了，这很好。但这些原始日志没有必要一直完整地留在模型上下文里。
 
-## 推荐设计
 
-## 1. 增加结构化轨迹层
+#### 测试日志压缩规则
 
-不要继续只靠 `Planner.history` 里的原始字符串表示每一步。建议引入一层结构化的 step 记录。
+保留测试命令、总测试数、失败数、失败用例名、关键 traceback
 
-建议的数据形状：
+把长串通过用例替换成一句话占位说明，如下图：
+
+![d752423b404966e380587a934c64e4f3](/Users/panjianying/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_x25htryviibz22_f7d3/temp/RWTemp/2026-03/d752423b404966e380587a934c64e4f3.png)
+
+保留：test session header、平台/解释器/版本、collected N items、short test summary info、失败/错误/XFAIL 相关条目、最终统计行，如”73 passed、1 xfailed in 4.48s“
+
+压缩掉：大段逐条 PASSED，将其替换成类似“ ... (individual test lines omitted; mostly PASSED)”的一句话占位说明。
+
+也就是说，测试日志压缩不是“摘要成一句话”，而是“保留骨架 + 保留异常 + 用占位符替换冗长通过项”。
+
+
+
+#### 回滚失败日志压缩规则
+
+因为失败后环境已回滚，所以完整输出通常没必要长期保留
+
+只保留“失败指令+失败原因摘要”即可。
+
+
+
+## 注意
+
+压缩的话，不压缩 Thought 和 Action，这两个不长，只压缩 Observation
+
+测试日志的压缩示例如下：。。。
+
+安装日志的压缩规则改一下，已安装成功包列表不应该被删掉，也要保留，避免LLM重复安装
+
+Agent完成后统计一下总的token消耗、包括构建过程和压缩的时候用到的
+
+step 数据结构应该长什么样？
+
+quickstart消耗的token不要计入，有关quickstart的都先不要加了，后续可能要删掉quickstart这个模块。
+
+每压缩一次都要重新build 一次 planner_history吗？那也太低效了吧。
+
+不用计算任何 cost，你不用帮我算钱，只需要计算token数就好。
+
+#### 压缩的核心目标
+
+- 先把超长 observation 当场瘦身
+- 再用单独 reflection module 逐步压旧 step
+- 同时把关键环境事实抽成结构化 state memory
+- 保留磁盘上的原始日志，只把压缩视图送进 Planner
+
+
+
+
+
+1. ObservationAnalyzer.analyze(step) 是干什么？怎么做的？
+2. 搞那么麻烦干嘛？没必要对observation进行分类，直接统一的交给LLM压缩就好了，把几种observation的压缩规则统一写到一份prompt里即可
+
+#### 统一 prompt 应该长什么样
+
+我建议统一 prompt 明确写死这些规则：
+
+##### 全局规则
+
+- 你只能改写 <result> 内容
+- 不得改 <think>
+- 不得改 <call>
+- 不得改 step 的 XML 结构
+- 尽量保留原有顺序和格式骨架
+- 删除的内容用短占位说明替代，不要直接掏空
+
+##### 测试日志规则
+
+- 保留：
+    - test session header
+    - 平台/版本信息
+    - collected N items
+    - short test summary info
+    - failing/xfailed/error 用例
+    - traceback 关键段
+    - 最终统计行
+- 压缩：
+    - 大段连续 PASSED
+- 替换示例：
+    - ... (individual test lines omitted; mostly PASSED)
+
+##### 安装日志规则
+
+- 必须保留：
+    - 成功安装的包列表
+    - already satisfied / already installed 的包列表
+    - 关键版本信息
+    - warning
+    - 第一处真实错误
+- 可压缩：
+    - 下载进度
+    - 编译噪音
+    - 重复拉取日志
+
+##### 其他日志规则
+
+- 保留影响下一步决策的事实
+- 删掉长噪音
+- 对删掉的部分写一句短 takeaway
+
+这就够了，不需要先分类再分别走 prompt。
+
+
+
+## Codex最终敲定实现
+
+创建三个类：
+
+1. AgentStep
+2. ObservationCompresessor
+3. RunTokenLedger
+
+```C++
+@dataclass
+class CompressionRecord:
+    eligible: bool = False
+    applied: bool = False
+    model: str | None = None
+    reason: str | None = None
+
+    original_chars: int = 0
+    reduced_chars: int = 0
+    original_tokens_est: int = 0
+    reduced_tokens_est: int = 0
+    saved_tokens_est: int = 0
+
+    reflect_input_tokens: int = 0
+    reflect_output_tokens: int = 0
+    reflect_total_tokens: int = 0
+    reflect_cost: float = 0.0
+
+
+@dataclass
+class StepTokenUsage:
+    planner_input_tokens: int = 0
+    planner_output_tokens: int = 0
+    planner_cost: float = 0.0
+
+    reflect_input_tokens: int = 0
+    reflect_output_tokens: int = 0
+    reflect_cost: float = 0.0
+
+
+@dataclass
+class AgentStep:
+    step_id: int
+    thought: str
+    action: str
+
+    success: bool
+    exit_code: int | None
+    mutates_environment: bool
+    env_revision_before: int
+    env_revision_after: int
+
+    observation_raw: str
+    observation_prompt: str
+
+    metadata: dict[str, Any]
+    compression: CompressionRecord
+    token_usage: StepTokenUsage
+
+```
+
+#### 压缩流程
+
+1. Planner.plan()
+2. Sandbox.execute()
+3. 创建 AgentStep
+4. 保存 raw observation
+5. 如果当前到达 s，检查 s-a 的 step 是否够长
+6. 若够长，统一走一次 compress_observation(...)
+7. 如果节省收益足够大，就替换 observation_prompt
+8. 下一轮 Planner 只看到 observation_prompt
+
+#### **压缩器接口**
+
+我建议就长这样：
 
 ```python
-StepRecord = {
-    "step_index": int,
-    "thought": str | None,
-    "action": str | None,
-    "raw_observation": str,
-    "prompt_observation": str,
-    "observation_kind": str,
-    "was_reduced": bool,
-    "reduction_method": str | None,
-    "token_estimate_raw": int | None,
-    "token_estimate_reduced": int | None,
-}
+class ObservationCompressor:
+    def compress(
+        self,
+        target_step: AgentStep,
+        context_steps: list[AgentStep],
+        model: str,
+    ) -> tuple[str, CompressionRecord]:
+        ...
+
 ```
 
-其中：
+输入：
 
-- `raw_observation` 是审计 / 调试的原始真相
-- `prompt_observation` 是后续真正送进模型的压缩版本
+- 要压缩的旧 step
+- 局部窗口上下文
+- 当前和 setup 一样的 model
 
-## 2. 在 planner 之外增加 reducer 模块
+输出：
 
-建议新增一个模块，例如：
+- 压缩后的 <result> 内容
+- 压缩元数据
 
-- `src/trajectory_reducer.py`
+#### **局部窗口序列化**
 
-这个 reducer 应该由 `agent.py` 调用，而不是让 LLM 自己决定什么时候做。
+保持 AgentDiet 风格，但我们只允许改 <result>：
 
-大致流程：
+```bash
+<step id="17">
+<think>...</think>
+<call tool="bash">...</call>
+<result>
+...raw observation...
+</result>
+</step>
 
-1. 在 sandbox 中执行 action
-2. 生成一个 `StepRecord`
-3. 如果有必要，对 observation 做压缩
-4. 把压缩后的记录交给 planner 用作后续上下文
-
-这正对应论文里最重要的系统设计经验：不要期待主 agent 擅长管理自己的 trajectory。
-
-## 3. 优先做规则压缩，不要一上来就依赖第二个 LLM
-
-这个仓库很适合先做确定性的 reducer。
-
-建议先做下面几类：
-
-### 测试输出 reducer
-
-保留：
-
-- 失败测试名
-- 错误摘要
-- traceback 尾部
-- 最终统计信息，比如 `passed`、`failed`、`skipped`
-
-删除或折叠：
-
-- 大段连续的通过测试行
-- 与失败原因无关的重复 warning
-
-### 安装日志 reducer
-
-保留：
-
-- 能识别出的已安装包名
-- resolver / dependency conflict 错误
-- 缺失系统依赖的错误
-- 最终成功 / 失败标志
-
-删除或折叠：
-
-- 下载进度
-- wheel 构建噪声
-- 重复依赖行
-
-### 文件探索 reducer
-
-针对 `ls`、`find`、`cat`、`sed -n` 这类命令：
-
-保留：
-
-- 文件名
-- 命中的路径
-- 行号范围
-- 如果很明显，可以附一条简短 takeaway
-
-删除或折叠：
-
-- 巨大的目录枚举
-- 已经看过重点之后的整段文件内容
-
-### 通用长输出 reducer
-
-如果没有命中特殊 reducer：
-
-- 保留头部和尾部
-- 强保留包含 `error`、`failed`、`warning`、`traceback`、`exception`、`not found` 的行
-- 用简短标记替换中间省略部分
-
-## 4. 再加一个可选的便宜 LLM reducer 作为 fallback
-
-只有在规则 reducer 已经存在后，再考虑增加一个便宜模型做 reflection reducer。
-
-适合触发它的场景：
-
-- 输出很长
-- 没有命中确定性 reducer
-- 或者规则压完之后仍然太长
-
-这个 reducer 需要满足：
-
-- 只吃一个小的 sliding window
-- 每次只压缩一条较旧的 step
-- 保留可执行事实，比如路径、命令、版本、失败测试名
-- 不得捏造原始 observation 里不存在的命令
-
-## 5. 使用 sliding-window 策略
-
-论文里的参数思路可以直接拿来试。
-
-这个项目一个不错的初始配置是：
-
-- 延迟目标 step：`a = 2`
-- 提供局部上下文：`b = 1`
-- 只有 observation 超过阈值时才压：`theta ~= 500 tokens`
-
-它的实际含义是：
-
-- 永远不要压最新的 2 步
-- 只回头处理稍旧一点的 observation
-- 太短的 observation 不值得动
-
-## 6. 原始日志继续落盘，prompt 中只保留压缩版
-
-这一点很重要。
-
-不要替换或破坏：
-
-- `setup_logs/*.md`
-- sandbox 的原始输出
-- 生成出来的 Dockerfile 和 summary 文件
-
-正确做法应该是：
-
-- 原始输出继续留着，用于调试和复现
-- 另外存一份压缩后的 prompt 版本
-
-可以考虑新增这些文件：
-
-- `workplace/.../agent_run_summary.json`
-- `workplace/.../trajectory.json`
-
-例如 `trajectory.json` 可以长这样：
-
-```json
-{
-  "steps": [
-    {
-      "step_index": 3,
-      "action": "pytest tests",
-      "raw_observation_path": "setup_logs/3.md",
-      "prompt_observation": "141 passed, 5 skipped, 17 warnings. No failures.",
-      "reduction_method": "pytest_summary",
-      "was_reduced": true
-    }
-  ]
-}
 ```
 
-## 7. 把 prompting 和 logging 彻底拆开
-
-现在的 `Planner.history` 实际上同时承担了两件事：
-
-- prompt 状态
-- 运行记录
-
-这两件事应该拆开。
-
-建议分成三层：
-
-- 面向 planner 的压缩上下文
-- 运行期的结构化轨迹存储
-- 原始 markdown / debug 日志
-
-这样以后做压缩、复盘、评测都会轻松很多。
-
-## 建议的实现阶段
-
-## 阶段 1：不增加额外 LLM 成本
-
-这是低风险、高回报的第一步。
-
-1. 在 `agent.py` 中增加 `StepRecord` 支持
-2. 增加只含确定性规则的 `TrajectoryReducer`
-3. 改 planner 的输入构造，让它吃压缩 observation
-4. 原始日志保持不变
-5. 在 run summary 里记录压缩相关指标
-
-这一阶段的成功标准：
-
-- 平均 prompt tokens 下降
-- `resolved` 不下降
-- 小规模 smoke benchmark 上的平均 step 数不明显变差
-
-## 阶段 2：重构 planner history
-
-1. 停止把原始 observation 字符串直接塞进 `Planner.history`
-2. 每轮根据结构化 step records 重新构造 planner messages
-3. action 历史尽量原样保留，但旧 observation 可以压缩
-4. 增加“不可压缩的固定事实”能力
-
-这些 pinned facts 可能包括：
-
-- 选中的 base image
-- 已确认安装的重要系统包
-- 当前已知失败命令
-- 最终验证通过的测试命令
-- platform override
-
-## 阶段 3：可选的 reflection model
-
-1. 增加一个和主 planner 分离的低成本 reducer model
-2. 只在下面这些情况调用它：
-   - 输出超过阈值
-   - 规则 reducer 置信度低
-   - 或者压缩率仍然不理想
-3. 做 A/B 对比：
-   - 不压缩
-   - 仅规则压缩
-   - 规则压缩 + reducer LLM
-
-## 阶段 4：补上评测 harness
-
-至少记录：
-
-- 总 prompt tokens
-- 总 completion tokens
-- reducer 的 prompt / completion tokens
-- 平均 step 数
-- resolved rate
-- 各类 step 的压缩比例
-- 被压缩 step 的占比
-
-加分项：
-
-- 每步时延
-- reducer 按命令类型的命中率
-
-## 大概率会改到的文件
-
-主要文件：
-
-- `agent.py`
-- `src/planner.py`
-- `src/sandbox.py`
-- `multi_docker_eval_adapter.py`
-
-可能新增的文件：
-
-- `src/trajectory_reducer.py`
-- `src/trajectory_types.py`
-
-后续可选：
-
-- `scripts/eval_reducer_ablation.py`
-- `doc/trajectory_reduction_experiment_plan.md`
-
-## 几个很值得做的具体重构
-
-### 重构 A：让 planner history 变成派生数据
-
-不要再直接 mutate `Planner.history` 保存原始字符串，而是每轮从结构化 trajectory records 动态构造 prompt。
-
-好处：
-
-- 更容易压缩
-- 更容易固定关键事实
-- 更容易精确查看“模型到底看到了什么”
-
-### 重构 B：增加 observation 分类
-
-先把 observation 分类成：
-
-- `test_output`
-- `install_output`
-- `file_listing`
-- `file_snippet`
-- `build_output`
-- `generic`
-
-这样 reducer 的选择就能变得确定、可解释、可调试。
-
-### 重构 C：增加 pinned state
-
-维护一个很小、但始终会进 prompt 的状态块：
-
-- 当前 base image
-- 工作目录
-- 已确认的重要依赖
-- 当前最佳测试命令
-- 最新失败症状
-
-这样能避免关键事实在压缩时被误删。
-
-### 重构 D：对成功测试运行做激进摘要
-
-这个仓库在配置环境时经常会反复跑测试。一旦测试成功，后续 prompt 往往只需要：
-
-- 跑了哪条命令
-- pass / fail 摘要
-- 如果 warning 重要，再附少量 warning
-
-这应该是最优先实现的 reducer 之一。
-
-### 重构 E：对探索类输出做激进压缩
-
-像 `ls`、`find`、`cat`、`sed -n` 这样的输出，在一两轮之后几乎不应该继续完整留在 prompt 里。
-
-## 风险和保护措施
-
-### 风险 1：把真正的失败原因压没了
-
-缓解措施：
-
-- 强保留强错误信号行
-- 对未知输出保留头尾
-- 固定保存“最新失败命令”和它的失败摘要
-
-### 风险 2：丢掉精确命令或路径
-
-缓解措施：
-
-- 不要改写 action 命令本身
-- 精确保留路径、包名、版本号、测试 ID
-
-### 风险 3：reducer 成本比节省的还多
-
-缓解措施：
-
-- 第一阶段只做规则压缩
-- 所有压缩都设阈值门槛
-- 单独记录 reducer 的开销
-
-### 风险 4：benchmark 成功率回退
-
-缓解措施：
-
-- 先在小规模 benchmark slice 上试
-- 同时比较 step 数和 resolved rate
-- 保留一个可以快速关闭 reduction 的开关
-
-## 建议尽快补的指标
-
-建议在 `agent_run_summary.json` 里加类似这些字段：
-
-```json
-{
-  "planner_prompt_tokens_total": 0,
-  "planner_completion_tokens_total": 0,
-  "reducer_prompt_tokens_total": 0,
-  "reducer_completion_tokens_total": 0,
-  "observations_reduced": 0,
-  "raw_observation_chars_total": 0,
-  "reduced_observation_chars_total": 0
-}
+压缩时只给最近窗口，比如：
+
+- s-3
+- s-2 目标
+- s-1
+- s
+
+#### **压缩条件**
+
+```python
+eligible = (
+    step.step_id <= current_step_id - a
+    and len(step.observation_raw) >= compress_threshold_chars
+    and not step.compression.applied
+)
 ```
 
-这样“有没有省”就会变成可量化事实，而不是主观感觉。
+#### Prompt
 
-## 最值得先做的切片
+```markdown
+[SYSTEM]
 
-如果只允许先做一件事，那应该是：
+You are a trajectory compression module for an environment-setup coding agent.
 
-1. 确定性 observation reducer
-2. 只处理较旧 observation
-3. 不增加任何额外 LLM 调用
+Your job is to compress a single old step in the agent trajectory by rewriting ONLY the text inside the <result>...</result> block of the target step.
 
-最先实现的 reducer，我建议优先覆盖：
+The agent is trying to set up a runnable/testable software environment inside Docker.
+The compressed result will be shown to the agent in later turns, so you must preserve any information that could affect later decisions.
 
-- `pytest` 以及类似测试输出
-- 包管理器输出
-- 大型文件列表输出
+You must follow these rules strictly:
 
-这组组合大概率能以最小风险换来最大的节省。
+1. You may only rewrite the content inside the <result> block of the TARGET step.
+2. You must NOT change:
+- <think> ... </think>
+- <call ...> ... </call>
+- XML tags
+- step ids
+- command text
+3. Keep the overall structure unchanged.
+4. Do not invent facts that do not appear in the original result.
+5. If compression is unsafe, return the original target step unchanged.
+6. Prefer replacing low-value repetitive text with short placeholders rather than deleting content silently.
+7. Preserve exact package names, test names, file paths, versions, and error messages whenever they may matter later.
 
-## 现阶段不建议做的事
+The trajectory may contain three common kinds of waste:
 
-- 让主 planner 自己决定擦掉什么
-- 用摘要替换原始日志
-- 压缩最近一步
-- 对所有命令输出只套一个通用 summarization prompt
-- 在没有保留 takeaway 的情况下直接删掉旧 observation
+- Useless information:
+  very long repetitive output that does not change later decisions
+  examples: long download progress, many passed test lines, repeated build progress lines
 
-## 一句话版总结
+- Redundant information:
+  information repeated many times in the same result
+  examples: repeated package download logs, repeated “PASSED” lines, repeated compiler progress
 
-这篇论文给这个项目的最大启发，是要把 prompt 膨胀当成系统设计问题，而不是 prompt 文案问题。
+- Expired information:
+  local details that are no longer useful except for their takeaway
+  examples: a long search result where only one candidate mattered, a huge file dump where only one conclusion matters
 
-最有希望的路线是：
+Important preservation rules:
 
-- 增加结构化 step records
-- 在 planner 外部压缩旧 observation
-- 优先做确定性 reducer
-- 只把便宜 LLM reducer 当作 fallback
-- 把 token 节省和 resolved rate 一起评估
+A. If the result is a TEST LOG:
+You should preserve:
+- the test session header if present
+- platform/runtime/version info if present
+- collected test counts
+- short test summary info
+- failing/error/xfail test cases
+- traceback or assertion message that explains failure
+- the final summary line such as “73 passed, 1 failed in 4.48s”
+You may compress:
+- long runs of individual PASSED lines
+Use placeholders like:
+- ... (individual test lines omitted; mostly PASSED)
 
-这很可能是这个仓库下一阶段性价比最高的优化方向。
+B. If the result is an INSTALL LOG:
+You must preserve:
+- package manager identity if clear from the output
+- successfully installed package names and versions
+- already satisfied / already installed package names and versions
+- key warnings
+- the first real error and its nearby context
+You may compress:
+- download progress bars
+- repeated fetch/build lines
+- verbose wheel/build noise
+Do NOT remove successful or already-present package lists, because the agent may otherwise reinstall them later.
+
+C. If the result is a BUILD / GENERAL COMMAND LOG:
+You should preserve:
+- whether the command succeeded or failed
+- key discovered files/paths if relevant
+- key build artifacts if relevant
+- first real error and the most informative nearby lines
+You may compress:
+- repetitive build progress
+- repeated informational lines
+- large irrelevant blocks that can be replaced by a short takeaway
+
+Compression style:
+- Be conservative.
+- Preserve important lines verbatim when needed.
+- Replace long repetitive spans with one short bracketed or parenthetical note.
+- Keep the compressed result readable by the next agent step.
+- Do not turn everything into a vague summary.
+- The result should still look like a command output, just shorter.
+
+Output format:
+Return ONLY the full rewritten TARGET step, with the same <step>, <think>, <call>, and <result> tags.
+Do not return explanations outside the XML.
+
+[USER]
+
+You are given a sliding window of agent steps in XML.
+Compress ONLY the TARGET step by rewriting ONLY its <result> block.
+
+TARGET_STEP_ID: {target_step_id}
+
+Window context:
+{serialized_window}
+
+Return only the rewritten TARGET step.
+
+
+```
+
+Serialized_window 形式：
+
+```xml
+<trajectory>
+  <step id="15">
+    <think>...</think>
+    <call tool="bash">...</call>
+    <result>...</result>
+  </step>
+
+  <step id="16" target="true">
+    <think>...</think>
+    <call tool="bash">...</call>
+    <result>
+      ... very long raw observation ...
+    </result>
+  </step>
+
+  <step id="17">
+    <think>...</think>
+    <call tool="bash">...</call>
+    <result>...</result>
+  </step>
+
+  <step id="18">
+    <think>...</think>
+    <call tool="bash">...</call>
+    <result>...</result>
+  </step>
+</trajectory>
+
+```
+
+目前，$\theta = 1500$，当压缩后差别 > 300 时才压缩，A = 2， B = 2。

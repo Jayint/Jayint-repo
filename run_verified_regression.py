@@ -186,6 +186,11 @@ def parse_args() -> argparse.Namespace:
         help="Maximum agent steps per instance.",
     )
     parser.add_argument(
+        "--enable-observation-compression",
+        action="store_true",
+        help="Enable AgentDiet-style observation compression during adapter runs.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         help="Only run the first N instances from the dataset.",
@@ -241,6 +246,7 @@ def main() -> int:
         "max_steps": args.max_steps,
         "model": args.model,
         "base_image": args.base_image,
+        "enable_observation_compression": args.enable_observation_compression,
         "run_root": str(run_root),
         "instance_count": len(instances),
         "instances": [],
@@ -285,6 +291,8 @@ def main() -> int:
             "--max-steps",
             str(args.max_steps),
         ]
+        if args.enable_observation_compression:
+            adapter_command.append("--enable-observation-compression")
 
         adapter_run = run_command(adapter_command, cwd=repo_root)
         adapter_instance_result = load_json(adapter_output_dir / f"{instance_id}.json")

@@ -128,6 +128,20 @@ class SynthesizerTests(unittest.TestCase):
         self.assertTrue(analysis["is_effective_test_run"])
         self.assertEqual(analysis["reason"], "observed_test_execution_signal")
 
+    def test_public_observation_signal_wrapper_detects_real_test_output(self):
+        synthesizer = Synthesizer()
+
+        self.assertTrue(
+            synthesizer.observation_has_effective_test_signal("OK (94 tests, 185 assertions)")
+        )
+
+    def test_public_runtime_command_wrappers_distinguish_service_and_healthcheck(self):
+        synthesizer = Synthesizer()
+
+        self.assertTrue(synthesizer.is_runtime_service_command("redis-server --daemonize yes"))
+        self.assertTrue(synthesizer.is_runtime_healthcheck_command("redis-cli ping"))
+        self.assertFalse(synthesizer.is_runtime_healthcheck_command("redis-server --daemonize yes"))
+
 
 if __name__ == "__main__":
     unittest.main()
