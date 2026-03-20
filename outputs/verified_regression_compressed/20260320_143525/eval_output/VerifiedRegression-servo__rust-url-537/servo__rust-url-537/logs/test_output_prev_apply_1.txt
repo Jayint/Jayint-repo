@@ -1,0 +1,777 @@
+ Downloading crates ...
+  Downloaded bencher v0.1.5
+  Downloaded serde_core v1.0.228
+  Downloaded rustc_version v0.2.3
+  Downloaded semver-parser v0.7.0
+  Downloaded itoa v1.0.18
+  Downloaded rustc-test v0.3.1
+  Downloaded time v0.1.45
+  Downloaded semver v0.9.0
+  Downloaded quote v1.0.45
+  Downloaded zmij v1.0.21
+  Downloaded getopts v0.2.24
+  Downloaded unicode-ident v1.0.24
+  Downloaded term v0.4.6
+  Downloaded serde_derive v1.0.228
+  Downloaded proc-macro2 v1.0.106
+  Downloaded rustc-serialize v0.3.25
+  Downloaded serde v1.0.228
+  Downloaded unicode-width v0.2.2
+  Downloaded syn v2.0.117
+  Downloaded serde_json v1.0.149
+  Downloaded libc v0.2.183
+  Downloaded memchr v2.8.0
+   Compiling serde_core v1.0.228
+   Compiling proc-macro2 v1.0.106
+   Compiling semver-parser v0.7.0
+   Compiling quote v1.0.45
+   Compiling libc v0.2.183
+   Compiling unicode-ident v1.0.24
+   Compiling zmij v1.0.21
+   Compiling unicode-width v0.2.2
+   Compiling serde_json v1.0.149
+   Compiling memchr v2.8.0
+   Compiling rustc-serialize v0.3.25
+   Compiling semver v0.9.0
+   Compiling getopts v0.2.24
+   Compiling term v0.4.6
+   Compiling itoa v1.0.18
+   Compiling rustc_version v0.2.3
+   Compiling serde v1.0.228
+   Compiling bencher v0.1.5
+   Compiling rustc-test v0.3.1
+   Compiling data-url v0.1.0 (/testbed/data-url)
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:31
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                               ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+    = note: `#[warn(ellipsis_inclusive_range_patterns)]` on by default
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/mime.rs:119:48
+    |
+119 |         matches!(c, '\t' | ' '...'~' | '\u{80}'...'\u{FF}')
+    |                                                ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:22
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:107:67
+    |
+107 |                 b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+    |                                                                   ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:18
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                  ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+warning: `...` range patterns are deprecated
+   --> data-url/src/lib.rs:186:38
+    |
+186 |             b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+    |                                      ^^^ help: use `..=` for an inclusive range
+    |
+    = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+    = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+
+   Compiling syn v2.0.117
+warning: `data-url` (lib) generated 6 warnings (run `cargo fix --lib -p data-url` to apply 6 suggestions)
+   Compiling time v0.1.45
+   Compiling serde_derive v1.0.228
+   Compiling idna v0.2.0 (/testbed/idna)
+warning: panic message is not a string literal
+  --> idna/tests/punycode.rs:22:17
+   |
+22 | /                 format!(
+23 | |                     "Incorrect decoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+24 | |                     encoded, result, decoded
+25 | |                 )
+   | |_________________^
+   |
+   = note: this usage of `assert!()` is deprecated; it will be a hard error in Rust 2021
+   = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/panic-macro-consistency.html>
+   = note: the `assert!()` macro supports formatting, so there's no need for the `format!()` macro here
+   = note: `#[warn(non_fmt_panics)]` on by default
+help: remove the `format!(..)` macro call
+   |
+22 ~                 
+23 |                     "Incorrect decoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+24 |                     encoded, result, decoded
+25 ~                 
+   |
+
+warning: panic message is not a string literal
+  --> idna/tests/punycode.rs:34:13
+   |
+34 | /             format!(
+35 | |                 "Incorrect encoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+36 | |                 decoded, result, encoded
+37 | |             )
+   | |_____________^
+   |
+   = note: this usage of `assert!()` is deprecated; it will be a hard error in Rust 2021
+   = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/panic-macro-consistency.html>
+   = note: the `assert!()` macro supports formatting, so there's no need for the `format!()` macro here
+help: remove the `format!(..)` macro call
+   |
+34 ~             
+35 |                 "Incorrect encoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+36 |                 decoded, result, encoded
+37 ~             
+   |
+
+warning: `idna` (test "tests") generated 2 warnings (run `cargo fix --test "tests"` to apply 2 suggestions)
+   Compiling url v2.1.0 (/testbed)
+warning: unnecessary trailing semicolon
+  --> data-url/tests/wpt.rs:36:6
+   |
+36 |     };
+   |      ^ help: remove this semicolon
+   |
+   = note: `#[warn(redundant_semicolons)]` on by default
+
+warning: use of deprecated method `std::error::Error::description`: use the Display impl or to_string()
+  --> src/parser.rs:95:32
+   |
+95 |         fmt::Display::fmt(self.description(), f)
+   |                                ^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `std::error::Error::description`: use the Display impl or to_string()
+    --> src/lib.rs:2356:82
+     |
+2356 |                     .map_err(|err| Error::invalid_value(Unexpected::Str(s), &err.description()))
+     |                                                                                  ^^^^^^^^^^^
+
+warning: unused borrow that must be used
+   --> src/form_urlencoded.rs:233:9
+    |
+233 |         &target.as_mut_string()[start_position..]; // Panic if out of bounds
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the borrow produces a value
+    |
+    = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+233 |         let _ = &target.as_mut_string()[start_position..]; // Panic if out of bounds
+    |         +++++++
+
+warning: `data-url` (test "wpt") generated 1 warning
+warning: `url` (lib) generated 3 warnings
+warning: unnecessary trailing semicolon
+  --> tests/data.rs:64:19
+   |
+64 |                 )+;
+   |                   ^ help: remove this semicolon
+...
+69 |     assert_attributes!(href protocol username password host hostname port pathname search hash);
+   |     ------------------------------------------------------------------------------------------- in this macro invocation
+   |
+   = note: `#[warn(redundant_semicolons)]` on by default
+   = note: this warning originates in the macro `assert_attributes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `url` (test "data") generated 1 warning
+    Finished test [unoptimized + debuginfo] target(s) in 12.42s
+     Running tests/wpt.rs (target/debug/deps/wpt-dd5d02e9844dc57d)
+
+running 1072 tests
+..............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................thread 'data: URL "data://test:test/,X"' panicked at data-url/tests/wpt.rs:21:9:
+Mime { type_: "text", subtype: "plain", parameters: [("charset", "US-ASCII")] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+..................................................
+test result: ok. 1072 passed; 0 failed; 0 ignored; 0 measured
+
+     Running tests/tests.rs (target/debug/deps/tests-8fabc0a56365f0aa)
+
+running 7787 tests
+...........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+test result: ok. 7787 passed; 0 failed; 0 ignored; 0 measured
+
+     Running tests/unit.rs (target/debug/deps/unit-7b83986dca22cc75)
+
+running 2 tests
+test test_v5 ... ok
+test test_v8_bidi_rules ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/data.rs (target/debug/deps/data-022f72a9add3ed4a)
+
+running 713 tests
+...............thread '"#x" @ base "sc://ñ"' panicked at tests/data.rs:69:5:
+
+"sc://%C3%B1/#x"
+!= expected.href
+"sc://%C3%B1#x"
+for URL "sc://%C3%B1/#x"
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+......F.............thread '"////" @ base "sc://x/"' panicked at tests/data.rs:69:5:
+
+"sc:///"
+!= expected.href
+"sc:////"
+for URL "sc:///"
+
+........F.thread '"/////mouse" @ base "file:///elephant"' panicked at tests/data.rs:69:5:
+
+"file://///mouse"
+!= expected.href
+"file:///mouse"
+for URL "file://///mouse"
+
+..thread '"////x/" @ base "sc://x/"' panicked at tests/data.rs:69:5:
+
+"sc://x/"
+!= expected.href
+"sc:////x/"
+for URL "sc://x/"
+
+F..thread '"/?chai" @ base "file://tea/"' panicked at tests/data.rs:69:5:
+
+"file:///?chai"
+!= expected.href
+"file://tea/?chai"
+for URL "file:///?chai"
+
+thread '"//localhost//pig" @ base "file://lion/"' panicked at tests/data.rs:69:5:
+
+"file:////pig"
+!= expected.href
+"file:///pig"
+for URL "file:////pig"
+
+F..thread '"/..//localhost//pig" @ base "file://lion/"' panicked at tests/data.rs:69:5:
+
+"file:////localhost//pig"
+!= expected.href
+"file://lion/localhost//pig"
+for URL "file:////localhost//pig"
+
+F..F.F..thread '"/c:/foo/bar" @ base "file:///c:/baz/qux"' panicked at tests/data.rs:69:5:
+
+"file:///c:/c:/foo/bar"
+!= expected.href
+"file:///c:/foo/bar"
+for URL "file:///c:/c:/foo/bar"
+
+......Fthread '"/c|/foo/bar" @ base "file:///c:/baz/qux"' panicked at tests/data.rs:69:5:
+
+"file:///c:/c|/foo/bar"
+!= expected.href
+"file:///c:/foo/bar"
+for URL "file:///c:/c|/foo/bar"
+
+thread '"/rooibos" @ base "file://tea/"' panicked at tests/data.rs:69:5:
+
+"file:///rooibos"
+!= expected.href
+"file://tea/rooibos"
+for URL "file:///rooibos"
+
+.F.F....................thread '"?x" @ base "sc://ñ"' panicked at tests/data.rs:69:5:
+
+"sc://%C3%B1/?x"
+!= expected.href
+"sc://%C3%B1?x"
+for URL "sc://%C3%B1/?x"
+
+..F....thread '"\\/localhost//pig" @ base "file://lion/"' panicked at tests/data.rs:69:5:
+
+"file:////pig"
+!= expected.href
+"file:///pig"
+for URL "file:////pig"
+
+...F....thread '"C|" @ base "file://host/dir/file"' panicked at tests/data.rs:69:5:
+
+"file://host/dir/C|"
+!= expected.href
+"file:///C:"
+for URL "file://host/dir/C|"
+
+.....thread '"a://example.net".protocol = "0b" No leading digit' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"
+.thread '"a:/".pathname = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" UTF-8 percent encoding with the default encode set. Tabs and newlines are removed.' panicked at tests/data.rs:192:5:
+assertion `left == right` failed
+  left: "a:/!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+ right: "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+thread '"a:/".search = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" UTF-8 percent encoding with the query encode set. Tabs and newlines are removed.' panicked at tests/data.rs:193:5:
+assertion `left == right` failed
+  left: "a:/?!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+ right: "a:/?%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+thread '"a://example.net".protocol = "b,c" Only some punctuation is acceptable' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"
+FFFthread 'thread '"a://example.net".protocol = "bé" Non-ASCII is rejected"a://example.net".protocol = "+b" No leading punctuation' panicked at ' panicked at tests/data.rstests/data.rs::186186::55:
+:
+assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"
+
+thread '"a://example.net".protocol = "bC0+-." ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "bc0+-.://example.net/"
+ right: "bc0+-.://example.net"
+thread '"a://example.net".protocol = "é" Non-ASCII is rejected' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"
+FFthread '"a:/".hash = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" Simple percent-encoding; nuls, tabs, and newlines are removed' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "a:/#!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+ right: "a:/#%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+Fthread '"a://example.net".protocol = "b" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "b://example.net/"
+ right: "b://example.net"
+FFFthread '"a://example.net".protocol = "B" Upper-case ASCII is lower-cased' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "b://example.net/"
+ right: "b://example.net"
+.FF.F..thread '"a://example.net".protocol = "" The empty string is not a valid scheme. Setter leaves the URL unchanged.' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "a://example.net/"
+ right: "a://example.net"
+thread '"data:test# »" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"data:test# %C2%BB"
+!= expected.href
+"data:test#%20%C2%BB"
+for URL "data:test# %C2%BB"
+
+...F......F..................thread '"file:///unicorn".pathname = "//\\/" File URLs and (back)slashes' panicked at tests/data.rs:192:5:
+assertion `left == right` failed
+  left: "file://////"
+ right: "file:///"
+thread '"file://\\/localhost//cat" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////localhost//cat"
+!= expected.href
+"file:///localhost//cat"
+for URL "file:////localhost//cat"
+
+thread '"file:///unicorn".pathname = "//monkey/..//" File URLs and (back)slashes' panicked at tests/data.rs:192:5:
+assertion `left == right` failed
+  left: "file://///"
+ right: "file:///"
+..FFF....thread '"file://hi/path".protocol = "s" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "s://hi/path"
+ right: "file://hi/path"
+.....Fthread '"file://monkey/".pathname = "\\\\" File URLs and (back)slashes' panicked at tests/data.rs:192:5:
+assertion `left == right` failed
+  left: "file://monkey//"
+ right: "file://monkey/"
+thread '"file://spider///" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file://spider///"
+!= expected.href
+"file://spider/"
+for URL "file://spider///"
+
+thread '"file://hi/x".host = "" ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "file://hi/x"
+ right: "file:///x"
+.F.FFthread '"file://localhost//a//../..//" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file://///"
+!= expected.href
+"file:///"
+for URL "file://///"
+
+thread '"file://y/".host = "x:123" ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "file://x:123/"
+ right: "file://y/"
+.F.thread '"file://y/".host = "loc%41lhost" ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "file://localhost/"
+ right: "file:///"
+thread '"file://y/".hostname = "x:123" ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "file://x/"
+ right: "file://y/"
+thread '"file://y/".hostname = "loc%41lhost" ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "file://localhost/"
+ right: "file:///"
+thread '"file://hi/x".hostname = "" ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "file://hi/x"
+ right: "file:///x"
+F.FF...thread '"file:\\\\//" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////"
+!= expected.href
+"file:///"
+for URL "file:////"
+
+FFthread '"file:\\\\\\\\#guppy" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////#guppy"
+!= expected.href
+"file:///#guppy"
+for URL "file:////#guppy"
+
+thread '"file:\\\\localhost//" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////"
+!= expected.href
+"file:///"
+for URL "file:////"
+
+thread '"file:\\c:\\foo\\bar" @ base "file:///c:/baz/qux"' panicked at tests/data.rs:69:5:
+
+"file:///c:/c:/foo/bar"
+!= expected.href
+"file:///c:/foo/bar"
+for URL "file:///c:/c:/foo/bar"
+
+FF.thread '"file:\\\\\\\\?fox" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////?fox"
+!= expected.href
+"file:///?fox"
+for URL "file:////?fox"
+
+..FF..thread '"file:\\\\\\\\" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"file:////"
+!= expected.href
+"file:///"
+for URL "file:////"
+
+....F...FFthread '"foo://" @ base "http://example.org/foo/bar"' panicked at tests/data.rs:69:5:
+
+"foo:///"
+!= expected.href
+"foo://"
+for URL "foo:///"
+
+thread '"ftp://example.net".protocol = "test" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "test://example.net/"
+ right: "ftp://example.net/"
+......F..thread '"gopher://example.net:1234".protocol = "file" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "file://example.net:1234/"
+ right: "gopher://example.net:1234/"
+......F........................................................................................................................thread '"http://example.net".hash = "#foo<bar" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "http://example.net/#foo<bar"
+ right: "http://example.net/#foo%3Cbar"
+thread '"http://example.net".hash = "#foo`bar" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "http://example.net/#foo`bar"
+ right: "http://example.net/#foo%60bar"
+F.F......thread '"http://example.net".hash = "#foo\"bar" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "http://example.net/#foo\"bar"
+ right: "http://example.net/#foo%22bar"
+thread '"http://example.net".hash = "#foo>bar" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "http://example.net/#foo>bar"
+ right: "http://example.net/#foo%3Ebar"
+thread '"http://example.net".hash = "#foo bar" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "http://example.net/#foo bar"
+ right: "http://example.net/#foo%20bar"
+thread '"http://example.net".protocol = "b" Can’t switch from special scheme to non-special' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "b://example.net/"
+ right: "http://example.net/"
+F.F.F.......F....................................thread '"http://example.net:8080".host = "example.com:" Port number is unchanged if not specified' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "http://example.com/"
+ right: "http://example.com:8080/"
+F...........................thread '"http://f:21/ b ? d # e " @ base "http://example.org/foo/bar"' panicked at tests/data.rs:69:5:
+
+"http://f:21/%20b%20?%20d%20# e"
+!= expected.href
+"http://f:21/%20b%20?%20d%20#%20e"
+for URL "http://f:21/%20b%20?%20d%20# e"
+
+F...thread 'thread '"http://foo.bar/baz?qux#foo<bar" @ base "about:blank""http://foo.bar/baz?qux#foo>bar" @ base "about:blank"' panicked at ' panicked at tests/data.rstests/data.rs::6969::55:
+:
+
+"http://foo.bar/baz?qux#foo>bar"
+!= expected.href
+"http://foo.bar/baz?qux#foo%3Ebar"
+for URL "http://foo.bar/baz?qux#foo>bar"
+
+"http://foo.bar/baz?qux#foo<bar"
+!= expected.href
+"http://foo.bar/baz?qux#foo%3Cbar"
+for URL "http://foo.bar/baz?qux#foo<bar"
+
+
+thread '"http://foo.bar/baz?qux#foo\"bar" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"http://foo.bar/baz?qux#foo\"bar"
+!= expected.href
+"http://foo.bar/baz?qux#foo%22bar"
+for URL "http://foo.bar/baz?qux#foo\"bar"
+
+thread '"http://foo.bar/baz?qux#foo`bar" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"http://foo.bar/baz?qux#foo`bar"
+!= expected.href
+"http://foo.bar/baz?qux#foo%60bar"
+for URL "http://foo.bar/baz?qux#foo`bar"
+
+thread '"http://foo.com:443/".protocol = "https" Port is set to null if it is the default for new scheme.' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "https://foo.com:443/"
+ right: "https://foo.com/"
+...FF.F.F..F..........thread '"http://test@example.net".protocol = "file" Can’t switch from URL containing username/password/port to file' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "file://test@example.net/"
+ right: "http://test@example.net/"
+......F................................F.thread '"http://www.google.com/foo?bar=baz# »" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"http://www.google.com/foo?bar=baz# %C2%BB"
+!= expected.href
+"http://www.google.com/foo?bar=baz#%20%C2%BB"
+for URL "http://www.google.com/foo?bar=baz# %C2%BB"
+
+.............................F...thread '"https://example.net".protocol = "s" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "s://example.net/"
+ right: "https://example.net/"
+...........................................thread '"javascript:alert(1)".hash = "castle" ' panicked at tests/data.rs:194:5:
+assertion `left == right` failed
+  left: "javascript:alert(1)"
+ right: "javascript:alert(1)#castle"
+...F....thread '"lolscheme:x x#x x" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"lolscheme:x x#x x"
+!= expected.href
+"lolscheme:x x#x%20x"
+for URL "lolscheme:x x#x x"
+
+......F....thread '"nonsense:///test".protocol = "https" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "https:///test"
+ right: "nonsense:///test"
+.........F.........thread '."sc://:/" @ base "about:blank"' panicked at tests/data.rs:39:29:
+Expected a parse error for URL "sc://:/"
+thread '"sc://:12/" @ base "about:blank"' panicked at tests/data.rs:39:29:
+Expected a parse error for URL "sc://:12/"
+Fthread '"sc://#" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"sc:///#"
+!= expected.href
+"sc://#"
+for URL "sc:///#"
+
+F.....F.Fthread '"sc://@/" @ base "about:blank"' panicked at tests/data.rs:39:29:
+Expected a parse error for URL "sc://@/"
+thread '"sc://?" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"sc:///?"
+!= expected.href
+"sc://?"
+for URL "sc:///?"
+
+.Fthread '"sc://test@test/".host = "" ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "sc://test@/"
+ right: "sc://test@test/"
+.F..thread '"sc://te@s:t@/" @ base "about:blank"' panicked at tests/data.rs:39:29:
+Expected a parse error for URL "sc://te@s:t@/"
+Fthread '"sc://test:12/".host = "" ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "sc://:12/"
+ right: "sc://test:12/"
+thread '"sc://test:12/".hostname = "" ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "sc://:12/"
+ right: "sc://test:12/"
+F.F..thread '"sc://test@test/".hostname = "" ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "sc://test@/"
+ right: "sc://test@test/"
+thread '"sc://x/".host = "\0" Non-special scheme' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "sc:///"
+ right: "sc://x/"
+FF....thread '"sc://x/".hostname = " " ' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "sc:///"
+ right: "sc://x/"
+.thread '"sc://x/".hostname = "\0" Non-special scheme' panicked at tests/data.rs:189:5:
+assertion `left == right` failed
+  left: "sc:///"
+ right: "sc://x/"
+F..F.thread '"sc://ñ" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"sc://%C3%B1/"
+!= expected.href
+"sc://%C3%B1"
+for URL "sc://%C3%B1/"
+
+...thread '"sc://ñ#x" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"sc://%C3%B1/#x"
+!= expected.href
+"sc://%C3%B1#x"
+for URL "sc://%C3%B1/#x"
+
+thread '"sc://ñ?x" @ base "about:blank"' panicked at tests/data.rs:69:5:
+
+"sc://%C3%B1/?x"
+!= expected.href
+"sc://%C3%B1?x"
+for URL "sc://%C3%B1/?x"
+
+thread '"sc://x/".host = " " ' panicked at tests/data.rs:190:5:
+assertion `left == right` failed
+  left: "sc:///"
+ right: "sc://x/"
+.F..FFF..thread '"ssh://me@example.net".protocol = "file" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "file://me@example.net/"
+ right: "ssh://me@example.net"
+thread '"ssh://me@example.net".protocol = "http" Can’t switch from non-special scheme to special' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "http://me@example.net/"
+ right: "ssh://me@example.net"
+.FF..thread '"ssh://me@example.net".protocol = "gopher" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "gopher://me@example.net/"
+ right: "ssh://me@example.net"
+thread '"ssh://example.net".protocol = "file" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "file://example.net/"
+ right: "ssh://example.net"
+...F........F........................F..thread '"wss://x:x@example.net:1234".protocol = "file" ' panicked at tests/data.rs:186:5:
+assertion `left == right` failed
+  left: "file://x:x@example.net:1234/"
+ right: "wss://x:x@example.net:1234/"
+.........
+failures:
+
+failures:
+    "#x" @ base "sc://ñ"
+    "/..//localhost//pig" @ base "file://lion/"
+    "////" @ base "sc://x/"
+    "/////mouse" @ base "file:///elephant"
+    "////x/" @ base "sc://x/"
+    "//localhost//pig" @ base "file://lion/"
+    "/?chai" @ base "file://tea/"
+    "/c:/foo/bar" @ base "file:///c:/baz/qux"
+    "/c|/foo/bar" @ base "file:///c:/baz/qux"
+    "/rooibos" @ base "file://tea/"
+    "?x" @ base "sc://ñ"
+    "C|" @ base "file://host/dir/file"
+    "\\/localhost//pig" @ base "file://lion/"
+    "a:/".hash = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" Simple percent-encoding; nuls, tabs, and newlines are removed
+    "a:/".pathname = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" UTF-8 percent encoding with the default encode set. Tabs and newlines are removed.
+    "a:/".search = "\0\u{1}\t\n\r\u{1f} !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}Éé" UTF-8 percent encoding with the query encode set. Tabs and newlines are removed.
+    "a://example.net".protocol = "" The empty string is not a valid scheme. Setter leaves the URL unchanged.
+    "a://example.net".protocol = "+b" No leading punctuation
+    "a://example.net".protocol = "0b" No leading digit
+    "a://example.net".protocol = "B" Upper-case ASCII is lower-cased
+    "a://example.net".protocol = "b" 
+    "a://example.net".protocol = "b,c" Only some punctuation is acceptable
+    "a://example.net".protocol = "bC0+-." 
+    "a://example.net".protocol = "bé" Non-ASCII is rejected
+    "a://example.net".protocol = "é" Non-ASCII is rejected
+    "data:test# »" @ base "about:blank"
+    "file:///unicorn".pathname = "//\\/" File URLs and (back)slashes
+    "file:///unicorn".pathname = "//monkey/..//" File URLs and (back)slashes
+    "file://\\/localhost//cat" @ base "about:blank"
+    "file://hi/path".protocol = "s" 
+    "file://hi/x".host = "" 
+    "file://hi/x".hostname = "" 
+    "file://localhost//a//../..//" @ base "about:blank"
+    "file://monkey/".pathname = "\\\\" File URLs and (back)slashes
+    "file://spider///" @ base "about:blank"
+    "file://y/".host = "loc%41lhost" 
+    "file://y/".host = "x:123" 
+    "file://y/".hostname = "loc%41lhost" 
+    "file://y/".hostname = "x:123" 
+    "file:\\\\//" @ base "about:blank"
+    "file:\\\\\\\\" @ base "about:blank"
+    "file:\\\\\\\\#guppy" @ base "about:blank"
+    "file:\\\\\\\\?fox" @ base "about:blank"
+    "file:\\\\localhost//" @ base "about:blank"
+    "file:\\c:\\foo\\bar" @ base "file:///c:/baz/qux"
+    "foo://" @ base "http://example.org/foo/bar"
+    "ftp://example.net".protocol = "test" 
+    "gopher://example.net:1234".protocol = "file" 
+    "http://example.net".hash = "#foo bar" 
+    "http://example.net".hash = "#foo<bar" 
+    "http://example.net".hash = "#foo>bar" 
+    "http://example.net".hash = "#foo\"bar" 
+    "http://example.net".hash = "#foo`bar" 
+    "http://example.net".protocol = "b" Can’t switch from special scheme to non-special
+    "http://example.net:8080".host = "example.com:" Port number is unchanged if not specified
+    "http://f:21/ b ? d # e " @ base "http://example.org/foo/bar"
+    "http://foo.bar/baz?qux#foo<bar" @ base "about:blank"
+    "http://foo.bar/baz?qux#foo>bar" @ base "about:blank"
+    "http://foo.bar/baz?qux#foo\"bar" @ base "about:blank"
+    "http://foo.bar/baz?qux#foo`bar" @ base "about:blank"
+    "http://foo.com:443/".protocol = "https" Port is set to null if it is the default for new scheme.
+    "http://test@example.net".protocol = "file" Can’t switch from URL containing username/password/port to file
+    "http://www.google.com/foo?bar=baz# »" @ base "about:blank"
+    "https://example.net".protocol = "s" 
+    "javascript:alert(1)".hash = "castle" 
+    "lolscheme:x x#x x" @ base "about:blank"
+    "nonsense:///test".protocol = "https" 
+    "sc://#" @ base "about:blank"
+    "sc://:/" @ base "about:blank"
+    "sc://:12/" @ base "about:blank"
+    "sc://?" @ base "about:blank"
+    "sc://@/" @ base "about:blank"
+    "sc://te@s:t@/" @ base "about:blank"
+    "sc://test:12/".host = "" 
+    "sc://test:12/".hostname = "" 
+    "sc://test@test/".host = "" 
+    "sc://test@test/".hostname = "" 
+    "sc://x/".host = " " 
+    "sc://x/".host = "\0" Non-special scheme
+    "sc://x/".hostname = " " 
+    "sc://x/".hostname = "\0" Non-special scheme
+    "sc://ñ" @ base "about:blank"
+    "sc://ñ#x" @ base "about:blank"
+    "sc://ñ?x" @ base "about:blank"
+    "ssh://example.net".protocol = "file" 
+    "ssh://me@example.net".protocol = "file" 
+    "ssh://me@example.net".protocol = "gopher" 
+    "ssh://me@example.net".protocol = "http" Can’t switch from non-special scheme to special
+    "wss://x:x@example.net:1234".protocol = "file" 
+
+test result: FAILED. 624 passed; 89 failed; 0 ignored; 0 measured
+
+error: test failed, to rerun pass `-p url --test data`
+echo OMNIGRIL_EXIT_CODE=101

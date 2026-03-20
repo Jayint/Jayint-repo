@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Run verified Multi-Docker-Eval regression cases one by one and capture rich JSON logs."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import os

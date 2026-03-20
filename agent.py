@@ -403,9 +403,6 @@ class DockerAgent:
                 
                 print(f"\n[Observation]\n{observation if observation.strip() else '(No output)'}")
                 
-                # 检测 API Key 相关错误
-                self._detect_api_key_issues(observation)
-                
                 # 3. Synthesize if successful
                 mutates_environment = False
                 if success:
@@ -429,16 +426,15 @@ class DockerAgent:
                         planner_usage=usage_info,
                     )
 
-            # 4. Final Output - 只有配置成功才生成文档
+            # 4. Final Output - 只有配置成功才生成 Dockerfile
             if configuration_success:
                 print(f"\n{'='*20} Environment Configuration Complete {'='*20}")
                 # 生成 Dockerfile 到 workplace 目录
                 dockerfile_path = os.path.join(self.workplace, "Dockerfile")
                 self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
-                self.synthesizer.generate_quickstart_with_llm(self.workplace, self.client, model=self.planner.model)
             else:
                 print(f"\n{'='*20} Environment Configuration FAILED {'='*20}")
-                print("[Warning] Configuration did not complete successfully. No documentation will be generated.")
+                print("[Warning] Configuration did not complete successfully. No Dockerfile will be generated.")
             
         except Exception as e:
             run_error = str(e)
@@ -864,27 +860,6 @@ class DockerAgent:
             print(f"[DockerAgent] Run summary saved to: {self.run_summary_path}")
         except Exception as e:
             print(f"[DockerAgent] Warning: Could not write run summary: {e}")
-
-    def _detect_api_key_issues(self, observation):
-        """检测命令输出中是否包含 API Key 相关错误"""
-        if not observation:
-            return
-        
-        observation_lower = observation.lower()
-        
-        # 常见的 API Key 错误模式
-        api_key_patterns = [
-            ("openai_api_key", ["openai_api_key", "openai api key", "invalid api key", "api key not found"]),
-            ("anthropic_api_key", ["anthropic_api_key", "anthropic api key", "claude api key"]),
-            ("api_key", ["missing api key", "api key required", "no api key", "api_key not set"]),
-            ("access_token", ["access token", "access_token", "invalid token", "token required"]),
-        ]
-        
-        for key_name, patterns in api_key_patterns:
-            if any(pattern in observation_lower for pattern in patterns):
-                self.synthesizer.record_api_key_hint(key_name, observation[:200])
-                print(f"[Detected] API Key requirement: {key_name.upper()}")
-                break
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LLM-based Docker Environment Configuration Agent")

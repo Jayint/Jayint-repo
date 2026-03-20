@@ -44,7 +44,7 @@ class Planner:
             "Observation: <result of the command, will be provided by the system, DO NOT GENERATE THIS>\n\n"
             "Mission Guidelines:\n"
             "1. **Analyze & Setup**: Identify dependency files and install all necessary packages/tools.\n"
-            "2. **Read README**: After setup, read `README.md` to find 'QuickStart' or startup instructions.\n"
+            "2. **Read README**: After setup, read `README.md` to find startup, usage, and test instructions.\n"
             "3. **Verification** (MANDATORY - Must pass before claiming Success):\n"
             "   - After setup, you MUST run the project's tests to verify the environment works correctly.\n"
             "   - For Ruby projects with gemspec: Run `bundle exec rake` or `bundle exec rspec` or the test command in the project's test files.\n"
