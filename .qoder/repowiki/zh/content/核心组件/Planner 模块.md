@@ -10,12 +10,13 @@
 - [agent.py](file://agent.py)
 - [tests/test_planner_history.py](file://tests/test_planner_history.py)
 - [README.md](file://README.md)
-- [workplace/QuickStart.md](file://workplace/QuickStart.md)
+- [doc/运行示例.md](file://doc/运行示例.md)
 - [requirements.txt](file://requirements.txt)
 </cite>
 
 ## 更新摘要
 **变更内容**
+- 更新 Mission Guidelines 描述：从原来的'QuickStart'指令更新为'startup, usage, and test instructions'
 - 新增托管历史跟踪功能：引入 `managed_history` 系统，支持结构化的历史记录管理
 - 结构化验证包要求：在 Final Answer 中强制要求 Verification Bundle JSON 对象
 - 改进的 token 使用跟踪：新增 `_extract_usage` 方法，提供更精确的 token 统计
@@ -308,7 +309,9 @@ class JavaScriptHandler {
 }
 class TypeScriptHandler {
 +language : str
++base_images(platform) List[str]
 +detect_language(repo_structure, files_content) bool
++get_setup_instructions() str
 }
 class RustHandler {
 +language : str
@@ -729,8 +732,8 @@ Planner 模块通过 ReAct 框架实现了可控、可观测的 LLM 决策循环
   - **新增**：利用智能测试失败检测减少无效尝试，提高整体效率。
   - 参考路径：[src/planner.py:229-258](file://src/planner.py#L229-L258)，[src/sandbox.py:56-74](file://src/sandbox.py#L56-L74)，[src/sandbox.py:181-219](file://src/sandbox.py#L181-L219)
 - 产物参考
-  - 成功后生成的 QuickStart.md 示例可参考项目中的 workplace/QuickStart.md。
-  - 参考路径：[workplace/QuickStart.md:1-46](file://workplace/QuickStart.md#L1-L46)
+  - 成功后生成的 QuickStart.md 示例可参考项目中的 doc/运行示例.md。
+  - 参考路径：[doc/运行示例.md:1-475](file://doc/运行示例.md#L1-L475)
 - **新增**：多语言支持
   - 系统支持 16 种编程语言的自动环境配置，包括 Python、JavaScript、TypeScript、Rust、Go、Java、C#、C++、Ruby、PHP、Kotlin、Scala、R、Dart 等。
   - 参考路径：[src/language_handlers.py:637-667](file://src/language_handlers.py#L637-L667)
@@ -758,3 +761,6 @@ Planner 模块通过 ReAct 框架实现了可控、可观测的 LLM 决策循环
 - **新增**：观察值压缩集成
   - 与 ObservationCompressor 系统协同工作，动态压缩和替换历史中的观察值。
   - 参考路径：[agent.py:487-539](file://agent.py#L487-L539)，[agent.py:531](file://agent.py#L531)
+- **新增**：Mission Guidelines 更新
+  - 系统提示词中的 Mission Guidelines 已更新为 "startup, usage, and test instructions"，强调从 README 中获取启动、使用和测试说明的重要性。
+  - 参考路径：[src/planner.py:47](file://src/planner.py#L47)

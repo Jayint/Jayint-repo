@@ -1,6 +1,7 @@
 import unittest
+import tempfile
 
-from src.synthesizer import Synthesizer
+from src.synthesizer import Synthesizer, build_dockerfile_apt_bootstrap_run_instructions
 
 
 class SynthesizerTests(unittest.TestCase):
@@ -128,12 +129,130 @@ class SynthesizerTests(unittest.TestCase):
         self.assertTrue(analysis["is_effective_test_run"])
         self.assertEqual(analysis["reason"], "observed_test_execution_signal")
 
+    def test_maven_surefire_summary_counts_as_effective(self):
+        synthesizer = Synthesizer()
+        analysis = synthesizer.analyze_test_run(
+            'mvn test -pl openbas-api -Dtest="EmailServiceTest,ResultUtilsTest,AtomicTestingUtilsTest"',
+            "\n".join(
+                [
+                    "[INFO] -------------------------------------------------------",
+                    "[INFO]  T E S T S",
+                    "[INFO] -------------------------------------------------------",
+                    "[INFO] Running io.openbas.service.EmailServiceTest",
+                    "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.069 s -- in io.openbas.service.EmailServiceTest",
+                    "[INFO] Running io.openbas.injects.atomic_testing.AtomicTestingUtilsTest",
+                    "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in io.openbas.injects.atomic_testing.AtomicTestingUtilsTest",
+                    "[INFO] Running io.openbas.injects.atomic_testing.ResultUtilsTest",
+                    "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.271 s -- in io.openbas.injects.atomic_testing.ResultUtilsTest",
+                    "[INFO] Results:",
+                    "[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0",
+                    "[INFO] BUILD SUCCESS",
+                ]
+            ),
+        )
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertTrue(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "observed_test_execution_signal")
+
     def test_public_observation_signal_wrapper_detects_real_test_output(self):
         synthesizer = Synthesizer()
 
         self.assertTrue(
             synthesizer.observation_has_effective_test_signal("OK (94 tests, 185 assertions)")
         )
+        self.assertTrue(
+            synthesizer.observation_has_effective_test_signal(
+                "[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0"
+            )
+        )
+
+    def test_safe_readonly_pipeline_is_not_recorded(self):
+        synthesizer = Synthesizer()
+        command = (
+            'cd /app/openbas-api && grep -r "import org.junit.jupiter.api.Test;" '
+            'src/test/java --include="*.java" | grep -v "IntegrationTest" | head -5'
+        )
+
+        self.assertTrue(synthesizer.is_readonly_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+    def test_safe_find_exec_command_with_escaped_semicolon_is_not_recorded(self):
+        synthesizer = Synthesizer()
+        command = (
+            'cd /app/openbas-api && find src/test -name "*.java" -exec grep -L '
+            '"@SpringBootTest\\|@DataJpaTest\\|@WebMvcTest" {} \\; | head -10'
+        )
+
+        self.assertTrue(synthesizer.is_readonly_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+    def test_safe_xargs_pipeline_is_not_recorded(self):
+        synthesizer = Synthesizer()
+        command = (
+            'find openbas-api/src/test/java -name "*Test.java" | '
+            'xargs grep -L "@SpringBootTest\\|@DataJpaTest\\|@IntegrationTest" | head -10'
+        )
+
+        self.assertTrue(synthesizer.is_readonly_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+    def test_ephemeral_numbered_archive_repair_is_not_recorded(self):
+        synthesizer = Synthesizer()
+        command = (
+            "mv apache-maven-3.9.9-bin.tar.gz.1 apache-maven-3.9.9-bin.tar.gz && "
+            "tar -xzf apache-maven-3.9.9-bin.tar.gz && "
+            "mv apache-maven-3.9.9 /opt/maven && "
+            "ln -s /opt/maven/bin/mvn /usr/local/bin/mvn"
+        )
+
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+        synthesizer.record_success(command)
+        self.assertEqual(synthesizer.instructions, [])
+
+    def test_download_and_extract_chain_remains_recordable(self):
+        synthesizer = Synthesizer()
+        command = (
+            "wget https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/"
+            "apache-maven-3.9.9-bin.tar.gz && "
+            "tar -xzf apache-maven-3.9.9-bin.tar.gz && "
+            "mv apache-maven-3.9.9 /opt/maven && "
+            "ln -s /opt/maven/bin/mvn /usr/local/bin/mvn"
+        )
+
+        self.assertEqual(
+            synthesizer._extract_recordable_setup_commands(command),
+            [command],
+        )
+
+    def test_dockerfile_generation_includes_apt_bootstrap_before_setup_instructions(self):
+        synthesizer = Synthesizer(base_image="ubuntu:24.04", workdir="/app")
+        synthesizer.record_success("apt-get update && apt-get install -y git")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dockerfile_path = f"{tmpdir}/Dockerfile"
+            dockerfile = synthesizer.generate_dockerfile(file_path=dockerfile_path)
+
+        self.assertIn("99jayint-retries", dockerfile)
+        self.assertLess(
+            dockerfile.index("99jayint-retries"),
+            dockerfile.index("RUN apt-get update && apt-get install -y git"),
+        )
+
+    def test_dockerfile_apt_bootstrap_helper_can_emit_mirror_rewrite(self):
+        instructions = build_dockerfile_apt_bootstrap_run_instructions(
+            apt_mirror_url="https://mirror.example.com/ubuntu"
+        )
+
+        self.assertEqual(len(instructions), 2)
+        self.assertIn("APT_MIRROR_URL='https://mirror.example.com/ubuntu'", instructions[1])
+        self.assertIn("apt-get update", instructions[1])
+
+    def test_safe_command_with_output_redirection_is_not_treated_as_readonly(self):
+        synthesizer = Synthesizer()
+        command = 'echo "hello" > /tmp/example.txt'
+
+        self.assertFalse(synthesizer.is_readonly_command(command))
 
     def test_public_runtime_command_wrappers_distinguish_service_and_healthcheck(self):
         synthesizer = Synthesizer()

@@ -121,10 +121,18 @@ RUN go build ./...
             summary_path.write_text(
                 json.dumps(
                     {
+                        "verification_source": "agent_report",
                         "verified_test_commands": [
                             "pytest tests/unit",
                             "pytest tests/integration",
-                        ]
+                        ],
+                        "verification_bundle": {
+                            "runtime_preparation_commands": [],
+                            "test_commands": [
+                                "pytest tests/unit",
+                                "pytest tests/integration",
+                            ],
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -141,7 +149,7 @@ RUN go build ./...
         self.assertIn("pytest tests/unit", eval_script)
         self.assertIn("pytest tests/integration", eval_script)
         self.assertIn(") && \\", eval_script)
-        self.assertEqual(adapter._last_test_command_source, "runtime_verified_test_commands")
+        self.assertEqual(adapter._last_test_command_source, "agent_report_verification_bundle")
 
     def test_uses_verified_runtime_preparation_commands_when_building_eval_script(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
@@ -151,12 +159,21 @@ RUN go build ./...
             summary_path.write_text(
                 json.dumps(
                     {
+                        "verification_source": "agent_report",
                         "verified_runtime_preparation_commands": [
                             "redis-server --daemonize yes",
                         ],
                         "verified_test_commands": [
                             "pytest tests",
                         ],
+                        "verification_bundle": {
+                            "runtime_preparation_commands": [
+                                "redis-server --daemonize yes",
+                            ],
+                            "test_commands": [
+                                "pytest tests",
+                            ],
+                        },
                     }
                 ),
                 encoding="utf-8",
@@ -175,14 +192,42 @@ RUN go build ./...
         self.assertIn("pytest tests", eval_script)
         self.assertEqual(
             adapter._last_runtime_preparation_source,
-            "runtime_verified_runtime_preparation_commands",
+            "agent_report_verification_bundle",
         )
 
-    def test_adds_runtime_redis_setup_when_eval_commands_need_redis(self):
+    def test_requires_agent_report_bundle_for_eval_script_generation(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+
+        with tempfile.TemporaryDirectory() as workplace:
+            summary_path = Path(workplace) / "agent_run_summary.json"
+            summary_path.write_text(
+                json.dumps(
+                    {
+                        "verification_source": "heuristic_fallback",
+                        "verified_test_commands": [
+                            "pytest tests",
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            eval_script, _, _ = adapter._generate_test_script(
+                workplace=workplace,
+                language="python",
+                problem_statement="",
+                test_patch="",
+                dockerfile_content="FROM python:3.11\nWORKDIR /testbed\n",
+            )
+
+        self.assertEqual(eval_script, "")
+        self.assertEqual(adapter._last_test_command_source, "missing_agent_verification_bundle")
+
+    def test_does_not_infer_runtime_service_setup_without_agent_bundle(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
 
         eval_script, _, _ = adapter._build_eval_script(
-            base_commands=["redis-cli ping && python3 -m pytest tests/"],
+            base_commands=["python3 -m pytest tests/"],
             language="python",
             test_patch="",
             dockerfile_content="""FROM python:3.6
@@ -191,9 +236,8 @@ RUN apt-get install -y redis-server
 """,
         )
 
-        self.assertIn("redis-server --daemonize yes", eval_script)
-        self.assertIn("redis-cli ping >/dev/null 2>&1 || exit 1", eval_script)
-        self.assertIn("redis-cli ping && python3 -m pytest tests/", eval_script)
+        self.assertNotIn("redis-server --daemonize yes", eval_script)
+        self.assertIn("python3 -m pytest tests/", eval_script)
 
     def test_normalizes_source_for_docker_run_replay(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
@@ -226,6 +270,30 @@ RUN cd build && cmake .. && make -j$(nproc)
 
         self.assertIn("cd build && cmake .. && make -j$(nproc)", eval_script)
         self.assertEqual(updated_dockerfile.count("RUN cd build && cmake .. && make -j$(nproc)"), 1)
+
+    def test_eval_dockerfile_injects_apt_bootstrap_before_git_install(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+
+        dockerfile = adapter._build_eval_dockerfile(
+            base_image_line="FROM ubuntu:24.04",
+            repo_url="https://github.com/example/repo.git",
+            base_commit="abc123",
+            processed_instructions=[
+                "RUN printf '%s\\n' 'Acquire::Retries \"5\";' > /etc/apt/apt.conf.d/99jayint-retries",
+                "RUN apt-get update && apt-get install -y maven",
+            ],
+        )
+
+        self.assertIn("# Configure apt reliability for eval image builds", dockerfile)
+        self.assertEqual(dockerfile.count("99jayint-retries"), 1)
+        self.assertLess(
+            dockerfile.index("99jayint-retries"),
+            dockerfile.index("RUN apt-get update && apt-get install -y git"),
+        )
+        self.assertLess(
+            dockerfile.index("RUN apt-get update && apt-get install -y git"),
+            dockerfile.index("RUN apt-get update && apt-get install -y maven"),
+        )
 
 
 if __name__ == "__main__":

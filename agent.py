@@ -14,6 +14,7 @@ from src.observation_compressor import (
     ObservationCompressor,
     RunTokenLedger,
     build_observation_metadata,
+    safety_compress_observation,
     should_apply_compression,
 )
 from dotenv import load_dotenv
@@ -21,6 +22,81 @@ from dotenv import load_dotenv
 # Load environment variables (OPENAI_API_KEY, etc.)
 # override=True ensures .env values take precedence over system env vars
 load_dotenv(override=True)
+
+LOCAL_SERVICE_CONFIG_EXTENSIONS = {
+    ".properties",
+    ".yml",
+    ".yaml",
+    ".json",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".conf",
+    ".xml",
+    ".env",
+}
+
+LOCAL_SERVICE_EXCLUDED_FILENAMES = {
+    "pom.xml",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "go.mod",
+    "cargo.toml",
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    "composer.json",
+    "composer.lock",
+    "gemfile",
+    "gemfile.lock",
+}
+
+LOCAL_SERVICE_MARKER_PATTERNS = {
+    "postgresql": (
+        r"jdbc:postgresql://",
+        r"\bpostgresql://",
+        r"spring\.datasource\.url\s*[=:]\s*jdbc:postgresql://",
+        r"\blocalhost:543[23]\b",
+    ),
+    "mysql": (
+        r"jdbc:mysql://",
+        r"\bmysql://",
+        r"\bmariadb://",
+        r"spring\.datasource\.url\s*[=:]\s*jdbc:(?:mysql|mariadb)://",
+        r"\blocalhost:3306\b",
+    ),
+    "redis": (
+        r"\bredis://",
+        r"spring\.data\.redis",
+        r"\bredis\.host\b",
+        r"\blocalhost:6379\b",
+    ),
+    "rabbitmq": (
+        r"\bamqp://",
+        r"spring\.rabbitmq",
+        r"\brabbitmq\b",
+        r"\blocalhost:5672\b",
+    ),
+    "minio": (
+        r"\bminio\b",
+        r"\bs3\.endpoint\b",
+        r"\blocalhost:(?:9000|10000)\b",
+    ),
+    "elasticsearch": (
+        r"\belasticsearch\b",
+        r"\bopensearch\b",
+        r"spring\.elasticsearch",
+        r"\blocalhost:9200\b",
+    ),
+    "kafka": (
+        r"\bkafka\b",
+        r"\bbootstrap\.servers\b",
+        r"\blocalhost:9092\b",
+    ),
+}
 
 class DockerAgent:
     def __init__(
@@ -46,6 +122,8 @@ class DockerAgent:
         self._environment_revision = 0
         self._current_verification_group = []
         self.enable_observation_compression = enable_observation_compression
+        self.safety_compression_threshold_chars = 200_000
+        self.safety_compression_target_chars = 20_000
         self.compression_delay = 2
         self.compression_context_before = 1
         self.compression_threshold_chars = 1500
@@ -66,6 +144,13 @@ class DockerAgent:
         if base_commit:
             self._checkout_commit(base_commit)
             print(f"Checked out commit: {base_commit}")
+
+        self.required_local_services = self._collect_local_service_hints()
+        if self.required_local_services:
+            print(
+                "[DockerAgent] Detected local service dependencies: "
+                + ", ".join(sorted(self.required_local_services))
+            )
         
         # 3. Initialize LLM client first (needed for image selection)
         api_key = os.getenv("OPENAI_API_KEY")
@@ -167,12 +252,20 @@ class DockerAgent:
         combined_repo_info = repo_structure
         if config_files_content:
             combined_repo_info += "\n\n=== Relevant Configuration Files ===\n\n" + config_files_content
+        maven_repository_hints = self._collect_maven_repository_hints()
         
         # Setup log directory for LLM calls (similar to image_selector_logs)
         setup_log_dir = os.path.join(self.workplace, "setup_logs")
         os.makedirs(setup_log_dir, exist_ok=True)
         
-        self.planner = Planner(self.client, model=model, language_handler=self.language_handler, repo_structure=combined_repo_info, log_dir=setup_log_dir)
+        self.planner = Planner(
+            self.client,
+            model=model,
+            language_handler=self.language_handler,
+            repo_structure=combined_repo_info,
+            maven_repository_hints=maven_repository_hints,
+            log_dir=setup_log_dir,
+        )
         self.synthesizer = Synthesizer(base_image=base_image)
         self.observation_compressor = None
         if self.enable_observation_compression:
@@ -293,6 +386,147 @@ class DockerAgent:
 
         return None
 
+    def _collect_maven_repository_hints(self):
+        """Extract custom Maven repository ids declared by the cloned project."""
+        hint_lines = []
+        seen_ids = set()
+
+        for root, dirs, files in os.walk(self.workplace):
+            rel_root = os.path.relpath(root, self.workplace)
+            depth = 0 if rel_root == "." else rel_root.count(os.sep) + 1
+            if depth > 2:
+                dirs[:] = []
+                continue
+
+            if "pom.xml" not in files:
+                continue
+
+            pom_path = os.path.join(root, "pom.xml")
+            try:
+                with open(pom_path, "r", encoding="utf-8") as file_obj:
+                    content = file_obj.read()
+            except OSError:
+                continue
+
+            repositories_sections = re.findall(
+                r"<repositories>(.*?)</repositories>",
+                content,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
+            for section in repositories_sections:
+                repository_blocks = re.findall(
+                    r"<repository>(.*?)</repository>",
+                    section,
+                    flags=re.DOTALL | re.IGNORECASE,
+                )
+                for block in repository_blocks:
+                    repo_id_match = re.search(
+                        r"<id>\s*([^<]+?)\s*</id>",
+                        block,
+                        flags=re.IGNORECASE,
+                    )
+                    if not repo_id_match:
+                        continue
+
+                    repo_id = repo_id_match.group(1).strip()
+                    repo_key = repo_id.lower()
+                    if repo_key in seen_ids:
+                        continue
+
+                    seen_ids.add(repo_key)
+                    repo_url_match = re.search(
+                        r"<url>\s*([^<]+?)\s*</url>",
+                        block,
+                        flags=re.IGNORECASE,
+                    )
+                    repo_url = repo_url_match.group(1).strip() if repo_url_match else ""
+                    rel_path = os.path.relpath(pom_path, self.workplace)
+                    if repo_url:
+                        hint_lines.append(f"- {repo_id}: {repo_url} (declared in {rel_path})")
+                    else:
+                        hint_lines.append(f"- {repo_id} (declared in {rel_path})")
+
+        if not hint_lines:
+            return ""
+
+        return "\n".join(hint_lines[:12])
+
+    def _collect_local_service_hints(self):
+        """Detect explicit local service dependencies from config-like files in the cloned repo."""
+        workplace = getattr(self, "workplace", None)
+        if not workplace or not os.path.isdir(workplace):
+            return set()
+
+        detected_services = set()
+        scanned_files = 0
+        max_files = 200
+        max_file_bytes = 200_000
+
+        for root, dirs, files in os.walk(workplace):
+            rel_root = os.path.relpath(root, workplace)
+            depth = 0 if rel_root == "." else rel_root.count(os.sep) + 1
+            if depth > 5:
+                dirs[:] = []
+                continue
+
+            dirs[:] = [
+                directory
+                for directory in dirs
+                if directory not in {".git", "node_modules", ".venv", "venv", "vendor", "dist", "build"}
+            ]
+
+            for filename in files:
+                if scanned_files >= max_files:
+                    return detected_services
+
+                if not self._looks_like_local_service_config_file(root, filename):
+                    continue
+
+                file_path = os.path.join(root, filename)
+                try:
+                    if os.path.getsize(file_path) > max_file_bytes:
+                        continue
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as file_obj:
+                        content = file_obj.read().lower()
+                except OSError:
+                    continue
+
+                scanned_files += 1
+                for service_name, patterns in LOCAL_SERVICE_MARKER_PATTERNS.items():
+                    if service_name in detected_services:
+                        continue
+                    if any(re.search(pattern, content) for pattern in patterns):
+                        detected_services.add(service_name)
+
+        return detected_services
+
+    def _looks_like_local_service_config_file(self, root, filename):
+        lowered_name = filename.lower()
+        if lowered_name in LOCAL_SERVICE_EXCLUDED_FILENAMES:
+            return False
+
+        _, extension = os.path.splitext(lowered_name)
+        if extension not in LOCAL_SERVICE_CONFIG_EXTENSIONS and lowered_name not in {
+            ".env",
+            ".env.example",
+        }:
+            return False
+
+        normalized_root = root.replace(os.sep, "/").lower()
+        if any(
+            marker in normalized_root
+            for marker in (
+                "/src/test/",
+                "/src/test/resources",
+                "/src/main/resources",
+                "/config",
+                "/configs",
+            )
+        ):
+            return True
+
+        return True
+
     def _prepare_workplace(self):
         """Clones the repository to the local workplace directory."""
         if os.path.exists(self.workplace):
@@ -363,14 +597,12 @@ class DockerAgent:
                     print("\n[Finished] Agent has reached a conclusion.")
                     print(raw_llm_output)
                     # Success must be backed by an actual effective test command observed at runtime.
-                    if "Final Answer: Success" in raw_llm_output:
+                    final_answer = self.planner.extract_final_answer(raw_llm_output)
+                    if final_answer == "Success":
                         if self._finalize_verification_from_agent_report(raw_llm_output):
                             configuration_success = True
-                        elif self.verified_test_command:
-                            self.verification_source = "heuristic_fallback"
-                            configuration_success = True
                         else:
-                            print("[Warning] Agent claimed success but no effective verified test command was recorded.")
+                            print("[Warning] Agent claimed success but did not provide an acceptable Verification Bundle.")
                             print("[Warning] Marking this run as FAILED to avoid producing unverifiable artifacts.")
                     break
 
@@ -388,6 +620,7 @@ class DockerAgent:
                             assistant_content=raw_llm_output,
                             success=False,
                             observation=observation,
+                            prompt_observation=observation,
                             mutates_environment=False,
                             env_revision_before=self._environment_revision,
                             env_revision_after=self._environment_revision,
@@ -399,18 +632,27 @@ class DockerAgent:
                 
                 # 2. Execute Action in Sandbox
                 env_revision_before = self._environment_revision
-                success, observation = self.sandbox.execute(action)
+                if self._is_explicit_rollback_action(action):
+                    print("\n[System] Agent requested an explicit rollback to the last successful snapshot.")
+                    success, observation = self.sandbox.rollback(reason="agent_requested")
+                else:
+                    success, observation = self.sandbox.execute(action)
+                prompt_observation = self._prepare_observation_for_prompt(observation)
                 
                 print(f"\n[Observation]\n{observation if observation.strip() else '(No output)'}")
                 
                 # 3. Synthesize if successful
                 mutates_environment = False
-                if success:
+                if success and not self._is_explicit_rollback_action(action):
                     self.synthesizer.record_success(action)
                     mutates_environment = self.synthesizer.command_mutates_environment(action)
                     self._record_successful_action(step + 1, action, observation)
                 else:
-                    print("\n[System] Command failed. Sandbox rolled back to previous state.")
+                    if not success:
+                        print(
+                            "\n[System] Command failed. Current container state was preserved unless the sandbox "
+                            "had to recover from an unhealthy container."
+                        )
 
                 if self.enable_observation_compression:
                     self._record_agent_step(
@@ -420,11 +662,14 @@ class DockerAgent:
                         assistant_content=raw_llm_output,
                         success=success,
                         observation=observation,
+                        prompt_observation=prompt_observation,
                         mutates_environment=mutates_environment,
                         env_revision_before=env_revision_before,
                         env_revision_after=self._environment_revision,
                         planner_usage=usage_info,
                     )
+                else:
+                    observation = prompt_observation
 
             # 4. Final Output - 只有配置成功才生成 Dockerfile
             if configuration_success:
@@ -443,6 +688,10 @@ class DockerAgent:
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
 
+    def _is_explicit_rollback_action(self, action):
+        normalized = (action or "").strip()
+        return normalized in {"__ROLLBACK__", "__ROLLBACK_TO_LAST_SUCCESS__"}
+
     def _record_agent_step(
         self,
         step_id,
@@ -451,6 +700,7 @@ class DockerAgent:
         assistant_content,
         success,
         observation,
+        prompt_observation,
         mutates_environment,
         env_revision_before,
         env_revision_after,
@@ -466,9 +716,11 @@ class DockerAgent:
             env_revision_before=env_revision_before,
             env_revision_after=env_revision_after,
             observation_raw=observation or "",
-            observation_prompt=observation or "",
+            observation_prompt=prompt_observation or "",
         )
         step.metadata = build_observation_metadata(step.observation_raw)
+        step.metadata["prompt_chars"] = len(step.observation_prompt)
+        step.metadata["safety_compressed"] = step.observation_prompt != step.observation_raw
         step.token_usage.planner_input_tokens = planner_usage["input_tokens"]
         step.token_usage.planner_output_tokens = planner_usage["output_tokens"]
         self.agent_steps.append(step)
@@ -490,6 +742,9 @@ class DockerAgent:
 
         target_step = self.agent_steps[target_idx]
         if target_step.compression.applied:
+            return
+
+        if target_step.metadata.get("safety_compressed"):
             return
 
         if len(target_step.observation_raw or "") < self.compression_threshold_chars:
@@ -533,6 +788,20 @@ class DockerAgent:
         target_step.observation_prompt = reduced_result
         self.compression_stats["compressed_steps"] += 1
         self.compression_stats["saved_tokens_est"] += record.saved_tokens_est
+
+    def _prepare_observation_for_prompt(self, observation):
+        prompt_observation, applied = safety_compress_observation(
+            observation or "",
+            threshold_chars=self.safety_compression_threshold_chars,
+            target_chars=self.safety_compression_target_chars,
+        )
+        if applied:
+            print(
+                "[Safety Compression] Reduced observation from "
+                f"{len(observation or '')} to {len(prompt_observation)} chars "
+                "before adding it to planner history."
+            )
+        return prompt_observation
 
     def _record_successful_action(self, step_index, action, observation):
         """Track successful actions and maintain the final contiguous verification block."""
@@ -599,33 +868,18 @@ class DockerAgent:
             print("[Verification Bundle] Missing non-empty `test_commands`; ignoring agent-reported bundle.")
             return False
 
-        validated_test_commands = self._validate_reported_test_commands(test_commands)
-        if not validated_test_commands:
-            return False
-        validated_runtime_commands = self._validate_reported_runtime_preparation_commands(
-            runtime_commands
-        )
-        dropped_runtime_commands = [
-            command for command in runtime_commands if command not in validated_runtime_commands
-        ]
-        if dropped_runtime_commands:
-            print(
-                "[Verification Bundle] Dropping invalid runtime preparation commands: "
-                f"{dropped_runtime_commands}"
-            )
-
-        self.verified_runtime_preparation_commands = validated_runtime_commands
-        self.verified_test_commands = list(validated_test_commands)
+        self.verified_runtime_preparation_commands = list(runtime_commands)
+        self.verified_test_commands = list(test_commands)
         self.verified_test_command = self.verified_test_commands[-1]
         self.verification_source = "agent_report"
         self.verification_bundle = {
-            "runtime_preparation_commands": list(validated_runtime_commands),
-            "test_commands": list(validated_test_commands),
+            "runtime_preparation_commands": list(runtime_commands),
+            "test_commands": list(test_commands),
         }
         print(
             "[Verification Bundle] Accepted "
-            f"{len(validated_runtime_commands)} runtime preparation command(s) and "
-            f"{len(validated_test_commands)} test command(s)."
+            f"{len(runtime_commands)} runtime preparation command(s) and "
+            f"{len(test_commands)} test command(s) from the agent report."
         )
         return True
 
@@ -829,6 +1083,7 @@ class DockerAgent:
             "test_run_attempts": self.test_run_attempts,
             "verification_source": self.verification_source,
             "verification_bundle": self.verification_bundle,
+            "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,
             "compression_stats": self.compression_stats,
             "steps": [

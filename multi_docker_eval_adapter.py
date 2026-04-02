@@ -31,6 +31,10 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
+from src.synthesizer import (
+    build_dockerfile_apt_bootstrap_run_instructions,
+    is_generated_apt_bootstrap_run_instruction,
+)
 
 
 class MultiDockerEvalAdapter:
@@ -41,6 +45,48 @@ class MultiDockerEvalAdapter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._last_test_command_source = None
         self._last_runtime_preparation_source = None
+
+    def _build_eval_dockerfile(
+        self,
+        base_image_line: str,
+        repo_url: str,
+        base_commit: Optional[str],
+        processed_instructions: List[str],
+    ) -> str:
+        filtered_instructions = [
+            instr for instr in processed_instructions
+            if not is_generated_apt_bootstrap_run_instruction(instr)
+        ]
+        has_heredoc = any("<<" in instr for instr in filtered_instructions)
+        syntax_directive = "# syntax=docker/dockerfile:1\n" if has_heredoc else ""
+        checkout_line = (
+            f"RUN cd /testbed && git checkout {base_commit}"
+            if base_commit
+            else "# No base commit provided; using repository default branch HEAD"
+        )
+        apt_bootstrap_lines = build_dockerfile_apt_bootstrap_run_instructions()
+        apt_bootstrap_block = "\n".join(apt_bootstrap_lines) if apt_bootstrap_lines else ""
+        setup_block = (
+            "\n".join(filtered_instructions)
+            if filtered_instructions
+            else "# No additional setup instructions from agent"
+        )
+        return f"""{syntax_directive}{base_image_line}
+WORKDIR /testbed
+
+# Configure apt reliability for eval image builds
+{apt_bootstrap_block}
+
+# Install git for cloning
+RUN apt-get update && apt-get install -y git
+
+# Clone repository and checkout base commit
+RUN git clone {repo_url} /testbed
+{checkout_line}
+
+# Agent's verified setup instructions
+{setup_block}
+"""
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "auto",
@@ -132,6 +178,7 @@ class MultiDockerEvalAdapter:
             
             # 运行 agent 配置环境
             agent.run(max_steps=max_steps, keep_container=False)
+            accepted_verification = getattr(agent, "verification_source", None) == "agent_report"
             
             # 记录 platform override（用于后续评估框架构建镜像时使用正确平台）
             if hasattr(agent, 'platform_override') and agent.platform_override:
@@ -225,35 +272,12 @@ class MultiDockerEvalAdapter:
                         else:
                             processed_instructions.append(instr)
                     
-                    # 构建正确的 Dockerfile：
-                    # 1. 基础镜像
-                    # 2. 安装 git
-                    # 3. git clone + checkout
-                    # 4. Agent 的 RUN 指令（复用已验证的配置）
-                    
-                    # 检测是否有多行 heredoc 指令，需要启用 BuildKit 语法
-                    has_heredoc = any('<<' in instr for instr in processed_instructions)
-                    syntax_directive = "# syntax=docker/dockerfile:1\n" if has_heredoc else ""
-                    
-                    checkout_line = (
-                        f"RUN cd /testbed && git checkout {base_commit}"
-                        if base_commit
-                        else "# No base commit provided; using repository default branch HEAD"
+                    dockerfile_content = self._build_eval_dockerfile(
+                        base_image_line=base_image_line,
+                        repo_url=repo_url,
+                        base_commit=base_commit,
+                        processed_instructions=processed_instructions,
                     )
-
-                    dockerfile_content = f"""{syntax_directive}{base_image_line}
-WORKDIR /testbed
-
-# Install git for cloning
-RUN apt-get update && apt-get install -y git
-
-# Clone repository and checkout base commit
-RUN git clone {repo_url} /testbed
-{checkout_line}
-
-# Agent's verified setup instructions
-{chr(10).join(processed_instructions) if processed_instructions else '# No additional setup instructions from agent'}
-"""
                     result["dockerfile"] = dockerfile_content
                     print(f"✓ Dockerfile generated with {len(agent_run_instructions)} agent instructions")
             else:
@@ -269,9 +293,15 @@ RUN git clone {repo_url} /testbed
                 problem_statement=problem_statement,
                 test_patch=test_patch,
                 dockerfile_content=result.get("dockerfile", ""),
-                structured_runtime_preparation_commands=getattr(agent, "verified_runtime_preparation_commands", None),
-                structured_test_command=getattr(agent, "verified_test_command", None),
-                structured_test_commands=getattr(agent, "verified_test_commands", None),
+                structured_runtime_preparation_commands=(
+                    getattr(agent, "verified_runtime_preparation_commands", None) if accepted_verification else None
+                ),
+                structured_test_command=(
+                    getattr(agent, "verified_test_command", None) if accepted_verification else None
+                ),
+                structured_test_commands=(
+                    getattr(agent, "verified_test_commands", None) if accepted_verification else None
+                ),
             )
             result["eval_script"] = test_script
             result["setup_scripts"] = setup_scripts
@@ -534,50 +564,61 @@ RUN git clone {repo_url} /testbed
                 normalized_commands.append(stripped)
         return normalized_commands
 
-    def _extract_structured_runtime_preparation_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
-        """Read runtime preparation commands reported by DockerAgent."""
+    def _load_agent_report_summary(self, workplace: str) -> Optional[Dict[str, Any]]:
+        """Only trust verification data that came from an accepted agent-reported bundle."""
         summary = self._load_run_summary(workplace)
         if not summary:
+            return None
+
+        if summary.get("verification_source") != "agent_report":
+            return None
+
+        return summary
+
+    def _extract_structured_runtime_preparation_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
+        """Read runtime preparation commands reported by DockerAgent."""
+        summary = self._load_agent_report_summary(workplace)
+        if not summary:
             return [], None
+
+        bundle = summary.get("verification_bundle") or {}
+        commands = self._normalize_commands(bundle.get("runtime_preparation_commands"))
+        if commands:
+            print(
+                f"  Loaded runtime preparation commands from accepted verification bundle ({len(commands)}): {commands}"
+            )
+            return commands, "agent_report_verification_bundle"
 
         commands = self._normalize_commands(summary.get("verified_runtime_preparation_commands"))
         if commands:
             print(
                 f"  Loaded structured runtime preparation command list ({len(commands)}): {commands}"
             )
-            return commands, "runtime_verified_runtime_preparation_commands"
-
-        bundle = summary.get("verification_bundle") or {}
-        commands = self._normalize_commands(bundle.get("runtime_preparation_commands"))
-        if commands:
-            print(
-                f"  Loaded runtime preparation commands from verification_bundle ({len(commands)}): {commands}"
-            )
-            return commands, "runtime_verification_bundle"
+            return commands, "agent_report_runtime_verified_runtime_preparation_commands"
 
         return [], None
 
     def _extract_structured_test_commands(self, workplace: str) -> Tuple[List[str], Optional[str]]:
-        """Read the best available structured test command list and its source."""
-        summary = self._load_run_summary(workplace)
+        """Read test commands from an accepted agent-reported verification bundle."""
+        summary = self._load_agent_report_summary(workplace)
         if not summary:
             return [], None
+
+        bundle = summary.get("verification_bundle") or {}
+        commands = self._normalize_commands(bundle.get("test_commands"))
+        if commands:
+            print(f"  Loaded test command list from accepted verification bundle ({len(commands)}): {commands}")
+            return commands, "agent_report_verification_bundle"
 
         commands = self._normalize_commands(summary.get("verified_test_commands"))
         if commands:
             print(f"  Loaded structured test command list ({len(commands)}): {commands}")
-            return commands, "runtime_verified_test_commands"
+            return commands, "agent_report_runtime_verified_test_commands"
 
         command = summary.get("verified_test_command")
         if command:
             print(f"  Loaded structured test command: {command}")
-            return [command], "runtime_verified_test_command"
-
-        successful_commands = summary.get("successful_test_commands") or []
-        if successful_commands:
-            command = successful_commands[-1]
-            print(f"  Falling back to last successful structured test command: {command}")
-            return [command], "runtime_successful_test_commands"
+            return [command], "agent_report_runtime_verified_test_command"
 
         return [], None
 
@@ -587,7 +628,7 @@ RUN git clone {repo_url} /testbed
         structured_test_command: Optional[str],
         structured_test_commands: Optional[List[str]],
     ) -> Tuple[List[str], str]:
-        """Resolve the best available structured test command sequence and its source."""
+        """Use only agent-selected final evaluation commands."""
         commands = self._normalize_commands(structured_test_commands)
         if commands:
             return commands, "agent_runtime_argument_list"
@@ -597,28 +638,25 @@ RUN git clone {repo_url} /testbed
 
         commands, source = self._extract_structured_test_commands(workplace)
         if commands:
-            return commands, source or "runtime_summary"
+            return commands, source or "agent_report_summary"
 
-        command = self._extract_test_command_from_setup_logs(workplace)
-        if command:
-            return [command], "legacy_setup_logs"
-
-        return [], "language_default"
+        return [], "missing_agent_verification_bundle"
 
     def _resolve_runtime_preparation_commands(
         self,
         workplace: str,
         structured_runtime_preparation_commands: Optional[List[str]],
     ) -> Tuple[List[str], str]:
+        """Use only agent-selected runtime preparation commands."""
         commands = self._normalize_commands(structured_runtime_preparation_commands)
         if commands:
             return commands, "agent_runtime_argument_list"
 
         commands, source = self._extract_structured_runtime_preparation_commands(workplace)
         if commands:
-            return commands, source or "runtime_summary"
+            return commands, source or "agent_report_summary"
 
-        return [], "runtime_inferred_service_setup"
+        return [], "no_runtime_preparation_commands"
 
     def _generate_test_script(self, workplace: str, language: str,
                               problem_statement: str, test_patch: str,
@@ -648,9 +686,9 @@ RUN git clone {repo_url} /testbed
             base_commands = extracted_commands
             print(f"  Using {len(base_commands)} test command(s) from {command_source}: {base_commands}")
         else:
-            # 回退到基于语言的默认测试命令
-            print(f"  No structured or legacy test command found, using default for {language}")
-            base_commands = [self._get_default_test_command(language, workplace_path, test_patch, new_test_funcs)]
+            print("  No accepted Verification Bundle test commands were found; skipping evaluation script generation.")
+            self._last_runtime_preparation_source = None
+            return "", {}, dockerfile_content
 
         runtime_preparation_commands, runtime_source = self._resolve_runtime_preparation_commands(
             workplace,
@@ -796,8 +834,6 @@ fi
 
         runtime_preparation_commands = runtime_preparation_commands or []
         runtime_service_setup = self._build_runtime_preparation_block(runtime_preparation_commands)
-        if not runtime_service_setup:
-            runtime_service_setup = self._infer_runtime_service_setup(base_commands, dockerfile_content)
         rebuild_commands = rebuild_commands or []
         eval_commands = list(rebuild_commands) + list(base_commands)
         command_block = " && \\\n".join(f"(\n{command}\n)" for command in eval_commands)

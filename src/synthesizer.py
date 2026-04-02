@@ -1,7 +1,94 @@
+import os
 import re
 
 
+DEFAULT_APT_RETRIES = 5
+DEFAULT_APT_HTTP_TIMEOUT_SECONDS = 120
+DEFAULT_APT_HTTPS_TIMEOUT_SECONDS = 120
+
+
+def _quote_shell_single(text):
+    return "'" + text.replace("'", "'\"'\"'") + "'"
+
+
+def resolve_apt_mirror_url(apt_mirror_url=None):
+    mirror = apt_mirror_url or os.environ.get("JAYINT_APT_MIRROR_URL") or os.environ.get("APT_MIRROR_URL")
+    if not mirror:
+        return None
+    return mirror.rstrip("/")
+
+
+def build_dockerfile_apt_bootstrap_run_instructions(
+    apt_mirror_url=None,
+    apt_retries=DEFAULT_APT_RETRIES,
+    apt_http_timeout_seconds=DEFAULT_APT_HTTP_TIMEOUT_SECONDS,
+    apt_https_timeout_seconds=DEFAULT_APT_HTTPS_TIMEOUT_SECONDS,
+):
+    mirror = resolve_apt_mirror_url(apt_mirror_url)
+    instructions = [
+        (
+            "RUN printf '%s\\n' "
+            f"'Acquire::Retries \"{apt_retries}\";' "
+            f"'Acquire::http::Timeout \"{apt_http_timeout_seconds}\";' "
+            f"'Acquire::https::Timeout \"{apt_https_timeout_seconds}\";' "
+            "'Acquire::http::Pipeline-Depth \"0\";' "
+            "> /etc/apt/apt.conf.d/99jayint-retries"
+        )
+    ]
+
+    if mirror:
+        quoted_mirror = _quote_shell_single(mirror)
+        instructions.append(
+            "RUN APT_MIRROR_URL="
+            f"{quoted_mirror} && "
+            "if [ -f /etc/apt/sources.list ]; then "
+            "sed -i "
+            "\"s|http://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|http://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" "
+            "/etc/apt/sources.list; "
+            "fi && "
+            "find /etc/apt/sources.list.d -maxdepth 1 -name '*.list' "
+            "-exec sed -i "
+            "\"s|http://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|http://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" {} + "
+            "2>/dev/null || true && "
+            "if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then "
+            "sed -i "
+            "\"s|http://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|http://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g; "
+            "s|https://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" "
+            "/etc/apt/sources.list.d/ubuntu.sources; "
+            "fi && "
+            "apt-get update"
+        )
+
+    return instructions
+
+
+def is_generated_apt_bootstrap_run_instruction(instruction):
+    if not instruction:
+        return False
+    normalized = " ".join(instruction.split())
+    if "99jayint-retries" in normalized:
+        return True
+    return "APT_MIRROR_URL=" in normalized and "archive.ubuntu.com/ubuntu" in normalized
+
+
 class Synthesizer:
+    SAFE_READONLY_COMMANDS = {
+        "cd", "ls", "cat", "echo", "pwd", "whoami", "who", "date", "cal", "df", "du",
+        "free", "uname", "uptime", "w", "ps", "pgrep", "top", "dmesg", "tail", "head",
+        "grep", "find", "locate", "which", "file", "stat", "cmp", "diff", "xz", "unxz",
+        "sort", "wc", "tr", "cut", "paste", "tee", "awk", "env", "printenv", "hostname",
+        "xargs",
+        "ping", "traceroute", "ssh",
+    }
+
     def __init__(self, base_image="python:3.10", workdir="/app"):
         self.base_image = base_image
         self.workdir = workdir
@@ -62,6 +149,8 @@ class Synthesizer:
         """Keep setup/build prefixes of successful commands while excluding the test invocation itself."""
         if not command or not command.strip():
             return []
+        if self._looks_like_ephemeral_workspace_repair(command):
+            return []
         if self._is_readonly_command(command):
             return []
 
@@ -71,14 +160,49 @@ class Synthesizer:
 
         setup_prefix = self._extract_setup_prefix_before_test(command)
         return [setup_prefix] if setup_prefix else []
+
+    def _looks_like_ephemeral_workspace_repair(self, command):
+        """Skip ad-hoc artifact repair commands that only work because the workspace is already dirty."""
+        normalized_command = command.strip().lower()
+        if not normalized_command:
+            return False
+
+        numbered_duplicate_repair = re.search(
+            r"(?:^|(?:&&|\|\||;)\s*)(?:mv|cp)\s+(['\"]?)([^'\"\s]+?)\.(\d+)\1\s+(['\"]?)\2\4(?:\s|$)",
+            normalized_command,
+        )
+        if not numbered_duplicate_repair:
+            return False
+
+        return any(
+            marker in normalized_command
+            for marker in (
+                "tar -x",
+                "unzip ",
+                "gunzip ",
+                "ln -s ",
+                "ln -sf ",
+                "/opt/",
+            )
+        )
     
     def _is_readonly_command(self, command):
-        """判断指令是否是只读/信息查询命令（不应加入 Dockerfile）"""
-        readonly_first_words = ['ls', 'cat', 'echo', 'pwd', 'env', 'grep', 'find',
-                                'head', 'tail', 'which', 'type', 'file', 'du', 'df',
-                                'ps', 'top', 'hostname', 'whoami', 'date', 'id']
-        first_word = command.strip().split()[0].lower() if command.strip() else ""
-        return first_word in readonly_first_words
+        """Treat safe inspection/search commands as read-only when they do not redirect output."""
+        if not command or not command.strip():
+            return False
+        if self._has_output_redirection(command):
+            return False
+
+        saw_component = False
+        for raw_segment, _ in self._split_shell_chain(command):
+            for component in self._split_pipeline(raw_segment):
+                normalized = self._normalize_command_segment(component)
+                if not normalized:
+                    continue
+                if not self._pipeline_component_is_safe_readonly(normalized):
+                    return False
+                saw_component = True
+        return saw_component
     
     def is_test_command(self, command):
         """判断指令是否是测试命令。"""
@@ -196,21 +320,156 @@ class Synthesizer:
         return False
 
     def _split_shell_chain(self, command):
-        """Split a shell command into ordered segments while preserving separators."""
-        tokens = re.split(r"(\s*(?:&&|\|\||;|\n)\s*)", command)
+        """Split a shell command into ordered segments while respecting quotes/escapes."""
         segments = []
-        i = 0
-        while i < len(tokens):
-            raw_segment = tokens[i]
-            separator = tokens[i + 1] if i + 1 < len(tokens) else ""
-            i += 2
+        current = []
+        in_single = False
+        in_double = False
+        escape = False
+        index = 0
 
-            if raw_segment is None:
+        while index < len(command):
+            char = command[index]
+
+            if escape:
+                current.append(char)
+                escape = False
+                index += 1
                 continue
-            if not raw_segment.strip():
+
+            if char == "\\":
+                current.append(char)
+                escape = True
+                index += 1
                 continue
-            segments.append((raw_segment, separator))
+
+            if char == "'" and not in_double:
+                in_single = not in_single
+                current.append(char)
+                index += 1
+                continue
+
+            if char == '"' and not in_single:
+                in_double = not in_double
+                current.append(char)
+                index += 1
+                continue
+
+            if not in_single and not in_double:
+                if command.startswith("&&", index) or command.startswith("||", index):
+                    raw_segment = "".join(current).strip()
+                    separator = command[index:index + 2]
+                    if raw_segment:
+                        segments.append((raw_segment, separator))
+                    current = []
+                    index += 2
+                    continue
+
+                if char in {";", "\n"}:
+                    raw_segment = "".join(current).strip()
+                    if raw_segment:
+                        segments.append((raw_segment, char))
+                    current = []
+                    index += 1
+                    continue
+
+            current.append(char)
+            index += 1
+
+        raw_segment = "".join(current).strip()
+        if raw_segment:
+            segments.append((raw_segment, ""))
         return segments
+
+    def _split_pipeline(self, segment):
+        """Split a shell segment on single-pipe operators while respecting quotes/escapes."""
+        components = []
+        current = []
+        in_single = False
+        in_double = False
+        escape = False
+        index = 0
+
+        while index < len(segment):
+            char = segment[index]
+
+            if escape:
+                current.append(char)
+                escape = False
+                index += 1
+                continue
+
+            if char == "\\":
+                current.append(char)
+                escape = True
+                index += 1
+                continue
+
+            if char == "'" and not in_double:
+                in_single = not in_single
+                current.append(char)
+                index += 1
+                continue
+
+            if char == '"' and not in_single:
+                in_double = not in_double
+                current.append(char)
+                index += 1
+                continue
+
+            if (
+                not in_single
+                and not in_double
+                and char == "|"
+                and not segment.startswith("||", index)
+            ):
+                component = "".join(current).strip()
+                if component:
+                    components.append(component)
+                current = []
+                index += 1
+                continue
+
+            current.append(char)
+            index += 1
+
+        component = "".join(current).strip()
+        if component:
+            components.append(component)
+        return components
+
+    def _has_output_redirection(self, command):
+        in_single = False
+        in_double = False
+        escape = False
+
+        for char in command:
+            if escape:
+                escape = False
+                continue
+
+            if char == "\\":
+                escape = True
+                continue
+
+            if char == "'" and not in_double:
+                in_single = not in_single
+                continue
+
+            if char == '"' and not in_single:
+                in_double = not in_double
+                continue
+
+            if not in_single and not in_double and char == ">":
+                return True
+
+        return False
+
+    def _pipeline_component_is_safe_readonly(self, normalized_command):
+        executable = normalized_command.split()[0]
+        executable = executable.strip("\"'`")
+        executable_name = executable.rsplit("/", 1)[-1]
+        return executable_name in self.SAFE_READONLY_COMMANDS
 
     def _normalize_command_segment(self, segment):
         normalized = segment.strip().lower()
@@ -466,6 +725,7 @@ class Synthesizer:
             r"\b[1-9]\d*\s+passed\b",
             r"\b[1-9]\d*\s+failed\b",
             r"\b[1-9]\d*\s+skipped\b",
+            r"tests\s+run:\s*[1-9]\d*,\s*failures:\s*\d+,\s*errors:\s*\d+,\s*skipped:\s*\d+",
             r"\bok\s+\([1-9]\d*\s+tests?,",
             r"\b[1-9]\d*\s+tests?,\s+[1-9]\d*\s+ran\b",
             r"\[=+\]\s+running\s+[1-9]\d*\s+tests?",
@@ -535,11 +795,15 @@ class Synthesizer:
     
     def generate_dockerfile(self, file_path="Dockerfile"):
         """Generates the final Dockerfile."""
+        apt_bootstrap_instructions = build_dockerfile_apt_bootstrap_run_instructions()
         content = [
             f"FROM {self.base_image}",
             f"WORKDIR {self.workdir}",
             ""
         ]
+        if apt_bootstrap_instructions:
+            content.extend(apt_bootstrap_instructions)
+            content.append("")
         content.extend(self.instructions)
         
         with open(file_path, "w") as f:

@@ -16,10 +16,12 @@
 - [test_observation_compressor.py](file://tests/test_observation_compressor.py)
 - [test_planner_history.py](file://tests/test_planner_history.py)
 - [trajectory_reduction_notes.md](file://doc/trajectory_reduction_notes.md)
+- [MULTI_DOCKER_EVAL.md](file://doc/MULTI_DOCKER_EVAL.md)
 </cite>
 
 ## 更新摘要
 **变更内容**
+- 移除了 API Key 检测功能：从 DockerAgent 中移除了 `_detect_api_key_issues()` 方法，不再自动检测 API Key 缺失
 - 新增观察压缩系统：集成 AgentDiet 式轨迹压缩，支持可选的观察压缩功能，显著减少 token 使用量
 - 改进的 token 使用跟踪：新增 RunTokenLedger 类，提供详细的 token 使用统计和成本追踪
 - 增强的 ReAct 循环协调：支持托管历史管理，实现更高效的上下文维护
@@ -50,7 +52,6 @@
 - 最终输出生成：在配置成功后生成 Dockerfile 与 QuickStart 文档
 - 构造函数参数详解：repo_url、base_image（支持 "auto" 自动检测）、model、workplace、base_commit、enable_observation_compression 的作用与配置选项
 - run 方法执行流程：步骤循环、成本监控、观察结果处理、配置成功判断
-- API Key 检测机制：_detect_api_key_issues 的检测策略与错误处理
 - 使用示例与最佳实践：命令行参数、调试技巧与注意事项
 
 ## 项目结构
@@ -70,13 +71,14 @@ H["requirements.txt<br/>依赖声明"] -.-> A
 I["README.md<br/>使用说明"] -.-> A
 J["test_spec.py<br/>测试规范与平台覆盖"] -.-> A
 K["trajectory_reduction_notes.md<br/>轨迹压缩设计文档"] -.-> OC
+L["MULTI_DOCKER_EVAL.md<br/>Multi-Docker-Eval 评估文档"] -.-> G
 ```
 
 **图表来源**
-- [agent.py:1-911](file://agent.py#L1-L911)
+- [agent.py:1-886](file://agent.py#L1-L886)
 - [sandbox.py:1-178](file://src/sandbox.py#L1-L178)
 - [planner.py:1-281](file://src/planner.py#L1-L281)
-- [synthesizer.py:1-192](file://src/synthesizer.py#L1-L192)
+- [synthesizer.py:1-550](file://src/synthesizer.py#L1-L550)
 - [image_selector.py:1-565](file://src/image_selector.py#L1-L565)
 - [observation_compressor.py:1-326](file://src/observation_compressor.py#L1-L326)
 - [language_handlers.py:1-715](file://src/language_handlers.py#L1-L715)
@@ -85,13 +87,14 @@ K["trajectory_reduction_notes.md<br/>轨迹压缩设计文档"] -.-> OC
 - [README.md:1-71](file://README.md#L1-L71)
 - [test_spec.py:1-77](file://Multi-Docker-Eval/evaluation/test_spec.py#L1-L77)
 - [trajectory_reduction_notes.md:1-444](file://doc/trajectory_reduction_notes.md#L1-L444)
+- [MULTI_DOCKER_EVAL.md:1-372](file://doc/MULTI_DOCKER_EVAL.md#L1-L372)
 
 **章节来源**
-- [agent.py:1-911](file://agent.py#L1-L911)
+- [agent.py:1-886](file://agent.py#L1-L886)
 - [README.md:1-71](file://README.md#L1-L71)
 
 ## 核心组件
-- DockerAgent：主控制器，负责工作区准备、commit 检出、智能基础镜像选择、容器初始化、ReAct 循环、观察压缩、成本统计、API Key 检测与最终输出生成
+- DockerAgent：主控制器，负责工作区准备、commit 检出、智能基础镜像选择、容器初始化、ReAct 循环、观察压缩、成本统计与最终输出生成
 - ImageSelector：智能基础镜像选择器，分析仓库结构和文件内容，自动检测编程语言并推荐最优基础镜像，支持 ARM64 兼容性检测
 - LanguageHandlers：多语言处理器注册表，支持 16 种编程语言的基础镜像候选选择和语言检测
 - Sandbox：基于 Docker SDK 的容器沙箱，支持命令执行与基于 commit 的回滚机制
@@ -146,7 +149,6 @@ A->>P : plan(repo_url, last_observation/manage_history=False)
 P-->>A : thought, action, cost_info
 A->>S : execute(action)
 S-->>A : success, observation
-A->>A : _detect_api_key_issues(observation)
 alt 成功
 A->>SY : record_success(action)
 else 失败
@@ -159,7 +161,6 @@ end
 end
 alt 配置成功
 A->>SY : generate_dockerfile()
-A->>SY : generate_quickstart_with_llm()
 else 配置失败
 A->>A : 输出失败提示
 end
@@ -187,7 +188,6 @@ A->>S : 关闭容器(可选保留)
   - ReAct 协调：循环调用 Planner 生成下一步动作，交由 Sandbox 执行，根据结果记录与回滚
   - 观察压缩：可选的 AgentDiet 式轨迹压缩，减少 token 使用量，提升推理效率
   - 成本监控：打印每步输入/输出 token 与累计花费，便于成本控制
-  - API Key 检测：识别输出中的 API Key 缺失提示，记录并提示后续配置
   - 最终输出：若配置成功，生成 Dockerfile 与 QuickStart 文档
 
 - 构造函数参数
@@ -209,15 +209,9 @@ A->>S : 关闭容器(可选保留)
   - 初始化：打印开始信息，进入循环
   - 步骤循环：调用 Planner.plan 获取 thought 与 action；打印成本信息；若 is_finished 且包含"Final Answer: Success"，标记配置成功并结束
   - 动作执行：调用 Sandbox.execute 执行命令；若成功则记录；否则回滚到上次成功镜像
-  - API Key 检测：对观察结果进行关键词匹配，记录缺失的密钥类型
   - 观察压缩：收集步骤信息，检查是否需要压缩旧的观察结果
   - 结束处理：若配置成功，生成 Dockerfile 与 QuickStart 文档；否则输出失败提示
   - 资源清理：无论成功与否，最终关闭容器（可通过 keep_container 参数保留）
-
-- _detect_api_key_issues 方法
-  - 作用：从命令输出中识别常见的 API Key 缺失或无效提示，记录到 Synthesizer 的 api_key_hints 中
-  - 检测策略：将输出转为小写，匹配预定义的关键字集合（如 openai_api_key、anthropic_api_key、api_key、access_token 等）
-  - 影响：在生成 QuickStart 文档时，Synthesizer 可据此补充 API Key 配置说明
 
 - _record_agent_step 方法
   - 作用：记录 Agent 步骤信息，包括思考、行动、观察、环境状态等
@@ -261,8 +255,7 @@ A->>S : 关闭容器(可选保留)
 - [agent.py:328-449](file://agent.py#L328-L449)
 - [agent.py:450-540](file://agent.py#L450-L540)
 - [agent.py:541-823](file://agent.py#L541-L823)
-- [agent.py:824-887](file://agent.py#L824-L887)
-- [agent.py:889-911](file://agent.py#L889-L911)
+- [agent.py:824-886](file://agent.py#L824-L886)
 
 ### ObservationCompressor 观察压缩器
 - 设计要点
@@ -444,7 +437,6 @@ A->>S : 关闭容器(可选保留)
 
 - 关键方法
   - record_success：记录 RUN 指令与用于 QuickStart 的安装命令
-  - record_api_key_hint：记录 API Key 类型与上下文
   - generate_dockerfile：生成最终 Dockerfile
   - generate_quickstart_with_llm：调用 LLM 生成 QuickStart.md
 
@@ -455,7 +447,7 @@ A->>S : 关闭容器(可选保留)
 **章节来源**
 - [synthesizer.py:1-7](file://src/synthesizer.py#L1-L7)
 - [synthesizer.py:9-21](file://src/synthesizer.py#L9-L21)
-- [synthesizer.py:140-192](file://src/synthesizer.py#L140-L192)
+- [synthesizer.py:536-550](file://src/synthesizer.py#L536-L550)
 
 ### Multi-Docker-Eval 评估适配器
 - 设计要点
@@ -574,9 +566,6 @@ T["test_spec.py"] -. 平台覆盖 .-> A
 - 命令失败但未回滚
   - 症状：命令返回非零退出码，但未触发回滚
   - 处理：确认命令是否被识别为"信息性退出"；检查只读命令过滤逻辑
-- API Key 缺失
-  - 症状：_detect_api_key_issues 未检测到缺失
-  - 处理：检查输出关键词是否匹配；必要时扩展检测模式
 - 输出未生成
   - 症状：配置成功但未生成 Dockerfile/QuickStart.md
   - 处理：确认 Planner 的 Final Answer 是否包含"Success"；检查 Synthesizer 的记录是否为空
@@ -603,7 +592,7 @@ T["test_spec.py"] -. 平台覆盖 .-> A
 DockerAgent 通过"计划-执行-合成"的闭环，将 LLM 的智能决策与容器化的可重复环境结合，实现了对任意 GitHub 仓库的自动化环境配置与文档生成。其核心优势在于：
 - 明确的职责划分：Planner 负责规划，Sandbox 负责执行与回滚，Synthesizer 负责产出
 - 成本透明：每步 token 用量与累计成本清晰可见，新增 RunTokenLedger 提供详细统计
-- 可观测性强：支持保留容器、打印日志、记录 API Key 提示
+- 可观测性强：支持保留容器、打印日志
 - 智能基础镜像选择：通过 ImageSelector 自动分析仓库内容，检测编程语言并选择最优基础镜像，支持 ARM64 兼容性检测
 - 多语言支持：支持 16 种主流编程语言的上下文感知环境配置
 - commit 检出功能：支持检出特定提交状态，确保分析环境与 PR 基础提交一致
@@ -643,9 +632,10 @@ DockerAgent 通过"计划-执行-合成"的闭环，将 LLM 的智能决策与�
 **章节来源**
 - [README.md:11-71](file://README.md#L11-L71)
 - [requirements.txt:1-4](file://requirements.txt#L1-L4)
-- [agent.py:889-911](file://agent.py#L889-L911)
+- [agent.py:864-886](file://agent.py#L864-L886)
 - [image_selector.py:214-285](file://src/image_selector.py#L214-L285)
 - [language_handlers.py:638-667](file://src/language_handlers.py#L638-L667)
 - [test_spec.py:35-39](file://Multi-Docker-Eval/evaluation/test_spec.py#L35-L39)
 - [observation_compressor.py:209-224](file://src/observation_compressor.py#L209-L224)
 - [trajectory_reduction_notes.md:1-444](file://doc/trajectory_reduction_notes.md#L1-L444)
+- [MULTI_DOCKER_EVAL.md:19-335](file://doc/MULTI_DOCKER_EVAL.md#L19-L335)

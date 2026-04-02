@@ -4,6 +4,7 @@ import re
 import shlex
 import tarfile
 import docker
+from src.synthesizer import Synthesizer
 
 class Sandbox:
     def __init__(
@@ -13,19 +14,32 @@ class Sandbox:
         volumes=None,
         platform=None,
         seed_dir=None,
-        command_timeout_seconds=1200,
+        command_timeout_seconds=None,
+        apt_mirror_url=None,
+        apt_retries=5,
+        apt_http_timeout_seconds=120,
+        apt_https_timeout_seconds=120,
+        docker_client_timeout_seconds=None,
     ):
-        self.client = docker.from_env()
+        self.client = docker.from_env(timeout=docker_client_timeout_seconds)
         self.base_image = base_image
         self.workdir = workdir
         self.volumes = volumes  # Mapping of {local_path: {'bind': container_path, 'mode': 'rw'}}
         self.platform = platform  # Docker platform (e.g., "linux/amd64" for x86_64 emulation on ARM64)
         self.seed_dir = os.path.abspath(seed_dir) if seed_dir else None
         self.command_timeout_seconds = command_timeout_seconds
+        self.docker_client_timeout_seconds = docker_client_timeout_seconds
         self.current_image = base_image
         self.container = None
         self.last_success_image = None  # 记录上一次成功状态的镜像
         self.snapshot_image_ids = set()
+        self.runtime_replay_commands = []
+        self.package_manager_broken_failure_streak = 0
+        self._command_classifier = Synthesizer()
+        self.apt_mirror_url = self._resolve_apt_mirror_url(apt_mirror_url)
+        self.apt_retries = apt_retries
+        self.apt_http_timeout_seconds = apt_http_timeout_seconds
+        self.apt_https_timeout_seconds = apt_https_timeout_seconds
         self._setup_initial_container()
 
     def _setup_initial_container(self):
@@ -50,6 +64,7 @@ class Sandbox:
         )
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
+        self._bootstrap_apt_if_supported()
         if self.seed_dir:
             self._seed_workdir_from_host()
         # Always keep a baseline snapshot so the first failed command can roll back
@@ -58,6 +73,71 @@ class Sandbox:
         self._register_snapshot(baseline_image.id)
         self.last_success_image = baseline_image.id
         print(f"[Baseline Snapshot] {self.last_success_image[:12]}")
+
+    def _resolve_apt_mirror_url(self, apt_mirror_url):
+        configured = (
+            apt_mirror_url
+            or os.environ.get("JAYINT_APT_MIRROR_URL")
+            or os.environ.get("APT_MIRROR_URL")
+        )
+        if not configured:
+            return None
+        return configured.rstrip("/")
+
+    def _bootstrap_apt_if_supported(self):
+        if not self.container:
+            return
+
+        bootstrap_command = self._build_apt_bootstrap_command()
+        exec_result = self.container.exec_run(
+            ["/bin/bash", "-lc", bootstrap_command],
+            workdir=self.workdir,
+        )
+        exit_code = exec_result.exit_code
+        output = exec_result.output.decode("utf-8", errors="replace")
+        if exit_code == 0:
+            if self.apt_mirror_url:
+                print(f"[Apt Bootstrap] Configured retries and mirror: {self.apt_mirror_url}")
+            else:
+                print("[Apt Bootstrap] Configured apt retries/timeouts.")
+            return
+
+        print(
+            f"[Apt Bootstrap Warning] Failed to prepare apt mirror/retry settings (exit {exit_code})."
+        )
+        if output.strip():
+            print(output)
+
+    def _build_apt_bootstrap_command(self):
+        mirror_block = ""
+        if self.apt_mirror_url:
+            mirror = shlex.quote(self.apt_mirror_url)
+            mirror_block = (
+                f"APT_MIRROR_URL={mirror}\n"
+                "for file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/ubuntu.sources; do\n"
+                "  [ -f \"$file\" ] || continue\n"
+                "  sed -i \"s|http://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" \"$file\"\n"
+                "  sed -i \"s|https://archive.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" \"$file\"\n"
+                "  sed -i \"s|http://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" \"$file\"\n"
+                "  sed -i \"s|https://security.ubuntu.com/ubuntu|${APT_MIRROR_URL}|g\" \"$file\"\n"
+                "done\n"
+                "apt-get update\n"
+            )
+
+        return (
+            "set -e\n"
+            "if ! command -v apt-get >/dev/null 2>&1; then\n"
+            "  exit 0\n"
+            "fi\n"
+            "mkdir -p /etc/apt/apt.conf.d\n"
+            "cat >/etc/apt/apt.conf.d/99jayint-retries <<'EOF'\n"
+            f"Acquire::Retries \"{self.apt_retries}\";\n"
+            f"Acquire::http::Timeout \"{self.apt_http_timeout_seconds}\";\n"
+            f"Acquire::https::Timeout \"{self.apt_https_timeout_seconds}\";\n"
+            "Acquire::http::Pipeline-Depth \"0\";\n"
+            "EOF\n"
+            f"{mirror_block}"
+        )
 
     def _seed_workdir_from_host(self):
         """Copy the host workspace into the container so rollback includes repo state."""
@@ -80,18 +160,27 @@ class Sandbox:
 
     def execute(self, command):
         """
-        Executes a bash command with rollback mechanism.
+        Executes a bash command.
         Returns (success, output).
         """
         print(f"[Container ID: {self.container.short_id}]")
         print(f"Executing: {command}")
-        
-        # Execute the command
-        exec_result = self.container.exec_run(
-            ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
-            workdir=self.workdir
-        )
-        
+
+        try:
+            exec_result = self.container.exec_run(
+                ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
+                workdir=self.workdir
+            )
+        except docker.errors.DockerException as exc:
+            print(f"[System] Command execution failed because the container is unusable: {exc}")
+            recovery_message = self._restore_last_success_container(
+                reason=f"container_exec_error: {exc}"
+            )
+            return False, (
+                f"[SYSTEM] Command execution failed because the container became unusable: {exc}\n"
+                f"{recovery_message}"
+            )
+
         exit_code = exec_result.exit_code
         output = exec_result.output.decode('utf-8', errors='replace')
 
@@ -113,6 +202,9 @@ class Sandbox:
                 print(f"Command exited with code {exit_code} (informational, not an error).")
             else:
                 print("Command succeeded.")
+
+            self.package_manager_broken_failure_streak = 0
+            self._track_runtime_command(command)
             
             # 优化：只对会对环境产生影响的指令进行 commit
             if self._should_commit(command):
@@ -129,27 +221,39 @@ class Sandbox:
             
             return True, output
         else:
-            # Failure: 从上一次成功状态回滚
-            print(f"Command failed (exit {exit_code}). Rolling back...")
-            self.container.stop()
-            self.container.remove()
-            
-            # 从上一次成功的镜像重启（如果存在）
-            rollback_image = self.last_success_image if self.last_success_image else self.base_image
-            self.container = self.client.containers.run(
-                rollback_image,
-                detach=True,
-                tty=True,
-                working_dir=self.workdir,
-                command="/bin/bash",
-                volumes=self.volumes,
-                platform=self.platform
+            print(f"Command failed (exit {exit_code}). Preserving current state for agent decision.")
+
+            rollback_candidate_prefix = self._get_package_manager_rollback_prefix(
+                command, exit_code, output
             )
-            self.container.exec_run(f"mkdir -p {self.workdir}")
-            # 如果检测到测试失败，在 output 前注入强制提示
             if test_fail_prefix:
                 output = test_fail_prefix + output
+            if rollback_candidate_prefix:
+                output = rollback_candidate_prefix + output
+
+            if not self._container_is_healthy():
+                print("[System] Container became unhealthy after the failed command. Restoring last successful snapshot.")
+                recovery_message = self._restore_last_success_container(
+                    reason=f"container_unhealthy_after_exit_{exit_code}"
+                )
+                if output and not output.endswith("\n"):
+                    output += "\n"
+                output += (
+                    "\n[SYSTEM] The container became unhealthy after the failed command, "
+                    "so the system restored the last successful snapshot automatically.\n"
+                    f"{recovery_message}"
+                )
+
             return False, output
+
+    def rollback(self, reason="agent_requested"):
+        """Restore the container to the last successful snapshot on explicit agent request."""
+        print(f"[System] Explicit rollback requested ({reason}).")
+        try:
+            message = self._restore_last_success_container(reason=reason)
+        except docker.errors.DockerException as exc:
+            return False, f"[SYSTEM] Rollback failed: {exc}"
+        return True, message
 
     def _register_snapshot(self, image_id):
         if image_id:
@@ -165,6 +269,36 @@ class Sandbox:
             return
         finally:
             self.snapshot_image_ids.discard(image_id)
+
+    def _restore_last_success_container(self, reason="rollback"):
+        rollback_image = self.last_success_image if self.last_success_image else self.base_image
+
+        if self.container:
+            try:
+                self.container.stop()
+            except docker.errors.DockerException:
+                pass
+            try:
+                self.container.remove()
+            except docker.errors.DockerException:
+                pass
+
+        self.container = self.client.containers.run(
+            rollback_image,
+            detach=True,
+            tty=True,
+            working_dir=self.workdir,
+            command="/bin/bash",
+            volumes=self.volumes,
+            platform=self.platform
+        )
+        self.container.exec_run(f"mkdir -p {self.workdir}")
+        self._replay_runtime_commands()
+        return (
+            "[SYSTEM] Restored the container to the last successful snapshot "
+            f"because of {reason}.\n"
+            "[SYSTEM] Ephemeral runtime services were replayed when possible."
+        )
 
     def _wrap_command_with_timeout(self, command):
         """Enforce a per-command timeout when GNU `timeout` is available in the container."""
@@ -185,6 +319,22 @@ class Sandbox:
         if not self.command_timeout_seconds:
             return False
         return exit_code in {124, 137}
+
+    def _container_is_healthy(self):
+        if not self.container:
+            return False
+
+        reload_fn = getattr(self.container, "reload", None)
+        if callable(reload_fn):
+            try:
+                reload_fn()
+            except docker.errors.DockerException:
+                return False
+
+        status = getattr(self.container, "status", None)
+        if status is None:
+            return True
+        return status == "running"
     
     def _should_commit(self, command):
         """
@@ -206,6 +356,88 @@ class Sandbox:
             
         # 默认需要 commit
         return True
+
+    def _track_runtime_command(self, command):
+        """Remember pure runtime service commands so they can be replayed after rollback."""
+        normalized_command = (command or "").strip()
+        if not normalized_command:
+            return
+
+        if not self._command_classifier.is_runtime_service_command(normalized_command):
+            return
+
+        runtime_key = self._runtime_service_key(normalized_command)
+        runtime_action = self._runtime_service_action(normalized_command)
+
+        if runtime_key and runtime_action == "stop":
+            self.runtime_replay_commands = [
+                entry for entry in self.runtime_replay_commands if entry["key"] != runtime_key
+            ]
+            return
+
+        if self._command_classifier.is_persistent_setup_command(normalized_command):
+            return
+
+        if runtime_key:
+            self.runtime_replay_commands = [
+                entry for entry in self.runtime_replay_commands if entry["key"] != runtime_key
+            ]
+
+        self.runtime_replay_commands.append(
+            {
+                "key": runtime_key or normalized_command,
+                "command": normalized_command,
+            }
+        )
+
+    def _replay_runtime_commands(self):
+        """Restore ephemeral runtime services after container rollback."""
+        if not self.runtime_replay_commands:
+            return
+
+        print(
+            f"[Runtime Replay] Re-running {len(self.runtime_replay_commands)} runtime command(s) after rollback."
+        )
+        restored_commands = []
+        for entry in self.runtime_replay_commands:
+            command = entry["command"]
+            exec_result = self.container.exec_run(
+                ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
+                workdir=self.workdir,
+            )
+            exit_code = exec_result.exit_code
+            output = exec_result.output.decode("utf-8", errors="replace")
+            if exit_code == 0 or self._is_informational_exit(exit_code, output):
+                print(f"[Runtime Replay] Restored: {command}")
+                restored_commands.append(entry)
+                continue
+
+            print(
+                f"[Runtime Replay Warning] Failed to restore runtime command (exit {exit_code}): {command}"
+            )
+
+        self.runtime_replay_commands = restored_commands
+
+    def _runtime_service_key(self, command):
+        normalized = command.strip().lower()
+        service_match = re.match(r"^service\s+(\S+)\s+(?:start|restart|reload|stop)\b", normalized)
+        if service_match:
+            return service_match.group(1)
+
+        executable = normalized.split()[0] if normalized else ""
+        executable = executable.strip("\"'`")
+        if executable:
+            return executable.rsplit("/", 1)[-1]
+        return None
+
+    def _runtime_service_action(self, command):
+        normalized = command.strip().lower()
+        service_match = re.match(r"^service\s+\S+\s+(start|restart|reload|stop)\b", normalized)
+        if service_match:
+            return service_match.group(1)
+        if " --daemonize " in f" {normalized} " or " -detached" in normalized or " --fork" in normalized:
+            return "start"
+        return "start"
     
     def _is_informational_exit(self, exit_code, output):
         """
@@ -295,6 +527,58 @@ class Sandbox:
             )
 
         return ""
+
+    def _get_package_manager_rollback_prefix(self, command, exit_code, output):
+        """Warn the agent when package-manager failures strongly suggest a dirty dependency state."""
+        if exit_code == 0:
+            return ""
+
+        normalized_command = (command or "").strip().lower()
+        output_lower = (output or "").lower()
+
+        if not self._looks_like_package_manager_command(normalized_command):
+            self.package_manager_broken_failure_streak = 0
+            return ""
+
+        broken_state_markers = (
+            "unmet dependencies",
+            "fix-broken install",
+            "is not going to be installed",
+            "depends:",
+            "correcting dependencies... done",
+        )
+        if not any(marker in output_lower for marker in broken_state_markers):
+            self.package_manager_broken_failure_streak = 0
+            return ""
+
+        self.package_manager_broken_failure_streak += 1
+
+        if self.package_manager_broken_failure_streak >= 2:
+            return (
+                "[SYSTEM] STRONG ROLLBACK CANDIDATE: package-manager recovery is still failing "
+                "after repeated attempts, and the container likely remains in a broken dependency state.\n"
+                "[SYSTEM] Unless you have a concrete repair step that will cleanly resolve the package state, "
+                "seriously consider `Action: __ROLLBACK__` before continuing.\n\n"
+            )
+
+        return (
+            "[SYSTEM] ROLLBACK CANDIDATE: this package-manager failure indicates broken dependencies "
+            "or partial package state.\n"
+            "[SYSTEM] Consider `Action: __ROLLBACK__` if you believe the failed install left the environment "
+            "in an uncertain state, especially before trying unrelated setup work.\n\n"
+        )
+
+    def _looks_like_package_manager_command(self, normalized_command):
+        package_manager_prefixes = (
+            "apt ",
+            "apt-get ",
+            "yum ",
+            "dnf ",
+            "apk ",
+            "pacman ",
+            "zypper ",
+        )
+        return normalized_command.startswith(package_manager_prefixes)
 
     def close(self, keep_alive=False):
         """关闭容器，可选择保持容器运行以供验证"""

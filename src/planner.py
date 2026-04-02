@@ -5,9 +5,21 @@ from src.language_handlers import LanguageHandler
 
 
 class Planner:
-    MAX_HISTORY_MESSAGES = 24
+    DEFAULT_PROMPT_BUDGET_TOKENS = 180000
+    DEFAULT_COMPLETION_RESERVE_TOKENS = 8000
 
-    def __init__(self, client, model="gpt-4o", language_handler: Optional[LanguageHandler] = None, repo_structure: str = "", log_dir: str = None):
+    def __init__(
+        self,
+        client,
+        model="gpt-4o",
+        language_handler: Optional[LanguageHandler] = None,
+        repo_structure: str = "",
+        maven_repository_hints: str = "",
+        log_dir: str = None,
+        prompt_budget_tokens: int = None,
+        completion_reserve_tokens: int = None,
+        history_token_budget: int = None,
+    ):
         self.client = client
         self.model = model
         self.history = []
@@ -17,6 +29,17 @@ class Planner:
         self.language_handler = language_handler
         self.log_dir = log_dir
         self.log_counter = 0
+        self.prompt_budget_tokens = (
+            prompt_budget_tokens
+            if prompt_budget_tokens is not None
+            else self.DEFAULT_PROMPT_BUDGET_TOKENS
+        )
+        self.completion_reserve_tokens = (
+            completion_reserve_tokens
+            if completion_reserve_tokens is not None
+            else self.DEFAULT_COMPLETION_RESERVE_TOKENS
+        )
+        self.history_token_budget = history_token_budget
         
         # Create log directory if specified
         if self.log_dir:
@@ -31,18 +54,49 @@ class Planner:
         structure_section = ""
         if repo_structure:
             structure_section = f"Repository Structure:\n```\n{repo_structure}\n```\n\n"
+
+        maven_repository_section = ""
+        if maven_repository_hints:
+            maven_repository_section = (
+                "Project Maven Repository Hints:\n"
+                f"{maven_repository_hints}\n\n"
+            )
         
-        self.system_prompt = (
+        prompt_sections = [
             "You are an expert environment configuration agent. Your task is to set up a Docker "
-            "environment for a given GitHub repository so that its code can run successfully.\n"
-            "Current State: The repository has already been cloned and copied into the working directory inside the container.\n\n"
-            + structure_section
-            + language_instructions +
-            "Use the following ReAct format:\n"
+            "environment for a given GitHub repository so that its code can run successfully.",
+            "Current State: The repository has already been cloned and copied into the working directory inside the container.",
+        ]
+
+        if structure_section:
+            prompt_sections.append(structure_section.rstrip())
+        if maven_repository_section:
+            prompt_sections.append(maven_repository_section.rstrip())
+        if language_instructions:
+            prompt_sections.append(language_instructions.rstrip())
+
+        prompt_sections.extend([
+            "RESPONSE FORMAT (always follow):\n"
             "Thought: <your reasoning>\n"
-            "Action: <bash command to execute>\n"
-            "Observation: <result of the command, will be provided by the system, DO NOT GENERATE THIS>\n\n"
-            "Mission Guidelines:\n"
+            "Action: <bash command to execute, or __ROLLBACK__>\n"
+            "Observation: <result of the command, will be provided by the system, DO NOT GENERATE THIS>",
+
+            "READ THESE FIRST (highest-priority rules):\n"
+            "- **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
+            "- **No Excuses Rule**: You are STRICTLY FORBIDDEN from declaring success when tests are failing, regardless of any reasoning such as: 'the project is old', 'it is a compatibility issue', 'I have spent too much time', 'environment constraints prevent running tests', 'other tests pass', or 'I manually verified functionality'. ALL tests must pass. No exceptions.\n"
+            "- **Partial Pass Is NOT Success**: If the test output shows 'Failed: N' or 'N failed' or any 'not ok' lines, even N=1, you MUST NOT declare success. 400/403 passing is a FAILURE, not a success. Only 0 failures qualifies as success.\n"
+            "- **[SYSTEM] Warnings Are Binding**: If the Observation starts with '[SYSTEM] ⚠️  TEST FAILURE DETECTED', you are ABSOLUTELY FORBIDDEN from outputting 'Final Answer: Success' in your next response. You must attempt to fix the failing tests.\n"
+            "- **No Bypassing Tests**: You MUST run the PROJECT'S test command (e.g., `vendor/bin/phpunit`, `pytest`, `npm test`). You are NOT allowed to create your own test scripts, use alternative verification methods, or claim success based on manual checks alone.\n"
+            "- **No `sudo` In This Container**: Do not use `sudo`. In this container, `sudo` may be unavailable even when you already have permission to install packages directly. If you need a system package such as PostgreSQL, first try installing it directly with commands like `apt-get update && apt-get install -y <package>`.\n"
+            "- **Explicit Rollback Tool**: Ordinary command failures do NOT automatically roll back the container. If you believe a failed mutating command left the environment in a bad or uncertain state, you may request a restore to the last successful snapshot by outputting exactly `Action: __ROLLBACK__`.",
+
+            "CRITICAL CONSTRAINTS (Environment Limitations):\n"
+            "- You are running INSIDE a Docker container, NOT on a host machine.\n"
+            "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `dockerd`, `sudo`\n"
+            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers (pip, apt, npm, cargo, go, mvn, gem, etc.).\n"
+            "- Use ONLY: package managers (pip/uv/apt/yum/npm/yarn/cargo/go/mvn/gradle/gem/bundle/etc.), language runtimes (python/node/go/rust/java/ruby/etc.), and the project's own entry points.",
+
+            "WORKFLOW:\n"
             "1. **Analyze & Setup**: Identify dependency files and install all necessary packages/tools.\n"
             "2. **Read README**: After setup, read `README.md` to find startup, usage, and test instructions.\n"
             "3. **Verification** (MANDATORY - Must pass before claiming Success):\n"
@@ -51,43 +105,60 @@ class Planner:
             "   - For Python: Run `pytest` or `python -m pytest`.\n"
             "   - For Node.js: Run `npm test` or `yarn test`.\n"
             "   - For PHP: Run `vendor/bin/phpunit` (after composer install).\n"
-            "   - **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
-            "   - **No Excuses Rule**: You are STRICTLY FORBIDDEN from declaring success when tests are failing, regardless of any reasoning such as: 'the project is old', 'it is a compatibility issue', 'I have spent too much time', 'environment constraints prevent running tests', 'other tests pass', or 'I manually verified functionality'. ALL tests must pass. No exceptions.\n"
-            "   - **Partial Pass Is NOT Success**: If the test output shows 'Failed: N' or 'N failed' or any 'not ok' lines, even N=1, you MUST NOT declare success. 400/403 passing is a FAILURE, not a success. Only 0 failures qualifies as success.\n"
-            "   - **[SYSTEM] Warnings Are Binding**: If the Observation starts with '[SYSTEM] ⚠️  TEST FAILURE DETECTED', you are ABSOLUTELY FORBIDDEN from outputting 'Final Answer: Success' in your next response. You must attempt to fix the failing tests.\n"
-            "   - **No Bypassing Tests**: You MUST run the PROJECT'S test command (e.g., `vendor/bin/phpunit`, `pytest`, `npm test`). You are NOT allowed to:\n"
-            "     * Create your own test scripts to verify functionality\n"
-            "     * Use alternative verification methods (e.g., manual PHP scripts, simple load tests)\n"
-            "     * Claim success based on 'core functionality works' without running the actual test suite\n"
             "   - **Environment Limits Are Not Excuses**: If the environment lacks required tools (e.g., zip, git for composer), you must find a solution (e.g., install them, use alternative base image approach), NOT bypass the tests.\n"
             "   - **Test Dependency Fix**: If tests fail due to missing test libraries (e.g., Ruby's `stub` method not found), install the required library (e.g., `gem install mocha` or add to Gemfile). DO NOT skip tests with `--exclude`.\n"
-            "   - **Rollback Mechanism**: The system automatically rolls back to the pre-execution state if a command fails. You do not need to manually revert changes; simply continue with the next approach after a failure.\n"
-            "   - **Secret/API_KEY Handling**: Only if tests fail due to missing API_KEYs/secrets (not setup issues), document the required keys and continue.\n"
-            "   - **Final Verification Block**: Before declaring success, run every test command needed to prove the final environment in one final consecutive verification burst. Avoid doing new setup/build steps after the last successful verification command.\n"
-            "4. **Finalize**: ONLY output 'Final Answer: Success' when:\n"
-            "   - All dependencies are installed AND\n"
-            "   - The PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets, not setup issues)\n"
-            "   - Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys:\n"
-            "     * `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution (for example, daemon startup commands like `redis-server --daemonize yes`). Use `[]` if none are required.\n"
-            "     * `test_commands`: exact previously successful commands whose output proved the final environment works. Wrapper commands such as `make all` are allowed if they really executed tests.\n"
-            "   - Every command inside the bundle must exactly match a command you already executed successfully.\n"
-            "   - Exclude read-only checks such as `redis-cli ping` from `runtime_preparation_commands`.\n"
-            "   - Do NOT put installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands into `runtime_preparation_commands`. Examples that must stay OUT of runtime preparation: `apt-get install ...`, `pip install ...`, `composer install ...`, `npm install ...`, `bundle install`, `git clone ...`, `make build`.\n"
-            "   - `runtime_preparation_commands` should usually be short and often empty. It is only for ephemeral runtime actions such as starting a local service, exporting a runtime variable, or preparing a daemon needed by the final tests.\n"
-            "   - Success responses must follow this exact shape:\n"
-            "     Thought: <brief final reasoning>\n"
-            "     Verification Bundle:\n"
-            "     {\"runtime_preparation_commands\": [...], \"test_commands\": [...]} \n"
-            "     Final Answer: Success\n\n"
-            "CRITICAL CONSTRAINTS (Environment Limitations):\n"
-            "- You are running INSIDE a Docker container, NOT on a host machine.\n"
-            "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `service`, `dockerd`, `sudo`\n"
-            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers (pip, apt, npm, cargo, go, mvn, gem, etc.).\n"
-            "- Use ONLY: package managers (pip/uv/apt/yum/npm/yarn/cargo/go/mvn/gradle/gem/bundle/etc.), language runtimes (python/node/go/rust/java/ruby/etc.), and the project's own entry points.\n\n"
-            "IMPORTANT:\n"
+            "   - **Secret/API_KEY Handling**: Only if tests fail due to missing API_KEYs/secrets (not setup issues), document the required keys and continue.",
+
+            "ROLLBACK STRATEGY:\n"
+            "- **When Rollback Is Appropriate**: Consider `__ROLLBACK__` after a failed package-manager/install step, a failed config edit, a failed database initialization/startup sequence, or any failed multi-step mutation that may have left partial state behind.\n"
+            "- **When Rollback Is Usually NOT Appropriate**: Do not use `__ROLLBACK__` for read-only search commands, health checks, connection probes, or ordinary test failures unless you have evidence the environment itself was changed or corrupted.\n"
+            "- **Split Mutation From Verification**: Avoid chaining a mutating step and a probe/test in one command. Prefer one action for the mutation, then a separate action for the verification, so you can decide whether rollback is necessary based on what failed.",
+
+            "PACKAGE / NETWORK STRATEGY:\n"
+            "- **Retry Transient Package Manager Failures**: If package installation fails due to mirror/network/package-index issues (for example 502 errors or fetch errors), retry the package-manager workflow, split installs into smaller steps, or use recovery flags before abandoning the required service path.\n"
+            "- **Prefer Small Package Batches On Flaky Networks**: Do NOT start with one huge `apt-get install` that mixes runtimes, frontend toolchains, databases, brokers, search engines, and other large dependency trees. Install the smallest critical package set first, confirm progress, then add the next batch.\n"
+            "- **Install By Priority, Not By Completeness**: On projects with multiple stacks, prioritize the minimum backend/build requirements and required local services before optional or heavyweight extras. For example, do not install `nodejs`/`npm` early unless they are immediately required for the next verified step.\n"
+            "- **Fix Broken Package State Before Expanding Scope**: If `apt` reports unmet dependencies or suggests `apt --fix-broken install`, treat that as a recovery task. Do not pile more packages into the next install command until the package manager state is healthy again.\n"
+            "- **Protect Existing Maven Repositories**: If a Maven project already declares custom repositories in `pom.xml` or existing settings, do NOT overwrite them with a global mirror such as `<mirrorOf>*</mirrorOf>`. Doing so can hide required repositories and break dependency resolution.\n"
+            "- **Prefer Scoped Maven Mirrors**: If Maven downloads are slow or flaky and you need a mirror, prefer a temporary per-command settings file (for example `mvn -s /tmp/maven-settings.xml ...`) and scope the mirror to Maven Central only, or explicitly exclude project-declared repository ids from the mirror.",
+
+            "LOCAL SERVICE RULES:\n"
+            "- **External Services Are Part of Environment Setup**: Missing PostgreSQL/MySQL/Redis/RabbitMQ/MinIO/Elasticsearch/Kafka or other required local services is NOT equivalent to missing secrets. If tests fail because a required service is unavailable, connection-refused, not started, or not configured, you MUST treat that as an environment/setup problem and continue fixing it.\n"
+            "- **Match The Required Service, Do Not Swap Backends**: If repository config or test output clearly shows that a local database/cache/broker/search/object-store service is required, first try to install and start that same kind of service. Do NOT replace it with a different backend (for example, swapping PostgreSQL for H2 or replacing Redis with a mock) unless the repository itself already provides an official alternative profile, documented test mode, or supported fallback.\n"
+            "- **Client Packages Are Not Enough**: Installing a client package such as `postgresql-client`, `mysql-client`, or `redis-cli` does not satisfy a service dependency. The actual server/daemon must be installed, started, and reachable at the host/port expected by the tests.\n"
+            "- **Match The Configured Port/Host**: If the repository config expects a service on a non-default host or port, configure the daemon to listen there. Running PostgreSQL on 5432 does NOT satisfy tests that explicitly expect 5433.\n"
+            "- **Some Daemons Cannot Run As Root**: If a service refuses to start as root, use the packaged service wrapper or the service's dedicated user without `sudo`. Prefer commands such as `service <name> start`, `su -s /bin/bash -c '...' <user>`, or `runuser -u <user> -- ...` when available.\n"
+            "- **Prefer Package-Service Entry Points For Deb/Apt Daemons**: For services installed from system packages (especially Elasticsearch and similar daemons), do NOT jump straight to the raw binary if the package provides a service wrapper. Prefer `service <name> start` or the package's supported startup entry point first, because it usually sets the expected user, log paths, and data directories.\n"
+            "- **Direct Binary Launch Requires Permission Prep**: If you must start a packaged daemon with `su`/`runuser` and its raw binary, first verify that its log/data directories are writable by that service user. For example, a non-root Elasticsearch process must be able to write under paths such as `/var/log/elasticsearch` and its data directory before it can boot successfully.\n"
+            "- **Do Not Misclassify Service Failures As Acceptable**: Errors such as database connection refused, missing local broker/storage endpoints, failed migrations caused by unavailable infrastructure, or application boot failures due to missing services are setup failures, not acceptable final-test failures.",
+
+            "FINAL VERIFICATION STRATEGY:\n"
+            "- **Final Verification Block**: Before declaring success, run every test command needed to prove the final environment in one final consecutive verification burst. Avoid doing new setup/build steps after the last successful verification command.\n"
+            "- **Differentiate Exploration vs Final Evaluation**: During setup you may run exploratory probes or narrow smoke tests to learn about the project, but the commands in the final `Verification Bundle` must be the ones you want a fresh evaluator to run to validate the configured environment.\n"
+            "- **Prefer Project-Native Final Commands**: For the final `Verification Bundle`, prefer the repository's native or standard verification commands (README/CI/build tool entry points, module-aware project test commands, or the most representative reproducible commands you found). Avoid opportunistic one-off smoke checks unless they are truly the best reproducible proof of correctness available.\n"
+            "- **Service-Dependent Projects Need Representative Final Tests**: If repository config or test settings clearly depend on local services, do NOT end with only narrow single-test or unit-test commands. Your final `Verification Bundle` should include at least one broader, representative test command that exercises the configured service-dependent environment.",
+
+            "FINAL SUCCESS CONTRACT:\n"
+            "- ONLY output 'Final Answer: Success' when all dependencies are installed AND the PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets/API keys, not due to missing local services or other setup issues).\n"
+            "- Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys:\n"
+            "  * `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution (for example, daemon startup commands like `redis-server --daemonize yes`). Use `[]` if none are required.\n"
+            "  * `test_commands`: exact previously successful commands whose output proved the final environment works. Wrapper commands such as `make all` are allowed if they really executed tests.\n"
+            "- Every command inside the bundle must exactly match a command you already executed successfully.\n"
+            "- Exclude read-only checks such as `redis-cli ping` from `runtime_preparation_commands`.\n"
+            "- Do NOT put installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands into `runtime_preparation_commands`. Examples that must stay OUT of runtime preparation: `apt-get install ...`, `pip install ...`, `composer install ...`, `npm install ...`, `bundle install`, `git clone ...`, `make build`.\n"
+            "- `runtime_preparation_commands` should usually be short and often empty. It is only for ephemeral runtime actions such as starting a local service, exporting a runtime variable, or preparing a daemon needed by the final tests.\n"
+            "- Success responses must follow this exact shape:\n"
+            "  Thought: <brief final reasoning>\n"
+            "  Verification Bundle:\n"
+            "  {\"runtime_preparation_commands\": [...], \"test_commands\": [...]} \n"
+            "  Final Answer: Success",
+
+            "IMPORTANT RESPONSE RULES:\n"
             "- Only output ONE Thought and ONE Action at a time.\n"
-            "- Stop immediately after the Action."
-        )
+            "- Stop immediately after the Action.",
+        ])
+
+        self.system_prompt = "\n\n".join(prompt_sections)
 
     def plan(self, repo_url=None, last_observation=None, manage_history=True):
         """
@@ -149,7 +220,8 @@ class Planner:
 
         thought = self._extract_tag(content, "Thought")
         action = self._extract_tag(content, "Action")
-        is_finished = "Final Answer:" in content
+        final_answer = self.extract_final_answer(content)
+        is_finished = final_answer is not None and not action
 
         return thought, action, content, is_finished, usage_info
 
@@ -225,27 +297,116 @@ class Planner:
             # Increment counter after completing a full input/output pair
             self.log_counter += 1
 
-    #滑动窗口优化法
     def _trim_history(self):
-        """Keep the repository URL seed plus the most recent turns to cap prompt growth."""
-        if len(self.history) <= self.MAX_HISTORY_MESSAGES:
+        """Keep history within a token budget instead of a fixed message count."""
+        if len(self.history) <= 1:
             return
-        repo_seed = self.history[0]
-        recent_history = self.history[-(self.MAX_HISTORY_MESSAGES - 1):]
-        self.history = [repo_seed] + recent_history
+        self.history = self._trim_messages_to_budget(self.history)
 
     def _trim_managed_history(self):
-        if len(self.managed_history) <= self.MAX_HISTORY_MESSAGES:
+        if len(self.managed_history) <= 1:
             return
-
-        repo_seed = self.managed_history[0]
-        repo_seed_meta = self.managed_history_meta[0]
-        recent_history = self.managed_history[-(self.MAX_HISTORY_MESSAGES - 1):]
-        recent_meta = self.managed_history_meta[-(self.MAX_HISTORY_MESSAGES - 1):]
-
-        self.managed_history = [repo_seed] + recent_history
-        self.managed_history_meta = [repo_seed_meta] + recent_meta
+        trimmed_history, trimmed_meta = self._trim_managed_messages_to_budget(
+            self.managed_history,
+            self.managed_history_meta,
+        )
+        self.managed_history = trimmed_history
+        self.managed_history_meta = trimmed_meta
         self._rebuild_managed_step_index()
+
+    def _trim_messages_to_budget(self, messages):
+        budget = self._get_history_token_budget()
+        if budget <= 0 or len(messages) <= 1:
+            return messages
+
+        seed = messages[0]
+        seed_tokens = self._estimate_message_tokens(seed)
+        remaining_budget = max(0, budget - seed_tokens)
+        kept_tail = []
+
+        for message in reversed(messages[1:]):
+            message_tokens = self._estimate_message_tokens(message)
+            if not kept_tail:
+                kept_tail.append(message)
+                remaining_budget -= message_tokens
+                continue
+            if message_tokens > remaining_budget:
+                continue
+            kept_tail.append(message)
+            remaining_budget -= message_tokens
+
+        kept_tail.reverse()
+        return [seed] + kept_tail
+
+    def _trim_managed_messages_to_budget(self, messages, meta):
+        budget = self._get_history_token_budget()
+        if budget <= 0 or len(messages) <= 1:
+            return messages, meta
+
+        seed = messages[0]
+        seed_meta = meta[0]
+        seed_tokens = self._estimate_message_tokens(seed)
+        remaining_budget = max(0, budget - seed_tokens)
+
+        step_ranges = []
+        current_step_id = None
+        current_start = None
+
+        for index in range(1, len(meta)):
+            step_id = meta[index].get("step_id")
+            if step_id != current_step_id:
+                if current_step_id is not None:
+                    step_ranges.append((current_step_id, current_start, index))
+                current_step_id = step_id
+                current_start = index
+
+        if current_step_id is not None:
+            step_ranges.append((current_step_id, current_start, len(meta)))
+
+        kept_ranges = []
+        for _step_id, start, end in reversed(step_ranges):
+            step_tokens = sum(
+                self._estimate_message_tokens(messages[idx])
+                for idx in range(start, end)
+            )
+            if not kept_ranges:
+                kept_ranges.append((start, end))
+                remaining_budget -= step_tokens
+                continue
+            if step_tokens > remaining_budget:
+                continue
+            kept_ranges.append((start, end))
+            remaining_budget -= step_tokens
+
+        kept_ranges.reverse()
+        trimmed_history = [seed]
+        trimmed_meta = [seed_meta]
+        for start, end in kept_ranges:
+            trimmed_history.extend(messages[start:end])
+            trimmed_meta.extend(meta[start:end])
+
+        return trimmed_history, trimmed_meta
+
+    def _get_history_token_budget(self):
+        if self.history_token_budget is not None:
+            return self.history_token_budget
+
+        return max(
+            1024,
+            self.prompt_budget_tokens
+            - self.completion_reserve_tokens
+            - self._estimate_text_tokens(self.system_prompt),
+        )
+
+    def _estimate_text_tokens(self, text):
+        if not text:
+            return 0
+        return max(1, len(text) // 4)
+
+    def _estimate_message_tokens(self, message):
+        content = message.get("content", "") if message else ""
+        # Small fixed overhead per chat message keeps the estimate conservative.
+        return self._estimate_text_tokens(content) + 8
 
     def _rebuild_managed_step_index(self):
         rebuilt = {}
@@ -277,4 +438,15 @@ class Planner:
             if content.startswith('`') and content.endswith('`'):
                 content = content[1:-1].strip()
             return content.strip()
+        return None
+
+    def extract_final_answer(self, text):
+        if not text:
+            return None
+
+        for match in re.finditer(r"Final Answer:\s*(Success|Failure)\b", text, re.IGNORECASE):
+            prefix = text[:match.start()].rstrip()
+            if prefix and prefix[-1] in {'"', "'", "`"}:
+                continue
+            return match.group(1).capitalize()
         return None

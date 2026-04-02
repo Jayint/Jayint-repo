@@ -169,7 +169,7 @@ quickstart消耗的token不要计入，有关quickstart的都先不要加了，�
 
 
 
-## Codex最终敲定实现
+## 最终敲定实现
 
 创建三个类：
 
