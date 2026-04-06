@@ -1,0 +1,109 @@
+diff --git a/include/CppUTest/CommandLineArguments.h b/include/CppUTest/CommandLineArguments.h
+--- a/include/CppUTest/CommandLineArguments.h
++++ b/include/CppUTest/CommandLineArguments.h
+@@ -47,6 +47,7 @@ class CommandLineArguments
+     bool isColor() const;
+     bool isListingTestGroupNames() const;
+     bool isListingTestGroupAndCaseNames() const;
++    bool isListingTestLocations() const;
+     bool isRunIgnored() const;
+     size_t getRepeatCount() const;
+     bool isShuffling() const;
+@@ -80,6 +81,7 @@ class CommandLineArguments
+     bool runTestsAsSeperateProcess_;
+     bool listTestGroupNames_;
+     bool listTestGroupAndCaseNames_;
++    bool listTestLocations_;
+     bool runIgnored_;
+     bool reversing_;
+     bool crashOnFail_;
+diff --git a/include/CppUTest/TestRegistry.h b/include/CppUTest/TestRegistry.h
+--- a/include/CppUTest/TestRegistry.h
++++ b/include/CppUTest/TestRegistry.h
+@@ -55,6 +55,7 @@ class TestRegistry
+     virtual void reverseTests();
+     virtual void listTestGroupNames(TestResult& result);
+     virtual void listTestGroupAndCaseNames(TestResult& result);
++    virtual void listTestLocations(TestResult& result);
+     virtual void setNameFilters(const TestFilter* filters);
+     virtual void setGroupFilters(const TestFilter* filters);
+     virtual void installPlugin(TestPlugin* plugin);
+diff --git a/src/CppUTest/CommandLineArguments.cpp b/src/CppUTest/CommandLineArguments.cpp
+--- a/src/CppUTest/CommandLineArguments.cpp
++++ b/src/CppUTest/CommandLineArguments.cpp
+@@ -30,7 +30,7 @@
+ #include "CppUTest/PlatformSpecificFunctions.h"
+ 
+ CommandLineArguments::CommandLineArguments(int ac, const char *const *av) :
+-    ac_(ac), av_(av), needHelp_(false), verbose_(false), veryVerbose_(false), color_(false), runTestsAsSeperateProcess_(false), listTestGroupNames_(false), listTestGroupAndCaseNames_(false), runIgnored_(false), reversing_(false), crashOnFail_(false), shuffling_(false), shufflingPreSeeded_(false), repeat_(1), shuffleSeed_(0), groupFilters_(NULLPTR), nameFilters_(NULLPTR), outputType_(OUTPUT_ECLIPSE)
++    ac_(ac), av_(av), needHelp_(false), verbose_(false), veryVerbose_(false), color_(false), runTestsAsSeperateProcess_(false), listTestGroupNames_(false), listTestGroupAndCaseNames_(false), listTestLocations_(false), runIgnored_(false), reversing_(false), crashOnFail_(false), shuffling_(false), shufflingPreSeeded_(false), repeat_(1), shuffleSeed_(0), groupFilters_(NULLPTR), nameFilters_(NULLPTR), outputType_(OUTPUT_ECLIPSE)
+ {
+ }
+ 
+@@ -65,6 +65,7 @@ bool CommandLineArguments::parse(TestPlugin* plugin)
+         else if (argument == "-b") reversing_ = true;
+         else if (argument == "-lg") listTestGroupNames_ = true;
+         else if (argument == "-ln") listTestGroupAndCaseNames_ = true;
++        else if (argument == "-ll") listTestLocations_ = true;
+         else if (argument == "-ri") runIgnored_ = true;
+         else if (argument == "-f") crashOnFail_ = true;
+         else if (argument.startsWith("-r")) setRepeatCount(ac_, av_, i);
+@@ -171,6 +172,11 @@ bool CommandLineArguments::isListingTestGroupAndCaseNames() const
+     return listTestGroupAndCaseNames_;
+ }
+ 
++bool CommandLineArguments::isListingTestLocations() const
++{
++    return listTestLocations_;
++}
++
+ bool CommandLineArguments::isRunIgnored() const
+ {
+     return runIgnored_;
+diff --git a/src/CppUTest/CommandLineTestRunner.cpp b/src/CppUTest/CommandLineTestRunner.cpp
+--- a/src/CppUTest/CommandLineTestRunner.cpp
++++ b/src/CppUTest/CommandLineTestRunner.cpp
+@@ -120,6 +120,13 @@ int CommandLineTestRunner::runAllTests()
+         return 0;
+     }
+ 
++    if (arguments_->isListingTestLocations())
++    {
++        TestResult tr(*output_);
++        registry_->listTestLocations(tr);
++        return 0;
++    }
++
+     if (arguments_->isReversing())
+         registry_->reverseTests();
+ 
+diff --git a/src/CppUTest/TestRegistry.cpp b/src/CppUTest/TestRegistry.cpp
+--- a/src/CppUTest/TestRegistry.cpp
++++ b/src/CppUTest/TestRegistry.cpp
+@@ -123,6 +123,26 @@ void TestRegistry::listTestGroupAndCaseNames(TestResult& result)
+     result.print(groupAndNameList.asCharString());
+ }
+ 
++void TestRegistry::listTestLocations(TestResult& result)
++{
++    SimpleString testLocations;
++
++    for (UtestShell *test = tests_; test != NULLPTR; test = test->getNext()) {
++            SimpleString testLocation;
++            testLocation += test->getGroup();
++            testLocation += ".";
++            testLocation += test->getName();
++            testLocation += ".";
++            testLocation += test->getFile();
++            testLocation += ".";
++            testLocation += StringFromFormat("%d\n",test->getLineNumber());
++
++            testLocations += testLocation;
++    }
++
++    result.print(testLocations.asCharString());
++}
++
+ bool TestRegistry::endOfGroup(UtestShell* test)
+ {
+     return (!test || !test->getNext() || test->getGroup() != test->getNext()->getGroup());
