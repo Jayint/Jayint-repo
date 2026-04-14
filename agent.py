@@ -9,6 +9,7 @@ from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
 from src.image_selector import ImageSelector
+from src.constants import DEFAULT_LLM_MODEL
 from src.observation_compressor import (
     AgentStep,
     ObservationCompressor,
@@ -103,7 +104,7 @@ class DockerAgent:
         self,
         repo_url,
         base_image="auto",
-        model="qwen3-max-2026-01-23",
+        model=DEFAULT_LLM_MODEL,
         workplace="workplace",
         base_commit=None,
         enable_observation_compression=False,
@@ -153,10 +154,10 @@ class DockerAgent:
             )
         
         # 3. Initialize LLM client first (needed for image selection)
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_BASE")
+        api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables.")
+            raise ValueError("MINIMAX_API_KEY or OPENAI_API_KEY not found in environment variables.")
             
         self.client = OpenAI(
             api_key=api_key,
@@ -1120,7 +1121,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LLM-based Docker Environment Configuration Agent")
     parser.add_argument("repo_url", help="GitHub repository URL to configure")
     parser.add_argument("--image", default="auto", help="Base Docker image (default: auto-detect, or specify like 'python:3.10', 'node:18')")
-    parser.add_argument("--model", default="qwen3-max-2026-01-23", help="LLM model to use (default: qwen3-max-2026-01-23)")
+    parser.add_argument("--model", default=DEFAULT_LLM_MODEL, help=f"LLM model to use (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--steps", type=int, default=30, help="Maximum number of steps (default: 30)")
     parser.add_argument("--keep-container", action="store_true", help="Keep container running after completion for inspection")
     parser.add_argument(

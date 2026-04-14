@@ -1,0 +1,77 @@
+{
+  "instance_id": "pytest-dev__pytest-django-664",
+  "dataset_entry": {
+    "repo": "pytest-dev/pytest-django",
+    "pull_number": 664,
+    "instance_id": "pytest-dev__pytest-django-664",
+    "issue_numbers": [
+      "662"
+    ],
+    "base_commit": "5000ff814584e67eda6085f36a3644f6a834f6c2",
+    "patch": "diff --git a/pytest_django/plugin.py b/pytest_django/plugin.py\n--- a/pytest_django/plugin.py\n+++ b/pytest_django/plugin.py\n@@ -120,7 +120,10 @@ def _handle_import_error(extra_message):\n \n def _add_django_project_to_path(args):\n     def is_django_project(path):\n-        return path.is_dir() and (path / 'manage.py').exists()\n+        try:\n+            return path.is_dir() and (path / 'manage.py').exists()\n+        except OSError:\n+            return False\n \n     def arg_to_path(arg):\n         # Test classes or functions can be appended to paths separated by ::\n@@ -130,7 +133,6 @@ def arg_to_path(arg):\n     def find_django_path(args):\n         args = map(str, args)\n         args = [arg_to_path(x) for x in args if not x.startswith(\"-\")]\n-        args = [p for p in args if p.is_dir()]\n \n         if not args:\n             args = [pathlib.Path.cwd()]\n",
+    "test_patch": "diff --git a/tests/test_manage_py_scan.py b/tests/test_manage_py_scan.py\n--- a/tests/test_manage_py_scan.py\n+++ b/tests/test_manage_py_scan.py\n@@ -83,3 +83,15 @@ def test_django_project_found_invalid_settings_version(django_testdir, monkeypat\n     result = django_testdir.runpytest_subprocess('django_project_root', '--help')\n     assert result.ret == 0\n     result.stdout.fnmatch_lines(['*usage:*'])\n+\n+\n+@pytest.mark.django_project(project_root='django_project_root',\n+                            create_manage_py=True)\n+def test_runs_without_error_on_long_args(django_testdir):\n+    django_testdir.create_test_module(\"\"\"\n+    def test_this_is_a_long_message_which_caused_a_bug_when_scanning_for_manage_py_12346712341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234112341234112451234123412341234123412341234123412341234123412341234123412341234123412341234123412341234():\n+        assert 1 + 1 == 2\n+    \"\"\")\n+\n+    result = django_testdir.runpytest_subprocess('-k', 'this_is_a_long_message_which_caused_a_bug_when_scanning_for_manage_py_12346712341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234112341234112451234123412341234123412341234123412341234123412341234123412341234123412341234123412341234', 'django_project_root')\n+    assert result.ret == 0\n",
+    "problem_statement": "OSError on long command-line args\nIn the logic of django_find_project there exist these lines:\r\n```\r\n    def find_django_path(args):\r\n        args = map(str, args)\r\n        args = [arg_to_path(x) for x in args if not x.startswith(\"-\")]\r\n        args = [p for p in args if p.is_dir()]\r\n...\r\n```\r\nUnfortunately, this means that if there are really long command-line args that this can get a `OSError: [Errno 36] File name too long: ...` which prevents me from, for example, using really long args to pytest's `-k` option.\r\nThanks for looking into this.\n",
+    "hints_text": "Please consider creating a failing test and fix for this yourself.\r\nI assume the `args = [p for p in args if p.is_dir()]` should be turned into a loop that try/catches any OSError and ignores it.\n/cc @voidus for the pathlib change that appears to trigger this",
+    "created_at": "2018-10-16 19:19:27",
+    "language": "python",
+    "label": "Easy"
+  },
+  "paths": {
+    "single_instance_dataset": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/pytest-dev__pytest-django-664.jsonl",
+    "adapter_output_dir": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664",
+    "adapter_instance_result": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664/pytest-dev__pytest-django-664.json",
+    "docker_res": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664/docker_res.json",
+    "evaluation_output_root": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-pytest-dev__pytest-django-664",
+    "evaluation_instance_dir": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-pytest-dev__pytest-django-664/pytest-dev__pytest-django-664",
+    "combined_report": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-pytest-dev__pytest-django-664/pytest-dev__pytest-django-664/combined_report.json",
+    "final_report": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-pytest-dev__pytest-django-664/final_report.json"
+  },
+  "adapter": {
+    "run": {
+      "command": [
+        "/opt/anaconda3/bin/python3.12",
+        "/Users/panjianying/Desktop/Jayint-repo/multi_docker_eval_adapter.py",
+        "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/pytest-dev__pytest-django-664.jsonl",
+        "--output-dir",
+        "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664",
+        "--base-image",
+        "auto",
+        "--model",
+        "MiniMax-M2.7-highspeed",
+        "--max-steps",
+        "200",
+        "--enable-observation-compression"
+      ],
+      "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo/multi_docker_eval_adapter.py /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/pytest-dev__pytest-django-664.jsonl --output-dir /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664 --base-image auto --model MiniMax-M2.7-highspeed --max-steps 200 --enable-observation-compression",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo",
+      "returncode": 0,
+      "started_at": "2026-04-14T03:49:21.680005+08:00",
+      "finished_at": "2026-04-14T03:49:27.302659+08:00",
+      "duration_seconds": 5.623,
+      "stdout": "Processing 1 instances from /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/pytest-dev__pytest-django-664.jsonl\n\n############################################################\nInstance 1/1\n############################################################\n\n============================================================\nProcessing instance: pytest-dev__pytest-django-664\nRepository: https://github.com/pytest-dev/pytest-django.git\nLanguage: python\n============================================================\n\n[Step 1/4] Running DockerAgent for environment configuration...\nCleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo/workplace/multi_docker_eval_pytest-dev__pytest-django-664...\nCloning https://github.com/pytest-dev/pytest-django.git into /Users/panjianying/Desktop/Jayint-repo/workplace/multi_docker_eval_pytest-dev__pytest-django-664...\nClone failed: 正克隆到 '.'...\n致命错误：无法访问 'https://github.com/pytest-dev/pytest-django.git/'：Recv failure: Connection reset by peer\n\n\n✗ Error processing instance pytest-dev__pytest-django-664: Command '['git', 'clone', 'https://github.com/pytest-dev/pytest-django.git', '.']' returned non-zero exit status 128.\n\n[Workplace Preserved] ./workplace/multi_docker_eval_pytest-dev__pytest-django-664\nTo inspect: ls -la ./workplace/multi_docker_eval_pytest-dev__pytest-django-664\n\n============================================================\nSUMMARY\n============================================================\nTotal instances: 1\nEvaluable instances: 0/1\nSkipped instances: 0/1\nBuild success: 0/1 (0.0%)\nResults saved to: /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/pytest-dev__pytest-django-664/docker_res.json\n============================================================\n\n",
+      "stderr": ""
+    },
+    "instance_result": null,
+    "docker_res_entry": null
+  },
+  "evaluation": {
+    "run": {
+      "command": null,
+      "command_shell": null,
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo",
+      "returncode": null,
+      "started_at": null,
+      "finished_at": null,
+      "duration_seconds": 0,
+      "stdout": "",
+      "stderr": "",
+      "skipped": true,
+      "reason": "adapter_did_not_produce_evaluable_docker_res"
+    },
+    "combined_report": null,
+    "final_report": null
+  },
+  "status": "adapter_result_missing",
+  "resolved": false,
+  "stable": false
+}

@@ -49,7 +49,7 @@ fi
 python multi_docker_eval_adapter.py \
     test_dataset.jsonl \
     --output-dir ./test_output \
-    --model gpt-4o \
+    --model MiniMax-M2.7-highspeed \
     --max-steps 10 \
     --limit 1
 

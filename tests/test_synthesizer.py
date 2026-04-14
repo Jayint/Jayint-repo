@@ -254,6 +254,34 @@ class SynthesizerTests(unittest.TestCase):
 
         self.assertFalse(synthesizer.is_readonly_command(command))
 
+    def test_version_probe_with_fallback_is_not_recorded(self):
+        synthesizer = Synthesizer()
+        command = (
+            'php --version && composer --version 2>/dev/null || '
+            'echo "Need to check available tools"'
+        )
+
+        self.assertTrue(synthesizer.is_readonly_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+        synthesizer.record_success(command)
+        self.assertEqual(synthesizer.instructions, [])
+
+    def test_installer_fallback_after_probe_remains_recordable(self):
+        synthesizer = Synthesizer()
+        command = (
+            "which git && which composer || "
+            "(curl -sS https://getcomposer.org/installer | "
+            "php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null)"
+        )
+
+        self.assertEqual(
+            synthesizer._extract_recordable_setup_commands(command),
+            [
+                "(curl -sS https://getcomposer.org/installer | "
+                "php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null)"
+            ],
+        )
+
     def test_public_runtime_command_wrappers_distinguish_service_and_healthcheck(self):
         synthesizer = Synthesizer()
 

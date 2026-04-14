@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
+from src.constants import DEFAULT_LLM_MODEL
 from src.synthesizer import (
     build_dockerfile_apt_bootstrap_run_instructions,
     is_generated_apt_bootstrap_run_instruction,
@@ -90,7 +91,7 @@ RUN git clone {repo_url} /testbed
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "auto",
-                               model: str = "gpt-4o",
+                               model: str = DEFAULT_LLM_MODEL,
                                max_steps: int = 30,
                                enable_observation_compression: bool = False) -> Dict[str, Any]:
         """
@@ -1318,7 +1319,7 @@ exit 1
     
     def process_dataset(self, dataset_path: str, 
                        base_image: str = "auto",
-                       model: str = "gpt-4o",
+                       model: str = DEFAULT_LLM_MODEL,
                        max_steps: int = 30,
                        enable_observation_compression: bool = False,
                        limit: Optional[int] = None) -> str:
@@ -1408,7 +1409,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="qwen3-max-2026-01-23",
+        default=DEFAULT_LLM_MODEL,
         help="LLM model to use"
     )
     parser.add_argument(

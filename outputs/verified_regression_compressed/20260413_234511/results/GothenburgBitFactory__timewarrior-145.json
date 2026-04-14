@@ -1,0 +1,77 @@
+{
+  "instance_id": "GothenburgBitFactory__timewarrior-145",
+  "dataset_entry": {
+    "repo": "GothenburgBitFactory/timewarrior",
+    "pull_number": 145,
+    "instance_id": "GothenburgBitFactory__timewarrior-145",
+    "issue_numbers": [
+      "105"
+    ],
+    "base_commit": "ea8865e18acc271f22527618c4dafc6c7c0c0d5d",
+    "patch": "diff --git a/ext/on-modify.timewarrior b/ext/on-modify.timewarrior\n--- a/ext/on-modify.timewarrior\n+++ b/ext/on-modify.timewarrior\n@@ -42,6 +42,18 @@ old = json.loads(sys.stdin.readline())\n new = json.loads(sys.stdin.readline())\n print(json.dumps(new))\n \n+def extract_timew_tags_from(json_obj):\n+    # Extract attributes for use as tags.\n+    tags = [json_obj['description']]\n+\n+    if 'project' in json_obj:\n+        tags.append(json_obj['project'])\n+\n+    if 'tags' in json_obj:\n+        tags.extend(json_obj['tags'])\n+\n+    return ' '.join(['\"{0}\"'.format(tag) for tag in tags]).encode('utf-8').strip()\n+\n start_or_stop = ''\n \n # Started task.\n@@ -53,16 +65,15 @@ elif 'start' not in new and 'start' in old:\n     start_or_stop = 'stop'\n \n if start_or_stop:\n-    # Extract attributes for use as tags.\n-    tags = [new['description']]\n-\n-    if 'project' in new:\n-        tags.append(new['project'])\n+    combined = extract_timew_tags_from(new)\n \n-    if 'tags' in new:\n-        tags.extend(new['tags'])\n+    subprocess.call(shlex.split('timew {0} {1} :yes'.format(start_or_stop, combined)))\n \n-    combined = ' '.join(['\"%s\"' % tag for tag in tags]).encode('utf-8').strip()\n+# Modifications to task other than start/stop\n+elif 'start' in new and 'start' in old:\n+    old_combined = extract_timew_tags_from(old)\n+    new_combined = extract_timew_tags_from(new)\n \n-    command = 'timew {0} {1} :yes'.format(start_or_stop, combined)\n-    subprocess.call(shlex.split(command))\n+    if old_combined != new_combined:\n+        subprocess.call(shlex.split('timew untag @1 {0} :yes'.format(old_combined)))\n+        subprocess.call(shlex.split('timew tag @1 {0} :yes'.format(new_combined)))\n",
+    "test_patch": "diff --git a/test/test_on-modify.timewarrior.t.py b/test/test_on-modify.timewarrior.t.py\n--- a/test/test_on-modify.timewarrior.t.py\n+++ b/test/test_on-modify.timewarrior.t.py\n@@ -110,14 +110,76 @@ def test_hook_should_process_edit(self):\n         self.assertEqual('{\"status\": \"pending\", \"entry\": \"20180316T231125Z\", \"uuid\": \"e11d7d19-20a7-47bb-999e-6554a70ea094\", \"description\": \"FooBar\", \"modified\": \"20180316T231055Z\"}\\n', out)\n         self.assertEqual('', err)\n \n-    def test_hook_should_process_modify(self):\n-        \"\"\"on-modify hook should process 'task modify'\"\"\"\n+    def test_hook_should_process_modify_desc(self):\n+        \"\"\"on-modify hook should process 'task modify' for changing description\"\"\"\n+\n+        self.t(\"start dummy\")\n         out, err = self.process.communicate(input=\"\"\"\\\n {\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\"}\n {\"description\":\"foo\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\"}\n \"\"\")\n \n-        self.assertEqual('{\"status\": \"pending\", \"uuid\": \"3422d76c-c087-4ecd-9c62-1246b078e534\", \"modified\": \"20180317T092629Z\", \"start\": \"20180317T092629Z\", \"entry\": \"20180317T092629Z\", \"description\": \"foo\"}\\n', out)\n+        self.assertRegexpMatches(out, \"\"\"\\\n+Removed dummy from @1\n+Added foo to @1\n+\\{\"status\": \"pending\", \"uuid\": \"3422d76c-c087-4ecd-9c62-1246b078e534\", \"modified\": \"20180317T092629Z\", \"start\": \"20180317T092629Z\", \"entry\": \"20180317T092629Z\", \"description\": \"foo\"\\}\n+\"\"\")\n+        self.assertEqual('', err)\n+\n+    def test_hook_should_process_modify_tags(self):\n+        \"\"\"on-modify hook should process 'task modify' for changing tags\"\"\"\n+\n+        self.t(\"start dummy tag1 tag2\")\n+        out, err = self.process.communicate(input=\"\"\"\\\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"tags\":[\"tag1\",\"tag2\"]}\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"tags\":[\"tag3\",\"tag4\"]}\n+\"\"\")\n+\n+        self.assertRegexpMatches(out, \"\"\"\\\n+Removed dummy tag1 tag2 from @1\n+Added dummy tag3 tag4 to @1\n+\\{\"status\": \"pending\", \"uuid\": \"3422d76c-c087-4ecd-9c62-1246b078e534\", \"tags\": \\[\"tag3\", \"tag4\"\\], \"modified\": \"20180317T092629Z\", \"start\": \"20180317T092629Z\", \"entry\": \"20180317T092629Z\", \"description\": \"dummy\"\\}\n+\"\"\")\n+        self.assertEqual('', err)\n+\n+    def test_hook_should_process_modify_project(self):\n+        \"\"\"on-modify hook should process 'task modify' for changing project\"\"\"\n+\n+        self.t(\"start dummy proj1\")\n+        out, err = self.process.communicate(input=\"\"\"\\\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"project\":\"proj1\"}\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"start\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"project\":\"proj2\"}\n+\"\"\")\n+\n+        self.assertRegexpMatches(out, \"\"\"\\\n+Removed dummy proj1 from @1\n+Added dummy proj2 to @1\n+\\{\"status\": \"pending\", \"uuid\": \"3422d76c-c087-4ecd-9c62-1246b078e534\", \"modified\": \"20180317T092629Z\", \"project\": \"proj2\", \"start\": \"20180317T092629Z\", \"entry\": \"20180317T092629Z\", \"description\": \"dummy\"\\}\n+\"\"\")\n+        self.assertEqual('', err)\n+\n+    def test_hook_should_process_modify_not_tracked(self):\n+        \"\"\"on-modify hook should process 'task modify' for tasks which are not time-tracked\"\"\"\n+        out, err = self.process.communicate(input=\"\"\"\\\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"project\":\"proj1\"}\n+{\"description\":\"dummy\",\"entry\":\"20180317T092629Z\",\"modified\":\"20180317T092629Z\",\"status\":\"pending\",\"uuid\":\"3422d76c-c087-4ecd-9c62-1246b078e534\",\"project\":\"proj2\"}\n+\"\"\")\n+\n+        self.assertEqual('{\"status\": \"pending\", \"uuid\": \"3422d76c-c087-4ecd-9c62-1246b078e534\", \"modified\": \"20180317T092629Z\", \"project\": \"proj2\", \"entry\": \"20180317T092629Z\", \"description\": \"dummy\"}\\n', out)\n+        self.assertEqual('', err)\n+\n+    # This is needed to test the case for task which are time-tracked and modify is called for changes other than project/tag/description\n+    def test_hook_should_process_modify_due_date(self):\n+        \"\"\"on-modify hook should process 'task modify' for time-tracked task for changing annotations\"\"\"\n+\n+        self.t(\"start dummy\")\n+        out, err = self.process.communicate(input=\"\"\"\\\n+{\"status\": \"pending\", \"description\": \"dummy\", \"modified\": \"20180513T073915Z\", \"due\": \"20180514T000000Z\", \"start\": \"20180513T073915Z\", \"entry\": \"20180513T054634Z\", \"uuid\": \"09e9620e-8906-47ad-92c5-305894534aac\"}\n+{\"status\": \"pending\", \"description\": \"dummy\", \"modified\": \"20180513T073915Z\", \"due\": \"20180512T000000Z\", \"start\": \"20180513T073915Z\", \"entry\": \"20180513T054634Z\", \"uuid\": \"09e9620e-8906-47ad-92c5-305894534aac\"}\n+\"\"\")\n+\n+        self.assertEqual('{\"status\": \"pending\", \"description\": \"dummy\", \"due\": \"20180512T000000Z\", \"modified\": \"20180513T073915Z\", \"start\": \"20180513T073915Z\", \"entry\": \"20180513T054634Z\", \"uuid\": \"09e9620e-8906-47ad-92c5-305894534aac\"}\\n', out)\n+\n         self.assertEqual('', err)\n \n     def test_hook_should_process_prepend(self):\n",
+    "problem_statement": "[TI-101] Keeps tracking renamed and stopped task\n_Antanas B. on 2018-01-11T09:25:17Z says:_ \r\n\r\n How to reproduce:\r\n```\r\n$ task add dummy\r\nCreated task 6.\r\n$ task 6 start\r\n[...]\r\n$ timew\r\nTracking dummy\r\nStarted 2018-01-11T11:18:24\r\nCurrent 39\r\nTotal 0:00:15\r\n$ task 6 mod foo\r\nModifying task 6 'foo'.\r\nModified 1 task.\r\n$ task 6 stop\r\nThe current interval does not have the 'foo' tag.\r\nStopping task 4a6c05ca-1396-4a3b-acc5-d04f8afe3a3f 'foo'.\r\nStopped 1 task.\r\n$ timew\r\nTracking dummy\r\n[...]\r\n```\n",
+    "hints_text": "Migrated metadata:\n```\nCreated: 2018-01-11T09:25:17Z\nModified: 2018-01-13T08:46:22Z\n```\n_Thomas Lauf on 2018-01-13T08:46:22Z says:_ \n\n Seems to me as if the on-modify hook does not convey the switch of project to TimeWarrior. Do you have a dump of the two JSONs for the old and new task?",
+    "created_at": "2018-05-13 07:59:27",
+    "language": "cpp",
+    "label": "Easy"
+  },
+  "paths": {
+    "single_instance_dataset": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/GothenburgBitFactory__timewarrior-145.jsonl",
+    "adapter_output_dir": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145",
+    "adapter_instance_result": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145/GothenburgBitFactory__timewarrior-145.json",
+    "docker_res": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145/docker_res.json",
+    "evaluation_output_root": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-GothenburgBitFactory__timewarrior-145",
+    "evaluation_instance_dir": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-GothenburgBitFactory__timewarrior-145/GothenburgBitFactory__timewarrior-145",
+    "combined_report": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-GothenburgBitFactory__timewarrior-145/GothenburgBitFactory__timewarrior-145/combined_report.json",
+    "final_report": "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/eval_output/VerifiedRegression-GothenburgBitFactory__timewarrior-145/final_report.json"
+  },
+  "adapter": {
+    "run": {
+      "command": [
+        "/opt/anaconda3/bin/python3.12",
+        "/Users/panjianying/Desktop/Jayint-repo/multi_docker_eval_adapter.py",
+        "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/GothenburgBitFactory__timewarrior-145.jsonl",
+        "--output-dir",
+        "/Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145",
+        "--base-image",
+        "auto",
+        "--model",
+        "MiniMax-M2.7-highspeed",
+        "--max-steps",
+        "200",
+        "--enable-observation-compression"
+      ],
+      "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo/multi_docker_eval_adapter.py /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/GothenburgBitFactory__timewarrior-145.jsonl --output-dir /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145 --base-image auto --model MiniMax-M2.7-highspeed --max-steps 200 --enable-observation-compression",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo",
+      "returncode": 0,
+      "started_at": "2026-04-14T05:41:25.372199+08:00",
+      "finished_at": "2026-04-14T05:41:31.098232+08:00",
+      "duration_seconds": 5.726,
+      "stdout": "Processing 1 instances from /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/datasets/GothenburgBitFactory__timewarrior-145.jsonl\n\n############################################################\nInstance 1/1\n############################################################\n\n============================================================\nProcessing instance: GothenburgBitFactory__timewarrior-145\nRepository: https://github.com/GothenburgBitFactory/timewarrior.git\nLanguage: cpp\n============================================================\n\n[Step 1/4] Running DockerAgent for environment configuration...\nCleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo/workplace/multi_docker_eval_GothenburgBitFactory__timewarrior-145...\nCloning https://github.com/GothenburgBitFactory/timewarrior.git into /Users/panjianying/Desktop/Jayint-repo/workplace/multi_docker_eval_GothenburgBitFactory__timewarrior-145...\nClone failed: 正克隆到 '.'...\n致命错误：无法访问 'https://github.com/GothenburgBitFactory/timewarrior.git/'：Recv failure: Connection reset by peer\n\n\n✗ Error processing instance GothenburgBitFactory__timewarrior-145: Command '['git', 'clone', 'https://github.com/GothenburgBitFactory/timewarrior.git', '.']' returned non-zero exit status 128.\n\n[Workplace Preserved] ./workplace/multi_docker_eval_GothenburgBitFactory__timewarrior-145\nTo inspect: ls -la ./workplace/multi_docker_eval_GothenburgBitFactory__timewarrior-145\n\n============================================================\nSUMMARY\n============================================================\nTotal instances: 1\nEvaluable instances: 0/1\nSkipped instances: 0/1\nBuild success: 0/1 (0.0%)\nResults saved to: /Users/panjianying/Desktop/Jayint-repo/outputs/verified_regression_compressed/20260413_234511/adapter_output/GothenburgBitFactory__timewarrior-145/docker_res.json\n============================================================\n\n",
+      "stderr": ""
+    },
+    "instance_result": null,
+    "docker_res_entry": null
+  },
+  "evaluation": {
+    "run": {
+      "command": null,
+      "command_shell": null,
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo",
+      "returncode": null,
+      "started_at": null,
+      "finished_at": null,
+      "duration_seconds": 0,
+      "stdout": "",
+      "stderr": "",
+      "skipped": true,
+      "reason": "adapter_did_not_produce_evaluable_docker_res"
+    },
+    "combined_report": null,
+    "final_report": null
+  },
+  "status": "adapter_result_missing",
+  "resolved": false,
+  "stable": false
+}

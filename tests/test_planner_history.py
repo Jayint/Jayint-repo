@@ -58,6 +58,43 @@ class PlannerManagedHistoryTests(unittest.TestCase):
             "Observation: obs7-compressed",
         )
 
+    def test_append_step_sanitizes_overgenerated_future_trajectory(self):
+        planner = Planner(client=None)
+        planner.init_managed_history("https://github.com/example/repo.git")
+
+        overgenerated = (
+            "<think>Planning the whole setup.</think>\n\n"
+            "Thought: I will check Python first.\n"
+            "Action: python --version\n"
+            "Observation: Python 3.11.0\n"
+            "Action: pip install pytest\n"
+            "Observation: Successfully installed pytest\n"
+            "Verification Bundle:\n"
+            '{"runtime_preparation_commands": [], "test_commands": ["pytest"]}\n'
+            "Final Answer: Success"
+        )
+
+        planner.append_step(1, overgenerated, "Python 3.6.15")
+
+        assistant_index = planner.managed_step_to_history_index[1]["assistant"]
+        self.assertEqual(
+            planner.managed_history[assistant_index]["content"],
+            "Thought: I will check Python first.\nAction: python --version",
+        )
+
+    def test_extract_action_stops_before_verification_bundle(self):
+        planner = Planner(client=None)
+
+        content = (
+            "Thought: Tests passed.\n"
+            "Action: pytest tests -q\n"
+            "Verification Bundle:\n"
+            '{"runtime_preparation_commands": [], "test_commands": ["pytest tests -q"]}\n'
+            "Final Answer: Success"
+        )
+
+        self.assertEqual(planner._extract_tag(content, "Action"), "pytest tests -q")
+
 
 class PlannerFinalAnswerParsingTests(unittest.TestCase):
     def test_extract_final_answer_ignores_quoted_phrase(self):
@@ -97,6 +134,14 @@ class PlannerPromptTests(unittest.TestCase):
         self.assertIn("Ordinary command failures do NOT automatically roll back the container", planner.system_prompt)
         self.assertIn("Action: __ROLLBACK__", planner.system_prompt)
         self.assertIn("Split Mutation From Verification", planner.system_prompt)
+
+    def test_system_prompt_forbids_generated_observations_and_future_steps(self):
+        planner = Planner(client=None)
+
+        self.assertIn("Do NOT write `Observation:`", planner.system_prompt)
+        self.assertIn("Never generate `Observation:`", planner.system_prompt)
+        self.assertIn("a second `Action:`", planner.system_prompt)
+        self.assertIn("Do not simulate command execution results", planner.system_prompt)
 
     def test_system_prompt_requires_matching_real_local_services(self):
         planner = Planner(client=None)

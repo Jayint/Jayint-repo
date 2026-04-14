@@ -88,6 +88,16 @@ class Synthesizer:
         "xargs",
         "ping", "traceroute", "ssh",
     }
+    VERSION_PROBE_COMMANDS = {
+        "php", "composer",
+        "python", "python3", "pip", "pip3",
+        "node", "npm", "yarn", "pnpm",
+        "java", "javac", "mvn", "gradle", "gradlew",
+        "go", "rustc", "cargo",
+        "ruby", "gem", "bundle",
+        "gcc", "g++", "cc", "c++", "make", "cmake", "ninja",
+        "git",
+    }
 
     def __init__(self, base_image="python:3.10", workdir="/app"):
         self.base_image = base_image
@@ -190,7 +200,7 @@ class Synthesizer:
         """Treat safe inspection/search commands as read-only when they do not redirect output."""
         if not command or not command.strip():
             return False
-        if self._has_output_redirection(command):
+        if self._has_output_redirection(self._strip_dev_null_redirections(command)):
             return False
 
         saw_component = False
@@ -466,10 +476,38 @@ class Synthesizer:
         return False
 
     def _pipeline_component_is_safe_readonly(self, normalized_command):
+        if self._is_version_probe_segment(normalized_command):
+            return True
+
         executable = normalized_command.split()[0]
         executable = executable.strip("\"'`")
         executable_name = executable.rsplit("/", 1)[-1]
         return executable_name in self.SAFE_READONLY_COMMANDS
+
+    def _strip_dev_null_redirections(self, command):
+        """Ignore harmless output silencing when classifying read-only probes."""
+        if not command:
+            return ""
+
+        stripped = re.sub(r"\s+(?:[12]?>|&>)\s*/dev/null\b", "", command)
+        stripped = re.sub(r"\s+(?:[12]?>|&>)/dev/null\b", "", stripped)
+        return stripped
+
+    def _is_version_probe_segment(self, normalized_command):
+        normalized = self._strip_dev_null_redirections(normalized_command).strip()
+        if not normalized:
+            return False
+
+        parts = normalized.split()
+        if len(parts) != 2:
+            return False
+
+        executable = parts[0].strip("\"'`")
+        executable_name = executable.rsplit("/", 1)[-1]
+        if executable_name not in self.VERSION_PROBE_COMMANDS:
+            return False
+
+        return parts[1] in {"--version", "-v", "version"}
 
     def _normalize_command_segment(self, segment):
         normalized = segment.strip().lower()
@@ -581,6 +619,8 @@ class Synthesizer:
         if self._is_navigation_only_segment(normalized_command):
             return False
         if self._is_runtime_only_segment(normalized_command):
+            return False
+        if self._is_version_probe_segment(normalized_command):
             return False
         return not self._is_readonly_command(normalized_command)
 

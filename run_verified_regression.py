@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.constants import DEFAULT_LLM_MODEL
+
 
 def load_json(path: Path) -> Optional[Dict[str, Any]]:
     if not path.exists():
@@ -174,7 +176,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="qwen3-max-2026-01-23",
+        default=DEFAULT_LLM_MODEL,
         help="Model forwarded to multi_docker_eval_adapter.py.",
     )
     parser.add_argument(

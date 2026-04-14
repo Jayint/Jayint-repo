@@ -1,0 +1,51 @@
+CMake Deprecation Warning at CMakeLists.txt:3 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+
+-------------------------------------------------------
+CppUTest Version 4.0
+
+Current compiler options:
+    CC:                                 /usr/bin/cc
+    CXX:                                /usr/local/bin/c++
+    CppUTest CFLAGS:                     -include "/testbed/include/CppUTest/MemoryLeakDetectorMallocMacros.h"  -Wall -Wextra -pedantic -Wshadow -Wswitch-default -Wswitch-enum -Wconversion -Wsign-conversion -Wno-padded -Wno-long-long -Wstrict-prototypes
+    CppUTest CXXFLAGS:                   -include "/testbed/include/CppUTest/MemoryLeakDetectorNewMacros.h" -include "/testbed/include/CppUTest/MemoryLeakDetectorMallocMacros.h"  -Wall -Wextra -pedantic -Wshadow -Wswitch-default -Wswitch-enum -Wconversion -Wsign-conversion -Wno-padded -Wno-long-long -Woverloaded-virtual -Wno-old-style-cast -Wno-c++14-compat
+    CppUTest LDFLAGS:                   
+
+Features configured in CppUTest:
+    Memory Leak Detection:              ON
+    Compiling Extensions:               ON
+    Support Long Long:                  OFF
+    Use CppUTest flags:                 ON
+
+    Using Standard C library:           ON
+    Using Standard C++ library:         ON
+    Using C++11 library:                OFF
+
+    Generating map file:                OFF
+    Compiling with coverage:            OFF
+
+    Compile and run self-tests          ON
+    Run self-tests separately           OFF
+
+-------------------------------------------------------
+
+-- Configuring done (0.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /testbed/build
+[1/3] Building CXX object tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o
+FAILED: tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o 
+/usr/local/bin/c++ -DCPPUTEST_HAVE_FORK -DCPPUTEST_HAVE_GETTIMEOFDAY=1 -DCPPUTEST_HAVE_PTHREAD_MUTEX_LOCK=1 -DCPPUTEST_HAVE_STRDUP=1 -DCPPUTEST_HAVE_WAITPID -DHAVE_CONFIG_H -I/testbed/build -I/testbed/include -I/testbed/src/CppUTest/../../include -include "/testbed/include/CppUTest/MemoryLeakDetectorNewMacros.h" -include "/testbed/include/CppUTest/MemoryLeakDetectorMallocMacros.h"  -Wall -Wextra -pedantic -Wshadow -Wswitch-default -Wswitch-enum -Wconversion -Wsign-conversion -Wno-padded -Wno-long-long -Woverloaded-virtual -Wno-old-style-cast -Wno-c++14-compat -O3 -DNDEBUG -std=c++17 -MD -MT tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o -MF tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o.d -o tests/CppUTest/CMakeFiles/CppUTestTests.dir/TestRegistryTest.cpp.o -c /testbed/tests/CppUTest/TestRegistryTest.cpp
+/testbed/tests/CppUTest/TestRegistryTest.cpp: In member function 'virtual void TEST_TestRegistry_listTestLocations_shouldListBackwardsGroupATestaAfterGroupAtestaa_Test::testBody()':
+/testbed/tests/CppUTest/TestRegistryTest.cpp:382:17: error: 'class TestRegistry' has no member named 'listTestLocations'
+  382 |     myRegistry->listTestLocations(*result);
+      |                 ^~~~~~~~~~~~~~~~~
+[2/3] Building CXX object tests/CppUTest/CMakeFiles/CppUTestTests.dir/CommandLineTestRunnerTest.cpp.o
+ninja: build stopped: subcommand failed.
+echo OMNIGRIL_EXIT_CODE=1

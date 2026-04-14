@@ -1,0 +1,438 @@
+Ignoring importlib_metadata: markers 'python_full_version < "3.10.2"' don't match your environment
+Ignoring tomli: markers 'python_version < "3.11"' don't match your environment
+Ignoring typing_extensions: markers 'python_version < "3.10"' don't match your environment
+Ignoring cx_Logging: markers 'sys_platform == "win32"' don't match your environment
+Ignoring lief: markers 'sys_platform == "win32"' don't match your environment
+Ignoring patchelf: markers 'sys_platform == "linux" and platform_machine == "i686"' don't match your environment
+Ignoring patchelf: markers 'sys_platform == "linux" and platform_machine == "aarch64"' don't match your environment
+Ignoring patchelf: markers 'sys_platform == "linux" and platform_machine == "armv7l"' don't match your environment
+Ignoring patchelf: markers 'sys_platform == "linux" and platform_machine == "ppc64le"' don't match your environment
+Ignoring patchelf: markers 'sys_platform == "linux" and platform_machine == "s390x"' don't match your environment
+Ignoring dmgbuild: markers 'sys_platform == "darwin"' don't match your environment
+Requirement already satisfied: packaging>=24 in /usr/local/lib/python3.12/site-packages (from -r requirements.txt (line 1)) (26.0)
+Requirement already satisfied: setuptools<76,>=65.6.3 in /usr/local/lib/python3.12/site-packages (from -r requirements.txt (line 2)) (75.9.1)
+Requirement already satisfied: filelock>=3.12.3 in /usr/local/lib/python3.12/site-packages (from -r requirements.txt (line 8)) (3.25.2)
+Requirement already satisfied: patchelf>=0.14 in /usr/local/lib/python3.12/site-packages (from -r requirements.txt (line 9)) (0.17.2.4)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.0.1
+[notice] To update, run: pip install --upgrade pip
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.3, pluggy-1.5.0
+rootdir: /testbed
+configfile: pyproject.toml
+plugins: datafiles-3.0.0, cov-5.0.0, xdist-3.6.1, timeout-2.3.1, mock-3.14.0
+collected 195 items / 2 skipped
+
+tests/test___init__.py ....                                              [  2%]
+tests/test___main__.py .                                                 [  2%]
+tests/test_cli.py ...F....                                               [  6%]
+tests/test_command_build.py ..                                           [  7%]
+tests/test_command_build_exe.py ........................................ [ 28%]
+.....................................                                    [ 47%]
+tests/test_command_install.py ..                                         [ 48%]
+tests/test_command_install_exe.py ..                                     [ 49%]
+tests/test_executables.py ..............F..........s.                    [ 63%]
+tests/test_finder.py ....                                                [ 65%]
+tests/test_freezer.py ........................................           [ 85%]
+tests/test_hooks_multiprocessing.py .........                            [ 90%]
+tests/test_hooks_stdlib.py .                                             [ 90%]
+tests/test_modulefinder.py ..................                            [100%]
+
+=================================== FAILURES ===================================
+__________________ test_cxfreeze_target_name_not_isidentifier __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_cxfreeze_target_name_not_0')
+
+    def test_cxfreeze_target_name_not_isidentifier(tmp_path: Path) -> None:
+        """Test cxfreeze --target-name not isidentifier, but valid filename."""
+        create_package(tmp_path, SOURCE)
+>       output = run_command(
+            tmp_path,
+            "cxfreeze --script test.py --target-name=12345 --excludes=tkinter",
+        )
+
+tests/test_cli.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/generate_samples.py:525: in run_command
+    return check_output(
+/usr/local/lib/python3.12/subprocess.py:466: in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['/usr/local/bin/cxfreeze', '--script', 'test.py', '--target-name=12345', '--excludes=tkinter'],)
+kwargs = {'cwd': '/tmp/pytest-of-root/pytest-0/test_cxfreeze_target_name_not_0', 'stdout': -1, 'text': True}
+process = <Popen: returncode: 1 args: ['/usr/local/bin/cxfreeze', '--script', 'test.py...>
+stdout = '', stderr = None, retcode = 1
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout (seconds) is given and the process takes too long,
+         a TimeoutExpired exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['/usr/local/bin/cxfreeze', '--script', 'test.py', '--target-name=12345', '--excludes=tkinter']' returned non-zero exit status 1.
+
+/usr/local/lib/python3.12/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "/usr/local/bin/cxfreeze", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/testbed/cx_Freeze/cli.py", line 246, in main
+    setup(
+  File "/testbed/cx_Freeze/__init__.py", line 66, in setup
+    return setuptools.setup(**attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/setuptools/__init__.py", line 117, in setup
+    return distutils.core.setup(**attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/setuptools/_distutils/core.py", line 148, in setup
+    _setup_distribution = dist = klass(attrs)
+                                 ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/setuptools/dist.py", line 319, in __init__
+    _Distribution.__init__(self, dist_attrs)
+  File "/usr/local/lib/python3.12/site-packages/setuptools/_distutils/dist.py", line 290, in __init__
+    self.finalize_options()
+  File "/usr/local/lib/python3.12/site-packages/setuptools/dist.py", line 681, in finalize_options
+    ep(self)
+  File "/testbed/cx_Freeze/__init__.py", line 76, in plugin_install
+    validate_executables(dist, "executables", dist.executables)
+  File "/testbed/cx_Freeze/executable.py", line 264, in validate_executables
+    executables[i] = Executable(**executable)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/testbed/cx_Freeze/executable.py", line 48, in __init__
+    self.target_name = target_name
+    ^^^^^^^^^^^^^^^^
+  File "/testbed/cx_Freeze/executable.py", line 236, in target_name
+    raise OptionError(msg)
+distutils.errors.DistutilsOptionError: target_name is invalid: '12345'
+_____________________ test_valid[target_name-12345-12345] ______________________
+
+option = 'target_name', value = '12345', result = '12345'
+
+    @pytest.mark.parametrize(
+        ("option", "value", "result"),
+        [
+            ("base", None, "console-"),
+            ("base", "console", "console-"),
+            (
+                "base",
+                "gui",
+                "Win32GUI-" if (IS_WINDOWS or IS_MINGW) else "console-",
+            ),
+            (
+                "base",
+                "service",
+                "Win32Service-" if (IS_WINDOWS or IS_MINGW) else "console-",
+            ),
+            ("init_script", None, "console.py"),
+            ("init_script", "console", "console.py"),
+            ("target_name", None, f"test{EXE_SUFFIX}"),
+            ("target_name", "test1", f"test1{EXE_SUFFIX}"),
+            ("target_name", "12345", f"12345{EXE_SUFFIX}"),
+            ("target_name", "test-0.1", f"test-0.1{EXE_SUFFIX}"),
+            ("target_name", "test.exe", "test.exe"),
+            ("icon", "icon", ("icon.ico", "icon.icns", "icon.png", "icon.svg")),
+        ],
+    )
+    def test_valid(option, value, result) -> None:
+        """Test valid values to use in Executable class."""
+>       executable = Executable("test.py", **{option: value})
+
+tests/test_executables.py:243: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+cx_Freeze/executable.py:48: in __init__
+    self.target_name = target_name
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Executable script=test.py>, name = '12345'
+
+    @target_name.setter
+    def target_name(self, name: str | None) -> None:
+        if name is None:
+            name = self.main_script.stem
+        else:
+            pathname = Path(name)
+            if name != pathname.name:
+                msg = (
+                    "target_name cannot contain the path, only the filename: "
+                    f"{pathname.name}"
+                )
+                raise OptionError(msg)
+            if sys.platform == "win32" and pathname.suffix.lower() == ".exe":
+                name = pathname.stem
+        self._name: str = name
+        name = name.partition(".")[0]
+        if not name.isidentifier():
+            for invalid in STRINGREPLACE:
+                name = name.replace(invalid, "_")
+        name = os.path.normcase(name)
+        if not name.isidentifier():
+            msg = f"target_name is invalid: {self._name!r}"
+>           raise OptionError(msg)
+E           distutils.errors.DistutilsOptionError: target_name is invalid: '12345'
+
+cx_Freeze/executable.py:236: DistutilsOptionError
+=========================== short test summary info ============================
+PASSED tests/test___init__.py::test_exposed_namespaces[None-extra_modules0]
+PASSED tests/test___init__.py::test_exposed_namespaces[win32-extra_modules1]
+PASSED tests/test___init__.py::test_exposed_namespaces[darwin-extra_modules2]
+PASSED tests/test___init__.py::test_exposed_namespaces[linux-extra_modules3]
+PASSED tests/test___main__.py::test___main__
+PASSED tests/test_cli.py::test_cxfreeze
+PASSED tests/test_cli.py::test_cxfreeze_help
+PASSED tests/test_cli.py::test_cxfreeze_additional_help
+PASSED tests/test_cli.py::test_cxfreeze_deprecated_behavior
+PASSED tests/test_cli.py::test_cxfreeze_deprecated_option
+PASSED tests/test_cli.py::test_cxfreeze_without_options
+PASSED tests/test_cli.py::test_cxfreeze_include_path
+PASSED tests/test_command_build.py::test_build
+PASSED tests/test_command_build.py::test_build_raises[build-exe=]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[build-exe=none]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[build-exe=dist]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[excludes='tkinter,unittest']
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[excludes=['tkinter','unittest']]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[include-msvcr=none]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[include-msvcr=false]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[include-msvcr=true]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[replace_paths=*]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[replace_paths=*=]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[replace_paths=[*=]]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent=none->0]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent=false->0]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent=true->1]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent-level=none->0]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent-level=0->0]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent-level=1->1]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent-level=2->2]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[silent-level=3->3]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_include_packages/zip_exclude_packages=none/none]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_include_package=[*]]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_exclude_packages=*]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_include_packages/zip_exclude_packages=namespace/namespace]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_include_package=*]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_filename=none]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_filename=test]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_filename=test.zip]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_filename=0]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[zip_filename=1]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[no_compress=false]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options[no_compress=true]
+PASSED tests/test_command_build_exe.py::test_build_exe_finalize_options_raises[build-exe=build]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--build-exe(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--build-exe=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--build-exe=dist]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--excludes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--excludes=tkinter,unittest]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--includes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--includes=tkinter,unittest]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--packages=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--packages=tkinter,unittest]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--replace-paths=*=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--bin-excludes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--bin-includes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--bin-path-excludes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--bin-path-includes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--include-files=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-includes=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-include-packages/--zip-exclude-packages(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-include-packages=/--zip-exclude-packages=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-include-package=*/--zip-exclude-packages=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-include-packages=/--zip-exclude-packages=*]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-include-packages/--zip-exclude-packages=namespace/namespace]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-filename=]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-filename=test]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--zip-filename=test.zip]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--no-compress(notused),--zip-filename(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--no-compress]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize=0]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize=1]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize=2]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize(-O0]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize(-O1]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--optimize(-O2]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent-level=0->0]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent-level=1->1]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent-level=2->2]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--silent-level=3->3]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--include-msvcr(notused)]
+PASSED tests/test_command_build_exe.py::test_build_exe_script_args[--include-msvcr]
+PASSED tests/test_command_build_exe.py::test_build_exe_advanced
+PASSED tests/test_command_build_exe.py::test_build_exe_asmodule
+PASSED tests/test_command_build_exe.py::test_build_exe_sqlite
+PASSED tests/test_command_build_exe.py::test_zip_include_packages
+PASSED tests/test_command_build_exe.py::test_zip_exclude_packages
+PASSED tests/test_command_install.py::test_install
+PASSED tests/test_command_install.py::test_install_pyproject
+PASSED tests/test_command_install_exe.py::test_install_exe_finalize_options[install-dir=none]
+PASSED tests/test_command_install_exe.py::test_install_exe_finalize_options[install-dir=dist]
+PASSED tests/test_executables.py::test_executables[setup_toml]
+PASSED tests/test_executables.py::test_executables[setup_py]
+PASSED tests/test_executables.py::test_executables[setup_cfg]
+PASSED tests/test_executables.py::test_executables[setup_mix]
+PASSED tests/test_executables.py::test_executables[setup_adv_toml]
+PASSED tests/test_executables.py::test_executables[setup_adv_py]
+PASSED tests/test_executables.py::test_valid[base-None-console-]
+PASSED tests/test_executables.py::test_valid[base-console-console-]
+PASSED tests/test_executables.py::test_valid[base-gui-console-]
+PASSED tests/test_executables.py::test_valid[base-service-console-]
+PASSED tests/test_executables.py::test_valid[init_script-None-console.py]
+PASSED tests/test_executables.py::test_valid[init_script-console-console.py]
+PASSED tests/test_executables.py::test_valid[target_name-None-test]
+PASSED tests/test_executables.py::test_valid[target_name-test1-test1]
+PASSED tests/test_executables.py::test_valid[target_name-test-0.1-test-0.1]
+PASSED tests/test_executables.py::test_valid[target_name-test.exe-test.exe]
+PASSED tests/test_executables.py::test_valid[icon-icon-result11]
+PASSED tests/test_executables.py::test_invalid[executables-invalid-empty]
+PASSED tests/test_executables.py::test_invalid[executables-invalid-string]
+PASSED tests/test_executables.py::test_invalid[executable-invalid-base]
+PASSED tests/test_executables.py::test_invalid[executable-invalid-init_script]
+PASSED tests/test_executables.py::test_invalid[executable-invalid-target_name]
+PASSED tests/test_executables.py::test_valid_icon
+PASSED tests/test_executables.py::test_not_found_icon
+PASSED tests/test_executables.py::test_executable_rename
+PASSED tests/test_finder.py::TestModuleFinder::test_scan_code
+PASSED tests/test_finder.py::TestModuleFinder::test_not_import_invalid_module_name
+PASSED tests/test_finder.py::TestModuleFinder::test_invalid_syntax
+PASSED tests/test_finder.py::TestModuleFinder::test_find_spec
+PASSED tests/test_freezer.py::test_freezer_target_dir_empty
+PASSED tests/test_freezer.py::test_freezer_target_dir_dist
+PASSED tests/test_freezer.py::test_freezer_target_dir_utf8
+PASSED tests/test_freezer.py::test_freezer_target_dir_in_path
+PASSED tests/test_freezer.py::test_freezer_target_dir_locked
+PASSED tests/test_freezer.py::test_freezer_default_bin_includes
+PASSED tests/test_freezer.py::test_freezer_default_bin_includes_emulated
+PASSED tests/test_freezer.py::test_freezer_populate_zip_options_invalid_values
+PASSED tests/test_freezer.py::test_freezer_options[compress=none]
+PASSED tests/test_freezer.py::test_freezer_options[compress=false]
+PASSED tests/test_freezer.py::test_freezer_options[compress=true]
+PASSED tests/test_freezer.py::test_freezer_options[excludes=['tkinter','unittest']]
+PASSED tests/test_freezer.py::test_freezer_options[include_msvcr=none]
+PASSED tests/test_freezer.py::test_freezer_options[include_msvcr=false]
+PASSED tests/test_freezer.py::test_freezer_options[include_msvcr=true]
+PASSED tests/test_freezer.py::test_freezer_options[replace_paths=*]
+PASSED tests/test_freezer.py::test_freezer_options[replace_paths=[*=]]
+PASSED tests/test_freezer.py::test_freezer_options[optimize=none->0]
+PASSED tests/test_freezer.py::test_freezer_options[optimize=0->0]
+PASSED tests/test_freezer.py::test_freezer_options[optimize=1->1]
+PASSED tests/test_freezer.py::test_freezer_options[optimize=2->2]
+PASSED tests/test_freezer.py::test_freezer_options[silent=none->0]
+PASSED tests/test_freezer.py::test_freezer_options[silent=false->0]
+PASSED tests/test_freezer.py::test_freezer_options[silent=true->1]
+PASSED tests/test_freezer.py::test_freezer_options[silent=0->0]
+PASSED tests/test_freezer.py::test_freezer_options[silent=1->1]
+PASSED tests/test_freezer.py::test_freezer_options[silent=2->2]
+PASSED tests/test_freezer.py::test_freezer_options[silent=3->3]
+PASSED tests/test_freezer.py::test_freezer_options[zip_include_packages/zip_exclude_packages=none/none]
+PASSED tests/test_freezer.py::test_freezer_options[zip_include_package=*]
+PASSED tests/test_freezer.py::test_freezer_options[zip_exclude_packages=*]
+PASSED tests/test_freezer.py::test_freezer_options[zip_include_packages/zip_exclude_packages=namespace/namespace]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=none]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=test]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=test.zip]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=test.zip/target_dir=utf_8/portuguese]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=test.zip/target_dir=utf_8/chinese]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=none/compress=true]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=none/compress=false]
+PASSED tests/test_freezer.py::test_freezer_zip_filename[zip_filename=name/compress=false]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample0-fork]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample1-fork]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample2-fork]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample3-fork]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample0-spawn]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample1-spawn]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample2-spawn]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample3-spawn]
+PASSED tests/test_hooks_multiprocessing.py::test_multiprocessing[sample3-forkserver]
+PASSED tests/test_hooks_stdlib.py::test_ssl
+PASSED tests/test_modulefinder.py::test_finder[absolute_import_test]
+PASSED tests/test_modulefinder.py::test_finder[coding_default_utf8_test]
+PASSED tests/test_modulefinder.py::test_finder[coding_explicit_cp1252_test]
+PASSED tests/test_modulefinder.py::test_finder[coding_explicit_utf8_test]
+PASSED tests/test_modulefinder.py::test_finder[extended_opargs_test]
+PASSED tests/test_modulefinder.py::test_finder[import_call_test]
+PASSED tests/test_modulefinder.py::test_finder[maybe_test]
+PASSED tests/test_modulefinder.py::test_finder[maybe_test_new]
+PASSED tests/test_modulefinder.py::test_finder[package_test]
+PASSED tests/test_modulefinder.py::test_finder[relative_import_test]
+PASSED tests/test_modulefinder.py::test_finder[relative_import_test_2]
+PASSED tests/test_modulefinder.py::test_finder[relative_import_test_3]
+PASSED tests/test_modulefinder.py::test_finder[relative_import_test_4]
+PASSED tests/test_modulefinder.py::test_finder[same_name_as_bad_test]
+PASSED tests/test_modulefinder.py::test_finder[sub_package_test]
+PASSED tests/test_modulefinder.py::test_bytecode
+PASSED tests/test_modulefinder.py::test_zip_include_packages
+PASSED tests/test_modulefinder.py::test_zip_exclude_packages
+FAILED tests/test_cli.py::test_cxfreeze_target_name_not_isidentifier - subpro...
+FAILED tests/test_executables.py::test_valid[target_name-12345-12345] - distu...
+SKIPPED [1] tests/test_hooks_multiprocess.py:15: Depends on extra package: multiprocess
+SKIPPED [1] tests/test_hooks_pandas.py:15: Depends on extra package: pandas
+SKIPPED [1] tests/test_executables.py:365: Windows tests
+============= 2 failed, 192 passed, 3 skipped in 144.54s (0:02:24) =============
+echo OMNIGRIL_EXIT_CODE=1

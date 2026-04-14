@@ -2,6 +2,7 @@ import re
 import os
 from typing import Optional
 from src.language_handlers import LanguageHandler
+from src.constants import DEFAULT_LLM_MODEL
 
 
 class Planner:
@@ -11,7 +12,7 @@ class Planner:
     def __init__(
         self,
         client,
-        model="gpt-4o",
+        model=DEFAULT_LLM_MODEL,
         language_handler: Optional[LanguageHandler] = None,
         repo_structure: str = "",
         maven_repository_hints: str = "",
@@ -79,7 +80,7 @@ class Planner:
             "RESPONSE FORMAT (always follow):\n"
             "Thought: <your reasoning>\n"
             "Action: <bash command to execute, or __ROLLBACK__>\n"
-            "Observation: <result of the command, will be provided by the system, DO NOT GENERATE THIS>",
+            "Do NOT write `Observation:`. The system will execute your Action and provide the Observation in the next message.",
 
             "READ THESE FIRST (highest-priority rules):\n"
             "- **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
@@ -155,7 +156,9 @@ class Planner:
 
             "IMPORTANT RESPONSE RULES:\n"
             "- Only output ONE Thought and ONE Action at a time.\n"
-            "- Stop immediately after the Action.",
+            "- Stop immediately after the Action.\n"
+            "- Never generate `Observation:`, a second `Action:`, `Verification Bundle:`, or `Final Answer:` in the same response as an Action.\n"
+            "- Do not simulate command execution results. You must wait for the system-provided Observation before planning the next step.",
         ])
 
         self.system_prompt = "\n\n".join(prompt_sections)
@@ -209,18 +212,22 @@ class Planner:
             }
         })
         
+        # 4. Parse the model output before storing it. Some OpenAI-compatible
+        # endpoints do not reliably honor stop sequences, so keep only the
+        # executable single-step ReAct message in history.
+        thought = self._extract_tag(content, "Thought")
+        action = self._extract_tag(content, "Action")
+        final_answer = self.extract_final_answer(content)
+        history_content = self.sanitize_assistant_content(content, thought=thought, action=action)
+
         if manage_history:
-            # 4. Append the assistant's response (Thought and Action) to history
-            self.history.append({"role": "assistant", "content": content})
+            self.history.append({"role": "assistant", "content": history_content})
             self._trim_history()
 
         # 5. 提取 token 使用量
         usage = response.usage
         usage_info = self._extract_usage(usage)
 
-        thought = self._extract_tag(content, "Thought")
-        action = self._extract_tag(content, "Action")
-        final_answer = self.extract_final_answer(content)
         is_finished = final_answer is not None and not action
 
         return thought, action, content, is_finished, usage_info
@@ -235,7 +242,8 @@ class Planner:
             raise ValueError("Managed history is not initialized.")
 
         assistant_index = len(self.managed_history)
-        self.managed_history.append({"role": "assistant", "content": assistant_content})
+        sanitized_assistant_content = self.sanitize_assistant_content(assistant_content)
+        self.managed_history.append({"role": "assistant", "content": sanitized_assistant_content})
         self.managed_history_meta.append({"step_id": step_id, "kind": "assistant"})
 
         observation_index = len(self.managed_history)
@@ -425,8 +433,45 @@ class Planner:
             "total_tokens": usage.total_tokens,
         }
 
+    def sanitize_assistant_content(self, text, thought=None, action=None):
+        """
+        Keep only the single-step ReAct message that should enter planner history.
+
+        Some model/provider combinations may ignore stop sequences and continue by
+        inventing Observations or future Actions. Those tokens are useful in raw
+        logs for debugging, but they must not become trajectory history.
+        """
+        if not text:
+            return ""
+
+        if thought is None:
+            thought = self._extract_tag(text, "Thought")
+        if action is None:
+            action = self._extract_tag(text, "Action")
+
+        lines = []
+        if thought:
+            lines.append(f"Thought: {thought}")
+        if action:
+            lines.append(f"Action: {action}")
+
+        if lines:
+            return "\n".join(lines)
+
+        return self._strip_generated_future_trajectory(text)
+
+    def _strip_generated_future_trajectory(self, text):
+        stop_pattern = (
+            r"\n(?:Observation|Action|Thought|Verification Bundle|Final Answer):"
+        )
+        match = re.search(stop_pattern, text)
+        if match:
+            return text[:match.start()].strip()
+        return text.strip()
+
     def _extract_tag(self, text, tag):
-        pattern = rf"{tag}:\s*(.*?)(?=\n\w+:|$)"
+        labels = r"Thought|Action|Observation|Verification Bundle|Final Answer"
+        pattern = rf"{tag}:\s*(.*?)(?=\n(?:{labels}):|$)"
         match = re.search(pattern, text, re.DOTALL)
         if match:
             content = match.group(1).strip()
