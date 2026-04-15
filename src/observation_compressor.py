@@ -446,6 +446,7 @@ class RunTokenLedger:
     image_selector: TokenBucket = field(default_factory=TokenBucket)
     planner: TokenBucket = field(default_factory=TokenBucket)
     reflection: TokenBucket = field(default_factory=TokenBucket)
+    memory: TokenBucket = field(default_factory=TokenBucket)
     total: TokenBucket = field(default_factory=TokenBucket)
 
     def add(self, bucket_name: str, input_tokens: int, output_tokens: int):

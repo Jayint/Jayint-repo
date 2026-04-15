@@ -20,6 +20,7 @@ class Planner:
         prompt_budget_tokens: int = None,
         completion_reserve_tokens: int = None,
         history_token_budget: int = None,
+        enable_long_term_memory: bool = False,
     ):
         self.client = client
         self.model = model
@@ -41,6 +42,7 @@ class Planner:
             else self.DEFAULT_COMPLETION_RESERVE_TOKENS
         )
         self.history_token_budget = history_token_budget
+        self.enable_long_term_memory = enable_long_term_memory
         
         # Create log directory if specified
         if self.log_dir:
@@ -76,10 +78,16 @@ class Planner:
         if language_instructions:
             prompt_sections.append(language_instructions.rstrip())
 
+        action_format = (
+            "Action: <bash command to execute, __ROLLBACK__, or __RETRIEVE_MEMORY__>"
+            if self.enable_long_term_memory
+            else "Action: <bash command to execute, or __ROLLBACK__>"
+        )
+
         prompt_sections.extend([
             "RESPONSE FORMAT (always follow):\n"
             "Thought: <your reasoning>\n"
-            "Action: <bash command to execute, or __ROLLBACK__>\n"
+            f"{action_format}\n"
             "Do NOT write `Observation:`. The system will execute your Action and provide the Observation in the next message.",
 
             "READ THESE FIRST (highest-priority rules):\n"
@@ -114,7 +122,18 @@ class Planner:
             "- **When Rollback Is Appropriate**: Consider `__ROLLBACK__` after a failed package-manager/install step, a failed config edit, a failed database initialization/startup sequence, or any failed multi-step mutation that may have left partial state behind.\n"
             "- **When Rollback Is Usually NOT Appropriate**: Do not use `__ROLLBACK__` for read-only search commands, health checks, connection probes, or ordinary test failures unless you have evidence the environment itself was changed or corrupted.\n"
             "- **Split Mutation From Verification**: Avoid chaining a mutating step and a probe/test in one command. Prefer one action for the mutation, then a separate action for the verification, so you can decide whether rollback is necessary based on what failed.",
+        ])
 
+        if self.enable_long_term_memory:
+            prompt_sections.append(
+                "LONG-TERM MEMORY TOOL:\n"
+                "- After a concrete command failure, you may request relevant prior setup lessons by outputting exactly `Action: __RETRIEVE_MEMORY__`.\n"
+                "- Use this when the failure seems non-obvious, repeated, or related to package managers, build tools, local services, network/mirror behavior, or compatibility issues.\n"
+                "- Do NOT use memory retrieval as your first action. It is only for learning from a recent failure.\n"
+                "- Retrieved memories are suggestions, not proof. You must still run real setup commands and project tests to verify the environment."
+            )
+
+        prompt_sections.extend([
             "PACKAGE / NETWORK STRATEGY:\n"
             "- **Retry Transient Package Manager Failures**: If package installation fails due to mirror/network/package-index issues (for example 502 errors or fetch errors), retry the package-manager workflow, split installs into smaller steps, or use recovery flags before abandoning the required service path.\n"
             "- **Prefer Small Package Batches On Flaky Networks**: Do NOT start with one huge `apt-get install` that mixes runtimes, frontend toolchains, databases, brokers, search engines, and other large dependency trees. Install the smallest critical package set first, confirm progress, then add the next batch.\n"

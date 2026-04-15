@@ -31,7 +31,7 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from agent import DockerAgent
-from src.constants import DEFAULT_LLM_MODEL
+from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.synthesizer import (
     build_dockerfile_apt_bootstrap_run_instructions,
     is_generated_apt_bootstrap_run_instruction,
@@ -93,7 +93,10 @@ RUN git clone {repo_url} /testbed
                                base_image: str = "auto",
                                model: str = DEFAULT_LLM_MODEL,
                                max_steps: int = 30,
-                               enable_observation_compression: bool = False) -> Dict[str, Any]:
+                               enable_observation_compression: bool = False,
+                               enable_long_term_memory: bool = False,
+                               memory_path: Optional[str] = None,
+                               memory_embedding_model: str = DEFAULT_MEMORY_EMBEDDING_MODEL) -> Dict[str, Any]:
         """
         处理单个评估实例
         
@@ -172,6 +175,9 @@ RUN git clone {repo_url} /testbed
                 workplace=workplace,
                 base_commit=base_commit,  # checkout before image selection for accurate LLM analysis
                 enable_observation_compression=enable_observation_compression,
+                enable_long_term_memory=enable_long_term_memory,
+                memory_path=memory_path,
+                memory_embedding_model=memory_embedding_model,
             )
             
             # base_commit 已在 DockerAgent.__init__ 中完成 checkout
@@ -318,6 +324,7 @@ RUN git clone {repo_url} /testbed
                 None,
             )
             result["logs"]["verification_source"] = getattr(agent, "verification_source", None)
+            result["logs"]["memory_stats"] = getattr(agent, "memory_stats", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch
             if not result["dockerfile"] or not result["eval_script"]:
@@ -1322,6 +1329,9 @@ exit 1
                        model: str = DEFAULT_LLM_MODEL,
                        max_steps: int = 30,
                        enable_observation_compression: bool = False,
+                       enable_long_term_memory: bool = False,
+                       memory_path: Optional[str] = None,
+                       memory_embedding_model: str = DEFAULT_MEMORY_EMBEDDING_MODEL,
                        limit: Optional[int] = None) -> str:
         """
         批量处理数据集
@@ -1357,6 +1367,9 @@ exit 1
                 model=model,
                 max_steps=max_steps,
                 enable_observation_compression=enable_observation_compression,
+                enable_long_term_memory=enable_long_term_memory,
+                memory_path=memory_path,
+                memory_embedding_model=memory_embedding_model,
             )
             results.append(result)
         
@@ -1424,6 +1437,21 @@ def main():
         help="Enable AgentDiet-style observation compression"
     )
     parser.add_argument(
+        "--enable-long-term-memory",
+        action="store_true",
+        help="Enable failure-triggered long-term memory retrieval and post-run memory writing"
+    )
+    parser.add_argument(
+        "--memory-path",
+        default=None,
+        help="Path to the JSONL long-term memory store"
+    )
+    parser.add_argument(
+        "--memory-embedding-model",
+        default=DEFAULT_MEMORY_EMBEDDING_MODEL,
+        help=f"Embedding model for long-term memory (default: {DEFAULT_MEMORY_EMBEDDING_MODEL})"
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         help="Limit number of instances to process (for testing)"
@@ -1438,6 +1466,9 @@ def main():
         model=args.model,
         max_steps=args.max_steps,
         enable_observation_compression=args.enable_observation_compression,
+        enable_long_term_memory=args.enable_long_term_memory,
+        memory_path=args.memory_path,
+        memory_embedding_model=args.memory_embedding_model,
         limit=args.limit
     )
 

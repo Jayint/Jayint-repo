@@ -9,7 +9,8 @@ from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
 from src.image_selector import ImageSelector
-from src.constants import DEFAULT_LLM_MODEL
+from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
+from src.memory_manager import LongTermMemoryManager
 from src.observation_compressor import (
     AgentStep,
     ObservationCompressor,
@@ -108,6 +109,9 @@ class DockerAgent:
         workplace="workplace",
         base_commit=None,
         enable_observation_compression=False,
+        enable_long_term_memory=False,
+        memory_path=None,
+        memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
     ):
         self.repo_url = repo_url
         self.workplace = os.path.abspath(workplace)
@@ -123,6 +127,22 @@ class DockerAgent:
         self._environment_revision = 0
         self._current_verification_group = []
         self.enable_observation_compression = enable_observation_compression
+        self.enable_long_term_memory = enable_long_term_memory
+        self.memory_path = memory_path
+        self.memory_embedding_model = memory_embedding_model
+        self.memory_manager = None
+        self.last_failed_memory_context = None
+        self.memory_stats = {
+            "enabled": enable_long_term_memory,
+            "retrievals": 0,
+            "retrieval_hits": 0,
+            "generation_attempted": False,
+            "candidate_memories": 0,
+            "written_memories": 0,
+            "skipped_duplicates": 0,
+            "skipped_invalid": 0,
+            "errors": [],
+        }
         self.safety_compression_threshold_chars = 200_000
         self.safety_compression_target_chars = 20_000
         self.compression_delay = 2
@@ -163,6 +183,19 @@ class DockerAgent:
             api_key=api_key,
             base_url=base_url if base_url else None
         )
+
+        if self.enable_long_term_memory:
+            self.memory_manager = LongTermMemoryManager(
+                client=self.client,
+                llm_model=model,
+                memory_path=self.memory_path,
+                embedding_model=self.memory_embedding_model,
+            )
+            print(
+                "[DockerAgent] Long-term memory enabled: "
+                f"{self.memory_manager.memory_path} "
+                f"(embedding: {self.memory_embedding_model})"
+            )
         
         # 4. Auto-detect base image if set to "auto" or not specified
         platform_override = None
@@ -258,6 +291,7 @@ class DockerAgent:
         # Setup log directory for LLM calls (similar to image_selector_logs)
         setup_log_dir = os.path.join(self.workplace, "setup_logs")
         os.makedirs(setup_log_dir, exist_ok=True)
+        self.setup_log_dir = setup_log_dir
         
         self.planner = Planner(
             self.client,
@@ -266,6 +300,7 @@ class DockerAgent:
             repo_structure=combined_repo_info,
             maven_repository_hints=maven_repository_hints,
             log_dir=setup_log_dir,
+            enable_long_term_memory=self.enable_long_term_memory,
         )
         self.synthesizer = Synthesizer(base_image=base_image)
         self.observation_compressor = None
@@ -633,7 +668,12 @@ class DockerAgent:
                 
                 # 2. Execute Action in Sandbox
                 env_revision_before = self._environment_revision
-                if self._is_explicit_rollback_action(action):
+                is_rollback_action = self._is_explicit_rollback_action(action)
+                is_memory_retrieval_action = self._is_memory_retrieval_action(action)
+                if is_memory_retrieval_action:
+                    print("\n[System] Agent requested long-term memory retrieval for the last failure.")
+                    success, observation = True, self._retrieve_long_term_memory_observation()
+                elif is_rollback_action:
                     print("\n[System] Agent requested an explicit rollback to the last successful snapshot.")
                     success, observation = self.sandbox.rollback(reason="agent_requested")
                 else:
@@ -644,7 +684,7 @@ class DockerAgent:
                 
                 # 3. Synthesize if successful
                 mutates_environment = False
-                if success and not self._is_explicit_rollback_action(action):
+                if success and not is_rollback_action and not is_memory_retrieval_action:
                     self.synthesizer.record_success(action)
                     mutates_environment = self.synthesizer.command_mutates_environment(action)
                     self._record_successful_action(step + 1, action, observation)
@@ -654,6 +694,8 @@ class DockerAgent:
                             "\n[System] Command failed. Current container state was preserved unless the sandbox "
                             "had to recover from an unhealthy container."
                         )
+                        if not is_rollback_action and not is_memory_retrieval_action:
+                            self._remember_failure_for_memory(action, prompt_observation)
 
                 if self.enable_observation_compression:
                     self._record_agent_step(
@@ -678,6 +720,7 @@ class DockerAgent:
                 # 生成 Dockerfile 到 workplace 目录
                 dockerfile_path = os.path.join(self.workplace, "Dockerfile")
                 self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+                self._maybe_generate_long_term_memories(configuration_success)
             else:
                 print(f"\n{'='*20} Environment Configuration FAILED {'='*20}")
                 print("[Warning] Configuration did not complete successfully. No Dockerfile will be generated.")
@@ -692,6 +735,123 @@ class DockerAgent:
     def _is_explicit_rollback_action(self, action):
         normalized = (action or "").strip()
         return normalized in {"__ROLLBACK__", "__ROLLBACK_TO_LAST_SUCCESS__"}
+
+    def _is_memory_retrieval_action(self, action):
+        return (action or "").strip() == "__RETRIEVE_MEMORY__"
+
+    def _remember_failure_for_memory(self, action, observation):
+        if not self.enable_long_term_memory:
+            return
+        self.last_failed_memory_context = {
+            "command": action or "",
+            "observation": observation or "",
+            "repo_url": self.repo_url,
+            "services": sorted(getattr(self, "required_local_services", set())),
+        }
+
+    def _retrieve_long_term_memory_observation(self):
+        if not self.enable_long_term_memory or not self.memory_manager:
+            return (
+                "Long-term memory retrieval is disabled. Continue diagnosing from "
+                "the current command output."
+            )
+
+        if not self.last_failed_memory_context:
+            return (
+                "Long-term memory retrieval was requested, but there is no recent "
+                "failed command context. Continue with a normal diagnostic command."
+            )
+
+        self.memory_stats["retrievals"] += 1
+        try:
+            results, _query = self.memory_manager.retrieve(
+                failed_command=self.last_failed_memory_context.get("command", ""),
+                failed_observation=self.last_failed_memory_context.get("observation", ""),
+                repo_url=self.last_failed_memory_context.get("repo_url", self.repo_url),
+                services=self.last_failed_memory_context.get("services", []),
+            )
+        except Exception as exc:
+            message = f"Long-term memory retrieval failed: {exc}"
+            self.memory_stats["errors"].append(message)
+            print(f"[Long-Term Memory] {message}")
+            return (
+                "Long-term memory retrieval failed due to a system-side error. "
+                f"Error: {exc}\n"
+                "Continue diagnosing from the current command output."
+            )
+
+        self.memory_stats["retrieval_hits"] += len(results)
+        return self.memory_manager.format_retrieval_results(results)
+
+    def _maybe_generate_long_term_memories(self, configuration_success):
+        if not configuration_success or not self.enable_long_term_memory or not self.memory_manager:
+            return
+
+        self.memory_stats["generation_attempted"] = True
+        setup_log_text = self._read_latest_setup_log()
+        if not setup_log_text:
+            self.memory_stats["errors"].append("No setup log found for memory generation.")
+            print("[Long-Term Memory] No setup log found; skipping memory generation.")
+            return
+
+        try:
+            result = self.memory_manager.generate_memories_from_run(
+                setup_log_text=setup_log_text,
+                run_summary=self._build_run_summary(configuration_success, run_error=None),
+                repo_url=self.repo_url,
+            )
+        except Exception as exc:
+            message = f"Long-term memory generation failed: {exc}"
+            self.memory_stats["errors"].append(message)
+            print(f"[Long-Term Memory] {message}")
+            return
+
+        self.run_token_ledger.add(
+            "memory",
+            input_tokens=result.usage.input_tokens,
+            output_tokens=result.usage.output_tokens,
+        )
+        self.memory_stats["candidate_memories"] += result.candidate_count
+        self.memory_stats["written_memories"] += result.written
+        self.memory_stats["skipped_duplicates"] += result.skipped_duplicates
+        self.memory_stats["skipped_invalid"] += result.skipped_invalid
+        if result.error:
+            self.memory_stats["errors"].append(result.error)
+        print(
+            "[Long-Term Memory] Generation complete: "
+            f"{result.written} written, "
+            f"{result.skipped_duplicates} duplicate(s), "
+            f"{result.skipped_invalid} invalid candidate(s)."
+        )
+        if result.error:
+            print(f"[Long-Term Memory] Generation warning: {result.error}")
+
+    def _read_latest_setup_log(self):
+        setup_log_dir = getattr(self, "setup_log_dir", None)
+        if not setup_log_dir or not os.path.isdir(setup_log_dir):
+            return ""
+
+        candidates = [
+            os.path.join(setup_log_dir, filename)
+            for filename in os.listdir(setup_log_dir)
+            if filename.endswith(".md")
+        ]
+        if not candidates:
+            return ""
+
+        def sort_key(path):
+            stem = os.path.splitext(os.path.basename(path))[0]
+            if stem.isdigit():
+                return (0, int(stem))
+            return (1, os.path.getmtime(path))
+
+        latest_path = sorted(candidates, key=sort_key)[-1]
+        try:
+            with open(latest_path, "r", encoding="utf-8") as file_obj:
+                return file_obj.read()
+        except OSError as exc:
+            self.memory_stats["errors"].append(f"Could not read latest setup log: {exc}")
+            return ""
 
     def _record_agent_step(
         self,
@@ -1072,9 +1232,8 @@ class DockerAgent:
         self.verified_test_commands = []
         self.verified_test_command = None
 
-    def _write_run_summary(self, configuration_success, run_error=None):
-        """Persist structured run metadata so the adapter does not need to parse markdown logs."""
-        summary = {
+    def _build_run_summary(self, configuration_success, run_error=None):
+        return {
             "repo_url": self.repo_url,
             "configuration_success": configuration_success,
             "verified_test_command": self.verified_test_command,
@@ -1087,6 +1246,10 @@ class DockerAgent:
             "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,
             "compression_stats": self.compression_stats,
+            "long_term_memory_enabled": self.enable_long_term_memory,
+            "memory_path": str(self.memory_manager.memory_path) if self.memory_manager else self.memory_path,
+            "memory_embedding_model": self.memory_embedding_model,
+            "memory_stats": self.memory_stats,
             "steps": [
                 {
                     "step_id": step.step_id,
@@ -1106,10 +1269,15 @@ class DockerAgent:
                 "image_selector": self.run_token_ledger.image_selector.__dict__,
                 "planner": self.run_token_ledger.planner.__dict__,
                 "reflection": self.run_token_ledger.reflection.__dict__,
+                "memory": self.run_token_ledger.memory.__dict__,
                 "total": self.run_token_ledger.total.__dict__,
             },
             "error": run_error,
         }
+
+    def _write_run_summary(self, configuration_success, run_error=None):
+        """Persist structured run metadata so the adapter does not need to parse markdown logs."""
+        summary = self._build_run_summary(configuration_success, run_error=run_error)
         try:
             with open(self.run_summary_path, "w", encoding="utf-8") as f:
                 json.dump(summary, f, indent=2, ensure_ascii=False)
@@ -1129,6 +1297,21 @@ if __name__ == "__main__":
         action="store_true",
         help="Enable AgentDiet-style observation compression (default: disabled)",
     )
+    parser.add_argument(
+        "--enable-long-term-memory",
+        action="store_true",
+        help="Enable failure-triggered long-term memory retrieval and post-run memory writing (default: disabled)",
+    )
+    parser.add_argument(
+        "--memory-path",
+        default=None,
+        help="Path to the JSONL long-term memory store (default: memory/long_term_memories.jsonl)",
+    )
+    parser.add_argument(
+        "--memory-embedding-model",
+        default=DEFAULT_MEMORY_EMBEDDING_MODEL,
+        help=f"Embedding model for long-term memory (default: {DEFAULT_MEMORY_EMBEDDING_MODEL})",
+    )
     
     args = parser.parse_args()
     
@@ -1137,5 +1320,8 @@ if __name__ == "__main__":
         base_image=args.image,
         model=args.model,
         enable_observation_compression=args.enable_observation_compression,
+        enable_long_term_memory=args.enable_long_term_memory,
+        memory_path=args.memory_path,
+        memory_embedding_model=args.memory_embedding_model,
     )
     agent.run(max_steps=args.steps, keep_container=args.keep_container)

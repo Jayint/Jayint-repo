@@ -135,6 +135,18 @@ class PlannerPromptTests(unittest.TestCase):
         self.assertIn("Action: __ROLLBACK__", planner.system_prompt)
         self.assertIn("Split Mutation From Verification", planner.system_prompt)
 
+    def test_system_prompt_exposes_long_term_memory_only_when_enabled(self):
+        default_planner = Planner(client=None)
+        memory_planner = Planner(client=None, enable_long_term_memory=True)
+
+        self.assertNotIn("__RETRIEVE_MEMORY__", default_planner.system_prompt)
+        self.assertIn("__RETRIEVE_MEMORY__", memory_planner.system_prompt)
+        self.assertIn("LONG-TERM MEMORY TOOL", memory_planner.system_prompt)
+        self.assertIn(
+            "Action: <bash command to execute, __ROLLBACK__, or __RETRIEVE_MEMORY__>",
+            memory_planner.system_prompt,
+        )
+
     def test_system_prompt_forbids_generated_observations_and_future_steps(self):
         planner = Planner(client=None)
 

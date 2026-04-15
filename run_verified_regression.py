@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.constants import DEFAULT_LLM_MODEL
+from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 
 
 def load_json(path: Path) -> Optional[Dict[str, Any]]:
@@ -191,6 +191,21 @@ def parse_args() -> argparse.Namespace:
         help="Enable AgentDiet-style observation compression during adapter runs.",
     )
     parser.add_argument(
+        "--enable-long-term-memory",
+        action="store_true",
+        help="Enable failure-triggered long-term memory during adapter runs.",
+    )
+    parser.add_argument(
+        "--memory-path",
+        default=None,
+        help="Path to the JSONL long-term memory store.",
+    )
+    parser.add_argument(
+        "--memory-embedding-model",
+        default=DEFAULT_MEMORY_EMBEDDING_MODEL,
+        help=f"Embedding model for long-term memory (default: {DEFAULT_MEMORY_EMBEDDING_MODEL}).",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         help="Only run the first N instances from the dataset.",
@@ -247,6 +262,9 @@ def main() -> int:
         "model": args.model,
         "base_image": args.base_image,
         "enable_observation_compression": args.enable_observation_compression,
+        "enable_long_term_memory": args.enable_long_term_memory,
+        "memory_path": args.memory_path,
+        "memory_embedding_model": args.memory_embedding_model,
         "run_root": str(run_root),
         "instance_count": len(instances),
         "instances": [],
@@ -293,6 +311,12 @@ def main() -> int:
         ]
         if args.enable_observation_compression:
             adapter_command.append("--enable-observation-compression")
+        if args.enable_long_term_memory:
+            adapter_command.append("--enable-long-term-memory")
+        if args.memory_path:
+            adapter_command.extend(["--memory-path", args.memory_path])
+        if args.memory_embedding_model:
+            adapter_command.extend(["--memory-embedding-model", args.memory_embedding_model])
 
         adapter_run = run_command(adapter_command, cwd=repo_root)
         adapter_instance_result = load_json(adapter_output_dir / f"{instance_id}.json")
