@@ -1,0 +1,18 @@
+FROM python:3.12
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN poetry install
+RUN sed -i '/\[tool.pytest.ini_options\]/a log_cli = true\nlog_cli_level = "INFO"\naddopts = "--ignore={{cookiecutter.repository}}"' pyproject.toml
+RUN git config --global --add safe.directory /app
+RUN git checkout pyproject.toml
+RUN printf '%s' 'cHl0aG9uMyA8PCAnUFlFT0YnCmNvbnRlbnQgPSAiIiIjIGh0dHBzOi8vcHl0aG9uLXBvZXRyeS5vcmcvZG9jcy9weXByb2plY3QvCgojIFBBQ0tBR0UKClt0b29sLnBvZXRyeV0KbmFtZSA9ICJjb29raWVjdXR0ZXItbWxvcHMtcGFja2FnZSIKdmVyc2lvbiA9ICIxLjAuMCIKZGVzY3JpcHRpb24gPSAiQnVpbGQgYW5kIGRlcGxveSBQeXRob24gcGFja2FnZXMgYW5kIERvY2tlciBpbWFnZXMgZm9yIE1MT3BzIHRhc2tzLiIKcmVwb3NpdG9yeSA9ICJodHRwczovL2dpdGh1Yi5jb20vZm1pbmQvY29va2llY3V0dGVyLW1sb3BzLXBhY2thZ2UiCmF1dGhvcnMgPSBbIk3DqWTDqXJpYyBIVVJJRVIgPGdpdGh1YkBmbWluZC5kZXY+Il0KcmVhZG1lID0gIlJFQURNRS5tZCIKbGljZW5zZSA9ICJNSVQiCnBhY2thZ2UtbW9kZSA9IGZhbHNlCgojIERFUEVOREVOQ0lFUwoKW3Rvb2wucG9ldHJ5LmRlcGVuZGVuY2llc10KcHl0aG9uID0gIl4zLjEyIgoKW3Rvb2wucG9ldHJ5Lmdyb3VwLmRldi5kZXBlbmRlbmNpZXNdCmNvbW1pdGl6ZW4gPSAiXjMuMjguMCIKaW52b2tlID0gIl4yLjIuMCIKcHJlLWNvbW1pdCA9ICJeMy43LjEiCnB5dGVzdCA9ICJeOC4zLjIiCnB5dGVzdC1jb29raWVzID0gIl4wLjcuMCIKcHl0ZXN0LXNoZWxsLXV0aWxpdGllcyA9ICJeMS45LjAiCgojIENPTkZJR1VSQVRJT05TCgpbdG9vbC5jb21taXRpemVuXQpuYW1lID0gImN6X2NvbnZlbnRpb25hbF9jb21taXRzIgp0YWdfZm9ybWF0ID0gInYkdmVyc2lvbiIKdmVyc2lvbl9zY2hlbWUgPSAicGVwNDQwIgp2ZXJzaW9uX3Byb3ZpZGVyID0gInBvZXRyeSIKdXBkYXRlX2NoYW5nZWxvZ19vbl9idW1wID0gdHJ1ZQoKW3Rvb2wucHl0ZXN0LmluaV9vcHRpb25zXQpsb2dfY2xpID0gdHJ1ZQpsb2dfY2xpX2xldmVsID0gIklORk8iCmFkZG9wdHMgPSAiLS1pZ25vcmU9e3tjb29raWVjdXR0ZXIucmVwb3NpdG9yeX19IgoKIyBTWVNURU1TCgpbYnVpbGQtc3lzdGVtXQpyZXF1aXJlcyA9IFsicG9ldHJ5LWNvcmUiXQpidWlsZC1iYWNrZW5kID0gInBvZXRyeS5jb3JlLm1hc29ucnkuYXBpIgoiIiIKd2l0aCBvcGVuKCdweXByb2plY3QudG9tbCcsICd3JykgYXMgZjoKICAgIGYud3JpdGUoY29udGVudCkKUFlFT0Y=' | base64 -d > /tmp/jayint_run_6.sh && chmod +x /tmp/jayint_run_6.sh && /bin/sh /tmp/jayint_run_6.sh
+RUN poetry run pytest --collect-only -q --disable-warnings

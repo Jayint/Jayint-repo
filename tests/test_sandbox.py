@@ -62,6 +62,7 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         sandbox.container = FakeContainer(results=replay_results)
         sandbox.client = FakeDockerClient()
         sandbox.last_success_image = "snapshot123"
+        sandbox.snapshot_image_ids = set()
         sandbox.base_image = "ubuntu:22.04"
         sandbox.volumes = None
         sandbox.platform = None
@@ -122,12 +123,12 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertEqual(len(sandbox.container.calls), 2)
         self.assertEqual(
             sandbox.container.calls[0]["command"],
-            ["/bin/bash", "-c", "service postgresql start"],
+            ["/bin/bash", "-c", "/bin/bash -o pipefail -lc 'service postgresql start'"],
         )
         self.assertEqual(sandbox.container.calls[0]["workdir"], "/app")
         self.assertEqual(
             sandbox.container.calls[1]["command"],
-            ["/bin/bash", "-c", "service rabbitmq-server start"],
+            ["/bin/bash", "-c", "/bin/bash -o pipefail -lc 'service rabbitmq-server start'"],
         )
         self.assertEqual(
             sandbox.runtime_replay_commands,
@@ -149,6 +150,56 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertIs(sandbox.container, original_container)
         self.assertFalse(original_container.stopped)
         self.assertFalse(original_container.removed)
+
+    def test_failed_mutating_command_adds_prefix_rerun_or_rollback_guidance(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=1, output=b"pytorch3d not found")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pytorch3d")
+
+        self.assertFalse(success)
+        self.assertIn("FAILED SETUP MUTATION", output)
+        self.assertIn("partially installed packages", output)
+        self.assertIn("rerun that prefix/sub-step as its own separate Action", output)
+        self.assertIn("Action: __ROLLBACK__", output)
+        self.assertIn("pytorch3d not found", output)
+
+    def test_transient_pip_install_failure_is_retried_before_reporting(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=1,
+                    output=b"pip._vendor.urllib3.exceptions.ReadTimeoutError: timed out",
+                ),
+                SimpleNamespace(exit_code=0, output=b"Successfully installed robustbench"),
+            ],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("python -m pip install robustbench")
+
+        self.assertTrue(success)
+        self.assertIn("Transient pip install failure on attempt 1", output)
+        self.assertIn("Successfully installed robustbench", output)
+        self.assertEqual(len(sandbox.container.calls), 2)
+
+    def test_failed_readonly_command_does_not_add_mutation_guidance(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=1, output=b"missing file")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("cat /app/missing-file")
+
+        self.assertFalse(success)
+        self.assertNotIn("FAILED SETUP MUTATION", output)
+        self.assertEqual(output, "missing file")
 
     def test_explicit_rollback_restores_last_success_snapshot(self):
         sandbox = self._make_sandbox()
@@ -209,6 +260,45 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertIn("Action: __ROLLBACK__", output)
         self.assertEqual(sandbox.package_manager_broken_failure_streak, 1)
 
+    def test_test_error_count_adds_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "collected 32 items\n==================== 32 passed, 1 error in 0.31s ====================",
+        )
+
+        self.assertIn("TEST FAILURE DETECTED", prefix)
+        self.assertIn("Repo2Run-style pytest collection", prefix)
+        self.assertIn("collection/import/config errors", prefix)
+
+    def test_zero_failed_summary_does_not_add_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "Tests run: 10, Failures: 0, Errors: 0, Skipped: 0",
+        )
+
+        self.assertEqual(prefix, "")
+
+    def test_zero_failed_ctest_summary_does_not_add_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "\n".join(
+                [
+                    "Passed:                           660",
+                    "Failed:                             0",
+                    "Unexpected successes:               0",
+                    "[100%] Built target test",
+                ]
+            ),
+        )
+
+        self.assertEqual(prefix, "")
+
     def test_repeated_package_manager_recovery_failures_upgrade_hint_strength(self):
         sandbox = self._make_sandbox()
         sandbox.container = FakeContainer(
@@ -240,6 +330,125 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertFalse(second_success)
         self.assertIn("STRONG ROLLBACK CANDIDATE", second_output)
         self.assertEqual(sandbox.package_manager_broken_failure_streak, 2)
+
+    def test_truncated_test_output_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=0,
+                    output=b"collected 207 items\n207 passed in 47.25s\n",
+                )
+            ],
+            status="running",
+        )
+
+        success, output = sandbox.execute(
+            "cd /app && python -m pytest tests -v 2>&1 | head -100"
+        )
+
+        self.assertFalse(success)
+        self.assertIn("COMMAND REJECTED BEFORE EXECUTION", output)
+        self.assertIn("was NOT executed", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_setup_output_filter_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet 2>&1 | tail -20")
+
+        self.assertFalse(success)
+        self.assertIn("COMMAND REJECTED BEFORE EXECUTION", output)
+        self.assertIn("must not pipe output through `head`, `tail`, or `grep`", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_readonly_output_filter_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"setup.py\n")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("find /app -name setup.py 2>/dev/null | head -20")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "setup.py\n")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_compound_setup_mutations_are_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet && pip3 install pytorch3d")
+
+        self.assertFalse(success)
+        self.assertIn("multiple independent setup mutations", output)
+        self.assertIn("environment was not changed", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_mutation_plus_probe_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"ok")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet && python -c 'import pybullet'")
+
+        self.assertFalse(success)
+        self.assertIn("setup mutation with a verification, probe, or read-only check", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_navigation_then_single_setup_mutation_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("cd /app && pip3 install -e .")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "installed")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_apt_update_install_chain_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed cmake")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("apt-get update && apt-get install -y cmake")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "installed cmake")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_command_wrapper_uses_pipefail_without_timeout(self):
+        sandbox = self._make_sandbox()
+        sandbox.command_timeout_seconds = None
+
+        wrapped = sandbox._wrap_command_with_timeout("pip3 install missing-package | tail -20")
+
+        self.assertIn("/bin/bash -o pipefail -lc", wrapped)
+
+    def test_command_wrapper_uses_pipefail_with_timeout(self):
+        sandbox = self._make_sandbox()
+        sandbox.command_timeout_seconds = 42
+
+        wrapped = sandbox._wrap_command_with_timeout("pip3 install missing-package | tail -20")
+
+        self.assertIn("timeout --foreground --kill-after=30s 42s /bin/bash -o pipefail -lc", wrapped)
 
 
 class SandboxAptBootstrapTests(unittest.TestCase):

@@ -1,0 +1,8 @@
+FROM python:3.11
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN pip install -e . pytest

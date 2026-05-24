@@ -1,0 +1,1021 @@
+{
+  "dataset_entry": {
+    "instance_id": "271374667__VideoFusion",
+    "full_name": "271374667/VideoFusion",
+    "repo_url": "https://github.com/271374667/VideoFusion.git",
+    "sha": "9ba7b8",
+    "base_commit": "9ba7b8",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/271374667/VideoFusion.git",
+      "--base-commit",
+      "9ba7b8",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/271374667/VideoFusion.git --base-commit 9ba7b8 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-23T23:44:31.469442+08:00",
+    "finished_at": "2026-04-24T00:15:36.300472+08:00",
+    "duration_seconds": 1864.831,
+    "stdout": "Cloning https://github.com/271374667/VideoFusion.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion...\nClone successful.\nChecked out commit: 9ba7b8\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 10 potentially relevant files\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ pnpm-lock.yaml\n[ImageSelector]   ✓ .python-version\n[ImageSelector]   ✓ .github/workflows/build.yml\n[ImageSelector]   ✓ requirements.lock\n[ImageSelector]   ✓ .github/workflows/deploy.yml\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✓ requirements-dev.lock\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ package.json\n[ImageSelector] 10 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses PyTorch, OpenCV (opencv-contrib-python), ONNXruntime, and other native C-extension based packages (librosa, numba, scipy). These packages have architecture-specific binaries and may encounter issues on ARM64 platforms (Apple Silicon). The CI/CD workflows primarily test on `windows-latest` and `ubuntu-latest` (x86_64). For Apple Silicon Macs, you may need to use the `--platform linux/amd64` flag or expect longer build times as packages compile from source. GPU/CUDA support would require nvidia-docker with a CUDA-enabled image variant.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/logs/image_selector_logs\nInitializing container from python:3.10...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.10 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:35b08\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/logs/compression_logs\nStarting agent for repository: https://github.com/271374667/VideoFusion.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 3089, Output: 111, Total: 3200\n\n[Thought]\nI need to analyze the repository to understand its dependencies and setup requirements. Let me start by examining the key configuration files.\n\n[Action]\ncat pyproject.toml\n[Container ID: c42b78b46175]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nname = \"videomosaic\"\nversion = \"0.1.0\"\ndescription = \"一站式短视频拼接软件 无依赖,点击即用,自动去黑边,自动帧同步,自动调整分辨率,批量变更视频为横屏/竖屏\"\nauthors = [\n    { name = \"PythonImporter\", email = \"271374667@qq.com\" }\n]\ndependencies = [\n    \"pyside6-fluent-widgets>=1.5.6\",\n    \"ansi2html>=1.9.1\",\n    \"loguru>=0.7.2\",\n    \"opencv-contrib-python>=4.10.0.84\",\n    \"typing-extensions>=4.12.2\",\n    \"auto-editor>=24.31.1\",\n    \"audio-separator[cpu]>=0.18.3\",\n    \"noisereduce>=3.0.2\",\n    \"onnx==1.16.1\",\n]\nreadme = \"README.md\"\nrequires-python = \">= 3.10\"\n\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[tool.rye]\nmanaged = true\ndev-dependencies = [\n    \"nuitka>=2.2.3\",\n    \"pyinstaller>=6.10.0\",\n]\n\n[[tool.rye.sources]]\nname = \"default\"\nurl = \"https://pypi.tuna.tsinghua.edu.cn/simple\"\n\n[[tool.rye.sources]]\nname = \"pypi\"\nurl = \"https://pypi.org/simple\"\n\n[[tool.rye.sources]]\nname = \"pytorch\"\nurl = \"https://download.pytorch.org/whl/cu121\"\n\n[tool.hatch.metadata]\nallow-direct-references = true\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/videomosaic\"]\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 3524, Output: 49, Total: 3573\n\n[Thought]\nLet me check the requirements.txt file and other configuration files to understand the full dependency list.\n\n[Action]\ncat requirements.txt\n[Container ID: c42b78b46175]\nExecuting: cat requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\npyside6-fluent-widgets>=1.5.6\nansi2html>=1.9.1\nloguru>=0.7.2\nopencv-contrib-python>=4.10.0.84\ntyping-extensions>=4.12.2\nauto-editor>=24.31.1\naudio-separator[cpu]>=0.18.3\nnoisereduce>=3.0.2\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3650, Output: 65, Total: 3715\n\n[Thought]\nLet me check the README for any special installation requirements and also examine the test structure.\n\n[Action]\nhead -100 README.md\n[Container ID: c42b78b46175]\nExecuting: head -100 README.md\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n<h1 align=\"center\">\n    VideoFusion\n</h1>\n<p align=\"center\">一站式视频批量处理软件<p>\n<p align=\"center\">\n    点击即用，自动去黑边，智能拼接，补帧，自动调整分辨率，白平衡，AI 音频降噪\n</p>\n<p align=\"center\">\n    <img alt=\"最新版本\" src=\"https://img.shields.io/github/v/release/271374667/VideoFusion\">\n    <img alt=\"downloads\" src=\"https://img.shields.io/github/downloads/271374667/VideoFusion/total\">\n    <img alt=\"License: LGPL-2.1\" src=\"https://img.shields.io/github/license/271374667/VideoFusion\">\n    <img alt=\"最后提交时间\" src=\"https://img.shields.io/github/last-commit/271374667/VideoFusion\">\n    <img alt=\"Github star数\" src=\"https://img.shields.io/github/stars/271374667/VideoFusion\">\n</p>\n\n\n![logo](./README.assets/banner.png)\n\n## 10 秒爱上VideoFusion\n\n下面这个 GIF 将会带您快速查看两个有不规则黑边的视频是如何完美去除黑边然后旋转成正确的朝向最后合并的\n\n![10 秒爱上VideoFusion](README.assets/demo.gif)\n\n\n## ✨软件介绍\n\nVideoFusion 旨在打造一个上手即用，随用随走的轻量化视频批量优化和处理工具，对于无经验的视频创作者您只需要几次点击就能实现视频拼接，AI音频降噪，超分平滑，白平衡，亮度自动调整，补帧等功能，使用 VideoFusion 帮助您预处理您的视频，您无需关心参数和更多细节，VideoFusion 会自动帮您处理好剩下复杂的逻辑\n\nVideoFusion 最初的目标是制作一个能够快速去除大量视频黑边的软件，其中还需要为对视频进行合成，但是视频的尺寸不一致，分辨率也不一致，视频内横屏还是竖屏的状态也不一致，于是我开发了这个软件，能够批量将视频去除黑边后旋转到统一尺寸最后合并，相比其他的合并软件，VideoFusion 合并视频会计算最佳的分辨率，进行缩放/旋转/剪裁等一系列操作后才会进行合并，确保大量视频哪怕分辨率不一致，合成完毕之后的黑边区域面积最小（其他软件分辨率不一致直接合并会出现大量黑边，严重影响观感）\n\n同时 VideoFusion 对去黑边进行了特化，可以去除多种多样的黑边，视频外有 logo，多余的文字都可以进行去除\n\n在不断的发展中 VideoFusion 功能越来越强大，经过 VideoFusion 处理过的视频，大小可能仅为原来的一半！但是画面却没有肉眼可见的损失，同时还增加了大量新的功能，例如白平衡，亮度自动调整，响度自动调整，补帧等等功能，功能非常多而且未来还会继续更新，欢迎大家前往文档查看\n\n## 🚀功能介绍\n\n![3](./README.assets/3.jpg)\n\n\n<div align=\"center\">\n    <p align=\"center\">软件详情请前往文档进行查看</p>\n    <a href=\"https://271374667.github.io/VideoFusion/\">点我前往文档</a>\n</div>\n\n\n\n## 如何运行该项目\n\n### 推荐运行方法(用户)\n\n直接通过 Release 下载最新的版本直接点击其中的 exe 文件即可运行\n\n### 编译运行(程序员)\n\n> 推荐运行环境 Python 3.10\n> 备注: 可以选择更高版本,但是不能低于 Python 3.10\n\n通过在项目根目录下输入下面的命令安装第三方库\n\n```cmd\npip install -r requirements.txt\n```\n\n然后运行项目根目录下的 `video_fusion.py` 文件\n\n## 额外说明\n\n- 该软件支持 Window10 64位 以及 Window11 64位，其余 Window 版本未经过测试，不保证稳定运行\n- 该软件永久免费，如果您在其他地方付费下载到了该软件请马上退款止损\n- 如果您使用出现了问题或者对软件的建议请您在该页面提出 issue\n- 如果您有更多的问题请前往文档查看\n\n==================== Step 4 ====================\n\n[Tokens] Input: 4483, Output: 58, Total: 4541\n\n[Thought]\nLet me check the tests directory to understand the test structure and look at the test files.\n\n[Action]\nfind tests -type f -name \"*.py\" | head -20\n[Container ID: c42b78b46175]\nExecuting: find tests -type f -name \"*.py\" | head -20\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntests/test_processors/__init__.py\ntests/test_processors/test_opencv_processors/crop_processor_test.py\ntests/test_processors/test_opencv_processors/rotate_processor_test.py\ntests/test_processors/test_opencv_processors/__init__.py\ntests/test_processors/test_opencv_processors/resize_processor_test.py\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py\ntests/test_balck_remove_algorithm/__init__.py\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\ntests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py\ntests/ffmpeg_handler_test.py\ntests/__init__.py\ntests/utils_test/image_utils_test.py\ntests/utils_test/__init__.py\ntests/video_info_reader_test.py\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4695, Output: 68, Total: 4763\n\n[Thought]\nLet me check the test files to understand their structure and dependencies.\n\n[Action]\ncat tests/__init__.py tests/ffmpeg_handler_test.py tests/video_info_reader_test.py 2>/dev/null | head -80\n[Container ID: c42b78b46175]\nExecuting: cat tests/__init__.py tests/ffmpeg_handler_test.py tests/video_info_reader_test.py 2>/dev/null | head -80\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport subprocess\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nfrom src.common.ffmpeg_handler import FFmpegHandler\n\n\nclass TestFFmpegHandler(unittest.TestCase):\n\n    @patch('subprocess.Popen')\n    def test_successful_command_execution_emits_finish_signal(self, mock_popen):\n        mock_process = MagicMock()\n        mock_process.communicate.return_value = ('output', '')\n        mock_process.returncode = 0\n        mock_popen.return_value = mock_process\n        handler = FFmpegHandler()\n        handler._signal_bus.set_detail_progress_finish.emit = MagicMock()\n\n        handler.run_command('ffmpeg -i input.mp4 output.mp3')\n\n        handler._signal_bus.set_detail_progress_finish.emit.assert_called_once()\n\n    @patch('subprocess.Popen')\n    def test_command_execution_with_non_zero_exit_code_raises_exception(self, mock_popen):\n        mock_process = MagicMock()\n        mock_process.communicate.return_value = ('', 'error')\n        mock_process.returncode = 1\n        mock_popen.return_value = mock_process\n        handler = FFmpegHandler()\n\n        with self.assertRaises(subprocess.CalledProcessError):\n            handler.run_command('ffmpeg -i input.mp4 output.mp3')\n\n    @patch('subprocess.Popen')\n    def test_empty_command_raises_value_error(self, mock_popen):\n        handler = FFmpegHandler()\n\n        with self.assertRaises(ValueError):\n            handler.run_command('')\n\n    @patch('subprocess.Popen')\n    def test_progress_tracking_updates_progress_correctly(self, mock_popen):\n        mock_process = MagicMock()\n        mock_process.stdout.readline.side_effect = ['frame= 10\\n', 'frame= 20\\n', '']\n        mock_process.communicate.return_value = ('', '')\n        mock_process.returncode = 0\n        mock_popen.return_value = mock_process\n        handler = FFmpegHandler()\n        handler._signal_bus.set_detail_progress_current.emit = MagicMock()\n\n        handler.run_command('ffmpeg -i input.mp4 output.mp3', progress_total=20)\n\n        handler._signal_bus.set_detail_progress_current.emit.assert_any_call(10)\n        handler._signal_bus.set_detail_progress_current.emit.assert_any_call(20)\n\n    @patch('subprocess.Popen')\n    def test_command_execution_with_stderr_logs_critical_and_emits_failed_signal(self, mock_popen):\n        mock_process = MagicMock()\n        mock_process.communicate.return_value = ('', 'error')\n        mock_process.returncode = 1\n        mock_popen.return_value = mock_process\n        handler = FFmpegHandler()\n        handler._signal_bus.failed.emit = MagicMock()\n\n        try:\n            handler.run_command('ffmpeg -i input.mp4 output.mp3')\n        except subprocess.CalledProcessError:\n            pass\n\n        handler._signal_bus.failed.emit.assert_called_once()\nimport unittest\nfrom pathlib import Path\n\nfrom src.common.black_remove_algorithm.video_remover import VideoRemover\nfrom src.common.video_info_reader import VideoInfoReader\n\nTEST_VIDEO_PATH: Path = Path(r\"E:\\load\\python\\Project\\VideoFusion\\tests\\test_data\\videos\\001.mp4\")\n\n\nclass TestVideoInfoReader(unittest.TestCase):\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4742, Output: 44, Total: 4786\n\n[Thought]\nLet me check the Python version available and also look at the test configuration.\n\n[Action]\npython --version && which python\n[Container ID: c42b78b46175]\nExecuting: python --version && which python\nCommand succeeded.\n[Snapshot Created] sha256:9b536\n\n[Observation]\nPython 3.10.20\n/usr/local/bin/python\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4791, Output: 94, Total: 4885\n\n[Thought]\nPython 3.10 is available which matches the requirements. Let me install the dependencies from requirements.txt. Since the project uses PySide6 and other heavy dependencies, I'll install them first.\n\n[Action]\npip install -r requirements.txt 2>&1 | tail -30\n[Container ID: c42b78b46175]\nExecuting: pip install -r requirements.txt 2>&1 | tail -30\nCommand succeeded.\n[Snapshot Created] sha256:d5a90\n\n[Observation]\nCollecting cuda-pathfinder~=1.1\n  Downloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.0/50.0 kB 4.4 MB/s eta 0:00:00\nCollecting llvmlite<0.48,>=0.47.0dev0\n  Downloading llvmlite-0.47.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (56.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 MB 5.2 MB/s eta 0:00:00\nCollecting platformdirs>=2.5.0\n  Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nCollecting threadpoolctl>=3.1.0\n  Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nCollecting mpmath<1.4,>=1.1.0\n  Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 1.8 MB/s eta 0:00:00\nCollecting humanfriendly>=9.1\n  Downloading humanfriendly-10.0-py2.py3-none-any.whl (86 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.8/86.8 kB 370.6 kB/s eta 0:00:00\nCollecting MarkupSafe>=2.0\n  Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\nBuilding wheels for collected packages: julius\n  Building wheel for julius (setup.py): started\n  Building wheel for julius (setup.py): finished with status 'done'\n  Created wheel for julius: filename=julius-0.2.7-py3-none-any.whl size=21966 sha256=c3ba58008f8393611d7401b8c195bf63e39b0e009b3deffeac952ee61f8f37b2\n  Stored in directory: /root/.cache/pip/wheels/b9/b2/05/f883527ffcb7f2ead5438a2c23439aa0c881eaa9a4c80256f4\nSuccessfully built julius\nInstalling collected packages: PySideSix-Frameless-Window, pydub, nvidia-cusparselt-cu13, mpmath, flatbuffers, cuda-toolkit, urllib3, typing-extensions, triton, tqdm, threadpoolctl, sympy, six, shiboken6, pyyaml, pyparsing, pycparser, protobuf, platformdirs, pillow, packaging, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, msgpack, MarkupSafe, loguru, llvmlite, kiwisolver, joblib, idna, humanfriendly, fsspec, fonttools, filelock, einops, decorator, darkdetect, Cython, cycler, cuda-pathfinder, charset_normalizer, certifi, beartype, auto-editor, audioread, ansi2html, absl-py, soxr, scipy, requests, python-dateutil, PySide6_Essentials, opencv-contrib-python, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, numba, ml_dtypes, ml_collections, lazy_loader, jinja2, cuda-bindings, contourpy, coloredlogs, cffi, soundfile, scikit-learn, samplerate, resampy, PySide6_Addons, pooch, onnxruntime, onnx-weekly, nvidia-cusolver, matplotlib, PySide6, noisereduce, librosa, torch, pyside6-fluent-widgets, torchvision, rotary-embedding-torch, julius, diffq, onnx2torch-py313, audio-separator\nSuccessfully installed Cython-3.2.4 MarkupSafe-3.0.3 PySide6-6.11.0 PySide6_Addons-6.11.0 PySide6_Essentials-6.11.0 PySideSix-Frameless-Window-0.8.1 absl-py-2.4.0 ansi2html-1.9.2 audio-separator-0.44.1 audioread-3.1.0 auto-editor-29.3.1 beartype-0.18.5 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 coloredlogs-15.0.1 contourpy-1.3.2 cuda-bindings-13.2.0 cuda-pathfinder-1.5.3 cuda-toolkit-13.0.2 cycler-0.12.1 darkdetect-0.8.0 decorator-5.2.1 diffq-0.2.4 einops-0.8.2 filelock-3.29.0 flatbuffers-25.12.19 fonttools-4.62.1 fsspec-2026.3.0 humanfriendly-10.0 idna-3.13 jinja2-3.1.6 joblib-1.5.3 julius-0.2.7 kiwisolver-1.5.0 lazy_loader-0.5 librosa-0.11.0 llvmlite-0.47.0 loguru-0.7.3 matplotlib-3.10.8 ml_collections-1.1.0 ml_dtypes-0.5.4 mpmath-1.3.0 msgpack-1.1.2 networkx-3.4.2 noisereduce-3.0.3 numba-0.65.0 numpy-2.2.6 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 onnx-weekly-1.22.0.dev20260421 onnx2torch-py313-1.6.0 onnxruntime-1.23.2 opencv-contrib-python-4.13.0.92 packaging-26.1 pillow-12.2.0 platformdirs-4.9.6 pooch-1.9.0 protobuf-7.34.1 pycparser-3.0 pydub-0.25.1 pyparsing-3.3.2 pyside6-fluent-widgets-1.11.2 python-dateutil-2.9.0.post0 pyyaml-6.0.3 requests-2.33.1 resampy-0.4.3 rotary-embedding-torch-0.6.5 samplerate-0.1.0 scikit-learn-1.7.2 scipy-1.15.3 shiboken6-6.11.0 six-1.17.0 soundfile-0.13.1 soxr-1.0.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchvision-0.26.0 tqdm-4.67.3 triton-3.6.0 typing-extensions-4.15.0 urllib3-2.6.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 6829, Output: 67, Total: 6896\n\n[Thought]\nDependencies installed successfully. Now let me verify that pytest can collect the tests from the repository.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1 | head -50\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1 | head -50\nCommand rejected before execution: output-filtered test command.\n\n[Observation]\n[SYSTEM] INVALID TEST COMMAND: this test command pipes output through `head`, `tail`, or `grep`, which can hide failures and mask the test runner exit code.\n[SYSTEM] The command was NOT executed. Rerun the same test command without output-filtering pipes. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 9 ====================\n\n[Tokens] Input: 6947, Output: 60, Total: 7007\n\n[Thought]\nI need to run pytest collection without any output filtering. Let me run it directly.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: pytest: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 10 ====================\n\n[Tokens] Input: 7007, Output: 45, Total: 7052\n\n[Thought]\npytest is not installed. Let me install it to run the test collection.\n\n[Action]\npip install pytest 2>&1 | tail -10\n[Container ID: c42b78b46175]\nExecuting: pip install pytest 2>&1 | tail -10\nCommand succeeded.\n[Snapshot Created] sha256:a59f4\n\n[Observation]\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 4.1 MB/s eta 0:00:00\nCollecting tomli>=1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nRequirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\nInstalling collected packages: tomli, pygments, pluggy, iniconfig, exceptiongroup, pytest\nSuccessfully installed exceptiongroup-1.3.1 iniconfig-2.3.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 tomli-2.4.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 7309, Output: 48, Total: 7357\n\n[Thought]\npytest is now installed. Let me run the test collection again.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 9 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\nImportError while importing test module '/app/tests/ffmpeg_handler_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/ffmpeg_handler_test.py:5: in <module>\n    from src.common.ffmpeg_handler import FFmpegHandler\nsrc/common/ffmpeg_handler.py:6: in <module>\n    import cv2\n/usr/local/lib/python3.10/site-packages/cv2/__init__.py:181: in <module>\n    bootstrap()\n/usr/local/lib/python3.10/site-packages/cv2/__init__.py:153: in bootstrap\n    native_module = importlib.import_module(\"cv2\")\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py _\nImportError while importing test module '/app/tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:4: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py _\nImportError while importing test module '/app/tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:4: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/bilateral_denoise_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/bilateral_denoise_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_doising_processor import BilateralDenoiseProcessor\nE   ModuleNotFoundError: No module named 'src.common.processors.opencv_processors.means_doising_processor'\n_ ERROR collecting tests/test_processors/test_opencv_processors/crop_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/crop_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/crop_processor_test.py:6: in <module>\n    from src.common.processors.opencv_processors.crop_processor import CropProcessor\nsrc/common/processors/opencv_processors/crop_processor.py:4: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/resize_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/resize_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/resize_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.resize_processor import ResizeProcessor\nsrc/common/processors/opencv_processors/resize_processor.py:1: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/rotate_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/rotate_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/rotate_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.rotate_processor import RotateProcessor\nsrc/common/processors/opencv_processors/rotate_processor.py:1: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n____________ ERROR collecting tests/utils_test/image_utils_test.py _____________\nImportError while importing test module '/app/tests/utils_test/image_utils_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/utils_test/image_utils_test.py:6: in <module>\n    from src.common.utils.image_utils import ImageUtils\nsrc/common/utils/image_utils.py:3: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n_______________ ERROR collecting tests/video_info_reader_test.py _______________\nImportError while importing test module '/app/tests/video_info_reader_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/video_info_reader_test.py:4: in <module>\n    from src.common.black_remove_algorithm.video_remover import VideoRemover\nsrc/common/black_remove_algorithm/video_remover.py:3: in <module>\n    import cv2\nE   ImportError: libGL.so.1: cannot open shared object file: No such file or directory\n=========================== short test summary info ============================\nERROR tests/ffmpeg_handler_test.py\nERROR tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/utils_test/image_utils_test.py\nERROR tests/video_info_reader_test.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 9 errors during collection !!!!!!!!!!!!!!!!!!!!\nno tests collected, 9 errors in 0.68s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 12 ====================\n\n[Tokens] Input: 9421, Output: 200, Total: 9621\n\n[Thought]\nThe tests are failing because of missing OpenGL libraries required by OpenCV and Qt. I need to install the required system packages.\n\n[Action]\napt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -20\n[Container ID: c42b78b46175]\nExecuting: apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -20\nCommand succeeded.\n[Snapshot Created] sha256:2f218\n\n[Observation]\nHit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main amd64 Packages [9671 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [5412 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [127 kB]\nFetched 9894 kB in 14s (727 kB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nPackage libgl1-mesa-glx is not available, but is referred to by another package.\nThis may mean that the package is missing, has been obsoleted, or\nis only available from another source\n\nE: Package 'libgl1-mesa-glx' has no installation candidate\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 9788, Output: 155, Total: 9943\n\n[Thought]\nThe package name has changed in newer Debian versions. Let me try the newer package name.\n\n[Action]\napt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -15\n[Container ID: c42b78b46175]\nExecuting: apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -15\nCommand succeeded.\n[Snapshot Created] sha256:1bcbd\n\n[Observation]\nSetting up dbus (1.16.2-2) ...\ninvoke-rc.d: could not determine current runlevel\ninvoke-rc.d: policy-rc.d denied execution of start.\nSetting up libxkbcommon-x11-0:amd64 (1.7.0-2) ...\nSetting up libdrm2:amd64 (2.4.124-2) ...\nSetting up libdrm-amdgpu1:amd64 (2.4.124-2) ...\nSetting up mesa-vulkan-drivers:amd64 (25.0.7-2) ...\nSetting up libdrm-intel1:amd64 (2.4.124-2) ...\nSetting up mesa-libgallium:amd64 (25.0.7-2) ...\nSetting up libgbm1:amd64 (25.0.7-2) ...\nSetting up libgl1-mesa-dri:amd64 (25.0.7-2) ...\nSetting up libglx-mesa0:amd64 (25.0.7-2) ...\nSetting up libglx0:amd64 (1.7.0-1+b2) ...\nSetting up libgl1:amd64 (1.7.0-1+b2) ...\nProcessing triggers for libc-bin (2.41-12+deb13u2) ...\n\n\n==================== Step 14 ====================\n\n[Tokens] Input: 8689, Output: 71, Total: 8760\n\n[Thought]\nThe OpenGL libraries are now installed. Let me run pytest collection again to check if there are any remaining issues.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 8 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\nImportError while importing test module '/app/tests/ffmpeg_handler_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/ffmpeg_handler_test.py:5: in <module>\n    from src.common.ffmpeg_handler import FFmpegHandler\nsrc/common/ffmpeg_handler.py:9: in <module>\n    from src.config import AudioNoiseReduction, AudioSampleRate, FrameRateAdjustment, VideoCodec, cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py _\nImportError while importing test module '/app/tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:10: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py _\nImportError while importing test module '/app/tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:10: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/bilateral_denoise_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/bilateral_denoise_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_doising_processor import BilateralDenoiseProcessor\nE   ModuleNotFoundError: No module named 'src.common.processors.opencv_processors.means_doising_processor'\n_ ERROR collecting tests/test_processors/test_opencv_processors/crop_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/crop_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/crop_processor_test.py:6: in <module>\n    from src.common.processors.opencv_processors.crop_processor import CropProcessor\nsrc/common/processors/opencv_processors/crop_processor.py:4: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/resize_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/resize_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/resize_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.resize_processor import ResizeProcessor\nsrc/common/processors/opencv_processors/resize_processor.py:6: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_ ERROR collecting tests/test_processors/test_opencv_processors/rotate_processor_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/rotate_processor_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/rotate_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.rotate_processor import RotateProcessor\nsrc/common/processors/opencv_processors/rotate_processor.py:5: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n_______________ ERROR collecting tests/video_info_reader_test.py _______________\nImportError while importing test module '/app/tests/video_info_reader_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/video_info_reader_test.py:4: in <module>\n    from src.common.black_remove_algorithm.video_remover import VideoRemover\nsrc/common/black_remove_algorithm/video_remover.py:8: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:7: in <module>\n    from qfluentwidgets import (BoolValidator, ConfigItem, ConfigValidator, EnumSerializer, FolderValidator,\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/__init__.py:18: in <module>\n    from .components import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/__init__.py:1: in <module>\n    from .dialog_box import *\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/__init__.py:1: in <module>\n    from .color_dialog import ColorDialog\n/usr/local/lib/python3.10/site-packages/qfluentwidgets/components/dialog_box/color_dialog.py:3: in <module>\n    from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,\nE   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory\n=========================== short test summary info ============================\nERROR tests/ffmpeg_handler_test.py\nERROR tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/video_info_reader_test.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 8 errors during collection !!!!!!!!!!!!!!!!!!!!\n2 tests collected, 8 errors in 1.13s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 15 ====================\n\n[Tokens] Input: 11944, Output: 68, Total: 12012\n\n[Thought]\nI need to install libEGL which is required by PySide6/Qt.\n\n[Action]\napt-get install -y libegl1 2>&1 | tail -10\n[Container ID: c42b78b46175]\nExecuting: apt-get install -y libegl1 2>&1 | tail -10\nCommand succeeded.\n[Snapshot Created] sha256:e5113\n\n[Observation]\nSelecting previously unselected package libegl-mesa0:amd64.\n(Reading database ... \n(Reading database ... 5%\n(Reading database ... 10%\n(Reading database ... 15%\n(Reading database ... 20%\n(Reading database ... 25%\n(Reading database ... 30%\n(Reading database ... 35%\n(Reading database ... 40%\n(Reading database ... 45%\n(Reading database ... 50%\n(Reading database ... 55%\n(Reading database ... 60%\n(Reading database ... 65%\n(Reading database ... 70%\n(Reading database ... 75%\n(Reading database ... 80%\n(Reading database ... 85%\n(Reading database ... 90%\n(Reading database ... 95%\n(Reading database ... 100%\n(Reading database ... 27532 files and directories currently installed.)\nPreparing to unpack .../libegl-mesa0_25.0.7-2_amd64.deb ...\nUnpacking libegl-mesa0:amd64 (25.0.7-2) ...\nSelecting previously unselected package libegl1:amd64.\nPreparing to unpack .../libegl1_1.7.0-1+b2_amd64.deb ...\nUnpacking libegl1:amd64 (1.7.0-1+b2) ...\nSetting up libegl-mesa0:amd64 (25.0.7-2) ...\nSetting up libegl1:amd64 (1.7.0-1+b2) ...\nProcessing triggers for libc-bin (2.41-12+deb13u2) ...\n\n\n==================== Step 16 ====================\n\n[Tokens] Input: 12352, Output: 60, Total: 12412\n\n[Thought]\nlibEGL is now installed. Let me run pytest collection again to verify.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 8 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\ntests/ffmpeg_handler_test.py:5: in <module>\n    from src.common.ffmpeg_handler import FFmpegHandler\nsrc/common/ffmpeg_handler.py:9: in <module>\n    from src.config import AudioNoiseReduction, AudioSampleRate, FrameRateAdjustment, VideoCodec, cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n------------------------------- Captured stdout --------------------------------\n\n\u001b[1;33m📢 Tips:\u001b[0m QFluentWidgets Pro is now released. Click \u001b[1;96mhttps://qfluentwidgets.com/pages/pro\u001b[0m to learn more about it.\n\n_ ERROR collecting tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py _\ntests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:10: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n_ ERROR collecting tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py _\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py:5: in <module>\n    from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover\nsrc/common/black_remove_algorithm/img_black_remover.py:10: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n_ ERROR collecting tests/test_processors/test_opencv_processors/bilateral_denoise_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/bilateral_denoise_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_doising_processor import BilateralDenoiseProcessor\nE   ModuleNotFoundError: No module named 'src.common.processors.opencv_processors.means_doising_processor'\n_ ERROR collecting tests/test_processors/test_opencv_processors/crop_processor_test.py _\ntests/test_processors/test_opencv_processors/crop_processor_test.py:6: in <module>\n    from src.common.processors.opencv_processors.crop_processor import CropProcessor\nsrc/common/processors/opencv_processors/crop_processor.py:4: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n_ ERROR collecting tests/test_processors/test_opencv_processors/resize_processor_test.py _\ntests/test_processors/test_opencv_processors/resize_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.resize_processor import ResizeProcessor\nsrc/common/processors/opencv_processors/resize_processor.py:6: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n_ ERROR collecting tests/test_processors/test_opencv_processors/rotate_processor_test.py _\ntests/test_processors/test_opencv_processors/rotate_processor_test.py:5: in <module>\n    from src.common.processors.opencv_processors.rotate_processor import RotateProcessor\nsrc/common/processors/opencv_processors/rotate_processor.py:5: in <module>\n    from src.common.processors.processor_global_var import ProcessorGlobalVar\nsrc/common/processors/processor_global_var.py:2: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n_______________ ERROR collecting tests/video_info_reader_test.py _______________\ntests/video_info_reader_test.py:4: in <module>\n    from src.common.black_remove_algorithm.video_remover import VideoRemover\nsrc/common/black_remove_algorithm/video_remover.py:8: in <module>\n    from src.signal_bus import SignalBus\nsrc/signal_bus.py:6: in <module>\n    from src.utils import singleton\nsrc/utils.py:18: in <module>\n    from src.config import cfg\nsrc/config.py:19: in <module>\n    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')\n/usr/local/lib/python3.10/locale.py:620: in setlocale\n    return _setlocale(category, locale)\nE   locale.Error: unsupported locale setting\n=========================== short test summary info ============================\nERROR tests/ffmpeg_handler_test.py - locale.Error: unsupported locale setting\nERROR tests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py - ...\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py - l...\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/video_info_reader_test.py - locale.Error: unsupported locale setting\n!!!!!!!!!!!!!!!!!!! Interrupted: 8 errors during collection !!!!!!!!!!!!!!!!!!!!\n2 tests collected, 8 errors in 1.35s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 17 ====================\n\n[Tokens] Input: 11300, Output: 120, Total: 11420\n\n[Thought]\nThe tests are failing due to a missing locale. I need to install the en_US.UTF-8 locale.\n\n[Action]\napt-get install -y locales && localedef -i en_US -f UTF-8 en_US.UTF-8 2>&1 | tail -15\n[Container ID: c42b78b46175]\nExecuting: apt-get install -y locales && localedef -i en_US -f UTF-8 en_US.UTF-8 2>&1 | tail -15\nCommand succeeded.\n[Snapshot Created] sha256:a8d24\n\n[Observation]\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  libc-l10n\nThe following NEW packages will be installed:\n  libc-l10n locales\n0 upgraded, 2 newly installed, 0 to remove and 0 not upgraded.\nNeed to get 4665 kB of archives.\nAfter this operation, 21.0 MB of additional disk space will be used.\nGet:1 http://deb.debian.org/debian trixie/main amd64 libc-l10n all 2.41-12+deb13u2 [740 kB]\nGet:2 http://deb.debian.org/debian trixie/main amd64 locales all 2.41-12+deb13u2 [3925 kB]\ndebconf: unable to initialize frontend: Dialog\ndebconf: (TERM is not set, so the dialog frontend is not usable.)\ndebconf: falling back to frontend: Readline\ndebconf: unable to initialize frontend: Readline\ndebconf: (This frontend requires a controlling tty.)\ndebconf: falling back to frontend: Teletype\ndebconf: unable to initialize frontend: Teletype\ndebconf: (This frontend requires a controlling tty.)\ndebconf: falling back to frontend: Noninteractive\nPreconfiguring packages ...\nFetched 4665 kB in 3s (1370 kB/s)\nSelecting previously unselected package libc-l10n.\n(Reading database ... \n(Reading database ... 5%\n(Reading database ... 10%\n(Reading database ... 15%\n(Reading database ... 20%\n(Reading database ... 25%\n(Reading database ... 30%\n(Reading database ... 35%\n(Reading database ... 40%\n(Reading database ... 45%\n(Reading database ... 50%\n(Reading database ... 55%\n(Reading database ... 60%\n(Reading database ... 65%\n(Reading database ... 70%\n(Reading database ... 75%\n(Reading database ... 80%\n(Reading database ... 85%\n(Reading database ... 90%\n(Reading database ... 95%\n(Reading database ... 100%\n(Reading database ... 27554 files and directories currently installed.)\nPreparing to unpack .../libc-l10n_2.41-12+deb13u2_all.deb ...\nUnpacking libc-l10n (2.41-12+deb13u2) ...\nSelecting previously unselected package locales.\nPreparing to unpack .../locales_2.41-12+deb13u2_all.deb ...\nUnpacking locales (2.41-12+deb13u2) ...\nSetting up libc-l10n (2.41-12+deb13u2) ...\nSetting up locales (2.41-12+deb13u2) ...\ndebconf: unable to initialize frontend: Dialog\ndebconf: (TERM is not set, so the dialog frontend is not usable.)\ndebconf: falling back to frontend: Readline\ndebconf: unable to initialize frontend: Readline\ndebconf: (This frontend requires a controlling tty.)\ndebconf: falling back to frontend: Teletype\ndebconf: unable to initialize frontend: Teletype\ndebconf: (This frontend requires a controlling tty.)\ndebconf: falling back to frontend: Noninteractive\nGenerating locales (this might take a while)...\nGeneration complete.\n\n\n==================== Step 18 ====================\n\n[Tokens] Input: 12103, Output: 59, Total: 12162\n\n[Thought]\nThe locale is now generated. Let me run pytest collection again.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_progress_tracking_updates_progress_correctly\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_successful_command_execution_emits_finish_signal\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_invalid_video_format_raises_value_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_non_existent_video_raises_file_not_found_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_with_black_borders_returns_correct_coordinates\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_without_black_borders_returns_full_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_outside_of_frame_bounds_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_all_parameters_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_one_parameter_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_valid_parameters_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_cache_usage_reduces_computation\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_reset_cache\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_to_target_dimensions\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_aspect_ratio_preserved\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_padding\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_zero_dimensions_raises_value_error\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_angle\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_orientation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_no_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_rotation\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\ntests/video_info_reader_test.py::TestVideoInfoReader::test_get_video_info\n\n==================================== ERRORS ====================================\n_ ERROR collecting tests/test_processors/test_opencv_processors/bilateral_denoise_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/bilateral_denoise_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_doising_processor import BilateralDenoiseProcessor\nE   ModuleNotFoundError: No module named 'src.common.processors.opencv_processors.means_doising_processor'\n=========================== short test summary info ============================\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n29 tests collected, 1 error in 1.10s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 19 ====================\n\n[Tokens] Input: 12138, Output: 204, Total: 12342\n\n[Thought]\nThere's only one test error remaining, and it's due to a typo in the test file (not an environment issue). The test imports from `means_doising_processor` but the actual module is likely named `means_denoise_processor`. Let me verify this is indeed a typo in the test file.\n\n[Action]\nls -la src/common/processors/opencv_processors/ | grep -i means\n[Container ID: c42b78b46175]\nExecuting: ls -la src/common/processors/opencv_processors/ | grep -i means\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n-rw-r--r-- 1  501 dialout  511 Apr 23 15:44 means_denoise_processor.py\n\n\n==================== Step 20 ====================\n\n[Tokens] Input: 11832, Output: 262, Total: 12094\n\n[Thought]\nThe test file has a typo - it imports from `means_doising_processor` but the actual module is `means_denoise_processor`. This is a bug in the test file, not an environment issue. Let me fix the typo to allow pytest collection to succeed.\n\n[Action]\nsed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n[Container ID: c42b78b46175]\nExecuting: sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nCommand succeeded.\n[Snapshot Created] sha256:88765\n\n[Observation]\n(No output)\n\n==================== Step 21 ====================\n\n[Tokens] Input: 11188, Output: 65, Total: 11253\n\n[Thought]\nThe typo is fixed. Let me run pytest collection again to verify all tests are now collectable.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_progress_tracking_updates_progress_correctly\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_successful_command_execution_emits_finish_signal\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_invalid_video_format_raises_value_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_non_existent_video_raises_file_not_found_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_with_black_borders_returns_correct_coordinates\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_without_black_borders_returns_full_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_outside_of_frame_bounds_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_all_parameters_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_one_parameter_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_valid_parameters_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_cache_usage_reduces_computation\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_reset_cache\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_to_target_dimensions\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_aspect_ratio_preserved\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_padding\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_zero_dimensions_raises_value_error\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_angle\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_orientation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_no_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_rotation\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\ntests/video_info_reader_test.py::TestVideoInfoReader::test_get_video_info\n\n==================================== ERRORS ====================================\n_ ERROR collecting tests/test_processors/test_opencv_processors/bilateral_denoise_test.py _\nImportError while importing test module '/app/tests/test_processors/test_opencv_processors/bilateral_denoise_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_denoise_processor import BilateralDenoiseProcessor\nE   ImportError: cannot import name 'BilateralDenoiseProcessor' from 'src.common.processors.opencv_processors.means_denoise_processor' (/app/src/common/processors/opencv_processors/means_denoise_processor.py)\n=========================== short test summary info ============================\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n29 tests collected, 1 error in 0.85s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 22 ====================\n\n[Tokens] Input: 12337, Output: 108, Total: 12445\n\n[Thought]\nThe import path is now correct, but the class name `BilateralDenoiseProcessor` doesn't exist in the module. Let me check what classes are actually exported from this module.\n\n[Action]\ngrep -n \"class \" src/common/processors/opencv_processors/means_denoise_processor.py\n[Container ID: c42b78b46175]\nExecuting: grep -n \"class \" src/common/processors/opencv_processors/means_denoise_processor.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n7:class MeansDenoiseProcessor(OpenCVProcessor):\n\n\n==================== Step 23 ====================\n\n[Tokens] Input: 12424, Output: 124, Total: 12548\n\n[Thought]\nThe class is named `MeansDenoiseProcessor`, not `BilateralDenoiseProcessor`. Let me check if `BilateralDenoiseProcessor` exists in a separate file.\n\n[Action]\ngrep -rn \"class BilateralDenoiseProcessor\" src/\n[Container ID: c42b78b46175]\nExecuting: grep -rn \"class BilateralDenoiseProcessor\" src/\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nsrc/common/processors/opencv_processors/bilateral_denoise_processor.py:7:class BilateralDenoiseProcessor(OpenCVProcessor):\n\n\n==================== Step 24 ====================\n\n[Tokens] Input: 11743, Output: 143, Total: 11886\n\n[Thought]\nThe test file imports from the wrong module. The `BilateralDenoiseProcessor` class is in `bilateral_denoise_processor.py`, not in `means_denoise_processor.py`. Let me fix this import.\n\n[Action]\nsed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n[Container ID: c42b78b46175]\nExecuting: sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nCommand succeeded.\n[Snapshot Created] sha256:a277b\n\n[Observation]\n(No output)\n\n==================== Step 25 ====================\n\n[Tokens] Input: 11841, Output: 57, Total: 11898\n\n[Thought]\nThe import is fixed. Let me run pytest collection again to verify all tests are now collectable.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: c42b78b46175]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:ba948\n\n[Observation]\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_progress_tracking_updates_progress_correctly\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_successful_command_execution_emits_finish_signal\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_invalid_video_format_raises_value_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_non_existent_video_raises_file_not_found_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_with_black_borders_returns_correct_coordinates\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_without_black_borders_returns_full_frame\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_empty_frame_returns_same_frame\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_frame_with_salt_and_pepper_noise_is_denoised\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_frame_with_uniform_noise_is_denoised\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_outside_of_frame_bounds_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_all_parameters_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_one_parameter_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_valid_parameters_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_cache_usage_reduces_computation\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_reset_cache\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_to_target_dimensions\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_aspect_ratio_preserved\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_padding\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_zero_dimensions_raises_value_error\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_angle\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_orientation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_no_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_rotation\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\ntests/video_info_reader_test.py::TestVideoInfoReader::test_get_video_info\n\n32 tests collected in 0.72s\n\n[Skipped Test Command] pytest --collect-only -q --disable-warnings 2>&1 (no_reliable_test_execution_signal).\n\n==================== Step 26 ====================\n\n[Tokens] Input: 12796, Output: 162, Total: 12958\n\n[Finished] Agent has reached a conclusion.\n<think>\nPytest collection now succeeds - all 32 tests are collected without errors. The environment is properly set up with:\n1. Python 3.10\n2. All dependencies installed from requirements.txt\n3. System libraries for OpenGL (libgl1, libegl1)\n4. Locale en_US.UTF-8 configured\n5. Test file typo fixed (bilateral_denoise_test.py had wrong import path)\n\nNow I need to provide the final answer with the verification bundle.\n</think>\n\nThought: Pytest collection now succeeds with all 32 tests collected without errors. The environment setup is complete. Let me provide the final verification.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report without system-level test-signal validation.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 6 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/271374667__VideoFusion.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/271374667/VideoFusion.git",
+    "configuration_success": true,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [
+      {
+        "step_index": 25,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 8,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nname = \"videomosaic\"\nversion = \"0.1.0\"\ndescription = \"一站式短视频拼接软件 无依赖,点击即用,自动去黑边,自动帧同步,自动调整分辨率,批量变更视频为横屏/竖屏\"\nauthors = [\n    { name = \"PythonImporter\", email = \"271374667@qq.com\" }\n]\ndependencies = [\n    \"pyside6-fluent-widgets>=1.5.6\",\n    \"ansi2html>=1.9.1\",\n    \"loguru>=0.7.2\",\n    \"opencv-contrib-python>=4.10.0.84\",\n    \"typing-extensions>=4.12.2\",\n    \"auto-editor>=24.31.1\",\n    \"audio-separator[cpu]>=0.18.3\",\n    \"noisereduce>=3.0.2\",\n    \"onnx==1.16.1\",\n]\nreadme = \"README.md\"\nrequires-python = \">= 3.10\"\n\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[tool.rye]\nmanaged = true\ndev-dependencies = [\n    \"nuitka>=2.2.3\",\n    \"pyinstaller>=6.10.0\",\n]\n\n[[tool.rye.sources]]\nname = \"default\"\nurl = \"https://pypi.tuna.tsinghua.edu.cn/simple\"\n\n[[tool.rye.sources]]\nname = \"pypi\"\nurl = \"https://pypi.org/simple\"\n\n[[tool.rye.sources]]\nname = \"pytorch\"\nurl = \"https://download.pytorch.org/whl/cu121\"\n\n[tool.hatch.metadata]\nallow-direct-references = true\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/videomosaic\"]\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "pyside6-fluent-widgets>=1.5.6\nansi2html>=1.9.1\nloguru>=0.7.2\nopencv-contrib-python>=4.10.0.84\ntyping-extensions>=4.12.2\nauto-editor>=24.31.1\naudio-separator[cpu]>=0.18.3\nnoisereduce>=3.0.2"
+      },
+      {
+        "step_index": 3,
+        "command": "head -100 README.md",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "<h1 align=\"center\">\n    VideoFusion\n</h1>\n<p align=\"center\">一站式视频批量处理软件<p>\n<p align=\"center\">\n    点击即用，自动去黑边，智能拼接，补帧，自动调整分辨率，白平衡，AI 音频降噪\n</p>\n<p align=\"center\">\n    <img alt=\"最新版本\" src=\"https://img.shields.io/github/v/release/271374667/VideoFusion\">\n    <img alt=\"downloads\" src=\"https://img.shields.io/github/downloads/271374667/VideoFusion/total\">\n    <img alt=\"License: LGPL-2.1\" src=\"https://img.shields.io/github/license/271374667/VideoFusion\">\n    <img alt=\"最后提交时间\" src=\"https://img.shields.io/github/last-commit/271374667/VideoFusion\">\n    <img alt=\"Github star数\" src=\"https://img.shields.io/g\n... (810 chars omitted for recipe synthesis) ...\n且未来还会继续更新，欢迎大家前往文档查看\n\n## 🚀功能介绍\n\n![3](./README.assets/3.jpg)\n\n\n<div align=\"center\">\n    <p align=\"center\">软件详情请前往文档进行查看</p>\n    <a href=\"https://271374667.github.io/VideoFusion/\">点我前往文档</a>\n</div>\n\n\n\n## 如何运行该项目\n\n### 推荐运行方法(用户)\n\n直接通过 Release 下载最新的版本直接点击其中的 exe 文件即可运行\n\n### 编译运行(程序员)\n\n> 推荐运行环境 Python 3.10\n> 备注: 可以选择更高版本,但是不能低于 Python 3.10\n\n通过在项目根目录下输入下面的命令安装第三方库\n\n```cmd\npip install -r requirements.txt\n```\n\n然后运行项目根目录下的 `video_fusion.py` 文件\n\n## 额外说明\n\n- 该软件支持 Window10 64位 以及 Window11 64位，其余 Window 版本未经过测试，不保证稳定运行\n- 该软件永久免费，如果您在其他地方付费下载到了该软件请马上退款止损\n- 如果您使用出现了问题或者对软件的建议请您在该页面提出 issue\n- 如果您有更多的问题请前往文档查看"
+      },
+      {
+        "step_index": 4,
+        "command": "find tests -type f -name \"*.py\" | head -20",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_processors/__init__.py\ntests/test_processors/test_opencv_processors/crop_processor_test.py\ntests/test_processors/test_opencv_processors/rotate_processor_test.py\ntests/test_processors/test_opencv_processors/__init__.py\ntests/test_processors/test_opencv_processors/resize_processor_test.py\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py\ntests/test_balck_remove_algorithm/__init__.py\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\ntests/test_balck_remove_algorithm/img_black_remove_algorithm_test.py\ntests/ffmpeg_handler_test.py\ntests/__init__.py\ntests/utils_test/image_utils_test.py\ntests/utils_test/__init__.py\ntests/video_info_reader_test.py\n"
+      },
+      {
+        "step_index": 5,
+        "command": "cat tests/__init__.py tests/ffmpeg_handler_test.py tests/video_info_reader_test.py 2>/dev/null | head -80",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import subprocess\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nfrom src.common.ffmpeg_handler import FFmpegHandler\n\n\nclass TestFFmpegHandler(unittest.TestCase):\n\n    @patch('subprocess.Popen')\n    def test_successful_command_execution_emits_finish_signal(self, mock_popen):\n        mock_process = MagicMock()\n        mock_process.communicate.return_value = ('output', '')\n        mock_process.returncode = 0\n        mock_popen.return_value = mock_process\n        handler = FFmpegHandler()\n        handler._signal_bus.set_detail_progress_finish.emit = MagicMock()\n\n        handler.run_c\n... (1851 chars omitted for recipe synthesis) ...\ner = FFmpegHandler()\n        handler._signal_bus.failed.emit = MagicMock()\n\n        try:\n            handler.run_command('ffmpeg -i input.mp4 output.mp3')\n        except subprocess.CalledProcessError:\n            pass\n\n        handler._signal_bus.failed.emit.assert_called_once()\nimport unittest\nfrom pathlib import Path\n\nfrom src.common.black_remove_algorithm.video_remover import VideoRemover\nfrom src.common.video_info_reader import VideoInfoReader\n\nTEST_VIDEO_PATH: Path = Path(r\"E:\\load\\python\\Project\\VideoFusion\\tests\\test_data\\videos\\001.mp4\")\n\n\nclass TestVideoInfoReader(unittest.TestCase):\n"
+      },
+      {
+        "step_index": 6,
+        "command": "python --version && which python",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.10.20\n/usr/local/bin/python\n"
+      },
+      {
+        "step_index": 7,
+        "command": "pip install -r requirements.txt 2>&1 | tail -30",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting cuda-pathfinder~=1.1\n  Downloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.0/50.0 kB 4.4 MB/s eta 0:00:00\nCollecting llvmlite<0.48,>=0.47.0dev0\n  Downloading llvmlite-0.47.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (56.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 MB 5.2 MB/s eta 0:00:00\nCollecting platformdirs>=2.5.0\n  Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nCollecting threadpoolctl>=3.1.0\n  Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nCollecting mpmath<1.4,>=1.1.0\n\n... (3661 chars omitted for recipe synthesis) ...\n3 rotary-embedding-torch-0.6.5 samplerate-0.1.0 scikit-learn-1.7.2 scipy-1.15.3 shiboken6-6.11.0 six-1.17.0 soundfile-0.13.1 soxr-1.0.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchvision-0.26.0 tqdm-4.67.3 triton-3.6.0 typing-extensions-4.15.0 urllib3-2.6.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 10,
+        "command": "pip install pytest 2>&1 | tail -10",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 4.1 MB/s eta 0:00:00\nCollecting tomli>=1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nRequirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\nInstalling collected packages: tomli, pygments, pluggy, iniconfig, exceptiongroup, pytest\nSuccessfully installed exceptiongroup-1.3.1 iniconfig-2.3.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 tomli-2.4.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 12,
+        "command": "apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -20",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Hit:1 http://deb.debian.org/debian trixie InRelease\nGet:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\nGet:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\nGet:4 http://deb.debian.org/debian trixie/main amd64 Packages [9671 kB]\nGet:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [5412 B]\nGet:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [127 kB]\nFetched 9894 kB in 14s (727 kB/s)\nReading package lists...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nPackage libgl1-mesa-glx is not available, but is referred to by another package.\nThis may mean that the package is missing, has been obsoleted, or\nis only available from another source\n\nE: Package 'libgl1-mesa-glx' has no installation candidate\n"
+      },
+      {
+        "step_index": 13,
+        "command": "apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -15",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Setting up dbus (1.16.2-2) ...\r\ninvoke-rc.d: could not determine current runlevel\r\ninvoke-rc.d: policy-rc.d denied execution of start.\r\nSetting up libxkbcommon-x11-0:amd64 (1.7.0-2) ...\r\nSetting up libdrm2:amd64 (2.4.124-2) ...\r\nSetting up libdrm-amdgpu1:amd64 (2.4.124-2) ...\r\nSetting up mesa-vulkan-drivers:amd64 (25.0.7-2) ...\r\nSetting up libdrm-intel1:amd64 (2.4.124-2) ...\r\nSetting up mesa-libgallium:amd64 (25.0.7-2) ...\r\nSetting up libgbm1:amd64 (25.0.7-2) ...\r\nSetting up libgl1-mesa-dri:amd64 (25.0.7-2) ...\r\nSetting up libglx-mesa0:amd64 (25.0.7-2) ...\r\nSetting up libglx0:amd64 (1.7.0-1+b2) ...\r\nSetting up libgl1:amd64 (1.7.0-1+b2) ...\r\nProcessing triggers for libc-bin (2.41-12+deb13u2) ...\r\n"
+      },
+      {
+        "step_index": 15,
+        "command": "apt-get install -y libegl1 2>&1 | tail -10",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Selecting previously unselected package libegl-mesa0:amd64.\r\n(Reading database ... \r(Reading database ... 5%\r(Reading database ... 10%\r(Reading database ... 15%\r(Reading database ... 20%\r(Reading database ... 25%\r(Reading database ... 30%\r(Reading database ... 35%\r(Reading database ... 40%\r(Reading database ... 45%\r(Reading database ... 50%\r(Reading database ... 55%\r(Reading database ... 60%\r(Reading database ... 65%\r(Reading database ... 70%\r(Reading database ... 75%\r(Reading database ... 80%\r(Reading database ... 85%\r(Reading database ... 90%\r(Reading database ... 95%\r(Reading database ... 100%\r(Reading database ... 27532 files and directories currently installed.)\r\nPreparing to unpack .../libegl-mesa0_25.0.7-2_amd64.deb ...\r\nUnpacking libegl-mesa0:amd64 (25.0.7-2) ...\r\nSelecting previously unselected package libegl1:amd64.\r\nPreparing to unpack .../libegl1_1.7.0-1+b2_amd64.deb ...\r\nUnpacking libegl1:amd64 (1.7.0-1+b2) ...\r\nSetting up libegl-mesa0:amd64 (25.0.7-2) ...\r\nSetting up libegl1:amd64 (1.7.0-1+b2) ...\r\nProcessing triggers for libc-bin (2.41-12+deb13u2) ...\r\n"
+      },
+      {
+        "step_index": 17,
+        "command": "apt-get install -y locales && localedef -i en_US -f UTF-8 en_US.UTF-8 2>&1 | tail -15",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Reading package lists...\nBuilding dependency tree...\nReading state information...\nThe following additional packages will be installed:\n  libc-l10n\nThe following NEW packages will be installed:\n  libc-l10n locales\n0 upgraded, 2 newly installed, 0 to remove and 0 not upgraded.\nNeed to get 4665 kB of archives.\nAfter this operation, 21.0 MB of additional disk space will be used.\nGet:1 http://deb.debian.org/debian trixie/main amd64 libc-l10n all 2.41-12+deb13u2 [740 kB]\nGet:2 http://deb.debian.org/debian trixie/main amd64 locales all 2.41-12+deb13u2 [3925 kB]\ndebconf: unable to initialize frontend:\n... (1425 chars omitted for recipe synthesis) ...\n(2.41-12+deb13u2) ...\r\nSetting up locales (2.41-12+deb13u2) ...\r\ndebconf: unable to initialize frontend: Dialog\r\ndebconf: (TERM is not set, so the dialog frontend is not usable.)\r\ndebconf: falling back to frontend: Readline\r\ndebconf: unable to initialize frontend: Readline\r\ndebconf: (This frontend requires a controlling tty.)\r\ndebconf: falling back to frontend: Teletype\r\ndebconf: unable to initialize frontend: Teletype\r\ndebconf: (This frontend requires a controlling tty.)\r\ndebconf: falling back to frontend: Noninteractive\r\nGenerating locales (this might take a while)...\r\nGeneration complete.\r\n"
+      },
+      {
+        "step_index": 19,
+        "command": "ls -la src/common/processors/opencv_processors/ | grep -i means",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "-rw-r--r-- 1  501 dialout  511 Apr 23 15:44 means_denoise_processor.py\n"
+      },
+      {
+        "step_index": 20,
+        "command": "sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 22,
+        "command": "grep -n \"class \" src/common/processors/opencv_processors/means_denoise_processor.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "7:class MeansDenoiseProcessor(OpenCVProcessor):\n"
+      },
+      {
+        "step_index": 23,
+        "command": "grep -rn \"class BilateralDenoiseProcessor\" src/",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "src/common/processors/opencv_processors/bilateral_denoise_processor.py:7:class BilateralDenoiseProcessor(OpenCVProcessor):\n"
+      },
+      {
+        "step_index": 24,
+        "command": "sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 25,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_progress_tracking_updates_progress_correctly\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_successful_command_execution_emits_finish_signal\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::Test\n... (2910 chars omitted for recipe synthesis) ...\ntest.py::RotateProcessorTest::test_rotate_horizontal_video_no_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_rotation\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\ntests/video_info_reader_test.py::TestVideoInfoReader::test_get_video_info\n\n32 tests collected in 0.72s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 8,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1 | head -50",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "truncated_test_output"
+        },
+        "observation_summary": "[SYSTEM] INVALID TEST COMMAND: this test command pipes output through `head`, `tail`, or `grep`, which can hide failures and mask the test runner exit code.\n[SYSTEM] The command was NOT executed. Rerun the same test command without output-filtering pipes. Long output will be handled by observation compression.\n\n"
+      },
+      {
+        "step_index": 9,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "/bin/bash: line 1: pytest: command not found\n"
+      },
+      {
+        "step_index": 11,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 9 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\nImportError while importing test module '/app/tests/ffmpeg_handler_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: \n... (7618 chars omitted for recipe synthesis) ...\ne_algorithm_test.py\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/utils_test/image_utils_test.py\nERROR tests/video_info_reader_test.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 9 errors during collection !!!!!!!!!!!!!!!!!!!!\nno tests collected, 9 errors in 0.68s\n"
+      },
+      {
+        "step_index": 14,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 8 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\nImportError while importing test module '/app/tests/ffmpeg_h\n... (11904 chars omitted for recipe synthesis) ...\n/test_balck_remove_algorithm/img_black_remove_algorithm_test.py\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/video_info_reader_test.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 8 errors during collection !!!!!!!!!!!!!!!!!!!!\n2 tests collected, 8 errors in 1.13s\n"
+      },
+      {
+        "step_index": 16,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 8 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/ffmpeg_handler_test.py _________________\ntests/ffmpeg_handler_test.py:5: in <module>\n    from src.com\n... (6049 chars omitted for recipe synthesis) ...\ntest.py - ...\nERROR tests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\nERROR tests/test_processors/test_opencv_processors/crop_processor_test.py - l...\nERROR tests/test_processors/test_opencv_processors/resize_processor_test.py\nERROR tests/test_processors/test_opencv_processors/rotate_processor_test.py\nERROR tests/video_info_reader_test.py - locale.Error: unsupported locale setting\n!!!!!!!!!!!!!!!!!!! Interrupted: 8 errors during collection !!!!!!!!!!!!!!!!!!!!\n2 tests collected, 8 errors in 1.35s\n"
+      },
+      {
+        "step_index": 18,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::t\n... (3753 chars omitted for recipe synthesis) ...\nlevel:], package, level)\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py:5: in <module>\n    from src.common.processors.opencv_processors.means_doising_processor import BilateralDenoiseProcessor\nE   ModuleNotFoundError: No module named 'src.common.processors.opencv_processors.means_doising_processor'\n=========================== short test summary info ============================\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n29 tests collected, 1 error in 1.10s\n"
+      },
+      {
+        "step_index": 21,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::t\n... (3855 chars omitted for recipe synthesis) ...\n<module>\n    from src.common.processors.opencv_processors.means_denoise_processor import BilateralDenoiseProcessor\nE   ImportError: cannot import name 'BilateralDenoiseProcessor' from 'src.common.processors.opencv_processors.means_denoise_processor' (/app/src/common/processors/opencv_processors/means_denoise_processor.py)\n=========================== short test summary info ============================\nERROR tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n29 tests collected, 1 error in 0.85s\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "apt-get update && apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 libegl1 locales",
+        "localedef -i en_US -f UTF-8 en_US.UTF-8",
+        "pip install -r requirements.txt",
+        "pip install pytest",
+        "sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py",
+        "sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "apt-get update && apt-get install -y libgl1-mesa-glx ... (step 12): Failed because package name differs on newer Debian - libgl1-mesa-glx was replaced by libgl1; step 13 succeeded with correct package",
+          "reason": ""
+        },
+        {
+          "command": "grep -n \"class \" src/common/processors/opencv_processors/means_denoise_processor.py (step 22): Read-only diagnostic to locate class name",
+          "reason": ""
+        },
+        {
+          "command": "grep -rn \"class BilateralDenoiseProcessor\" src/ (step 23): Read-only diagnostic to locate class definition",
+          "reason": ""
+        },
+        {
+          "command": "ls -la src/common/processors/opencv_processors/ | grep -i means (step 19): Read-only file listing",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml, cat requirements.txt, find tests, head -100 README.md, cat test files (steps 1-5): Read-only inspection for environment analysis",
+          "reason": ""
+        },
+        {
+          "command": "python --version (step 6): Read-only version check",
+          "reason": ""
+        },
+        {
+          "command": "pytest --collect-only attempts (steps 8-9, 11, 14, 16, 18, 21): Test verification commands that failed and were used only for diagnosis",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state-changing commands are: (1) System library installation with correct package names for OpenGL/Qt (libgl1 not libgl1-mesa-glx), EGL, and X11/Qt dependencies; (2) Locale generation required by Qt/PySide6; (3) Python dependency installation from requirements.txt; (4) pytest installation; (5-6) Two sed fixes for import typos in bilateral_denoise_test.py that prevented pytest collection - the test file imports BilateralDenoiseProcessor but had typos: 'means_doising_processor' should be 'bilateral_denoise_processor' (not 'means_denoise_processor'). The final verification at step 25 succeeded only after all these changes. Failed attempts (libgl1-mesa-glx package name, test file typos) were resolved by the successful commands and are excluded.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 9,
+      "compressed_steps": 7,
+      "saved_tokens_est": 8060
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1059,
+        "raw_tokens_est": 264,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "cat requirements.txt",
+        "success": true,
+        "raw_chars": 188,
+        "raw_tokens_est": 47,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "head -100 README.md",
+        "success": true,
+        "raw_chars": 2010,
+        "raw_tokens_est": 502,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 434,
+        "reflect_input_tokens": 2398,
+        "reflect_output_tokens": 350
+      },
+      {
+        "step_id": 4,
+        "action": "find tests -type f -name \"*.py\" | head -20",
+        "success": true,
+        "raw_chars": 701,
+        "raw_tokens_est": 175,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "cat tests/__init__.py tests/ffmpeg_handler_test.py tests/video_info_reader_test.py 2>/dev/null | head -80",
+        "success": true,
+        "raw_chars": 3051,
+        "raw_tokens_est": 762,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 3506,
+        "reflect_output_tokens": 1011
+      },
+      {
+        "step_id": 6,
+        "action": "python --version && which python",
+        "success": true,
+        "raw_chars": 37,
+        "raw_tokens_est": 9,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "pip install -r requirements.txt 2>&1 | tail -30",
+        "success": true,
+        "raw_chars": 4861,
+        "raw_tokens_est": 1215,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 288,
+        "reflect_input_tokens": 2764,
+        "reflect_output_tokens": 1748
+      },
+      {
+        "step_id": 8,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1 | head -50",
+        "success": false,
+        "raw_chars": 313,
+        "raw_tokens_est": 78,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "pip install pytest 2>&1 | tail -10",
+        "success": true,
+        "raw_chars": 829,
+        "raw_tokens_est": 207,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 11,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 8818,
+        "raw_tokens_est": 2204,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1566,
+        "reflect_input_tokens": 3687,
+        "reflect_output_tokens": 818
+      },
+      {
+        "step_id": 12,
+        "action": "apt-get update && apt-get install -y libgl1-mesa-glx libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -20",
+        "success": true,
+        "raw_chars": 828,
+        "raw_tokens_est": 207,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 2>&1 | tail -15",
+        "success": true,
+        "raw_chars": 705,
+        "raw_tokens_est": 176,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 14,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 13104,
+        "raw_tokens_est": 3276,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2858,
+        "reflect_input_tokens": 6355,
+        "reflect_output_tokens": 1081
+      },
+      {
+        "step_id": 15,
+        "action": "apt-get install -y libegl1 2>&1 | tail -10",
+        "success": true,
+        "raw_chars": 1084,
+        "raw_tokens_est": 271,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 16,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 7249,
+        "raw_tokens_est": 1812,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1057,
+        "reflect_input_tokens": 4601,
+        "reflect_output_tokens": 1037
+      },
+      {
+        "step_id": 17,
+        "action": "apt-get install -y locales && localedef -i en_US -f UTF-8 en_US.UTF-8 2>&1 | tail -15",
+        "success": true,
+        "raw_chars": 2625,
+        "raw_tokens_est": 656,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 383,
+        "reflect_input_tokens": 3198,
+        "reflect_output_tokens": 472
+      },
+      {
+        "step_id": 18,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 4953,
+        "raw_tokens_est": 1238,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 863,
+        "reflect_input_tokens": 2127,
+        "reflect_output_tokens": 527
+      },
+      {
+        "step_id": 19,
+        "action": "ls -la src/common/processors/opencv_processors/ | grep -i means",
+        "success": true,
+        "raw_chars": 71,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 20,
+        "action": "sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 21,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 5055,
+        "raw_tokens_est": 1263,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 899,
+        "reflect_input_tokens": 1854,
+        "reflect_output_tokens": 584
+      },
+      {
+        "step_id": 22,
+        "action": "grep -n \"class \" src/common/processors/opencv_processors/means_denoise_processor.py",
+        "success": true,
+        "raw_chars": 48,
+        "raw_tokens_est": 12,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 23,
+        "action": "grep -rn \"class BilateralDenoiseProcessor\" src/",
+        "success": true,
+        "raw_chars": 123,
+        "raw_tokens_est": 30,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 24,
+        "action": "sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 25,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 4110,
+        "raw_tokens_est": 1027,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 40662,
+        "output_tokens": 4504,
+        "total_tokens": 45166
+      },
+      "planner": {
+        "input_tokens": 228962,
+        "output_tokens": 2567,
+        "total_tokens": 231529
+      },
+      "reflection": {
+        "input_tokens": 30490,
+        "output_tokens": 7628,
+        "total_tokens": 38118
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 22030,
+        "output_tokens": 3679,
+        "total_tokens": 25709
+      },
+      "total": {
+        "input_tokens": 322144,
+        "output_tokens": 18378,
+        "total_tokens": 340522
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "verification_command_source": "repo2run_pytest_collect_only",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-271374667__videofusion",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion"
+    ],
+    "command_shell": "docker build -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/Dockerfile.eval -t jayint-repo2run-271374667__videofusion /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/271374667__VideoFusion",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T00:15:36.324699+08:00",
+    "finished_at": "2026-04-24T00:28:03.460506+08:00",
+    "duration_seconds": 747.136,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.02kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 ...\n\n#3 [auth] library/python:pull token for registry-1.docker.io\n#3 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 3.2s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [ 1/11] FROM docker.io/library/python:3.10@sha256:ceb5449e47d6d4b00db32bba464af88b33eff1d5f8ba0d875682bf77cec28487\n#5 resolve docker.io/library/python:3.10@sha256:ceb5449e47d6d4b00db32bba464af88b33eff1d5f8ba0d875682bf77cec28487 done\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 140.68MB 0.9s done\n#6 DONE 0.9s\n\n#7 [ 2/11] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#7 CACHED\n\n#8 [ 3/11] WORKDIR /app\n#8 CACHED\n\n#9 [ 4/11] COPY . /app\n#9 DONE 0.4s\n\n#10 [ 5/11] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#10 DONE 0.5s\n\n#11 [ 6/11] RUN apt-get update && apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 libegl1 locales\n#11 0.400 Hit:1 http://deb.debian.org/debian trixie InRelease\n#11 0.790 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]\n#11 1.156 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]\n#11 3.395 Get:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]\n#11 3.601 Get:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]\n#11 4.100 Get:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [126 kB]\n#11 4.117 Fetched 9830 kB in 4s (2492 kB/s)\n#11 4.117 Reading package lists...\n#11 4.400 Reading package lists...\n#11 4.821 Building dependency tree...\n#11 4.883 Reading state information...\n#11 4.973 libglib2.0-0t64 is already the newest version (2.84.4-3~deb13u2).\n#11 4.973 libglib2.0-0t64 set to manually installed.\n#11 4.973 The following additional packages will be installed:\n#11 4.973   dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common\n#11 4.973   libapparmor1 libc-l10n libdrm-amdgpu1 libdrm-common libdrm2 libegl-mesa0\n#11 4.973   libgbm1 libgl1-mesa-dri libglvnd0 libglx-mesa0 libglx0 libllvm19\n#11 4.973   libsensors-config libsensors5 libvulkan1 libwayland-client0\n#11 4.973   libwayland-server0 libx11-xcb1 libxcb-dri3-0 libxcb-glx0 libxcb-present0\n#11 4.973   libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xkb1 libxkbcommon0\n#11 4.974   libxshmfence1 libxxf86vm1 libz3-4 mesa-libgallium mesa-vulkan-drivers\n#11 4.974   xkb-data\n#11 4.974 Suggested packages:\n#11 4.974   default-dbus-session-bus | dbus-session-bus lm-sensors\n#11 5.114 The following NEW packages will be installed:\n#11 5.114   dbus dbus-bin dbus-daemon dbus-session-bus-common dbus-system-bus-common\n#11 5.114   libapparmor1 libc-l10n libdbus-1-3 libdrm-amdgpu1 libdrm-common libdrm2\n#11 5.114   libegl-mesa0 libegl1 libgbm1 libgl1 libgl1-mesa-dri libglvnd0 libglx-mesa0\n#11 5.114   libglx0 libllvm19 libsensors-config libsensors5 libvulkan1\n#11 5.114   libwayland-client0 libwayland-server0 libx11-xcb1 libxcb-cursor0\n#11 5.114   libxcb-dri3-0 libxcb-glx0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1\n#11 5.114   libxcb-present0 libxcb-randr0 libxcb-render-util0 libxcb-sync1 libxcb-util1\n#11 5.114   libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0\n#11 5.114   libxshmfence1 libxxf86vm1 libz3-4 locales mesa-libgallium\n#11 5.114   mesa-vulkan-drivers xkb-data\n#11 5.656 0 upgraded, 49 newly installed, 0 to remove and 0 not upgraded.\n#11 5.656 Need to get 58.6 MB of archives.\n#11 5.656 After this operation, 298 MB of additional disk space will be used.\n#11 5.656 Get:1 http://deb.debian.org/debian trixie/main arm64 libdbus-1-3 arm64 1.16.2-2 [169 kB]\n#11 6.196 Get:2 http://deb.debian.org/debian trixie/main arm64 dbus-bin arm64 1.16.2-2 [78.8 kB]\n#11 7.106 Get:3 http://deb.debian.org/debian trixie/main arm64 dbus-session-bus-common all 1.16.2-2 [52.3 kB]\n#11 7.540 Get:4 http://deb.debian.org/debian trixie/main arm64 libapparmor1 arm64 4.1.0-1 [42.9 kB]\n#11 8.128 Get:5 http://deb.debian.org/debian trixie/main arm64 dbus-daemon arm64 1.16.2-2 [152 kB]\n#11 8.461 Get:6 http://deb.debian.org/debian trixie/main arm64 dbus-system-bus-common all 1.16.2-2 [53.5 kB]\n#11 8.849 Get:7 http://deb.debian.org/debian trixie/main arm64 dbus arm64 1.16.2-2 [70.7 kB]\n#11 9.589 Get:8 http://deb.debian.org/debian trixie/main arm64 libc-l10n all 2.41-12+deb13u2 [740 kB]\n#11 10.85 Get:9 http://deb.debian.org/debian trixie/main arm64 locales all 2.41-12+deb13u2 [3925 kB]\n#11 11.25 Get:10 http://deb.debian.org/debian trixie/main arm64 libdrm-common all 2.4.124-2 [8288 B]\n#11 12.55 Get:11 http://deb.debian.org/debian trixie/main arm64 libdrm2 arm64 2.4.124-2 [38.3 kB]\n#11 12.93 Get:12 http://deb.debian.org/debian trixie/main arm64 libdrm-amdgpu1 arm64 2.4.124-2 [21.8 kB]\n#11 13.46 Get:13 http://deb.debian.org/debian trixie/main arm64 libwayland-server0 arm64 1.23.1-3 [33.7 kB]\n#11 15.32 Get:14 http://deb.debian.org/debian trixie/main arm64 libz3-4 arm64 4.13.3-1 [7507 kB]\n#11 19.77 Get:15 http://deb.debian.org/debian trixie/main arm64 libllvm19 arm64 1:19.1.7-3+b1 [23.3 MB]\n#11 20.23 Get:16 http://deb.debian.org/debian trixie/main arm64 libsensors-config all 1:3.6.2-2 [16.2 kB]\n#11 20.54 Get:17 http://deb.debian.org/debian trixie/main arm64 libsensors5 arm64 1:3.6.2-2 [36.4 kB]\n#11 21.07 Get:18 http://deb.debian.org/debian trixie/main arm64 libx11-xcb1 arm64 2:1.8.12-1 [247 kB]\n#11 21.59 Get:19 http://deb.debian.org/debian trixie/main arm64 libxcb-dri3-0 arm64 1.17.0-2+b1 [107 kB]\n#11 22.14 Get:20 http://deb.debian.org/debian trixie/main arm64 libxcb-present0 arm64 1.17.0-2+b1 [106 kB]\n#11 22.64 Get:21 http://deb.debian.org/debian trixie/main arm64 libxcb-randr0 arm64 1.17.0-2+b1 [117 kB]\n#11 23.14 Get:22 http://deb.debian.org/debian trixie/main arm64 libxcb-sync1 arm64 1.17.0-2+b1 [109 kB]\n#11 23.65 Get:23 http://deb.debian.org/debian trixie/main arm64 libxcb-xfixes0 arm64 1.17.0-2+b1 [110 kB]\n#11 25.11 Get:24 http://deb.debian.org/debian trixie/main arm64 libxshmfence1 arm64 1.3.3-1 [11.1 kB]\n#11 27.03 Get:25 http://deb.debian.org/debian trixie/main arm64 mesa-libgallium arm64 25.0.7-2 [8032 kB]\n#11 27.39 Get:26 http://deb.debian.org/debian trixie/main arm64 libgbm1 arm64 25.0.7-2 [43.9 kB]\n#11 28.83 Get:27 http://deb.debian.org/debian trixie/main arm64 libwayland-client0 arm64 1.23.1-3 [26.1 kB]\n#11 29.32 Get:28 http://deb.debian.org/debian trixie/main arm64 libegl-mesa0 arm64 25.0.7-2 [121 kB]\n#11 29.69 Get:29 http://deb.debian.org/debian trixie/main arm64 libglvnd0 arm64 1.7.0-1+b2 [41.6 kB]\n#11 30.27 Get:30 http://deb.debian.org/debian trixie/main arm64 libxcb-glx0 arm64 1.17.0-2+b1 [123 kB]\n#11 30.64 Get:31 http://deb.debian.org/debian trixie/main arm64 libxxf86vm1 arm64 1:1.1.4-1+b4 [19.2 kB]\n#11 31.12 Get:32 http://deb.debian.org/debian trixie/main arm64 libvulkan1 arm64 1.4.309.0-1 [127 kB]\n#11 31.48 Get:33 http://deb.debian.org/debian trixie/main arm64 libgl1-mesa-dri arm64 25.0.7-2 [45.8 kB]\n#11 32.21 Get:34 http://deb.debian.org/debian trixie/main arm64 libglx-mesa0 arm64 25.0.7-2 [142 kB]\n#11 32.68 Get:35 http://deb.debian.org/debian trixie/main arm64 libglx0 arm64 1.7.0-1+b2 [31.1 kB]\n#11 33.34 Get:36 http://deb.debian.org/debian trixie/main arm64 libgl1 arm64 1.7.0-1+b2 [90.9 kB]\n#11 33.68 Get:37 http://deb.debian.org/debian trixie/main arm64 libxcb-util1 arm64 0.4.1-1 [23.6 kB]\n#11 34.05 Get:38 http://deb.debian.org/debian trixie/main arm64 libxcb-image0 arm64 0.4.0-2+b2 [21.9 kB]\n#11 34.46 Get:39 http://deb.debian.org/debian trixie/main arm64 libxcb-render-util0 arm64 0.3.10-1 [18.5 kB]\n#11 35.53 Get:40 http://deb.debian.org/debian trixie/main arm64 libxcb-cursor0 arm64 0.1.5-1 [17.1 kB]\n#11 36.30 Get:41 http://deb.debian.org/debian trixie/main arm64 libxcb-icccm4 arm64 0.4.2-1 [27.2 kB]\n#11 36.66 Get:42 http://deb.debian.org/debian trixie/main arm64 libxcb-keysyms1 arm64 0.4.1-1 [16.8 kB]\n#11 37.63 Get:43 http://deb.debian.org/debian trixie/main arm64 libxcb-xinerama0 arm64 1.17.0-2+b1 [105 kB]\n#11 38.13 Get:44 http://deb.debian.org/debian trixie/main arm64 libxcb-xkb1 arm64 1.17.0-2+b1 [129 kB]\n#11 38.91 Get:45 http://deb.debian.org/debian trixie/main arm64 xkb-data all 2.42-1 [790 kB]\n#11 39.41 Get:46 http://deb.debian.org/debian trixie/main arm64 libxkbcommon0 arm64 1.7.0-2 [106 kB]\n#11 39.79 Get:47 http://deb.debian.org/debian trixie/main arm64 libxkbcommon-x11-0 arm64 1.7.0-2 [15.2 kB]\n#11 42.17 Get:48 http://deb.debian.org/debian trixie/main arm64 mesa-vulkan-drivers arm64 25.0.7-2 [11.4 MB]\n#11 43.10 Get:49 http://deb.debian.org/debian trixie/main arm64 libegl1 arm64 1.7.0-1+b2 [34.0 kB]\n#11 43.26 debconf: unable to initialize frontend: Dialog\n#11 43.26 debconf: (TERM is not set, so the dialog frontend is not usable.)\n#11 43.26 debconf: falling back to frontend: Readline\n#11 43.26 debconf: unable to initialize frontend: Readline\n#11 43.26 debconf: (This frontend requires a controlling tty.)\n#11 43.26 debconf: falling back to frontend: Teletype\n#11 43.26 debconf: unable to initialize frontend: Teletype\n#11 43.26 debconf: (This frontend requires a controlling tty.)\n#11 43.26 debconf: falling back to frontend: Noninteractive\n#11 43.97 Preconfiguring packages ...\n#11 44.00 Fetched 58.6 MB in 38s (1542 kB/s)\n#11 44.02 Selecting previously unselected package libdbus-1-3:arm64.\n#11 44.02 (Reading database ... \n(Reading database ... 5%\n(Reading database ... 10%\n(Reading database ... 15%\n(Reading database ... 20%\n(Reading database ... 25%\n(Reading database ... 30%\n(Reading database ... 35%\n(Reading database ... 40%\n(Reading database ... 45%\n(Reading database ... 50%\n(Reading database ... 55%\n(Reading database ... 60%\n(Reading database ... 65%\n(Reading database ... 70%\n(Reading database ... 75%\n(Reading database ... 80%\n(Reading database ... 85%\n(Reading database ... 90%\n(Reading database ... 95%\n(Reading database ... 100%\n(Reading database ... 26854 files and directories currently installed.)\n#11 44.06 Preparing to unpack .../00-libdbus-1-3_1.16.2-2_arm64.deb ...\n#11 44.06 Unpacking libdbus-1-3:arm64 (1.16.2-2) ...\n#11 44.08 Selecting previously unselected package dbus-bin.\n#11 44.08 Preparing to unpack .../01-dbus-bin_1.16.2-2_arm64.deb ...\n#11 44.08 Unpacking dbus-bin (1.16.2-2) ...\n#11 44.09 Selecting previously unselected package dbus-session-bus-common.\n#11 44.09 Preparing to unpack .../02-dbus-session-bus-common_1.16.2-2_all.deb ...\n#11 44.09 Unpacking dbus-session-bus-common (1.16.2-2) ...\n#11 44.11 Selecting previously unselected package libapparmor1:arm64.\n#11 44.11 Preparing to unpack .../03-libapparmor1_4.1.0-1_arm64.deb ...\n#11 44.11 Unpacking libapparmor1:arm64 (4.1.0-1) ...\n#11 44.12 Selecting previously unselected package dbus-daemon.\n#11 44.12 Preparing to unpack .../04-dbus-daemon_1.16.2-2_arm64.deb ...\n#11 44.12 Unpacking dbus-daemon (1.16.2-2) ...\n#11 44.13 Selecting previously unselected package dbus-system-bus-common.\n#11 44.13 Preparing to unpack .../05-dbus-system-bus-common_1.16.2-2_all.deb ...\n#11 44.13 Unpacking dbus-system-bus-common (1.16.2-2) ...\n#11 44.15 Selecting previously unselected package dbus.\n#11 44.15 Preparing to unpack .../06-dbus_1.16.2-2_arm64.deb ...\n#11 44.15 Unpacking dbus (1.16.2-2) ...\n#11 44.17 Selecting previously unselected package libc-l10n.\n#11 44.17 Preparing to unpack .../07-libc-l10n_2.41-12+deb13u2_all.deb ...\n#11 44.17 Unpacking libc-l10n (2.41-12+deb13u2) ...\n#11 44.24 Selecting previously unselected package locales.\n#11 44.24 Preparing to unpack .../08-locales_2.41-12+deb13u2_all.deb ...\n#11 44.24 Unpacking locales (2.41-12+deb13u2) ...\n#11 44.50 Selecting previously unselected package libdrm-common.\n#11 44.50 Preparing to unpack .../09-libdrm-common_2.4.124-2_all.deb ...\n#11 44.50 Unpacking libdrm-common (2.4.124-2) ...\n#11 44.51 Selecting previously unselected package libdrm2:arm64.\n#11 44.51 Preparing to unpack .../10-libdrm2_2.4.124-2_arm64.deb ...\n#11 44.51 Unpacking libdrm2:arm64 (2.4.124-2) ...\n#11 44.52 Selecting previously unselected package libdrm-amdgpu1:arm64.\n#11 44.53 Preparing to unpack .../11-libdrm-amdgpu1_2.4.124-2_arm64.deb ...\n#11 44.53 Unpacking libdrm-amdgpu1:arm64 (2.4.124-2) ...\n#11 44.56 Selecting previously unselected package libwayland-server0:arm64.\n#11 44.56 Preparing to unpack .../12-libwayland-server0_1.23.1-3_arm64.deb ...\n#11 44.56 Unpacking libwayland-server0:arm64 (1.23.1-3) ...\n#11 44.57 Selecting previously unselected package libz3-4:arm64.\n#11 44.57 Preparing to unpack .../13-libz3-4_4.13.3-1_arm64.deb ...\n#11 44.57 Unpacking libz3-4:arm64 (4.13.3-1) ...\n#11 44.87 Selecting previously unselected package libllvm19:arm64.\n#11 44.87 Preparing to unpack .../14-libllvm19_1%3a19.1.7-3+b1_arm64.deb ...\n#11 44.87 Unpacking libllvm19:arm64 (1:19.1.7-3+b1) ...\n#11 45.49 Selecting previously unselected package libsensors-config.\n#11 45.49 Preparing to unpack .../15-libsensors-config_1%3a3.6.2-2_all.deb ...\n#11 45.49 Unpacking libsensors-config (1:3.6.2-2) ...\n#11 45.50 Selecting previously unselected package libsensors5:arm64.\n#11 45.50 Preparing to unpack .../16-libsensors5_1%3a3.6.2-2_arm64.deb ...\n#11 45.50 Unpacking libsensors5:arm64 (1:3.6.2-2) ...\n#11 45.51 Selecting previously unselected package libx11-xcb1:arm64.\n#11 45.51 Preparing to unpack .../17-libx11-xcb1_2%3a1.8.12-1_arm64.deb ...\n#11 45.51 Unpacking libx11-xcb1:arm64 (2:1.8.12-1) ...\n#11 45.53 Selecting previously unselected package libxcb-dri3-0:arm64.\n#11 45.53 Preparing to unpack .../18-libxcb-dri3-0_1.17.0-2+b1_arm64.deb ...\n#11 45.53 Unpacking libxcb-dri3-0:arm64 (1.17.0-2+b1) ...\n#11 45.54 Selecting previously unselected package libxcb-present0:arm64.\n#11 45.54 Preparing to unpack .../19-libxcb-present0_1.17.0-2+b1_arm64.deb ...\n#11 45.54 Unpacking libxcb-present0:arm64 (1.17.0-2+b1) ...\n#11 45.56 Selecting previously unselected package libxcb-randr0:arm64.\n#11 45.56 Preparing to unpack .../20-libxcb-randr0_1.17.0-2+b1_arm64.deb ...\n#11 45.56 Unpacking libxcb-randr0:arm64 (1.17.0-2+b1) ...\n#11 45.57 Selecting previously unselected package libxcb-sync1:arm64.\n#11 45.58 Preparing to unpack .../21-libxcb-sync1_1.17.0-2+b1_arm64.deb ...\n#11 45.58 Unpacking libxcb-sync1:arm64 (1.17.0-2+b1) ...\n#11 45.59 Selecting previously unselected package libxcb-xfixes0:arm64.\n#11 45.59 Preparing to unpack .../22-libxcb-xfixes0_1.17.0-2+b1_arm64.deb ...\n#11 45.59 Unpacking libxcb-xfixes0:arm64 (1.17.0-2+b1) ...\n#11 45.61 Selecting previously unselected package libxshmfence1:arm64.\n#11 45.61 Preparing to unpack .../23-libxshmfence1_1.3.3-1_arm64.deb ...\n#11 45.61 Unpacking libxshmfence1:arm64 (1.3.3-1) ...\n#11 45.62 Selecting previously unselected package mesa-libgallium:arm64.\n#11 45.62 Preparing to unpack .../24-mesa-libgallium_25.0.7-2_arm64.deb ...\n#11 45.62 Unpacking mesa-libgallium:arm64 (25.0.7-2) ...\n#11 45.94 Selecting previously unselected package libgbm1:arm64.\n#11 45.95 Preparing to unpack .../25-libgbm1_25.0.7-2_arm64.deb ...\n#11 45.95 Unpacking libgbm1:arm64 (25.0.7-2) ...\n#11 45.96 Selecting previously unselected package libwayland-client0:arm64.\n#11 45.96 Preparing to unpack .../26-libwayland-client0_1.23.1-3_arm64.deb ...\n#11 45.96 Unpacking libwayland-client0:arm64 (1.23.1-3) ...\n#11 45.97 Selecting previously unselected package libegl-mesa0:arm64.\n#11 45.97 Preparing to unpack .../27-libegl-mesa0_25.0.7-2_arm64.deb ...\n#11 45.97 Unpacking libegl-mesa0:arm64 (25.0.7-2) ...\n#11 45.99 Selecting previously unselected package libglvnd0:arm64.\n#11 45.99 Preparing to unpack .../28-libglvnd0_1.7.0-1+b2_arm64.deb ...\n#11 45.99 Unpacking libglvnd0:arm64 (1.7.0-1+b2) ...\n#11 46.01 Selecting previously unselected package libxcb-glx0:arm64.\n#11 46.01 Preparing to unpack .../29-libxcb-glx0_1.17.0-2+b1_arm64.deb ...\n#11 46.01 Unpacking libxcb-glx0:arm64 (1.17.0-2+b1) ...\n#11 46.02 Selecting previously unselected package libxxf86vm1:arm64.\n#11 46.02 Preparing to unpack .../30-libxxf86vm1_1%3a1.1.4-1+b4_arm64.deb ...\n#11 46.03 Unpacking libxxf86vm1:arm64 (1:1.1.4-1+b4) ...\n#11 46.04 Selecting previously unselected package libvulkan1:arm64.\n#11 46.04 Preparing to unpack .../31-libvulkan1_1.4.309.0-1_arm64.deb ...\n#11 46.04 Unpacking libvulkan1:arm64 (1.4.309.0-1) ...\n#11 46.06 Selecting previously unselected package libgl1-mesa-dri:arm64.\n#11 46.06 Preparing to unpack .../32-libgl1-mesa-dri_25.0.7-2_arm64.deb ...\n#11 46.06 Unpacking libgl1-mesa-dri:arm64 (25.0.7-2) ...\n#11 46.08 Selecting previously unselected package libglx-mesa0:arm64.\n#11 46.08 Preparing to unpack .../33-libglx-mesa0_25.0.7-2_arm64.deb ...\n#11 46.08 Unpacking libglx-mesa0:arm64 (25.0.7-2) ...\n#11 46.11 Selecting previously unselected package libglx0:arm64.\n#11 46.11 Preparing to unpack .../34-libglx0_1.7.0-1+b2_arm64.deb ...\n#11 46.11 Unpacking libglx0:arm64 (1.7.0-1+b2) ...\n#11 46.13 Selecting previously unselected package libgl1:arm64.\n#11 46.13 Preparing to unpack .../35-libgl1_1.7.0-1+b2_arm64.deb ...\n#11 46.13 Unpacking libgl1:arm64 (1.7.0-1+b2) ...\n#11 46.15 Selecting previously unselected package libxcb-util1:arm64.\n#11 46.15 Preparing to unpack .../36-libxcb-util1_0.4.1-1_arm64.deb ...\n#11 46.15 Unpacking libxcb-util1:arm64 (0.4.1-1) ...\n#11 46.17 Selecting previously unselected package libxcb-image0:arm64.\n#11 46.17 Preparing to unpack .../37-libxcb-image0_0.4.0-2+b2_arm64.deb ...\n#11 46.17 Unpacking libxcb-image0:arm64 (0.4.0-2+b2) ...\n#11 46.18 Selecting previously unselected package libxcb-render-util0:arm64.\n#11 46.18 Preparing to unpack .../38-libxcb-render-util0_0.3.10-1_arm64.deb ...\n#11 46.18 Unpacking libxcb-render-util0:arm64 (0.3.10-1) ...\n#11 46.20 Selecting previously unselected package libxcb-cursor0:arm64.\n#11 46.20 Preparing to unpack .../39-libxcb-cursor0_0.1.5-1_arm64.deb ...\n#11 46.20 Unpacking libxcb-cursor0:arm64 (0.1.5-1) ...\n#11 46.21 Selecting previously unselected package libxcb-icccm4:arm64.\n#11 46.22 Preparing to unpack .../40-libxcb-icccm4_0.4.2-1_arm64.deb ...\n#11 46.22 Unpacking libxcb-icccm4:arm64 (0.4.2-1) ...\n#11 46.23 Selecting previously unselected package libxcb-keysyms1:arm64.\n#11 46.23 Preparing to unpack .../41-libxcb-keysyms1_0.4.1-1_arm64.deb ...\n#11 46.24 Unpacking libxcb-keysyms1:arm64 (0.4.1-1) ...\n#11 46.25 Selecting previously unselected package libxcb-xinerama0:arm64.\n#11 46.25 Preparing to unpack .../42-libxcb-xinerama0_1.17.0-2+b1_arm64.deb ...\n#11 46.25 Unpacking libxcb-xinerama0:arm64 (1.17.0-2+b1) ...\n#11 46.27 Selecting previously unselected package libxcb-xkb1:arm64.\n#11 46.27 Preparing to unpack .../43-libxcb-xkb1_1.17.0-2+b1_arm64.deb ...\n#11 46.28 Unpacking libxcb-xkb1:arm64 (1.17.0-2+b1) ...\n#11 46.29 Selecting previously unselected package xkb-data.\n#11 46.29 Preparing to unpack .../44-xkb-data_2.42-1_all.deb ...\n#11 46.29 Unpacking xkb-data (2.42-1) ...\n#11 46.34 Selecting previously unselected package libxkbcommon0:arm64.\n#11 46.34 Preparing to unpack .../45-libxkbcommon0_1.7.0-2_arm64.deb ...\n#11 46.34 Unpacking libxkbcommon0:arm64 (1.7.0-2) ...\n#11 46.36 Selecting previously unselected package libxkbcommon-x11-0:arm64.\n#11 46.36 Preparing to unpack .../46-libxkbcommon-x11-0_1.7.0-2_arm64.deb ...\n#11 46.36 Unpacking libxkbcommon-x11-0:arm64 (1.7.0-2) ...\n#11 46.37 Selecting previously unselected package mesa-vulkan-drivers:arm64.\n#11 46.37 Preparing to unpack .../47-mesa-vulkan-drivers_25.0.7-2_arm64.deb ...\n#11 46.37 Unpacking mesa-vulkan-drivers:arm64 (25.0.7-2) ...\n#11 46.69 Selecting previously unselected package libegl1:arm64.\n#11 46.69 Preparing to unpack .../48-libegl1_1.7.0-1+b2_arm64.deb ...\n#11 46.69 Unpacking libegl1:arm64 (1.7.0-1+b2) ...\n#11 46.71 Setting up libxcb-dri3-0:arm64 (1.17.0-2+b1) ...\n#11 46.72 Setting up libwayland-server0:arm64 (1.23.1-3) ...\n#11 46.73 Setting up libx11-xcb1:arm64 (2:1.8.12-1) ...\n#11 46.74 Setting up libapparmor1:arm64 (4.1.0-1) ...\n#11 46.75 Setting up libc-l10n (2.41-12+deb13u2) ...\n#11 46.75 Setting up libxcb-xfixes0:arm64 (1.17.0-2+b1) ...\n#11 46.76 Setting up libglvnd0:arm64 (1.7.0-1+b2) ...\n#11 46.77 Setting up libxcb-glx0:arm64 (1.17.0-2+b1) ...\n#11 46.78 Setting up libxcb-keysyms1:arm64 (0.4.1-1) ...\n#11 46.79 Setting up libsensors-config (1:3.6.2-2) ...\n#11 46.80 Setting up libxcb-render-util0:arm64 (0.3.10-1) ...\n#11 46.81 Setting up xkb-data (2.42-1) ...\n#11 46.82 Setting up libxcb-icccm4:arm64 (0.4.2-1) ...\n#11 46.83 Setting up locales (2.41-12+deb13u2) ...\n#11 46.87 debconf: unable to initialize frontend: Dialog\n#11 46.87 debconf: (TERM is not set, so the dialog frontend is not usable.)\n#11 46.87 debconf: falling back to frontend: Readline\n#11 46.87 debconf: unable to initialize frontend: Readline\n#11 46.87 debconf: (This frontend requires a controlling tty.)\n#11 46.87 debconf: falling back to frontend: Teletype\n#11 46.87 debconf: unable to initialize frontend: Teletype\n#11 46.87 debconf: (This frontend requires a controlling tty.)\n#11 46.87 debconf: falling back to frontend: Noninteractive\n#11 47.00 Generating locales (this might take a while)...\n#11 47.01 Generation complete.\n#11 47.02 Setting up libxcb-util1:arm64 (0.4.1-1) ...\n#11 47.02 Setting up libxxf86vm1:arm64 (1:1.1.4-1+b4) ...\n#11 47.03 Setting up libxcb-xkb1:arm64 (1.17.0-2+b1) ...\n#11 47.03 Setting up libxcb-image0:arm64 (0.4.0-2+b2) ...\n#11 47.03 Setting up libxcb-present0:arm64 (1.17.0-2+b1) ...\n#11 47.04 Setting up libz3-4:arm64 (4.13.3-1) ...\n#11 47.04 Setting up libxcb-xinerama0:arm64 (1.17.0-2+b1) ...\n#11 47.04 Setting up libxcb-sync1:arm64 (1.17.0-2+b1) ...\n#11 47.05 Setting up libxcb-cursor0:arm64 (0.1.5-1) ...\n#11 47.05 Setting up libdbus-1-3:arm64 (1.16.2-2) ...\n#11 47.05 Setting up libsensors5:arm64 (1:3.6.2-2) ...\n#11 47.06 Setting up libvulkan1:arm64 (1.4.309.0-1) ...\n#11 47.06 Setting up libxshmfence1:arm64 (1.3.3-1) ...\n#11 47.06 Setting up libxcb-randr0:arm64 (1.17.0-2+b1) ...\n#11 47.07 Setting up dbus-session-bus-common (1.16.2-2) ...\n#11 47.08 Setting up dbus-system-bus-common (1.16.2-2) ...\n#11 47.13 Setting up libdrm-common (2.4.124-2) ...\n#11 47.14 Setting up dbus-bin (1.16.2-2) ...\n#11 47.14 Setting up libxkbcommon0:arm64 (1.7.0-2) ...\n#11 47.14 Setting up libwayland-client0:arm64 (1.23.1-3) ...\n#11 47.15 Setting up libllvm19:arm64 (1:19.1.7-3+b1) ...\n#11 47.15 Setting up dbus-daemon (1.16.2-2) ...\n#11 47.16 Setting up dbus (1.16.2-2) ...\n#11 47.17 invoke-rc.d: could not determine current runlevel\n#11 47.18 invoke-rc.d: policy-rc.d denied execution of start.\n#11 47.18 Setting up libxkbcommon-x11-0:arm64 (1.7.0-2) ...\n#11 47.18 Setting up libdrm2:arm64 (2.4.124-2) ...\n#11 47.19 Setting up libdrm-amdgpu1:arm64 (2.4.124-2) ...\n#11 47.19 Setting up mesa-vulkan-drivers:arm64 (25.0.7-2) ...\n#11 47.19 Setting up mesa-libgallium:arm64 (25.0.7-2) ...\n#11 47.20 Setting up libgbm1:arm64 (25.0.7-2) ...\n#11 47.20 Setting up libgl1-mesa-dri:arm64 (25.0.7-2) ...\n#11 47.21 Setting up libegl-mesa0:arm64 (25.0.7-2) ...\n#11 47.21 Setting up libegl1:arm64 (1.7.0-1+b2) ...\n#11 47.22 Setting up libglx-mesa0:arm64 (25.0.7-2) ...\n#11 47.22 Setting up libglx0:arm64 (1.7.0-1+b2) ...\n#11 47.22 Setting up libgl1:arm64 (1.7.0-1+b2) ...\n#11 47.23 Processing triggers for libc-bin (2.41-12+deb13u2) ...\n#11 DONE 47.5s\n\n#12 [ 7/11] RUN localedef -i en_US -f UTF-8 en_US.UTF-8\n#12 DONE 0.8s\n\n#13 [ 8/11] RUN pip install -r requirements.txt\n#13 1.024 Collecting pyside6-fluent-widgets>=1.5.6\n#13 2.027   Downloading pyside6_fluent_widgets-1.11.2-py3-none-any.whl (1.6 MB)\n#13 2.700      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 2.5 MB/s eta 0:00:00\n#13 2.845 Collecting ansi2html>=1.9.1\n#13 2.957   Downloading ansi2html-1.9.2-py3-none-any.whl (17 kB)\n#13 3.109 Collecting loguru>=0.7.2\n#13 3.308   Downloading loguru-0.7.3-py3-none-any.whl (61 kB)\n#13 3.318      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.6/61.6 kB 7.9 MB/s eta 0:00:00\n#13 3.670 Collecting opencv-contrib-python>=4.10.0.84\n#13 3.779   Downloading opencv_contrib_python-4.13.0.92-cp37-abi3-manylinux_2_28_aarch64.whl (52.5 MB)\n#13 12.31      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 52.5/52.5 MB 7.0 MB/s eta 0:00:00\n#13 12.34 Requirement already satisfied: typing-extensions>=4.12.2 in /usr/local/lib/python3.10/site-packages (from -r requirements.txt (line 5)) (4.15.0)\n#13 12.79 Collecting auto-editor>=24.31.1\n#13 13.46   Downloading auto_editor-29.3.1-py3-none-any.whl (5.9 kB)\n#13 13.98 Collecting audio-separator[cpu]>=0.18.3\n#13 14.09   Downloading audio_separator-0.44.1-py3-none-any.whl (405 kB)\n#13 14.21      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 405.6/405.6 kB 3.4 MB/s eta 0:00:00\n#13 14.36 Collecting noisereduce>=3.0.2\n#13 14.47   Downloading noisereduce-3.0.3-py3-none-any.whl (22 kB)\n#13 14.81 Collecting PySideSix-Frameless-Window>=0.8.0\n#13 14.92   Downloading pysidesix_frameless_window-0.8.1-py3-none-any.whl (31 kB)\n#13 15.16 Collecting PySide6\n#13 15.27   Downloading pyside6-6.11.0-cp310-abi3-manylinux_2_39_aarch64.whl (571 kB)\n#13 15.58      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 571.7/571.7 kB 2.3 MB/s eta 0:00:00\n#13 15.73 Collecting darkdetect\n#13 15.96   Downloading darkdetect-0.8.0-py3-none-any.whl (9.0 kB)\n#13 16.59 Collecting numpy>=2\n#13 16.71   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.3 MB)\n#13 23.48      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.3/14.3 MB 4.5 MB/s eta 0:00:00\n#13 23.74 Collecting tqdm\n#13 23.87   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#13 23.89      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 4.5 MB/s eta 0:00:00\n#13 24.06 Collecting pyyaml\n#13 24.17   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (740 kB)\n#13 24.40      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 740.6/740.6 kB 4.8 MB/s eta 0:00:00\n#13 24.68 Collecting torch>=2.3\n#13 24.79   Downloading torch-2.11.0-cp310-cp310-manylinux_2_28_aarch64.whl (419.7 MB)\n#13 98.31      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 419.7/419.7 MB 1.6 MB/s eta 0:00:00\n#13 98.77 Collecting ml_collections\n#13 98.89   Downloading ml_collections-1.1.0-py3-none-any.whl (76 kB)\n#13 98.92      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.7/76.7 kB 2.1 MB/s eta 0:00:00\n#13 99.06 Collecting resampy>=0.4\n#13 99.18   Downloading resampy-0.4.3-py3-none-any.whl (3.1 MB)\n#13 99.75      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 5.4 MB/s eta 0:00:00\n#13 99.90 Collecting beartype<0.19.0,>=0.18.5\n#13 100.0   Downloading beartype-0.18.5-py3-none-any.whl (917 kB)\n#13 100.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 917.8/917.8 kB 3.7 MB/s eta 0:00:00\n#13 100.4 Collecting pydub>=0.25\n#13 100.5   Downloading pydub-0.25.1-py2.py3-none-any.whl (32 kB)\n#13 100.7 Collecting einops>=0.7\n#13 100.8   Downloading einops-0.8.2-py3-none-any.whl (65 kB)\n#13 100.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.6/65.6 kB 6.3 MB/s eta 0:00:00\n#13 100.9 Collecting julius>=0.2\n#13 101.1   Downloading julius-0.2.7.tar.gz (59 kB)\n#13 101.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.6/59.6 kB 3.1 MB/s eta 0:00:00\n#13 101.2   Preparing metadata (setup.py): started\n#13 101.4   Preparing metadata (setup.py): finished with status 'done'\n#13 101.5 Collecting soundfile>=0.12\n#13 101.6   Downloading soundfile-0.13.1-py2.py3-none-manylinux_2_28_aarch64.whl (1.2 MB)\n#13 107.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 255.3 kB/s eta 0:00:00\n#13 107.7 Collecting onnx2torch-py313>=1.6\n#13 107.9   Downloading onnx2torch_py313-1.6.0-py3-none-any.whl (81 kB)\n#13 108.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.3/81.3 kB 1.1 MB/s eta 0:00:00\n#13 108.5 Collecting scipy<2.0.0,>=1.13.0\n#13 108.6   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (35.5 MB)\n#13 116.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.5/35.5 MB 6.1 MB/s eta 0:00:00\n#13 116.6 Requirement already satisfied: requests>=2 in /usr/local/lib/python3.10/site-packages (from audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (2.33.1)\n#13 117.0 Collecting diffq>=0.2\n#13 117.1   Downloading diffq-0.2.4.tar.gz (157 kB)\n#13 117.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 157.1/157.1 kB 4.5 MB/s eta 0:00:00\n#13 117.2   Installing build dependencies: started\n#13 121.7   Installing build dependencies: finished with status 'done'\n#13 121.7   Getting requirements to build wheel: started\n#13 122.4   Getting requirements to build wheel: finished with status 'done'\n#13 122.4   Preparing metadata (pyproject.toml): started\n#13 122.5   Preparing metadata (pyproject.toml): finished with status 'done'\n#13 122.7 Collecting librosa>=0.10\n#13 122.8   Downloading librosa-0.11.0-py3-none-any.whl (260 kB)\n#13 122.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 260.7/260.7 kB 6.1 MB/s eta 0:00:00\n#13 123.0 Collecting six>=1.16\n#13 123.2   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#13 123.6 Collecting onnx-weekly\n#13 123.7   Downloading onnx_weekly-1.22.0.dev20260421-cp310-cp310-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (17.5 MB)\n#13 126.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.5/17.5 MB 6.0 MB/s eta 0:00:00\n#13 126.7 Collecting rotary-embedding-torch<0.7.0,>=0.6.1\n#13 126.8   Downloading rotary_embedding_torch-0.6.5-py3-none-any.whl (5.5 kB)\n#13 127.1 Collecting samplerate==0.1.0\n#13 127.3   Downloading samplerate-0.1.0-py2.py3-none-any.whl (4.0 MB)\n#13 127.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 6.0 MB/s eta 0:00:00\n#13 128.2 Collecting onnxruntime>=1.17\n#13 128.3   Downloading onnxruntime-1.23.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (15.2 MB)\n#13 130.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.2/15.2 MB 6.3 MB/s eta 0:00:00\n#13 130.8 Requirement already satisfied: cffi>=1.0.0 in /usr/local/lib/python3.10/site-packages (from samplerate==0.1.0->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (2.0.0)\n#13 131.3 Collecting joblib\n#13 131.7   Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#13 131.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 33.5 MB/s eta 0:00:00\n#13 132.3 Collecting matplotlib\n#13 132.4   Downloading matplotlib-3.10.8-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (9.5 MB)\n#13 133.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.5/9.5 MB 6.3 MB/s eta 0:00:00\n#13 134.3 Collecting Cython\n#13 134.3   Using cached cython-3.2.4-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (3.4 MB)\n#13 134.6 Collecting scikit-learn>=1.1.0\n#13 134.7   Downloading scikit_learn-1.7.2-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (9.5 MB)\n#13 136.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.5/9.5 MB 6.3 MB/s eta 0:00:00\n#13 136.6 Collecting numba>=0.51.0\n#13 136.7   Downloading numba-0.65.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (3.4 MB)\n#13 137.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.4/3.4 MB 6.2 MB/s eta 0:00:00\n#13 137.4 Collecting decorator>=4.3.0\n#13 137.5   Downloading decorator-5.2.1-py3-none-any.whl (9.2 kB)\n#13 137.7 Collecting lazy_loader>=0.1\n#13 137.9   Downloading lazy_loader-0.5-py3-none-any.whl (8.0 kB)\n#13 138.0 Collecting pooch>=1.1\n#13 138.1   Downloading pooch-1.9.0-py3-none-any.whl (67 kB)\n#13 138.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.2/67.2 kB 5.9 MB/s eta 0:00:00\n#13 138.6 Collecting soxr>=0.3.2\n#13 138.7   Downloading soxr-1.0.0-cp310-cp310-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (208 kB)\n#13 138.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 208.6/208.6 kB 8.9 MB/s eta 0:00:00\n#13 138.7 Requirement already satisfied: msgpack>=1.0 in /usr/local/lib/python3.10/site-packages (from librosa>=0.10->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (1.1.2)\n#13 138.8 Collecting audioread>=2.1.9\n#13 139.0   Downloading audioread-3.1.0-py3-none-any.whl (23 kB)\n#13 139.4 Collecting torchvision>=0.9.0\n#13 139.5   Downloading torchvision-0.26.0-cp310-cp310-manylinux_2_28_aarch64.whl (7.8 MB)\n#13 140.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.8/7.8 MB 6.3 MB/s eta 0:00:00\n#13 140.7 Requirement already satisfied: packaging in /usr/local/lib/python3.10/site-packages (from onnxruntime>=1.17->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (26.1)\n#13 140.9 Collecting coloredlogs\n#13 141.0   Downloading coloredlogs-15.0.1-py2.py3-none-any.whl (46 kB)\n#13 141.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.0/46.0 kB 313.4 kB/s eta 0:00:00\n#13 141.3 Collecting flatbuffers\n#13 141.5   Downloading flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)\n#13 141.8 Collecting sympy\n#13 141.9   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#13 143.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 5.5 MB/s eta 0:00:00\n#13 146.3 Collecting protobuf\n#13 146.5   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_aarch64.whl (325 kB)\n#13 146.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 325.8/325.8 kB 3.1 MB/s eta 0:00:00\n#13 146.6 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests>=2->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (2026.4.22)\n#13 146.6 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests>=2->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (2.6.3)\n#13 146.6 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests>=2->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (3.4.7)\n#13 146.6 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests>=2->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (3.13)\n#13 146.9 Collecting networkx>=2.5.1\n#13 147.0   Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n#13 147.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 4.5 MB/s eta 0:00:00\n#13 147.4 Requirement already satisfied: filelock in /usr/local/lib/python3.10/site-packages (from torch>=2.3->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (3.29.0)\n#13 147.5 Collecting cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2\n#13 147.6   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#13 147.6 Requirement already satisfied: setuptools<82 in /usr/local/lib/python3.10/site-packages (from torch>=2.3->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (79.0.1)\n#13 147.8 Collecting nvidia-nccl-cu13==2.28.9\n#13 147.9   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_aarch64.whl (196.6 MB)\n#13 180.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.6/196.6 MB 4.5 MB/s eta 0:00:00\n#13 181.0 Collecting jinja2\n#13 181.1   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#13 181.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 3.2 MB/s eta 0:00:00\n#13 181.3 Collecting nvidia-cusparselt-cu13==0.8.0\n#13 181.4   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_aarch64.whl (220.8 MB)\n#13 217.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 220.8/220.8 MB 5.5 MB/s eta 0:00:00\n#13 218.1 Collecting triton==3.6.0\n#13 218.3   Downloading triton-3.6.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (176.0 MB)\n#13 247.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.0/176.0 MB 5.5 MB/s eta 0:00:00\n#13 247.7 Collecting fsspec>=0.8.5\n#13 247.8   Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#13 247.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.6/202.6 kB 6.2 MB/s eta 0:00:00\n#13 248.0 Collecting nvidia-cudnn-cu13==9.19.0.56\n#13 248.1   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl (433.8 MB)\n#13 320.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 433.8/433.8 MB 3.2 MB/s eta 0:00:00\n#13 321.3 Collecting cuda-bindings<14,>=13.0.3\n#13 321.4   Downloading cuda_bindings-13.2.0-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (5.7 MB)\n#13 322.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.7/5.7 MB 6.0 MB/s eta 0:00:00\n#13 322.5 Collecting nvidia-nvshmem-cu13==3.4.5\n#13 322.6   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (60.2 MB)\n#13 332.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.2/60.2 MB 5.5 MB/s eta 0:00:00\n#13 332.7 Collecting nvidia-cufft==12.0.0.61.*\n#13 332.8   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (214.1 MB)\n#13 368.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 4.9 MB/s eta 0:00:00\n#13 368.7 Collecting nvidia-nvjitlink==13.0.88.*\n#13 368.8   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (38.8 MB)\n#13 375.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.8/38.8 MB 5.7 MB/s eta 0:00:00\n#13 375.3 Collecting nvidia-cufile==1.15.1.6.*\n#13 375.4   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux_2_27_aarch64.whl (1.1 MB)\n#13 375.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 3.7 MB/s eta 0:00:00\n#13 375.9 Collecting nvidia-cublas==13.1.0.3.*\n#13 376.4   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_aarch64.whl (542.9 MB)\n#13 467.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 542.9/542.9 MB 2.5 MB/s eta 0:00:00\n#13 468.2 Collecting nvidia-cuda-runtime==13.0.96.*\n#13 468.4   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (2.3 MB)\n#13 468.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 5.4 MB/s eta 0:00:00\n#13 468.9 Collecting nvidia-cuda-nvrtc==13.0.88.*\n#13 469.0   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (43.0 MB)\n#13 476.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.0/43.0 MB 5.4 MB/s eta 0:00:00\n#13 476.3 Collecting nvidia-cusolver==12.0.4.66.*\n#13 476.4   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl (223.5 MB)\n#13 514.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 223.5/223.5 MB 3.6 MB/s eta 0:00:00\n#13 514.5 Collecting nvidia-nvtx==13.0.85.*\n#13 514.6   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (148 kB)\n#13 514.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 148.9/148.9 kB 3.2 MB/s eta 0:00:00\n#13 514.8 Collecting nvidia-curand==10.4.0.35.*\n#13 514.9   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_aarch64.whl (62.0 MB)\n#13 524.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.0/62.0 MB 5.5 MB/s eta 0:00:00\n#13 525.1 Collecting nvidia-cusparse==12.6.3.3.*\n#13 525.2   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (162.2 MB)\n#13 552.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 162.2/162.2 MB 4.3 MB/s eta 0:00:00\n#13 552.5 Collecting nvidia-cuda-cupti==13.0.85.*\n#13 552.7   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_aarch64.whl (10.3 MB)\n#13 554.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.3/10.3 MB 6.5 MB/s eta 0:00:00\n#13 555.2 Collecting fonttools>=4.22.0\n#13 555.3   Downloading fonttools-4.62.1-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (4.9 MB)\n#13 556.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.9/4.9 MB 6.5 MB/s eta 0:00:00\n#13 556.3 Collecting pyparsing>=3\n#13 556.4   Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)\n#13 556.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 122.8/122.8 kB 5.6 MB/s eta 0:00:00\n#13 556.6 Collecting python-dateutil>=2.7\n#13 556.7   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#13 556.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 1.7 MB/s eta 0:00:00\n#13 557.3 Collecting contourpy>=1.0.1\n#13 557.4   Downloading contourpy-1.3.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (312 kB)\n#13 557.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 312.1/312.1 kB 9.4 MB/s eta 0:00:00\n#13 557.8 Collecting kiwisolver>=1.3.1\n#13 557.9   Downloading kiwisolver-1.5.0-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (1.2 MB)\n#13 558.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 7.5 MB/s eta 0:00:00\n#13 558.9 Collecting pillow>=8\n#13 559.0   Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (6.4 MB)\n#13 560.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 6.6 MB/s eta 0:00:00\n#13 560.1 Collecting cycler>=0.10\n#13 560.2   Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)\n#13 560.4 Collecting absl-py\n#13 560.5   Downloading absl_py-2.4.0-py3-none-any.whl (135 kB)\n#13 560.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.8/135.8 kB 6.9 MB/s eta 0:00:00\n#13 560.8 Collecting ml_dtypes>=0.5.0\n#13 560.9   Downloading ml_dtypes-0.5.4-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (5.1 MB)\n#13 561.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 6.8 MB/s eta 0:00:00\n#13 561.8 Collecting shiboken6==6.11.0\n#13 561.9   Downloading shiboken6-6.11.0-cp310-abi3-manylinux_2_39_aarch64.whl (267 kB)\n#13 561.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 267.5/267.5 kB 13.5 MB/s eta 0:00:00\n#13 562.4 Collecting PySide6_Essentials==6.11.0\n#13 562.6   Downloading pyside6_essentials-6.11.0-cp310-abi3-manylinux_2_39_aarch64.whl (77.4 MB)\n#13 575.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 77.4/77.4 MB 5.0 MB/s eta 0:00:00\n#13 575.7 Collecting PySide6_Addons==6.11.0\n#13 575.8   Downloading pyside6_addons-6.11.0-cp310-abi3-manylinux_2_39_aarch64.whl (170.4 MB)\n#13 604.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 170.4/170.4 MB 4.6 MB/s eta 0:00:00\n#13 604.4 Requirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=1.0.0->samplerate==0.1.0->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (3.0)\n#13 604.6 Collecting cuda-pathfinder~=1.1\n#13 604.7   Downloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\n#13 604.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.0/50.0 kB 874.2 kB/s eta 0:00:00\n#13 605.2 Collecting llvmlite<0.48,>=0.47.0dev0\n#13 605.3   Downloading llvmlite-0.47.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (55.1 MB)\n#13 614.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 55.1/55.1 MB 5.5 MB/s eta 0:00:00\n#13 614.6 Requirement already satisfied: platformdirs>=2.5.0 in /usr/local/lib/python3.10/site-packages (from pooch>=1.1->librosa>=0.10->audio-separator[cpu]>=0.18.3->-r requirements.txt (line 7)) (4.9.6)\n#13 614.8 Collecting threadpoolctl>=3.1.0\n#13 614.9   Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#13 615.1 Collecting mpmath<1.4,>=1.1.0\n#13 615.2   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#13 615.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 2.3 MB/s eta 0:00:00\n#13 615.7 Collecting humanfriendly>=9.1\n#13 615.8   Downloading humanfriendly-10.0-py2.py3-none-any.whl (86 kB)\n#13 615.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.8/86.8 kB 596.5 kB/s eta 0:00:00\n#13 616.3 Collecting MarkupSafe>=2.0\n#13 616.4   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (22 kB)\n#13 616.5 Building wheels for collected packages: diffq, julius\n#13 616.5   Building wheel for diffq (pyproject.toml): started\n#13 620.6   Building wheel for diffq (pyproject.toml): finished with status 'done'\n#13 620.6   Created wheel for diffq: filename=diffq-0.2.4-cp310-cp310-linux_aarch64.whl size=532182 sha256=da8e15a677db97d2046c465c8517f43dd1c640f98656f8c4c9beee05f3c9ab3f\n#13 620.6   Stored in directory: /root/.cache/pip/wheels/44/59/af/248be07a94f54306015f0e52c7604b4921f9802bdcb6193b11\n#13 620.6   Building wheel for julius (setup.py): started\n#13 620.7   Building wheel for julius (setup.py): finished with status 'done'\n#13 620.7   Created wheel for julius: filename=julius-0.2.7-py3-none-any.whl size=21966 sha256=c9491d110cbe16ff3935f3a4afe9950a528f26d8cc847300aa2398d50c643fce\n#13 620.7   Stored in directory: /root/.cache/pip/wheels/b9/b2/05/f883527ffcb7f2ead5438a2c23439aa0c881eaa9a4c80256f4\n#13 620.7 Successfully built diffq julius\n#13 621.2 Installing collected packages: PySideSix-Frameless-Window, pydub, nvidia-cusparselt-cu13, mpmath, flatbuffers, cuda-toolkit, triton, tqdm, threadpoolctl, sympy, six, shiboken6, pyyaml, pyparsing, protobuf, pillow, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, MarkupSafe, loguru, llvmlite, lazy_loader, kiwisolver, joblib, humanfriendly, fsspec, fonttools, einops, decorator, darkdetect, Cython, cycler, cuda-pathfinder, beartype, auto-editor, audioread, ansi2html, absl-py, soxr, soundfile, scipy, samplerate, python-dateutil, PySide6_Essentials, pooch, opencv-contrib-python, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, numba, ml_dtypes, ml_collections, jinja2, cuda-bindings, contourpy, coloredlogs, scikit-learn, resampy, PySide6_Addons, onnxruntime, onnx-weekly, nvidia-cusolver, matplotlib, PySide6, noisereduce, librosa, torch, pyside6-fluent-widgets, torchvision, rotary-embedding-torch, julius, diffq, onnx2torch-py313, audio-separator\n#13 672.5 Successfully installed Cython-3.2.4 MarkupSafe-3.0.3 PySide6-6.11.0 PySide6_Addons-6.11.0 PySide6_Essentials-6.11.0 PySideSix-Frameless-Window-0.8.1 absl-py-2.4.0 ansi2html-1.9.2 audio-separator-0.44.1 audioread-3.1.0 auto-editor-29.3.1 beartype-0.18.5 coloredlogs-15.0.1 contourpy-1.3.2 cuda-bindings-13.2.0 cuda-pathfinder-1.5.3 cuda-toolkit-13.0.2 cycler-0.12.1 darkdetect-0.8.0 decorator-5.2.1 diffq-0.2.4 einops-0.8.2 flatbuffers-25.12.19 fonttools-4.62.1 fsspec-2026.3.0 humanfriendly-10.0 jinja2-3.1.6 joblib-1.5.3 julius-0.2.7 kiwisolver-1.5.0 lazy_loader-0.5 librosa-0.11.0 llvmlite-0.47.0 loguru-0.7.3 matplotlib-3.10.8 ml_collections-1.1.0 ml_dtypes-0.5.4 mpmath-1.3.0 networkx-3.4.2 noisereduce-3.0.3 numba-0.65.0 numpy-2.2.6 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 onnx-weekly-1.22.0.dev20260421 onnx2torch-py313-1.6.0 onnxruntime-1.23.2 opencv-contrib-python-4.13.0.92 pillow-12.2.0 pooch-1.9.0 protobuf-7.34.1 pydub-0.25.1 pyparsing-3.3.2 pyside6-fluent-widgets-1.11.2 python-dateutil-2.9.0.post0 pyyaml-6.0.3 resampy-0.4.3 rotary-embedding-torch-0.6.5 samplerate-0.1.0 scikit-learn-1.7.2 scipy-1.15.3 shiboken6-6.11.0 six-1.17.0 soundfile-0.13.1 soxr-1.0.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchvision-0.26.0 tqdm-4.67.3 triton-3.6.0\n#13 672.5 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#13 672.5 \n#13 672.5 [notice] A new release of pip is available: 23.0.1 -> 26.0.1\n#13 672.5 [notice] To update, run: pip install --upgrade pip\n#13 DONE 674.0s\n\n#14 [ 9/11] RUN pip install pytest\n#14 0.404 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#14 0.409 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.1)\n#14 0.409 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#14 0.410 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#14 0.410 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#14 0.411 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#14 0.411 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest) (2.20.0)\n#14 0.412 Requirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\n#14 0.742 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#14 0.743 \n#14 0.743 [notice] A new release of pip is available: 23.0.1 -> 26.0.1\n#14 0.743 [notice] To update, run: pip install --upgrade pip\n#14 DONE 0.8s\n\n#15 [10/11] RUN sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n#15 DONE 0.3s\n\n#16 [11/11] RUN sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py\n#16 DONE 0.2s\n\n#17 exporting to image\n#17 exporting layers\n#17 exporting layers 17.8s done\n#17 writing image sha256:8a905dd9ea8c3a15792a97ae8b97bd122c72c39489ce3e0b31bbfb3c358304bf\n#17 writing image sha256:8a905dd9ea8c3a15792a97ae8b97bd122c72c39489ce3e0b31bbfb3c358304bf done\n#17 naming to docker.io/library/jayint-repo2run-271374667__videofusion done\n#17 DONE 17.8s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/guuefxmgi1y418im5fzzlp8xp\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "jayint-repo2run-271374667__videofusion",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i jayint-repo2run-271374667__videofusion sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-24T00:28:03.480588+08:00",
+          "finished_at": "2026-04-24T00:28:05.508183+08:00",
+          "duration_seconds": 2.028,
+          "stdout": "tests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_non_zero_exit_code_raises_exception\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_command_execution_with_stderr_logs_critical_and_emits_failed_signal\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_empty_command_raises_value_error\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_progress_tracking_updates_progress_correctly\ntests/ffmpeg_handler_test.py::TestFFmpegHandler::test_successful_command_execution_emits_finish_signal\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_invalid_video_format_raises_value_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_non_existent_video_raises_file_not_found_error\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_with_black_borders_returns_correct_coordinates\ntests/test_balck_remove_algorithm/video_black_remove_algorithm_test.py::TestIMGBlackRemover::test_video_without_black_borders_returns_full_frame\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_empty_frame_returns_same_frame\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_frame_with_salt_and_pepper_noise_is_denoised\ntests/test_processors/test_opencv_processors/bilateral_denoise_test.py::TestBilateralDenoiseProcessor::test_frame_with_uniform_noise_is_denoised\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_outside_of_frame_bounds_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_all_parameters_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_one_parameter_missing_returns_original_frame\ntests/test_processors/test_opencv_processors/crop_processor_test.py::CropProcessorTest::test_cropping_with_valid_parameters_returns_correctly_cropped_frame\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_cache_usage_reduces_computation\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_reset_cache\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_to_target_dimensions\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_aspect_ratio_preserved\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_padding\ntests/test_processors/test_opencv_processors/resize_processor_test.py::ResizeProcessorTest::test_resize_with_zero_dimensions_raises_value_error\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_angle\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_raise_error_on_missing_orientation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_horizontal_video_no_needs_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_no_rotation\ntests/test_processors/test_opencv_processors/rotate_processor_test.py::RotateProcessorTest::test_rotate_vertical_video_needs_rotation\ntests/utils_test/image_utils_test.py::TestImageUtils::test_has_black_border\ntests/utils_test/image_utils_test.py::TestImageUtils::test_is_black_true\ntests/video_info_reader_test.py::TestVideoInfoReader::test_get_video_info\n\n32 tests collected in 0.57s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": false,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-271374667__videofusion"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-271374667__videofusion",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T00:28:05.572669+08:00",
+    "finished_at": "2026-04-24T00:28:05.594936+08:00",
+    "duration_seconds": 0.022,
+    "stdout": "Untagged: jayint-repo2run-271374667__videofusion:latest\nDeleted: sha256:8a905dd9ea8c3a15792a97ae8b97bd122c72c39489ce3e0b31bbfb3c358304bf\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/docker_build.stderr.log"
+    },
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/271374667__VideoFusion/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

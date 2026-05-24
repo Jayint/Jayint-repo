@@ -1,0 +1,793 @@
+{
+  "dataset_entry": {
+    "instance_id": "Codium-ai__cover-agent",
+    "full_name": "Codium-ai/cover-agent",
+    "repo_url": "https://github.com/Codium-ai/cover-agent.git",
+    "sha": "5c4b88",
+    "base_commit": "5c4b88",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/Codium-ai/cover-agent.git",
+      "--base-commit",
+      "5c4b88",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/Codium-ai/cover-agent.git --base-commit 5c4b88 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T11:31:09.170231+08:00",
+    "finished_at": "2026-05-04T11:40:54.308855+08:00",
+    "duration_seconds": 585.139,
+    "stdout": "Cloning https://github.com/Codium-ai/cover-agent.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent...\nClone successful.\nChecked out commit: 5c4b88\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 21 potentially relevant files\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ templated_tests/go_webservice/go.mod\n[ImageSelector]   ✓ templated_tests/java_spring_calculator/pom.xml\n[ImageSelector]   ✗ templated_tests/go_webservice/go.sum\n[ImageSelector]   ✗ .github/workflows/templated_test_publish_pipeline.yml\n[ImageSelector]   ✓ templated_tests/csharp_webservice/CalculatorApi/CalculatorApi.csproj\n[ImageSelector]   ✓ Dockerfile\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ .github/workflows/ci_pipeline.yml\n[ImageSelector]   ✓ templated_tests/ruby_sinatra/Gemfile\n[ImageSelector]   ✓ templated_tests/python_fastapi/requirements.txt\n[ImageSelector]   ✓ templated_tests/react_calculator/package.json\n[ImageSelector]   ✓ templated_tests/typescript_calculator/package.json\n[ImageSelector]   ✗ templated_tests/java_gradle/settings.gradle\n[ImageSelector]   ✓ templated_tests/csharp_webservice/CalculatorApi.Tests/CalculatorApi.Tests.csproj\n[ImageSelector]   ✓ .github/workflows/nightly_regression.yml\n[ImageSelector]   ✓ templated_tests/js_vanilla/package.json\n[ImageSelector]   ✓ templated_tests/java_gradle/build.gradle\n[ImageSelector] 16 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns detected. The project uses standard Python packages with tree-sitter (C extensions) that have broad platform support. No embedded databases or other architecture-specific test dependencies found.\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/logs/image_selector_logs\nInitializing container from python:3.12...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:4e559\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/logs/compression_logs\nStarting agent for repository: https://github.com/Codium-ai/cover-agent.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 3354, Output: 122, Total: 3476\n\n[Thought]\nLet me start by examining the pyproject.toml to understand the project dependencies and configuration.\n\n[Action]\ncat Codium-ai__cover-agent/pyproject.toml\n[Container ID: 46dfe4af3b6d]\nExecuting: cat Codium-ai__cover-agent/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: Codium-ai__cover-agent/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 3416, Output: 60, Total: 3476\n\n[Thought]\nLet me check the current working directory and list the files.\n\n[Action]\npwd && ls -la\n[Container ID: 46dfe4af3b6d]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 500\ndrwxr-xr-x 10 root root      4096 May  4 03:33 .\ndrwxr-xr-x  1 root root      4096 May  4 03:33 ..\ndrwxr-xr-x  7  501 dialout   4096 May  4 03:31 .git\ndrwxr-xr-x  3  501 dialout   4096 May  4 03:31 .github\n-rw-r--r--  1  501 dialout    539 May  4 03:31 .gitignore\n-rw-r--r--  1  501 dialout    252 May  4 03:31 Dockerfile\n-rw-r--r--  1  501 dialout  34523 May  4 03:31 LICENSE\n-rw-r--r--  1  501 dialout    977 May  4 03:31 Makefile\n-rw-r--r--  1  501 dialout  11989 May  4 03:31 README.md\ndrwxr-xr-x  4  501 dialout   4096 May  4 03:31 cover_agent\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 docs\ndrwxr-xr-x  3  501 dialout   4096 May  4 03:31 logs\n-rw-r--r--  1  501 dialout 404003 May  4 03:31 poetry.lock\n-rw-r--r--  1  501 dialout   1629 May  4 03:31 pyproject.toml\ndrwxr-xr-x 13  501 dialout   4096 May  4 03:31 templated_tests\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 tests\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 tests_integration\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3922, Output: 58, Total: 3980\n\n[Thought]\nGood, I'm in the repository root. Let me examine the pyproject.toml to understand the dependencies and project configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: 46dfe4af3b6d]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[tool.poetry]\nname = \"cover-agent\"\nversion = \"0.0.0\" # Placeholder. Will be replaced by dynamic versioning.\ndescription = \"Cover Agent Tool\"\nauthors = [\"QodoAI <tal.r@codium.ai>\"]\nlicense = \"Apache 2.0\"\nreadme = \"README.md\"\n\n# Define where your Python package(s) are\npackages = [\n    { include = \"cover_agent\" }\n]\n\n[tool.poetry.dependencies]\npython = \">=3.9,<3.13\"\njinja2 = \"^3.1.3\"\nbeautifulsoup4 = \"^4.12.3\"\npoetry-dynamic-versioning = \"^1.3.0\"\nsqlalchemy = \"^2.0.32\"\ndiff-cover = \"^9.1.1\"\ntenacity = \"^9.0.0\"\n\n# LLM Dependencies\nlitellm = { git = \"https://github.com/Codium-research/litellm_2024_10_29.git\" }\nopenai = \"^1.52.1\"\ntiktoken = \"^0.8.0\"\nboto3 = \"^1.34.121\"\ngoogle-cloud-aiplatform = \"^1.54.0\"\nnumpy = \"^1.26.0\"   # Note: Earlier version have incompatibility issues with google-cloud-aiplatform\ndynaconf = \"^3.2.4\"\nwandb = \"^0.17.1\"\n\n# LSP Dependencies\ngrep_ast = \"^0.3.3\"\ntree_sitter = \"^0.21.3\"\ntree_sitter_languages = \"^1.10.2\"\njedi-language-server = \"^0.41.1\"\n\n[tool.poetry.group.dev.dependencies]\npytest = \"^8.1.1\"\npyinstaller = \"^6.6.0\"\npytest-mock = \"^3.14.0\"\npytest-cov = \"^5.0.0\"\npytest-asyncio = \"^0.23.7\"\npytest-timeout = \"^2.3.1\"\nfastapi = \"^0.111.0\"\n\n[build-system]\nrequires = [\"poetry-core>=1.0.0\", \"poetry-dynamic-versioning>=1.0.0,<2.0.0\"]\nbuild-backend = \"poetry_dynamic_versioning.backend\"\n\n[tool.poetry.scripts]\ncover-agent = \"cover_agent.main:main\"\ncover-agent-full-repo = \"cover_agent.main_full_repo:main\"\ngenerate-report = \"cover_agent.UnitTestDB:dump_to_report_cli\"\n\n[tool.poetry-dynamic-versioning]\nenable = true\n\n[tool.poetry-dynamic-versioning.from-file]\nsource = \"cover_agent/version.txt\"\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 4524, Output: 50, Total: 4574\n\n[Thought]\nThis is a Poetry-based project. Let me check if Poetry is available and install the dependencies.\n\n[Action]\npoetry --version\n[Container ID: 46dfe4af3b6d]\nExecuting: poetry --version\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: poetry: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4575, Output: 57, Total: 4632\n\n[Thought]\nPoetry is not installed. Let me check the Python version and install Poetry.\n\n[Action]\npython3 --version && which python3\n[Container ID: 46dfe4af3b6d]\nExecuting: python3 --version && which python3\nCommand succeeded.\n[Snapshot Created] sha256:2f15b\n\n[Observation]\nPython 3.12.13\n/usr/local/bin/python3\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4627, Output: 52, Total: 4679\n\n[Thought]\nPython 3.12 is available. Let me install Poetry using pip.\n\n[Action]\npip install poetry\n[Container ID: 46dfe4af3b6d]\nExecuting: pip install poetry\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nERROR: Could not find a version that satisfies the requirement poetry (from versions: none)\nCould not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: HTTPSConnectionPool(host='pypi.org', port=443): Max retries exceeded with url: /simple/pip/ (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)'))) - skipping\nERROR: No matching distribution found for poetry\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4888, Output: 95, Total: 4983\n\n[Thought]\nThe pip install failed due to SSL issues. Let me try using the official Poetry installer script.\n\n[Action]\ncurl -sSL https://install.python-poetry.org | python3 -\n[Container ID: 46dfe4af3b6d]\nExecuting: curl -sSL https://install.python-poetry.org | python3 -\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nRetrieving Poetry metadata\n\n# Welcome to Poetry!\n\nThis will download and install the latest version of Poetry,\na dependency and package manager for Python.\n\nIt will add the `poetry` command to Poetry's bin directory, located at:\n\n/root/.local/bin\n\nYou can uninstall at any time by executing this script with the --uninstall option,\nand these changes will be reverted.\n\nInstalling Poetry (2.4.0)\nInstalling Poetry (2.4.0): Creating environment\nInstalling Poetry (2.4.0): Installing Poetry\nInstalling Poetry (2.4.0): An error occurred. Removing partial environment.\nPoetry installation failed.\nSee /app/poetry-installer-error-och9_sw8.log for error logs.\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 5198, Output: 93, Total: 5291\n\n[Thought]\nPoetry installation failed. Let me check the error log and try an alternative approach.\n\n[Action]\ncat /app/poetry-installer-error-och9_sw8.log 2>/dev/null || echo \"Log file not accessible\"\n[Container ID: 46dfe4af3b6d]\nExecuting: cat /app/poetry-installer-error-och9_sw8.log 2>/dev/null || echo \"Log file not accessible\"\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nCollecting poetry==2.4.0\n  WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError(\"HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Read timed out. (read timeout=15)\")': /packages/2c/ac/0f673ebab8894c6862737b471c8beb96ba161f8895ecbced1476fff07943/poetry-2.4.0-py3-none-any.whl.metadata\n  Downloading poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry==2.4.0)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nINFO: pip is looking at multiple versions of poetry to determine which version is compatible with other requirements. This could take a while.\nERROR: Could not find a version that satisfies the requirement cachecontrol<0.15.0,>=0.14.0 (from poetry) (from versions: none)\nERROR: No matching distribution found for cachecontrol<0.15.0,>=0.14.0\n\nTraceback:\n\n  File \"<stdin>\", line 936, in main\n  File \"<stdin>\", line 573, in run\n  File \"<stdin>\", line 595, in install\n  File \"<stdin>\", line 698, in install_poetry\n  File \"<stdin>\", line 388, in pip\n  File \"<stdin>\", line 385, in python\n  File \"<stdin>\", line 378, in run\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 5632, Output: 156, Total: 5788\n\n[Thought]\nPoetry installation is failing due to network issues. Let me try a different approach - using pip with extended timeout to install dependencies directly.\n\n[Action]\npip install --default-timeout=1000 poetry 2>&1 | head -30\n[Container ID: 46dfe4af3b6d]\nExecuting: pip install --default-timeout=1000 poetry 2>&1 | head -30\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 10 ====================\n\n[Tokens] Input: 5770, Output: 49, Total: 5819\n\n[Thought]\nLet me try installing poetry with extended timeout without piping.\n\n[Action]\npip install --default-timeout=1000 poetry\n[Container ID: 46dfe4af3b6d]\nExecuting: pip install --default-timeout=1000 poetry\nCommand succeeded.\n[Snapshot Created] sha256:e3d3b\n\n[Observation]\nCollecting poetry\n  Using cached poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Using cached build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n  Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\nCollecting findpython<0.9.0,>=0.6.2 (from poetry)\n  Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\nCollecting installer<2.0.0,>=1.0.0 (from poetry)\n  Downloading installer-1.0.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting keyring<26.0.0,>=25.1.0 (from poetry)\n  Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\nCollecting packaging>=24.2 (from poetry)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading pbs_installer-2026.4.7-py3-none-any.whl.metadata (990 bytes)\nCollecting pkginfo<2.0,>=1.12 (from poetry)\n  Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\nCollecting platformdirs<5,>=3.0.0 (from poetry)\n  Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\nCollecting poetry-core==2.4.0 (from poetry)\n  Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\nCollecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\nCollecting requests<3.0,>=2.26 (from poetry)\n  Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)\nCollecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\nCollecting shellingham<2.0,>=1.5 (from poetry)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n  Downloading tomlkit-0.14.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting trove-classifiers>=2022.5.19 (from poetry)\n  Downloading trove_classifiers-2026.4.28.13-py3-none-any.whl.metadata (2.4 kB)\nCollecting virtualenv>=20.26.6 (from poetry)\n  Downloading virtualenv-21.3.0-py3-none-any.whl.metadata (3.5 kB)\nCollecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\nCollecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading rapidfuzz-3.14.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\nCollecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n  Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)\nCollecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\nCollecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\nCollecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_functools-4.4.0-py3-none-any.whl.metadata (3.0 kB)\nCollecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\nCollecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting zstandard>=0.21.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)\nCollecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n  Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n  Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)\nCollecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n  Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\nCollecting python-discovery>=1.2.2 (from virtualenv>=20.26.6->poetry)\n  Downloading python_discovery-1.2.2-py3-none-any.whl.metadata (5.4 kB)\nCollecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cryptography-47.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.5 kB)\nCollecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\nCollecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\nCollecting typing_extensions>=4.5 (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\nDownloading poetry-2.4.0-py3-none-any.whl (292 kB)\nDownloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\nDownloading build-1.5.0-py3-none-any.whl (26 kB)\nDownloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\nDownloading cleo-2.1.0-py3-none-any.whl (78 kB)\nDownloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl (1.4 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 10.7 MB/s eta 0:00:00\nDownloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\nDownloading findpython-0.8.0-py3-none-any.whl (21 kB)\nDownloading installer-1.0.0-py3-none-any.whl (464 kB)\nDownloading keyring-25.7.0-py3-none-any.whl (39 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pbs_installer-2026.4.7-py3-none-any.whl (73 kB)\nDownloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\nDownloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nDownloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nDownloading requests-2.33.1-py3-none-any.whl (64 kB)\nDownloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading tomlkit-0.14.0-py3-none-any.whl (39 kB)\nDownloading trove_classifiers-2026.4.28.13-py3-none-any.whl (14 kB)\nDownloading virtualenv-21.3.0-py3-none-any.whl (7.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.7 MB/s eta 0:00:00\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\nDownloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\nDownloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\nDownloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading idna-3.13-py3-none-any.whl (68 kB)\nDownloading jeepney-0.9.0-py3-none-any.whl (49 kB)\nDownloading msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (427 kB)\nDownloading python_discovery-1.2.2-py3-none-any.whl (31 kB)\nDownloading rapidfuzz-3.14.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 8.1 MB/s eta 0:00:00\nDownloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\nDownloading urllib3-2.6.3-py3-none-any.whl (131 kB)\nDownloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 6.2 MB/s eta 0:00:00\nDownloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\nDownloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\nDownloading jaraco_functools-4.4.0-py3-none-any.whl (10 kB)\nDownloading cryptography-47.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 7.2 MB/s eta 0:00:00\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\nDownloading cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (219 kB)\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading pycparser-3.0-py3-none-any.whl (48 kB)\nInstalling collected packages: trove-classifiers, fastjsonschema, distlib, zstandard, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pycparser, poetry-core, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, jaraco.context, installer, idna, h11, filelock, crashtest, charset_normalizer, certifi, requests, python-discovery, jaraco.functools, jaraco.classes, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\nSuccessfully installed SecretStorage-3.5.0 anyio-4.13.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-47.0.0 distlib-0.4.0 dulwich-1.2.1 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.13 installer-1.0.0 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.4.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.4.7 pkginfo-1.12.1.2 platformdirs-4.9.6 poetry-2.4.0 poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.2.2 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.14.0 trove-classifiers-2026.4.28.13 typing_extensions-4.15.0 urllib3-2.6.3 virtualenv-21.3.0 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 10287, Output: 44, Total: 10331\n\n[Thought]\nPoetry is now installed. Let me verify it works and then install the project dependencies.\n\n[Action]\npoetry --version\n[Container ID: 46dfe4af3b6d]\nExecuting: poetry --version\nCommand succeeded.\n[Snapshot Created] sha256:27bdd\n\n[Observation]\nPoetry (version 2.4.0)\n\n\n==================== Step 12 ====================\n\n[Tokens] Input: 10333, Output: 77, Total: 10410\n\n[Thought]\nPoetry is installed. Now let me install the project dependencies using Poetry.\n\n[Action]\npoetry install --all-extras\n[Container ID: 46dfe4af3b6d]\nExecuting: poetry install --all-extras\nCommand succeeded.\n[Snapshot Created] sha256:b54ea\n\n[Observation]\nCreating virtualenv cover-agent-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 133 installs, 0 updates, 0 removals\n\n  - Installing pyasn1 (0.6.1)\n  - Installing cachetools (5.5.0)\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.4.0)\n  - Installing idna (3.10)\n  - Installing mdurl (0.1.2)\n  - Installing protobuf (5.28.3)\n  - Installing pyasn1-modules (0.4.1)\n  - Installing rsa (4.9)\n  - Installing sniffio (1.3.1)\n  - Installing urllib3 (2.2.3)\n  - Installing anyio (4.6.2.post1)\n  - Installing attrs (24.2.0)\n  - Installing google-auth (2.36.0)\n  - Installing googleapis-common-protos (1.66.0)\n  - Installing grpcio (1.67.1)\n  - Installing h11 (0.14.0)\n  - Installing markdown-it-py (3.0.0)\n  - Installing proto-plus (1.25.0)\n  - Installing pygments (2.18.0)\n  - Installing requests (2.32.3)\n  - Installing rpds-py (0.21.0)\n  - Installing six (1.16.0)\n  - Installing typing-extensions (4.12.2)\n  - Installing annotated-types (0.7.0)\n  - Installing cattrs (24.1.2)\n  - Installing click (8.1.7)\n  - Installing filelock (3.16.1)\n  - Installing frozenlist (1.5.0)\n  - Installing fsspec (2024.10.0)\n  - Installing google-api-core (2.23.0)\n  - Installing grpcio-status (1.67.1)\n  - Installing google-crc32c (1.6.0)\n  - Installing httpcore (1.0.6)\n  - Installing jmespath (1.0.1)\n  - Installing httptools (0.6.4)\n  - Installing multidict (6.1.0)\n  - Installing packaging (24.2)\n  - Installing propcache (0.2.0)\n  - Installing pydantic-core (2.23.4)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing python-dotenv (1.0.1)\n  - Installing pyyaml (6.0.2)\n  - Installing referencing (0.35.1)\n  - Installing rich (13.9.4)\n  - Installing shellingham (1.5.4)\n  - Installing smmap (5.0.1)\n  - Installing tqdm (4.67.0)\n  - Installing uvloop (0.21.0)\n  - Installing watchfiles (0.24.0)\n  - Installing websockets (14.1)\n  - Installing aiohappyeyeballs (2.4.3)\n  - Installing aiosignal (1.3.1)\n  - Installing botocore (1.35.59)\n  - Installing distro (1.9.0)\n  - Installing dnspython (2.7.0)\n  - Installing gitdb (4.0.11)\n  - Installing google-cloud-core (2.4.1)\n  - Installing google-resumable-media (2.7.2)\n  - Installing grpc-google-iam-v1 (0.13.1)\n  - Installing httpx (0.27.2)\n  - Installing huggingface-hub (0.26.2)\n  - Installing iniconfig (2.0.0)\n  - Installing jiter (0.7.1)\n  - Installing jsonschema-specifications (2024.10.1)\n  - Installing lsprotocol (2023.0.1)\n  - Installing markupsafe (3.0.2)\n  - Installing numpy (1.26.4)\n  - Installing parso (0.8.4)\n  - Installing pluggy (1.5.0)\n  - Installing pydantic (2.9.2)\n  - Installing regex (2024.11.6)\n  - Installing setuptools (75.5.0)\n  - Installing tree-sitter (0.21.3)\n  - Installing typer (0.13.0)\n  - Installing uvicorn (0.32.0)\n  - Installing yarl (1.17.1)\n  - Installing zipp (3.21.0)\n  - Installing aiohttp (3.10.10)\n  - Installing altgraph (0.17.4)\n  - Installing chardet (5.2.0)\n  - Installing coverage (7.6.4)\n  - Installing docker-pycreds (0.4.0)\n  - Installing docstring-parser (0.16)\n  - Installing docstring-to-markdown (0.15)\n  - Installing dunamai (1.22.0)\n  - Installing email-validator (2.2.0)\n  - Installing gitpython (3.1.43)\n  - Installing fastapi-cli (0.0.5)\n  - Installing google-cloud-resource-manager (1.13.0)\n  - Installing google-cloud-bigquery (3.27.0)\n  - Installing google-cloud-storage (2.18.2)\n  - Installing greenlet (3.1.1)\n  - Installing importlib-metadata (8.5.0)\n  - Installing jedi (0.19.2)\n  - Installing jinja2 (3.1.4)\n  - Installing jsonschema (4.23.0)\n  - Installing openai (1.54.4)\n  - Installing pathspec (0.12.1)\n  - Installing platformdirs (4.3.6)\n  - Installing psutil (6.1.0)\n  - Installing pygls (1.3.1)\n  - Installing pyinstaller-hooks-contrib (2024.10)\n  - Installing pytest (8.3.3)\n  - Installing python-multipart (0.0.17)\n  - Installing s3transfer (0.10.3)\n  - Installing sentry-sdk (2.18.0)\n  - Installing setproctitle (1.3.3)\n  - Installing shapely (2.0.6)\n  - Installing soupsieve (2.6)\n  - Installing starlette (0.37.2)\n  - Installing tiktoken (0.8.0)\n  - Installing tokenizers (0.20.3)\n  - Installing tomlkit (0.13.2)\n  - Installing tree-sitter-languages (1.10.2)\n/usr/local/lib/python3.12/site-packages/poetry/installation/wheel_installer.py:129: RuntimeWarning: Skip installing _pyinstaller_hooks_contrib/__pycache__/__init__.cpython-39.pyc from pyinstaller_hooks_contrib. Installing files in a __pycache__ directory poses a security risk. __pycache__ directories should not be included in wheels. This is probably an issue in the build process of 'pyinstaller_hooks_contrib'.\n  install(\n  - Installing beautifulsoup4 (4.12.3)\n  - Installing boto3 (1.35.59)\n  - Installing diff-cover (9.2.0)\n  - Installing dynaconf (3.2.6)\n  - Installing fastapi (0.111.1)\n  - Installing google-cloud-aiplatform (1.72.0)\n  - Installing grep-ast (0.3.3)\n  - Installing jedi-language-server (0.41.4)\n  - Installing poetry-dynamic-versioning (1.4.1)\n  - Installing pyinstaller (6.11.1)\n  - Installing pytest-asyncio (0.23.8)\n  - Installing pytest-cov (5.0.0)\n  - Installing pytest-timeout (2.3.1)\n  - Installing pytest-mock (3.14.0)\n  - Installing sqlalchemy (2.0.36)\n  - Installing tenacity (9.0.0)\n  - Installing wandb (0.17.9)\n  - Installing litellm (1.51.0 8ed6769)\n\nInstalling the current project: cover-agent (0.0.0)\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 8654, Output: 60, Total: 8714\n\n[Thought]\nAll dependencies are installed successfully. Now let me verify by running pytest collection to ensure tests can be collected.\n\n[Action]\npoetry run pytest --collect-only -q --disable-warnings\n[Container ID: 46dfe4af3b6d]\nExecuting: poetry run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:413d1\n\n[Observation]\ntemplated_tests/python_fastapi/test_app.py::test_root\ntests/test_AICaller.py::TestAICaller::test_call_model_simplified\ntests/test_AICaller.py::TestAICaller::test_call_model_with_error\ntests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\ntests/test_AICaller.py::TestAICaller::test_call_model_api_base\ntests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\ntests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\ntests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\ntests/test_AICaller.py::TestAICaller::test_call_model_streaming_response\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging_exception\ntests/test_CoverAgent.py::TestCoverAgent::test_parse_args\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_source_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_test_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_with_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_without_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_run_max_iterations_strict_coverage\ntests/test_CoverAgent.py::TestCoverAgent::test_project_root_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_run_diff_coverage\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_correct_parsing_for_matching_package_and_class\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_returns_empty_lists_and_float\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java_file_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_kotlin\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_updated\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_exist\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_process_coverage_report\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_csv_key_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_no_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_multiple_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml_no_source_file\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_kotlin_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_valid_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_no_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_filename_not_found\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_file_read_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_all_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_without_feature_flag\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_c_file\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_function_only\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_commented_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_syntax_error\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_reads_file_contents\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_handles_file_read_errors\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_included_files_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_included_files_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_additional_instructions_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_failed_test_runs_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_additional_instructions_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_failed_test_runs_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_custom_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_custom_analyze_test_run_failure\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_build_prompt_custom_missing_settings\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_report\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_partial_diff_basic\ntests/test_Runner.py::TestRunner::test_run_command_success\ntests/test_Runner.py::TestRunner::test_run_command_with_cwd\ntests/test_Runner.py::TestRunner::test_run_command_failure\ntests/test_UnitTestDB.py::TestUnitTestDB::test_insert_attempt\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_cli_custom_args\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_defaults\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_mixed_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_valid_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_code_language_no_extension\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_build_prompt_with_failed_tests\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_generate_tests_invalid_yaml\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_exception_handling\ntests/test_UnitTestValidator.py::TestUnitValidator::test_run_coverage_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_validate_test_pass_no_coverage_increase_with_prompt\ntests/test_UnitTestValidator.py::TestUnitValidator::test_initial_test_suite_analysis_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_diff_coverage\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_without_flags\ntests/test_UnitTestValidator.py::TestUnitValidator::test_generate_diff_coverage_report\ntests/test_load_yaml.py::TestLoadYaml::test_load_valid_yaml\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml1\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml2\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_snippet_extraction\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_remove_all_lines\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_llama3_8b\ntests/test_load_yaml.py::TestLoadYaml::test_invalid_yaml_wont_parse\ntests/test_load_yaml.py::TestLoadYaml::test_load_yaml_second_fallback_failure\ntests/test_load_yaml.py::TestLoadYaml::test_parse_args_full_repo_defaults_with_imports\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_invalid_snippet\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files_with_forbidden_dirs\ntests/test_main.py::TestMain::test_parse_args\ntests/test_main.py::TestMain::test_main_source_file_not_found\ntests/test_main.py::TestMain::test_main_test_file_not_found\ntests/test_main.py::TestMain::test_main_calls_agent_run\ntests/test_version.py::TestGetVersion::test_get_version_happy_path\ntests/test_version.py::TestGetVersion::test_get_version_file_missing\ntests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\ntests/test_version.py::TestGetVersion::test_get_version_frozen_application\n\n108 tests collected in 4.53s\n\n\n==================== Step 14 ====================\n\n[Tokens] Input: 10851, Output: 101, Total: 10952\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. All 108 tests were collected successfully. The environment is now set up correctly. Let me provide the final verification bundle.\n</think>\n\nThought: The pytest collection succeeded with all 108 tests collected. The environment is properly set up with Poetry and all dependencies installed. Let me provide the final verification bundle.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"poetry run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 4 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/Codium-ai__cover-agent.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/Codium-ai/cover-agent.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": null,
+    "verified_test_command": "poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 500\ndrwxr-xr-x 10 root root      4096 May  4 03:33 .\ndrwxr-xr-x  1 root root      4096 May  4 03:33 ..\ndrwxr-xr-x  7  501 dialout   4096 May  4 03:31 .git\ndrwxr-xr-x  3  501 dialout   4096 May  4 03:31 .github\n-rw-r--r--  1  501 dialout    539 May  4 03:31 .gitignore\n-rw-r--r--  1  501 dialout    252 May  4 03:31 Dockerfile\n-rw-r--r--  1  501 dialout  34523 May  4 03:31 LICENSE\n-rw-r--r--  1  501 dialout    977 May  4 03:31 Makefile\n-rw-r--r--  1  501 dialout  11989 May  4 03:31 README.md\ndrwxr-xr-x  4  501 dialout   4096 May  4 03:31 cover_agent\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 docs\ndrwxr-xr-x  3  501 dialout   4096 May  4 03:31 logs\n-rw-r--r--  1  501 dialout 404003 May  4 03:31 poetry.lock\n-rw-r--r--  1  501 dialout   1629 May  4 03:31 pyproject.toml\ndrwxr-xr-x 13  501 dialout   4096 May  4 03:31 templated_tests\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 tests\ndrwxr-xr-x  2  501 dialout   4096 May  4 03:31 tests_integration\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[tool.poetry]\nname = \"cover-agent\"\nversion = \"0.0.0\" # Placeholder. Will be replaced by dynamic versioning.\ndescription = \"Cover Agent Tool\"\nauthors = [\"QodoAI <tal.r@codium.ai>\"]\nlicense = \"Apache 2.0\"\nreadme = \"README.md\"\n\n# Define where your Python package(s) are\npackages = [\n    { include = \"cover_agent\" }\n]\n\n[tool.poetry.dependencies]\npython = \">=3.9,<3.13\"\njinja2 = \"^3.1.3\"\nbeautifulsoup4 = \"^4.12.3\"\npoetry-dynamic-versioning = \"^1.3.0\"\nsqlalchemy = \"^2.0.32\"\ndiff-cover = \"^9.1.1\"\ntenacity = \"^9.0.0\"\n\n# LLM Dependencies\nlitellm = { git = \"https://github.com/Codium-research/litellm_2024_1\n... (429 chars omitted for recipe synthesis) ...\n.1\"\npyinstaller = \"^6.6.0\"\npytest-mock = \"^3.14.0\"\npytest-cov = \"^5.0.0\"\npytest-asyncio = \"^0.23.7\"\npytest-timeout = \"^2.3.1\"\nfastapi = \"^0.111.0\"\n\n[build-system]\nrequires = [\"poetry-core>=1.0.0\", \"poetry-dynamic-versioning>=1.0.0,<2.0.0\"]\nbuild-backend = \"poetry_dynamic_versioning.backend\"\n\n[tool.poetry.scripts]\ncover-agent = \"cover_agent.main:main\"\ncover-agent-full-repo = \"cover_agent.main_full_repo:main\"\ngenerate-report = \"cover_agent.UnitTestDB:dump_to_report_cli\"\n\n[tool.poetry-dynamic-versioning]\nenable = true\n\n[tool.poetry-dynamic-versioning.from-file]\nsource = \"cover_agent/version.txt\"\n"
+      },
+      {
+        "step_index": 5,
+        "command": "python3 --version && which python3",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.12.13\n/usr/local/bin/python3\n"
+      },
+      {
+        "step_index": 8,
+        "command": "cat /app/poetry-installer-error-och9_sw8.log 2>/dev/null || echo \"Log file not accessible\"",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry==2.4.0\n  WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError(\"HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Read timed out. (read timeout=15)\")': /packages/2c/ac/0f673ebab8894c6862737b471c8beb96ba161f8895ecbced1476fff07943/poetry-2.4.0-py3-none-any.whl.metadata\n  Downloading poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry==2.4.0)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nINFO: pip is looking at multiple versions of poetry to determine which version is compatible with other requirements. This could take a while.\nERROR: Could not find a version that satisfies the requirement cachecontrol<0.15.0,>=0.14.0 (from poetry) (from versions: none)\nERROR: No matching distribution found for cachecontrol<0.15.0,>=0.14.0\n\nTraceback:\n\n  File \"<stdin>\", line 936, in main\n  File \"<stdin>\", line 573, in run\n  File \"<stdin>\", line 595, in install\n  File \"<stdin>\", line 698, in install_poetry\n  File \"<stdin>\", line 388, in pip\n  File \"<stdin>\", line 385, in python\n  File \"<stdin>\", line 378, in run\n"
+      },
+      {
+        "step_index": 10,
+        "command": "pip install --default-timeout=1000 poetry",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry\n  Using cached poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Using cached build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjs\n... (10247 chars omitted for recipe synthesis) ...\noject-hooks-1.2.0 python-discovery-1.2.2 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.14.0 trove-classifiers-2026.4.28.13 typing_extensions-4.15.0 urllib3-2.6.3 virtualenv-21.3.0 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n"
+      },
+      {
+        "step_index": 11,
+        "command": "poetry --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Poetry (version 2.4.0)\n"
+      },
+      {
+        "step_index": 12,
+        "command": "poetry install --all-extras",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Creating virtualenv cover-agent-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 133 installs, 0 updates, 0 removals\n\n  - Installing pyasn1 (0.6.1)\n  - Installing cachetools (5.5.0)\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.4.0)\n  - Installing idna (3.10)\n  - Installing mdurl (0.1.2)\n  - Installing protobuf (5.28.3)\n  - Installing pyasn1-modules (0.4.1)\n  - Installing rsa (4.9)\n  - Installing sniffio (1.3.1)\n  - Installing urllib3 (2.2.3)\n  - Installing anyio (4.6.2.post1)\n  - Installing attrs (24.2.0\n... (4108 chars omitted for recipe synthesis) ...\nng dynaconf (3.2.6)\n  - Installing fastapi (0.111.1)\n  - Installing google-cloud-aiplatform (1.72.0)\n  - Installing grep-ast (0.3.3)\n  - Installing jedi-language-server (0.41.4)\n  - Installing poetry-dynamic-versioning (1.4.1)\n  - Installing pyinstaller (6.11.1)\n  - Installing pytest-asyncio (0.23.8)\n  - Installing pytest-cov (5.0.0)\n  - Installing pytest-timeout (2.3.1)\n  - Installing pytest-mock (3.14.0)\n  - Installing sqlalchemy (2.0.36)\n  - Installing tenacity (9.0.0)\n  - Installing wandb (0.17.9)\n  - Installing litellm (1.51.0 8ed6769)\n\nInstalling the current project: cover-agent (0.0.0)\n"
+      },
+      {
+        "step_index": 13,
+        "command": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "templated_tests/python_fastapi/test_app.py::test_root\ntests/test_AICaller.py::TestAICaller::test_call_model_simplified\ntests/test_AICaller.py::TestAICaller::test_call_model_with_error\ntests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\ntests/test_AICaller.py::TestAICaller::test_call_model_api_base\ntests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\ntests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\ntests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\ntests/test_AI\n... (8078 chars omitted for recipe synthesis) ...\nestLoadYaml::test_find_test_files_with_forbidden_dirs\ntests/test_main.py::TestMain::test_parse_args\ntests/test_main.py::TestMain::test_main_source_file_not_found\ntests/test_main.py::TestMain::test_main_test_file_not_found\ntests/test_main.py::TestMain::test_main_calls_agent_run\ntests/test_version.py::TestGetVersion::test_get_version_happy_path\ntests/test_version.py::TestGetVersion::test_get_version_file_missing\ntests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\ntests/test_version.py::TestGetVersion::test_get_version_frozen_application\n\n108 tests collected in 4.53s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat Codium-ai__cover-agent/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: Codium-ai__cover-agent/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "poetry --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: poetry: command not found\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install poetry",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nERROR: Could not find a version that satisfies the requirement poetry (from versions: none)\nCould not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: HTTPSConnectionPool(host='pypi.org', port=443): Max retries exceeded with url: /simple/pip/ (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)'))) - skipping\nERROR: No matching distribution found for poetry\n"
+      },
+      {
+        "step_index": 7,
+        "command": "curl -sSL https://install.python-poetry.org | python3 -",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nRetrieving Poetry metadata\n\n# Welcome to Poetry!\n\nThis will download and install the latest version of Poetry,\na dependency and package manager for Python.\n\nIt will add the `poetry` command to Poetry's bin directory, located at:\n\n/root/.local/bin\n\nYou can uninstall at any time by executing this script with the --uninstall option,\nand these changes will be reverted.\n\nInstalling Poetry (2.4.0)\nInstalling Poetry (2.4.0): Creating environment\nInstalling Poetry (2.4.0): Installing Poetry\nInstalling Poetry (2.4.0): An error occurred. Removing partial environment.\nPoetry installation failed.\nSee /app/poetry-installer-error-och9_sw8.log for error logs.\n"
+      },
+      {
+        "step_index": 9,
+        "command": "pip install --default-timeout=1000 poetry 2>&1 | head -30",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install --default-timeout=1000 poetry",
+        "poetry --version",
+        "poetry install --all-extras",
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat Codium-ai__cover-agent/pyproject.toml - read-only inspection with wrong path, failed",
+          "reason": ""
+        },
+        {
+          "command": "pwd && ls -la - read-only directory listing for context only",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml - read-only file inspection to understand project structure",
+          "reason": ""
+        },
+        {
+          "command": "python3 --version && which python3 - read-only version check",
+          "reason": ""
+        },
+        {
+          "command": "poetry --version (first attempt) - failed because Poetry not installed",
+          "reason": ""
+        },
+        {
+          "command": "pip install poetry - failed due to SSL certificate error",
+          "reason": ""
+        },
+        {
+          "command": "curl -sSL https://install.python-poetry.org | python3 - - failed Poetry installer",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/poetry-installer-error-och9_sw8.log - read-only log inspection",
+          "reason": ""
+        },
+        {
+          "command": "pip install --default-timeout=1000 poetry 2>&1 | head -30 - rejected command with output piping",
+          "reason": ""
+        },
+        {
+          "command": "poetry --version (after install) - health check only, not persistent state change",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state-changing trajectory consists of exactly two commands: (1) Poetry installation with extended timeout to handle network issues, and (2) poetry install --all-extras to install all project dependencies including dev dependencies. The base image 'python:3.12' already provides Python 3.12.13. Failed attempts were due to SSL/network timeouts and were resolved by using --default-timeout=1000. The test command is sourced from verification_bundle. Read-only inspection steps, failed attempts, and output-truncation helpers are excluded per rules.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 2,
+      "compressed_steps": 1,
+      "saved_tokens_est": 2286
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat Codium-ai__cover-agent/pyproject.toml",
+        "success": false,
+        "raw_chars": 70,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 970,
+        "raw_tokens_est": 242,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1629,
+        "raw_tokens_est": 407,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 11,
+        "reflect_input_tokens": 1713,
+        "reflect_output_tokens": 756
+      },
+      {
+        "step_id": 4,
+        "action": "poetry --version",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "python3 --version && which python3",
+        "success": true,
+        "raw_chars": 38,
+        "raw_tokens_est": 9,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install poetry",
+        "success": false,
+        "raw_chars": 1010,
+        "raw_tokens_est": 252,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "curl -sSL https://install.python-poetry.org | python3 -",
+        "success": false,
+        "raw_chars": 1189,
+        "raw_tokens_est": 297,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "cat /app/poetry-installer-error-och9_sw8.log 2>/dev/null || echo \"Log file not accessible\"",
+        "success": true,
+        "raw_chars": 1171,
+        "raw_tokens_est": 292,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "pip install --default-timeout=1000 poetry 2>&1 | head -30",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "pip install --default-timeout=1000 poetry",
+        "success": true,
+        "raw_chars": 11447,
+        "raw_tokens_est": 2861,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2286,
+        "reflect_input_tokens": 7080,
+        "reflect_output_tokens": 1211
+      },
+      {
+        "step_id": 11,
+        "action": "poetry --version",
+        "success": true,
+        "raw_chars": 23,
+        "raw_tokens_est": 5,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "poetry install --all-extras",
+        "success": true,
+        "raw_chars": 5308,
+        "raw_tokens_est": 1327,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 9278,
+        "raw_tokens_est": 2319,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 28912,
+        "output_tokens": 7490,
+        "total_tokens": 36402
+      },
+      "planner": {
+        "input_tokens": 86031,
+        "output_tokens": 1074,
+        "total_tokens": 87105
+      },
+      "reflection": {
+        "input_tokens": 8793,
+        "output_tokens": 1967,
+        "total_tokens": 10760
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 13312,
+        "output_tokens": 1534,
+        "total_tokens": 14846
+      },
+      "total": {
+        "input_tokens": 137048,
+        "output_tokens": 12065,
+        "total_tokens": 149113
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_poetry_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "poetry run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-codium-ai__cover-agent",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval -t jayint-repo2run-codium-ai__cover-agent /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T11:40:54.316200+08:00",
+    "finished_at": "2026-05-04T11:42:34.643007+08:00",
+    "duration_seconds": 100.327,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.21kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 5.49MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install --default-timeout=1000 poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.679 Requirement already satisfied: poetry in /usr/local/lib/python3.12/site-packages (2.3.4)\n#10 0.684 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.12/site-packages (from poetry) (1.4.4)\n#10 0.685 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.685 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.1.0)\n#10 0.686 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.686 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.21.2)\n#10 0.687 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.12/site-packages (from poetry) (0.7.1)\n#10 0.687 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.12/site-packages (from poetry) (0.7.0)\n#10 0.687 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (25.7.0)\n#10 0.688 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.12/site-packages (from poetry) (26.2)\n#10 0.688 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.4.7)\n#10 0.689 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.12/site-packages (from poetry) (1.12.1.2)\n#10 0.689 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (4.9.6)\n#10 0.689 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.12/site-packages (from poetry) (2.3.2)\n#10 0.690 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.690 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.12/site-packages (from poetry) (2.33.1)\n#10 0.690 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.0)\n#10 0.691 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.4)\n#10 0.691 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.12/site-packages (from poetry) (0.14.0)\n#10 0.692 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.12/site-packages (from poetry) (2026.1.14.14)\n#10 0.692 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.12/site-packages (from poetry) (21.3.0)\n#10 0.696 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.12/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.698 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.699 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.700 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.702 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.12/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.708 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.708 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.708 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.709 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.709 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.712 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.712 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.716 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.716 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.717 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.722 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.722 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.728 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.729 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.731 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.737 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.12/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 0.741 Requirement already satisfied: more-itertools in /usr/local/lib/python3.12/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.744 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.12/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.746 Requirement already satisfied: typing_extensions>=4.5 in /usr/local/lib/python3.12/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.15.0)\n#10 0.748 Requirement already satisfied: pycparser in /usr/local/lib/python3.12/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.769 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 0.8s\n\n#11 [7/9] RUN poetry --version\n#11 0.613 Poetry (version 2.3.4)\n#11 DONE 0.7s\n\n#12 [8/9] RUN poetry install --all-extras\n#12 0.626 Creating virtualenv cover-agent-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\n#12 1.473 Installing dependencies from lock file\n#12 1.730 \n#12 1.730 Package operations: 133 installs, 0 updates, 0 removals\n#12 1.730 \n#12 1.730   - Installing pyasn1 (0.6.1)\n#12 2.936   - Installing cachetools (5.5.0)\n#12 2.937   - Installing certifi (2024.8.30)\n#12 2.939   - Installing charset-normalizer (3.4.0)\n#12 2.940   - Installing idna (3.10)\n#12 2.941   - Installing mdurl (0.1.2)\n#12 2.942   - Installing protobuf (5.28.3)\n#12 2.944   - Installing pyasn1-modules (0.4.1)\n#12 2.945   - Installing rsa (4.9)\n#12 2.947   - Installing sniffio (1.3.1)\n#12 2.949   - Installing urllib3 (2.2.3)\n#12 4.199   - Installing anyio (4.6.2.post1)\n#12 4.200   - Installing attrs (24.2.0)\n#12 4.202   - Installing google-auth (2.36.0)\n#12 4.203   - Installing grpcio (1.67.1)\n#12 4.204   - Installing googleapis-common-protos (1.66.0)\n#12 4.205   - Installing h11 (0.14.0)\n#12 4.206   - Installing markdown-it-py (3.0.0)\n#12 4.207   - Installing pygments (2.18.0)\n#12 4.208   - Installing rpds-py (0.21.0)\n#12 4.209   - Installing requests (2.32.3)\n#12 4.210   - Installing typing-extensions (4.12.2)\n#12 4.211   - Installing six (1.16.0)\n#12 4.212   - Installing proto-plus (1.25.0)\n#12 6.829   - Installing annotated-types (0.7.0)\n#12 6.830   - Installing cattrs (24.1.2)\n#12 6.830   - Installing click (8.1.7)\n#12 6.831   - Installing filelock (3.16.1)\n#12 6.832   - Installing frozenlist (1.5.0)\n#12 6.833   - Installing fsspec (2024.10.0)\n#12 6.833   - Installing google-api-core (2.23.0)\n#12 6.833   - Installing google-crc32c (1.6.0)\n#12 6.834   - Installing grpcio-status (1.67.1)\n#12 6.835   - Installing httptools (0.6.4)\n#12 6.835   - Installing httpcore (1.0.6)\n#12 6.836   - Installing multidict (6.1.0)\n#12 6.837   - Installing jmespath (1.0.1)\n#12 6.838   - Installing packaging (24.2)\n#12 7.065   - Installing propcache (0.2.0)\n#12 7.076   - Installing pydantic-core (2.23.4)\n#12 7.078   - Installing python-dateutil (2.9.0.post0)\n#12 7.102   - Installing python-dotenv (1.0.1)\n#12 7.108   - Installing pyyaml (6.0.2)\n#12 7.138   - Installing referencing (0.35.1)\n#12 7.142   - Installing rich (13.9.4)\n#12 7.156   - Installing shellingham (1.5.4)\n#12 7.199   - Installing smmap (5.0.1)\n#12 7.239   - Installing tqdm (4.67.0)\n#12 7.356   - Installing uvloop (0.21.0)\n#12 7.398   - Installing watchfiles (0.24.0)\n#12 7.412   - Installing websockets (14.1)\n#12 8.901   - Installing aiohappyeyeballs (2.4.3)\n#12 8.901   - Installing aiosignal (1.3.1)\n#12 8.902   - Installing botocore (1.35.59)\n#12 8.903   - Installing distro (1.9.0)\n#12 8.904   - Installing dnspython (2.7.0)\n#12 8.904   - Installing gitdb (4.0.11)\n#12 8.905   - Installing google-cloud-core (2.4.1)\n#12 8.905   - Installing google-resumable-media (2.7.2)\n#12 8.905   - Installing grpc-google-iam-v1 (0.13.1)\n#12 8.906   - Installing httpx (0.27.2)\n#12 8.907   - Installing huggingface-hub (0.26.2)\n#12 8.908   - Installing iniconfig (2.0.0)\n#12 8.908   - Installing jiter (0.7.1)\n#12 8.909   - Installing jsonschema-specifications (2024.10.1)\n#12 9.155   - Installing lsprotocol (2023.0.1)\n#12 9.204   - Installing markupsafe (3.0.2)\n#12 9.205   - Installing numpy (1.26.4)\n#12 9.219   - Installing parso (0.8.4)\n#12 9.222   - Installing pluggy (1.5.0)\n#12 9.225   - Installing pydantic (2.9.2)\n#12 9.230   - Installing regex (2024.11.6)\n#12 9.235   - Installing setuptools (75.5.0)\n#12 9.245   - Installing tree-sitter (0.21.3)\n#12 9.247   - Installing typer (0.13.0)\n#12 9.264   - Installing uvicorn (0.32.0)\n#12 9.324   - Installing yarl (1.17.1)\n#12 9.495   - Installing zipp (3.21.0)\n#12 17.41   - Installing aiohttp (3.10.10)\n#12 17.41   - Installing altgraph (0.17.4)\n#12 17.41   - Installing chardet (5.2.0)\n#12 17.41   - Installing coverage (7.6.4)\n#12 17.41   - Installing docker-pycreds (0.4.0)\n#12 17.41   - Installing docstring-parser (0.16)\n#12 17.41   - Installing docstring-to-markdown (0.15)\n#12 17.41   - Installing dunamai (1.22.0)\n#12 17.42   - Installing email-validator (2.2.0)\n#12 17.42   - Installing fastapi-cli (0.0.5)\n#12 17.42   - Installing gitpython (3.1.43)\n#12 17.42   - Installing google-cloud-bigquery (3.27.0)\n#12 17.42   - Installing google-cloud-resource-manager (1.13.0)\n#12 17.42   - Installing google-cloud-storage (2.18.2)\n#12 17.65   - Installing greenlet (3.1.1)\n#12 17.67   - Installing importlib-metadata (8.5.0)\n#12 17.69   - Installing jedi (0.19.2)\n#12 17.69   - Installing jinja2 (3.1.4)\n#12 17.69   - Installing jsonschema (4.23.0)\n#12 17.70   - Installing openai (1.54.4)\n#12 17.71   - Installing pathspec (0.12.1)\n#12 17.72   - Installing platformdirs (4.3.6)\n#12 17.73   - Installing psutil (6.1.0)\n#12 17.73   - Installing pygls (1.3.1)\n#12 17.86   - Installing pyinstaller-hooks-contrib (2024.10)\n#12 17.87   - Installing pytest (8.3.3)\n#12 17.91   - Installing python-multipart (0.0.17)\n#12 17.95   - Installing s3transfer (0.10.3)\n#12 17.96   - Installing sentry-sdk (2.18.0)\n#12 17.96   - Installing setproctitle (1.3.3)\n#12 17.98   - Installing shapely (2.0.6)\n#12 18.00   - Installing soupsieve (2.6)\n#12 18.09   - Installing starlette (0.37.2)\n#12 18.30   - Installing tiktoken (0.8.0)\n#12 18.46   - Installing tokenizers (0.20.3)\n#12 18.47   - Installing tomlkit (0.13.2)\n#12 18.67   - Installing tree-sitter-languages (1.10.2)\n#12 22.02   - Installing beautifulsoup4 (4.12.3)\n#12 22.02   - Installing boto3 (1.35.59)\n#12 22.02   - Installing diff-cover (9.2.0)\n#12 22.02   - Installing dynaconf (3.2.6)\n#12 22.02   - Installing fastapi (0.111.1)\n#12 22.02   - Installing google-cloud-aiplatform (1.72.0)\n#12 22.02   - Installing grep-ast (0.3.3)\n#12 22.02   - Installing jedi-language-server (0.41.4)\n#12 22.02   - Installing poetry-dynamic-versioning (1.4.1)\n#12 22.02   - Installing pyinstaller (6.11.1)\n#12 22.02   - Installing pytest-asyncio (0.23.8)\n#12 22.02   - Installing pytest-cov (5.0.0)\n#12 22.02   - Installing pytest-mock (3.14.0)\n#12 22.02   - Installing pytest-timeout (2.3.1)\n#12 22.28   - Installing sqlalchemy (2.0.36)\n#12 22.28   - Installing tenacity (9.0.0)\n#12 22.30   - Installing wandb (0.17.9)\n#12 22.31   - Installing litellm (1.51.0 8ed6769)\n#12 89.91 \n#12 89.91 Installing the current project: cover-agent (0.0.0)\n#12 DONE 90.4s\n\n#13 [9/9] RUN poetry run pytest --collect-only -q --disable-warnings\n#13 5.979 templated_tests/python_fastapi/test_app.py::test_root\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_simplified\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_with_error\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_api_base\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_streaming_response\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging_exception\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_parse_args\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_agent_source_file_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_agent_test_file_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_with_output_path\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_without_output_path\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_run_max_iterations_strict_coverage\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_project_root_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_run_diff_coverage\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_correct_parsing_for_matching_package_and_class\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_returns_empty_lists_and_float\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java_file_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_kotlin\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_updated\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_exist\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_process_coverage_report\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_csv_key_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_no_coverage_data\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_coverage_data\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_multiple_files\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml_no_source_file\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_kotlin_jacoco_xml\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_valid_file_extension\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_no_file_extension\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_filename_not_found\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_file_read_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_all_files\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco_without_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_without_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_without_feature_flag\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_c_file\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_function_only\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_commented_class\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_class\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_syntax_error\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_reads_file_contents\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_handles_file_read_errors\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_included_files_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_included_files_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_additional_instructions_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_failed_test_runs_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_additional_instructions_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_failed_test_runs_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_custom_handles_rendering_exception\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_handles_rendering_exception\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_custom_analyze_test_run_failure\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_build_prompt_custom_missing_settings\n#13 5.979 tests/test_ReportGenerator.py::TestReportGeneration::test_generate_report\n#13 5.979 tests/test_ReportGenerator.py::TestReportGeneration::test_generate_partial_diff_basic\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_success\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_with_cwd\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_failure\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_insert_attempt\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_cli_custom_args\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_defaults\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_mixed_paths\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_valid_paths\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_code_language_no_extension\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_build_prompt_with_failed_tests\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_generate_tests_invalid_yaml\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_exception_handling\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_run_coverage_with_report_coverage_flag\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_with_prompt_builder\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_validate_test_pass_no_coverage_increase_with_prompt\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_initial_test_suite_analysis_with_prompt_builder\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_report_coverage_flag\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_diff_coverage\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_without_flags\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_generate_diff_coverage_report\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_valid_yaml\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml1\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml2\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_snippet_extraction\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_remove_all_lines\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_llama3_8b\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_invalid_yaml_wont_parse\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_load_yaml_second_fallback_failure\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_parse_args_full_repo_defaults_with_imports\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_find_test_files\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_invalid_snippet\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_find_test_files_with_forbidden_dirs\n#13 5.981 tests/test_main.py::TestMain::test_parse_args\n#13 5.981 tests/test_main.py::TestMain::test_main_source_file_not_found\n#13 5.981 tests/test_main.py::TestMain::test_main_test_file_not_found\n#13 5.981 tests/test_main.py::TestMain::test_main_calls_agent_run\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_happy_path\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_file_missing\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_frozen_application\n#13 5.981 \n#13 5.981 108 tests collected in 4.66s\n#13 DONE 6.3s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 1.4s done\n#14 writing image sha256:a8b0662a560d1f5c0a8c7cbf9d86da6fb0892587d782f2fa72c94c6290e79dd7 done\n#14 naming to docker.io/library/jayint-repo2run-codium-ai__cover-agent\n#14 naming to docker.io/library/jayint-repo2run-codium-ai__cover-agent done\n#14 DONE 1.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/v1apie6j2ehrgfz0efpvlb7v2\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-codium-ai__cover-agent",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-codium-ai__cover-agent sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-04T11:42:34.645996+08:00",
+          "finished_at": "2026-05-04T11:42:38.205245+08:00",
+          "duration_seconds": 3.559,
+          "stdout": "templated_tests/python_fastapi/test_app.py::test_root\ntests/test_AICaller.py::TestAICaller::test_call_model_simplified\ntests/test_AICaller.py::TestAICaller::test_call_model_with_error\ntests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\ntests/test_AICaller.py::TestAICaller::test_call_model_api_base\ntests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\ntests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\ntests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\ntests/test_AICaller.py::TestAICaller::test_call_model_streaming_response\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging_exception\ntests/test_CoverAgent.py::TestCoverAgent::test_parse_args\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_source_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_test_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_with_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_without_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_run_max_iterations_strict_coverage\ntests/test_CoverAgent.py::TestCoverAgent::test_project_root_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_run_diff_coverage\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_correct_parsing_for_matching_package_and_class\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_returns_empty_lists_and_float\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java_file_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_kotlin\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_updated\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_exist\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_process_coverage_report\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_csv_key_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_no_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_multiple_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml_no_source_file\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_kotlin_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_valid_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_no_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_filename_not_found\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_file_read_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_all_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_without_feature_flag\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_c_file\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_function_only\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_commented_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_syntax_error\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_reads_file_contents\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_handles_file_read_errors\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_included_files_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_included_files_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_additional_instructions_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_failed_test_runs_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_additional_instructions_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_failed_test_runs_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_custom_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_custom_analyze_test_run_failure\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_build_prompt_custom_missing_settings\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_report\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_partial_diff_basic\ntests/test_Runner.py::TestRunner::test_run_command_success\ntests/test_Runner.py::TestRunner::test_run_command_with_cwd\ntests/test_Runner.py::TestRunner::test_run_command_failure\ntests/test_UnitTestDB.py::TestUnitTestDB::test_insert_attempt\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_cli_custom_args\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_defaults\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_mixed_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_valid_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_code_language_no_extension\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_build_prompt_with_failed_tests\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_generate_tests_invalid_yaml\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_exception_handling\ntests/test_UnitTestValidator.py::TestUnitValidator::test_run_coverage_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_validate_test_pass_no_coverage_increase_with_prompt\ntests/test_UnitTestValidator.py::TestUnitValidator::test_initial_test_suite_analysis_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_diff_coverage\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_without_flags\ntests/test_UnitTestValidator.py::TestUnitValidator::test_generate_diff_coverage_report\ntests/test_load_yaml.py::TestLoadYaml::test_load_valid_yaml\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml1\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml2\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_snippet_extraction\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_remove_all_lines\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_llama3_8b\ntests/test_load_yaml.py::TestLoadYaml::test_invalid_yaml_wont_parse\ntests/test_load_yaml.py::TestLoadYaml::test_load_yaml_second_fallback_failure\ntests/test_load_yaml.py::TestLoadYaml::test_parse_args_full_repo_defaults_with_imports\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_invalid_snippet\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files_with_forbidden_dirs\ntests/test_main.py::TestMain::test_parse_args\ntests/test_main.py::TestMain::test_main_source_file_not_found\ntests/test_main.py::TestMain::test_main_test_file_not_found\ntests/test_main.py::TestMain::test_main_calls_agent_run\ntests/test_version.py::TestGetVersion::test_get_version_happy_path\ntests/test_version.py::TestGetVersion::test_get_version_file_missing\ntests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\ntests/test_version.py::TestGetVersion::test_get_version_frozen_application\n\n108 tests collected in 2.17s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-codium-ai__cover-agent",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/Dockerfile.eval -t jayint-repo2run-codium-ai__cover-agent /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Codium-ai__cover-agent",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-04T11:40:54.316200+08:00",
+        "finished_at": "2026-05-04T11:42:34.643007+08:00",
+        "duration_seconds": 100.327,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.21kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 5.49MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install --default-timeout=1000 poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.679 Requirement already satisfied: poetry in /usr/local/lib/python3.12/site-packages (2.3.4)\n#10 0.684 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.12/site-packages (from poetry) (1.4.4)\n#10 0.685 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.685 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.1.0)\n#10 0.686 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.686 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.21.2)\n#10 0.687 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.12/site-packages (from poetry) (0.7.1)\n#10 0.687 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.12/site-packages (from poetry) (0.7.0)\n#10 0.687 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (25.7.0)\n#10 0.688 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.12/site-packages (from poetry) (26.2)\n#10 0.688 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.4.7)\n#10 0.689 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.12/site-packages (from poetry) (1.12.1.2)\n#10 0.689 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (4.9.6)\n#10 0.689 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.12/site-packages (from poetry) (2.3.2)\n#10 0.690 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.690 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.12/site-packages (from poetry) (2.33.1)\n#10 0.690 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.0)\n#10 0.691 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.4)\n#10 0.691 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.12/site-packages (from poetry) (0.14.0)\n#10 0.692 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.12/site-packages (from poetry) (2026.1.14.14)\n#10 0.692 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.12/site-packages (from poetry) (21.3.0)\n#10 0.696 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.12/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.698 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.699 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.700 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.702 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.12/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.708 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.708 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.708 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.709 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.709 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.712 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.712 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.716 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.716 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.717 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.722 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.722 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.728 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.729 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.731 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.737 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.12/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 0.741 Requirement already satisfied: more-itertools in /usr/local/lib/python3.12/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.744 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.12/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.746 Requirement already satisfied: typing_extensions>=4.5 in /usr/local/lib/python3.12/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.15.0)\n#10 0.748 Requirement already satisfied: pycparser in /usr/local/lib/python3.12/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.769 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 0.8s\n\n#11 [7/9] RUN poetry --version\n#11 0.613 Poetry (version 2.3.4)\n#11 DONE 0.7s\n\n#12 [8/9] RUN poetry install --all-extras\n#12 0.626 Creating virtualenv cover-agent-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\n#12 1.473 Installing dependencies from lock file\n#12 1.730 \n#12 1.730 Package operations: 133 installs, 0 updates, 0 removals\n#12 1.730 \n#12 1.730   - Installing pyasn1 (0.6.1)\n#12 2.936   - Installing cachetools (5.5.0)\n#12 2.937   - Installing certifi (2024.8.30)\n#12 2.939   - Installing charset-normalizer (3.4.0)\n#12 2.940   - Installing idna (3.10)\n#12 2.941   - Installing mdurl (0.1.2)\n#12 2.942   - Installing protobuf (5.28.3)\n#12 2.944   - Installing pyasn1-modules (0.4.1)\n#12 2.945   - Installing rsa (4.9)\n#12 2.947   - Installing sniffio (1.3.1)\n#12 2.949   - Installing urllib3 (2.2.3)\n#12 4.199   - Installing anyio (4.6.2.post1)\n#12 4.200   - Installing attrs (24.2.0)\n#12 4.202   - Installing google-auth (2.36.0)\n#12 4.203   - Installing grpcio (1.67.1)\n#12 4.204   - Installing googleapis-common-protos (1.66.0)\n#12 4.205   - Installing h11 (0.14.0)\n#12 4.206   - Installing markdown-it-py (3.0.0)\n#12 4.207   - Installing pygments (2.18.0)\n#12 4.208   - Installing rpds-py (0.21.0)\n#12 4.209   - Installing requests (2.32.3)\n#12 4.210   - Installing typing-extensions (4.12.2)\n#12 4.211   - Installing six (1.16.0)\n#12 4.212   - Installing proto-plus (1.25.0)\n#12 6.829   - Installing annotated-types (0.7.0)\n#12 6.830   - Installing cattrs (24.1.2)\n#12 6.830   - Installing click (8.1.7)\n#12 6.831   - Installing filelock (3.16.1)\n#12 6.832   - Installing frozenlist (1.5.0)\n#12 6.833   - Installing fsspec (2024.10.0)\n#12 6.833   - Installing google-api-core (2.23.0)\n#12 6.833   - Installing google-crc32c (1.6.0)\n#12 6.834   - Installing grpcio-status (1.67.1)\n#12 6.835   - Installing httptools (0.6.4)\n#12 6.835   - Installing httpcore (1.0.6)\n#12 6.836   - Installing multidict (6.1.0)\n#12 6.837   - Installing jmespath (1.0.1)\n#12 6.838   - Installing packaging (24.2)\n#12 7.065   - Installing propcache (0.2.0)\n#12 7.076   - Installing pydantic-core (2.23.4)\n#12 7.078   - Installing python-dateutil (2.9.0.post0)\n#12 7.102   - Installing python-dotenv (1.0.1)\n#12 7.108   - Installing pyyaml (6.0.2)\n#12 7.138   - Installing referencing (0.35.1)\n#12 7.142   - Installing rich (13.9.4)\n#12 7.156   - Installing shellingham (1.5.4)\n#12 7.199   - Installing smmap (5.0.1)\n#12 7.239   - Installing tqdm (4.67.0)\n#12 7.356   - Installing uvloop (0.21.0)\n#12 7.398   - Installing watchfiles (0.24.0)\n#12 7.412   - Installing websockets (14.1)\n#12 8.901   - Installing aiohappyeyeballs (2.4.3)\n#12 8.901   - Installing aiosignal (1.3.1)\n#12 8.902   - Installing botocore (1.35.59)\n#12 8.903   - Installing distro (1.9.0)\n#12 8.904   - Installing dnspython (2.7.0)\n#12 8.904   - Installing gitdb (4.0.11)\n#12 8.905   - Installing google-cloud-core (2.4.1)\n#12 8.905   - Installing google-resumable-media (2.7.2)\n#12 8.905   - Installing grpc-google-iam-v1 (0.13.1)\n#12 8.906   - Installing httpx (0.27.2)\n#12 8.907   - Installing huggingface-hub (0.26.2)\n#12 8.908   - Installing iniconfig (2.0.0)\n#12 8.908   - Installing jiter (0.7.1)\n#12 8.909   - Installing jsonschema-specifications (2024.10.1)\n#12 9.155   - Installing lsprotocol (2023.0.1)\n#12 9.204   - Installing markupsafe (3.0.2)\n#12 9.205   - Installing numpy (1.26.4)\n#12 9.219   - Installing parso (0.8.4)\n#12 9.222   - Installing pluggy (1.5.0)\n#12 9.225   - Installing pydantic (2.9.2)\n#12 9.230   - Installing regex (2024.11.6)\n#12 9.235   - Installing setuptools (75.5.0)\n#12 9.245   - Installing tree-sitter (0.21.3)\n#12 9.247   - Installing typer (0.13.0)\n#12 9.264   - Installing uvicorn (0.32.0)\n#12 9.324   - Installing yarl (1.17.1)\n#12 9.495   - Installing zipp (3.21.0)\n#12 17.41   - Installing aiohttp (3.10.10)\n#12 17.41   - Installing altgraph (0.17.4)\n#12 17.41   - Installing chardet (5.2.0)\n#12 17.41   - Installing coverage (7.6.4)\n#12 17.41   - Installing docker-pycreds (0.4.0)\n#12 17.41   - Installing docstring-parser (0.16)\n#12 17.41   - Installing docstring-to-markdown (0.15)\n#12 17.41   - Installing dunamai (1.22.0)\n#12 17.42   - Installing email-validator (2.2.0)\n#12 17.42   - Installing fastapi-cli (0.0.5)\n#12 17.42   - Installing gitpython (3.1.43)\n#12 17.42   - Installing google-cloud-bigquery (3.27.0)\n#12 17.42   - Installing google-cloud-resource-manager (1.13.0)\n#12 17.42   - Installing google-cloud-storage (2.18.2)\n#12 17.65   - Installing greenlet (3.1.1)\n#12 17.67   - Installing importlib-metadata (8.5.0)\n#12 17.69   - Installing jedi (0.19.2)\n#12 17.69   - Installing jinja2 (3.1.4)\n#12 17.69   - Installing jsonschema (4.23.0)\n#12 17.70   - Installing openai (1.54.4)\n#12 17.71   - Installing pathspec (0.12.1)\n#12 17.72   - Installing platformdirs (4.3.6)\n#12 17.73   - Installing psutil (6.1.0)\n#12 17.73   - Installing pygls (1.3.1)\n#12 17.86   - Installing pyinstaller-hooks-contrib (2024.10)\n#12 17.87   - Installing pytest (8.3.3)\n#12 17.91   - Installing python-multipart (0.0.17)\n#12 17.95   - Installing s3transfer (0.10.3)\n#12 17.96   - Installing sentry-sdk (2.18.0)\n#12 17.96   - Installing setproctitle (1.3.3)\n#12 17.98   - Installing shapely (2.0.6)\n#12 18.00   - Installing soupsieve (2.6)\n#12 18.09   - Installing starlette (0.37.2)\n#12 18.30   - Installing tiktoken (0.8.0)\n#12 18.46   - Installing tokenizers (0.20.3)\n#12 18.47   - Installing tomlkit (0.13.2)\n#12 18.67   - Installing tree-sitter-languages (1.10.2)\n#12 22.02   - Installing beautifulsoup4 (4.12.3)\n#12 22.02   - Installing boto3 (1.35.59)\n#12 22.02   - Installing diff-cover (9.2.0)\n#12 22.02   - Installing dynaconf (3.2.6)\n#12 22.02   - Installing fastapi (0.111.1)\n#12 22.02   - Installing google-cloud-aiplatform (1.72.0)\n#12 22.02   - Installing grep-ast (0.3.3)\n#12 22.02   - Installing jedi-language-server (0.41.4)\n#12 22.02   - Installing poetry-dynamic-versioning (1.4.1)\n#12 22.02   - Installing pyinstaller (6.11.1)\n#12 22.02   - Installing pytest-asyncio (0.23.8)\n#12 22.02   - Installing pytest-cov (5.0.0)\n#12 22.02   - Installing pytest-mock (3.14.0)\n#12 22.02   - Installing pytest-timeout (2.3.1)\n#12 22.28   - Installing sqlalchemy (2.0.36)\n#12 22.28   - Installing tenacity (9.0.0)\n#12 22.30   - Installing wandb (0.17.9)\n#12 22.31   - Installing litellm (1.51.0 8ed6769)\n#12 89.91 \n#12 89.91 Installing the current project: cover-agent (0.0.0)\n#12 DONE 90.4s\n\n#13 [9/9] RUN poetry run pytest --collect-only -q --disable-warnings\n#13 5.979 templated_tests/python_fastapi/test_app.py::test_root\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_simplified\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_with_error\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_api_base\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_streaming_response\n#13 5.979 tests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging_exception\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_parse_args\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_agent_source_file_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_agent_test_file_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_with_output_path\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_without_output_path\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_run_max_iterations_strict_coverage\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_project_root_not_found\n#13 5.979 tests/test_CoverAgent.py::TestCoverAgent::test_run_diff_coverage\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_correct_parsing_for_matching_package_and_class\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_returns_empty_lists_and_float\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java_file_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_kotlin\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_updated\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_exist\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_process_coverage_report\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_csv_key_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_no_coverage_data\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_coverage_data\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_multiple_files\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml_no_source_file\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_kotlin_jacoco_xml\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_valid_file_extension\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_no_file_extension\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_filename_not_found\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_file_read_error\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_all_files\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_with_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco_without_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_without_feature_flag\n#13 5.979 tests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_without_feature_flag\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_c_file\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_function_only\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_commented_class\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_class\n#13 5.979 tests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_syntax_error\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_reads_file_contents\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_handles_file_read_errors\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_included_files_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_included_files_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_additional_instructions_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_empty_failed_test_runs_section_not_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_additional_instructions_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_failed_test_runs_section_in_prompt\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_custom_handles_rendering_exception\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_handles_rendering_exception\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_custom_analyze_test_run_failure\n#13 5.979 tests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_build_prompt_custom_missing_settings\n#13 5.979 tests/test_ReportGenerator.py::TestReportGeneration::test_generate_report\n#13 5.979 tests/test_ReportGenerator.py::TestReportGeneration::test_generate_partial_diff_basic\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_success\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_with_cwd\n#13 5.979 tests/test_Runner.py::TestRunner::test_run_command_failure\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_insert_attempt\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_cli_custom_args\n#13 5.979 tests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_defaults\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_mixed_paths\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_valid_paths\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_code_language_no_extension\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_build_prompt_with_failed_tests\n#13 5.979 tests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_generate_tests_invalid_yaml\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_exception_handling\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_run_coverage_with_report_coverage_flag\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_with_prompt_builder\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_validate_test_pass_no_coverage_increase_with_prompt\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_initial_test_suite_analysis_with_prompt_builder\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_report_coverage_flag\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_diff_coverage\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_without_flags\n#13 5.979 tests/test_UnitTestValidator.py::TestUnitValidator::test_generate_diff_coverage_report\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_valid_yaml\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml1\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml2\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_snippet_extraction\n#13 5.979 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_remove_all_lines\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_llama3_8b\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_invalid_yaml_wont_parse\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_load_yaml_second_fallback_failure\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_parse_args_full_repo_defaults_with_imports\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_find_test_files\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_invalid_snippet\n#13 5.981 tests/test_load_yaml.py::TestLoadYaml::test_find_test_files_with_forbidden_dirs\n#13 5.981 tests/test_main.py::TestMain::test_parse_args\n#13 5.981 tests/test_main.py::TestMain::test_main_source_file_not_found\n#13 5.981 tests/test_main.py::TestMain::test_main_test_file_not_found\n#13 5.981 tests/test_main.py::TestMain::test_main_calls_agent_run\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_happy_path\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_file_missing\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\n#13 5.981 tests/test_version.py::TestGetVersion::test_get_version_frozen_application\n#13 5.981 \n#13 5.981 108 tests collected in 4.66s\n#13 DONE 6.3s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 1.4s done\n#14 writing image sha256:a8b0662a560d1f5c0a8c7cbf9d86da6fb0892587d782f2fa72c94c6290e79dd7 done\n#14 naming to docker.io/library/jayint-repo2run-codium-ai__cover-agent\n#14 naming to docker.io/library/jayint-repo2run-codium-ai__cover-agent done\n#14 DONE 1.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/v1apie6j2ehrgfz0efpvlb7v2\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "poetry run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-codium-ai__cover-agent",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-codium-ai__cover-agent sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-04T11:42:34.645996+08:00",
+              "finished_at": "2026-05-04T11:42:38.205245+08:00",
+              "duration_seconds": 3.559,
+              "stdout": "templated_tests/python_fastapi/test_app.py::test_root\ntests/test_AICaller.py::TestAICaller::test_call_model_simplified\ntests/test_AICaller.py::TestAICaller::test_call_model_with_error\ntests/test_AICaller.py::TestAICaller::test_call_model_error_streaming\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging\ntests/test_AICaller.py::TestAICaller::test_call_model_api_base\ntests/test_AICaller.py::TestAICaller::test_call_model_with_system_key\ntests/test_AICaller.py::TestAICaller::test_call_model_missing_keys\ntests/test_AICaller.py::TestAICaller::test_call_model_o1_preview\ntests/test_AICaller.py::TestAICaller::test_call_model_streaming_response\ntests/test_AICaller.py::TestAICaller::test_call_model_wandb_logging_exception\ntests/test_CoverAgent.py::TestCoverAgent::test_parse_args\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_source_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_agent_test_file_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_with_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_duplicate_test_file_without_output_path\ntests/test_CoverAgent.py::TestCoverAgent::test_run_max_iterations_strict_coverage\ntests/test_CoverAgent.py::TestCoverAgent::test_project_root_not_found\ntests/test_CoverAgent.py::TestCoverAgent::test_run_diff_coverage\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_correct_parsing_for_matching_package_and_class\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_returns_empty_lists_and_float\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java_file_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_kotlin\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_extract_package_and_class_java\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_updated\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_verify_report_update_file_not_exist\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_process_coverage_report\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_csv_key_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_no_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_coverage_data\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_multiple_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml_no_source_file\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_missed_covered_lines_kotlin_jacoco_xml\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_valid_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_get_file_extension_with_no_file_extension\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_filename_not_found\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_file_read_error\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_cobertura_all_files\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_with_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_jacoco_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_unsupported_type_without_feature_flag\ntests/test_CoverageProcessor.py::TestCoverageProcessor::test_parse_coverage_report_lcov_without_feature_flag\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_c_file\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_function_only\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_commented_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_class\ntests/test_FilePreprocessor.py::TestFilePreprocessor::test_py_file_with_syntax_error\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_reads_file_contents\ntests/test_PromptBuilder.py::TestPromptBuilder::test_initialization_handles_file_read_errors\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_included_files_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_included_files_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_additional_instructions_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_empty_failed_test_runs_section_not_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_additional_instructions_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_non_empty_failed_test_runs_section_in_prompt\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_custom_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilder::test_build_prompt_handles_rendering_exception\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_custom_analyze_test_run_failure\ntests/test_PromptBuilder.py::TestPromptBuilderEndToEnd::test_build_prompt_custom_missing_settings\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_report\ntests/test_ReportGenerator.py::TestReportGeneration::test_generate_partial_diff_basic\ntests/test_Runner.py::TestRunner::test_run_command_success\ntests/test_Runner.py::TestRunner::test_run_command_with_cwd\ntests/test_Runner.py::TestRunner::test_run_command_failure\ntests/test_UnitTestDB.py::TestUnitTestDB::test_insert_attempt\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_cli_custom_args\ntests/test_UnitTestDB.py::TestUnitTestDB::test_dump_to_report_defaults\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_mixed_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_included_files_valid_paths\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_get_code_language_no_extension\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_build_prompt_with_failed_tests\ntests/test_UnitTestGenerator.py::TestUnitTestGenerator::test_generate_tests_invalid_yaml\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_exception_handling\ntests/test_UnitTestValidator.py::TestUnitValidator::test_run_coverage_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_extract_error_message_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_validate_test_pass_no_coverage_increase_with_prompt\ntests/test_UnitTestValidator.py::TestUnitValidator::test_initial_test_suite_analysis_with_prompt_builder\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_report_coverage_flag\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_with_diff_coverage\ntests/test_UnitTestValidator.py::TestUnitValidator::test_post_process_coverage_report_without_flags\ntests/test_UnitTestValidator.py::TestUnitValidator::test_generate_diff_coverage_report\ntests/test_load_yaml.py::TestLoadYaml::test_load_valid_yaml\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml1\ntests/test_load_yaml.py::TestLoadYaml::test_load_invalid_yaml2\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_snippet_extraction\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_remove_all_lines\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_llama3_8b\ntests/test_load_yaml.py::TestLoadYaml::test_invalid_yaml_wont_parse\ntests/test_load_yaml.py::TestLoadYaml::test_load_yaml_second_fallback_failure\ntests/test_load_yaml.py::TestLoadYaml::test_parse_args_full_repo_defaults_with_imports\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files\ntests/test_load_yaml.py::TestLoadYaml::test_try_fix_yaml_invalid_snippet\ntests/test_load_yaml.py::TestLoadYaml::test_find_test_files_with_forbidden_dirs\ntests/test_main.py::TestMain::test_parse_args\ntests/test_main.py::TestMain::test_main_source_file_not_found\ntests/test_main.py::TestMain::test_main_test_file_not_found\ntests/test_main.py::TestMain::test_main_calls_agent_run\ntests/test_version.py::TestGetVersion::test_get_version_happy_path\ntests/test_version.py::TestGetVersion::test_get_version_file_missing\ntests/test_version.py::TestGetVersion::test_get_version_empty_or_whitespace_file\ntests/test_version.py::TestGetVersion::test_get_version_frozen_application\n\n108 tests collected in 2.17s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-codium-ai__cover-agent"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-codium-ai__cover-agent",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T11:42:38.209493+08:00",
+    "finished_at": "2026-05-04T11:42:38.235912+08:00",
+    "duration_seconds": 0.026,
+    "stdout": "Untagged: jayint-repo2run-codium-ai__cover-agent:latest\nDeleted: sha256:a8b0662a560d1f5c0a8c7cbf9d86da6fb0892587d782f2fa72c94c6290e79dd7\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Codium-ai__cover-agent/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

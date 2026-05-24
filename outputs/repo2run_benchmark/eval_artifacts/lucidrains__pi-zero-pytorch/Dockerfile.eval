@@ -1,0 +1,62 @@
+FROM python:3.9
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e ".[test]"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN sed -i '1s/^/from __future__ import annotations\n/' pi_zero_pytorch/pi_zero.py
+RUN sed -i '2d' pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/from random import random/from typing import Optional, Union\nfrom random import random/" pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/RotaryEmbedding | None/Optional[RotaryEmbedding]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Bool\[./Optional[Bool[/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Tensor | None/Optional[Tensor]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/tuple\[Tensor, Tensor\] | None/Optional[tuple[Tensor, Tensor]]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Callable | None/Optional[Callable]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Module | None/Optional[Module]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Module | list\[Module\] | None/Optional[Union[Module, list[Module]]]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/int | None/Optional[int]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/Float\[/Optional[Float[/g' pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/tuple\[Float\['b \.\.\.'\]\] | None/Optional[tuple[Float['b ...']]]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Bool\[b n'\] | None/Optional[Bool['b n']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Float\['b ns d'\] | None/Optional[Float['b ns d']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Float\['b d'\] | None/Optional[Float['b d']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Float\['b na da'\] | None/Optional[Float['b na da']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/tuple\[Optional\[Float\['b \.\.\.'\]\] | None/Optional[tuple[Float['b ...']]]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Float\['b {self._nm} d'\] | None/Optional[Float['b {self._nm} d']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i 's/list\[tuple\[Tensor, Tensor\]\] | None/Optional[list[tuple[Tensor, Tensor]]]/g' pi_zero_pytorch/pi_zero.py
+RUN sed -n '75,80p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "77s/Optional\[Bool\[b n'\]/Optional[Bool['b n']]/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '318,330p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "s/Optional\[Float\['b n d',$/Optional[Float['b n d']]/g" pi_zero_pytorch/pi_zero.py
+RUN sed -i "321s/Optional\[Float\['b n d',$/Optional[Float['b n d']]/" pi_zero_pytorch/pi_zero.py
+RUN sed -i "766s/Optional\[Float\['b d'\] = None/Optional[Float['b d']] = None/" pi_zero_pytorch/pi_zero.py
+RUN sed -i "886s/Optional\[Float\['b nv d'\] | Optional\[Float\['b c h w'\] | Optional\[Float\['b c f h w',/Optional[Float['b nv d']]/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '951,956p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "951s/Optional\[Float\['b nv d'\] | Optional\[Float\['b c h w'\] | Optional\[Float\['b c f h w',/Optional[Float['b nv d']]/" pi_zero_pytorch/pi_zero.py
+RUN sed -i "953s/Optional\[Float\['b djs',/Optional[Float['b djs']]/" pi_zero_pytorch/pi_zero.py
+RUN sed -i "955s/Optional\[Float\['b'\] = None/Optional[Float['b']] = None/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '320,325p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "321s/,\$/'/" pi_zero_pytorch/pi_zero.py
+RUN printf '%s' 'cHl0aG9uMyAtYyAiCmltcG9ydCByZQp3aXRoIG9wZW4oJ3BpX3plcm9fcHl0b3JjaC9waV96ZXJvLnB5JywgJ3InKSBhcyBmOgogICAgY29udGVudCA9IGYucmVhZCgpCgojIEZpeCBtYWxmb3JtZWQgT3B0aW9uYWxbRmxvYXRbLi4uIHBhdHRlcm5zCmNvbnRlbnQgPSByZS5zdWIoclwiT3B0aW9uYWxcW0Zsb2F0XFsnW14nXSonXF0sXHMqXCRcIiwgCiAgICAgICAgICAgICAgICAgbGFtYmRhIG06IG0uZ3JvdXAoKS5yc3RyaXAoJywnKS5yc3RyaXAoKSwgCiAgICAgICAgICAgICAgICAgY29udGVudCwgZmxhZ3M9cmUuTVVMVElMSU5FKQoKd2l0aCBvcGVuKCdwaV96ZXJvX3B5dG9yY2gvcGlfemVyby5weScsICd3JykgYXMgZjoKICAgIGYud3JpdGUoY29udGVudCkKcHJpbnQoJ0ZpeGVkJykKIg==' | base64 -d > /tmp/jayint_run_35.sh && chmod +x /tmp/jayint_run_35.sh && /bin/sh /tmp/jayint_run_35.sh
+RUN printf '%s' 'cHl0aG9uMyAtYyAiCndpdGggb3BlbigncGlfemVyb19weXRvcmNoL3BpX3plcm8ucHknLCAncicpIGFzIGY6CiAgICBjb250ZW50ID0gZi5yZWFkKCkKCmNvbnRlbnQgPSBjb250ZW50LnJlcGxhY2UoXCJzdGF0ZTogT3B0aW9uYWxbRmxvYXRbJ2IgbiBkJ10nXCIsIFwic3RhdGU6IE9wdGlvbmFsW0Zsb2F0WydiIG4gZCddXVwiKQoKd2l0aCBvcGVuKCdwaV96ZXJvX3B5dG9yY2gvcGlfemVyby5weScsICd3JykgYXMgZjoKICAgIGYud3JpdGUoY29udGVudCkKcHJpbnQoJ0ZpeGVkJykKIg==' | base64 -d > /tmp/jayint_run_36.sh && chmod +x /tmp/jayint_run_36.sh && /bin/sh /tmp/jayint_run_36.sh
+RUN sed -n '318,328p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "322s/^ rotary_emb = None/ rotary_emb = None,/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '315,330p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "321s/Optional\[Float\['b n d'\]\]/Optional[Float['b n d']],/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '320,330p' pi_zero_pytorch/pi_zero.py
+RUN printf '%s' 'cHl0aG9uMyAtYyAiCndpdGggb3BlbigncGlfemVyb19weXRvcmNoL3BpX3plcm8ucHknLCAncicpIGFzIGY6CiAgICBsaW5lcyA9IGYucmVhZGxpbmVzKCkKcHJpbnQoZidUb3RhbCBsaW5lczoge2xlbihsaW5lcyl9JykKIyBDaGVjayBhcm91bmQgbGluZSAzMjQtMzI1CmZvciBpIGluIHJhbmdlKDMyMCwgMzMwKToKICAgIHByaW50KGYne2krMX06IHtyZXByKGxpbmVzW2ldKX0nKSI=' | base64 -d > /tmp/jayint_run_42.sh && chmod +x /tmp/jayint_run_42.sh && /bin/sh /tmp/jayint_run_42.sh
+RUN sed -i "323s/Optional\[Float\['b n d'\]:/Optional[Float['b n d']]:/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '884,892p' pi_zero_pytorch/pi_zero.py
+RUN sed -n '886p' pi_zero_pytorch/pi_zero.py
+RUN printf '%s' 'cHl0aG9uMyAtYyAiCndpdGggb3BlbigncGlfemVyb19weXRvcmNoL3BpX3plcm8ucHknLCAncicpIGFzIGY6CiAgICBsaW5lcyA9IGYucmVhZGxpbmVzKCkKCiMgRml4IGxpbmUgODg2ICgwLWluZGV4ZWQgYXMgODg1KQpsaW5lc1s4ODVdID0gXCIgICAgICAgIGltYWdlczogT3B0aW9uYWxbRmxvYXRbJ2IgbnYgZCddXSwgIyB2aXNpb25cXG5cIgoKd2l0aCBvcGVuKCdwaV96ZXJvX3B5dG9yY2gvcGlfemVyby5weScsICd3JykgYXMgZjoKICAgIGYud3JpdGVsaW5lcyhsaW5lcykKcHJpbnQoJ0ZpeGVkIGxpbmUgODg2JykKIg==' | base64 -d > /tmp/jayint_run_46.sh && chmod +x /tmp/jayint_run_46.sh && /bin/sh /tmp/jayint_run_46.sh
+RUN sed -n '885,895p' pi_zero_pytorch/pi_zero.py
+RUN sed -i "888s/Optional\[Float\['b n d'\]:/Optional[Float['b n d']]:/" pi_zero_pytorch/pi_zero.py
+RUN sed -n '950,960p' pi_zero_pytorch/pi_zero.py
+RUN printf '%s' 'cHl0aG9uMyAtYyAiCndpdGggb3BlbigncGlfemVyb19weXRvcmNoL3BpX3plcm8ucHknLCAncicpIGFzIGY6CiAgICBjb250ZW50ID0gZi5yZWFkKCkKCiMgRml4IGxpbmUgOTUyIC0gbWFsZm9ybWVkIGltYWdlcyB0eXBlIGhpbnQKY29udGVudCA9IGNvbnRlbnQucmVwbGFjZSgKICAgIFwiaW1hZ2VzOiBPcHRpb25hbFtGbG9hdFsnYiBudiBkJ10gfCBPcHRpb25hbFtGbG9hdFsnYiBjIGggdyddIHwgT3B0aW9uYWxbRmxvYXRbJ2IgYyBmIGggdyddLCAjIHZpc2lvblwiLAogICAgXCJpbWFnZXM6IE9wdGlvbmFsW0Zsb2F0WydiIG52IGQnXV0sICMgdmlzaW9uXCIKKQoKIyBGaXggbGluZSA5NTQgLSBtYWxmb3JtZWQgam9pbnRfc3RhdGUgdHlwZSBoaW50IChtaXNzaW5nIGNsb3NpbmcgYnJhY2tldCBiZWZvcmUgY29tbWEpCmNvbnRlbnQgPSBjb250ZW50LnJlcGxhY2UoCiAgICBcImpvaW50X3N0YXRlOiBPcHRpb25hbFtGbG9hdFsnYiBkanMnXSwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyBqb2ludCBzdGF0ZVwiLAogICAgXCJqb2ludF9zdGF0ZTogT3B0aW9uYWxbRmxvYXRbJ2IgZGpzJ11dLCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIGpvaW50IHN0YXRlXCIKKQoKd2l0aCBvcGVuKCdwaV96ZXJvX3B5dG9yY2gvcGlfemVyby5weScsICd3JykgYXMgZjoKICAgIGYud3JpdGUoY29udGVudCkKcHJpbnQoJ0ZpeGVkJykKIg==' | base64 -d > /tmp/jayint_run_50.sh && chmod +x /tmp/jayint_run_50.sh && /bin/sh /tmp/jayint_run_50.sh
+RUN python3 -m py_compile pi_zero_pytorch/pi_zero.py

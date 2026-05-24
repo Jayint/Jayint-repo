@@ -1,0 +1,770 @@
+{
+  "dataset_entry": {
+    "instance_id": "mixedbread-ai__baguetter",
+    "full_name": "mixedbread-ai/baguetter",
+    "repo_url": "https://github.com/mixedbread-ai/baguetter.git",
+    "sha": "a6e915",
+    "base_commit": "a6e915",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/mixedbread-ai/baguetter.git",
+      "--base-commit",
+      "a6e915",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/mixedbread-ai/baguetter.git --base-commit a6e915 --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T23:18:27.611634+08:00",
+    "finished_at": "2026-05-16T23:37:46.202774+08:00",
+    "duration_seconds": 1158.591,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter...\nCloning https://github.com/mixedbread-ai/baguetter.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: a6e915\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 12 potentially relevant files\n[ImageSelector]   ✗ .pre-commit-config.yaml\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ .github/workflows/_test.yml\n[ImageSelector]   ✓ .github/workflows/_release.yml\n[ImageSelector]   ✓ ruff.toml\n[ImageSelector]   ✓ .github/workflows/_test_release.yml\n[ImageSelector]   ✗ conftest.py\n[ImageSelector]   ✓ benchmarks/README.md\n[ImageSelector]   ✓ README_CN.md\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ .github/workflows/_lint.yml\n[ImageSelector] 9 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses native extensions (faiss-cpu, pystemmer, numba, usearch) that require compilation. While these packages generally support both x86_64 and ARM64, if you encounter build failures on ARM64 (Apple Silicon), consider using the `linux/amd64` platform. For the faiss-cpu package specifically, ensure your build environment has the necessary BLAS/LAPACK libraries.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:72a0a\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/logs/compression_logs\nStarting agent for repository: https://github.com/mixedbread-ai/baguetter.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2560, Output: 77, Total: 2637\n\n[Thought]\nI need to understand the project structure and dependencies first. Let me examine the pyproject.toml file to understand how to install this package and what dependencies it requires.\n\n[Action]\ncat baguetter/pyproject.toml\n[Container ID: 037a0d2ba826]\nExecuting: cat baguetter/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: baguetter/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2627, Output: 60, Total: 2687\n\n[Thought]\nThe pyproject.toml is at the root level, not inside the baguetter directory. Let me check the correct path.\n\n[Action]\ncat pyproject.toml\n[Container ID: 037a0d2ba826]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nname = \"baguetter\"\nversion = \"0.1.1\"\ndescription = \"Baguetter is a flexible and efficient search engine library implemented in Python. It supports sparse (traditional), dense (semantic), and hybrid retrieval methods.\"\nauthors = [\n    { name = \"Mixedbread\", email = \"support@mixedbread.ai\" },\n    { name = \"Julius Lipp\", email = \"julius@mixedbread.ai\" },\n    { name = \"Sean Lee\", email = \"sean@mixedbread.ai\" },\n]\ndependencies = [\n    \"autofaiss>=2.17.0\",\n    \"faiss-cpu>=1.8.0.post1\",\n    \"krovetzstemmer>=0.8\",\n    \"pystemmer>=2.2.0.1\",\n    \"nltk>=3.8.1\",\n    \"numba>=0.60.0\",\n    \"numpy>=1.26.4\",\n    \"optuna>=3.6.1\",\n    \"ranx>=0.3.20\",\n    \"scikit-learn>=1.5.1\",\n    \"tqdm>=4.66.4\",\n    \"unidecode>=1.3.8\",\n    \"usearch>=2.12.0\",\n    \"python-dotenv>=1.0.1\",\n    \"beir>=2.0.0\",\n    \"openpyxl>=3.1.5\",\n    \"datasets>=2.20.0\",\n    \"huggingface-hub==0.24.6\",\n]\nrequires-python = \">=3.10\"\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\n\n[build-system]\nrequires = [\"setuptools>=61.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project.optional-dependencies]\ndev = [\n    \"pytest>=8.0.0\",\n    \"pytest-cov>=4.1.0\",\n    \"ipykernel>=6.29.0\",\n    \"ruff>=0.2.0\",\n    \"pre-commit>=3.6.0\",\n    \"uv>=0.2.30\",\n    \"jupyter>=1.0.0\",\n    \"notebook>=6.5.4\",\n]\n\n[tool.setuptools.packages.find]\ninclude = [\"baguetter\", \"baguetter.*\"]\n\n[tool.setuptools.package-data]\nbaguetter = [\"py.typed\"]\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3183, Output: 70, Total: 3253\n\n[Thought]\nLet me check the Makefile to understand how tests are run and any additional setup requirements.\n\n[Action]\ncat Makefile\n[Container ID: 037a0d2ba826]\nExecuting: cat Makefile\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n.PHONY: help install dev-install format lint test clean update-deps\n\nGIT_ROOT ?= $(shell git rev-parse --show-toplevel)\nPYTHON_VERSION ?= 3.11\nUV_VERSION ?= 0.1.0\n\nhelp:\t## Show all Makefile targets.\n\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = \":.*?## \"}; {printf \"\\033[33m%-30s\\033[0m %s\\n\", $$1, $$2}'\n\ninstall:\t## Install the package and dependencies.\n\tuv venv\n\tuv pip install -e .\n\ndev-install:\t## Install the package, dependencies, and development tools.\n\tuv venv\n\tuv pip install -e .[dev]\n\nformat:\t## Run code autoformatters (ruff).\n\tuv run ruff format .\n\nlint:\t## Run linters: ruff\n\tuv run ruff check .\n\ntest:\t## Run tests via pytest\n\tuv run pytest\n\nclean:\t## Clean up build artifacts.\n\tfind . -name '__pycache__' -exec rm -rf {} +\n\tfind . -name '*.pyc' -exec rm -rf {} +\n\trm -rf .pytest_cache\n\trm -rf .mypy_cache\n\trm -rf .ruff_cache\n\trm -rf dist\n\trm -rf build\n\trm -rf .venv\n\nupdate-deps:\t## Update dependencies.\n\tuv pip compile pyproject.toml -o requirements.txt\n\tuv pip sync requirements.txt\n\tuv run pre-commit autoupdate\n\nsetup-uv:\t## Setup uv with the specified version\n\tcurl -LsSf https://astral.sh/uv/install.sh | sh -s -- --version $(UV_VERSION)\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3611, Output: 102, Total: 3713\n\n[Thought]\nThe project uses `uv` for package management. Let me check if uv is available and install the package with dev dependencies.\n\n[Action]\nwhich uv || pip install uv\n[Container ID: 037a0d2ba826]\nExecuting: which uv || pip install uv\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3725, Output: 41, Total: 3766\n\n[Thought]\nLet me first check if uv is available.\n\n[Action]\nwhich uv\n[Container ID: 037a0d2ba826]\nExecuting: which uv\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3753, Output: 36, Total: 3789\n\n[Thought]\nuv is not available, so I need to install it first.\n\n[Action]\npip install uv\n[Container ID: 037a0d2ba826]\nExecuting: pip install uv\nCommand succeeded.\n[Snapshot Created] sha256:1adb0\n\n[Observation]\nCollecting uv\n  Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 2.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.14\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4024, Output: 69, Total: 4093\n\n[Thought]\nuv is now installed. Now let me create a virtual environment and install the package with dev dependencies.\n\n[Action]\nuv venv && uv pip install -e \".[dev]\"\n[Container ID: 037a0d2ba826]\nExecuting: uv venv && uv pip install -e \".[dev]\"\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4131, Output: 48, Total: 4179\n\n[Thought]\nI need to split these into separate actions. First, let me create the virtual environment.\n\n[Action]\nuv venv\n[Container ID: 037a0d2ba826]\nExecuting: uv venv\nCommand succeeded.\n[Snapshot Created] sha256:effe4\n\n[Observation]\nUsing CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 4194, Output: 50, Total: 4244\n\n[Thought]\nThe virtual environment is created. Now let me install the package with dev dependencies.\n\n[Action]\nuv pip install -e \".[dev]\"\n[Container ID: 037a0d2ba826]\nExecuting: uv pip install -e \".[dev]\"\nCommand succeeded.\n[Snapshot Created] sha256:03209\n\n[Observation]\nResolved 216 packages in 10.09s\n   Building baguetter @ file:///app\nDownloading nvidia-cusparselt-cu13 (162.3MiB)\nDownloading jedi (4.7MiB)\nDownloading fonttools (4.8MiB)\nDownloading networkx (2.0MiB)\nDownloading aiohttp (1.7MiB)\nDownloading nltk (1.5MiB)\nDownloading kiwisolver (1.4MiB)\nDownloading virtualenv (7.2MiB)\nDownloading fastparquet (1.8MiB)\nDownloading sympy (6.0MiB)\nDownloading matplotlib (8.4MiB)\nDownloading pillow (6.8MiB)\nDownloading pandas (11.8MiB)\nDownloading babel (9.7MiB)\nDownloading numpy (17.1MiB)\nDownloading notebook (13.9MiB)\nDownloading uv (23.6MiB)\nDownloading jupyterlab (11.9MiB)\nDownloading usearch (2.3MiB)\nDownloading nvidia-cudnn-cu13 (349.2MiB)\nDownloading scipy (33.6MiB)\nDownloading torch (507.6MiB)\nDownloading nvidia-nccl-cu13 (196.4MiB)\nDownloading cramjam (1.9MiB)\nDownloading nvidia-curand (56.8MiB)\nDownloading pyarrow (46.6MiB)\nDownloading lz4 (1.3MiB)\nDownloading ruff (10.9MiB)\nDownloading widgetsnbextension (2.1MiB)\nDownloading nvidia-cuda-cupti (10.2MiB)\nDownloading sqlalchemy (3.2MiB)\nDownloading nvidia-cuda-runtime (2.1MiB)\nDownloading nvidia-nvjitlink (38.8MiB)\nDownloading nvidia-cusolver (191.6MiB)\nDownloading nvidia-cuda-nvrtc (86.0MiB)\nDownloading nvidia-cublas (403.5MiB)\nDownloading nvidia-cufft (204.2MiB)\nDownloading llvmlite (53.7MiB)\nDownloading nvidia-nvshmem-cu13 (57.6MiB)\nDownloading numkong (10.0MiB)\nDownloading lxml (5.0MiB)\nDownloading transformers (9.2MiB)\nDownloading numba (3.6MiB)\nDownloading cuda-bindings (6.0MiB)\nDownloading tokenizers (3.0MiB)\nDownloading faiss-cpu (22.7MiB)\nDownloading triton (192.1MiB)\nDownloading debugpy (4.1MiB)\nDownloading scikit-learn (8.5MiB)\nDownloading nvidia-cusparse (139.2MiB)\n      Built baguetter @ file:///app\n Downloaded kiwisolver\n Downloaded lz4\nDownloading pygments (1.2MiB)\nDownloading nvidia-cufile (1.2MiB)\n Downloaded nltk\nDownloading setuptools (1.0MiB)\n Downloaded aiohttp\n Downloaded fastparquet\n Downloaded cramjam\n Downloaded networkx\n Downloaded widgetsnbextension\n Downloaded nvidia-cuda-runtime\n Downloaded usearch\n Downloaded nvidia-cufile\n Downloaded setuptools\n Downloaded pygments\n Downloaded tokenizers\n Downloaded sqlalchemy\n Downloaded numba\n Downloaded debugpy\n Downloaded jedi\n Downloaded fonttools\n Downloaded lxml\n   Building krovetzstemmer==0.8\n   Building fire==0.6.0\n   Building cbor==1.0.0\n   Building warc3-wet-clueweb09==0.2.5\n      Built warc3-wet-clueweb09==0.2.5\n      Built fire==0.6.0\n      Built cbor==1.0.0\n      Built krovetzstemmer==0.8\n Downloaded sympy\n Downloaded cuda-bindings\n Downloaded pillow\n Downloaded virtualenv\n Downloaded matplotlib\n Downloaded scikit-learn\n Downloaded transformers\n Downloaded babel\n Downloaded numkong\n Downloaded nvidia-cuda-cupti\n Downloaded ruff\n Downloaded jupyterlab\n Downloaded pandas\n Downloaded notebook\n Downloaded numpy\n Downloaded faiss-cpu\n Downloaded uv\n Downloaded scipy\n Downloaded nvidia-nvjitlink\n Downloaded pyarrow\n Downloaded llvmlite\n Downloaded nvidia-curand\n Downloaded nvidia-nvshmem-cu13\n Downloaded nvidia-cuda-nvrtc\n Downloaded nvidia-cusparse\n Downloaded nvidia-cusparselt-cu13\n Downloaded triton\n Downloaded nvidia-cusolver\n Downloaded nvidia-nccl-cu13\n Downloaded nvidia-cufft\n Downloaded nvidia-cudnn-cu13\n Downloaded nvidia-cublas\n Downloaded torch\nPrepared 216 packages in 12m 53s\nInstalled 216 packages in 443ms\n + aiohappyeyeballs==2.6.1\n + aiohttp==3.13.5\n + aiosignal==1.4.0\n + alembic==1.18.4\n + anyio==4.13.0\n + argon2-cffi==25.1.0\n + argon2-cffi-bindings==25.1.0\n + arrow==1.4.0\n + asttokens==3.0.1\n + async-lru==2.3.0\n + attrs==26.1.0\n + autofaiss==2.18.0\n + babel==2.18.0\n + baguetter==0.1.1 (from file:///app)\n + beautifulsoup4==4.14.3\n + beir==2.2.0\n + bleach==6.3.0\n + cbor==1.0.0\n + cbor2==6.1.1\n + certifi==2026.4.22\n + cffi==2.0.0\n + cfgv==3.5.0\n + charset-normalizer==3.4.7\n + click==8.3.3\n + colorlog==6.10.1\n + comm==0.2.3\n + contourpy==1.3.3\n + coverage==7.14.0\n + cramjam==2.11.0\n + cuda-bindings==13.2.0\n + cuda-pathfinder==1.5.4\n + cuda-toolkit==13.0.2\n + cycler==0.12.1\n + datasets==4.1.1\n + debugpy==1.8.20\n + decorator==5.2.1\n + defusedxml==0.7.1\n + dill==0.4.0\n + distlib==0.4.0\n + embedding-reader==1.8.1\n + et-xmlfile==2.0.0\n + executing==2.2.1\n + faiss-cpu==1.13.2\n + fastjsonschema==2.21.2\n + fastparquet==2026.5.0\n + filelock==3.29.0\n + fire==0.6.0\n + fonttools==4.63.0\n + fqdn==1.5.1\n + frozenlist==1.8.0\n + fsspec==2025.9.0\n + greenlet==3.5.0\n + h11==0.16.0\n + httpcore==1.0.9\n + httpx==0.28.1\n + huggingface-hub==0.24.6\n + identify==2.6.19\n + idna==3.15\n + ijson==3.5.0\n + iniconfig==2.3.0\n + inscriptis==2.7.1\n + ipykernel==7.2.0\n + ipython==9.13.0\n + ipython-pygments-lexers==1.1.1\n + ipywidgets==8.1.8\n + ir-datasets==0.5.11\n + isoduration==20.11.0\n + jedi==0.20.0\n + jinja2==3.1.6\n + joblib==1.5.3\n + json5==0.14.0\n + jsonpointer==3.1.1\n + jsonschema==4.26.0\n + jsonschema-specifications==2025.9.1\n + jupyter==1.1.1\n + jupyter-client==8.8.0\n + jupyter-console==6.6.3\n + jupyter-core==5.9.1\n + jupyter-events==0.12.1\n + jupyter-lsp==2.3.1\n + jupyter-server==2.18.2\n + jupyter-server-terminals==0.5.4\n + jupyterlab==4.5.7\n + jupyterlab-pygments==0.3.0\n + jupyterlab-server==2.28.0\n + jupyterlab-widgets==3.0.16\n + kiwisolver==1.5.0\n + krovetzstemmer==0.8\n + lark==1.3.1\n + llvmlite==0.47.0\n + lxml==6.0.4\n + lz4==4.4.5\n + mako==1.3.12\n + markdown-it-py==4.2.0\n + markupsafe==3.0.3\n + matplotlib==3.10.9\n + matplotlib-inline==0.2.2\n + mdurl==0.1.2\n + mistune==3.2.1\n + mpmath==1.3.0\n + multidict==6.7.1\n + multiprocess==0.70.16\n + nbclient==0.10.4\n + nbconvert==7.17.1\n + nbformat==5.10.4\n + nest-asyncio==1.6.0\n + networkx==3.6.1\n + nltk==3.9.4\n + nodeenv==1.10.0\n + notebook==7.5.6\n + notebook-shim==0.2.4\n + numba==0.65.1\n + numkong==7.6.0\n + numpy==1.26.4\n + nvidia-cublas==13.1.1.3\n + nvidia-cuda-cupti==13.0.85\n + nvidia-cuda-nvrtc==13.0.88\n + nvidia-cuda-runtime==13.0.96\n + nvidia-cudnn-cu13==9.20.0.48\n + nvidia-cufft==12.0.0.61\n + nvidia-cufile==1.15.1.6\n + nvidia-curand==10.4.0.35\n + nvidia-cusolver==12.0.4.66\n + nvidia-cusparse==12.6.3.3\n + nvidia-cusparselt-cu13==0.8.1\n + nvidia-nccl-cu13==2.29.7\n + nvidia-nvjitlink==13.0.88\n + nvidia-nvshmem-cu13==3.4.5\n + nvidia-nvtx==13.0.85\n + openpyxl==3.1.5\n + optuna==4.8.0\n + orjson==3.11.9\n + packaging==26.2\n + pandas==2.3.3\n + pandocfilters==1.5.1\n + parso==0.8.7\n + pexpect==4.9.0\n + pillow==12.2.0\n + platformdirs==4.9.6\n + pluggy==1.6.0\n + pre-commit==4.6.0\n + prometheus-client==0.25.0\n + prompt-toolkit==3.0.52\n + propcache==0.5.2\n + psutil==7.2.2\n + ptyprocess==0.7.0\n + pure-eval==0.2.3\n + pyarrow==24.0.0\n + pycparser==3.0\n + pygments==2.20.0\n + pyparsing==3.3.2\n + pystemmer==3.0.0\n + pytest==9.0.3\n + pytest-cov==7.1.0\n + python-dateutil==2.9.0.post0\n + python-discovery==1.3.1\n + python-dotenv==1.2.2\n + python-json-logger==4.1.0\n + pytrec-eval-terrier==0.5.10\n + pytz==2026.2\n + pyyaml==6.0.3\n + pyzmq==27.1.0\n + ranx==0.3.21\n + referencing==0.37.0\n + regex==2026.5.9\n + requests==2.34.2\n + rfc3339-validator==0.1.4\n + rfc3986-validator==0.1.1\n + rfc3987-syntax==1.1.0\n + rich==15.0.0\n + rpds-py==0.30.0\n + ruff==0.15.13\n + safetensors==0.7.0\n + scikit-learn==1.8.0\n + scipy==1.17.1\n + seaborn==0.13.2\n + send2trash==2.1.0\n + sentence-transformers==5.5.0\n + setuptools==81.0.0\n + six==1.17.0\n + soupsieve==2.8.3\n + sqlalchemy==2.0.49\n + stack-data==0.6.3\n + sympy==1.14.0\n + tabulate==0.10.0\n + termcolor==3.3.0\n + terminado==0.18.1\n + threadpoolctl==3.6.0\n + tinycss2==1.4.0\n + tokenizers==0.21.4\n + torch==2.12.0\n + tornado==6.5.5\n + tqdm==4.67.3\n + traitlets==5.15.0\n + transformers==4.48.3\n + trec-car-tools==2.6\n + triton==3.7.0\n + typing-extensions==4.15.0\n + tzdata==2026.2\n + unidecode==1.4.0\n + unlzw3==0.2.3\n + uri-template==1.3.0\n + urllib3==2.7.0\n + usearch==2.25.2\n + uv==0.11.14\n + virtualenv==21.3.3\n + warc3-wet==0.2.5\n + warc3-wet-clueweb09==0.2.5\n + wcwidth==0.7.0\n + webcolors==25.10.0\n + webencodings==0.5.1\n + websocket-client==1.9.0\n + widgetsnbextension==4.0.15\n + xxhash==3.7.0\n + yarl==1.23.0\n + zlib-state==0.1.12\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 7715, Output: 70, Total: 7785\n\n[Thought]\nThe package and all dependencies are installed successfully. Now let me run the pytest collection command to verify the tests can be collected.\n\n[Action]\nuv run pytest --collect-only -q --disable-warnings\n[Container ID: 037a0d2ba826]\nExecuting: uv run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:1aa1f\n\n[Observation]\ntests/evaluation/eval_test.py::test_create_metrics\ntests/evaluation/eval_test.py::test_evaluate_retrievers\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search\ntests/indices/dense/faiss_test.py::test_faiss_exact_search\ntests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\ntests/indices/dense/faiss_test.py::test_faiss_delete\ntests/indices/dense/faiss_test.py::test_faiss_save_and_load\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\ntests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\ntests/indices/dense/faiss_test.py::test_faiss_add_with_text_input\ntests/indices/dense/faiss_test.py::test_faiss_initialization_options\ntests/indices/dense/faiss_test.py::test_faiss_invalid_initialization\ntests/indices/dense/faiss_test.py::test_l2_metric\ntests/indices/dense/faiss_test.py::test_inner_product_metric\ntests/indices/dense/usearch_test.py::test_usearch_index_creation\ntests/indices/dense/usearch_test.py::test_usearch_add_and_search\ntests/indices/dense/usearch_test.py::test_usearch_remove\ntests/indices/dense/usearch_test.py::test_usearch_search_many\ntests/indices/dense/usearch_test.py::test_usearch_from_config\ntests/indices/dense/usearch_test.py::test_usearch_save_load\ntests/indices/dense/usearch_test.py::test_usearch_embed_function\ntests/indices/dense/usearch_test.py::test_usearch_exact_search\ntests/indices/dense/usearch_test.py::test_usearch_duplicate_keys\ntests/indices/dense/usearch_test.py::test_usearch_remove_nonexistent_keys\ntests/indices/sparse/base_test.py::test_constructor\ntests/indices/sparse/base_test.py::test_constructor_from_config\ntests/indices/sparse/base_test.py::test_tokenize_single_text\ntests/indices/sparse/base_test.py::test_tokenize_many_texts\ntests/indices/sparse/base_test.py::test_build_index\ntests/indices/sparse/base_test.py::test_add\ntests/indices/sparse/base_test.py::test_add_with_tokens\ntests/indices/sparse/base_test.py::test_add_many\ntests/indices/sparse/base_test.py::test_add_many_with_tokens\ntests/indices/sparse/base_test.py::test_remove\ntests/indices/sparse/base_test.py::test_remove_many\ntests/indices/sparse/base_test.py::test_search\ntests/indices/sparse/base_test.py::test_search_with_tokens\ntests/indices/sparse/base_test.py::test_search_many\ntests/indices/sparse/base_test.py::test_search_many_with_tokens\ntests/indices/sparse/base_test.py::test_search_weighted\ntests/indices/sparse/base_test.py::test_normalize_scores_and_top_k\ntests/indices/sparse/base_test.py::test_empty_query\ntests/indices/sparse/base_test.py::test_save_and_load\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BM25SparseIndex]\ntests/indices/sparse/mteb_test.py::test_mteb[BMXSparseIndex-mteb/scifact-test-0.694]\ntests/indices/sparse/mteb_test.py::test_mteb[BM25SparseIndex-mteb/scifact-test-0.686]\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_fails\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_callable\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_none\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang_fails\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_list\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_set\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_none\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_lowercasing\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_ampersand\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_special_chars\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_acronyms\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_remove_punctuation\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_strip_whitespaces\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\ntests/numba_utils_test.py::test_union_sorted\ntests/numba_utils_test.py::test_union_sorted_multi\ntests/numba_utils_test.py::test_intersect_sorted\ntests/numba_utils_test.py::test_intersect_sorted_multi\ntests/numba_utils_test.py::test_diff_sorted\ntests/numba_utils_test.py::test_concat1d\ntests/numba_utils_test.py::test_get_indices\n\n85 tests collected in 10.63s\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 9338, Output: 108, Total: 9446\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. All 85 tests were collected successfully. The environment is set up correctly with all dependencies installed.\n\nLet me provide the final verification bundle and success message.\n</think>\n\nThought: The pytest collection succeeded with all 85 tests collected successfully. The baguetter package is installed with all its dependencies, and the test framework can discover and collect all tests.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"uv run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 4 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/mixedbread-ai__baguetter.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/mixedbread-ai/baguetter.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "uv run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nname = \"baguetter\"\nversion = \"0.1.1\"\ndescription = \"Baguetter is a flexible and efficient search engine library implemented in Python. It supports sparse (traditional), dense (semantic), and hybrid retrieval methods.\"\nauthors = [\n    { name = \"Mixedbread\", email = \"support@mixedbread.ai\" },\n    { name = \"Julius Lipp\", email = \"julius@mixedbread.ai\" },\n    { name = \"Sean Lee\", email = \"sean@mixedbread.ai\" },\n]\ndependencies = [\n    \"autofaiss>=2.17.0\",\n    \"faiss-cpu>=1.8.0.post1\",\n    \"krovetzstemmer>=0.8\",\n    \"pystemmer>=2.2.0.1\",\n    \"nltk>=3.8.1\",\n    \"numba>=0.60.0\",\n    \"numpy>=\n... (188 chars omitted for recipe synthesis) ...\n\",\n    \"openpyxl>=3.1.5\",\n    \"datasets>=2.20.0\",\n    \"huggingface-hub==0.24.6\",\n]\nrequires-python = \">=3.10\"\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\n\n[build-system]\nrequires = [\"setuptools>=61.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project.optional-dependencies]\ndev = [\n    \"pytest>=8.0.0\",\n    \"pytest-cov>=4.1.0\",\n    \"ipykernel>=6.29.0\",\n    \"ruff>=0.2.0\",\n    \"pre-commit>=3.6.0\",\n    \"uv>=0.2.30\",\n    \"jupyter>=1.0.0\",\n    \"notebook>=6.5.4\",\n]\n\n[tool.setuptools.packages.find]\ninclude = [\"baguetter\", \"baguetter.*\"]\n\n[tool.setuptools.package-data]\nbaguetter = [\"py.typed\"]\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat Makefile",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ".PHONY: help install dev-install format lint test clean update-deps\n\nGIT_ROOT ?= $(shell git rev-parse --show-toplevel)\nPYTHON_VERSION ?= 3.11\nUV_VERSION ?= 0.1.0\n\nhelp:\t## Show all Makefile targets.\n\t@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = \":.*?## \"}; {printf \"\\033[33m%-30s\\033[0m %s\\n\", $$1, $$2}'\n\ninstall:\t## Install the package and dependencies.\n\tuv venv\n\tuv pip install -e .\n\ndev-install:\t## Install the package, dependencies, and development tools.\n\tuv venv\n\tuv pip install -e .[dev]\n\nformat:\t## Run code autoformatters (ruff).\n\tuv run ruff format .\n\nlint:\t## Run linters: ruff\n\tuv run ruff check .\n\ntest:\t## Run tests via pytest\n\tuv run pytest\n\nclean:\t## Clean up build artifacts.\n\tfind . -name '__pycache__' -exec rm -rf {} +\n\tfind . -name '*.pyc' -exec rm -rf {} +\n\trm -rf .pytest_cache\n\trm -rf .mypy_cache\n\trm -rf .ruff_cache\n\trm -rf dist\n\trm -rf build\n\trm -rf .venv\n\nupdate-deps:\t## Update dependencies.\n\tuv pip compile pyproject.toml -o requirements.txt\n\tuv pip sync requirements.txt\n\tuv run pre-commit autoupdate\n\nsetup-uv:\t## Setup uv with the specified version\n\tcurl -LsSf https://astral.sh/uv/install.sh | sh -s -- --version $(UV_VERSION)"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install uv",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting uv\n  Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 2.9 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.14\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 8,
+        "command": "uv venv",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\n"
+      },
+      {
+        "step_index": 9,
+        "command": "uv pip install -e \".[dev]\"",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Resolved 216 packages in 10.09s\n   Building baguetter @ file:///app\nDownloading nvidia-cusparselt-cu13 (162.3MiB)\nDownloading jedi (4.7MiB)\nDownloading fonttools (4.8MiB)\nDownloading networkx (2.0MiB)\nDownloading aiohttp (1.7MiB)\nDownloading nltk (1.5MiB)\nDownloading kiwisolver (1.4MiB)\nDownloading virtualenv (7.2MiB)\nDownloading fastparquet (1.8MiB)\nDownloading sympy (6.0MiB)\nDownloading matplotlib (8.4MiB)\nDownloading pillow (6.8MiB)\nDownloading pandas (11.8MiB)\nDownloading babel (9.7MiB)\nDownloading numpy (17.1MiB)\nDownloading notebook (13.9MiB)\nDownloading uv (23.6MiB)\nDownloading jupyterl\n... (6774 chars omitted for recipe synthesis) ...\nadpoolctl==3.6.0\n + tinycss2==1.4.0\n + tokenizers==0.21.4\n + torch==2.12.0\n + tornado==6.5.5\n + tqdm==4.67.3\n + traitlets==5.15.0\n + transformers==4.48.3\n + trec-car-tools==2.6\n + triton==3.7.0\n + typing-extensions==4.15.0\n + tzdata==2026.2\n + unidecode==1.4.0\n + unlzw3==0.2.3\n + uri-template==1.3.0\n + urllib3==2.7.0\n + usearch==2.25.2\n + uv==0.11.14\n + virtualenv==21.3.3\n + warc3-wet==0.2.5\n + warc3-wet-clueweb09==0.2.5\n + wcwidth==0.7.0\n + webcolors==25.10.0\n + webencodings==0.5.1\n + websocket-client==1.9.0\n + widgetsnbextension==4.0.15\n + xxhash==3.7.0\n + yarl==1.23.0\n + zlib-state==0.1.12\n"
+      },
+      {
+        "step_index": 10,
+        "command": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/evaluation/eval_test.py::test_create_metrics\ntests/evaluation/eval_test.py::test_evaluate_retrievers\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search\ntests/indices/dense/faiss_test.py::test_faiss_exact_search\ntests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\ntests/indices/dense/faiss_test.py::test_faiss_delete\ntests/indices/dense/faiss_test.py::test_faiss_save_and_load\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\ntests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\ntests/indices/dense/faiss_test.py::test_faiss_add_with_text_inp\n... (4765 chars omitted for recipe synthesis) ...\nces/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\ntests/numba_utils_test.py::test_union_sorted\ntests/numba_utils_test.py::test_union_sorted_multi\ntests/numba_utils_test.py::test_intersect_sorted\ntests/numba_utils_test.py::test_intersect_sorted_multi\ntests/numba_utils_test.py::test_diff_sorted\ntests/numba_utils_test.py::test_concat1d\ntests/numba_utils_test.py::test_get_indices\n\n85 tests collected in 10.63s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat baguetter/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: baguetter/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "which uv || pip install uv",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 5,
+        "command": "which uv",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 7,
+        "command": "uv venv && uv pip install -e \".[dev]\"",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install uv",
+        "uv venv",
+        "uv pip install -e \".[dev]\"",
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat baguetter/pyproject.toml (wrong path, file is at repository root)",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat Makefile (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "which uv || pip install uv (rejected: combined read-only probe with setup mutation)",
+          "reason": ""
+        },
+        {
+          "command": "which uv (read-only version probe)",
+          "reason": ""
+        },
+        {
+          "command": "uv venv && uv pip install -e \".[dev]\" (rejected: combined multiple setup mutations into one command)",
+          "reason": ""
+        }
+      ],
+      "rationale": "Three successful state-changing commands established the baguetter environment: (1) pip install uv installed the fast Python package manager, (2) uv venv created the virtual environment at .venv, and (3) uv pip install -e \".[dev]\" installed the baguetter package with all runtime dependencies (autofaiss, faiss-cpu, nltk, numba, numpy, transformers, torch, ranx, usearch, beir, huggingface-hub) and dev dependencies (pytest, ruff, jupyter). The final verification step that collected 85 tests is retained as test_commands for runtime validation. All failed attempts (wrong pyproject.toml path, rejected combined commands, read-only probes) were excluded as they are contextually informative but not required for replay. The setup follows the Makefile dev-install pattern but split into separate verifiable steps per system constraints.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 0,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat baguetter/pyproject.toml",
+        "success": false,
+        "raw_chars": 57,
+        "raw_tokens_est": 14,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1388,
+        "raw_tokens_est": 347,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat Makefile",
+        "success": true,
+        "raw_chars": 1187,
+        "raw_tokens_est": 296,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "which uv || pip install uv",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "which uv",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install uv",
+        "success": true,
+        "raw_chars": 824,
+        "raw_tokens_est": 206,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "uv venv && uv pip install -e \".[dev]\"",
+        "success": false,
+        "raw_chars": 308,
+        "raw_tokens_est": 77,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "uv venv",
+        "success": true,
+        "raw_chars": 100,
+        "raw_tokens_est": 25,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "uv pip install -e \".[dev]\"",
+        "success": true,
+        "raw_chars": 7974,
+        "raw_tokens_est": 1993,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 5965,
+        "raw_tokens_est": 1491,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 16538,
+        "output_tokens": 6477,
+        "total_tokens": 23015
+      },
+      "planner": {
+        "input_tokens": 48861,
+        "output_tokens": 731,
+        "total_tokens": 49592
+      },
+      "reflection": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 10498,
+        "output_tokens": 2487,
+        "total_tokens": 12985
+      },
+      "total": {
+        "input_tokens": 75897,
+        "output_tokens": 9695,
+        "total_tokens": 85592
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+    "base_commit": "a6e915",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/mixedbread-ai__baguetter /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-16T23:37:46.224462+08:00",
+      "finished_at": "2026-05-16T23:37:46.271200+08:00",
+      "duration_seconds": 0.047,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context'...\n完成。\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "a6e915"
+      ],
+      "command_shell": "git checkout --force a6e915",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-16T23:37:46.271815+08:00",
+      "finished_at": "2026-05-16T23:37:46.284231+08:00",
+      "duration_seconds": 0.012,
+      "stdout": "",
+      "stderr": "注意：正在切换到 'a6e915'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\nHEAD 目前位于 a6e9156 correct the tokenizer for the chinese example (#7)\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-16T23:37:46.284283+08:00",
+      "finished_at": "2026-05-16T23:37:46.290691+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_uv_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "uv run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-mixedbread-ai__baguetter",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval -t jayint-repo2run-mixedbread-ai__baguetter /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T23:37:46.301788+08:00",
+    "finished_at": "2026-05-16T23:50:27.271863+08:00",
+    "duration_seconds": 760.97,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.89kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 534.46kB 0.0s done\n#5 DONE 0.0s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.3s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.634 Collecting uv\n#10 3.096   Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.323 Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 7.370    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.488 Installing collected packages: uv\n#10 7.748 Successfully installed uv-0.11.14\n#10 7.749 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 7.9s\n\n#11 [7/9] RUN uv venv\n#11 0.678 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#11 0.679 Creating virtual environment at: .venv\n#11 DONE 0.7s\n\n#12 [8/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'uv pip install -e \".[dev]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 10.41 Resolved 216 packages in 9.96s\n#12 10.43    Building baguetter @ file:///app\n#12 10.62 Downloading numpy (17.1MiB)\n#12 10.62 Downloading babel (9.7MiB)\n#12 10.62 Downloading virtualenv (7.2MiB)\n#12 10.62 Downloading sympy (6.0MiB)\n#12 10.62 Downloading networkx (2.0MiB)\n#12 10.62 Downloading aiohttp (1.7MiB)\n#12 10.62 Downloading kiwisolver (1.4MiB)\n#12 10.62 Downloading lz4 (1.3MiB)\n#12 10.62 Downloading triton (192.1MiB)\n#12 10.62 Downloading nvidia-nvjitlink (38.8MiB)\n#12 10.62 Downloading scikit-learn (8.5MiB)\n#12 10.62 Downloading matplotlib (8.4MiB)\n#12 10.62 Downloading fonttools (4.8MiB)\n#12 10.62 Downloading sqlalchemy (3.2MiB)\n#12 10.62 Downloading fastparquet (1.8MiB)\n#12 10.63 Downloading tokenizers (3.0MiB)\n#12 10.63 Downloading jedi (4.7MiB)\n#12 10.63 Downloading pandas (11.8MiB)\n#12 10.63 Downloading pillow (6.8MiB)\n#12 10.63 Downloading nvidia-cublas (403.5MiB)\n#12 10.63 Downloading nvidia-cufft (204.2MiB)\n#12 10.63 Downloading nvidia-cusparselt-cu13 (162.3MiB)\n#12 10.63 Downloading nvidia-cusolver (191.6MiB)\n#12 10.63 Downloading nvidia-nccl-cu13 (196.4MiB)\n#12 10.63 Downloading torch (507.6MiB)\n#12 10.63 Downloading pyarrow (46.6MiB)\n#12 10.63 Downloading nvidia-cuda-nvrtc (86.0MiB)\n#12 10.63 Downloading nvidia-cusparse (139.2MiB)\n#12 10.63 Downloading nvidia-cudnn-cu13 (349.2MiB)\n#12 10.63 Downloading nvidia-cuda-runtime (2.1MiB)\n#12 10.63 Downloading nvidia-curand (56.8MiB)\n#12 10.63 Downloading nvidia-nvshmem-cu13 (57.6MiB)\n#12 10.63 Downloading notebook (13.9MiB)\n#12 10.63 Downloading nltk (1.5MiB)\n#12 10.63 Downloading ruff (10.9MiB)\n#12 10.63 Downloading debugpy (4.1MiB)\n#12 10.63 Downloading scipy (33.6MiB)\n#12 10.63 Downloading uv (23.6MiB)\n#12 10.63 Downloading cuda-bindings (6.0MiB)\n#12 10.63 Downloading lxml (5.0MiB)\n#12 10.63 Downloading numkong (10.0MiB)\n#12 10.63 Downloading numba (3.6MiB)\n#12 10.64 Downloading usearch (2.3MiB)\n#12 10.64 Downloading widgetsnbextension (2.1MiB)\n#12 10.64 Downloading jupyterlab (11.9MiB)\n#12 10.69 Downloading nvidia-cuda-cupti (10.2MiB)\n#12 10.69 Downloading cramjam (1.9MiB)\n#12 10.69 Downloading llvmlite (53.7MiB)\n#12 10.69 Downloading transformers (9.2MiB)\n#12 10.69 Downloading faiss-cpu (22.7MiB)\n#12 11.07       Built baguetter @ file:///app\n#12 21.31  Downloaded lz4\n#12 22.09  Downloaded kiwisolver\n#12 22.11 Downloading pygments (1.2MiB)\n#12 22.77 Downloading nvidia-cufile (1.2MiB)\n#12 22.87  Downloaded nltk\n#12 23.53 Downloading setuptools (1.0MiB)\n#12 24.68  Downloaded aiohttp\n#12 26.08  Downloaded fastparquet\n#12 27.01  Downloaded cramjam\n#12 27.13  Downloaded networkx\n#12 28.39  Downloaded widgetsnbextension\n#12 29.38  Downloaded usearch\n#12 29.50  Downloaded nvidia-cuda-runtime\n#12 32.01  Downloaded pygments\n#12 32.47  Downloaded setuptools\n#12 32.58  Downloaded nvidia-cufile\n#12 35.51  Downloaded tokenizers\n#12 37.75  Downloaded sqlalchemy\n#12 40.68  Downloaded numba\n#12 45.39  Downloaded debugpy\n#12 49.00  Downloaded jedi\n#12 49.25  Downloaded fonttools\n#12 51.17  Downloaded lxml\n#12 52.10    Building krovetzstemmer==0.8\n#12 52.10    Building fire==0.6.0\n#12 52.12    Building cbor==1.0.0\n#12 52.12    Building warc3-wet-clueweb09==0.2.5\n#12 52.51       Built warc3-wet-clueweb09==0.2.5\n#12 52.52       Built fire==0.6.0\n#12 53.83       Built cbor==1.0.0\n#12 55.49       Built krovetzstemmer==0.8\n#12 56.17  Downloaded cuda-bindings\n#12 56.45  Downloaded sympy\n#12 64.69  Downloaded pillow\n#12 70.15  Downloaded virtualenv\n#12 80.21  Downloaded matplotlib\n#12 80.34  Downloaded scikit-learn\n#12 84.48  Downloaded transformers\n#12 86.73  Downloaded babel\n#12 88.70  Downloaded numkong\n#12 89.47  Downloaded nvidia-cuda-cupti\n#12 92.36  Downloaded ruff\n#12 97.31  Downloaded jupyterlab\n#12 97.41  Downloaded pandas\n#12 106.8  Downloaded notebook\n#12 123.7  Downloaded numpy\n#12 158.2  Downloaded faiss-cpu\n#12 162.2  Downloaded uv\n#12 191.7  Downloaded scipy\n#12 205.3  Downloaded nvidia-nvjitlink\n#12 227.2  Downloaded pyarrow\n#12 246.4  Downloaded llvmlite\n#12 257.8  Downloaded nvidia-curand\n#12 260.8  Downloaded nvidia-nvshmem-cu13\n#12 354.2  Downloaded nvidia-cuda-nvrtc\n#12 482.2  Downloaded nvidia-cusparse\n#12 518.2  Downloaded nvidia-cusparselt-cu13\n#12 579.0  Downloaded triton\n#12 581.1  Downloaded nvidia-cusolver\n#12 589.3  Downloaded nvidia-nccl-cu13\n#12 599.7  Downloaded nvidia-cufft\n#12 682.2  Downloaded nvidia-cudnn-cu13\n#12 701.7  Downloaded nvidia-cublas\n#12 720.4  Downloaded torch\n#12 720.4 Prepared 216 packages in 11m 50s\n#12 720.9 Installed 216 packages in 452ms\n#12 720.9  + aiohappyeyeballs==2.6.1\n#12 720.9  + aiohttp==3.13.5\n#12 720.9  + aiosignal==1.4.0\n#12 720.9  + alembic==1.18.4\n#12 720.9  + anyio==4.13.0\n#12 720.9  + argon2-cffi==25.1.0\n#12 720.9  + argon2-cffi-bindings==25.1.0\n#12 720.9  + arrow==1.4.0\n#12 720.9  + asttokens==3.0.1\n#12 720.9  + async-lru==2.3.0\n#12 720.9  + attrs==26.1.0\n#12 720.9  + autofaiss==2.18.0\n#12 720.9  + babel==2.18.0\n#12 720.9  + baguetter==0.1.1 (from file:///app)\n#12 720.9  + beautifulsoup4==4.14.3\n#12 720.9  + beir==2.2.0\n#12 720.9  + bleach==6.3.0\n#12 720.9  + cbor==1.0.0\n#12 720.9  + cbor2==6.1.1\n#12 720.9  + certifi==2026.4.22\n#12 720.9  + cffi==2.0.0\n#12 720.9  + cfgv==3.5.0\n#12 720.9  + charset-normalizer==3.4.7\n#12 720.9  + click==8.3.3\n#12 720.9  + colorlog==6.10.1\n#12 720.9  + comm==0.2.3\n#12 720.9  + contourpy==1.3.3\n#12 720.9  + coverage==7.14.0\n#12 720.9  + cramjam==2.11.0\n#12 720.9  + cuda-bindings==13.2.0\n#12 720.9  + cuda-pathfinder==1.5.4\n#12 720.9  + cuda-toolkit==13.0.2\n#12 720.9  + cycler==0.12.1\n#12 720.9  + datasets==4.1.1\n#12 720.9  + debugpy==1.8.20\n#12 720.9  + decorator==5.2.1\n#12 720.9  + defusedxml==0.7.1\n#12 720.9  + dill==0.4.0\n#12 720.9  + distlib==0.4.0\n#12 720.9  + embedding-reader==1.8.1\n#12 720.9  + et-xmlfile==2.0.0\n#12 720.9  + executing==2.2.1\n#12 720.9  + faiss-cpu==1.13.2\n#12 720.9  + fastjsonschema==2.21.2\n#12 720.9  + fastparquet==2026.5.0\n#12 720.9  + filelock==3.29.0\n#12 720.9  + fire==0.6.0\n#12 720.9  + fonttools==4.63.0\n#12 720.9  + fqdn==1.5.1\n#12 720.9  + frozenlist==1.8.0\n#12 720.9  + fsspec==2025.9.0\n#12 720.9  + greenlet==3.5.0\n#12 720.9  + h11==0.16.0\n#12 720.9  + httpcore==1.0.9\n#12 720.9  + httpx==0.28.1\n#12 720.9  + huggingface-hub==0.24.6\n#12 720.9  + identify==2.6.19\n#12 720.9  + idna==3.15\n#12 720.9  + ijson==3.5.0\n#12 720.9  + iniconfig==2.3.0\n#12 720.9  + inscriptis==2.7.1\n#12 720.9  + ipykernel==7.2.0\n#12 720.9  + ipython==9.13.0\n#12 720.9  + ipython-pygments-lexers==1.1.1\n#12 720.9  + ipywidgets==8.1.8\n#12 720.9  + ir-datasets==0.5.11\n#12 720.9  + isoduration==20.11.0\n#12 720.9  + jedi==0.20.0\n#12 720.9  + jinja2==3.1.6\n#12 720.9  + joblib==1.5.3\n#12 720.9  + json5==0.14.0\n#12 720.9  + jsonpointer==3.1.1\n#12 720.9  + jsonschema==4.26.0\n#12 720.9  + jsonschema-specifications==2025.9.1\n#12 720.9  + jupyter==1.1.1\n#12 720.9  + jupyter-client==8.8.0\n#12 720.9  + jupyter-console==6.6.3\n#12 720.9  + jupyter-core==5.9.1\n#12 720.9  + jupyter-events==0.12.1\n#12 720.9  + jupyter-lsp==2.3.1\n#12 720.9  + jupyter-server==2.18.2\n#12 720.9  + jupyter-server-terminals==0.5.4\n#12 720.9  + jupyterlab==4.5.7\n#12 720.9  + jupyterlab-pygments==0.3.0\n#12 720.9  + jupyterlab-server==2.28.0\n#12 720.9  + jupyterlab-widgets==3.0.16\n#12 720.9  + kiwisolver==1.5.0\n#12 720.9  + krovetzstemmer==0.8\n#12 720.9  + lark==1.3.1\n#12 720.9  + llvmlite==0.47.0\n#12 720.9  + lxml==6.0.4\n#12 720.9  + lz4==4.4.5\n#12 720.9  + mako==1.3.12\n#12 720.9  + markdown-it-py==4.2.0\n#12 720.9  + markupsafe==3.0.3\n#12 720.9  + matplotlib==3.10.9\n#12 720.9  + matplotlib-inline==0.2.2\n#12 720.9  + mdurl==0.1.2\n#12 720.9  + mistune==3.2.1\n#12 720.9  + mpmath==1.3.0\n#12 720.9  + multidict==6.7.1\n#12 720.9  + multiprocess==0.70.16\n#12 720.9  + nbclient==0.10.4\n#12 720.9  + nbconvert==7.17.1\n#12 720.9  + nbformat==5.10.4\n#12 720.9  + nest-asyncio==1.6.0\n#12 720.9  + networkx==3.6.1\n#12 720.9  + nltk==3.9.4\n#12 720.9  + nodeenv==1.10.0\n#12 720.9  + notebook==7.5.6\n#12 720.9  + notebook-shim==0.2.4\n#12 720.9  + numba==0.65.1\n#12 720.9  + numkong==7.6.0\n#12 720.9  + numpy==1.26.4\n#12 720.9  + nvidia-cublas==13.1.1.3\n#12 720.9  + nvidia-cuda-cupti==13.0.85\n#12 720.9  + nvidia-cuda-nvrtc==13.0.88\n#12 720.9  + nvidia-cuda-runtime==13.0.96\n#12 720.9  + nvidia-cudnn-cu13==9.20.0.48\n#12 720.9  + nvidia-cufft==12.0.0.61\n#12 720.9  + nvidia-cufile==1.15.1.6\n#12 720.9  + nvidia-curand==10.4.0.35\n#12 720.9  + nvidia-cusolver==12.0.4.66\n#12 720.9  + nvidia-cusparse==12.6.3.3\n#12 720.9  + nvidia-cusparselt-cu13==0.8.1\n#12 720.9  + nvidia-nccl-cu13==2.29.7\n#12 720.9  + nvidia-nvjitlink==13.0.88\n#12 720.9  + nvidia-nvshmem-cu13==3.4.5\n#12 720.9  + nvidia-nvtx==13.0.85\n#12 720.9  + openpyxl==3.1.5\n#12 720.9  + optuna==4.8.0\n#12 720.9  + orjson==3.11.9\n#12 720.9  + packaging==26.2\n#12 720.9  + pandas==2.3.3\n#12 720.9  + pandocfilters==1.5.1\n#12 720.9  + parso==0.8.7\n#12 720.9  + pexpect==4.9.0\n#12 720.9  + pillow==12.2.0\n#12 720.9  + platformdirs==4.9.6\n#12 720.9  + pluggy==1.6.0\n#12 720.9  + pre-commit==4.6.0\n#12 720.9  + prometheus-client==0.25.0\n#12 720.9  + prompt-toolkit==3.0.52\n#12 720.9  + propcache==0.5.2\n#12 720.9  + psutil==7.2.2\n#12 720.9  + ptyprocess==0.7.0\n#12 720.9  + pure-eval==0.2.3\n#12 720.9  + pyarrow==24.0.0\n#12 720.9  + pycparser==3.0\n#12 720.9  + pygments==2.20.0\n#12 720.9  + pyparsing==3.3.2\n#12 720.9  + pystemmer==3.0.0\n#12 720.9  + pytest==9.0.3\n#12 720.9  + pytest-cov==7.1.0\n#12 720.9  + python-dateutil==2.9.0.post0\n#12 720.9  + python-discovery==1.3.1\n#12 720.9  + python-dotenv==1.2.2\n#12 720.9  + python-json-logger==4.1.0\n#12 720.9  + pytrec-eval-terrier==0.5.10\n#12 720.9  + pytz==2026.2\n#12 720.9  + pyyaml==6.0.3\n#12 720.9  + pyzmq==27.1.0\n#12 720.9  + ranx==0.3.21\n#12 720.9  + referencing==0.37.0\n#12 720.9  + regex==2026.5.9\n#12 720.9  + requests==2.34.2\n#12 720.9  + rfc3339-validator==0.1.4\n#12 720.9  + rfc3986-validator==0.1.1\n#12 720.9  + rfc3987-syntax==1.1.0\n#12 720.9  + rich==15.0.0\n#12 720.9  + rpds-py==0.30.0\n#12 720.9  + ruff==0.15.13\n#12 720.9  + safetensors==0.7.0\n#12 720.9  + scikit-learn==1.8.0\n#12 720.9  + scipy==1.17.1\n#12 720.9  + seaborn==0.13.2\n#12 720.9  + send2trash==2.1.0\n#12 720.9  + sentence-transformers==5.5.0\n#12 720.9  + setuptools==81.0.0\n#12 720.9  + six==1.17.0\n#12 720.9  + soupsieve==2.8.3\n#12 720.9  + sqlalchemy==2.0.49\n#12 720.9  + stack-data==0.6.3\n#12 720.9  + sympy==1.14.0\n#12 720.9  + tabulate==0.10.0\n#12 720.9  + termcolor==3.3.0\n#12 720.9  + terminado==0.18.1\n#12 720.9  + threadpoolctl==3.6.0\n#12 720.9  + tinycss2==1.4.0\n#12 720.9  + tokenizers==0.21.4\n#12 720.9  + torch==2.12.0\n#12 720.9  + tornado==6.5.5\n#12 720.9  + tqdm==4.67.3\n#12 720.9  + traitlets==5.15.0\n#12 720.9  + transformers==4.48.3\n#12 720.9  + trec-car-tools==2.6\n#12 720.9  + triton==3.7.0\n#12 720.9  + typing-extensions==4.15.0\n#12 720.9  + tzdata==2026.2\n#12 720.9  + unidecode==1.4.0\n#12 720.9  + unlzw3==0.2.3\n#12 720.9  + uri-template==1.3.0\n#12 720.9  + urllib3==2.7.0\n#12 720.9  + usearch==2.25.2\n#12 720.9  + uv==0.11.14\n#12 720.9  + virtualenv==21.3.3\n#12 720.9  + warc3-wet==0.2.5\n#12 720.9  + warc3-wet-clueweb09==0.2.5\n#12 720.9  + wcwidth==0.7.0\n#12 720.9  + webcolors==25.10.0\n#12 720.9  + webencodings==0.5.1\n#12 720.9  + websocket-client==1.9.0\n#12 720.9  + widgetsnbextension==4.0.15\n#12 720.9  + xxhash==3.7.0\n#12 720.9  + yarl==1.23.0\n#12 720.9  + zlib-state==0.1.12\n#12 DONE 721.8s\n\n#13 [9/9] RUN uv run pytest --collect-only -q --disable-warnings\n#13 18.22 tests/evaluation/eval_test.py::test_create_metrics\n#13 18.22 tests/evaluation/eval_test.py::test_evaluate_retrievers\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_and_search\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_exact_search\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_delete\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_save_and_load\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_with_text_input\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_initialization_options\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_invalid_initialization\n#13 18.22 tests/indices/dense/faiss_test.py::test_l2_metric\n#13 18.22 tests/indices/dense/faiss_test.py::test_inner_product_metric\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_index_creation\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_add_and_search\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_remove\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_search_many\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_from_config\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_save_load\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_embed_function\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_exact_search\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_duplicate_keys\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_remove_nonexistent_keys\n#13 18.22 tests/indices/sparse/base_test.py::test_constructor\n#13 18.22 tests/indices/sparse/base_test.py::test_constructor_from_config\n#13 18.22 tests/indices/sparse/base_test.py::test_tokenize_single_text\n#13 18.22 tests/indices/sparse/base_test.py::test_tokenize_many_texts\n#13 18.22 tests/indices/sparse/base_test.py::test_build_index\n#13 18.22 tests/indices/sparse/base_test.py::test_add\n#13 18.22 tests/indices/sparse/base_test.py::test_add_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_add_many\n#13 18.22 tests/indices/sparse/base_test.py::test_add_many_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_remove\n#13 18.22 tests/indices/sparse/base_test.py::test_remove_many\n#13 18.22 tests/indices/sparse/base_test.py::test_search\n#13 18.22 tests/indices/sparse/base_test.py::test_search_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_search_many\n#13 18.22 tests/indices/sparse/base_test.py::test_search_many_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_search_weighted\n#13 18.22 tests/indices/sparse/base_test.py::test_normalize_scores_and_top_k\n#13 18.22 tests/indices/sparse/base_test.py::test_empty_query\n#13 18.22 tests/indices/sparse/base_test.py::test_save_and_load\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_build_index[BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_build_index[BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/mteb_test.py::test_mteb[BMXSparseIndex-mteb/scifact-test-0.694]\n#13 18.22 tests/indices/sparse/mteb_test.py::test_mteb[BM25SparseIndex-mteb/scifact-test-0.686]\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_callable\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_none\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_list\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_set\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_none\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_lowercasing\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_ampersand\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_special_chars\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_acronyms\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_remove_punctuation\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_strip_whitespaces\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\n#13 18.22 tests/numba_utils_test.py::test_union_sorted\n#13 18.22 tests/numba_utils_test.py::test_union_sorted_multi\n#13 18.22 tests/numba_utils_test.py::test_intersect_sorted\n#13 18.22 tests/numba_utils_test.py::test_intersect_sorted_multi\n#13 18.22 tests/numba_utils_test.py::test_diff_sorted\n#13 18.22 tests/numba_utils_test.py::test_concat1d\n#13 18.22 tests/numba_utils_test.py::test_get_indices\n#13 18.22 \n#13 18.22 85 tests collected in 10.71s\n#13 DONE 19.0s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 10.5s done\n#14 writing image sha256:274bd99f9a9daf31fc95bbd069a7356dce69be7b2c1dc1d2ff9e1f22adafe965 done\n#14 naming to docker.io/library/jayint-repo2run-mixedbread-ai__baguetter done\n#14 DONE 10.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/gue9njxckfljclt3ol7d1dwmj\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-mixedbread-ai__baguetter",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-mixedbread-ai__baguetter sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-16T23:50:27.276936+08:00",
+          "finished_at": "2026-05-16T23:50:32.162875+08:00",
+          "duration_seconds": 4.886,
+          "stdout": "tests/evaluation/eval_test.py::test_create_metrics\ntests/evaluation/eval_test.py::test_evaluate_retrievers\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search\ntests/indices/dense/faiss_test.py::test_faiss_exact_search\ntests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\ntests/indices/dense/faiss_test.py::test_faiss_delete\ntests/indices/dense/faiss_test.py::test_faiss_save_and_load\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\ntests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\ntests/indices/dense/faiss_test.py::test_faiss_add_with_text_input\ntests/indices/dense/faiss_test.py::test_faiss_initialization_options\ntests/indices/dense/faiss_test.py::test_faiss_invalid_initialization\ntests/indices/dense/faiss_test.py::test_l2_metric\ntests/indices/dense/faiss_test.py::test_inner_product_metric\ntests/indices/dense/usearch_test.py::test_usearch_index_creation\ntests/indices/dense/usearch_test.py::test_usearch_add_and_search\ntests/indices/dense/usearch_test.py::test_usearch_remove\ntests/indices/dense/usearch_test.py::test_usearch_search_many\ntests/indices/dense/usearch_test.py::test_usearch_from_config\ntests/indices/dense/usearch_test.py::test_usearch_save_load\ntests/indices/dense/usearch_test.py::test_usearch_embed_function\ntests/indices/dense/usearch_test.py::test_usearch_exact_search\ntests/indices/dense/usearch_test.py::test_usearch_duplicate_keys\ntests/indices/dense/usearch_test.py::test_usearch_remove_nonexistent_keys\ntests/indices/sparse/base_test.py::test_constructor\ntests/indices/sparse/base_test.py::test_constructor_from_config\ntests/indices/sparse/base_test.py::test_tokenize_single_text\ntests/indices/sparse/base_test.py::test_tokenize_many_texts\ntests/indices/sparse/base_test.py::test_build_index\ntests/indices/sparse/base_test.py::test_add\ntests/indices/sparse/base_test.py::test_add_with_tokens\ntests/indices/sparse/base_test.py::test_add_many\ntests/indices/sparse/base_test.py::test_add_many_with_tokens\ntests/indices/sparse/base_test.py::test_remove\ntests/indices/sparse/base_test.py::test_remove_many\ntests/indices/sparse/base_test.py::test_search\ntests/indices/sparse/base_test.py::test_search_with_tokens\ntests/indices/sparse/base_test.py::test_search_many\ntests/indices/sparse/base_test.py::test_search_many_with_tokens\ntests/indices/sparse/base_test.py::test_search_weighted\ntests/indices/sparse/base_test.py::test_normalize_scores_and_top_k\ntests/indices/sparse/base_test.py::test_empty_query\ntests/indices/sparse/base_test.py::test_save_and_load\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BM25SparseIndex]\ntests/indices/sparse/mteb_test.py::test_mteb[BMXSparseIndex-mteb/scifact-test-0.694]\ntests/indices/sparse/mteb_test.py::test_mteb[BM25SparseIndex-mteb/scifact-test-0.686]\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_fails\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_callable\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_none\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang_fails\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_list\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_set\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_none\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_lowercasing\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_ampersand\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_special_chars\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_acronyms\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_remove_punctuation\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_strip_whitespaces\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\ntests/numba_utils_test.py::test_union_sorted\ntests/numba_utils_test.py::test_union_sorted_multi\ntests/numba_utils_test.py::test_intersect_sorted\ntests/numba_utils_test.py::test_intersect_sorted_multi\ntests/numba_utils_test.py::test_diff_sorted\ntests/numba_utils_test.py::test_concat1d\ntests/numba_utils_test.py::test_get_indices\n\n85 tests collected in 3.19s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-mixedbread-ai__baguetter",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/Dockerfile.eval -t jayint-repo2run-mixedbread-ai__baguetter /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-16T23:37:46.301788+08:00",
+        "finished_at": "2026-05-16T23:50:27.271863+08:00",
+        "duration_seconds": 760.97,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.89kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 534.46kB 0.0s done\n#5 DONE 0.0s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.3s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.634 Collecting uv\n#10 3.096   Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.323 Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 7.370    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.488 Installing collected packages: uv\n#10 7.748 Successfully installed uv-0.11.14\n#10 7.749 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 7.9s\n\n#11 [7/9] RUN uv venv\n#11 0.678 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#11 0.679 Creating virtual environment at: .venv\n#11 DONE 0.7s\n\n#12 [8/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'uv pip install -e \".[dev]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 10.41 Resolved 216 packages in 9.96s\n#12 10.43    Building baguetter @ file:///app\n#12 10.62 Downloading numpy (17.1MiB)\n#12 10.62 Downloading babel (9.7MiB)\n#12 10.62 Downloading virtualenv (7.2MiB)\n#12 10.62 Downloading sympy (6.0MiB)\n#12 10.62 Downloading networkx (2.0MiB)\n#12 10.62 Downloading aiohttp (1.7MiB)\n#12 10.62 Downloading kiwisolver (1.4MiB)\n#12 10.62 Downloading lz4 (1.3MiB)\n#12 10.62 Downloading triton (192.1MiB)\n#12 10.62 Downloading nvidia-nvjitlink (38.8MiB)\n#12 10.62 Downloading scikit-learn (8.5MiB)\n#12 10.62 Downloading matplotlib (8.4MiB)\n#12 10.62 Downloading fonttools (4.8MiB)\n#12 10.62 Downloading sqlalchemy (3.2MiB)\n#12 10.62 Downloading fastparquet (1.8MiB)\n#12 10.63 Downloading tokenizers (3.0MiB)\n#12 10.63 Downloading jedi (4.7MiB)\n#12 10.63 Downloading pandas (11.8MiB)\n#12 10.63 Downloading pillow (6.8MiB)\n#12 10.63 Downloading nvidia-cublas (403.5MiB)\n#12 10.63 Downloading nvidia-cufft (204.2MiB)\n#12 10.63 Downloading nvidia-cusparselt-cu13 (162.3MiB)\n#12 10.63 Downloading nvidia-cusolver (191.6MiB)\n#12 10.63 Downloading nvidia-nccl-cu13 (196.4MiB)\n#12 10.63 Downloading torch (507.6MiB)\n#12 10.63 Downloading pyarrow (46.6MiB)\n#12 10.63 Downloading nvidia-cuda-nvrtc (86.0MiB)\n#12 10.63 Downloading nvidia-cusparse (139.2MiB)\n#12 10.63 Downloading nvidia-cudnn-cu13 (349.2MiB)\n#12 10.63 Downloading nvidia-cuda-runtime (2.1MiB)\n#12 10.63 Downloading nvidia-curand (56.8MiB)\n#12 10.63 Downloading nvidia-nvshmem-cu13 (57.6MiB)\n#12 10.63 Downloading notebook (13.9MiB)\n#12 10.63 Downloading nltk (1.5MiB)\n#12 10.63 Downloading ruff (10.9MiB)\n#12 10.63 Downloading debugpy (4.1MiB)\n#12 10.63 Downloading scipy (33.6MiB)\n#12 10.63 Downloading uv (23.6MiB)\n#12 10.63 Downloading cuda-bindings (6.0MiB)\n#12 10.63 Downloading lxml (5.0MiB)\n#12 10.63 Downloading numkong (10.0MiB)\n#12 10.63 Downloading numba (3.6MiB)\n#12 10.64 Downloading usearch (2.3MiB)\n#12 10.64 Downloading widgetsnbextension (2.1MiB)\n#12 10.64 Downloading jupyterlab (11.9MiB)\n#12 10.69 Downloading nvidia-cuda-cupti (10.2MiB)\n#12 10.69 Downloading cramjam (1.9MiB)\n#12 10.69 Downloading llvmlite (53.7MiB)\n#12 10.69 Downloading transformers (9.2MiB)\n#12 10.69 Downloading faiss-cpu (22.7MiB)\n#12 11.07       Built baguetter @ file:///app\n#12 21.31  Downloaded lz4\n#12 22.09  Downloaded kiwisolver\n#12 22.11 Downloading pygments (1.2MiB)\n#12 22.77 Downloading nvidia-cufile (1.2MiB)\n#12 22.87  Downloaded nltk\n#12 23.53 Downloading setuptools (1.0MiB)\n#12 24.68  Downloaded aiohttp\n#12 26.08  Downloaded fastparquet\n#12 27.01  Downloaded cramjam\n#12 27.13  Downloaded networkx\n#12 28.39  Downloaded widgetsnbextension\n#12 29.38  Downloaded usearch\n#12 29.50  Downloaded nvidia-cuda-runtime\n#12 32.01  Downloaded pygments\n#12 32.47  Downloaded setuptools\n#12 32.58  Downloaded nvidia-cufile\n#12 35.51  Downloaded tokenizers\n#12 37.75  Downloaded sqlalchemy\n#12 40.68  Downloaded numba\n#12 45.39  Downloaded debugpy\n#12 49.00  Downloaded jedi\n#12 49.25  Downloaded fonttools\n#12 51.17  Downloaded lxml\n#12 52.10    Building krovetzstemmer==0.8\n#12 52.10    Building fire==0.6.0\n#12 52.12    Building cbor==1.0.0\n#12 52.12    Building warc3-wet-clueweb09==0.2.5\n#12 52.51       Built warc3-wet-clueweb09==0.2.5\n#12 52.52       Built fire==0.6.0\n#12 53.83       Built cbor==1.0.0\n#12 55.49       Built krovetzstemmer==0.8\n#12 56.17  Downloaded cuda-bindings\n#12 56.45  Downloaded sympy\n#12 64.69  Downloaded pillow\n#12 70.15  Downloaded virtualenv\n#12 80.21  Downloaded matplotlib\n#12 80.34  Downloaded scikit-learn\n#12 84.48  Downloaded transformers\n#12 86.73  Downloaded babel\n#12 88.70  Downloaded numkong\n#12 89.47  Downloaded nvidia-cuda-cupti\n#12 92.36  Downloaded ruff\n#12 97.31  Downloaded jupyterlab\n#12 97.41  Downloaded pandas\n#12 106.8  Downloaded notebook\n#12 123.7  Downloaded numpy\n#12 158.2  Downloaded faiss-cpu\n#12 162.2  Downloaded uv\n#12 191.7  Downloaded scipy\n#12 205.3  Downloaded nvidia-nvjitlink\n#12 227.2  Downloaded pyarrow\n#12 246.4  Downloaded llvmlite\n#12 257.8  Downloaded nvidia-curand\n#12 260.8  Downloaded nvidia-nvshmem-cu13\n#12 354.2  Downloaded nvidia-cuda-nvrtc\n#12 482.2  Downloaded nvidia-cusparse\n#12 518.2  Downloaded nvidia-cusparselt-cu13\n#12 579.0  Downloaded triton\n#12 581.1  Downloaded nvidia-cusolver\n#12 589.3  Downloaded nvidia-nccl-cu13\n#12 599.7  Downloaded nvidia-cufft\n#12 682.2  Downloaded nvidia-cudnn-cu13\n#12 701.7  Downloaded nvidia-cublas\n#12 720.4  Downloaded torch\n#12 720.4 Prepared 216 packages in 11m 50s\n#12 720.9 Installed 216 packages in 452ms\n#12 720.9  + aiohappyeyeballs==2.6.1\n#12 720.9  + aiohttp==3.13.5\n#12 720.9  + aiosignal==1.4.0\n#12 720.9  + alembic==1.18.4\n#12 720.9  + anyio==4.13.0\n#12 720.9  + argon2-cffi==25.1.0\n#12 720.9  + argon2-cffi-bindings==25.1.0\n#12 720.9  + arrow==1.4.0\n#12 720.9  + asttokens==3.0.1\n#12 720.9  + async-lru==2.3.0\n#12 720.9  + attrs==26.1.0\n#12 720.9  + autofaiss==2.18.0\n#12 720.9  + babel==2.18.0\n#12 720.9  + baguetter==0.1.1 (from file:///app)\n#12 720.9  + beautifulsoup4==4.14.3\n#12 720.9  + beir==2.2.0\n#12 720.9  + bleach==6.3.0\n#12 720.9  + cbor==1.0.0\n#12 720.9  + cbor2==6.1.1\n#12 720.9  + certifi==2026.4.22\n#12 720.9  + cffi==2.0.0\n#12 720.9  + cfgv==3.5.0\n#12 720.9  + charset-normalizer==3.4.7\n#12 720.9  + click==8.3.3\n#12 720.9  + colorlog==6.10.1\n#12 720.9  + comm==0.2.3\n#12 720.9  + contourpy==1.3.3\n#12 720.9  + coverage==7.14.0\n#12 720.9  + cramjam==2.11.0\n#12 720.9  + cuda-bindings==13.2.0\n#12 720.9  + cuda-pathfinder==1.5.4\n#12 720.9  + cuda-toolkit==13.0.2\n#12 720.9  + cycler==0.12.1\n#12 720.9  + datasets==4.1.1\n#12 720.9  + debugpy==1.8.20\n#12 720.9  + decorator==5.2.1\n#12 720.9  + defusedxml==0.7.1\n#12 720.9  + dill==0.4.0\n#12 720.9  + distlib==0.4.0\n#12 720.9  + embedding-reader==1.8.1\n#12 720.9  + et-xmlfile==2.0.0\n#12 720.9  + executing==2.2.1\n#12 720.9  + faiss-cpu==1.13.2\n#12 720.9  + fastjsonschema==2.21.2\n#12 720.9  + fastparquet==2026.5.0\n#12 720.9  + filelock==3.29.0\n#12 720.9  + fire==0.6.0\n#12 720.9  + fonttools==4.63.0\n#12 720.9  + fqdn==1.5.1\n#12 720.9  + frozenlist==1.8.0\n#12 720.9  + fsspec==2025.9.0\n#12 720.9  + greenlet==3.5.0\n#12 720.9  + h11==0.16.0\n#12 720.9  + httpcore==1.0.9\n#12 720.9  + httpx==0.28.1\n#12 720.9  + huggingface-hub==0.24.6\n#12 720.9  + identify==2.6.19\n#12 720.9  + idna==3.15\n#12 720.9  + ijson==3.5.0\n#12 720.9  + iniconfig==2.3.0\n#12 720.9  + inscriptis==2.7.1\n#12 720.9  + ipykernel==7.2.0\n#12 720.9  + ipython==9.13.0\n#12 720.9  + ipython-pygments-lexers==1.1.1\n#12 720.9  + ipywidgets==8.1.8\n#12 720.9  + ir-datasets==0.5.11\n#12 720.9  + isoduration==20.11.0\n#12 720.9  + jedi==0.20.0\n#12 720.9  + jinja2==3.1.6\n#12 720.9  + joblib==1.5.3\n#12 720.9  + json5==0.14.0\n#12 720.9  + jsonpointer==3.1.1\n#12 720.9  + jsonschema==4.26.0\n#12 720.9  + jsonschema-specifications==2025.9.1\n#12 720.9  + jupyter==1.1.1\n#12 720.9  + jupyter-client==8.8.0\n#12 720.9  + jupyter-console==6.6.3\n#12 720.9  + jupyter-core==5.9.1\n#12 720.9  + jupyter-events==0.12.1\n#12 720.9  + jupyter-lsp==2.3.1\n#12 720.9  + jupyter-server==2.18.2\n#12 720.9  + jupyter-server-terminals==0.5.4\n#12 720.9  + jupyterlab==4.5.7\n#12 720.9  + jupyterlab-pygments==0.3.0\n#12 720.9  + jupyterlab-server==2.28.0\n#12 720.9  + jupyterlab-widgets==3.0.16\n#12 720.9  + kiwisolver==1.5.0\n#12 720.9  + krovetzstemmer==0.8\n#12 720.9  + lark==1.3.1\n#12 720.9  + llvmlite==0.47.0\n#12 720.9  + lxml==6.0.4\n#12 720.9  + lz4==4.4.5\n#12 720.9  + mako==1.3.12\n#12 720.9  + markdown-it-py==4.2.0\n#12 720.9  + markupsafe==3.0.3\n#12 720.9  + matplotlib==3.10.9\n#12 720.9  + matplotlib-inline==0.2.2\n#12 720.9  + mdurl==0.1.2\n#12 720.9  + mistune==3.2.1\n#12 720.9  + mpmath==1.3.0\n#12 720.9  + multidict==6.7.1\n#12 720.9  + multiprocess==0.70.16\n#12 720.9  + nbclient==0.10.4\n#12 720.9  + nbconvert==7.17.1\n#12 720.9  + nbformat==5.10.4\n#12 720.9  + nest-asyncio==1.6.0\n#12 720.9  + networkx==3.6.1\n#12 720.9  + nltk==3.9.4\n#12 720.9  + nodeenv==1.10.0\n#12 720.9  + notebook==7.5.6\n#12 720.9  + notebook-shim==0.2.4\n#12 720.9  + numba==0.65.1\n#12 720.9  + numkong==7.6.0\n#12 720.9  + numpy==1.26.4\n#12 720.9  + nvidia-cublas==13.1.1.3\n#12 720.9  + nvidia-cuda-cupti==13.0.85\n#12 720.9  + nvidia-cuda-nvrtc==13.0.88\n#12 720.9  + nvidia-cuda-runtime==13.0.96\n#12 720.9  + nvidia-cudnn-cu13==9.20.0.48\n#12 720.9  + nvidia-cufft==12.0.0.61\n#12 720.9  + nvidia-cufile==1.15.1.6\n#12 720.9  + nvidia-curand==10.4.0.35\n#12 720.9  + nvidia-cusolver==12.0.4.66\n#12 720.9  + nvidia-cusparse==12.6.3.3\n#12 720.9  + nvidia-cusparselt-cu13==0.8.1\n#12 720.9  + nvidia-nccl-cu13==2.29.7\n#12 720.9  + nvidia-nvjitlink==13.0.88\n#12 720.9  + nvidia-nvshmem-cu13==3.4.5\n#12 720.9  + nvidia-nvtx==13.0.85\n#12 720.9  + openpyxl==3.1.5\n#12 720.9  + optuna==4.8.0\n#12 720.9  + orjson==3.11.9\n#12 720.9  + packaging==26.2\n#12 720.9  + pandas==2.3.3\n#12 720.9  + pandocfilters==1.5.1\n#12 720.9  + parso==0.8.7\n#12 720.9  + pexpect==4.9.0\n#12 720.9  + pillow==12.2.0\n#12 720.9  + platformdirs==4.9.6\n#12 720.9  + pluggy==1.6.0\n#12 720.9  + pre-commit==4.6.0\n#12 720.9  + prometheus-client==0.25.0\n#12 720.9  + prompt-toolkit==3.0.52\n#12 720.9  + propcache==0.5.2\n#12 720.9  + psutil==7.2.2\n#12 720.9  + ptyprocess==0.7.0\n#12 720.9  + pure-eval==0.2.3\n#12 720.9  + pyarrow==24.0.0\n#12 720.9  + pycparser==3.0\n#12 720.9  + pygments==2.20.0\n#12 720.9  + pyparsing==3.3.2\n#12 720.9  + pystemmer==3.0.0\n#12 720.9  + pytest==9.0.3\n#12 720.9  + pytest-cov==7.1.0\n#12 720.9  + python-dateutil==2.9.0.post0\n#12 720.9  + python-discovery==1.3.1\n#12 720.9  + python-dotenv==1.2.2\n#12 720.9  + python-json-logger==4.1.0\n#12 720.9  + pytrec-eval-terrier==0.5.10\n#12 720.9  + pytz==2026.2\n#12 720.9  + pyyaml==6.0.3\n#12 720.9  + pyzmq==27.1.0\n#12 720.9  + ranx==0.3.21\n#12 720.9  + referencing==0.37.0\n#12 720.9  + regex==2026.5.9\n#12 720.9  + requests==2.34.2\n#12 720.9  + rfc3339-validator==0.1.4\n#12 720.9  + rfc3986-validator==0.1.1\n#12 720.9  + rfc3987-syntax==1.1.0\n#12 720.9  + rich==15.0.0\n#12 720.9  + rpds-py==0.30.0\n#12 720.9  + ruff==0.15.13\n#12 720.9  + safetensors==0.7.0\n#12 720.9  + scikit-learn==1.8.0\n#12 720.9  + scipy==1.17.1\n#12 720.9  + seaborn==0.13.2\n#12 720.9  + send2trash==2.1.0\n#12 720.9  + sentence-transformers==5.5.0\n#12 720.9  + setuptools==81.0.0\n#12 720.9  + six==1.17.0\n#12 720.9  + soupsieve==2.8.3\n#12 720.9  + sqlalchemy==2.0.49\n#12 720.9  + stack-data==0.6.3\n#12 720.9  + sympy==1.14.0\n#12 720.9  + tabulate==0.10.0\n#12 720.9  + termcolor==3.3.0\n#12 720.9  + terminado==0.18.1\n#12 720.9  + threadpoolctl==3.6.0\n#12 720.9  + tinycss2==1.4.0\n#12 720.9  + tokenizers==0.21.4\n#12 720.9  + torch==2.12.0\n#12 720.9  + tornado==6.5.5\n#12 720.9  + tqdm==4.67.3\n#12 720.9  + traitlets==5.15.0\n#12 720.9  + transformers==4.48.3\n#12 720.9  + trec-car-tools==2.6\n#12 720.9  + triton==3.7.0\n#12 720.9  + typing-extensions==4.15.0\n#12 720.9  + tzdata==2026.2\n#12 720.9  + unidecode==1.4.0\n#12 720.9  + unlzw3==0.2.3\n#12 720.9  + uri-template==1.3.0\n#12 720.9  + urllib3==2.7.0\n#12 720.9  + usearch==2.25.2\n#12 720.9  + uv==0.11.14\n#12 720.9  + virtualenv==21.3.3\n#12 720.9  + warc3-wet==0.2.5\n#12 720.9  + warc3-wet-clueweb09==0.2.5\n#12 720.9  + wcwidth==0.7.0\n#12 720.9  + webcolors==25.10.0\n#12 720.9  + webencodings==0.5.1\n#12 720.9  + websocket-client==1.9.0\n#12 720.9  + widgetsnbextension==4.0.15\n#12 720.9  + xxhash==3.7.0\n#12 720.9  + yarl==1.23.0\n#12 720.9  + zlib-state==0.1.12\n#12 DONE 721.8s\n\n#13 [9/9] RUN uv run pytest --collect-only -q --disable-warnings\n#13 18.22 tests/evaluation/eval_test.py::test_create_metrics\n#13 18.22 tests/evaluation/eval_test.py::test_evaluate_retrievers\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_and_search\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_exact_search\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_delete\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_save_and_load\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_add_with_text_input\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_initialization_options\n#13 18.22 tests/indices/dense/faiss_test.py::test_faiss_invalid_initialization\n#13 18.22 tests/indices/dense/faiss_test.py::test_l2_metric\n#13 18.22 tests/indices/dense/faiss_test.py::test_inner_product_metric\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_index_creation\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_add_and_search\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_remove\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_search_many\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_from_config\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_save_load\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_embed_function\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_exact_search\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_duplicate_keys\n#13 18.22 tests/indices/dense/usearch_test.py::test_usearch_remove_nonexistent_keys\n#13 18.22 tests/indices/sparse/base_test.py::test_constructor\n#13 18.22 tests/indices/sparse/base_test.py::test_constructor_from_config\n#13 18.22 tests/indices/sparse/base_test.py::test_tokenize_single_text\n#13 18.22 tests/indices/sparse/base_test.py::test_tokenize_many_texts\n#13 18.22 tests/indices/sparse/base_test.py::test_build_index\n#13 18.22 tests/indices/sparse/base_test.py::test_add\n#13 18.22 tests/indices/sparse/base_test.py::test_add_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_add_many\n#13 18.22 tests/indices/sparse/base_test.py::test_add_many_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_remove\n#13 18.22 tests/indices/sparse/base_test.py::test_remove_many\n#13 18.22 tests/indices/sparse/base_test.py::test_search\n#13 18.22 tests/indices/sparse/base_test.py::test_search_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_search_many\n#13 18.22 tests/indices/sparse/base_test.py::test_search_many_with_tokens\n#13 18.22 tests/indices/sparse/base_test.py::test_search_weighted\n#13 18.22 tests/indices/sparse/base_test.py::test_normalize_scores_and_top_k\n#13 18.22 tests/indices/sparse/base_test.py::test_empty_query\n#13 18.22 tests/indices/sparse/base_test.py::test_save_and_load\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_build_index[BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_build_index[BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BMXSparseIndex]\n#13 18.22 tests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BM25SparseIndex]\n#13 18.22 tests/indices/sparse/mteb_test.py::test_mteb[BMXSparseIndex-mteb/scifact-test-0.694]\n#13 18.22 tests/indices/sparse/mteb_test.py::test_mteb[BM25SparseIndex-mteb/scifact-test-0.686]\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_callable\n#13 18.22 tests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_none\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_list\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_set\n#13 18.22 tests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_none\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_lowercasing\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_ampersand\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_special_chars\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_acronyms\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_remove_punctuation\n#13 18.22 tests/indices/sparse/text_preprocessor/text_normalization_test.py::test_strip_whitespaces\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\n#13 18.22 tests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\n#13 18.22 tests/numba_utils_test.py::test_union_sorted\n#13 18.22 tests/numba_utils_test.py::test_union_sorted_multi\n#13 18.22 tests/numba_utils_test.py::test_intersect_sorted\n#13 18.22 tests/numba_utils_test.py::test_intersect_sorted_multi\n#13 18.22 tests/numba_utils_test.py::test_diff_sorted\n#13 18.22 tests/numba_utils_test.py::test_concat1d\n#13 18.22 tests/numba_utils_test.py::test_get_indices\n#13 18.22 \n#13 18.22 85 tests collected in 10.71s\n#13 DONE 19.0s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 10.5s done\n#14 writing image sha256:274bd99f9a9daf31fc95bbd069a7356dce69be7b2c1dc1d2ff9e1f22adafe965 done\n#14 naming to docker.io/library/jayint-repo2run-mixedbread-ai__baguetter done\n#14 DONE 10.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/gue9njxckfljclt3ol7d1dwmj\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "uv run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-mixedbread-ai__baguetter",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-mixedbread-ai__baguetter sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-16T23:50:27.276936+08:00",
+              "finished_at": "2026-05-16T23:50:32.162875+08:00",
+              "duration_seconds": 4.886,
+              "stdout": "tests/evaluation/eval_test.py::test_create_metrics\ntests/evaluation/eval_test.py::test_evaluate_retrievers\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search\ntests/indices/dense/faiss_test.py::test_faiss_exact_search\ntests/indices/dense/faiss_test.py::test_faiss_duplicate_keys\ntests/indices/dense/faiss_test.py::test_faiss_delete\ntests/indices/dense/faiss_test.py::test_faiss_save_and_load\ntests/indices/dense/faiss_test.py::test_faiss_add_and_search_many\ntests/indices/dense/faiss_test.py::test_faiss_remove_nonexistent_keys\ntests/indices/dense/faiss_test.py::test_faiss_add_with_text_input\ntests/indices/dense/faiss_test.py::test_faiss_initialization_options\ntests/indices/dense/faiss_test.py::test_faiss_invalid_initialization\ntests/indices/dense/faiss_test.py::test_l2_metric\ntests/indices/dense/faiss_test.py::test_inner_product_metric\ntests/indices/dense/usearch_test.py::test_usearch_index_creation\ntests/indices/dense/usearch_test.py::test_usearch_add_and_search\ntests/indices/dense/usearch_test.py::test_usearch_remove\ntests/indices/dense/usearch_test.py::test_usearch_search_many\ntests/indices/dense/usearch_test.py::test_usearch_from_config\ntests/indices/dense/usearch_test.py::test_usearch_save_load\ntests/indices/dense/usearch_test.py::test_usearch_embed_function\ntests/indices/dense/usearch_test.py::test_usearch_exact_search\ntests/indices/dense/usearch_test.py::test_usearch_duplicate_keys\ntests/indices/dense/usearch_test.py::test_usearch_remove_nonexistent_keys\ntests/indices/sparse/base_test.py::test_constructor\ntests/indices/sparse/base_test.py::test_constructor_from_config\ntests/indices/sparse/base_test.py::test_tokenize_single_text\ntests/indices/sparse/base_test.py::test_tokenize_many_texts\ntests/indices/sparse/base_test.py::test_build_index\ntests/indices/sparse/base_test.py::test_add\ntests/indices/sparse/base_test.py::test_add_with_tokens\ntests/indices/sparse/base_test.py::test_add_many\ntests/indices/sparse/base_test.py::test_add_many_with_tokens\ntests/indices/sparse/base_test.py::test_remove\ntests/indices/sparse/base_test.py::test_remove_many\ntests/indices/sparse/base_test.py::test_search\ntests/indices/sparse/base_test.py::test_search_with_tokens\ntests/indices/sparse/base_test.py::test_search_many\ntests/indices/sparse/base_test.py::test_search_many_with_tokens\ntests/indices/sparse/base_test.py::test_search_weighted\ntests/indices/sparse/base_test.py::test_normalize_scores_and_top_k\ntests/indices/sparse/base_test.py::test_empty_query\ntests/indices/sparse/base_test.py::test_save_and_load\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_build_index[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_get_top_k[BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[lucene-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[robertson-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[atire-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25l-BM25SparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BMXSparseIndex]\ntests/indices/sparse/model_test.py::test_sparse_index_normalize_scores[bm25plus-BM25SparseIndex]\ntests/indices/sparse/mteb_test.py::test_mteb[BMXSparseIndex-mteb/scifact-test-0.694]\ntests/indices/sparse/mteb_test.py::test_mteb[BM25SparseIndex-mteb/scifact-test-0.686]\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_fails\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_callable\ntests/indices/sparse/text_preprocessor/stemmer_test.py::test_get_stemmer_none\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_lang_fails\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_list\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_from_set\ntests/indices/sparse/text_preprocessor/stopwords_test.py::test_get_stopwords_none\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_lowercasing\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_ampersand\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_special_chars\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_normalize_acronyms\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_remove_punctuation\ntests/indices/sparse/text_preprocessor/text_normalization_test.py::test_strip_whitespaces\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_fails\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_callable\ntests/indices/sparse/text_preprocessor/tokenizer_test.py::test_get_tokenizer_none\ntests/numba_utils_test.py::test_union_sorted\ntests/numba_utils_test.py::test_union_sorted_multi\ntests/numba_utils_test.py::test_intersect_sorted\ntests/numba_utils_test.py::test_intersect_sorted_multi\ntests/numba_utils_test.py::test_diff_sorted\ntests/numba_utils_test.py::test_concat1d\ntests/numba_utils_test.py::test_get_indices\n\n85 tests collected in 3.19s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-mixedbread-ai__baguetter"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-mixedbread-ai__baguetter",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T23:50:32.180071+08:00",
+    "finished_at": "2026-05-16T23:50:32.220636+08:00",
+    "duration_seconds": 0.041,
+    "stdout": "Untagged: jayint-repo2run-mixedbread-ai__baguetter:latest\nDeleted: sha256:274bd99f9a9daf31fc95bbd069a7356dce69be7b2c1dc1d2ff9e1f22adafe965\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/mixedbread-ai__baguetter/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

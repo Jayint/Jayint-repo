@@ -4,11 +4,14 @@ import json
 import argparse
 import subprocess
 import shutil
+import time
+from pathlib import Path
 from openai import OpenAI
 from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
 from src.image_selector import ImageSelector
+from src.verification_bundle import derive_supported_verification_bundle
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.memory_manager import LongTermMemoryManager
 from src.observation_compressor import (
@@ -100,6 +103,12 @@ LOCAL_SERVICE_MARKER_PATTERNS = {
     ),
 }
 
+SETUP_LOG_HUMAN_MESSAGE_HEADER = "================================ Human Message ================================="
+SETUP_LOG_RAW_AI_MESSAGE_HEADER = "================================ Raw AI Message ================================="
+SETUP_LOG_SUMMARY_THOUGHT_MAX_CHARS = 1200
+SETUP_LOG_SUMMARY_OBSERVATION_MAX_CHARS = 1600
+MAX_INVALID_FINAL_BUNDLE_REPORTS = 3
+
 class DockerAgent:
     def __init__(
         self,
@@ -108,12 +117,23 @@ class DockerAgent:
         model=DEFAULT_LLM_MODEL,
         workplace="workplace",
         base_commit=None,
+        problem_statement="",
+        test_patch="",
+        benchmark_evaluation_target=None,
+        language="",
         enable_observation_compression=False,
         enable_long_term_memory=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
+        command_timeout_seconds=1800,
     ):
         self.repo_url = repo_url
+        self.model = model
+        self.base_commit = base_commit
+        self.problem_statement = problem_statement or ""
+        self.test_patch = test_patch or ""
+        self.benchmark_evaluation_target = benchmark_evaluation_target or {}
+        self.language = language or ""
         self.workplace = os.path.abspath(workplace)
         self.successful_test_commands = []
         self.verified_test_command = None
@@ -121,8 +141,12 @@ class DockerAgent:
         self.verified_runtime_preparation_commands = []
         self.test_run_attempts = []
         self.successful_actions = []
+        self.failed_actions = []
         self.verification_source = None
         self.verification_bundle = None
+        self.build_recipe = None
+        self.build_recipe_source = None
+        self.build_recipe_error = None
         self.run_summary_path = os.path.join(self.workplace, "agent_run_summary.json")
         self._environment_revision = 0
         self._current_verification_group = []
@@ -130,6 +154,7 @@ class DockerAgent:
         self.enable_long_term_memory = enable_long_term_memory
         self.memory_path = memory_path
         self.memory_embedding_model = memory_embedding_model
+        self.command_timeout_seconds = command_timeout_seconds
         self.memory_manager = None
         self.last_failed_memory_context = None
         self.memory_stats = {
@@ -141,6 +166,10 @@ class DockerAgent:
             "written_memories": 0,
             "skipped_duplicates": 0,
             "skipped_invalid": 0,
+            "relation_judged_pairs": 0,
+            "relation_links_accepted": 0,
+            "relation_links_rejected": 0,
+            "relation_duplicates_rejected": 0,
             "errors": [],
         }
         self.safety_compression_threshold_chars = 200_000
@@ -199,14 +228,15 @@ class DockerAgent:
         
         # 4. Auto-detect base image if set to "auto" or not specified
         platform_override = None
-        log_dir = os.path.join(self.workplace, "image_selector_logs")
+        self.logs_dir = os.path.join(self.workplace, "logs")
+        image_selector_log_dir = os.path.join(self.logs_dir, "image_selector_logs")
         if base_image == "auto":
             print("[DockerAgent] Analyzing repository to select optimal base image...")
             selector = ImageSelector(self.client, model)
             selected_image, language_handler, docs, platform_override = selector.select_base_image(
                 repo_path=self.workplace,
                 platform="linux",
-                log_dir=log_dir
+                log_dir=image_selector_log_dir
             )
             usage = selector.get_token_usage()
             self.run_token_ledger.add(
@@ -220,7 +250,7 @@ class DockerAgent:
             print(f"[DockerAgent] Selected base image: {base_image}")
             if platform_override:
                 print(f"[DockerAgent] Platform override: {platform_override} (for ARM64 compatibility)")
-            print(f"[DockerAgent] Image selection logs saved to: {log_dir}")
+            print(f"[DockerAgent] Image selection logs saved to: {image_selector_log_dir}")
         else:
             # Use specified base image with legacy detection for Python
             if base_image.startswith("python:"):
@@ -232,21 +262,19 @@ class DockerAgent:
             self.repo_docs = ""
         
         # 5. Setup Sandbox with a copied workspace so rollback restores repo state too.
-        self.sandbox = Sandbox(
-            base_image=base_image, 
-            workdir="/app", 
-            platform=platform_override,  # Use linux/amd64 if ARM64 issues detected
-            seed_dir=self.workplace
+        self.sandbox = self._create_sandbox(
+            base_image=base_image,
+            platform_override=platform_override,
         )
         self.platform_override = platform_override  # Expose for adapter to read
         
         # 6. Initialize Planner and Synthesizer
-        # Load repository structure and relevant config files from image_selector_logs if available
+        # Load only repository structure from image_selector_logs. Configuration
+        # files should be inspected explicitly by the agent when needed.
         repo_structure = ""
-        config_files_content = ""
         
         # Load structure.txt
-        structure_file = os.path.join(log_dir, "structure.txt")
+        structure_file = os.path.join(image_selector_log_dir, "structure.txt")
         if os.path.exists(structure_file):
             try:
                 with open(structure_file, 'r') as f:
@@ -254,60 +282,46 @@ class DockerAgent:
                 print(f"[DockerAgent] Loaded repository structure from: {structure_file}")
             except Exception as e:
                 print(f"[DockerAgent] Warning: Could not read structure.txt: {e}")
-        
-        # Load relevant config files from summary.json
-        summary_file = os.path.join(log_dir, "summary.json")
-        if os.path.exists(summary_file):
-            try:
-                with open(summary_file, 'r') as f:
-                    summary = json.load(f)
-                relevant_files = summary.get("relevant_files", [])
-                config_contents = []
-                for rel_file in relevant_files:
-                    file_path = os.path.join(self.workplace, rel_file)
-                    if os.path.exists(file_path) and os.path.getsize(file_path) < 50000:  # Skip files > 50KB
-                        try:
-                            with open(file_path, 'r') as f:
-                                content = f.read()
-                            # Truncate very long files to first 200 lines
-                            lines = content.split('\n')
-                            if len(lines) > 200:
-                                content = '\n'.join(lines[:200]) + f"\n... ({len(lines) - 200} more lines truncated)"
-                            config_contents.append(f"=== {rel_file} ===\n{content}\n")
-                        except Exception as e:
-                            print(f"[DockerAgent] Warning: Could not read {rel_file}: {e}")
-                if config_contents:
-                    config_files_content = "\n".join(config_contents)
-                    print(f"[DockerAgent] Loaded {len(config_contents)} relevant config files")
-            except Exception as e:
-                print(f"[DockerAgent] Warning: Could not read summary.json: {e}")
-        
-        # Combine structure and config files
-        combined_repo_info = repo_structure
-        if config_files_content:
-            combined_repo_info += "\n\n=== Relevant Configuration Files ===\n\n" + config_files_content
+
         maven_repository_hints = self._collect_maven_repository_hints()
         
         # Setup log directory for LLM calls (similar to image_selector_logs)
-        setup_log_dir = os.path.join(self.workplace, "setup_logs")
+        setup_log_dir = os.path.join(self.logs_dir, "setup_logs")
         os.makedirs(setup_log_dir, exist_ok=True)
         self.setup_log_dir = setup_log_dir
+        compression_log_dir = os.path.join(self.logs_dir, "compression_logs")
+        self.compression_log_dir = compression_log_dir
+        memory_relation_log_dir = os.path.join(self.logs_dir, "memory_relation_logs")
+        self.memory_relation_log_dir = memory_relation_log_dir
+        if self.memory_manager:
+            self.memory_manager.log_dir = Path(setup_log_dir)
+            self.memory_manager.relation_log_dir = Path(memory_relation_log_dir)
         
         self.planner = Planner(
             self.client,
             model=model,
             language_handler=self.language_handler,
-            repo_structure=combined_repo_info,
+            repo_structure=repo_structure,
             maven_repository_hints=maven_repository_hints,
+            benchmark_evaluation_target=self.benchmark_evaluation_target,
             log_dir=setup_log_dir,
             enable_long_term_memory=self.enable_long_term_memory,
         )
         self.synthesizer = Synthesizer(base_image=base_image)
         self.observation_compressor = None
         if self.enable_observation_compression:
-            self.observation_compressor = ObservationCompressor(self.client, model=model)
+            os.makedirs(compression_log_dir, exist_ok=True)
+            self.observation_compressor = ObservationCompressor(
+                self.client,
+                model=model,
+                log_dir=compression_log_dir,
+            )
             self.planner.init_managed_history(self.repo_url)
         print(f"[DockerAgent] Setup logs will be saved to: {setup_log_dir}")
+        if self.enable_observation_compression:
+            print(f"[DockerAgent] Compression logs will be saved to: {compression_log_dir}")
+        if self.enable_long_term_memory:
+            print(f"[DockerAgent] Memory relation logs will be saved to: {memory_relation_log_dir}")
 
     def _detect_python_image(self):
         """
@@ -567,21 +581,187 @@ class DockerAgent:
         """Clones the repository to the local workplace directory."""
         if os.path.exists(self.workplace):
             print(f"Cleaning up existing workplace at {self.workplace}...")
-            shutil.rmtree(self.workplace)
-        
-        os.makedirs(self.workplace)
+        self._reset_workplace_directory()
         print(f"Cloning {self.repo_url} into {self.workplace}...")
-        try:
-            subprocess.run(
-                ["git", "clone", self.repo_url, "."],
-                cwd=self.workplace,
-                check=True,
-                capture_output=True
+        last_error = None
+        last_detail = ""
+        for attempt in range(1, 4):
+            try:
+                self._run_git_clone_with_optional_lfs_fallback()
+                print("Clone successful.")
+                return
+            except subprocess.CalledProcessError as e:
+                last_error = e
+                detail = self._format_clone_failure_detail(e)
+                last_detail = detail
+                print(f"Clone failed on attempt {attempt}/3: {detail}")
+                if attempt < 3:
+                    self._reset_workplace_directory()
+                    time.sleep(attempt * 2)
+
+        raise RuntimeError(
+            "git clone failed after 3 attempts: "
+            f"{last_detail or ((last_error.stderr or b'').decode(errors='replace') if last_error else '')}"
+        ) from last_error
+
+    def _reset_workplace_directory(self):
+        if os.path.exists(self.workplace):
+            shutil.rmtree(self.workplace)
+        os.makedirs(self.workplace, exist_ok=True)
+
+    def _run_git_clone_with_optional_lfs_fallback(self):
+        last_error = None
+        for index, strategy in enumerate(self._git_clone_strategies(), start=1):
+            if index > 1:
+                self._reset_workplace_directory()
+            label = strategy["label"]
+            if strategy.get("lfs_disabled"):
+                print(f"[Clone Strategy] {label}; LFS filters disabled.")
+            else:
+                print(f"[Clone Strategy] {label}.")
+            try:
+                subprocess.run(
+                    strategy["command"],
+                    cwd=self.workplace,
+                    check=True,
+                    capture_output=True,
+                )
+                self._ensure_base_commit_available()
+                if strategy.get("lfs_disabled"):
+                    print(
+                        "Clone successful with Git LFS filters disabled; "
+                        "LFS-managed files may remain as pointer files."
+                    )
+                return
+            except subprocess.CalledProcessError as error:
+                last_error = error
+                detail = self._format_clone_failure_detail(error)
+                print(f"[Clone Strategy Failed] {label}: {detail}")
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("git clone failed: no clone strategies were attempted")
+
+    def _git_clone_strategies(self):
+        base_git = [
+            "git",
+            "-c",
+            "http.lowSpeedLimit=1000",
+            "-c",
+            "http.lowSpeedTime=60",
+            "-c",
+            "http.postBuffer=524288000",
+        ]
+        lfs_disabled_config = [
+            "-c",
+            "filter.lfs.process=",
+            "-c",
+            "filter.lfs.smudge=",
+            "-c",
+            "filter.lfs.required=false",
+        ]
+        clone_variants = [
+            ("plain clone", ["clone", self.repo_url, "."]),
+            (
+                "partial clone without blobs",
+                ["clone", "--filter=blob:none", self.repo_url, "."],
+            ),
+            (
+                "shallow partial clone",
+                ["clone", "--depth", "1", "--filter=blob:none", self.repo_url, "."],
+            ),
+        ]
+
+        strategies = []
+        for label, clone_args in clone_variants:
+            strategies.append(
+                {
+                    "label": label,
+                    "command": [*base_git, *clone_args],
+                    "lfs_disabled": False,
+                }
             )
-            print("Clone successful.")
-        except subprocess.CalledProcessError as e:
-            print(f"Clone failed: {e.stderr.decode()}")
-            raise e
+            strategies.append(
+                {
+                    "label": f"{label} with LFS filters disabled",
+                    "command": [*base_git, *lfs_disabled_config, *clone_args],
+                    "lfs_disabled": True,
+                }
+            )
+        return strategies
+
+    def _ensure_base_commit_available(self):
+        commit = getattr(self, "base_commit", None)
+        if not commit:
+            return
+
+        if self._git_commit_exists(commit):
+            return
+
+        print(f"[Clone Strategy] Fetching target commit {commit}.")
+        fetch_strategies = [
+            [
+                "git",
+                "-c",
+                "http.lowSpeedLimit=1000",
+                "-c",
+                "http.lowSpeedTime=60",
+                "fetch",
+                "--depth",
+                "1",
+                "origin",
+                commit,
+            ],
+            [
+                "git",
+                "-c",
+                "http.lowSpeedLimit=1000",
+                "-c",
+                "http.lowSpeedTime=60",
+                "fetch",
+                "--filter=blob:none",
+                "origin",
+                commit,
+            ],
+        ]
+        last_error = None
+        for command in fetch_strategies:
+            try:
+                subprocess.run(
+                    command,
+                    cwd=self.workplace,
+                    check=True,
+                    capture_output=True,
+                )
+                if self._git_commit_exists(commit):
+                    return
+            except subprocess.CalledProcessError as error:
+                last_error = error
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"target commit is unavailable after clone: {commit}")
+
+    def _git_commit_exists(self, commit):
+        result = subprocess.run(
+            ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+            cwd=self.workplace,
+            capture_output=True,
+        )
+        return result.returncode == 0
+
+    @staticmethod
+    def _format_clone_failure_detail(error: subprocess.CalledProcessError) -> str:
+        stderr = (error.stderr or b"").decode(errors="replace").strip()
+        stdout = (error.stdout or b"").decode(errors="replace").strip()
+        if stdout and stderr:
+            return f"{stdout}\n{stderr}"
+        return stderr or stdout or str(error)
+
+    @staticmethod
+    def _clone_failed_due_to_missing_git_lfs(detail: str) -> bool:
+        normalized = detail.lower()
+        return "git-lfs" in normalized and "command not found" in normalized
 
     def _checkout_commit(self, commit: str):
         """Checkout a specific git commit in the workplace directory."""
@@ -601,22 +781,16 @@ class DockerAgent:
         observation = None
         configuration_success = False  # 成功标志位
         run_error = None
+        invalid_final_bundle_reports = 0
         
         try:
             for step in range(max_steps):
                 print(f"\n{'='*20} Step {step + 1} {'='*20}")
                 
                 # 1. Plan next step
-                if self.enable_observation_compression:
-                    thought, action, raw_llm_output, is_finished, usage_info = self.planner.plan(
-                        repo_url=self.repo_url,
-                        manage_history=False,
-                    )
-                else:
-                    thought, action, raw_llm_output, is_finished, usage_info = self.planner.plan(
-                        self.repo_url,
-                        observation,
-                    )
+                thought, action, raw_llm_output, is_finished, usage_info = (
+                    self._plan_next_step_with_retry(observation)
+                )
                 self.run_token_ledger.add(
                     "planner",
                     input_tokens=usage_info["input_tokens"],
@@ -632,14 +806,48 @@ class DockerAgent:
                 if is_finished:
                     print("\n[Finished] Agent has reached a conclusion.")
                     print(raw_llm_output)
-                    # Success must be backed by an actual effective test command observed at runtime.
                     final_answer = self.planner.extract_final_answer(raw_llm_output)
                     if final_answer == "Success":
                         if self._finalize_verification_from_agent_report(raw_llm_output):
                             configuration_success = True
+                            break
                         else:
-                            print("[Warning] Agent claimed success but did not provide an acceptable Verification Bundle.")
-                            print("[Warning] Marking this run as FAILED to avoid producing unverifiable artifacts.")
+                            print("[Warning] Agent claimed success but did not provide a valid Verification Bundle.")
+                            (
+                                invalid_final_bundle_reports,
+                                auto_finalized,
+                                stop_reason,
+                            ) = self._handle_invalid_final_success_report(
+                                invalid_final_bundle_reports
+                            )
+                            if auto_finalized:
+                                configuration_success = True
+                                break
+                            if stop_reason:
+                                run_error = stop_reason
+                                print(f"[Warning] {stop_reason}")
+                                break
+                            print("[Warning] Continuing setup instead of producing unverifiable artifacts.")
+                            observation = (
+                                "[SYSTEM] Final success requires a valid Verification Bundle JSON object "
+                                "with a non-empty `test_commands` list immediately before "
+                                "`Final Answer: Success`. Do not output an Action in the final response."
+                            )
+                            if self.enable_observation_compression:
+                                self._record_agent_step(
+                                    step_id=step + 1,
+                                    thought=thought or "",
+                                    action="",
+                                    assistant_content=raw_llm_output,
+                                    success=False,
+                                    observation=observation,
+                                    prompt_observation=observation,
+                                    mutates_environment=False,
+                                    env_revision_before=self._environment_revision,
+                                    env_revision_after=self._environment_revision,
+                                    planner_usage=usage_info,
+                                )
+                            continue
                     break
 
                 if thought:
@@ -664,6 +872,7 @@ class DockerAgent:
                         )
                     continue
 
+                invalid_final_bundle_reports = 0
                 print(f"\n[Action]\n{action}")
                 
                 # 2. Execute Action in Sandbox
@@ -684,10 +893,18 @@ class DockerAgent:
                 
                 # 3. Synthesize if successful
                 mutates_environment = False
+                accepted_observation_final = False
                 if success and not is_rollback_action and not is_memory_retrieval_action:
                     self.synthesizer.record_success(action)
                     mutates_environment = self.synthesizer.command_mutates_environment(action)
                     self._record_successful_action(step + 1, action, observation)
+                    if self._observation_contains_final_success_bundle(observation):
+                        accepted_observation_final = self._finalize_verification_from_agent_report(
+                            observation,
+                            source="agent_observation",
+                        )
+                        if accepted_observation_final:
+                            configuration_success = True
                 else:
                     if not success:
                         print(
@@ -695,7 +912,9 @@ class DockerAgent:
                             "had to recover from an unhealthy container."
                         )
                         if not is_rollback_action and not is_memory_retrieval_action:
+                            self._record_failed_action(step + 1, action, prompt_observation)
                             self._remember_failure_for_memory(action, prompt_observation)
+                            prompt_observation = self._append_long_term_memory_hint(prompt_observation)
 
                 if self.enable_observation_compression:
                     self._record_agent_step(
@@ -713,14 +932,20 @@ class DockerAgent:
                     )
                 else:
                     observation = prompt_observation
+                if accepted_observation_final:
+                    break
 
             # 4. Final Output - 只有配置成功才生成 Dockerfile
             if configuration_success:
                 print(f"\n{'='*20} Environment Configuration Complete {'='*20}")
-                # 生成 Dockerfile 到 workplace 目录
-                dockerfile_path = os.path.join(self.workplace, "Dockerfile")
-                self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
-                self._maybe_generate_long_term_memories(configuration_success)
+                if self._synthesize_final_build_recipe():
+                    # 生成 Dockerfile 到 workplace 目录
+                    dockerfile_path = os.path.join(self.workplace, "Dockerfile")
+                    self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+                    self._maybe_generate_long_term_memories(configuration_success)
+                else:
+                    configuration_success = False
+                    print("[Warning] Build recipe synthesis failed. No Dockerfile will be generated.")
             else:
                 print(f"\n{'='*20} Environment Configuration FAILED {'='*20}")
                 print("[Warning] Configuration did not complete successfully. No Dockerfile will be generated.")
@@ -728,9 +953,81 @@ class DockerAgent:
         except Exception as e:
             run_error = str(e)
             print(f"An error occurred during execution: {e}")
+            if self._is_transient_llm_error(e) and self._auto_finalize_from_verified_tests(
+                source="auto_after_transient_error"
+            ):
+                configuration_success = True
+                print(
+                    "[Auto Finalization] Transient LLM failure happened after a verified "
+                    "test collection command. Generating Dockerfile from recorded evidence."
+                )
+                try:
+                    if self._synthesize_final_build_recipe():
+                        dockerfile_path = os.path.join(self.workplace, "Dockerfile")
+                        self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+                        self._maybe_generate_long_term_memories(configuration_success)
+                    else:
+                        configuration_success = False
+                        print("[Warning] Build recipe synthesis failed after auto-finalization.")
+                except Exception as synth_exc:
+                    configuration_success = False
+                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
+                    print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
         finally:
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
+
+    def _plan_next_step_with_retry(self, observation, max_attempts=8):
+        """Retry transient LLM transport failures without discarding the setup run."""
+        last_error = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if self.enable_observation_compression:
+                    return self.planner.plan(
+                        repo_url=self.repo_url,
+                        manage_history=False,
+                    )
+                return self.planner.plan(
+                    self.repo_url,
+                    observation,
+                )
+            except Exception as exc:
+                last_error = exc
+                if not self._is_transient_llm_error(exc) or attempt >= max_attempts:
+                    raise
+                wait_seconds = min(2 ** attempt, 30)
+                print(
+                    f"[Planner Retry] Transient LLM error on attempt {attempt}/{max_attempts}: "
+                    f"{exc}. Retrying in {wait_seconds}s..."
+                )
+                time.sleep(wait_seconds)
+        raise last_error
+
+    def _is_transient_llm_error(self, exc):
+        text = str(exc).lower()
+        transient_markers = (
+            "timed out",
+            "timeout",
+            "temporarily unavailable",
+            "connection reset",
+            "connection aborted",
+            "remote protocol error",
+            "rate limit",
+            "server error",
+            "502",
+            "503",
+            "504",
+        )
+        return any(marker in text for marker in transient_markers)
+
+    def _create_sandbox(self, base_image, platform_override):
+        return Sandbox(
+            base_image=base_image,
+            workdir="/app",
+            platform=platform_override,  # Use linux/amd64 if ARM64 issues detected
+            seed_dir=self.workplace,
+            command_timeout_seconds=self.command_timeout_seconds,
+        )
 
     def _is_explicit_rollback_action(self, action):
         normalized = (action or "").strip()
@@ -748,6 +1045,28 @@ class DockerAgent:
             "repo_url": self.repo_url,
             "services": sorted(getattr(self, "required_local_services", set())),
         }
+
+    def _append_long_term_memory_hint(self, observation):
+        if not self.enable_long_term_memory:
+            return observation
+        if "[Long-Term Memory Hint]" in (observation or ""):
+            return observation
+
+        failure_count = len(getattr(self, "failed_actions", []))
+        if failure_count <= 1:
+            lead = "This command failed."
+        else:
+            lead = f"{failure_count} commands have failed during this setup run."
+        hint = (
+            "[Long-Term Memory Hint]\n"
+            f"{lead} If the fix is not obvious, or this looks like a repeated "
+            "dependency, package-manager, service, network, compatibility, or "
+            "verification-signal problem, strongly consider making the next "
+            "Action exactly `__RETRIEVE_MEMORY__` before trying another "
+            "speculative fix. Use normal diagnosis if the fix is already clear "
+            "from the command output."
+        )
+        return f"{(observation or '').rstrip()}\n\n{hint}".strip()
 
     def _retrieve_long_term_memory_observation(self):
         if not self.enable_long_term_memory or not self.memory_manager:
@@ -783,6 +1102,272 @@ class DockerAgent:
         self.memory_stats["retrieval_hits"] += len(results)
         return self.memory_manager.format_retrieval_results(results)
 
+    def _synthesize_final_build_recipe(self):
+        recipe_input = self._build_recipe_synthesis_input()
+        result = self.synthesizer.synthesize_build_recipe(
+            self.client,
+            self.model,
+            recipe_input,
+            log_dir=getattr(self, "setup_log_dir", None),
+        )
+        self.build_recipe = result.recipe
+        self.build_recipe_source = result.source
+        self.build_recipe_error = result.error
+
+        if result.usage:
+            self.run_token_ledger.add(
+                "recipe",
+                input_tokens=result.usage.get("input_tokens", 0),
+                output_tokens=result.usage.get("output_tokens", 0),
+            )
+
+        if result.error:
+            print(
+                "[Build Recipe] LLM synthesis failed; refusing to generate an unverifiable Dockerfile. "
+                f"Error: {result.error}"
+            )
+            return False
+        else:
+            print(
+                "[Build Recipe] Synthesized "
+                f"{len(self.build_recipe.get('build_commands', []))} build command(s), "
+                f"{len(self.build_recipe.get('post_test_patch_commands', []))} "
+                "post-test-patch command(s)."
+            )
+            return True
+
+    def _build_recipe_synthesis_input(self):
+        run_summary = self._build_run_summary(configuration_success=True, run_error=None)
+        setup_log_summary_text = self._build_setup_log_summary_text()
+
+        return {
+            "task": {
+                "repo_url": self.repo_url,
+                "base_commit": self.base_commit,
+                "base_image": self.synthesizer.base_image,
+                "workdir": self.synthesizer.workdir,
+                "language": self.language,
+                "required_local_services": sorted(getattr(self, "required_local_services", set())),
+            },
+            "final_verification_bundle": self.verification_bundle or {
+                "runtime_preparation_commands": self.verified_runtime_preparation_commands,
+                "test_commands": self.verified_test_commands,
+            },
+            "setup_log_summary_text": setup_log_summary_text,
+            "agent_run_summary": run_summary,
+        }
+
+    def _build_setup_log_summary_text(self):
+        setup_log_text = self._read_latest_setup_log()
+        extracted_trajectory = self._extract_setup_log_trajectory(setup_log_text)
+        if not extracted_trajectory:
+            return ""
+
+        summarize_setup_log = getattr(self.synthesizer, "summarize_setup_log_for_recipe", None)
+        if not callable(summarize_setup_log) or not getattr(self, "client", None):
+            return extracted_trajectory
+
+        result = summarize_setup_log(
+            self.client,
+            self.model,
+            extracted_trajectory,
+            log_dir=getattr(self, "setup_log_dir", None),
+        )
+        ledger_add = getattr(self.run_token_ledger, "add", None)
+        if callable(ledger_add) and result.usage:
+            ledger_add(
+                "recipe",
+                input_tokens=result.usage.get("input_tokens", 0),
+                output_tokens=result.usage.get("output_tokens", 0),
+            )
+
+        if result.error:
+            print(
+                "[Setup Log Summary] LLM summarization failed; falling back to extracted trajectory. "
+                f"Error: {result.error}"
+            )
+            return extracted_trajectory
+
+        return result.summary_text or extracted_trajectory
+
+    def _extract_setup_log_trajectory(self, setup_log_text):
+        if not setup_log_text:
+            return self._serialize_agent_steps_for_setup_log_summary()
+
+        human_section = self._extract_log_section(
+            setup_log_text,
+            SETUP_LOG_HUMAN_MESSAGE_HEADER,
+            SETUP_LOG_RAW_AI_MESSAGE_HEADER,
+        )
+        if not human_section:
+            return self._serialize_agent_steps_for_setup_log_summary() or ""
+
+        assistant_start = human_section.find("[ASSISTANT]")
+        trajectory_text = human_section[assistant_start:] if assistant_start != -1 else human_section
+        steps = self._parse_setup_log_steps(trajectory_text)
+        if steps:
+            return self._serialize_setup_log_steps_for_summary(steps)
+
+        return self._serialize_agent_steps_for_setup_log_summary() or self._truncate_for_recipe(
+            trajectory_text.strip(),
+            4000,
+        )
+
+    def _extract_log_section(self, text, start_marker, end_marker):
+        if not text:
+            return ""
+        start = text.find(start_marker)
+        if start == -1:
+            return ""
+        start += len(start_marker)
+        end = text.find(end_marker, start)
+        if end == -1:
+            end = len(text)
+        return text[start:end].strip()
+
+    def _parse_setup_log_steps(self, trajectory_text):
+        if not trajectory_text:
+            return []
+
+        blocks = re.split(r"\n(?=\[ASSISTANT\]\n)", trajectory_text.strip())
+        steps = []
+        for block in blocks:
+            block = block.strip()
+            if not block.startswith("[ASSISTANT]"):
+                continue
+            body = block[len("[ASSISTANT]"):].strip()
+            match = re.match(
+                r"Thought:\s*(.*?)\nAction:\s*(.*?)\n\nObservation:\s*(.*)\Z",
+                body,
+                re.DOTALL,
+            )
+            if not match:
+                continue
+            steps.append(
+                {
+                    "thought": match.group(1).strip(),
+                    "action": match.group(2).strip(),
+                    "observation": match.group(3).strip(),
+                }
+            )
+        return steps
+
+    def _serialize_setup_log_steps_for_summary(self, steps):
+        if not steps:
+            return ""
+
+        blocks = []
+        for index, step in enumerate(steps, start=1):
+            thought = self._truncate_for_recipe(
+                step.get("thought", "").strip(),
+                SETUP_LOG_SUMMARY_THOUGHT_MAX_CHARS,
+            )
+            observation = self._truncate_for_recipe(
+                step.get("observation", "").strip(),
+                SETUP_LOG_SUMMARY_OBSERVATION_MAX_CHARS,
+            )
+            blocks.append(
+                "\n".join(
+                    [
+                        f"Step {index}",
+                        f"Thought: {thought}",
+                        f"Action: {step.get('action', '').strip()}",
+                        "Observation:",
+                        observation,
+                    ]
+                ).strip()
+            )
+        return "\n\n".join(blocks)
+
+    def _serialize_agent_steps_for_setup_log_summary(self):
+        if not getattr(self, "agent_steps", None):
+            return ""
+
+        steps = []
+        for step in self.agent_steps:
+            steps.append(
+                {
+                    "thought": step.thought or "",
+                    "action": step.action or "",
+                    "observation": step.observation_prompt or step.observation_raw or "",
+                }
+            )
+        return self._serialize_setup_log_steps_for_summary(steps)
+
+    def _build_recipe_trajectory(self):
+        if self.agent_steps:
+            trajectory = []
+            for step in self.agent_steps:
+                trajectory.append({
+                    "step_id": step.step_id,
+                    "command": step.action,
+                    "success": step.success,
+                    "mutates_environment": step.mutates_environment,
+                    "env_revision_before": step.env_revision_before,
+                    "env_revision_after": step.env_revision_after,
+                    "compressed": step.compression.applied,
+                    "observation_summary": self._truncate_for_recipe(
+                        step.observation_prompt or step.observation_raw,
+                        1600,
+                    ),
+                })
+            return trajectory
+
+        combined = []
+        for record in self.successful_actions:
+            combined.append({**record, "success": True})
+        for record in self.failed_actions:
+            combined.append({**record, "success": False})
+        combined.sort(key=lambda item: item.get("step_index", 0))
+        return self._compact_action_records(combined)
+
+    def _compact_action_records(self, records):
+        compact = []
+        for record in records or []:
+            if not isinstance(record, dict):
+                continue
+            compact.append({
+                "step_index": record.get("step_index"),
+                "command": record.get("command", ""),
+                "success": record.get("success", True),
+                "mutates_environment": record.get("mutates_environment"),
+                "is_readonly": record.get("is_readonly"),
+                "is_runtime_service": record.get("is_runtime_service"),
+                "is_runtime_healthcheck": record.get("is_runtime_healthcheck"),
+                "test_analysis": record.get("test_analysis"),
+                "observation_summary": self._truncate_for_recipe(
+                    record.get("observation", ""),
+                    1200,
+                ),
+            })
+        return compact
+
+    def _truncate_for_recipe(self, text, max_chars):
+        text = text or ""
+        if len(text) <= max_chars:
+            return text
+        head = max_chars // 2
+        tail = max_chars - head
+        return (
+            text[:head]
+            + f"\n... ({len(text) - max_chars} chars omitted for recipe synthesis) ...\n"
+            + text[-tail:]
+        )
+
+    def _record_failed_action(self, step_index, action, observation):
+        self.failed_actions.append({
+            "step_index": step_index,
+            "command": action or "",
+            "success": False,
+            "observation": observation or "",
+            "environment_revision": self._environment_revision,
+            "mutates_environment": False,
+            "is_readonly": self.synthesizer.is_readonly_command(action or ""),
+            "is_runtime_service": self.synthesizer.is_runtime_service_command(action or ""),
+            "is_runtime_healthcheck": self.synthesizer.is_runtime_healthcheck_command(action or ""),
+            "test_analysis": self.synthesizer.analyze_test_run(action or "", observation or ""),
+        })
+
     def _maybe_generate_long_term_memories(self, configuration_success):
         if not configuration_success or not self.enable_long_term_memory or not self.memory_manager:
             return
@@ -815,6 +1400,11 @@ class DockerAgent:
         self.memory_stats["written_memories"] += result.written
         self.memory_stats["skipped_duplicates"] += result.skipped_duplicates
         self.memory_stats["skipped_invalid"] += result.skipped_invalid
+        self.memory_stats["relation_judged_pairs"] += result.relation_judged_pairs
+        self.memory_stats["relation_links_accepted"] += result.relation_links_accepted
+        self.memory_stats["relation_links_rejected"] += result.relation_links_rejected
+        self.memory_stats["relation_duplicates_rejected"] += result.relation_duplicates_rejected
+        self.memory_stats["errors"].extend(result.relation_judge_errors)
         if result.error:
             self.memory_stats["errors"].append(result.error)
         print(
@@ -834,7 +1424,7 @@ class DockerAgent:
         candidates = [
             os.path.join(setup_log_dir, filename)
             for filename in os.listdir(setup_log_dir)
-            if filename.endswith(".md")
+            if filename.endswith(".md") and os.path.splitext(filename)[0].isdigit()
         ]
         if not candidates:
             return ""
@@ -915,10 +1505,17 @@ class DockerAgent:
         start_idx = max(0, target_idx - self.compression_context_before)
         context_steps = self.agent_steps[start_idx:]
 
-        reduced_result, record = self.observation_compressor.compress(
-            target_step=target_step,
-            context_steps=context_steps,
-        )
+        try:
+            reduced_result, record = self.observation_compressor.compress(
+                target_step=target_step,
+                context_steps=context_steps,
+            )
+        except Exception as exc:
+            target_step.compression.applied = False
+            target_step.compression.reason = f"compression_error: {exc}"
+            self.memory_stats["errors"].append(f"Observation compression failed: {exc}")
+            print(f"[Compression Warning] Observation compression failed; keeping raw observation: {exc}")
+            return
         apply_ok, reason = should_apply_compression(
             target_step,
             record,
@@ -1016,7 +1613,46 @@ class DockerAgent:
         print(f"[Recorded Test Command] {action}")
         print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
 
-    def _finalize_verification_from_agent_report(self, raw_llm_output):
+    def _observation_contains_final_success_bundle(self, observation):
+        if not observation:
+            return False
+        return bool(
+            re.search(r"^\s*Verification Bundle:", observation, re.IGNORECASE | re.MULTILINE)
+            and re.search(r"^\s*Final Answer:\s*Success\b", observation, re.IGNORECASE | re.MULTILINE)
+        )
+
+    def _auto_finalize_from_verified_tests(self, source):
+        if not self.verified_test_commands:
+            return False
+
+        self.verification_source = source
+        self.verification_bundle = {
+            "runtime_preparation_commands": list(self.verified_runtime_preparation_commands),
+            "test_commands": list(self.verified_test_commands),
+        }
+        if not self.verified_test_command:
+            self.verified_test_command = self.verified_test_commands[-1]
+        return True
+
+    def _handle_invalid_final_success_report(self, invalid_report_count):
+        if self._auto_finalize_from_verified_tests("auto_finalized_after_invalid_agent_report"):
+            print("[Verification Bundle] Auto-finalized from previously verified test commands.")
+            return invalid_report_count, True, None
+
+        invalid_report_count += 1
+        if invalid_report_count >= MAX_INVALID_FINAL_BUNDLE_REPORTS:
+            return (
+                invalid_report_count,
+                False,
+                (
+                    "Agent repeatedly emitted invalid final Verification Bundles "
+                    "without any previously verified test command."
+                ),
+            )
+
+        return invalid_report_count, False, None
+
+    def _finalize_verification_from_agent_report(self, raw_llm_output, source="agent_report"):
         bundle = self._extract_verification_bundle(raw_llm_output)
         if not bundle:
             return False
@@ -1029,18 +1665,46 @@ class DockerAgent:
             print("[Verification Bundle] Missing non-empty `test_commands`; ignoring agent-reported bundle.")
             return False
 
-        self.verified_runtime_preparation_commands = list(runtime_commands)
-        self.verified_test_commands = list(test_commands)
+        supported_bundle = derive_supported_verification_bundle(
+            {
+                "verification_bundle": {
+                    "runtime_preparation_commands": list(runtime_commands),
+                    "test_commands": list(test_commands),
+                },
+                "verified_runtime_preparation_commands": self.verified_runtime_preparation_commands,
+                "verified_test_commands": self.verified_test_commands,
+                "verified_test_command": self.verified_test_command,
+                "successful_actions": self.successful_actions,
+            },
+            synthesizer=self.synthesizer,
+        )
+        supported_runtime_commands = list(supported_bundle.get("runtime_preparation_commands") or [])
+        supported_test_commands = list(supported_bundle.get("test_commands") or [])
+
+        if supported_runtime_commands != list(runtime_commands) or supported_test_commands != list(test_commands):
+            print(
+                "[Verification Bundle] Rejected agent-reported bundle because at least one command "
+                "was not previously observed succeeding in the final environment."
+            )
+            return False
+
+        self.verified_runtime_preparation_commands = supported_runtime_commands
+        self.verified_test_commands = supported_test_commands
         self.verified_test_command = self.verified_test_commands[-1]
-        self.verification_source = "agent_report"
+        self.verification_source = source
         self.verification_bundle = {
-            "runtime_preparation_commands": list(runtime_commands),
-            "test_commands": list(test_commands),
+            "runtime_preparation_commands": supported_runtime_commands,
+            "test_commands": supported_test_commands,
         }
+        source_label = (
+            "a successful command observation"
+            if source == "agent_observation"
+            else "the agent report"
+        )
         print(
             "[Verification Bundle] Accepted "
-            f"{len(runtime_commands)} runtime preparation command(s) and "
-            f"{len(test_commands)} test command(s) from the agent report."
+            f"{len(supported_runtime_commands)} runtime preparation command(s) and "
+            f"{len(supported_test_commands)} test command(s) from {source_label}."
         )
         return True
 
@@ -1058,19 +1722,64 @@ class DockerAgent:
         return normalized
 
     def _extract_verification_bundle(self, raw_llm_output):
-        if not raw_llm_output or "Verification Bundle" not in raw_llm_output:
+        if not raw_llm_output:
             return None
 
-        marker = "Verification Bundle:"
-        marker_index = raw_llm_output.find(marker)
-        if marker_index == -1:
-            return None
+        candidates = []
+        success_matches = list(
+            re.finditer(
+                r"^\s*Final Answer:\s*Success\b",
+                raw_llm_output,
+                re.IGNORECASE | re.MULTILINE,
+            )
+        )
+        if success_matches:
+            for success_match in reversed(success_matches):
+                prefix = raw_llm_output[:success_match.start()]
+                marker_matches = list(
+                    re.finditer(
+                        r"^\s*Verification Bundle:",
+                        prefix,
+                        re.IGNORECASE | re.MULTILINE,
+                    )
+                )
+                for marker_match in reversed(marker_matches):
+                    candidate = prefix[marker_match.end():].strip()
+                    if candidate:
+                        candidates.append(candidate)
+                if not marker_matches:
+                    for json_start in reversed(list(re.finditer(r"\{", prefix))):
+                        candidates.append(prefix[json_start.start():].strip())
+        else:
+            marker_matches = list(
+                re.finditer(
+                    r"^\s*Verification Bundle:",
+                    raw_llm_output,
+                    re.IGNORECASE | re.MULTILINE,
+                )
+            )
+            for marker_match in reversed(marker_matches):
+                candidate = raw_llm_output[marker_match.end():].strip()
+                final_answer_match = re.search(
+                    r"^\s*Final Answer:",
+                    candidate,
+                    re.IGNORECASE | re.MULTILINE,
+                )
+                if final_answer_match:
+                    candidate = candidate[:final_answer_match.start()].strip()
+                if candidate:
+                    candidates.append(candidate)
 
-        candidate = raw_llm_output[marker_index + len(marker):]
-        final_answer_index = candidate.find("Final Answer:")
-        if final_answer_index != -1:
-            candidate = candidate[:final_answer_index]
-        candidate = candidate.strip()
+        for candidate in candidates:
+            parsed = self._parse_verification_bundle_candidate(candidate)
+            if parsed is not None:
+                return parsed
+
+        print("[Verification Bundle] Could not locate a JSON object in the final answer.")
+        return None
+
+    def _parse_verification_bundle_candidate(self, candidate):
+        candidate = (candidate or "").strip()
         if not candidate:
             return None
 
@@ -1085,7 +1794,6 @@ class DockerAgent:
 
         json_blob = self._extract_first_json_object(candidate)
         if not json_blob:
-            print("[Verification Bundle] Could not locate a JSON object in the final answer.")
             return None
 
         try:
@@ -1128,98 +1836,6 @@ class DockerAgent:
                     return text[start:index + 1]
         return None
 
-    def _validate_reported_test_commands(self, test_commands):
-        matched_indices = []
-        cursor = -1
-        for command in test_commands:
-            matched_index = self._find_successful_action_index(command, cursor + 1)
-            if matched_index is None:
-                print(f"[Verification Bundle] Test command was not observed as a successful action: {command}")
-                return []
-
-            entry = self.successful_actions[matched_index]
-            if not self._successful_action_proves_tests(entry):
-                print(
-                    "[Verification Bundle] Reported test command did not produce a reliable test signal: "
-                    f"{command}"
-                )
-                return []
-
-            if matched_indices:
-                if not self._intervening_actions_are_ignorable(matched_indices[-1], matched_index):
-                    print(
-                        "[Verification Bundle] Found non-ignorable successful actions between test commands; "
-                        "rejecting the report."
-                    )
-                    return []
-
-            matched_indices.append(matched_index)
-            cursor = matched_index
-
-        return list(test_commands)
-
-    def _validate_reported_runtime_preparation_commands(self, runtime_commands):
-        validated_commands = []
-        cursor = -1
-
-        for command in runtime_commands:
-            matched_index = self._find_successful_action_index(command, cursor + 1)
-            if matched_index is None:
-                print(
-                    "[Verification Bundle] Runtime preparation command was not observed as a "
-                    f"successful action and will be ignored: {command}"
-                )
-                continue
-
-            entry = self.successful_actions[matched_index]
-            if not self._successful_action_is_runtime_preparation_candidate(entry):
-                print(
-                    "[Verification Bundle] Runtime preparation command is not a valid ephemeral runtime action "
-                    f"and will be ignored: {command}"
-                )
-                continue
-
-            validated_commands.append(command)
-            cursor = matched_index
-
-        return validated_commands
-
-    def _find_successful_action_index(self, command, start_index):
-        command = (command or "").strip()
-        for index in range(start_index, len(self.successful_actions)):
-            if self.successful_actions[index]["command"].strip() == command:
-                return index
-        return None
-
-    def _intervening_actions_are_ignorable(self, start_index, end_index):
-        for entry in self.successful_actions[start_index + 1:end_index]:
-            if not self._is_ignorable_successful_action(entry):
-                return False
-        return True
-
-    def _is_ignorable_successful_action(self, entry):
-        return entry.get("is_readonly") or entry.get("is_runtime_healthcheck")
-
-    def _successful_action_proves_tests(self, entry):
-        observation = entry.get("observation") or ""
-        if self.synthesizer.observation_looks_like_help_text(observation):
-            return False
-        if self.synthesizer.observation_has_empty_test_run_signal(observation):
-            return False
-        if self.synthesizer.observation_has_effective_test_signal(observation):
-            return True
-
-        analysis = entry.get("test_analysis") or {}
-        return bool(analysis.get("is_effective_test_run"))
-
-    def _successful_action_is_runtime_preparation_candidate(self, entry):
-        command = entry.get("command") or ""
-        if entry.get("is_readonly") or entry.get("is_runtime_healthcheck"):
-            return False
-        if self.synthesizer.is_persistent_setup_command(command):
-            return False
-        return True
-
     def _invalidate_verification_group(self, reason):
         """Drop previously verified commands when later actions mean they no longer prove the final environment."""
         if not self._current_verification_group:
@@ -1236,19 +1852,30 @@ class DockerAgent:
         return {
             "repo_url": self.repo_url,
             "configuration_success": configuration_success,
+            "base_image": getattr(getattr(self, "synthesizer", None), "base_image", None),
+            "platform_override": getattr(self, "platform_override", None),
             "verified_test_command": self.verified_test_command,
             "verified_test_commands": self.verified_test_commands,
             "verified_runtime_preparation_commands": self.verified_runtime_preparation_commands,
             "successful_test_commands": self.successful_test_commands,
             "test_run_attempts": self.test_run_attempts,
+            "successful_actions": self._compact_action_records(
+                getattr(self, "successful_actions", [])
+            ),
+            "failed_actions": self._compact_action_records(getattr(self, "failed_actions", [])),
             "verification_source": self.verification_source,
             "verification_bundle": self.verification_bundle,
+            "benchmark_evaluation_target": self.benchmark_evaluation_target,
+            "build_recipe": getattr(self, "build_recipe", None),
+            "build_recipe_source": getattr(self, "build_recipe_source", None),
+            "build_recipe_error": getattr(self, "build_recipe_error", None),
             "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,
             "compression_stats": self.compression_stats,
             "long_term_memory_enabled": self.enable_long_term_memory,
             "memory_path": str(self.memory_manager.memory_path) if self.memory_manager else self.memory_path,
             "memory_embedding_model": self.memory_embedding_model,
+            "command_timeout_seconds": getattr(self, "command_timeout_seconds", None),
             "memory_stats": self.memory_stats,
             "steps": [
                 {
@@ -1270,6 +1897,9 @@ class DockerAgent:
                 "planner": self.run_token_ledger.planner.__dict__,
                 "reflection": self.run_token_ledger.reflection.__dict__,
                 "memory": self.run_token_ledger.memory.__dict__,
+                "recipe": getattr(self.run_token_ledger, "recipe", {}).__dict__
+                if hasattr(getattr(self.run_token_ledger, "recipe", {}), "__dict__")
+                else getattr(self.run_token_ledger, "recipe", {}),
                 "total": self.run_token_ledger.total.__dict__,
             },
             "error": run_error,
@@ -1291,6 +1921,16 @@ if __name__ == "__main__":
     parser.add_argument("--image", default="auto", help="Base Docker image (default: auto-detect, or specify like 'python:3.10', 'node:18')")
     parser.add_argument("--model", default=DEFAULT_LLM_MODEL, help=f"LLM model to use (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--steps", type=int, default=30, help="Maximum number of steps (default: 30)")
+    parser.add_argument(
+        "--base-commit",
+        default=None,
+        help="Optional git commit or abbreviated SHA to checkout after cloning the repository.",
+    )
+    parser.add_argument(
+        "--workplace",
+        default="workplace",
+        help="Directory used to clone the repository and store run artifacts.",
+    )
     parser.add_argument("--keep-container", action="store_true", help="Keep container running after completion for inspection")
     parser.add_argument(
         "--enable-observation-compression",
@@ -1312,6 +1952,12 @@ if __name__ == "__main__":
         default=DEFAULT_MEMORY_EMBEDDING_MODEL,
         help=f"Embedding model for long-term memory (default: {DEFAULT_MEMORY_EMBEDDING_MODEL})",
     )
+    parser.add_argument(
+        "--command-timeout",
+        type=int,
+        default=1800,
+        help="Per-command timeout inside the sandbox in seconds. Defaults to 1800.",
+    )
     
     args = parser.parse_args()
     
@@ -1319,9 +1965,12 @@ if __name__ == "__main__":
         args.repo_url,
         base_image=args.image,
         model=args.model,
+        workplace=args.workplace,
+        base_commit=args.base_commit,
         enable_observation_compression=args.enable_observation_compression,
         enable_long_term_memory=args.enable_long_term_memory,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
+        command_timeout_seconds=args.command_timeout,
     )
     agent.run(max_steps=args.steps, keep_container=args.keep_container)

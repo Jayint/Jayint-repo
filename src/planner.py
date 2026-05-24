@@ -1,6 +1,6 @@
 import re
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 from src.language_handlers import LanguageHandler
 from src.constants import DEFAULT_LLM_MODEL
 
@@ -21,6 +21,7 @@ class Planner:
         completion_reserve_tokens: int = None,
         history_token_budget: int = None,
         enable_long_term_memory: bool = False,
+        benchmark_evaluation_target: Optional[Dict[str, Any]] = None,
     ):
         self.client = client
         self.model = model
@@ -43,6 +44,7 @@ class Planner:
         )
         self.history_token_budget = history_token_budget
         self.enable_long_term_memory = enable_long_term_memory
+        self.benchmark_evaluation_target = benchmark_evaluation_target or {}
         
         # Create log directory if specified
         if self.log_dir:
@@ -85,99 +87,74 @@ class Planner:
         )
 
         prompt_sections.extend([
-            "RESPONSE FORMAT (always follow):\n"
+            "SINGLE-STEP RESPONSE PROTOCOL:\n"
             "Thought: <your reasoning>\n"
             f"{action_format}\n"
-            "Do NOT write `Observation:`. The system will execute your Action and provide the Observation in the next message.",
+            "- The Observation is produced ONLY by the host system after it executes your Action.\n"
+            "- You are the planner, not the executor: never write, predict, simulate, or continue with an Observation yourself.\n"
+            "- Only output ONE Thought and ONE Action at a time.\n"
+            "- Stop immediately after the Action.\n"
+            "- Never generate command results, `Observation:`, a second `Action:`, `Verification Bundle:`, or `Final Answer:` in the same response as an Action.\n"
+            "- Do not simulate command execution results. Your response must end immediately after the Action line.",
 
             "READ THESE FIRST (highest-priority rules):\n"
-            "- **CRITICAL**: If tests fail, you CANNOT output 'Final Answer: Success'. You must continue fixing the environment until tests pass.\n"
-            "- **No Excuses Rule**: You are STRICTLY FORBIDDEN from declaring success when tests are failing, regardless of any reasoning such as: 'the project is old', 'it is a compatibility issue', 'I have spent too much time', 'environment constraints prevent running tests', 'other tests pass', or 'I manually verified functionality'. ALL tests must pass. No exceptions.\n"
-            "- **Partial Pass Is NOT Success**: If the test output shows 'Failed: N' or 'N failed' or any 'not ok' lines, even N=1, you MUST NOT declare success. 400/403 passing is a FAILURE, not a success. Only 0 failures qualifies as success.\n"
-            "- **[SYSTEM] Warnings Are Binding**: If the Observation starts with '[SYSTEM] ⚠️  TEST FAILURE DETECTED', you are ABSOLUTELY FORBIDDEN from outputting 'Final Answer: Success' in your next response. You must attempt to fix the failing tests.\n"
-            "- **No Bypassing Tests**: You MUST run the PROJECT'S test command (e.g., `vendor/bin/phpunit`, `pytest`, `npm test`). You are NOT allowed to create your own test scripts, use alternative verification methods, or claim success based on manual checks alone.\n"
+            "- **No Excuses Rule**: You CANNOT output 'Final Answer: Success' unless the final verification command(s) you will report have been executed for real and prove the repository's tests are collectable in the configured environment. For ordinary Python setup, this means `pytest --collect-only -q --disable-warnings` succeeds from the repository root; for Poetry projects, use `poetry run pytest --collect-only -q --disable-warnings`. You do NOT need to run the full test suite or make all tests pass. Collection/import/config errors, missing dependencies, missing services, bad paths, bad locale, or other fixable environment defects are still setup failures and must be fixed. If a `Benchmark Evaluation Target` is provided, use the metadata only as a clue for relevant test framework/files; the final proof should still be Repo2Run-style pytest collection success.\n"
+            "- **No Bypassing Tests**: Run real pytest collection for the project. Do not create substitute tests or claim success from manual import checks alone.\n"
             "- **No `sudo` In This Container**: Do not use `sudo`. In this container, `sudo` may be unavailable even when you already have permission to install packages directly. If you need a system package such as PostgreSQL, first try installing it directly with commands like `apt-get update && apt-get install -y <package>`.\n"
-            "- **Explicit Rollback Tool**: Ordinary command failures do NOT automatically roll back the container. If you believe a failed mutating command left the environment in a bad or uncertain state, you may request a restore to the last successful snapshot by outputting exactly `Action: __ROLLBACK__`.",
+            "- **Keep Setup Commands Atomic**: Prefer one state-changing operation per Action. Do not combine package installs, file edits, service setup, generated artifacts, and verification/probe commands with `&&`, `;`, or pipes unless the command is intrinsically atomic and cannot be split. In particular, do not put environment-changing commands and read-only checks/tests in the same Action.\n"
+            "- **No Output Truncation Filters**: Do not append `| tail`, `| head`, `| grep`, or similar output-limiting filters to setup, install, or verification commands. The host handles long output. These filters can hide the real failure and make later Dockerfile synthesis wrong.\n"
 
             "CRITICAL CONSTRAINTS (Environment Limitations):\n"
             "- You are running INSIDE a Docker container, NOT on a host machine.\n"
-            "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `dockerd`, `sudo`\n"
-            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers (pip, apt, npm, cargo, go, mvn, gem, etc.).\n"
-            "- Use ONLY: package managers (pip/uv/apt/yum/npm/yarn/cargo/go/mvn/gradle/gem/bundle/etc.), language runtimes (python/node/go/rust/java/ruby/etc.), and the project's own entry points.",
+            "- FORBIDDEN commands: `docker build`, `docker run`, `docker-compose`, `systemctl`, `dockerd`\n"
+            "- If the repository contains a Dockerfile, DO NOT try to build it. Instead, analyze it to understand dependencies and install them directly using package managers.\n"
 
             "WORKFLOW:\n"
-            "1. **Analyze & Setup**: Identify dependency files and install all necessary packages/tools.\n"
-            "2. **Read README**: After setup, read `README.md` to find startup, usage, and test instructions.\n"
-            "3. **Verification** (MANDATORY - Must pass before claiming Success):\n"
-            "   - After setup, you MUST run the project's tests to verify the environment works correctly.\n"
-            "   - For Ruby projects with gemspec: Run `bundle exec rake` or `bundle exec rspec` or the test command in the project's test files.\n"
-            "   - For Python: Run `pytest` or `python -m pytest`.\n"
-            "   - For Node.js: Run `npm test` or `yarn test`.\n"
-            "   - For PHP: Run `vendor/bin/phpunit` (after composer install).\n"
-            "   - **Environment Limits Are Not Excuses**: If the environment lacks required tools (e.g., zip, git for composer), you must find a solution (e.g., install them, use alternative base image approach), NOT bypass the tests.\n"
-            "   - **Test Dependency Fix**: If tests fail due to missing test libraries (e.g., Ruby's `stub` method not found), install the required library (e.g., `gem install mocha` or add to Gemfile). DO NOT skip tests with `--exclude`.\n"
-            "   - **Secret/API_KEY Handling**: Only if tests fail due to missing API_KEYs/secrets (not setup issues), document the required keys and continue.",
+            "1. Inspect dependency, build, README/CI, and test configuration files as needed.\n"
+            "2. Install the dependencies, tools, and local services needed by the repository.\n"
+            "3. Run Repo2Run-style verification: `pytest --collect-only -q --disable-warnings` or, for Poetry projects, `poetry run pytest --collect-only -q --disable-warnings`. If tools, test dependencies, or services are missing, fix the environment rather than bypassing tests. Temporary `--ignore` flags are only for diagnosis; they do NOT count as final proof unless you also change the repository/test configuration so the plain Repo2Run command now succeeds.\n"
+            "4. Missing secrets/API keys may be documented only when the remaining failures are clearly secret-only.",
 
             "ROLLBACK STRATEGY:\n"
-            "- **When Rollback Is Appropriate**: Consider `__ROLLBACK__` after a failed package-manager/install step, a failed config edit, a failed database initialization/startup sequence, or any failed multi-step mutation that may have left partial state behind.\n"
-            "- **When Rollback Is Usually NOT Appropriate**: Do not use `__ROLLBACK__` for read-only search commands, health checks, connection probes, or ordinary test failures unless you have evidence the environment itself was changed or corrupted.\n"
-            "- **Split Mutation From Verification**: Avoid chaining a mutating step and a probe/test in one command. Prefer one action for the mutation, then a separate action for the verification, so you can decide whether rollback is necessary based on what failed.",
+            "- Ordinary command failures do NOT automatically roll back the container. Request `Action: __ROLLBACK__` only when a failed mutating step may have left partial or uncertain state behind.\n"
+            "- Consider `__ROLLBACK__` after a failed package-manager/install step, a failed config edit, a failed database initialization/startup sequence, or any failed multi-step mutation.\n"
+            "- Do not use `__ROLLBACK__` for read-only search commands, health checks, connection probes, or ordinary test failures unless you have evidence the environment itself was changed or corrupted.\n"
+            "- If a failed setup command may have partially succeeded, do not rely on that implicit partial state. If a prefix or sub-step is useful, rerun it as its own separate Action so it is confirmed successful; use `__ROLLBACK__` if the partial changes may have polluted the environment.\n"
+            "- **Split Mutation From Verification**: Do not chain a mutating step and a probe/test/read-only command in one command. Prefer one action for the mutation, then a separate action for the verification.",
         ])
 
         if self.enable_long_term_memory:
             prompt_sections.append(
                 "LONG-TERM MEMORY TOOL:\n"
                 "- After a concrete command failure, you may request relevant prior setup lessons by outputting exactly `Action: __RETRIEVE_MEMORY__`.\n"
-                "- Use this when the failure seems non-obvious, repeated, or related to package managers, build tools, local services, network/mirror behavior, or compatibility issues.\n"
+                "- Prefer this before trying more speculative fixes when the same problem has resisted several real attempts, multiple speculative fixes have failed, or the next step is still unclear after repeated troubleshooting.\n"
+                "- If the latest Observation contains a [Long-Term Memory Hint], seriously consider retrieving memory as the next Action unless the fix is already obvious from that Observation.\n"
                 "- Do NOT use memory retrieval as your first action. It is only for learning from a recent failure.\n"
                 "- Retrieved memories are suggestions, not proof. You must still run real setup commands and project tests to verify the environment."
             )
 
         prompt_sections.extend([
-            "PACKAGE / NETWORK STRATEGY:\n"
-            "- **Retry Transient Package Manager Failures**: If package installation fails due to mirror/network/package-index issues (for example 502 errors or fetch errors), retry the package-manager workflow, split installs into smaller steps, or use recovery flags before abandoning the required service path.\n"
-            "- **Prefer Small Package Batches On Flaky Networks**: Do NOT start with one huge `apt-get install` that mixes runtimes, frontend toolchains, databases, brokers, search engines, and other large dependency trees. Install the smallest critical package set first, confirm progress, then add the next batch.\n"
-            "- **Install By Priority, Not By Completeness**: On projects with multiple stacks, prioritize the minimum backend/build requirements and required local services before optional or heavyweight extras. For example, do not install `nodejs`/`npm` early unless they are immediately required for the next verified step.\n"
-            "- **Fix Broken Package State Before Expanding Scope**: If `apt` reports unmet dependencies or suggests `apt --fix-broken install`, treat that as a recovery task. Do not pile more packages into the next install command until the package manager state is healthy again.\n"
-            "- **Protect Existing Maven Repositories**: If a Maven project already declares custom repositories in `pom.xml` or existing settings, do NOT overwrite them with a global mirror such as `<mirrorOf>*</mirrorOf>`. Doing so can hide required repositories and break dependency resolution.\n"
-            "- **Prefer Scoped Maven Mirrors**: If Maven downloads are slow or flaky and you need a mirror, prefer a temporary per-command settings file (for example `mvn -s /tmp/maven-settings.xml ...`) and scope the mirror to Maven Central only, or explicitly exclude project-declared repository ids from the mirror.",
-
             "LOCAL SERVICE RULES:\n"
             "- **External Services Are Part of Environment Setup**: Missing PostgreSQL/MySQL/Redis/RabbitMQ/MinIO/Elasticsearch/Kafka or other required local services is NOT equivalent to missing secrets. If tests fail because a required service is unavailable, connection-refused, not started, or not configured, you MUST treat that as an environment/setup problem and continue fixing it.\n"
             "- **Match The Required Service, Do Not Swap Backends**: If repository config or test output clearly shows that a local database/cache/broker/search/object-store service is required, first try to install and start that same kind of service. Do NOT replace it with a different backend (for example, swapping PostgreSQL for H2 or replacing Redis with a mock) unless the repository itself already provides an official alternative profile, documented test mode, or supported fallback.\n"
-            "- **Client Packages Are Not Enough**: Installing a client package such as `postgresql-client`, `mysql-client`, or `redis-cli` does not satisfy a service dependency. The actual server/daemon must be installed, started, and reachable at the host/port expected by the tests.\n"
-            "- **Match The Configured Port/Host**: If the repository config expects a service on a non-default host or port, configure the daemon to listen there. Running PostgreSQL on 5432 does NOT satisfy tests that explicitly expect 5433.\n"
-            "- **Some Daemons Cannot Run As Root**: If a service refuses to start as root, use the packaged service wrapper or the service's dedicated user without `sudo`. Prefer commands such as `service <name> start`, `su -s /bin/bash -c '...' <user>`, or `runuser -u <user> -- ...` when available.\n"
-            "- **Prefer Package-Service Entry Points For Deb/Apt Daemons**: For services installed from system packages (especially Elasticsearch and similar daemons), do NOT jump straight to the raw binary if the package provides a service wrapper. Prefer `service <name> start` or the package's supported startup entry point first, because it usually sets the expected user, log paths, and data directories.\n"
-            "- **Direct Binary Launch Requires Permission Prep**: If you must start a packaged daemon with `su`/`runuser` and its raw binary, first verify that its log/data directories are writable by that service user. For example, a non-root Elasticsearch process must be able to write under paths such as `/var/log/elasticsearch` and its data directory before it can boot successfully.\n"
+            "- **A Client Is Not A Service**: Client packages or CLI probes are not enough. The actual server/daemon must be running and reachable at the host/port expected by the tests.\n"
             "- **Do Not Misclassify Service Failures As Acceptable**: Errors such as database connection refused, missing local broker/storage endpoints, failed migrations caused by unavailable infrastructure, or application boot failures due to missing services are setup failures, not acceptable final-test failures.",
 
-            "FINAL VERIFICATION STRATEGY:\n"
-            "- **Final Verification Block**: Before declaring success, run every test command needed to prove the final environment in one final consecutive verification burst. Avoid doing new setup/build steps after the last successful verification command.\n"
-            "- **Differentiate Exploration vs Final Evaluation**: During setup you may run exploratory probes or narrow smoke tests to learn about the project, but the commands in the final `Verification Bundle` must be the ones you want a fresh evaluator to run to validate the configured environment.\n"
-            "- **Prefer Project-Native Final Commands**: For the final `Verification Bundle`, prefer the repository's native or standard verification commands (README/CI/build tool entry points, module-aware project test commands, or the most representative reproducible commands you found). Avoid opportunistic one-off smoke checks unless they are truly the best reproducible proof of correctness available.\n"
-            "- **Service-Dependent Projects Need Representative Final Tests**: If repository config or test settings clearly depend on local services, do NOT end with only narrow single-test or unit-test commands. Your final `Verification Bundle` should include at least one broader, representative test command that exercises the configured service-dependent environment.",
-
-            "FINAL SUCCESS CONTRACT:\n"
-            "- ONLY output 'Final Answer: Success' when all dependencies are installed AND the PROJECT'S test command runs successfully (all tests pass, or fail ONLY due to missing secrets/API keys, not due to missing local services or other setup issues).\n"
-            "- Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys:\n"
-            "  * `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution (for example, daemon startup commands like `redis-server --daemonize yes`). Use `[]` if none are required.\n"
-            "  * `test_commands`: exact previously successful commands whose output proved the final environment works. Wrapper commands such as `make all` are allowed if they really executed tests.\n"
-            "- Every command inside the bundle must exactly match a command you already executed successfully.\n"
-            "- Exclude read-only checks such as `redis-cli ping` from `runtime_preparation_commands`.\n"
-            "- Do NOT put installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands into `runtime_preparation_commands`. Examples that must stay OUT of runtime preparation: `apt-get install ...`, `pip install ...`, `composer install ...`, `npm install ...`, `bundle install`, `git clone ...`, `make build`.\n"
+            "FINAL VERIFICATION AND SUCCESS:\n"
+            "- **Final Verification Block**: Before declaring success, run the Repo2Run-style pytest collection command in one final verification step. Avoid doing new setup/build steps after the last successful verification command.\n"
+            "- **Do Not Truncate Verification Output**: Do NOT pipe the collection command through `head`, `tail`, or similar output-limiting filters when deciding whether the environment works. This same rule applies to setup and install commands. Run the full command; long output will be handled by observation compression.\n"
+            "- **Target Outcome For Final Verification**: The target is successful pytest collection, not test execution or test passing. Prefer `pytest --collect-only -q --disable-warnings`; use `poetry run pytest --collect-only -q --disable-warnings` when the project uses Poetry. If collection succeeds, you may use that command in the final `Verification Bundle`.\n"
+            "- **No Final Ignore-Flag Shortcut**: `--ignore`, `-k`, or similar narrowing flags may help diagnose failures, but they are not an acceptable final verification shortcut by themselves. Final success means the plain Repo2Run collection command succeeds in the configured repository.\n"
+            "- **Service-Dependent Projects Still Need Real Environment Fixes**: If pytest collection fails because repository imports/configuration require local services, do NOT ignore or mock those failures unless the project documents an official test profile/fallback. Configure the required service or supported test mode until collection succeeds.\n"
+            "- Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys: `runtime_preparation_commands` and `test_commands`.\n"
+            "- `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution. Use `[]` if none are required. Exclude read-only checks such as `redis-cli ping`, and do NOT include installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands.\n"
+            "- `test_commands`: exact previously successful Repo2Run-style collection command whose output proved pytest can collect the repository tests in the final environment. Every command inside the bundle must exactly match a command you already executed successfully.\n"
             "- `runtime_preparation_commands` should usually be short and often empty. It is only for ephemeral runtime actions such as starting a local service, exporting a runtime variable, or preparing a daemon needed by the final tests.\n"
             "- Success responses must follow this exact shape:\n"
             "  Thought: <brief final reasoning>\n"
             "  Verification Bundle:\n"
             "  {\"runtime_preparation_commands\": [...], \"test_commands\": [...]} \n"
             "  Final Answer: Success",
-
-            "IMPORTANT RESPONSE RULES:\n"
-            "- Only output ONE Thought and ONE Action at a time.\n"
-            "- Stop immediately after the Action.\n"
-            "- Never generate `Observation:`, a second `Action:`, `Verification Bundle:`, or `Final Answer:` in the same response as an Action.\n"
-            "- Do not simulate command execution results. You must wait for the system-provided Observation before planning the next step.",
         ])
 
         self.system_prompt = "\n\n".join(prompt_sections)
@@ -193,7 +170,7 @@ class Planner:
 
             # 1. Initialize history with repository information on the first turn
             if not self.history:
-                self.history.append({"role": "user", "content": f"Repository URL: {repo_url}"})
+                self.history.append({"role": "user", "content": self._build_seed_content(repo_url)})
 
             # 2. Append the last observation as a new user message
             if last_observation is not None:
@@ -219,25 +196,35 @@ class Planner:
             stop=["Observation:"]
         )
 
+        # 4. Parse the model output before storing it. Some OpenAI-compatible
+        # endpoints do not reliably honor stop sequences, so keep only the
+        # executable single-step ReAct message in history.
         content = response.choices[0].message.content
-        
-        # Log the LLM call output
+        thought = self._extract_thought(content)
+        action = self._extract_tag(content, "Action")
+        final_answer = self.extract_final_answer(content)
+        if final_answer is not None:
+            history_content = self._strip_generated_future_trajectory(content)
+        else:
+            history_content = self.sanitize_assistant_content(
+                content,
+                thought=thought,
+                action=action,
+            )
+
+        # Log both the raw provider response and the executable message that the
+        # agent will actually use. This keeps overgenerated Observations visible
+        # for debugging without making them look like trusted trajectory state.
         self._log_llm_call("output", {
             "content": content,
+            "sanitized_content": history_content,
+            "overgenerated": self._assistant_output_was_sanitized(content, history_content),
             "usage": {
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens
             }
         })
-        
-        # 4. Parse the model output before storing it. Some OpenAI-compatible
-        # endpoints do not reliably honor stop sequences, so keep only the
-        # executable single-step ReAct message in history.
-        thought = self._extract_tag(content, "Thought")
-        action = self._extract_tag(content, "Action")
-        final_answer = self.extract_final_answer(content)
-        history_content = self.sanitize_assistant_content(content, thought=thought, action=action)
 
         if manage_history:
             self.history.append({"role": "assistant", "content": history_content})
@@ -247,14 +234,60 @@ class Planner:
         usage = response.usage
         usage_info = self._extract_usage(usage)
 
-        is_finished = final_answer is not None and not action
+        # A final answer should never be executed as a shell Action. If a model
+        # emits both an Action and a final marker in one response, the agent will
+        # validate the final Verification Bundle against previously observed
+        # commands before accepting it.
+        is_finished = final_answer is not None
 
         return thought, action, content, is_finished, usage_info
 
     def init_managed_history(self, repo_url):
-        self.managed_history = [{"role": "user", "content": f"Repository URL: {repo_url}"}]
+        self.managed_history = [{"role": "user", "content": self._build_seed_content(repo_url)}]
         self.managed_history_meta = [{"step_id": None, "kind": "seed"}]
         self.managed_step_to_history_index = {}
+
+    def _build_seed_content(self, repo_url):
+        sections = [f"Repository URL: {repo_url}"]
+        benchmark_target = self._format_benchmark_evaluation_target()
+        if benchmark_target:
+            sections.append(benchmark_target)
+        return "\n\n".join(sections)
+
+    def _format_benchmark_evaluation_target(self):
+        target = self.benchmark_evaluation_target or {}
+        changed_test_files = [
+            str(path).strip()
+            for path in target.get("changed_test_files", []) or []
+            if str(path).strip()
+        ]
+        framework_clues = [
+            str(clue).strip()
+            for clue in target.get("test_framework_clues", []) or []
+            if str(clue).strip()
+        ]
+        if not changed_test_files and not framework_clues:
+            return ""
+
+        lines = [
+            "Benchmark Evaluation Target:",
+            "Multi-Docker-Eval will later apply a benchmark test patch. You are doing environment setup only.",
+            "Do NOT apply the benchmark test patch. Do NOT modify project source/test semantics to satisfy it.",
+            "Environment compatibility edits needed only to run the existing test harness are allowed if verified.",
+            "Use the following metadata only as clues for the relevant test framework/files when making pytest collection succeed.",
+        ]
+        if changed_test_files:
+            lines.append("Changed test files from the benchmark test patch:")
+            lines.extend(f"- {path}" for path in changed_test_files[:20])
+        if framework_clues:
+            lines.append("Test framework clues observed in the benchmark test patch:")
+            lines.extend(f"- {clue}" for clue in framework_clues[:12])
+        lines.append(
+            "Before declaring success, the final proof should be successful Repo2Run-style pytest collection "
+            "from the repository root. Use the changed-file and framework metadata to diagnose collection "
+            "errors, but you do not need to execute or pass those tests."
+        )
+        return "\n".join(lines)
 
     def append_step(self, step_id, assistant_content, observation_content):
         if not self.managed_history:
@@ -313,8 +346,17 @@ class Planner:
         else:
             # Append output to the same file
             with open(log_file, 'a', encoding='utf-8') as f:
-                f.write("================================ AI Message =================================\n\n")
+                f.write("================================ Raw AI Message =================================\n\n")
                 f.write(f"{data['content']}\n\n")
+                sanitized_content = data.get("sanitized_content")
+                if sanitized_content:
+                    f.write("================================ Executable Message Used By Agent =================================\n\n")
+                    f.write(f"{sanitized_content}\n\n")
+                    if data.get("overgenerated"):
+                        f.write(
+                            "Note: The raw model output contained generated Observation/future-step "
+                            "content. The agent executed and stored only the executable message above.\n\n"
+                        )
                 f.write("================================ Metadata =================================\n\n")
                 f.write(f"- Model: {self.model}\n")
                 f.write(f"- Prompt Tokens: {data['usage']['prompt_tokens']}\n")
@@ -452,6 +494,11 @@ class Planner:
             "total_tokens": usage.total_tokens,
         }
 
+    def _assistant_output_was_sanitized(self, raw_content, sanitized_content):
+        raw = (raw_content or "").strip()
+        sanitized = (sanitized_content or "").strip()
+        return bool(raw and sanitized and raw != sanitized)
+
     def sanitize_assistant_content(self, text, thought=None, action=None):
         """
         Keep only the single-step ReAct message that should enter planner history.
@@ -464,7 +511,7 @@ class Planner:
             return ""
 
         if thought is None:
-            thought = self._extract_tag(text, "Thought")
+            thought = self._extract_thought(text)
         if action is None:
             action = self._extract_tag(text, "Action")
 
@@ -481,36 +528,65 @@ class Planner:
 
     def _strip_generated_future_trajectory(self, text):
         stop_pattern = (
-            r"\n(?:Observation|Action|Thought|Verification Bundle|Final Answer):"
+            r"(?m)^\s*(?:Observation|Action|Thought|Verification Bundle|Final Answer):"
         )
         match = re.search(stop_pattern, text)
         if match:
             return text[:match.start()].strip()
         return text.strip()
 
+    def _extract_thought(self, text):
+        explicit_thought = self._extract_tag(text, "Thought")
+        if explicit_thought:
+            return explicit_thought
+        return self._extract_think_block(text)
+
+    def _extract_think_block(self, text):
+        if not text:
+            return None
+
+        match = re.search(r"<think>\s*(.*?)\s*</think>", text, re.DOTALL | re.IGNORECASE)
+        if not match:
+            return None
+        return self._clean_extracted_content(match.group(1))
+
     def _extract_tag(self, text, tag):
-        labels = r"Thought|Action|Observation|Verification Bundle|Final Answer"
-        pattern = rf"{tag}:\s*(.*?)(?=\n(?:{labels}):|$)"
-        match = re.search(pattern, text, re.DOTALL)
+        labels = r"Thought|Action|Observation|Verification\ Bundle|Final\ Answer"
+        pattern = rf"^\s*{re.escape(tag)}:\s*(.*?)(?=^\s*(?:{labels}):|\Z)"
+        match = re.search(pattern, text, re.DOTALL | re.MULTILINE)
         if match:
-            content = match.group(1).strip()
-            # 1. Remove triple backticks (code blocks)
-            content = re.sub(r"^```bash\n?", "", content)
-            content = re.sub(r"^```\n?", "", content)
-            content = re.sub(r"\n?```$", "", content)
-            # 2. Remove single backticks (command substitution characters)
-            if content.startswith('`') and content.endswith('`'):
-                content = content[1:-1].strip()
-            return content.strip()
+            return self._clean_extracted_content(match.group(1))
         return None
+
+    def _clean_extracted_content(self, content):
+        content = (content or "").strip()
+        if not content:
+            return None
+
+        content = re.sub(r"^```bash\n?", "", content)
+        content = re.sub(r"^```\n?", "", content)
+        content = re.sub(r"\n?```$", "", content)
+        if content.startswith('`') and content.endswith('`'):
+            content = content[1:-1].strip()
+        return content.strip() or None
 
     def extract_final_answer(self, text):
         if not text:
             return None
 
-        for match in re.finditer(r"Final Answer:\s*(Success|Failure)\b", text, re.IGNORECASE):
+        matches = list(
+            re.finditer(
+                r"^\s*Final Answer:\s*(Success|Failure)\b",
+                text,
+                re.IGNORECASE | re.MULTILINE,
+            )
+        )
+        for match in reversed(matches):
             prefix = text[:match.start()].rstrip()
             if prefix and prefix[-1] in {'"', "'", "`"}:
+                continue
+            trailing = text[match.end():].strip()
+            if trailing and not re.fullmatch(r"[.。`]*", trailing):
                 continue
             return match.group(1).capitalize()
         return None

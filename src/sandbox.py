@@ -6,6 +6,9 @@ import tarfile
 import docker
 from src.synthesizer import Synthesizer
 
+PIP_TRANSIENT_RETRY_ATTEMPTS = 3
+
+
 class Sandbox:
     def __init__(
         self,
@@ -166,9 +169,15 @@ class Sandbox:
         print(f"[Container ID: {self.container.short_id}]")
         print(f"Executing: {command}")
 
+        preflight_rejection_prefix = self._get_preflight_rejection_prefix(command)
+        if preflight_rejection_prefix:
+            print("Command rejected before execution by sandbox preflight.")
+            return False, preflight_rejection_prefix
+
+        wrapped_command = ["/bin/bash", "-c", self._wrap_command_with_timeout(command)]
         try:
             exec_result = self.container.exec_run(
-                ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
+                wrapped_command,
                 workdir=self.workdir
             )
         except docker.errors.DockerException as exc:
@@ -183,6 +192,37 @@ class Sandbox:
 
         exit_code = exec_result.exit_code
         output = exec_result.output.decode('utf-8', errors='replace')
+        retry_outputs = []
+        attempt_index = 1
+        while self._should_retry_transient_pip_failure(command, exit_code, output, attempt_index):
+            retry_outputs.append(
+                f"[SYSTEM] Transient pip install failure on attempt {attempt_index}; "
+                f"retrying the same command.\n{output}"
+            )
+            attempt_index += 1
+            print(
+                f"[Sandbox Retry] Transient pip install failure; "
+                f"retrying attempt {attempt_index}/{PIP_TRANSIENT_RETRY_ATTEMPTS}."
+            )
+            try:
+                exec_result = self.container.exec_run(
+                    wrapped_command,
+                    workdir=self.workdir,
+                )
+            except docker.errors.DockerException as exc:
+                print(f"[System] Command retry failed because the container is unusable: {exc}")
+                recovery_message = self._restore_last_success_container(
+                    reason=f"container_exec_retry_error: {exc}"
+                )
+                return False, (
+                    f"[SYSTEM] Command retry failed because the container became unusable: {exc}\n"
+                    f"{recovery_message}"
+                )
+            exit_code = exec_result.exit_code
+            output = exec_result.output.decode('utf-8', errors='replace')
+
+        if retry_outputs:
+            output = "\n\n".join([*retry_outputs, output])
 
         if self._is_timeout_exit(exit_code):
             output = (
@@ -195,6 +235,7 @@ class Sandbox:
         
         # 检测输出中是否有测试失败信号（用于 Observation 前缀注入）
         test_fail_prefix = self._get_test_failure_prefix(exit_code, output)
+        truncated_test_prefix = self._get_truncated_test_output_prefix(command)
         
         if exit_code == 0 or is_informational_exit:
             # Success: 保存当前成功状态
@@ -202,6 +243,9 @@ class Sandbox:
                 print(f"Command exited with code {exit_code} (informational, not an error).")
             else:
                 print("Command succeeded.")
+
+            if truncated_test_prefix:
+                output = truncated_test_prefix + output
 
             self.package_manager_broken_failure_streak = 0
             self._track_runtime_command(command)
@@ -223,11 +267,18 @@ class Sandbox:
         else:
             print(f"Command failed (exit {exit_code}). Preserving current state for agent decision.")
 
+            failed_mutation_prefix = self._get_failed_mutating_command_prefix(
+                command, exit_code
+            )
             rollback_candidate_prefix = self._get_package_manager_rollback_prefix(
                 command, exit_code, output
             )
+            if truncated_test_prefix:
+                output = truncated_test_prefix + output
             if test_fail_prefix:
                 output = test_fail_prefix + output
+            if failed_mutation_prefix:
+                output = failed_mutation_prefix + output
             if rollback_candidate_prefix:
                 output = rollback_candidate_prefix + output
 
@@ -302,23 +353,68 @@ class Sandbox:
 
     def _wrap_command_with_timeout(self, command):
         """Enforce a per-command timeout when GNU `timeout` is available in the container."""
+        pipefail_command = self._wrap_command_with_pipefail(command)
         if not self.command_timeout_seconds:
-            return command
+            return pipefail_command
 
         timeout_seconds = int(self.command_timeout_seconds)
-        quoted_command = shlex.quote(command)
         return (
             "if command -v timeout >/dev/null 2>&1; then "
-            f"timeout --foreground --kill-after=30s {timeout_seconds}s /bin/bash -lc {quoted_command}; "
+            f"timeout --foreground --kill-after=30s {timeout_seconds}s {pipefail_command}; "
             "else "
-            f"/bin/bash -lc {quoted_command}; "
+            f"{pipefail_command}; "
             "fi"
         )
+
+    def _wrap_command_with_pipefail(self, command):
+        quoted_command = shlex.quote(command)
+        return f"/bin/bash -o pipefail -lc {quoted_command}"
 
     def _is_timeout_exit(self, exit_code):
         if not self.command_timeout_seconds:
             return False
         return exit_code in {124, 137}
+
+    def _should_retry_transient_pip_failure(self, command, exit_code, output, attempt_index):
+        if attempt_index >= PIP_TRANSIENT_RETRY_ATTEMPTS:
+            return False
+        if exit_code == 0:
+            return False
+        if not self._looks_like_pip_install_command(command):
+            return False
+
+        normalized_output = (output or "").lower()
+        transient_markers = (
+            "readtimeouterror",
+            "connection reset",
+            "connection aborted",
+            "connection broken",
+            "remote disconnected",
+            "temporary failure in name resolution",
+            "temporarily unavailable",
+            "timed out",
+            "timeout",
+            "sslerror",
+            "max retries exceeded",
+            "too many 502 error responses",
+            "too many 503 error responses",
+            "too many 504 error responses",
+            "network is unreachable",
+        )
+        return any(marker in normalized_output for marker in transient_markers)
+
+    def _looks_like_pip_install_command(self, command):
+        for raw_segment, _ in self._command_classifier._split_shell_chain(command or ""):
+            normalized = self._command_classifier._normalize_command_segment(raw_segment)
+            if self._command_classifier._is_navigation_only_segment(normalized):
+                continue
+            if re.match(r"^(?:pip|pip2|pip3)\s+install\b", normalized):
+                return True
+            if re.match(r"^(?:python|python2|python3)\s+-m\s+pip\s+install\b", normalized):
+                return True
+            if re.match(r"^uv\s+pip\s+install\b", normalized):
+                return True
+        return False
 
     def _container_is_healthy(self):
         if not self.container:
@@ -504,29 +600,230 @@ class Sandbox:
             return (
                 f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
                 f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                f"until ALL tests pass. Partial pass ({failed_count} failures) is NOT acceptable. "
-                f"You MUST fix the failing tests.\n\n"
+                f"from this failed command. Repo2Run success requires a real "
+                f"`pytest --collect-only -q --disable-warnings` verification, or the Poetry "
+                f"equivalent, that proves tests are collectable. Full test failures do not need "
+                f"to pass if collection succeeds.\n\n"
             )
 
         # pytest / unittest 格式失败
-        pytest_fail = re.search(r'(\d+) failed', output, re.IGNORECASE)
+        pytest_fail = re.search(r'([1-9]\d*) failed', output, re.IGNORECASE)
         if pytest_fail:
             failed_count = pytest_fail.group(1)
             return (
                 f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
                 f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                f"until ALL tests pass.\n\n"
+                f"from this failed command. If full test execution fails, rerun the Repo2Run "
+                f"collection command and use it as final proof only if collection succeeds.\n\n"
             )
 
-        # 通用 FAILED 关键词
-        if 'FAILED' in output or 'not ok' in output.lower():
+        pytest_error = re.search(r'([1-9]\d*) errors?', output, re.IGNORECASE)
+        if pytest_error:
+            error_count = pytest_error.group(1)
+            return (
+                f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {error_count} test error(s) reported.\n"
+                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                f"until Repo2Run-style pytest collection succeeds without collection/import/config "
+                f"errors.\n\n"
+            )
+
+        if self._command_classifier.observation_has_test_failure_signal(output):
             return (
                 "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
                 "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                "until ALL tests pass.\n\n"
+                "from this failed command. Final proof must be a successful Repo2Run-style "
+                "pytest collection command, not a failed full test run.\n\n"
+            )
+
+        # 通用失败关键词。只匹配测试用例行，避免把 "Failed: 0" 当成失败。
+        if (
+            re.search(r'^\s*(?:FAILED|ERROR)\s+\S+', output, re.MULTILINE)
+            or re.search(r'^\s*not ok\b', output, re.IGNORECASE | re.MULTILINE)
+        ):
+            return (
+                "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
+                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                "from this failed command. Final proof must be a successful Repo2Run-style "
+                "pytest collection command.\n\n"
             )
 
         return ""
+
+    def _get_truncated_test_output_prefix(self, command):
+        """Warn when a test command is piped through a lossy output filter."""
+        if not self._command_classifier.is_truncated_test_output_command(command or ""):
+            return ""
+
+        return (
+            "[SYSTEM] ⚠️  TRUNCATED TEST OUTPUT: this command pipes a test run through "
+            "`head`, `tail`, or `grep`, so the Observation may omit failures, passes, or the final "
+            "test summary.\n"
+            "[SYSTEM] Do NOT treat this as complete verification. For final verification, "
+            "run the full project test command without output-limiting pipes; long output "
+            "will be handled by observation compression.\n\n"
+        )
+
+    def _get_preflight_rejection_prefix(self, command):
+        """Reject commands that are too ambiguous to record/replay safely."""
+        return (
+            self._get_invalid_output_filter_prefix(command)
+            or self._get_invalid_compound_setup_prefix(command)
+        )
+
+    def _get_invalid_output_filter_prefix(self, command):
+        """Reject setup/test commands piped through lossy output filters."""
+        if not self._command_pipes_setup_or_test_through_output_filter(command or ""):
+            return ""
+
+        return (
+            "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands "
+            "must not pipe output through `head`, `tail`, or `grep` because those "
+            "filters can hide failures and mask the real exit status.\n"
+            "[SYSTEM] The command was NOT executed and the environment was not "
+            "changed. Rerun the full command without output filtering. Long output "
+            "will be handled by observation compression.\n\n"
+        )
+
+    def _command_pipes_setup_or_test_through_output_filter(self, command):
+        for raw_segment, _ in self._command_classifier._split_shell_chain(command or ""):
+            pipeline_components = self._command_classifier._split_pipeline(raw_segment)
+            if len(pipeline_components) < 2:
+                continue
+
+            saw_setup_or_test = False
+            for component in pipeline_components:
+                segment_type = self._classify_preflight_segment(component)
+                if segment_type == "output_filter" and saw_setup_or_test:
+                    return True
+                if segment_type in {"setup", "test", "probe"}:
+                    saw_setup_or_test = True
+        return False
+
+    def _get_invalid_compound_setup_prefix(self, command):
+        """Reject multi-action setup chains that should be split into separate Actions."""
+        segments = self._classified_preflight_segments(command)
+        if len(segments) <= 1:
+            return ""
+
+        if self._is_allowed_apt_update_install_chain(segments):
+            return ""
+
+        setup_segments = [segment for segment in segments if segment["type"] == "setup"]
+        if len(setup_segments) >= 2:
+            return self._build_invalid_compound_setup_message(
+                "this Action combines multiple independent setup mutations",
+            )
+
+        if len(setup_segments) == 1:
+            mixed_segments = [
+                segment
+                for segment in segments
+                if segment["type"] in {"test", "probe", "readonly"}
+            ]
+            if mixed_segments:
+                return self._build_invalid_compound_setup_message(
+                    "this Action combines a setup mutation with a verification, probe, or read-only check",
+                )
+
+        return ""
+
+    def _classified_preflight_segments(self, command):
+        segments = []
+        for raw_segment, _ in self._command_classifier._split_shell_chain(command or ""):
+            segment_type = self._classify_preflight_segment(raw_segment)
+            if segment_type == "empty":
+                continue
+            segments.append({"raw": raw_segment.strip(), "type": segment_type})
+        return segments
+
+    def _classify_preflight_segment(self, raw_segment):
+        cleaned_segment = self._command_classifier._strip_trailing_redirections(
+            raw_segment or ""
+        )
+        normalized = self._command_classifier._normalize_command_segment(cleaned_segment)
+        if not normalized:
+            return "empty"
+        if self._command_classifier._is_output_truncation_component(normalized):
+            return "output_filter"
+        if self._command_classifier._is_navigation_only_segment(normalized):
+            return "navigation"
+        if self._is_setup_preparation_segment(normalized):
+            return "preparation"
+        if self._command_classifier._is_test_like_segment(normalized):
+            return "test"
+        if self._is_probe_segment(normalized):
+            return "probe"
+        if self._command_classifier._is_readonly_command(cleaned_segment):
+            return "readonly"
+        if self._command_classifier._segment_has_meaningful_setup_activity(normalized):
+            return "setup"
+        return "other"
+
+    def _is_setup_preparation_segment(self, normalized_segment):
+        return (
+            normalized_segment.startswith("mkdir -p ")
+            or normalized_segment.startswith("mkdir --parents ")
+            or normalized_segment.startswith("install -d ")
+        )
+
+    def _is_probe_segment(self, normalized_segment):
+        probe_patterns = (
+            r"^(?:python|python2|python3)\s+-c\b",
+            r"^(?:node)\s+-e\b",
+            r"^(?:ruby)\s+-e\b",
+            r"^(?:php)\s+-r\b",
+            r"^(?:pip|pip2|pip3|python\s+-m\s+pip|python3\s+-m\s+pip)\s+(?:check|show|list|freeze)\b",
+            r"^(?:npm|yarn|pnpm)\s+(?:list|ls)\b",
+        )
+        return any(re.search(pattern, normalized_segment) for pattern in probe_patterns)
+
+    def _is_allowed_apt_update_install_chain(self, segments):
+        meaningful_segments = [
+            segment
+            for segment in segments
+            if segment["type"] not in {"navigation", "preparation"}
+        ]
+        if len(meaningful_segments) != 2:
+            return False
+
+        first = self._command_classifier._normalize_command_segment(
+            meaningful_segments[0]["raw"]
+        )
+        second = self._command_classifier._normalize_command_segment(
+            meaningful_segments[1]["raw"]
+        )
+        return (
+            re.match(r"^(?:apt-get|apt)\s+update\b", first) is not None
+            and re.match(r"^(?:apt-get|apt)\s+install\b", second) is not None
+        )
+
+    def _build_invalid_compound_setup_message(self, reason):
+        return (
+            f"[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: {reason}.\n"
+            "[SYSTEM] The command was NOT executed and the environment was not changed. "
+            "Run each setup mutation, verification, or probe as a separate Action so each "
+            "state-changing step can be confirmed independently.\n\n"
+        )
+
+    def _get_failed_mutating_command_prefix(self, command, exit_code):
+        """Warn when a failed setup command may have left partial environment changes."""
+        if exit_code == 0:
+            return ""
+
+        if not self._command_classifier.command_mutates_environment(command or ""):
+            return ""
+
+        return (
+            "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting "
+            "to change the environment.\n"
+            "[SYSTEM] It may have partially installed packages, modified files, or changed "
+            "services. Do not assume useful parts of this failed command are reliably "
+            "available for later steps.\n"
+            "[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step "
+            "as its own separate Action so it is confirmed successful. If the partial "
+            "changes may have polluted the environment, use `Action: __ROLLBACK__` to "
+            "restore the previous snapshot.\n\n"
+        )
 
     def _get_package_manager_rollback_prefix(self, command, exit_code, output):
         """Warn the agent when package-manager failures strongly suggest a dirty dependency state."""

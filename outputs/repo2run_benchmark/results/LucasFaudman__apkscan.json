@@ -1,0 +1,1210 @@
+{
+  "dataset_entry": {
+    "instance_id": "LucasFaudman__apkscan",
+    "full_name": "LucasFaudman/apkscan",
+    "repo_url": "https://github.com/LucasFaudman/apkscan.git",
+    "sha": "3b3e62",
+    "base_commit": "3b3e62",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/LucasFaudman/apkscan.git",
+      "--base-commit",
+      "3b3e62",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/LucasFaudman/apkscan.git --base-commit 3b3e62 --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-15T16:17:42.082630+08:00",
+    "finished_at": "2026-05-15T16:22:41.191501+08:00",
+    "duration_seconds": 299.109,
+    "stdout": "Cloning https://github.com/LucasFaudman/apkscan.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 3b3e62\n[DockerAgent] Detected local service dependencies: elasticsearch, kafka, minio, rabbitmq\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 3 potentially relevant files\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ setup.py\n[ImageSelector]   ✓ README.md\n[ImageSelector] 3 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses Java-based decompilers (JADX, APKTool, CFR, Procyon, etc.) for Android APK analysis. These tools are generally available on both amd64 and arm64 architectures, but for consistent behavior in a development/test environment, linux/amd64 is recommended as it has the most widely tested tooling ecosystem for Android reverse engineering tasks.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:35a79\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/logs/compression_logs\nStarting agent for repository: https://github.com/LucasFaudman/apkscan.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2216, Output: 107, Total: 2323\n\n[Thought]\nI'll start by examining the project's configuration files to understand the dependencies, build system, and test setup.\n\n[Action]\ncat LucasFaudman__apkscan/pyproject.toml\n[Container ID: 75cde1de60cc]\nExecuting: cat LucasFaudman__apkscan/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: LucasFaudman__apkscan/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2283, Output: 51, Total: 2334\n\n[Thought]\nLet me check the actual directory structure and find the project files.\n\n[Action]\nls -la && pwd\n[Container ID: 75cde1de60cc]\nExecuting: ls -la && pwd\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 80\ndrwxr-xr-x 6 root root     4096 May 15 08:18 .\ndrwxr-xr-x 1 root root     4096 May 15 08:18 ..\ndrwxr-xr-x 7  501 dialout  4096 May 15 08:17 .git\n-rw-r--r-- 1  501 dialout  3102 May 15 08:17 .gitignore\n-rw-r--r-- 1  501 dialout   319 May 15 08:17 .pre-commit-config.yaml\n-rw-r--r-- 1  501 dialout  2562 May 15 08:17 LICENSE\n-rw-r--r-- 1  501 dialout   140 May 15 08:17 MANIFEST.in\n-rw-r--r-- 1  501 dialout 30395 May 15 08:17 README.md\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 logs\n-rw-r--r-- 1  501 dialout  1620 May 15 08:17 pyproject.toml\n-rw-r--r-- 1  501 dialout  2996 May 15 08:17 setup.py\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 src\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 tests\n/app\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2658, Output: 74, Total: 2732\n\n[Thought]\nI'm already inside the repository directory. Let me examine the pyproject.toml and setup.py to understand the dependencies and project configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: 75cde1de60cc]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"setuptools>=42\", \"setuptools_scm>=8\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nauthors = [{name = \"Lucas Faudman\", email = \"lucasfaudman@gmail.com\"}]\ndynamic = [\"classifiers\"]\nname = \"apkscan\"\nversion = \"0.4.0\"\nrequires-python = \">=3.10\"\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\ndescription = \"Scan for secrets, endpoints, and other sensitive data after decompiling and deobfuscating Android files. (.apk, .xapk, .dex, .jar, .class, .smali, .zip, .aar, .arsc, .aab, .jadx.kts)\"\nkeywords = [\n    \"secret scanner\", \"jadx\", \"decompile\", \"android\", \"java\", \"security\", \"mobile\", \"decompiler\",\n    \"concurrency\", \"penetration-testing\", \"apktool\", \"security-tools\", \"fernflower\", \"cfr\",\n    \"procyon\", \"enjarify\", \"krakatau\", \"secret-scanning\", \"decompiler-java\", \"secret-scanner\",\n    \"apk\", \"xapk\", \"dex\", \"jar\", \"class\", \"smali\", \"zip\", \"aar\", \"arsc\", \"aab\", \"jadx.kts\"\n]\ndependencies = [\n    \"enjarify-adapter\",\n    \"pyyaml\",\n]\n\n[project.urls]\nHomepage = \"https://github.com/LucasFaudman/apkscan.git\"\nRepository = \"https://github.com/LucasFaudman/apkscan.git\"\n\n[project.scripts]\napkscan = \"apkscan.main:main\"\n\n[project.optional-dependencies]\nmypyc = [\"mypy[mypyc]\", \"mypy_extensions\"]\n\n[tool.setuptools]\npackage-dir = {\"\" = \"src\"}\n\n[tool.setuptools.package-data]\n\"*\" = [\"LICENSE\"]\n\"apkscan.secret_locators\" = [\"*.json\", \"*.yaml\", \"*.yml\", \"*.toml\"]\n\n[tool.setuptools.packages.find]\nwhere = [\"src\"]\n\n[tool.setuptools_scm]\nversion_file = \"src/apkscan/_version.py\"\n\n[tool.black]\nline-length = 120\nexclude = \"src/apkscan/main.py\"\nforce-exclude = \"src/apkscan/main.py\"\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3223, Output: 45, Total: 3268\n\n[Thought]\nLet me examine setup.py and also check for any test dependencies or requirements files.\n\n[Action]\ncat setup.py\n[Container ID: 75cde1de60cc]\nExecuting: cat setup.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nfrom setuptools import setup, find_namespace_packages\nfrom setuptools.command.build_ext import build_ext\n\nEXT_MODULES = []\ntry:\n    from mypyc.build import mypycify\n\n    EXT_MODULES.extend(\n        mypycify(\n            [\n                \"src/apkscan/apkscan.py\",\n                \"src/apkscan/concurrent_executor.py\",\n                \"src/apkscan/decompiler.py\",\n                \"src/apkscan/secret_scanner.py\",\n            ]\n        )\n    )\nexcept Exception as e:\n    print(f\"Failed to compile with mypyc: {e}\")\n\nsetup(\n    name=\"apkscan\",\n    version=\"0.4.0\",\n    use_scm_version=True,\n    setup_requires=[\"setuptools>=42\", \"setuptools_scm>=8\", \"wheel\"],\n    description=\"Scan for secrets, endpoints, and other sensitive data after decompiling and deobfuscating Android files. (.apk, .xapk, .dex, .jar, .class, .smali, .zip, .aar, .arsc, .aab, .jadx.kts)\",\n    long_description=open(\"README.md\").read(),\n    long_description_content_type=\"text/markdown\",\n    author=\"Lucas Faudman\",\n    author_email=\"lucasfaudman@gmail.com\",\n    url=\"https://github.com/LucasFaudman/apkscan.git\",\n    packages=find_namespace_packages(where=\"src\", exclude=[\"tests*\"]),\n    package_dir={\"\": \"src\"},\n    package_data={\n        \"\": [\"LICENSE\"],\n        \"apkscan.secret_locators\": [\"*.json\", \"*.yaml\", \"*.yml\", \"*.toml\"],\n    },\n    include_package_data=True,\n    exclude_package_data={\"\": [\".gitignore\", \".pre-commit-config.yaml\"]},\n    install_requires=[\"enjarify-adapter\", \"pyyaml\"],\n    ext_modules=EXT_MODULES,\n    cmdclass={\"build_ext\": build_ext},\n    extras_require={\n        \"mypyc\": [\n            \"mypy[mypyc]\",\n            \"mypy_extensions\",\n        ]\n    },\n    entry_points={\n        \"console_scripts\": [\n            \"apkscan = apkscan.main:main\",\n        ],\n    },\n    python_requires=\">=3.10\",\n    license=\"LICENSE\",\n    classifiers=[\n        \"Development Status :: 4 - Beta\",\n        \"Intended Audience :: Developers\",\n        \"License :: OSI Approved :: MIT License\",\n        \"Programming Language :: Python :: 3\",\n        \"Programming Language :: Python :: 3.10\",\n        \"Programming Language :: Python :: 3.11\",\n        \"Programming Language :: Python :: 3.12\",\n        \"Operating System :: OS Independent\",\n        \"Topic :: Software Development :: Libraries\",\n        \"Topic :: Software Development :: Libraries :: Python Modules\",\n        \"Topic :: Security\",\n        \"Topic :: Utilities\",\n    ],\n    keywords=\"secret scanner jadx decompile android java security mobile decompiler concurrency penetration-testing apktool security-tools fernflower cfr jadx procyon enjarify krakatau secret-scanning decompiler-java secret-scanner apk dex jar class smali zip aar arsc aab xapk jadx.kts \",\n    project_urls={\n        \"Homepage\": \"https://github.com/LucasFaudman/apkscan.git\",\n        \"Repository\": \"https://github.com/LucasFaudman/apkscan.git\",\n    },\n)\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4009, Output: 45, Total: 4054\n\n[Thought]\nLet me check the tests directory and conftest.py to understand test dependencies.\n\n[Action]\ncat tests/conftest.py\n[Container ID: 75cde1de60cc]\nExecuting: cat tests/conftest.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4080, Output: 57, Total: 4137\n\n[Thought]\nLet me check the test files to understand test dependencies and requirements.\n\n[Action]\ncat tests/test_apkscan.py | head -50\n[Container ID: 75cde1de60cc]\nExecuting: cat tests/test_apkscan.py | head -50\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom fixtures import tmp_locator_files, tmp_files_to_scan\nfrom apkscan import APKScanner, SecretLocator, SecretResult, load_secret_locators\nfrom pathlib import Path\n\nif __name__ == \"__main__\":\n    tmpdir = Path(\"./testoutput\")\n    decompiler_kwargs = {\n        \"binaries\": [\n            \"jadx\",\n            \"cfr\",\n            \"apktool\",\n        ],\n        \"working_dir\": tmpdir,\n        \"overwrite\": False,\n        \"suppress_output\": False,\n    }\n    scanner_kwargs = {\n        \"secret_locator_files\": [\n            Path(\"gcp\"),\n            Path(\"aws\"),\n            Path(\"azure\"),\n            Path(\"endpoints\"),\n        ],\n    }\n\n    test_output = Path(\"test_output.json\")\n    test_apks = [\n        Path(__file__).parent / \"test_apks\" / test_apk\n        for test_apk in [\n            \"test-apk-1.apk\",\n            \"test-xapk-1.xapk\",\n        ]\n    ]\n    apk_scanner = APKScanner(decompiler_kwargs, scanner_kwargs, output_file=test_output, cleanup=False)\n\n    try:\n        apk_scanner.decompile_and_scan(test_apks)\n    except KeyboardInterrupt:\n        print(\"\\nWriting output, cleaning up, and exiting...\")\n    finally:\n        apk_scanner.write_output()\n        apk_scanner.do_cleanup()\n\n    if apk_scanner.secrets_results:\n        print(f\"\\nAPKscan done. Secrets saved to {apk_scanner.output_file}\")\n        exit(0)\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4476, Output: 46, Total: 4522\n\n[Thought]\nLet me check the fixtures.py file to understand test dependencies.\n\n[Action]\ncat tests/fixtures.py\n[Container ID: 75cde1de60cc]\nExecuting: cat tests/fixtures.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom pathlib import Path\n\n\n@pytest.fixture\ndef tmp_locator_files(tmpdir) -> dict[str, Path]:\n    secret_patterns_db_yaml = r\"\"\"patterns:\n  - pattern:\n      name: AWS Access Token\n      regex: (A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\n      confidence: high\n  - pattern:\n      name: GCP API Key\n      regex: (?i)\\b(AIza[0-9A-Za-z\\\\-_]{35})(?:['|\\\"|\\n|\\r|\\s|\\x60|;]|$)\n      confidence: high\n  - pattern:\n      name:  Generic API Key\n      regex: '[aA][pP][iI]_?[kK][eE][yY].*[''|\"][0-9a-zA-Z]{32,45}[''|\"]'\n      confidence: high\n\"\"\"\n\n    gitleaks_toml = r\"\"\"\ntitle = \"gitleaks config\"\n\n[[rules]]\ndescription = \"AWS\"\nid = \"aws-access-token\"\nregex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''\nkeywords = [\n    \"akia\",\"agpa\",\"aida\",\"aroa\",\"aipa\",\"anpa\",\"anva\",\"asia\",\n]\n\n[[rules]]\ndescription = \"GCP API key\"\nid = \"gcp-api-key\"\nregex = '''(?i)\\b(AIza[0-9A-Za-z\\\\-_]{35})(?:['|\\\"|\\n|\\r|\\s|\\x60|;]|$)'''\nsecretGroup = 1\nkeywords = [\n    \"aiza\",\n]\n\n[[rules]]\ndescription = \"Generic API Key\"\nid = \"generic-api-key\"\nregex = '''[aA][pP][iI]_?[kK][eE][yY].*[''|\"][0-9a-zA-Z]{32,45}[''|\"]'''\nsecretGroup = 1\nentropy = 3.5\nkeywords = [\n    \"key\",\"api\",\"token\",\"secret\",\"client\",\"passwd\",\"password\",\"auth\",\"access\",\n]\n[rules.allowlist]\nstopwords= [\n    \"client\",\n    \"endpoint\",\n    \"vpn\",\n]\n\n\n\"\"\"\n\n    secret_locators_json = r\"\"\"\n[\n    {\n        \"id\": \"aws-access-token\",\n        \"name\": \"AWS Access Key ID Value\",\n        \"pattern\": \"(A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\",\n        \"confidence\": \"high\"\n    },\n    {\n        \"id\": \"gcp-api-key\",\n        \"name\": \"GCP API Key\",\n        \"pattern\": \"(?i)\\\\b(AIza[0-9A-Za-z\\\\-_]{35})(?:['|\\\"|\\\\n|\\\\r|\\\\s|\\\\x60|;]|$)\",\n        \"confidence\": \"high\"\n    },\n    {\n        \"id\": \"generic-api-key\",\n        \"name\": \"Generic API Key\",\n        \"pattern\": \"(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\\\\-_\\\\t .]{0,20})(?:[\\\\s|']|[\\\\s|\\\"]){0,3}(?:=|>|:=|\\\\|\\\\|:|<=|=>|:)(?:'|\\\"|\\\\s|=|\\\\x60){0,5}([0-9a-z\\\\-_\\\\.=]{10,150})(?:['|\\\"|\\\\n|\\\\r|\\\\s|\\\\x60|;]|$)\",\n        \"confidence\": \"high\"\n    }\n]\n\"\"\"\n\n    simple_key_value_json = r\"\"\"\n{\n    \"AWS Access Key ID Value\": \"(A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\",\n    \"GCP API Key\": \"(?i)\\\\b(AIza[0-9A-Za-z\\\\-_]{35})(?:['|\\\"|\\\\n|\\\\r|\\\\s|\\\\x60|;]|$)\",\n    \"Generic API Key\": \"(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\\\\-_\\\\t .]{0,20})(?:[\\\\s|']|[\\\\s|\\\"]){0,3}(?:=|>|:=|\\\\|\\\\|:|<=|=>|:)(?:'|\\\"|\\\\s|=|\\\\x60){0,5}([0-9a-z\\\\-_\\\\.=]{10,150})(?:['|\\\"|\\\\n|\\\\r|\\\\s|\\\\x60|;]|$)\"\n}\n\"\"\"\n    tmpdir_path = Path(tmpdir)\n    temp_file_names = {\n        \"secret_patterns_db.yml\": secret_patterns_db_yaml,\n        \"gitleaks.toml\": gitleaks_toml,\n        \"secret_locators.json\": secret_locators_json,\n        \"simple_key_value.json\": simple_key_value_json,\n    }\n    temp_paths = {}\n    for file_name, content in temp_file_names.items():\n        temp_path = tmpdir_path / file_name\n        temp_path.write_text(content)\n        temp_paths[file_name] = temp_path\n    # temp_paths[\"tmpdir_path\"] = tmpdir_path\n    return temp_paths\n\n\n@pytest.fixture\ndef tmp_files_to_scan(tmpdir):\n    aws_key_file = \"\"\"Line 1\nLine 2 ASIAY34FZKBOKMUTVV7A\n\"\"\"\n    gcp_key_file = \"\"\"Line 1\nLine 2 AIzaSyDRKQ9d6kfsoZT2lUnZcZnBYvH69HExNPE\n\"\"\"\n    generic_key_file = \"\"\"Line 1\nLine 2 secret=1234567890\n\"\"\"\n\n    nested_mix_file = \"\"\"Line 1\nLine 2 ASIAY34FZKBOKMUTVV7A\nLine 3 AIzaSyDRKQ9d6kfsoZT2lUnZcZnBYvH69HExNPE\nLine 4 API_KEY=1234567890\n\"\"\"\n    tmpdir_path = Path(tmpdir)\n    nested_dir = tmpdir_path / \"nested_dir\"\n    nested_dir.mkdir()\n    temp_file_names = {\n        \"aws_key_file.java\": aws_key_file,\n        \"gcp_key_file.java\": gcp_key_file,\n        \"generic_key_file.java\": generic_key_file,\n        \"nested_mix_file.java\": nested_mix_file,\n    }\n    temp_paths = {}\n    for file_name, content in temp_file_names.items():\n        temp_path = tmpdir_path / file_name\n        temp_path.write_text(content)\n        temp_paths[file_name] = temp_path\n\n    return temp_paths\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 6038, Output: 46, Total: 6084\n\n[Thought]\nLet me check the other test files to understand all dependencies needed.\n\n[Action]\ncat tests/test_decompiler.py | head -50\n[Container ID: 75cde1de60cc]\nExecuting: cat tests/test_decompiler.py | head -50\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom pathlib import Path\nfrom apkscan import Decompiler\n\n\n@pytest.mark.parametrize(\n    \"test_apk\",\n    [\n        \"test-apk-1.apk\",\n        \"test-xapk-1.xapk\",\n    ],\n)\ndef test_decompile(tmpdir, test_apk):\n    tmpdir_path = Path(tmpdir)\n    decompiler = Decompiler(working_dir=tmpdir_path)\n    test_apk_path = Path(__file__).parent / \"test_apks\" / test_apk\n    binary_name_file_path = (\"jadx\", test_apk_path)\n    file_path, output_dir, decompiled_files, success = decompiler.decompile(binary_name_file_path)\n    assert file_path == test_apk_path\n    assert (\n        output_dir.exists()\n        and output_dir.is_dir()\n        and output_dir == tmpdir_path / (test_apk_path.stem + \"-decompiled/jadx\")\n    )\n    assert decompiled_files and all(\n        decompiled_file.exists() and decompiled_file.is_file() for decompiled_file in decompiled_files\n    )\n    assert success\n    decompiler.cleanup()\n    assert not output_dir.exists()\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 6360, Output: 78, Total: 6438\n\n[Thought]\nLet me check the README and source files to understand what external tools like jadx, apktool, etc. are needed.\n\n[Action]\ncat README.md | head -200\n[Container ID: 75cde1de60cc]\nExecuting: cat README.md | head -200\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# APKscan\n![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)\n![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white)\n![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)\n[![PyPI version](https://badge.fury.io/py/apkscan.svg)](https://badge.fury.io/py/apkscan)\n[![GitHub issues](https://img.shields.io/github/issues/LucasFaudman/apkscan)](https://github.com/LucasFaudman/apkscan/issues)\n[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)\n\nScan for **secrets**, **endpoints**, and other **sensitive data** after **decompiling** and **deobfuscating** Android\nfiles. (.apk, .xapk, .dex, .jar, .class, .smali, .zip, .aar, .arsc, .aab, .jadx.kts).\n\nhttps://github.com/user-attachments/assets/6aaedf8c-5a84-4541-ae08-53df2f16d7c6\n\n---\n\n\n- [Why use APKscan?](#why-use-apkscan)\n- [Features](#features)\n- [Installation](#installation)\n  - [PyPi Install Command](#pypi-install-command)\n  - [From Source Install Commands](#from-source-install-commands)\n- [Usage](#usage)\n    - [Basic Usage](#basic-usage)\n    - [Advanced Usage (All Command Line Arguments)](#advanced-usage)\n- [Configuring Scanning Rules](#configuring-scanning-rules-secret-locators)\n    - [Secret Locator Structure](#secret-locator-structure)\n    - [Supported Secret Locator Input Formats](#supported-secret-locator-input-formats)\n    - [Secret Locator Input Examples](#secretlocator-json-or-yaml-format)\n- [Configuring Decompilers](#configuring-decompilers)\n    - [Supported Decompilers](#supported-decompilers)\n    - [Using Multiple Decompilers](#using-multiple-decompilers)\n    - [Why use Multiple Decompilers?](#variety-of-decompilation-techniques)\n- [Concurrency and Performance](#concurrency-and-performance)\n    - [Concurrency Options](#concurrency-options)\n        - [Concurrency Type](#concurrency-type)\n        - [Results Order](#results-order)\n        - [Max Workers](#max-workers)\n        - [Chunksize](#chunk-size-multiprocessing-and-order-submitted-only)\n        - [Timeout](#timeout)\n    - [Optimizing Performance](#optimizing-performance)\n- [Contributing](#contributing)\n- [License](#license)\n\n\n\n---\n\n## Why use APKscan?\n\n### Find Leaked Secrets\nAPKs (Android Package Kits) often leak secrets due to over-reliance on *security through obscurity*. Developers sometimes leave **sensitive information** such as **API keys**, **tokens**, and **credentials** hidden within the code, assuming that they won't be found easily since the code has been compiled and obfuscated. However, this approach is fundamentally flawed, and such secrets can be exposed, leading to potential **security vulnerabilities**.\n\n<details>\n<summary>\n<h4>Demo: Finding Cloud Credentials</h4>\n</summary>\n\nhttps://github.com/user-attachments/assets/9c33aad1-6683-4ae6-a6dd-ccb49d6e0bd1\n\n</details>\n\n---\n\n### Identify the Attack Surface of the Backend\nAPKscan also helps identify the attack surface of the backend by uncovering **forgotten endpoints**, **test data payloads**, and other **traces of backend interfaces** that developers might have **unintentionally exposed**. These endpoints can provide attackers with access to sensitive data or functionalities that are not meant for public use. By scanning for such endpoints and test data, APKscan assists in ensuring that the backend is secure and that **no unnecessary exposure is left in the deployed applications**.\n\n<details>\n<summary>\n<h4>Demo: Finding Endpoints</h4>\n</summary>\n\nhttps://github.com/user-attachments/assets/de03f3fa-0d7a-46b1-b68e-0beb6c4962f8\n\n</details>\n\n---\n\n### Identify Sensitive Locations in Application Code\nAPKscan can help quickly identify sensitive locations in the code, such as SSL pinning libraries, root detection functions, and other security mechanisms. Identifying these functions can speed up reverse engineering and app manipulation by **quickly revealing critical points where an app enforces its security policies, making it easier to bypass them with tools like Frida.** By pinpointing these areas, APKscan aids in understanding an app's security mechanisms and potential weaknesses.\n\n\n\n## Features\n\n### Automate the Scanning Process for Multiple Applications:\n> APKscan allows you to automate the process of scanning for secrets in **any number of applications**, saving you time and ensuring thorough coverage.\n\n### Multiple Decompilers and Deobfuscators:\n> Utilize one or more decompilers and deobfuscators to increase the chances of finding hidden secrets.\n- Supports all popular decompilers including `JADX`, `APKTool`, `CFR`, `Procyon`, `Krakatau`, and `Fernflower`, providing flexibility and robustness in your scanning process.\n- Uses [`enjarify-adapter`](https://github.com/LucasFaudman/enjarify-adapter) to convert the Dalvik bytecode in `.apk` files into Java bytecode on the fly, so the resulting `.jar` can be processed by decompilers/deobfuscators that do not support `.apks` directly.\n\n### Customizable Rules:\n> Define your own secret locator rules or use the default ones provided. This flexibility allows you to tailor the scanning process to your specific needs and improve the detection accuracy of sensitive information.\n- Support for common formats: `SecretLocator JSON`, `secret-patterns-db YAML`, `gitleaks TOML`, and simple key-value pairs.\n\n### Flexible Output Options:\n> Choose from multiple output formats (`JSON`, `YAML`, or `text`) and organize the results by input file or locator. This makes it easier to integrate with other tools and workflows, and to analyze the findings effectively.\n\n### Comprehensive File Support:\n> Decompile and scan a wide range of Android-related files, including `.apk,` `.xapk,` `.dex,` `.jar,` `.class,` `.smali,` `.zip,` `.aar,` `.arsc,` `.aab,` and `.jadx.kts` files.\n- **NEW**: `.xapk` -> `.apk`(s) unpacking/extraction support added in v0.4.0.\n\n### Advanced Configuration and Concurrency Options:\n> APKscan offers advanced options for concurrency, decompilation, and scanning, enabling you to optimize the performance and behavior of the tool to suit your environment and requirements.\n\n---\n\n## Installation\n> APKscan can be installed from PyPi or from source.\n\n### PyPi Install Command\n```bash\npip3 install apkscan\n```\n\n### From Source Install Commands\n```bash\ngit clone https://github.com/LucasFaudman/apkscan.git\ncd apkscan\npython3 -m venv .venv\nsource .venv/bin/activate\npip3 install -e .\ncd ../\n```\n\n---\n\n\n## Usage\n\n### Basic Usage\nThe most basic way to use APKscan is to decompile an APK using the default decompiler `JADX` and scan using the default Secret locator rules in [`default.json`](https://github.com/LucasFaudman/apkscan/blob/main/src/apkscan/secret_locators/default.json).\n```bash\napkscan file-to-scan.apk\n```\n---\nMultiple sets of Secret Locators are included and can be refrenced by name. For example, to scan for only AWS credentials and endpoints:\n```bash\napkscan file-to-scan.apk -r aws endpoints\n```\n---\n\n\nA slighly more complex example. This time 3 APKs will be decompiled then scanned using the custom rules at `/path/to/custom/rules.json`. The output written to `output_file.yaml` in `YAML` format, and the results will be grouped by which secret locator was matched. Files generated during decompilation will be removed after scanning.\n```bash\napkscan -r /path/to/custom/rules.json -o output_file.yaml -f yaml -g locator -c file1.apk file2.apk file3.apk\n```\nOr in long form:\n```bash\napkscan --rules /path/to/custom/rules.json --output output_file.yaml --format yaml --groupby locator --cleanup file1.apk file2.apk file3.apk\n```\n---\n\n\n### Advanced Usage\n\n<details>\n<summary>\n<h4>All Command Line Arguments</h4>\n</summary>\n\n```bash\nusage: apkscan [-h] [-r [SECRET_LOCATOR_FILES ...]] [-o SECRETS_OUTPUT_FILE]\n               [-f {text,json,yaml}] [-g {file,locator,both}]\n               [-c | --cleanup | --no-cleanup] [-q] [--jadx [JADX]]\n               [--apktool [APKTOOL]] [--cfr [CFR]] [--procyon [PROCYON]]\n               [--krakatau [KRAKATAU]] [--fernflower [FERNFLOWER]]\n               [--enjarify-choice {auto,never,always}]\n               [--unpack-xapks | --no-unpack-xapks]\n               [-d | --deobfuscate | --no-deobfuscate]\n               [-w DECOMPILER_WORKING_DIR]\n               [--decompiler-output-suffix DECOMPILER_OUTPUT_SUFFIX]\n               [--decompiler-extra-args DECOMPILER_EXTRA_ARGS [DECOMPILER_EXTRA_ARGS ...]]\n               [-dct {thread,process,main}] [-dro {completed,submitted}]\n               [-dmw DECOMPILER_MAX_WORKERS] [-dcs DECOMPILER_CHUNKSIZE]\n               [-dto DECOMPILER_TIMEOUT] [-sct {thread,process,main}]\n               [-sro {completed,submitted}] [-smw SCANNER_MAX_WORKERS]\n               [-scs SCANNER_CHUNKSIZE] [-sto SCANNER_TIMEOUT]\n               [FILES_TO_SCAN ...]\n\nAPKscan v0.4.0 - Scan for secrets, endpoints, and other sensitive\ndata after decompiling and deobfuscating Android files. (.apk,\n.xapk, .dex, .jar, .class, .smali, .zip, .aar, .arsc, .aab, .jadx.kts)\n(c) Lucas Faudman, 2024. License information in LICENSE file. Credits\nto the original authors of all dependencies used in this project.\n\noptions:\n  -h, --help            show this help message and exit\n\nInput Options:\n  FILES_TO_SCAN         Path(s) to Java files to decompile and scan.\n  -r [SECRET_LOCATOR_FILES ...], --rules [SECRET_LOCATOR_FILES ...]\n                        Path(s) to secret locator rules/patterns files OR\n                        names of included locator sets. Files can be in\n                        SecretLocator JSON, secret-patterns-db YAML, or\n                        Gitleak TOML formats. Included locator sets:\n                        all_secret_locators, aws, azure, cloud, curated,\n                        default, endpoints, gcp, generic, gitleaks, high-\n                        confidence, key_locators, leakin-regexes,\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 8873, Output: 63, Total: 8936\n\n[Thought]\nLet me check what the decompiler module requires and look at the source to understand external dependencies better.\n\n[Action]\ncat src/apkscan/decompiler.py | head -100\n[Container ID: 75cde1de60cc]\nExecuting: cat src/apkscan/decompiler.py | head -100\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nfrom subprocess import run, DEVNULL, SubprocessError\nfrom pathlib import Path\nfrom shutil import which, rmtree\nfrom os import access, X_OK\nfrom shlex import split as shlex_split\nfrom zipfile import ZipFile\nfrom typing import Optional, Iterator, Iterable, Literal\n\n# Handles Dalvik bytecode (.apk/.dex) -> Java bytecode (.jar) translation\n# to allow for decompilation with Java decompilers that don't support Dalvik.\n# See: https://github.com/LucasFaudman/enjarify-adapter for more information.\nfrom enjarify import enjarify  # type: ignore\nfrom .concurrent_executor import ConcurrentExecutor\n\nDEFAULT_CONFIG: dict = {\n    \"jadx\": {\n        \"binary\": which(\"jadx\") or \"/usr/local/bin/jadx\",\n        \"output_arg\": \"--output-dir\",\n        \"deobf_args\": [\"--deobf\"],\n        \"extra_args\": [],\n        \"file_exts\": {\n            \".apk\",\n            \".xapk\",\n            \".jar\",\n            \".dex\",\n            \".class\",\n            \".smali\",\n            \".zip\",\n            \".aar\",\n            \".arsc\",\n            \".aab\",\n            \".jadx.kts\",\n        },\n    },\n    \"apktool\": {\n        \"binary\": which(\"apktool\") or \"/usr/local/bin/apktool\",\n        \"output_arg\": \"--output\",\n        \"deobf_args\": [\"--force-manifest\"],\n        \"extra_args\": [\"d\", \"--force\", \"--keep-broken-res\"],\n        \"file_exts\": {\".apk\", \".xapk\"},\n    },\n    \"procyon\": {\n        \"binary\": which(\"procyon-decompiler\") or \"/usr/local/bin/procyon-decompiler\",\n        \"output_arg\": \"-o\",\n        \"deobf_args\": [\"-renames\"],\n        \"extra_args\": [],\n        \"file_exts\": {\".jar\", \".dex\", \".class\"},\n    },\n    \"cfr\": {\n        \"binary\": which(\"cfr-decompiler\") or \"/usr/local/bin/cfr-decompiler\",\n        \"output_arg\": \"--outputdir\",\n        \"deobf_args\": [\"--antiobf\", \"true\"],\n        \"extra_args\": [],\n        \"file_exts\": {\".jar\", \".dex\", \".class\"},\n    },\n    \"krakatau\": {\n        \"binary\": which(\"krakatau\") or \"/usr/local/bin/krakatau\",\n        \"output_arg\": \"--out\",\n        \"deobf_args\": [],\n        \"extra_args\": [\"dis\"],\n        \"file_exts\": {\".jar\", \".zip\", \".class\"},\n    },\n    \"fernflower\": {\n        \"binary\": which(\"fernflower\") or \"/usr/local/bin/fernflower\",\n        \"output_arg\": \"\",\n        \"deobf_args\": [],\n        \"extra_args\": [],\n        \"file_exts\": {\".jar\", \".class\"},\n    },\n}\n\n\nclass Decompiler:\n    CONFIG: dict = DEFAULT_CONFIG.copy()\n\n    def __init__(\n        self,\n        binaries: Optional[dict[str, Optional[Path | str]] | Iterable[str]] = None,\n        enjarify_choice: Literal[\"auto\", \"never\", \"always\"] = \"auto\",\n        unpack_xapks: bool = True,\n        deobfuscate: bool = False,\n        extra_args: Optional[list[str]] = None,\n        output_suffix: str = \"-decompiled\",\n        output_stem_separator: str = \"__\",\n        working_dir: Path = Path(\"/tmp/apk-secret-scanner\"),\n        overwrite: bool = False,\n        remove_failed_output_dirs: bool = True,\n        suppress_output: bool = False,\n        **concurrent_executor_kwargs,\n    ):\n        self.binary_paths = self.validate_binary_paths(binaries)\n        self.enjarify = self.validate_enjarify_choice(enjarify_choice)\n        self.unpack_xapks = unpack_xapks\n        self.deobfuscate = deobfuscate\n        self.extra_args = self.validate_extra_args(extra_args)\n        self.output_suffix = output_suffix\n        self.output_stem_separator = output_stem_separator\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 9836, Output: 172, Total: 10008\n\n[Thought]\nLet me check what Python version is available and what external tools are already installed.\n\n[Action]\npython3 --version && which jadx && which apktool && pip3 list 2>/dev/null | head -30\n[Container ID: 75cde1de60cc]\nExecuting: python3 --version && which jadx && which apktool && pip3 list 2>/dev/null | head -30\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 12 ====================\n\n[Tokens] Input: 7980, Output: 52, Total: 8032\n\n[Thought]\nLet me check Python version and installed packages.\n\n[Action]\npython3 --version\n[Container ID: 75cde1de60cc]\nExecuting: python3 --version\nCommand succeeded.\n[Snapshot Created] sha256:5dc98\n\n[Observation]\nPython 3.12.13\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 8016, Output: 73, Total: 8089\n\n[Thought]\nLet me check what tools are available and installed packages.\n\n[Action]\nwhich jadx apktool cfr procyon krakatau fernflower 2>&1 || true\n[Container ID: 75cde1de60cc]\nExecuting: which jadx apktool cfr procyon krakatau fernflower 2>&1 || true\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 14 ====================\n\n[Tokens] Input: 8132, Output: 45, Total: 8177\n\n[Thought]\nLet me check available tools one at a time.\n\n[Action]\nwhich jadx 2>&1 || true\n[Container ID: 75cde1de60cc]\nExecuting: which jadx 2>&1 || true\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 15 ====================\n\n[Tokens] Input: 8235, Output: 59, Total: 8294\n\n[Thought]\nLet me check what tools are available without the error handling.\n\n[Action]\nwhich jadx\n[Container ID: 75cde1de60cc]\nExecuting: which jadx\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 16 ====================\n\n[Tokens] Input: 8268, Output: 127, Total: 8395\n\n[Thought]\nJadx is not installed. Let me first install the local package and its dependencies to verify the tests can be collected. The external tools (jadx, apktool, etc.) may be optional for test collection.\n\n[Action]\npip install -e . 2>&1 | tail -20\n[Container ID: 75cde1de60cc]\nExecuting: pip install -e . 2>&1 | tail -20\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 17 ====================\n\n[Tokens] Input: 8418, Output: 38, Total: 8456\n\n[Thought]\nLet me install the package without piping output.\n\n[Action]\npip install -e .\n[Container ID: 75cde1de60cc]\nExecuting: pip install -e .\n[Sandbox Retry] Transient pip install failure; retrying attempt 2/3.\n[Sandbox Retry] Transient pip install failure; retrying attempt 3/3.\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' from this failed command. Final proof must be a successful Repo2Run-style pytest collection command, not a failed full test run.\n\n[SYSTEM] Transient pip install failure on attempt 1; retrying the same command.\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Preparing editable metadata (pyproject.toml) did not run successfully.\n  │ exit code: 1\n  ╰─> [62 lines of output]\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools_scm/_integration/version_inference.py:151: UserWarning: version of apkscan already set\n        warnings.warn(f\"version of {self.dist_name} already set\")\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `install_requires` overwritten in `pyproject.toml` (dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `extras_require` overwritten in `pyproject.toml` (optional-dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:61: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        dist._finalize_license_expression()\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        self._finalize_license_expression()\n      Failed to compile with mypyc: No module named 'mypyc'\n      running dist_info\n      creating /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info\n      writing /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/PKG-INFO\n      writing dependency_links to /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/dependency_links.txt\n      writing entry points to /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/entry_points.txt\n      writing requirements to /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/requires.txt\n      writing top-level names to /tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/top_level.txt\n      writing manifest file '/tmp/pip-modern-metadata-zfogx7hm/apkscan.egg-info/SOURCES.txt'\n      /tmp/pip-build-env-jmvfbmj1/overlay/lib/python3.12/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n\n[SYSTEM] Transient pip install failure on attempt 2; retrying the same command.\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Preparing editable metadata (pyproject.toml) did not run successfully.\n  │ exit code: 1\n  ╰─> [62 lines of output]\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools_scm/_integration/version_inference.py:151: UserWarning: version of apkscan already set\n        warnings.warn(f\"version of {self.dist_name} already set\")\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `install_requires` overwritten in `pyproject.toml` (dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `extras_require` overwritten in `pyproject.toml` (optional-dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:61: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        dist._finalize_license_expression()\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        self._finalize_license_expression()\n      Failed to compile with mypyc: No module named 'mypyc'\n      running dist_info\n      creating /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info\n      writing /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/PKG-INFO\n      writing dependency_links to /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/dependency_links.txt\n      writing entry points to /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/entry_points.txt\n      writing requirements to /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/requires.txt\n      writing top-level names to /tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/top_level.txt\n      writing manifest file '/tmp/pip-modern-metadata-1pdedwov/apkscan.egg-info/SOURCES.txt'\n      /tmp/pip-build-env-m0kpvs8d/overlay/lib/python3.12/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Preparing editable metadata (pyproject.toml) did not run successfully.\n  │ exit code: 1\n  ╰─> [62 lines of output]\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools_scm/_integration/version_inference.py:151: UserWarning: version of apkscan already set\n        warnings.warn(f\"version of {self.dist_name} already set\")\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `install_requires` overwritten in `pyproject.toml` (dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsWarning: `extras_require` overwritten in `pyproject.toml` (optional-dependencies)\n        corresp(dist, value, root_dir)\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:61: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        dist._finalize_license_expression()\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n      \n              ********************************************************************************\n              Please consider removing the following classifiers in favor of a SPDX license expression:\n      \n              License :: OSI Approved :: MIT License\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        self._finalize_license_expression()\n      Failed to compile with mypyc: No module named 'mypyc'\n      running dist_info\n      creating /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info\n      writing /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/PKG-INFO\n      writing dependency_links to /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/dependency_links.txt\n      writing entry points to /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/entry_points.txt\n      writing requirements to /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/requires.txt\n      writing top-level names to /tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/top_level.txt\n      writing manifest file '/tmp/pip-modern-metadata-wpi13ups/apkscan.egg-info/SOURCES.txt'\n      /tmp/pip-build-env-q8214gna/overlay/lib/python3.12/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 18 ====================\n\n[Tokens] Input: 12207, Output: 83, Total: 12290\n\n[Thought]\nThe pip install is failing due to a git \"dubious ownership\" error. I need to configure git to trust this directory.\n\n[Action]\ngit config --global --add safe.directory /app\n[Container ID: 75cde1de60cc]\nExecuting: git config --global --add safe.directory /app\nCommand succeeded.\n[Snapshot Created] sha256:96fa9\n\n[Observation]\n(No output)\n\n==================== Step 19 ====================\n\n[Tokens] Input: 12261, Output: 49, Total: 12310\n\n[Thought]\nGit is now configured to trust the /app directory. Let me try installing the package again.\n\n[Action]\npip install -e .\n[Container ID: 75cde1de60cc]\nExecuting: pip install -e .\nCommand succeeded.\n[Snapshot Created] sha256:52d1b\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting enjarify-adapter (from apkscan==0.4.0)\n  Downloading enjarify_adapter-1.0.2-py3-none-any.whl.metadata (21 kB)\nCollecting pyyaml (from apkscan==0.4.0)\n  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\nDownloading enjarify_adapter-1.0.2-py3-none-any.whl (379 kB)\nDownloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 8.1 MB/s eta 0:00:00\nBuilding wheels for collected packages: apkscan\n  Building editable for apkscan (pyproject.toml): started\n  Building editable for apkscan (pyproject.toml): finished with status 'done'\n  Created wheel for apkscan: filename=apkscan-0.4.0-0.editable-py3-none-any.whl size=13508 sha256=d2d8f6f3550b32290efdb14cf05017078d5fb001b78db62c9fc609da1e843e68\n  Stored in directory: /tmp/pip-ephem-wheel-cache-x1vsnely/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\nSuccessfully built apkscan\nInstalling collected packages: pyyaml, enjarify-adapter, apkscan\nSuccessfully installed apkscan-0.4.0 enjarify-adapter-1.0.2 pyyaml-6.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 20 ====================\n\n[Tokens] Input: 9588, Output: 59, Total: 9647\n\n[Thought]\nThe package is installed successfully. Now let me run pytest collection to verify the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 75cde1de60cc]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: pytest: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 21 ====================\n\n[Tokens] Input: 9647, Output: 32, Total: 9679\n\n[Thought]\npytest is not installed. Let me install it.\n\n[Action]\npip install pytest\n[Container ID: 75cde1de60cc]\nExecuting: pip install pytest\nCommand succeeded.\n[Snapshot Created] sha256:5df0c\n\n[Observation]\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting packaging>=22 (from pytest)\n  Using cached packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nUsing cached packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nDownloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 12.5 MB/s eta 0:00:00\nInstalling collected packages: pygments, pluggy, packaging, iniconfig, pytest\nSuccessfully installed iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 22 ====================\n\n[Tokens] Input: 9664, Output: 56, Total: 9720\n\n[Thought]\npytest is installed. Now let me run pytest collection to verify the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 75cde1de60cc]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:b53b6\n\n[Observation]\ntests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.07s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 23 ====================\n\n[Tokens] Input: 9891, Output: 318, Total: 10209\n\n[Thought]\nThe pytest collection succeeded - 10 tests were collected. The environment is properly set up with the package installed and tests can be discovered. Let me do a final verification to confirm the setup is complete.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: 75cde1de60cc]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:801a1\n\n[Observation]\ntests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.04s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings 2>&1\n[Verification Block] 2 command(s) in final candidate block.\n\n==================== Step 24 ====================\n\n[Tokens] Input: 10144, Output: 301, Total: 10445\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection is successful with 10 tests collected. The environment is properly set up. Let me verify what I did:\n\n1. Fixed git ownership issue: `git config --global --add safe.directory /app`\n2. Installed the package in editable mode: `pip install -e .`\n3. Installed pytest: `pip install pytest`\n4. Verified tests can be collected: `pytest --collect-only -q --disable-warnings`\n\nThe verification bundle should include:\n- `runtime_preparation_commands`: The git config command is needed because git doesn't persist from image build\n- `test_commands`: The pytest collection command\n\nLet me provide the final answer.\n</think>\n\nThought: The pytest collection succeeded with 10 tests collected. The environment is properly configured with:\n1. Git safe directory configuration (needed for setuptools_scm)\n2. Package installed in editable mode with dependencies (enjarify-adapter, pyyaml)\n3. pytest installed for test discovery\n\nThe test_apkscan.py tests reference external decompiler binaries (jadx, cfr, apktool) but these are not needed for test collection - they are runtime dependencies that would be checked by specific tests. The secret scanner and decompiler format loading tests can be collected successfully.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [\"git config --global --add safe.directory /app\"], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 1 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 3 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/LucasFaudman__apkscan.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/LucasFaudman/apkscan.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [
+      "git config --global --add safe.directory /app"
+    ],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings",
+      "pytest --collect-only -q --disable-warnings 2>&1"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 22,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 2,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      },
+      {
+        "step_index": 23,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 2,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "ls -la && pwd",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 80\ndrwxr-xr-x 6 root root     4096 May 15 08:18 .\ndrwxr-xr-x 1 root root     4096 May 15 08:18 ..\ndrwxr-xr-x 7  501 dialout  4096 May 15 08:17 .git\n-rw-r--r-- 1  501 dialout  3102 May 15 08:17 .gitignore\n-rw-r--r-- 1  501 dialout   319 May 15 08:17 .pre-commit-config.yaml\n-rw-r--r-- 1  501 dialout  2562 May 15 08:17 LICENSE\n-rw-r--r-- 1  501 dialout   140 May 15 08:17 MANIFEST.in\n-rw-r--r-- 1  501 dialout 30395 May 15 08:17 README.md\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 logs\n-rw-r--r-- 1  501 dialout  1620 May 15 08:17 pyproject.toml\n-rw-r--r-- 1  501 dialout  2996 May 15 08:17 setup.py\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 src\ndrwxr-xr-x 3  501 dialout  4096 May 15 08:17 tests\n/app\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"setuptools>=42\", \"setuptools_scm>=8\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nauthors = [{name = \"Lucas Faudman\", email = \"lucasfaudman@gmail.com\"}]\ndynamic = [\"classifiers\"]\nname = \"apkscan\"\nversion = \"0.4.0\"\nrequires-python = \">=3.10\"\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\ndescription = \"Scan for secrets, endpoints, and other sensitive data after decompiling and deobfuscating Android files. (.apk, .xapk, .dex, .jar, .class, .smali, .zip, .aar, .arsc, .aab, .jadx.kts)\"\nkeywords = [\n    \"secret scanner\", \"jadx\", \"decompile\", \"android\n... (420 chars omitted for recipe synthesis) ...\ngithub.com/LucasFaudman/apkscan.git\"\nRepository = \"https://github.com/LucasFaudman/apkscan.git\"\n\n[project.scripts]\napkscan = \"apkscan.main:main\"\n\n[project.optional-dependencies]\nmypyc = [\"mypy[mypyc]\", \"mypy_extensions\"]\n\n[tool.setuptools]\npackage-dir = {\"\" = \"src\"}\n\n[tool.setuptools.package-data]\n\"*\" = [\"LICENSE\"]\n\"apkscan.secret_locators\" = [\"*.json\", \"*.yaml\", \"*.yml\", \"*.toml\"]\n\n[tool.setuptools.packages.find]\nwhere = [\"src\"]\n\n[tool.setuptools_scm]\nversion_file = \"src/apkscan/_version.py\"\n\n[tool.black]\nline-length = 120\nexclude = \"src/apkscan/main.py\"\nforce-exclude = \"src/apkscan/main.py\"\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat setup.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nfrom setuptools import setup, find_namespace_packages\nfrom setuptools.command.build_ext import build_ext\n\nEXT_MODULES = []\ntry:\n    from mypyc.build import mypycify\n\n    EXT_MODULES.extend(\n        mypycify(\n            [\n                \"src/apkscan/apkscan.py\",\n                \"src/apkscan/concurrent_executor.py\",\n                \"src/apkscan/decompiler.py\",\n                \"src/apkscan/secret_scanner.py\",\n            ]\n        )\n    )\nexcept Exception a\n... (1795 chars omitted for recipe synthesis) ...\naries\",\n        \"Topic :: Software Development :: Libraries :: Python Modules\",\n        \"Topic :: Security\",\n        \"Topic :: Utilities\",\n    ],\n    keywords=\"secret scanner jadx decompile android java security mobile decompiler concurrency penetration-testing apktool security-tools fernflower cfr jadx procyon enjarify krakatau secret-scanning decompiler-java secret-scanner apk dex jar class smali zip aar arsc aab xapk jadx.kts \",\n    project_urls={\n        \"Homepage\": \"https://github.com/LucasFaudman/apkscan.git\",\n        \"Repository\": \"https://github.com/LucasFaudman/apkscan.git\",\n    },\n)\n"
+      },
+      {
+        "step_index": 5,
+        "command": "cat tests/conftest.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cat tests/test_apkscan.py | head -50",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom fixtures import tmp_locator_files, tmp_files_to_scan\nfrom apkscan import APKScanner, SecretLocator, SecretResult, load_secret_locators\nfrom pathlib import Path\n\nif __name__ == \"__main__\":\n    tmpdir = Path(\"./testoutput\")\n    decompiler_kwargs = {\n        \"binaries\": [\n            \"jadx\",\n            \"cfr\",\n            \"apktool\",\n        ],\n        \"working_dir\": tmpdir,\n        \"overwrite\": False,\n        \"suppress_output\": False,\n    }\n... (272 chars omitted for recipe synthesis) ...\nnt / \"test_apks\" / test_apk\n        for test_apk in [\n            \"test-apk-1.apk\",\n            \"test-xapk-1.xapk\",\n        ]\n    ]\n    apk_scanner = APKScanner(decompiler_kwargs, scanner_kwargs, output_file=test_output, cleanup=False)\n\n    try:\n        apk_scanner.decompile_and_scan(test_apks)\n    except KeyboardInterrupt:\n        print(\"\\nWriting output, cleaning up, and exiting...\")\n    finally:\n        apk_scanner.write_output()\n        apk_scanner.do_cleanup()\n\n    if apk_scanner.secrets_results:\n        print(f\"\\nAPKscan done. Secrets saved to {apk_scanner.output_file}\")\n        exit(0)\n"
+      },
+      {
+        "step_index": 7,
+        "command": "cat tests/fixtures.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom pathlib import Path\n\n\n@pytest.fixture\ndef tmp_locator_files(tmpdir) -> dict[str, Path]:\n    secret_patterns_db_yaml = r\"\"\"patterns:\n  - pattern:\n      name: AWS Access Token\n      regex: (A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}\n      confidence: high\n  - pattern:\n      name: GCP API Key\n      regex: (?i)\\b(AIza[0-9A-Za-z\\\\-_]{35})(?:['|\\\"|\\n|\\r|\\s|\\x60|;]|$)\n      confidence: high\n  - pattern:\n      name:  Generi\n... (3017 chars omitted for recipe synthesis) ...\nDRKQ9d6kfsoZT2lUnZcZnBYvH69HExNPE\nLine 4 API_KEY=1234567890\n\"\"\"\n    tmpdir_path = Path(tmpdir)\n    nested_dir = tmpdir_path / \"nested_dir\"\n    nested_dir.mkdir()\n    temp_file_names = {\n        \"aws_key_file.java\": aws_key_file,\n        \"gcp_key_file.java\": gcp_key_file,\n        \"generic_key_file.java\": generic_key_file,\n        \"nested_mix_file.java\": nested_mix_file,\n    }\n    temp_paths = {}\n    for file_name, content in temp_file_names.items():\n        temp_path = tmpdir_path / file_name\n        temp_path.write_text(content)\n        temp_paths[file_name] = temp_path\n\n    return temp_paths\n"
+      },
+      {
+        "step_index": 8,
+        "command": "cat tests/test_decompiler.py | head -50",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nimport pytest\nfrom pathlib import Path\nfrom apkscan import Decompiler\n\n\n@pytest.mark.parametrize(\n    \"test_apk\",\n    [\n        \"test-apk-1.apk\",\n        \"test-xapk-1.xapk\",\n    ],\n)\ndef test_decompile(tmpdir, test_apk):\n    tmpdir_path = Path(tmpdir)\n    decompiler = Decompiler(working_dir=tmpdir_path)\n    test_apk_path = Path(__file__).parent / \"test_apks\" / test_apk\n    binary_name_file_path = (\"jadx\", test_apk_path)\n    file_path, output_dir, decompiled_files, success = decompiler.decompile(binary_name_file_path)\n    assert file_path == test_apk_path\n    assert (\n        output_dir.exists()\n        and output_dir.is_dir()\n        and output_dir == tmpdir_path / (test_apk_path.stem + \"-decompiled/jadx\")\n    )\n    assert decompiled_files and all(\n        decompiled_file.exists() and decompiled_file.is_file() for decompiled_file in decompiled_files\n    )\n    assert success\n    decompiler.cleanup()\n    assert not output_dir.exists()\n"
+      },
+      {
+        "step_index": 9,
+        "command": "cat README.md | head -200",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# APKscan\n![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)\n![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white)\n![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)\n[![PyPI version](https://badge.fury.io/py/apkscan.svg)](https://badge.fury.io/py/apkscan)\n[![GitHub issues](https://img.shields.io/github/issues/LucasFaudman/apkscan)](https://github.com/LucasFaudman/apkscan/issues)\n[![License](https://img.shields.io/badge/license-MIT-blue.sv\n... (8687 chars omitted for recipe synthesis) ...\nva files to decompile and scan.\n  -r [SECRET_LOCATOR_FILES ...], --rules [SECRET_LOCATOR_FILES ...]\n                        Path(s) to secret locator rules/patterns files OR\n                        names of included locator sets. Files can be in\n                        SecretLocator JSON, secret-patterns-db YAML, or\n                        Gitleak TOML formats. Included locator sets:\n                        all_secret_locators, aws, azure, cloud, curated,\n                        default, endpoints, gcp, generic, gitleaks, high-\n                        confidence, key_locators, leakin-regexes,\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cat src/apkscan/decompiler.py | head -100",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# © 2024 Lucas Faudman.\n# Licensed under the MIT License (see LICENSE for details).\n# For commercial use, see LICENSE for additional terms.\nfrom subprocess import run, DEVNULL, SubprocessError\nfrom pathlib import Path\nfrom shutil import which, rmtree\nfrom os import access, X_OK\nfrom shlex import split as shlex_split\nfrom zipfile import ZipFile\nfrom typing import Optional, Iterator, Iterable, Literal\n\n# Handles Dalvik bytecode (.apk/.dex) -> Java bytecode (.jar) translation\n# to allow for decompilation with Java decompilers that don't support Dalvik.\n# See: https://github.com/LucasFaudman/enjar\n... (2278 chars omitted for recipe synthesis) ...\n working_dir: Path = Path(\"/tmp/apk-secret-scanner\"),\n        overwrite: bool = False,\n        remove_failed_output_dirs: bool = True,\n        suppress_output: bool = False,\n        **concurrent_executor_kwargs,\n    ):\n        self.binary_paths = self.validate_binary_paths(binaries)\n        self.enjarify = self.validate_enjarify_choice(enjarify_choice)\n        self.unpack_xapks = unpack_xapks\n        self.deobfuscate = deobfuscate\n        self.extra_args = self.validate_extra_args(extra_args)\n        self.output_suffix = output_suffix\n        self.output_stem_separator = output_stem_separator\n"
+      },
+      {
+        "step_index": 12,
+        "command": "python3 --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.12.13\n"
+      },
+      {
+        "step_index": 18,
+        "command": "git config --global --add safe.directory /app",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 19,
+        "command": "pip install -e .",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting enjarify-adapter (from apkscan==0.4.0)\n  Downloading enjarify_adapter-1\n... (976 chars omitted for recipe synthesis) ...\nected packages: pyyaml, enjarify-adapter, apkscan\nSuccessfully installed apkscan-0.4.0 enjarify-adapter-1.0.2 pyyaml-6.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 21,
+        "command": "pip install pytest",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting packaging>=22 (from pytest)\n  Using cached packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 \n... (290 chars omitted for recipe synthesis) ...\nckaging, iniconfig, pytest\nSuccessfully installed iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 22,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.07s\n"
+      },
+      {
+        "step_index": 23,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.04s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat LucasFaudman__apkscan/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: LucasFaudman__apkscan/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 11,
+        "command": "python3 --version && which jadx && which apktool && pip3 list 2>/dev/null | head -30",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      },
+      {
+        "step_index": 13,
+        "command": "which jadx apktool cfr procyon krakatau fernflower 2>&1 || true",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 14,
+        "command": "which jadx 2>&1 || true",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 15,
+        "command": "which jadx",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 16,
+        "command": "pip install -e . 2>&1 | tail -20",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      },
+      {
+        "step_index": 17,
+        "command": "pip install -e .",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n[SYSTEM] P\n... (16341 chars omitted for recipe synthesis) ...\nry, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n"
+      },
+      {
+        "step_index": 20,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "/bin/bash: line 1: pytest: command not found\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [
+        "git config --global --add safe.directory /app"
+      ],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "git config --global --add safe.directory /app",
+        "pip install -e .",
+        "pip install pytest"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat LucasFaudman__apkscan/pyproject.toml: wrong path, read-only failure used only for path discovery",
+          "reason": ""
+        },
+        {
+          "command": "ls -la && pwd: read-only directory listing used for project structure discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml: read-only file inspection used for dependency discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat setup.py: read-only file inspection used for dependency discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/conftest.py: read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_apkscan.py | head -50: read-only file inspection with disallowed pipe",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/fixtures.py: read-only file inspection used for test fixture discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_decompiler.py | head -50: read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "cat README.md | head -200: read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "cat src/apkscan/decompiler.py | head -100: read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "python3 --version && which jadx && ... | head -30: rejected multi-command pipe combining probe with setup",
+          "reason": ""
+        },
+        {
+          "command": "python3 --version: read-only version check",
+          "reason": ""
+        },
+        {
+          "command": "which jadx apktool cfr procyon krakatau fernflower 2>&1 || true: rejected combining setup with read-only probe",
+          "reason": ""
+        },
+        {
+          "command": "which jadx 2>&1 || true: rejected combining error handling with read-only probe",
+          "reason": ""
+        },
+        {
+          "command": "which jadx: read-only tool availability check",
+          "reason": ""
+        },
+        {
+          "command": "pip install -e . 2>&1 | tail -20: rejected due to piping output through tail",
+          "reason": ""
+        },
+        {
+          "command": "pip install -e . (first attempt): failed due to git dubious ownership; fixed by prior git config",
+          "reason": ""
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings (first attempt): failed because pytest was not yet installed",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful setup trajectory consists of three ordered state-changing commands. First, `git config --global --add safe.directory /app` resolves the 'dubious ownership' error that blocked setuptools_scm from reading git metadata during editable install. Second, `pip install -e .` installs apkscan==0.4.0 along with its declared dependencies enjarify-adapter-1.0.2 and pyyaml-6.0.3. Third, `pip install pytest` adds the test framework, which was not declared as a package dependency in pyproject.toml. All three commands are persisted into the image and are required for tests to run. The excluded commands are either read-only diagnostics used only for environment discovery, rejected system commands that combined probes with state changes, or failed attempts whose failure was subsequently fixed by a later command.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [
+      "elasticsearch",
+      "kafka",
+      "minio",
+      "rabbitmq"
+    ],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 7,
+      "compressed_steps": 3,
+      "saved_tokens_est": 6450
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat LucasFaudman__apkscan/pyproject.toml",
+        "success": false,
+        "raw_chars": 69,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la && pwd",
+        "success": true,
+        "raw_chars": 713,
+        "raw_tokens_est": 178,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1620,
+        "raw_tokens_est": 405,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 68,
+        "reflect_input_tokens": 2300,
+        "reflect_output_tokens": 675
+      },
+      {
+        "step_id": 4,
+        "action": "cat setup.py",
+        "success": true,
+        "raw_chars": 2995,
+        "raw_tokens_est": 748,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 54,
+        "reflect_input_tokens": 2311,
+        "reflect_output_tokens": 1025
+      },
+      {
+        "step_id": 5,
+        "action": "cat tests/conftest.py",
+        "success": true,
+        "raw_chars": 154,
+        "raw_tokens_est": 38,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "cat tests/test_apkscan.py | head -50",
+        "success": true,
+        "raw_chars": 1472,
+        "raw_tokens_est": 368,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "cat tests/fixtures.py",
+        "success": true,
+        "raw_chars": 4217,
+        "raw_tokens_est": 1054,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 5288,
+        "reflect_output_tokens": 1850
+      },
+      {
+        "step_id": 8,
+        "action": "cat tests/test_decompiler.py | head -50",
+        "success": true,
+        "raw_chars": 1087,
+        "raw_tokens_est": 271,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "cat README.md | head -200",
+        "success": true,
+        "raw_chars": 9887,
+        "raw_tokens_est": 2471,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2091,
+        "reflect_input_tokens": 4432,
+        "reflect_output_tokens": 803
+      },
+      {
+        "step_id": 10,
+        "action": "cat src/apkscan/decompiler.py | head -100",
+        "success": true,
+        "raw_chars": 3478,
+        "raw_tokens_est": 869,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 98,
+        "reflect_input_tokens": 2152,
+        "reflect_output_tokens": 1183
+      },
+      {
+        "step_id": 11,
+        "action": "python3 --version && which jadx && which apktool && pip3 list 2>/dev/null | head -30",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "python3 --version",
+        "success": true,
+        "raw_chars": 15,
+        "raw_tokens_est": 3,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "which jadx apktool cfr procyon krakatau fernflower 2>&1 || true",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 14,
+        "action": "which jadx 2>&1 || true",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 15,
+        "action": "which jadx",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 16,
+        "action": "pip install -e . 2>&1 | tail -20",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 17,
+        "action": "pip install -e .",
+        "success": false,
+        "raw_chars": 17541,
+        "raw_tokens_est": 4385,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 3954,
+        "reflect_input_tokens": 5154,
+        "reflect_output_tokens": 687
+      },
+      {
+        "step_id": 18,
+        "action": "git config --global --add safe.directory /app",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 19,
+        "action": "pip install -e .",
+        "success": true,
+        "raw_chars": 2176,
+        "raw_tokens_est": 544,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 405,
+        "reflect_input_tokens": 1818,
+        "reflect_output_tokens": 400
+      },
+      {
+        "step_id": 20,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 21,
+        "action": "pip install pytest",
+        "success": true,
+        "raw_chars": 1490,
+        "raw_tokens_est": 372,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 22,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 705,
+        "raw_tokens_est": 176,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 23,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 705,
+        "raw_tokens_est": 176,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 15889,
+        "output_tokens": 2535,
+        "total_tokens": 18424
+      },
+      "planner": {
+        "input_tokens": 176503,
+        "output_tokens": 2076,
+        "total_tokens": 178579
+      },
+      "reflection": {
+        "input_tokens": 23455,
+        "output_tokens": 6623,
+        "total_tokens": 30078
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 19139,
+        "output_tokens": 2262,
+        "total_tokens": 21401
+      },
+      "total": {
+        "input_tokens": 234986,
+        "output_tokens": 13496,
+        "total_tokens": 248482
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+    "base_commit": "3b3e62",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/LucasFaudman__apkscan /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-15T16:22:41.192151+08:00",
+      "finished_at": "2026-05-15T16:22:41.341787+08:00",
+      "duration_seconds": 0.15,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context'...\n完成。\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "3b3e62"
+      ],
+      "command_shell": "git checkout --force 3b3e62",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-15T16:22:41.341870+08:00",
+      "finished_at": "2026-05-15T16:22:41.521023+08:00",
+      "duration_seconds": 0.179,
+      "stdout": "",
+      "stderr": "注意：正在切换到 '3b3e62'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\nHEAD 目前位于 3b3e622 Update README.md\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-15T16:22:41.521091+08:00",
+      "finished_at": "2026-05-15T16:22:41.526482+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-lucasfaudman__apkscan",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval -t jayint-repo2run-lucasfaudman__apkscan /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-15T16:22:41.531219+08:00",
+    "finished_at": "2026-05-15T16:22:52.904419+08:00",
+    "duration_seconds": 11.373,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.69kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 117.89MB 0.7s done\n#5 DONE 0.7s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN git config --global --add safe.directory /app\n#10 DONE 0.2s\n\n#11 [7/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e .' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.555 Obtaining file:///app\n#11 0.559   Installing build dependencies: started\n#11 4.866   Installing build dependencies: finished with status 'done'\n#11 4.867   Checking if build backend supports build_editable: started\n#11 5.049   Checking if build backend supports build_editable: finished with status 'done'\n#11 5.050   Getting requirements to build editable: started\n#11 5.220   Getting requirements to build editable: finished with status 'done'\n#11 5.222   Preparing editable metadata (pyproject.toml): started\n#11 5.629   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 6.329 Collecting enjarify-adapter (from apkscan==0.4.0)\n#11 7.199   Downloading enjarify_adapter-1.0.2-py3-none-any.whl.metadata (21 kB)\n#11 7.511 Collecting pyyaml (from apkscan==0.4.0)\n#11 7.630   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#11 7.753 Downloading enjarify_adapter-1.0.2-py3-none-any.whl (379 kB)\n#11 8.032 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#11 8.191    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 3.9 MB/s eta 0:00:00\n#11 8.199 Building wheels for collected packages: apkscan\n#11 8.200   Building editable for apkscan (pyproject.toml): started\n#11 8.786   Building editable for apkscan (pyproject.toml): finished with status 'done'\n#11 8.787   Created wheel for apkscan: filename=apkscan-0.4.0-0.editable-py3-none-any.whl size=13508 sha256=318718d40d13d4bede8472323805f2ed7c32293b1ececfbc8a0dc79d99973565\n#11 8.787   Stored in directory: /tmp/pip-ephem-wheel-cache-yxsg8ihi/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#11 8.790 Successfully built apkscan\n#11 8.820 Installing collected packages: pyyaml, enjarify-adapter, apkscan\n#11 9.080 Successfully installed apkscan-0.4.0 enjarify-adapter-1.0.2 pyyaml-6.0.3\n#11 9.080 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 9.1s\n\n#12 [8/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 0.443 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#12 0.446 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#12 0.447 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\n#12 0.447 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#12 0.448 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#12 0.479 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 0.5s\n\n#13 exporting to image\n#13 exporting layers 0.1s done\n#13 writing image sha256:53f17e5d3bc653af898855262ceecd0ba3b1e1037f2e695e33f2cb9d97754974\n#13 writing image sha256:53f17e5d3bc653af898855262ceecd0ba3b1e1037f2e695e33f2cb9d97754974 done\n#13 naming to docker.io/library/jayint-repo2run-lucasfaudman__apkscan done\n#13 DONE 0.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/opot4d4c82gufsqtuey80ngrn\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-lucasfaudman__apkscan",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-lucasfaudman__apkscan sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-15T16:22:52.905472+08:00",
+          "finished_at": "2026-05-15T16:22:53.746903+08:00",
+          "duration_seconds": 0.841,
+          "stdout": "tests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.07s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-lucasfaudman__apkscan",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/Dockerfile.eval -t jayint-repo2run-lucasfaudman__apkscan /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-15T16:22:41.531219+08:00",
+        "finished_at": "2026-05-15T16:22:52.904419+08:00",
+        "duration_seconds": 11.373,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.69kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 117.89MB 0.7s done\n#5 DONE 0.7s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN git config --global --add safe.directory /app\n#10 DONE 0.2s\n\n#11 [7/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e .' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.555 Obtaining file:///app\n#11 0.559   Installing build dependencies: started\n#11 4.866   Installing build dependencies: finished with status 'done'\n#11 4.867   Checking if build backend supports build_editable: started\n#11 5.049   Checking if build backend supports build_editable: finished with status 'done'\n#11 5.050   Getting requirements to build editable: started\n#11 5.220   Getting requirements to build editable: finished with status 'done'\n#11 5.222   Preparing editable metadata (pyproject.toml): started\n#11 5.629   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 6.329 Collecting enjarify-adapter (from apkscan==0.4.0)\n#11 7.199   Downloading enjarify_adapter-1.0.2-py3-none-any.whl.metadata (21 kB)\n#11 7.511 Collecting pyyaml (from apkscan==0.4.0)\n#11 7.630   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#11 7.753 Downloading enjarify_adapter-1.0.2-py3-none-any.whl (379 kB)\n#11 8.032 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#11 8.191    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 3.9 MB/s eta 0:00:00\n#11 8.199 Building wheels for collected packages: apkscan\n#11 8.200   Building editable for apkscan (pyproject.toml): started\n#11 8.786   Building editable for apkscan (pyproject.toml): finished with status 'done'\n#11 8.787   Created wheel for apkscan: filename=apkscan-0.4.0-0.editable-py3-none-any.whl size=13508 sha256=318718d40d13d4bede8472323805f2ed7c32293b1ececfbc8a0dc79d99973565\n#11 8.787   Stored in directory: /tmp/pip-ephem-wheel-cache-yxsg8ihi/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#11 8.790 Successfully built apkscan\n#11 8.820 Installing collected packages: pyyaml, enjarify-adapter, apkscan\n#11 9.080 Successfully installed apkscan-0.4.0 enjarify-adapter-1.0.2 pyyaml-6.0.3\n#11 9.080 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 9.1s\n\n#12 [8/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 0.443 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#12 0.446 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#12 0.447 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\n#12 0.447 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#12 0.448 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#12 0.479 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 0.5s\n\n#13 exporting to image\n#13 exporting layers 0.1s done\n#13 writing image sha256:53f17e5d3bc653af898855262ceecd0ba3b1e1037f2e695e33f2cb9d97754974\n#13 writing image sha256:53f17e5d3bc653af898855262ceecd0ba3b1e1037f2e695e33f2cb9d97754974 done\n#13 naming to docker.io/library/jayint-repo2run-lucasfaudman__apkscan done\n#13 DONE 0.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/opot4d4c82gufsqtuey80ngrn\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-lucasfaudman__apkscan",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-lucasfaudman__apkscan sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-15T16:22:52.905472+08:00",
+              "finished_at": "2026-05-15T16:22:53.746903+08:00",
+              "duration_seconds": 0.841,
+              "stdout": "tests/test_decompiler.py::test_decompile[test-apk-1.apk]\ntests/test_decompiler.py::test_decompile[test-xapk-1.xapk]\ntests/test_secret_scanner.py::test_load_all_formats[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_load_all_formats[gitleaks.toml]\ntests/test_secret_scanner.py::test_load_all_formats[secret_locators.json]\ntests/test_secret_scanner.py::test_load_all_formats[simple_key_value.json]\ntests/test_secret_scanner.py::test_scan_files[secret_patterns_db.yml]\ntests/test_secret_scanner.py::test_scan_files[gitleaks.toml]\ntests/test_secret_scanner.py::test_scan_files[secret_locators.json]\ntests/test_secret_scanner.py::test_scan_files[simple_key_value.json]\n\n10 tests collected in 0.07s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-lucasfaudman__apkscan"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-lucasfaudman__apkscan",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-15T16:22:53.748917+08:00",
+    "finished_at": "2026-05-15T16:22:53.772825+08:00",
+    "duration_seconds": 0.024,
+    "stdout": "Untagged: jayint-repo2run-lucasfaudman__apkscan:latest\nDeleted: sha256:53f17e5d3bc653af898855262ceecd0ba3b1e1037f2e695e33f2cb9d97754974\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/LucasFaudman__apkscan/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

@@ -1,0 +1,1008 @@
+{
+  "dataset_entry": {
+    "instance_id": "basf__mamba-tabular",
+    "full_name": "basf/mamba-tabular",
+    "repo_url": "https://github.com/basf/mamba-tabular.git",
+    "sha": "af1ea0",
+    "base_commit": "af1ea0",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/basf/mamba-tabular.git",
+      "--base-commit",
+      "af1ea0",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/basf/mamba-tabular.git --base-commit af1ea0 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-28T17:28:32.237822+08:00",
+    "finished_at": "2026-04-28T18:03:07.579968+08:00",
+    "duration_seconds": 2075.342,
+    "stdout": "Cloning https://github.com/basf/mamba-tabular.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular...\nClone successful.\nChecked out commit: af1ea0\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 5 potentially relevant files\n[ImageSelector]   ✗ .github/workflows/build-publish-pypi.yml\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✗ docs/requirements_docs.txt\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✓ setup.py\n[ImageSelector] 3 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: While this project uses PyTorch with CUDA (cu118), the base image selection doesn't inherently restrict architecture. However, for GPU-enabled development/test environments, you'll need to extend this with CUDA support (e.g., use `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04` as a base or add CUDA layers). The library itself should work on both amd64 and ARM64 for CPU-based testing.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:ca2c9\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/logs/compression_logs\nStarting agent for repository: https://github.com/basf/mamba-tabular.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2825, Output: 75, Total: 2900\n\n[Thought]\nLet me start by examining the repository structure and key configuration files to understand the project's dependencies and setup requirements.\n\n[Action]\ncat basf__mamba-tabular/setup.py\n[Container ID: 5ca07c6cefb4]\nExecuting: cat basf__mamba-tabular/setup.py\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: basf__mamba-tabular/setup.py: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2889, Output: 54, Total: 2943\n\n[Thought]\nLet me check the actual working directory and find where the repository files are located.\n\n[Action]\nls -la && pwd\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la && pwd\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 160\ndrwxr-xr-x 10 root root     4096 Apr 28 09:29 .\ndrwxr-xr-x  1 root root     4096 Apr 28 09:29 ..\ndrwxr-xr-x  7  501 dialout  4096 Apr 28 09:28 .git\ndrwxr-xr-x  4  501 dialout  4096 Apr 28 09:28 .github\n-rw-r--r--  1  501 dialout  3219 Apr 28 09:28 .gitignore\n-rw-r--r--  1  501 dialout  1060 Apr 28 09:28 LICENSE\n-rw-r--r--  1  501 dialout 19061 Apr 28 09:28 README.md\ndrwxr-xr-x  5  501 dialout  4096 Apr 28 09:28 docs\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 efficiency\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 examples\ndrwxr-xr-x  3  501 dialout  4096 Apr 28 09:28 logs\n-rw-r--r--  1  501 dialout 81163 Apr 28 09:28 mamba_tabular_summary.pdf\ndrwxr-xr-x  9  501 dialout  4096 Apr 28 09:28 mambular\n-rw-r--r--  1  501 dialout   818 Apr 28 09:28 readthedocs.yaml\n-rw-r--r--  1  501 dialout   103 Apr 28 09:28 requirements.txt\n-rw-r--r--  1  501 dialout  1781 Apr 28 09:28 setup.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 tests\n/app\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3384, Output: 52, Total: 3436\n\n[Thought]\nGood, I'm in the repository directory. Let me examine the setup.py file to understand the dependencies.\n\n[Action]\ncat setup.py\n[Container ID: 5ca07c6cefb4]\nExecuting: cat setup.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n#!/usr/bin/env python\n# -*- coding: utf-8 -*-\nimport os\nfrom pathlib import Path\n\nfrom setuptools import find_packages, setup\n\n# Package meta-data.\nNAME = \"mambular\"\nDESCRIPTION = \"A python package for tabular deep learning with mamba blocks.\"\nHOMEPAGE = \"https://github.com/basf/mamba-tabular\"\nDOCS = \"https://mambular.readthedocs.io/en/\"\nEMAIL = \"anton.thielmann@tu-clausthal.de\"\nAUTHOR = \"Anton Thielmann\"\nREQUIRES_PYTHON = \">=3.6, <=3.12.3\"\n\n# Load the package's verison file and its content.\nROOT_DIR = Path(__file__).resolve().parent\nPACKAGE_DIR = ROOT_DIR / \"mambular\"\n\nwith open(PACKAGE_DIR / \"__version__.py\") as f:\n    VERSION = f.readlines()[-1].split()[-1].strip(\"\\\"'\")\n\n# ger install_reqs from requirements file, used for setup function later\nwith open(os.path.join(ROOT_DIR, \"requirements.txt\")) as f:\n    # next(f)\n    install_reqs = [\n        line.rstrip()\n        for line in f.readlines()\n        if not line.startswith(\"#\") and not line.startswith(\"git+\")\n    ]\n\n\n# get long description from readme file\nwith open(os.path.join(ROOT_DIR, \"README.md\")) as f:\n    LONG_DESCRIPTION = f.read()\n\nsetup(\n    name=NAME,\n    version=VERSION,\n    description=DESCRIPTION,\n    long_description=LONG_DESCRIPTION,\n    long_description_content_type=\"text/markdown\",\n    author=AUTHOR,\n    author_email=EMAIL,\n    python_requires=REQUIRES_PYTHON,\n    install_requires=install_reqs,\n    # extras_require=extras_reqs,\n    license=\"Copyright (c) 2024 BASF SE\",  # adapt based on your needs\n    packages=find_packages(),\n    classifiers=[\n        \"Programming Language :: Python :: 3\",\n        \"License :: OSI Approved :: MIT License\",\n        \"Operating System :: OS Independent\",\n    ],\n    include_package_data=True,\n    project_urls={'Documentation': DOCS},\n    url=HOMEPAGE\n)\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3889, Output: 39, Total: 3928\n\n[Thought]\nLet me check the requirements.txt file to understand the project dependencies.\n\n[Action]\ncat requirements.txt\n[Container ID: 5ca07c6cefb4]\nExecuting: cat requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nnumpy<=1.26.4\npandas\nlightning\nscikit_learn\ntorch\ntorchmetrics\nsetuptools\nproperscoring\nscikit-optimize\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3956, Output: 52, Total: 4008\n\n[Thought]\nLet me check the test files to understand what tests need to run and their dependencies.\n\n[Action]\nls -la tests/ && cat tests/test_classifier.py\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la tests/ && cat tests/test_classifier.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 48\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 .\ndrwxr-xr-x 10 root root     4096 Apr 28 09:29 ..\n-rw-r--r--  1  501 dialout  4668 Apr 28 09:28 test_classifier.py\n-rw-r--r--  1  501 dialout 14790 Apr 28 09:28 test_distributions.py\n-rw-r--r--  1  501 dialout  4399 Apr 28 09:28 test_lss.py\n-rw-r--r--  1  501 dialout  3401 Apr 28 09:28 test_preprocessor.py\n-rw-r--r--  1  501 dialout  3991 Apr 28 09:28 test_regressor.py\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nimport numpy as np\nimport pandas as pd\nimport torch\nfrom sklearn.metrics import accuracy_score, log_loss\n\nfrom mambular.models import MambularClassifier  # Ensure correct import path\n\n\nclass TestMambularClassifier(unittest.TestCase):\n    def setUp(self):\n        # Patching external dependencies\n        self.patcher_pl_trainer = patch(\"lightning.Trainer\")\n        self.mock_pl_trainer = self.patcher_pl_trainer.start()\n\n        self.patcher_base_model = patch(\n            \"mambular.base_models.classifier.BaseMambularClassifier\"\n        )\n        self.mock_base_model = self.patcher_base_model.start()\n\n        self.classifier = MambularClassifier(d_model=128, dropout=0.1)\n\n        # Sample data\n        self.X = pd.DataFrame(np.random.randn(100, 10))\n        self.y = np.random.choice([\"A\", \"B\", \"C\"], size=100)\n\n        self.classifier.cat_feature_info = {}\n        self.classifier.num_feature_info = {}\n\n    def tearDown(self):\n        self.patcher_pl_trainer.stop()\n        self.patcher_base_model.stop()\n\n    def test_initialization(self):\n        # This assumes MambularConfig is properly imported and used in the MambularRegressor class\n        from mambular.utils.configs import DefaultMambularConfig\n\n        self.assertIsInstance(self.classifier.config, DefaultMambularConfig)\n        self.assertEqual(self.classifier.config.d_model, 128)\n        self.assertEqual(self.classifier.config.dropout, 0.1)\n\n    def test_split_data(self):\n        \"\"\"Test the data splitting functionality.\"\"\"\n        X_train, X_val, y_train, y_val = self.classifier.split_data(\n            self.X, self.y, val_size=0.2, random_state=42\n        )\n        self.assertEqual(len(X_train), 80)\n        self.assertEqual(len(X_val), 20)\n        self.assertEqual(len(y_train), 80)\n        self.assertEqual(len(y_val), 20)\n\n    def test_fit(self):\n        \"\"\"Test the training setup and call.\"\"\"\n        # Mock the necessary parts to simulate training\n        self.classifier.preprocess_data = MagicMock()\n        self.classifier.model = self.mock_base_model\n\n        self.classifier.fit(self.X, self.y)\n\n        # Ensure that the fit method of the trainer is called\n        self.mock_pl_trainer.return_value.fit.assert_called_once()\n\n    def test_predict(self):\n        # Create a mock tensor as the model output\n        # Assuming three classes A, B, C as per self.y\n        mock_logits = torch.rand(100, 3)\n\n        # Mock the model and its method calls\n        self.classifier.model = MagicMock()\n        self.classifier.model.eval.return_value = None\n        self.classifier.model.return_value = mock_logits\n\n        # Mock preprocess_test_data to return dummy tensor data\n        self.classifier.preprocess_test_data = MagicMock(return_value=([], []))\n\n        predictions = self.classifier.predict(self.X)\n\n        # Assert that predictions return as expected\n        expected_predictions = torch.argmax(mock_logits, dim=1).numpy()\n        np.testing.assert_array_equal(predictions, expected_predictions)\n\n    def test_evaluate(self):\n        # Mock predict and predict_proba to simulate classifier output\n        mock_predictions = np.random.choice([0, 1, 2], size=100)\n        raw_probabilities = np.random.rand(100, 3)\n        # Normalize these probabilities so that each row sums to 1\n        mock_probabilities = raw_probabilities / raw_probabilities.sum(\n            axis=1, keepdims=True\n        )\n        self.classifier.predict = MagicMock(return_value=mock_predictions)\n        self.classifier.predict_proba = MagicMock(return_value=mock_probabilities)\n\n        # Define metrics to test\n        metrics = {\n            \"Accuracy\": (accuracy_score, False),\n            # Log Loss requires probability scores\n            \"Log Loss\": (log_loss, True),\n        }\n\n        # Call evaluate with the defined metrics\n        result = self.classifier.evaluate(self.X, self.y, metrics=metrics)\n\n        # Assert that predict and predict_proba were called correctly\n        self.classifier.predict.assert_called_once()\n        self.classifier.predict_proba.assert_called_once()\n\n        # Check the results of evaluate\n        expected_accuracy = accuracy_score(self.y, mock_predictions)\n        expected_log_loss = log_loss(self.y, mock_probabilities)\n        self.assertEqual(result[\"Accuracy\"], expected_accuracy)\n        self.assertAlmostEqual(result[\"Log Loss\"], expected_log_loss)\n\n        # Assert calls with appropriate arguments\n        self.classifier.predict.assert_called_once_with(self.X)\n        self.classifier.predict_proba.assert_called_once_with(self.X)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 5209, Output: 71, Total: 5280\n\n[Thought]\nLet me check the docs requirements for additional test dependencies and examine more test files.\n\n[Action]\ncat docs/requirements_docs.txt\n[Container ID: 5ca07c6cefb4]\nExecuting: cat docs/requirements_docs.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nsphinx==6.2.1\nsphinx-autodoc-typehints==1.23.0\nnumpydoc==1.7.0\nnbsphinx==0.9.4\nipython\nmyst-parser==3.0.1\nm2r2==0.3.3.post2\nsphinx-copybutton==0.5.2\nsphinx-togglebutton==0.3.2\nsphinx-book-theme==1.1.2\npandoc==2.3\nsphinx-rtd-theme==2.0.0\nreadthedocs-sphinx-ext==2.2.5\nlxml-html-clean==0.4.0\npydata-sphinx-theme==0.15.2\n\n==================== Step 7 ====================\n\n[Tokens] Input: 5400, Output: 101, Total: 5501\n\n[Thought]\nLet me check if there's a pyproject.toml and look at the test files to understand their imports better.\n\n[Action]\nls -la *.toml *.cfg 2>/dev/null || echo \"No toml/cfg found\" && cat tests/test_regressor.py | head -50\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la *.toml *.cfg 2>/dev/null || echo \"No toml/cfg found\" && cat tests/test_regressor.py | head -50\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nNo toml/cfg found\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nimport numpy as np\nimport pandas as pd\nfrom sklearn.metrics import mean_squared_error, r2_score\n\nfrom mambular.models import MambularRegressor  # Ensure correct import path\n\n\nclass TestMambularRegressor(unittest.TestCase):\n    def setUp(self):\n        # Patching external dependencies\n        self.patcher_pl_trainer = patch(\"lightning.Trainer\")\n        self.mock_pl_trainer = self.patcher_pl_trainer.start()\n\n        self.patcher_base_model = patch(\n            \"mambular.base_models.regressor.BaseMambularRegressor\"\n        )\n        self.mock_base_model = self.patcher_base_model.start()\n\n        self.regressor = MambularRegressor(d_model=128, dropout=0.1)\n\n        # Sample data\n        self.X = pd.DataFrame(np.random.randn(100, 10))\n        self.y = np.random.rand(100)\n\n        self.regressor.cat_feature_info = {}\n        self.regressor.num_feature_info = {}\n\n    def tearDown(self):\n        self.patcher_pl_trainer.stop()\n        self.patcher_base_model.stop()\n\n    def test_initialization(self):\n        # This assumes MambularConfig is properly imported and used in the MambularRegressor class\n        from mambular.utils.configs import DefaultMambularConfig\n\n        self.assertIsInstance(self.regressor.config, DefaultMambularConfig)\n        self.assertEqual(self.regressor.config.d_model, 128)\n        self.assertEqual(self.regressor.config.dropout, 0.1)\n\n    def test_split_data(self):\n        \"\"\"Test the data splitting functionality.\"\"\"\n        X_train, X_val, y_train, y_val = self.regressor.split_data(\n            self.X, self.y, val_size=0.2, random_state=42\n        )\n        self.assertEqual(len(X_train), 80)\n        self.assertEqual(len(X_val), 20)\n        self.assertEqual(len(y_train), 80)\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 5609, Output: 106, Total: 5715\n\n[Thought]\nLet me check the mambular package structure to understand the import paths and see if configs are in a different location.\n\n[Action]\nls -la mambular/ && ls -la mambular/utils/ && cat mambular/__init__.py\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la mambular/ && ls -la mambular/utils/ && cat mambular/__init__.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 44\ndrwxr-xr-x  9  501 dialout 4096 Apr 28 09:28 .\ndrwxr-xr-x 10 root root    4096 Apr 28 09:29 ..\n-rw-r--r--  1  501 dialout  252 Apr 28 09:28 __init__.py\n-rw-r--r--  1  501 dialout  127 Apr 28 09:28 __version__.py\ndrwxr-xr-x  4  501 dialout 4096 Apr 28 09:28 arch_utils\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 base_models\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 configs\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 data_utils\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 models\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 preprocessing\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 utils\ntotal 52\ndrwxr-xr-x 2 501 dialout  4096 Apr 28 09:28 .\ndrwxr-xr-x 9 501 dialout  4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout     1 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout  5472 Apr 28 09:28 config_mapper.py\n-rw-r--r-- 1 501 dialout  1508 Apr 28 09:28 distributional_metrics.py\n-rw-r--r-- 1 501 dialout 23065 Apr 28 09:28 distributions.py\n-rw-r--r-- 1 501 dialout   325 Apr 28 09:28 get_feature_dimensions.py\nfrom . import base_models, data_utils, models, preprocessing, utils\nfrom .__version__ import __version__\n\n__all__ = ['base_models',\n           'models',\n           'utils',\n           'data_utils',\n           'preprocessing',\n           '__version__']\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 6200, Output: 72, Total: 6272\n\n[Thought]\nLet me check the configs directory and understand the config structure.\n\n[Action]\nls -la mambular/configs/ && cat mambular/configs/__init__.py\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la mambular/configs/ && cat mambular/configs/__init__.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 72\ndrwxr-xr-x 2 501 dialout 4096 Apr 28 09:28 .\ndrwxr-xr-x 9 501 dialout 4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout  916 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout 3970 Apr 28 09:28 fttransformer_config.py\n-rw-r--r-- 1 501 dialout 4104 Apr 28 09:28 mambatab_config.py\n-rw-r--r-- 1 501 dialout 5087 Apr 28 09:28 mambattention_config.py\n-rw-r--r-- 1 501 dialout 5336 Apr 28 09:28 mambular_config.py\n-rw-r--r-- 1 501 dialout 2927 Apr 28 09:28 mlp_config.py\n-rw-r--r-- 1 501 dialout 1852 Apr 28 09:28 ndtf_config.py\n-rw-r--r-- 1 501 dialout 2920 Apr 28 09:28 node_config.py\n-rw-r--r-- 1 501 dialout 3342 Apr 28 09:28 resnet_config.py\n-rw-r--r-- 1 501 dialout 4186 Apr 28 09:28 tabm_config.py\n-rw-r--r-- 1 501 dialout 3556 Apr 28 09:28 tabtransformer_config.py\n-rw-r--r-- 1 501 dialout 3344 Apr 28 09:28 tabularnn_config.py\nfrom .mambular_config import DefaultMambularConfig\nfrom .fttransformer_config import DefaultFTTransformerConfig\nfrom .resnet_config import DefaultResNetConfig\nfrom .mlp_config import DefaultMLPConfig\nfrom .tabtransformer_config import DefaultTabTransformerConfig\nfrom .mambatab_config import DefaultMambaTabConfig\nfrom .tabularnn_config import DefaultTabulaRNNConfig\nfrom .mambattention_config import DefaultMambAttentionConfig\nfrom .ndtf_config import DefaultNDTFConfig\nfrom .node_config import DefaultNODEConfig\nfrom .tabm_config import DefaultTabMConfig\n\n\n__all__ = [\n    \"DefaultMambularConfig\",\n    \"DefaultFTTransformerConfig\",\n    \"DefaultResNetConfig\",\n    \"DefaultMLPConfig\",\n    \"DefaultTabTransformerConfig\",\n    \"DefaultMambaTabConfig\",\n    \"DefaultTabulaRNNConfig\",\n    \"DefaultMambAttentionConfig\",\n    \"DefaultNDTFConfig\",\n    \"DefaultNODEConfig\",\n    \"DefaultTabMConfig\",\n]\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 6854, Output: 142, Total: 6996\n\n[Thought]\nI notice the test files import from `mambular.utils.configs` but the configs are in `mambular.configs`. Let me check if there's a utils/configs submodule or if the tests have an issue.\n\n[Action]\nls -la mambular/utils/ && cat mambular/utils/config_mapper.py | head -30\n[Container ID: 5ca07c6cefb4]\nExecuting: ls -la mambular/utils/ && cat mambular/utils/config_mapper.py | head -30\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 52\ndrwxr-xr-x 2 501 dialout  4096 Apr 28 09:28 .\ndrwxr-xr-x 9 501 dialout  4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout     1 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout  5472 Apr 28 09:28 config_mapper.py\n-rw-r--r-- 1 501 dialout  1508 Apr 28 09:28 distributional_metrics.py\n-rw-r--r-- 1 501 dialout 23065 Apr 28 09:28 distributions.py\n-rw-r--r-- 1 501 dialout   325 Apr 28 09:28 get_feature_dimensions.py\nfrom skopt.space import Real, Integer, Categorical\nimport torch.nn as nn\nfrom ..arch_utils.transformer_utils import ReGLU\n\n\ndef round_to_nearest_16(x):\n    \"\"\"Rounds the value to the nearest multiple of 16.\"\"\"\n    return int(round(x / 16) * 16)\n\n\ndef get_search_space(\n    config,\n    fixed_params={\n        \"pooling_method\": \"avg\",\n        \"head_skip_layers\": False,\n        \"head_layer_size_length\": 0,\n        \"cat_encoding\": \"int\",\n        \"head_skip_layer\": False,\n        \"use_cls\": False,\n    },\n    custom_search_space=None,\n):\n    \"\"\"\n    Given a model configuration, return the hyperparameter search space\n    based on the config attributes.\n\n    Parameters\n    ----------\n    config : dataclass\n        The configuration object for the model.\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 7314, Output: 218, Total: 7532\n\n[Thought]\nThe tests import from `mambular.utils.configs` but configs are in `mambular.configs`. This seems like an issue. Let me install the package first and see what happens with pytest collection.\n\n[Action]\npip install -e . 2>&1 | tail -30\n[Container ID: 5ca07c6cefb4]\nExecuting: pip install -e . 2>&1 | tail -30\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 12 ====================\n\n[Tokens] Input: 7464, Output: 43, Total: 7507\n\n[Thought]\nLet me install the package in editable mode without filtering output.\n\n[Action]\npip install -e .\n[Container ID: 5ca07c6cefb4]\nExecuting: pip install -e .\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting numpy<=1.26.4 (from mambular==1.0.2)\n  Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\nCollecting pandas (from mambular==1.0.2)\n  Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\nCollecting lightning (from mambular==1.0.2)\n  Downloading lightning-2.6.1-py3-none-any.whl.metadata (44 kB)\nCollecting scikit_learn (from mambular==1.0.2)\n  Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (11 kB)\nCollecting torch (from mambular==1.0.2)\n  Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (29 kB)\nCollecting torchmetrics (from mambular==1.0.2)\n  Downloading torchmetrics-1.9.0-py3-none-any.whl.metadata (23 kB)\nCollecting setuptools (from mambular==1.0.2)\n  Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\nCollecting properscoring (from mambular==1.0.2)\n  Downloading properscoring-0.1-py2.py3-none-any.whl.metadata (6.2 kB)\nCollecting scikit-optimize (from mambular==1.0.2)\n  Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl.metadata (9.7 kB)\nINFO: pip is looking at multiple versions of mambular to determine which version is compatible with other requirements. This could take a while.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\nERROR: Package 'mambular' requires a different Python: 3.12.13 not in '<=3.12.3,>=3.6'\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 13 ====================\n\n[Tokens] Input: 8245, Output: 174, Total: 8419\n\n[Thought]\nThe package requires Python <=3.12.3 but we have Python 3.12.13. I need to modify the setup.py to allow the current Python version.\n\n[Action]\nsed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py\n[Container ID: 5ca07c6cefb4]\nExecuting: sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py\nCommand succeeded.\n[Snapshot Created] sha256:fa090\n\n[Observation]\n(No output)\n\n==================== Step 14 ====================\n\n[Tokens] Input: 8339, Output: 48, Total: 8387\n\n[Thought]\nGood, the setup.py has been modified. Now let me try to install the package again.\n\n[Action]\npip install -e .\n[Container ID: 5ca07c6cefb4]\nExecuting: pip install -e .\nCommand succeeded.\n[Snapshot Created] sha256:8b7cd\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting numpy<=1.26.4 (from mambular==1.0.2)\n  Using cached numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\nCollecting pandas (from mambular==1.0.2)\n  Using cached pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\nCollecting lightning (from mambular==1.0.2)\n  Using cached lightning-2.6.1-py3-none-any.whl.metadata (44 kB)\nCollecting scikit_learn (from mambular==1.0.2)\n  Using cached scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (11 kB)\nCollecting torch (from mambular==1.0.2)\n  Using cached torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (29 kB)\nCollecting torchmetrics (from mambular==1.0.2)\n  Using cached torchmetrics-1.9.0-py3-none-any.whl.metadata (23 kB)\nCollecting setuptools (from mambular==1.0.2)\n  Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\nCollecting properscoring (from mambular==1.0.2)\n  Using cached properscoring-0.1-py2.py3-none-any.whl.metadata (6.2 kB)\nCollecting scikit-optimize (from mambular==1.0.2)\n  Using cached scikit_optimize-0.10.2-py2.py3-none-any.whl.metadata (9.7 kB)\nCollecting PyYAML<8.0,>5.4 (from lightning->mambular==1.0.2)\n  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\nCollecting fsspec<2028.0,>=2022.5.0 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading fsspec-2026.3.0-py3-none-any.whl.metadata (10 kB)\nCollecting lightning-utilities<2.0,>=0.10.0 (from lightning->mambular==1.0.2)\n  Downloading lightning_utilities-0.15.3-py3-none-any.whl.metadata (5.5 kB)\nCollecting packaging<27.0,>=23.0 (from lightning->mambular==1.0.2)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting tqdm<6.0,>=4.57.0 (from lightning->mambular==1.0.2)\n  Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\nCollecting typing-extensions<6.0,>4.5.0 (from lightning->mambular==1.0.2)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting pytorch-lightning (from lightning->mambular==1.0.2)\n  Downloading pytorch_lightning-2.6.1-py3-none-any.whl.metadata (21 kB)\nCollecting filelock (from torch->mambular==1.0.2)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting setuptools (from mambular==1.0.2)\n  Downloading setuptools-81.0.0-py3-none-any.whl.metadata (6.6 kB)\nCollecting sympy>=1.13.3 (from torch->mambular==1.0.2)\n  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)\nCollecting networkx>=2.5.1 (from torch->mambular==1.0.2)\n  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)\nCollecting jinja2 (from torch->mambular==1.0.2)\n  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\nCollecting cuda-toolkit==13.0.2 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl.metadata (9.4 kB)\nCollecting cuda-bindings<14,>=13.0.3 (from torch->mambular==1.0.2)\n  Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.3 kB)\nCollecting nvidia-cudnn-cu13==9.19.0.56 (from torch->mambular==1.0.2)\n  Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)\nCollecting nvidia-cusparselt-cu13==0.8.0 (from torch->mambular==1.0.2)\n  Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)\nCollecting nvidia-nccl-cu13==2.28.9 (from torch->mambular==1.0.2)\n  Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl.metadata (2.0 kB)\nCollecting nvidia-nvshmem-cu13==3.4.5 (from torch->mambular==1.0.2)\n  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)\nCollecting triton==3.6.0 (from torch->mambular==1.0.2)\n  Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cublas==13.1.0.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\nCollecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)\nCollecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\nCollecting nvidia-nvjitlink==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\nCollecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)\nCollecting python-dateutil>=2.8.2 (from pandas->mambular==1.0.2)\n  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\nCollecting scipy (from properscoring->mambular==1.0.2)\n  Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\nCollecting joblib>=1.3.0 (from scikit_learn->mambular==1.0.2)\n  Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)\nCollecting threadpoolctl>=3.2.0 (from scikit_learn->mambular==1.0.2)\n  Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)\nCollecting pyaml>=16.9 (from scikit-optimize->mambular==1.0.2)\n  Downloading pyaml-26.2.1-py3-none-any.whl.metadata (12 kB)\nCollecting cuda-pathfinder~=1.1 (from cuda-bindings<14,>=13.0.3->torch->mambular==1.0.2)\n  Downloading cuda_pathfinder-1.5.4-py3-none-any.whl.metadata (1.9 kB)\nCollecting aiohttp!=4.0.0a0,!=4.0.0a1 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting six>=1.5 (from python-dateutil>=2.8.2->pandas->mambular==1.0.2)\n  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\nCollecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch->mambular==1.0.2)\n  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)\nCollecting MarkupSafe>=2.0 (from jinja2->torch->mambular==1.0.2)\n  Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\nCollecting aiohappyeyeballs>=2.5.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\nCollecting aiosignal>=1.4.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\nCollecting attrs>=17.3.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\nCollecting frozenlist>=1.1.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\nCollecting multidict<7.0,>=4.5 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\nCollecting propcache>=0.2.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\nCollecting yarl<2.0,>=1.17.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\nCollecting idna>=2.0 (from yarl<2.0,>=1.17.0->aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n  Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)\nDownloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 669.9 kB/s eta 0:00:00\nDownloading lightning-2.6.1-py3-none-any.whl (853 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 853.6/853.6 kB 1.1 MB/s eta 0:00:00\nDownloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl (530.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.7/530.7 MB 1.9 MB/s eta 0:00:00\nDownloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\nDownloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 2.2 MB/s eta 0:00:00\nDownloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 1.3 MB/s eta 0:00:00\nDownloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 2.2 MB/s eta 0:00:00\nDownloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.3/188.3 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 2.1 MB/s eta 0:00:00\nDownloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 2.7 MB/s eta 0:00:00\nDownloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 2.2 MB/s eta 0:00:00\nDownloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.9 MB/s eta 0:00:00\nDownloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 2.5 MB/s eta 0:00:00\nDownloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 2.7 MB/s eta 0:00:00\nDownloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 2.4 MB/s eta 0:00:00\nDownloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\nDownloading setuptools-81.0.0-py3-none-any.whl (1.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 2.8 MB/s eta 0:00:00\nDownloading torchmetrics-1.9.0-py3-none-any.whl (983 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 983.4/983.4 kB 2.3 MB/s eta 0:00:00\nDownloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (10.9 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.9/10.9 MB 2.5 MB/s eta 0:00:00\nDownloading properscoring-0.1-py2.py3-none-any.whl (23 kB)\nDownloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (8.9 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.9/8.9 MB 2.6 MB/s eta 0:00:00\nDownloading scikit_optimize-0.10.2-py2.py3-none-any.whl (107 kB)\nDownloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 2.2 MB/s eta 0:00:00\nDownloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\nDownloading joblib-1.5.3-py3-none-any.whl (309 kB)\nDownloading lightning_utilities-0.15.3-py3-none-any.whl (31 kB)\nDownloading networkx-3.6.1-py3-none-any.whl (2.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 1.5 MB/s eta 0:00:00\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pyaml-26.2.1-py3-none-any.whl (27 kB)\nDownloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nDownloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 1.5 MB/s eta 0:00:00\nDownloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 2.5 MB/s eta 0:00:00\nDownloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 2.5 MB/s eta 0:00:00\nDownloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nDownloading tqdm-4.67.3-py3-none-any.whl (78 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading jinja2-3.1.6-py3-none-any.whl (134 kB)\nDownloading pytorch_lightning-2.6.1-py3-none-any.whl (857 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 857.3/857.3 kB 323.2 kB/s eta 0:00:00\nDownloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 538.1 kB/s eta 0:00:00\nDownloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\nDownloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\nDownloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 696.4 kB/s eta 0:00:00\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nDownloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\nDownloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\nDownloading attrs-26.1.0-py3-none-any.whl (67 kB)\nDownloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (242 kB)\nDownloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (256 kB)\nDownloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (221 kB)\nDownloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (100 kB)\nDownloading idna-3.13-py3-none-any.whl (68 kB)\nBuilding wheels for collected packages: mambular\n  Building editable for mambular (pyproject.toml): started\n  Building editable for mambular (pyproject.toml): finished with status 'done'\n  Created wheel for mambular: filename=mambular-1.0.2-0.editable-py3-none-any.whl size=10476 sha256=46a6cea81845914a5c969c99f2446de357e650d2d1f7afdae4b9b2b6a5c7a862\n  Stored in directory: /tmp/pip-ephem-wheel-cache-zv0tgn9o/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\nSuccessfully built mambular\nInstalling collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, typing-extensions, triton, tqdm, threadpoolctl, sympy, six, setuptools, PyYAML, propcache, packaging, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, multidict, MarkupSafe, joblib, idna, fsspec, frozenlist, filelock, cuda-pathfinder, attrs, aiohappyeyeballs, yarl, scipy, python-dateutil, pyaml, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, lightning-utilities, jinja2, cuda-bindings, aiosignal, scikit_learn, properscoring, pandas, nvidia-cusolver, aiohttp, scikit-optimize, torch, torchmetrics, pytorch-lightning, lightning, mambular\nSuccessfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 attrs-26.1.0 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 filelock-3.29.0 frozenlist-1.8.0 fsspec-2026.3.0 idna-3.13 jinja2-3.1.6 joblib-1.5.3 lightning-2.6.1 lightning-utilities-0.15.3 mambular-1.0.2 mpmath-1.3.0 multidict-6.7.1 networkx-3.6.1 numpy-1.26.4 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 packaging-26.2 pandas-3.0.2 propcache-0.4.1 properscoring-0.1 pyaml-26.2.1 python-dateutil-2.9.0.post0 pytorch-lightning-2.6.1 scikit-optimize-0.10.2 scikit_learn-1.8.0 scipy-1.17.1 setuptools-81.0.0 six-1.17.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchmetrics-1.9.0 tqdm-4.67.3 triton-3.6.0 typing-extensions-4.15.0 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 15 ====================\n\n[Tokens] Input: 16881, Output: 63, Total: 16944\n\n[Thought]\nThe package installed successfully. Now let me run pytest collection to see if the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings tests/\n[Container ID: 5ca07c6cefb4]\nExecuting: pytest --collect-only -q --disable-warnings tests/\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: pytest: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 16 ====================\n\n[Tokens] Input: 16942, Output: 35, Total: 16977\n\n[Thought]\nPytest is not installed. Let me install it.\n\n[Action]\npip install pytest\n[Container ID: 5ca07c6cefb4]\nExecuting: pip install pytest\nCommand succeeded.\n[Snapshot Created] sha256:7a758\n\n[Observation]\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nRequirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nDownloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nDownloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.0 MB/s eta 0:00:00\nInstalling collected packages: pygments, pluggy, iniconfig, pytest\nSuccessfully installed iniconfig-2.3.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 17 ====================\n\n[Tokens] Input: 10216, Output: 55, Total: 10271\n\n[Thought]\nPytest is installed. Now let me run pytest collection to verify the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings tests/\n[Container ID: 5ca07c6cefb4]\nExecuting: pytest --collect-only -q --disable-warnings tests/\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNormalDistribution::test_evaluate_nll\ntests/test_distributions.py::TestNormalDistribution::test_initialization\ntests/test_distributions.py::TestNormalDistribution::test_predefined_transforms\ntests/test_distributions.py::TestPoissonDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestPoissonDistribution::test_initialization\ntests/test_distributions.py::TestBetaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestBetaDistribution::test_initialization\ntests/test_distributions.py::TestInverseGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestInverseGammaDistribution::test_initialization\ntests/test_distributions.py::TestDirichletDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestDirichletDistribution::test_initialization\ntests/test_distributions.py::TestGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestGammaDistribution::test_initialization\ntests/test_distributions.py::TestStudentTDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestStudentTDistribution::test_evaluate_nll\ntests/test_distributions.py::TestStudentTDistribution::test_initialization\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_initialization\ntests/test_distributions.py::TestCategoricalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestCategoricalDistribution::test_initialization\ntests/test_lss.py::TestMambularLSS::test_fit\ntests/test_lss.py::TestMambularLSS::test_initialization\ntests/test_lss.py::TestMambularLSS::test_normal_metrics\ntests/test_lss.py::TestMambularLSS::test_poisson_metrics\ntests/test_lss.py::TestMambularLSS::test_split_data\ntests/test_regressor.py::TestMambularRegressor::test_evaluate\ntests/test_regressor.py::TestMambularRegressor::test_fit\ntests/test_regressor.py::TestMambularRegressor::test_initialization\ntests/test_regressor.py::TestMambularRegressor::test_predict\ntests/test_regressor.py::TestMambularRegressor::test_split_data\n\n==================================== ERRORS ====================================\n_________________ ERROR collecting tests/test_preprocessor.py __________________\nImportError while importing test module '/app/tests/test_preprocessor.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_preprocessor.py:5: in <module>\n    from mambular.utils.preprocessor import Preprocessor\nE   ModuleNotFoundError: No module named 'mambular.utils.preprocessor'\n=========================== short test summary info ============================\nERROR tests/test_preprocessor.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n36 tests collected, 1 error in 6.97s\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 18 ====================\n\n[Tokens] Input: 11077, Output: 108, Total: 11185\n\n[Thought]\nThere's an import error in test_preprocessor.py - it's trying to import from `mambular.utils.preprocessor` but the preprocessor is in `mambular.preprocessing.preprocessor`. Let me fix this import.\n\n[Action]\ncat tests/test_preprocessor.py\n[Container ID: 5ca07c6cefb4]\nExecuting: cat tests/test_preprocessor.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport unittest\nimport pandas as pd\nimport numpy as np\nimport sys\nfrom mambular.utils.preprocessor import Preprocessor\nfrom sklearn.exceptions import NotFittedError\n\n\nclass TestPreprocessor(unittest.TestCase):\n    def setUp(self):\n        # Sample data for testing\n        self.data = pd.DataFrame(\n            {\n                \"numerical\": np.random.randn(500),\n                \"categorical\": np.random.choice([\"A\", \"B\", \"C\"], size=500),\n                \"mixed\": np.random.choice([1, \"A\", \"B\"], size=500),\n            }\n        )\n        self.target = np.random.randn(500)\n\n    def test_initialization(self):\n        \"\"\"Test initialization of the Preprocessor with default parameters.\"\"\"\n        pp = Preprocessor(n_bins=20, numerical_preprocessing=\"binning\")\n        self.assertEqual(pp.n_bins, 20)\n        self.assertEqual(pp.numerical_preprocessing, \"binning\")\n        self.assertFalse(pp.use_decision_tree_bins)\n\n    def test_fit(self):\n        \"\"\"Test the fitting process of the preprocessor.\"\"\"\n        pp = Preprocessor(numerical_preprocessing=\"binning\", n_bins=20)\n        pp.fit(self.data, self.target)\n        self.assertIsNotNone(pp.column_transformer)\n\n    def test_transform_not_fitted(self):\n        \"\"\"Test that transform raises an error if called before fitting.\"\"\"\n        pp = Preprocessor()\n        with self.assertRaises(NotFittedError):\n            pp.transform(self.data)\n\n    def test_fit_transform(self):\n        \"\"\"Test fitting and transforming the data.\"\"\"\n        pp = Preprocessor(numerical_preprocessing=\"standardization\")\n        transformed_data = pp.fit_transform(self.data, self.target)\n        self.assertIsInstance(transformed_data, dict)\n        self.assertTrue(\"num_numerical\" in transformed_data)\n        self.assertTrue(\"cat_categorical\" in transformed_data)\n\n    def test_ple(self):\n        \"\"\"Test fitting and transforming the data.\"\"\"\n        pp = Preprocessor(numerical_preprocessing=\"ple\", n_bins=20)\n        transformed_data = pp.fit_transform(self.data, self.target)\n        self.assertIsInstance(transformed_data, dict)\n        self.assertTrue(\"num_numerical\" in transformed_data)\n        self.assertTrue(\"cat_categorical\" in transformed_data)\n\n    def test_transform_with_missing_values(self):\n        \"\"\"Ensure the preprocessor can handle missing values.\"\"\"\n        data_with_missing = self.data.copy()\n        data_with_missing.loc[0, \"numerical\"] = np.nan\n        data_with_missing.loc[1, \"categorical\"] = np.nan\n        pp = Preprocessor(numerical_preprocessing=\"normalization\")\n        transformed_data = pp.fit_transform(data_with_missing, self.target)\n        self.assertNotIn(np.nan, transformed_data[\"num_numerical\"])\n        self.assertNotIn(np.nan, transformed_data[\"cat_categorical\"])\n\n    def test_decision_tree_bins(self):\n        \"\"\"Test the usage of decision tree for binning.\"\"\"\n        pp = Preprocessor(\n            use_decision_tree_bins=True, numerical_preprocessing=\"binning\", n_bins=5\n        )\n        pp.fit(self.data, self.target)\n        # Checking if the preprocessor setup decision tree bins properly\n        self.assertTrue(\n            all(\n                isinstance(x, np.ndarray)\n                for x in pp._get_decision_tree_bins(\n                    self.data[[\"numerical\"]], self.target, [\"numerical\"]\n                )\n            )\n        )\n\n\n# Running the tests\nif __name__ == \"__main__\":\n    unittest.main()\n\n\n==================== Step 19 ====================\n\n[Tokens] Input: 11868, Output: 121, Total: 11989\n\n[Thought]\nThe test file has an incorrect import path. The Preprocessor class is in `mambular.preprocessing.preprocessor` but the test imports from `mambular.utils.preprocessor`. I need to fix this import.\n\n[Action]\nsed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py\n[Container ID: 5ca07c6cefb4]\nExecuting: sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py\nCommand succeeded.\n[Snapshot Created] sha256:3fb6b\n\n[Observation]\n(No output)\n\n==================== Step 20 ====================\n\n[Tokens] Input: 11375, Output: 52, Total: 11427\n\n[Thought]\nGood, the import has been fixed. Let me run pytest collection again to verify.\n\n[Action]\npytest --collect-only -q --disable-warnings tests/\n[Container ID: 5ca07c6cefb4]\nExecuting: pytest --collect-only -q --disable-warnings tests/\nCommand succeeded.\n[Snapshot Created] sha256:3f7ae\n\n[Observation]\ntests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNormalDistribution::test_evaluate_nll\ntests/test_distributions.py::TestNormalDistribution::test_initialization\ntests/test_distributions.py::TestNormalDistribution::test_predefined_transforms\ntests/test_distributions.py::TestPoissonDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestPoissonDistribution::test_initialization\ntests/test_distributions.py::TestBetaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestBetaDistribution::test_initialization\ntests/test_distributions.py::TestInverseGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestInverseGammaDistribution::test_initialization\ntests/test_distributions.py::TestDirichletDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestDirichletDistribution::test_initialization\ntests/test_distributions.py::TestGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestGammaDistribution::test_initialization\ntests/test_distributions.py::TestStudentTDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestStudentTDistribution::test_evaluate_nll\ntests/test_distributions.py::TestStudentTDistribution::test_initialization\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_initialization\ntests/test_distributions.py::TestCategoricalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestCategoricalDistribution::test_initialization\ntests/test_lss.py::TestMambularLSS::test_fit\ntests/test_lss.py::TestMambularLSS::test_initialization\ntests/test_lss.py::TestMambularLSS::test_normal_metrics\ntests/test_lss.py::TestMambularLSS::test_poisson_metrics\ntests/test_lss.py::TestMambularLSS::test_split_data\ntests/test_preprocessor.py::TestPreprocessor::test_decision_tree_bins\ntests/test_preprocessor.py::TestPreprocessor::test_fit\ntests/test_preprocessor.py::TestPreprocessor::test_fit_transform\ntests/test_preprocessor.py::TestPreprocessor::test_initialization\ntests/test_preprocessor.py::TestPreprocessor::test_ple\ntests/test_preprocessor.py::TestPreprocessor::test_transform_not_fitted\ntests/test_preprocessor.py::TestPreprocessor::test_transform_with_missing_values\ntests/test_regressor.py::TestMambularRegressor::test_evaluate\ntests/test_regressor.py::TestMambularRegressor::test_fit\ntests/test_regressor.py::TestMambularRegressor::test_initialization\ntests/test_regressor.py::TestMambularRegressor::test_predict\ntests/test_regressor.py::TestMambularRegressor::test_split_data\n\n43 tests collected in 8.58s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings tests/\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 21 ====================\n\n[Tokens] Input: 11598, Output: 245, Total: 11843\n\n[Finished] Agent has reached a conclusion.\n<think>\nAll 43 tests were collected successfully with no errors. The pytest collection is working properly now. Let me verify the environment is properly set up by running a final collection command.\n\nThe setup is complete:\n1. Fixed the Python version constraint in setup.py (changed from `<=3.12.3` to no upper bound)\n2. Installed the package in editable mode with all dependencies\n3. Installed pytest for testing\n4. Fixed the incorrect import in test_preprocessor.py\n\nNow I should provide the final verification bundle.\n</think>\n\nThought: All 43 tests were collected successfully with no errors. The environment is properly set up with:\n1. Fixed Python version constraint in setup.py (changed from `<=3.12.3` to allow Python 3.12+)\n2. Installed the package in editable mode with all dependencies\n3. Installed pytest for testing\n4. Fixed the incorrect import in test_preprocessor.py (`mambular.utils.preprocessor` → `mambular.preprocessing.preprocessor`)\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings tests/\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 4 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/basf__mamba-tabular.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/basf/mamba-tabular.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "pytest --collect-only -q --disable-warnings tests/",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings tests/"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings tests/"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 20,
+        "command": "pytest --collect-only -q --disable-warnings tests/",
+        "environment_revision": 4,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "ls -la && pwd",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 160\ndrwxr-xr-x 10 root root     4096 Apr 28 09:29 .\ndrwxr-xr-x  1 root root     4096 Apr 28 09:29 ..\ndrwxr-xr-x  7  501 dialout  4096 Apr 28 09:28 .git\ndrwxr-xr-x  4  501 dialout  4096 Apr 28 09:28 .github\n-rw-r--r--  1  501 dialout  3219 Apr 28 09:28 .gitignore\n-rw-r--r--  1  501 dialout  1060 Apr 28 09:28 LICENSE\n-rw-r--r--  1  501 dialout 19061 Apr 28 09:28 README.md\ndrwxr-xr-x  5  501 dialout  4096 Apr 28 09:28 docs\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 efficiency\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 examples\ndrwxr-xr-x  3  501 dialout  4096 Apr 28 09:28 logs\n-rw-r--r--  1  501 dialout 81163 Apr 28 09:28 mamba_tabular_summary.pdf\ndrwxr-xr-x  9  501 dialout  4096 Apr 28 09:28 mambular\n-rw-r--r--  1  501 dialout   818 Apr 28 09:28 readthedocs.yaml\n-rw-r--r--  1  501 dialout   103 Apr 28 09:28 requirements.txt\n-rw-r--r--  1  501 dialout  1781 Apr 28 09:28 setup.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 tests\n/app\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat setup.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "#!/usr/bin/env python\n# -*- coding: utf-8 -*-\nimport os\nfrom pathlib import Path\n\nfrom setuptools import find_packages, setup\n\n# Package meta-data.\nNAME = \"mambular\"\nDESCRIPTION = \"A python package for tabular deep learning with mamba blocks.\"\nHOMEPAGE = \"https://github.com/basf/mamba-tabular\"\nDOCS = \"https://mambular.readthedocs.io/en/\"\nEMAIL = \"anton.thielmann@tu-clausthal.de\"\nAUTHOR = \"Anton Thielmann\"\nREQUIRES_PYTHON = \">=3.6, <=3.12.3\"\n\n# Load the package's verison file and its content.\nROOT_DIR = Path(__file__).resolve().parent\nPACKAGE_DIR = ROOT_DIR / \"mambular\"\n\nwith open(PACKAGE_DIR /\n... (581 chars omitted for recipe synthesis) ...\n    long_description=LONG_DESCRIPTION,\n    long_description_content_type=\"text/markdown\",\n    author=AUTHOR,\n    author_email=EMAIL,\n    python_requires=REQUIRES_PYTHON,\n    install_requires=install_reqs,\n    # extras_require=extras_reqs,\n    license=\"Copyright (c) 2024 BASF SE\",  # adapt based on your needs\n    packages=find_packages(),\n    classifiers=[\n        \"Programming Language :: Python :: 3\",\n        \"License :: OSI Approved :: MIT License\",\n        \"Operating System :: OS Independent\",\n    ],\n    include_package_data=True,\n    project_urls={'Documentation': DOCS},\n    url=HOMEPAGE\n)\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "numpy<=1.26.4\npandas\nlightning\nscikit_learn\ntorch\ntorchmetrics\nsetuptools\nproperscoring\nscikit-optimize"
+      },
+      {
+        "step_index": 5,
+        "command": "ls -la tests/ && cat tests/test_classifier.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 48\ndrwxr-xr-x  2  501 dialout  4096 Apr 28 09:28 .\ndrwxr-xr-x 10 root root     4096 Apr 28 09:29 ..\n-rw-r--r--  1  501 dialout  4668 Apr 28 09:28 test_classifier.py\n-rw-r--r--  1  501 dialout 14790 Apr 28 09:28 test_distributions.py\n-rw-r--r--  1  501 dialout  4399 Apr 28 09:28 test_lss.py\n-rw-r--r--  1  501 dialout  3401 Apr 28 09:28 test_preprocessor.py\n-rw-r--r--  1  501 dialout  3991 Apr 28 09:28 test_regressor.py\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nimport numpy as np\nimport pandas as pd\nimport torch\nfrom sklearn.metrics import accuracy_score, log_loss\n\nfrom m\n... (3896 chars omitted for recipe synthesis) ...\n      self.classifier.predict_proba.assert_called_once()\n\n        # Check the results of evaluate\n        expected_accuracy = accuracy_score(self.y, mock_predictions)\n        expected_log_loss = log_loss(self.y, mock_probabilities)\n        self.assertEqual(result[\"Accuracy\"], expected_accuracy)\n        self.assertAlmostEqual(result[\"Log Loss\"], expected_log_loss)\n\n        # Assert calls with appropriate arguments\n        self.classifier.predict.assert_called_once_with(self.X)\n        self.classifier.predict_proba.assert_called_once_with(self.X)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cat docs/requirements_docs.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "sphinx==6.2.1\nsphinx-autodoc-typehints==1.23.0\nnumpydoc==1.7.0\nnbsphinx==0.9.4\nipython\nmyst-parser==3.0.1\nm2r2==0.3.3.post2\nsphinx-copybutton==0.5.2\nsphinx-togglebutton==0.3.2\nsphinx-book-theme==1.1.2\npandoc==2.3\nsphinx-rtd-theme==2.0.0\nreadthedocs-sphinx-ext==2.2.5\nlxml-html-clean==0.4.0\npydata-sphinx-theme==0.15.2"
+      },
+      {
+        "step_index": 7,
+        "command": "ls -la *.toml *.cfg 2>/dev/null || echo \"No toml/cfg found\" && cat tests/test_regressor.py | head -50",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "No toml/cfg found\nimport unittest\nfrom unittest.mock import MagicMock, patch\n\nimport numpy as np\nimport pandas as pd\nfrom sklearn.metrics import mean_squared_error, r2_score\n\nfrom mambular.models import MambularRegressor  # Ensure correct import path\n\n\nclass TestMambularRegressor(unittest.TestCase):\n    def setUp(self):\n        # Patching external dependencies\n        self.patcher_pl_trainer = patch(\"lightning.Trainer\")\n        self.mock_pl_trainer = self.patcher_pl_trainer.start()\n\n        self.patcher_base_model = patch(\n            \"mambular.base_models.regressor.BaseMambularRegressor\"\n    \n... (596 chars omitted for recipe synthesis) ...\n mambular.utils.configs import DefaultMambularConfig\n\n        self.assertIsInstance(self.regressor.config, DefaultMambularConfig)\n        self.assertEqual(self.regressor.config.d_model, 128)\n        self.assertEqual(self.regressor.config.dropout, 0.1)\n\n    def test_split_data(self):\n        \"\"\"Test the data splitting functionality.\"\"\"\n        X_train, X_val, y_train, y_val = self.regressor.split_data(\n            self.X, self.y, val_size=0.2, random_state=42\n        )\n        self.assertEqual(len(X_train), 80)\n        self.assertEqual(len(X_val), 20)\n        self.assertEqual(len(y_train), 80)\n"
+      },
+      {
+        "step_index": 8,
+        "command": "ls -la mambular/ && ls -la mambular/utils/ && cat mambular/__init__.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 44\ndrwxr-xr-x  9  501 dialout 4096 Apr 28 09:28 .\ndrwxr-xr-x 10 root root    4096 Apr 28 09:29 ..\n-rw-r--r--  1  501 dialout  252 Apr 28 09:28 __init__.py\n-rw-r--r--  1  501 dialout  127 Apr 28 09:28 __version__.py\ndrwxr-xr-x  4  501 dialout 4096 Apr 28 09:28 arch_utils\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 base_models\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 configs\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 data_utils\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 models\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 preprocessing\ndrwxr-xr-x  2  501 dialout 4096 Apr 28 09:28 u\n... (77 chars omitted for recipe synthesis) ...\ndialout  4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout     1 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout  5472 Apr 28 09:28 config_mapper.py\n-rw-r--r-- 1 501 dialout  1508 Apr 28 09:28 distributional_metrics.py\n-rw-r--r-- 1 501 dialout 23065 Apr 28 09:28 distributions.py\n-rw-r--r-- 1 501 dialout   325 Apr 28 09:28 get_feature_dimensions.py\nfrom . import base_models, data_utils, models, preprocessing, utils\nfrom .__version__ import __version__\n\n__all__ = ['base_models',\n           'models',\n           'utils',\n           'data_utils',\n           'preprocessing',\n           '__version__']\n"
+      },
+      {
+        "step_index": 9,
+        "command": "ls -la mambular/configs/ && cat mambular/configs/__init__.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 72\ndrwxr-xr-x 2 501 dialout 4096 Apr 28 09:28 .\ndrwxr-xr-x 9 501 dialout 4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout  916 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout 3970 Apr 28 09:28 fttransformer_config.py\n-rw-r--r-- 1 501 dialout 4104 Apr 28 09:28 mambatab_config.py\n-rw-r--r-- 1 501 dialout 5087 Apr 28 09:28 mambattention_config.py\n-rw-r--r-- 1 501 dialout 5336 Apr 28 09:28 mambular_config.py\n-rw-r--r-- 1 501 dialout 2927 Apr 28 09:28 mlp_config.py\n-rw-r--r-- 1 501 dialout 1852 Apr 28 09:28 ndtf_config.py\n-rw-r--r-- 1 501 dialout 2920 Apr 28 09:28 node_config.py\n-rw-r--r-- 1 5\n... (551 chars omitted for recipe synthesis) ...\nig\r\nfrom .tabularnn_config import DefaultTabulaRNNConfig\r\nfrom .mambattention_config import DefaultMambAttentionConfig\r\nfrom .ndtf_config import DefaultNDTFConfig\r\nfrom .node_config import DefaultNODEConfig\r\nfrom .tabm_config import DefaultTabMConfig\r\n\r\n\r\n__all__ = [\r\n    \"DefaultMambularConfig\",\r\n    \"DefaultFTTransformerConfig\",\r\n    \"DefaultResNetConfig\",\r\n    \"DefaultMLPConfig\",\r\n    \"DefaultTabTransformerConfig\",\r\n    \"DefaultMambaTabConfig\",\r\n    \"DefaultTabulaRNNConfig\",\r\n    \"DefaultMambAttentionConfig\",\r\n    \"DefaultNDTFConfig\",\r\n    \"DefaultNODEConfig\",\r\n    \"DefaultTabMConfig\",\r\n]\r\n"
+      },
+      {
+        "step_index": 10,
+        "command": "ls -la mambular/utils/ && cat mambular/utils/config_mapper.py | head -30",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 52\ndrwxr-xr-x 2 501 dialout  4096 Apr 28 09:28 .\ndrwxr-xr-x 9 501 dialout  4096 Apr 28 09:28 ..\n-rw-r--r-- 1 501 dialout     1 Apr 28 09:28 __init__.py\n-rw-r--r-- 1 501 dialout  5472 Apr 28 09:28 config_mapper.py\n-rw-r--r-- 1 501 dialout  1508 Apr 28 09:28 distributional_metrics.py\n-rw-r--r-- 1 501 dialout 23065 Apr 28 09:28 distributions.py\n-rw-r--r-- 1 501 dialout   325 Apr 28 09:28 get_feature_dimensions.py\nfrom skopt.space import Real, Integer, Categorical\r\nimport torch.nn as nn\r\nfrom ..arch_utils.transformer_utils import ReGLU\r\n\r\n\r\ndef round_to_nearest_16(x):\r\n    \"\"\"Rounds the valu\n... (4 chars omitted for recipe synthesis) ...\n the nearest multiple of 16.\"\"\"\r\n    return int(round(x / 16) * 16)\r\n\r\n\r\ndef get_search_space(\r\n    config,\r\n    fixed_params={\r\n        \"pooling_method\": \"avg\",\r\n        \"head_skip_layers\": False,\r\n        \"head_layer_size_length\": 0,\r\n        \"cat_encoding\": \"int\",\r\n        \"head_skip_layer\": False,\r\n        \"use_cls\": False,\r\n    },\r\n    custom_search_space=None,\r\n):\r\n    \"\"\"\r\n    Given a model configuration, return the hyperparameter search space\r\n    based on the config attributes.\r\n\r\n    Parameters\r\n    ----------\r\n    config : dataclass\r\n        The configuration object for the model.\r\n"
+      },
+      {
+        "step_index": 13,
+        "command": "sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 14,
+        "command": "pip install -e .",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting numpy<=1.26.4 (from mambular==1.0.2)\n  Using cached numpy-1.26.4-cp312-\n... (19591 chars omitted for recipe synthesis) ...\nmpy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchmetrics-1.9.0 tqdm-4.67.3 triton-3.6.0 typing-extensions-4.15.0 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 16,
+        "command": "pip install pytest",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nRequirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl \n... (212 chars omitted for recipe synthesis) ...\nckages: pygments, pluggy, iniconfig, pytest\nSuccessfully installed iniconfig-2.3.0 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 18,
+        "command": "cat tests/test_preprocessor.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import unittest\nimport pandas as pd\nimport numpy as np\nimport sys\nfrom mambular.utils.preprocessor import Preprocessor\nfrom sklearn.exceptions import NotFittedError\n\n\nclass TestPreprocessor(unittest.TestCase):\n    def setUp(self):\n        # Sample data for testing\n        self.data = pd.DataFrame(\n            {\n                \"numerical\": np.random.randn(500),\n                \"categorical\": np.random.choice([\"A\", \"B\", \"C\"], size=500),\n                \"mixed\": np.random.choice([1, \"A\", \"B\"], size=500),\n            }\n        )\n        self.target = np.random.randn(500)\n\n    def test_initializat\n... (2201 chars omitted for recipe synthesis) ...\nt the usage of decision tree for binning.\"\"\"\n        pp = Preprocessor(\n            use_decision_tree_bins=True, numerical_preprocessing=\"binning\", n_bins=5\n        )\n        pp.fit(self.data, self.target)\n        # Checking if the preprocessor setup decision tree bins properly\n        self.assertTrue(\n            all(\n                isinstance(x, np.ndarray)\n                for x in pp._get_decision_tree_bins(\n                    self.data[[\"numerical\"]], self.target, [\"numerical\"]\n                )\n            )\n        )\n\n\n# Running the tests\nif __name__ == \"__main__\":\n    unittest.main()\n"
+      },
+      {
+        "step_index": 19,
+        "command": "sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 20,
+        "command": "pytest --collect-only -q --disable-warnings tests/",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNormalDistribution::test_evaluate_nll\ntests/test_distributions.py::TestNormalDistribution::test_initialization\ntests/test_distributions.py::TestNormalDistributio\n... (1878 chars omitted for recipe synthesis) ...\nrocessor.py::TestPreprocessor::test_initialization\ntests/test_preprocessor.py::TestPreprocessor::test_ple\ntests/test_preprocessor.py::TestPreprocessor::test_transform_not_fitted\ntests/test_preprocessor.py::TestPreprocessor::test_transform_with_missing_values\ntests/test_regressor.py::TestMambularRegressor::test_evaluate\ntests/test_regressor.py::TestMambularRegressor::test_fit\ntests/test_regressor.py::TestMambularRegressor::test_initialization\ntests/test_regressor.py::TestMambularRegressor::test_predict\ntests/test_regressor.py::TestMambularRegressor::test_split_data\n\n43 tests collected in 8.58s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat basf__mamba-tabular/setup.py",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: basf__mamba-tabular/setup.py: No such file or directory\n"
+      },
+      {
+        "step_index": 11,
+        "command": "pip install -e . 2>&1 | tail -30",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      },
+      {
+        "step_index": 12,
+        "command": "pip install -e .",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Installing build dependencies: started\n \n... (1352 chars omitted for recipe synthesis) ...\nta (6.5 kB)\nCollecting properscoring (from mambular==1.0.2)\n  Downloading properscoring-0.1-py2.py3-none-any.whl.metadata (6.2 kB)\nCollecting scikit-optimize (from mambular==1.0.2)\n  Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl.metadata (9.7 kB)\nINFO: pip is looking at multiple versions of mambular to determine which version is compatible with other requirements. This could take a while.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\nERROR: Package 'mambular' requires a different Python: 3.12.13 not in '<=3.12.3,>=3.6'\n"
+      },
+      {
+        "step_index": 15,
+        "command": "pytest --collect-only -q --disable-warnings tests/",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "/bin/bash: line 1: pytest: command not found\n"
+      },
+      {
+        "step_index": 17,
+        "command": "pytest --collect-only -q --disable-warnings tests/",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistributio\n... (2529 chars omitted for recipe synthesis) ...\n\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_preprocessor.py:5: in <module>\n    from mambular.utils.preprocessor import Preprocessor\nE   ModuleNotFoundError: No module named 'mambular.utils.preprocessor'\n=========================== short test summary info ============================\nERROR tests/test_preprocessor.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n36 tests collected, 1 error in 6.97s\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings tests/"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py",
+        "pip install -e .",
+        "pip install pytest",
+        "sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings tests/"
+      ],
+      "excluded_commands": [
+        {
+          "command": "ls -la && pwd",
+          "reason": "read-only exploration of repository structure"
+        },
+        {
+          "command": "cat setup.py",
+          "reason": "read-only inspection to understand package metadata"
+        },
+        {
+          "command": "cat requirements.txt",
+          "reason": "read-only inspection of dependencies"
+        },
+        {
+          "command": "ls -la tests/ && cat tests/test_classifier.py",
+          "reason": "read-only inspection of test structure"
+        },
+        {
+          "command": "cat docs/requirements_docs.txt",
+          "reason": "read-only inspection of docs dependencies not needed for tests"
+        },
+        {
+          "command": "ls -la *.toml *.cfg 2>/dev/null || echo \"No toml/cfg found\" && cat tests/test_regressor.py | head -50",
+          "reason": "read-only inspection of pyproject files and test imports"
+        },
+        {
+          "command": "ls -la mambular/ && ls -la mambular/utils/ && cat mambular/__init__.py",
+          "reason": "read-only inspection of package structure"
+        },
+        {
+          "command": "ls -la mambular/configs/ && cat mambular/configs/__init__.py",
+          "reason": "read-only inspection of config files"
+        },
+        {
+          "command": "ls -la mambular/utils/ && cat mambular/utils/config_mapper.py | head -30",
+          "reason": "read-only inspection of utility modules"
+        },
+        {
+          "command": "cat tests/test_preprocessor.py",
+          "reason": "read-only inspection of test file to diagnose import error"
+        },
+        {
+          "command": "pip install -e . 2>&1 | tail -30",
+          "reason": "rejected pip command with output filter - never executed"
+        },
+        {
+          "command": "pip install -e .",
+          "reason": "failed pip install due to Python version constraint (fixed by sed in step 13)"
+        }
+      ],
+      "rationale": "The build recipe preserves the exact successful state-changing commands from the setup trajectory: (1) sed to relax Python version constraint from '<=3.12.3' to allow any Python >=3.6, (2) pip install -e . to install the package with all dependencies, (3) pip install pytest since it was not pre-installed, and (4) sed to fix incorrect import path in test_preprocessor.py. The failed attempts at steps 11-12 and 17 are excluded because the sed fix resolved the underlying issues. Read-only inspection steps (1-10, 18) are excluded as they only examined files without modifying state. The verification test command is retained from verification_bundle.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 8,
+      "compressed_steps": 4,
+      "saved_tokens_est": 5975
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat basf__mamba-tabular/setup.py",
+        "success": false,
+        "raw_chars": 61,
+        "raw_tokens_est": 15,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la && pwd",
+        "success": true,
+        "raw_chars": 958,
+        "raw_tokens_est": 239,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat setup.py",
+        "success": true,
+        "raw_chars": 1781,
+        "raw_tokens_est": 445,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 50,
+        "reflect_input_tokens": 2820,
+        "reflect_output_tokens": 689
+      },
+      {
+        "step_id": 4,
+        "action": "cat requirements.txt",
+        "success": true,
+        "raw_chars": 103,
+        "raw_tokens_est": 25,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "ls -la tests/ && cat tests/test_classifier.py",
+        "success": true,
+        "raw_chars": 5096,
+        "raw_tokens_est": 1274,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 349,
+        "reflect_input_tokens": 2496,
+        "reflect_output_tokens": 1130
+      },
+      {
+        "step_id": 6,
+        "action": "cat docs/requirements_docs.txt",
+        "success": true,
+        "raw_chars": 317,
+        "raw_tokens_est": 79,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "ls -la *.toml *.cfg 2>/dev/null || echo \"No toml/cfg found\" && cat tests/test_regressor.py | head -50",
+        "success": true,
+        "raw_chars": 1796,
+        "raw_tokens_est": 449,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 75,
+        "reflect_input_tokens": 2420,
+        "reflect_output_tokens": 555
+      },
+      {
+        "step_id": 8,
+        "action": "ls -la mambular/ && ls -la mambular/utils/ && cat mambular/__init__.py",
+        "success": true,
+        "raw_chars": 1277,
+        "raw_tokens_est": 319,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "ls -la mambular/configs/ && cat mambular/configs/__init__.py",
+        "success": true,
+        "raw_chars": 1751,
+        "raw_tokens_est": 437,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 297,
+        "reflect_input_tokens": 2291,
+        "reflect_output_tokens": 372
+      },
+      {
+        "step_id": 10,
+        "action": "ls -la mambular/utils/ && cat mambular/utils/config_mapper.py | head -30",
+        "success": true,
+        "raw_chars": 1204,
+        "raw_tokens_est": 301,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 11,
+        "action": "pip install -e . 2>&1 | tail -30",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "pip install -e .",
+        "success": false,
+        "raw_chars": 2552,
+        "raw_tokens_est": 638,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 71,
+        "reflect_input_tokens": 10014,
+        "reflect_output_tokens": 994
+      },
+      {
+        "step_id": 13,
+        "action": "sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 14,
+        "action": "pip install -e .",
+        "success": true,
+        "raw_chars": 20791,
+        "raw_tokens_est": 5197,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 4350,
+        "reflect_input_tokens": 9656,
+        "reflect_output_tokens": 1446
+      },
+      {
+        "step_id": 15,
+        "action": "pytest --collect-only -q --disable-warnings tests/",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 16,
+        "action": "pip install pytest",
+        "success": true,
+        "raw_chars": 1412,
+        "raw_tokens_est": 353,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 17,
+        "action": "pytest --collect-only -q --disable-warnings tests/",
+        "success": false,
+        "raw_chars": 3729,
+        "raw_tokens_est": 932,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 642,
+        "reflect_input_tokens": 2664,
+        "reflect_output_tokens": 521
+      },
+      {
+        "step_id": 18,
+        "action": "cat tests/test_preprocessor.py",
+        "success": true,
+        "raw_chars": 3401,
+        "raw_tokens_est": 850,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 634,
+        "reflect_input_tokens": 2365,
+        "reflect_output_tokens": 482
+      },
+      {
+        "step_id": 19,
+        "action": "sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 20,
+        "action": "pytest --collect-only -q --disable-warnings tests/",
+        "success": true,
+        "raw_chars": 3078,
+        "raw_tokens_est": 769,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 11977,
+        "output_tokens": 3816,
+        "total_tokens": 15793
+      },
+      "planner": {
+        "input_tokens": 167534,
+        "output_tokens": 1926,
+        "total_tokens": 169460
+      },
+      "reflection": {
+        "input_tokens": 34726,
+        "output_tokens": 6189,
+        "total_tokens": 40915
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 20223,
+        "output_tokens": 2437,
+        "total_tokens": 22660
+      },
+      "total": {
+        "input_tokens": 234460,
+        "output_tokens": 14368,
+        "total_tokens": 248828
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-basf__mamba-tabular",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval -t jayint-repo2run-basf__mamba-tabular /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-28T18:03:07.611056+08:00",
+    "finished_at": "2026-04-28T18:32:33.143341+08:00",
+    "duration_seconds": 1765.532,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.84kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 12.36MB 0.2s done\n#5 DONE 0.2s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [6/9] RUN sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py\n#10 DONE 0.2s\n\n#11 [7/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e .' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.783 Obtaining file:///app\n#11 0.788   Installing build dependencies: started\n#11 4.876   Installing build dependencies: finished with status 'done'\n#11 4.877   Checking if build backend supports build_editable: started\n#11 5.081   Checking if build backend supports build_editable: finished with status 'done'\n#11 5.083   Getting requirements to build editable: started\n#11 5.278   Getting requirements to build editable: finished with status 'done'\n#11 5.279   Preparing editable metadata (pyproject.toml): started\n#11 5.476   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 7.986 Collecting numpy<=1.26.4 (from mambular==1.0.2)\n#11 9.009   Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\n#11 9.740 Collecting pandas (from mambular==1.0.2)\n#11 9.884   Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#11 10.89 Collecting lightning (from mambular==1.0.2)\n#11 11.06   Downloading lightning-2.6.1-py3-none-any.whl.metadata (44 kB)\n#11 12.36 Collecting scikit_learn (from mambular==1.0.2)\n#11 12.59   Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (11 kB)\n#11 13.04 Collecting torch (from mambular==1.0.2)\n#11 13.20   Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (29 kB)\n#11 14.56 Collecting torchmetrics (from mambular==1.0.2)\n#11 14.69   Downloading torchmetrics-1.9.0-py3-none-any.whl.metadata (23 kB)\n#11 16.07 Collecting setuptools (from mambular==1.0.2)\n#11 16.23   Downloading setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\n#11 16.58 Collecting properscoring (from mambular==1.0.2)\n#11 16.78   Downloading properscoring-0.1-py2.py3-none-any.whl.metadata (6.2 kB)\n#11 17.07 Collecting scikit-optimize (from mambular==1.0.2)\n#11 17.49   Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl.metadata (9.7 kB)\n#11 18.01 Collecting PyYAML<8.0,>5.4 (from lightning->mambular==1.0.2)\n#11 18.27   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#11 18.70 Collecting fsspec<2028.0,>=2022.5.0 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 19.22   Downloading fsspec-2026.3.0-py3-none-any.whl.metadata (10 kB)\n#11 19.45 Collecting lightning-utilities<2.0,>=0.10.0 (from lightning->mambular==1.0.2)\n#11 19.57   Downloading lightning_utilities-0.15.3-py3-none-any.whl.metadata (5.5 kB)\n#11 19.80 Requirement already satisfied: packaging<27.0,>=23.0 in /usr/local/lib/python3.12/site-packages (from lightning->mambular==1.0.2) (26.2)\n#11 20.20 Collecting tqdm<6.0,>=4.57.0 (from lightning->mambular==1.0.2)\n#11 20.68   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#11 21.99 Requirement already satisfied: typing-extensions<6.0,>4.5.0 in /usr/local/lib/python3.12/site-packages (from lightning->mambular==1.0.2) (4.15.0)\n#11 22.64 Collecting pytorch-lightning (from lightning->mambular==1.0.2)\n#11 22.85   Downloading pytorch_lightning-2.6.1-py3-none-any.whl.metadata (21 kB)\n#11 23.43 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from torch->mambular==1.0.2) (3.29.0)\n#11 23.46 Collecting setuptools (from mambular==1.0.2)\n#11 23.77   Downloading setuptools-81.0.0-py3-none-any.whl.metadata (6.6 kB)\n#11 23.99 Collecting sympy>=1.13.3 (from torch->mambular==1.0.2)\n#11 24.40   Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)\n#11 24.88 Collecting networkx>=2.5.1 (from torch->mambular==1.0.2)\n#11 25.00   Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)\n#11 25.77 Collecting jinja2 (from torch->mambular==1.0.2)\n#11 25.98   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#11 26.28 Collecting cuda-toolkit==13.0.2 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 26.62   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl.metadata (9.4 kB)\n#11 27.06 Collecting cuda-bindings<14,>=13.0.3 (from torch->mambular==1.0.2)\n#11 27.33   Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.3 kB)\n#11 28.01 Collecting nvidia-cudnn-cu13==9.19.0.56 (from torch->mambular==1.0.2)\n#11 28.30   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)\n#11 28.45 Collecting nvidia-cusparselt-cu13==0.8.0 (from torch->mambular==1.0.2)\n#11 28.80   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)\n#11 29.05 Collecting nvidia-nccl-cu13==2.28.9 (from torch->mambular==1.0.2)\n#11 29.21   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl.metadata (2.0 kB)\n#11 30.02 Collecting nvidia-nvshmem-cu13==3.4.5 (from torch->mambular==1.0.2)\n#11 30.19   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)\n#11 30.86 Collecting triton==3.6.0 (from torch->mambular==1.0.2)\n#11 31.05   Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)\n#11 31.61 Collecting nvidia-cublas==13.1.0.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 31.85   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\n#11 32.10 Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 33.46   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\n#11 33.79 Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 33.95   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\n#11 34.31 Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 34.57   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\n#11 34.82 Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 35.00   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)\n#11 35.46 Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 35.62   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\n#11 36.01 Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 36.15   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)\n#11 36.50 Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 37.08   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\n#11 37.38 Collecting nvidia-nvjitlink==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 37.64   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\n#11 37.87 Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 38.06   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\n#11 38.30 Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 38.49   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)\n#11 38.87 Collecting python-dateutil>=2.8.2 (from pandas->mambular==1.0.2)\n#11 39.21   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\n#11 42.90 Collecting scipy (from properscoring->mambular==1.0.2)\n#11 43.31   Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\n#11 45.29 Collecting joblib>=1.3.0 (from scikit_learn->mambular==1.0.2)\n#11 45.59   Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)\n#11 45.82 Collecting threadpoolctl>=3.2.0 (from scikit_learn->mambular==1.0.2)\n#11 46.32   Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)\n#11 47.13 Collecting pyaml>=16.9 (from scikit-optimize->mambular==1.0.2)\n#11 47.61   Downloading pyaml-26.2.1-py3-none-any.whl.metadata (12 kB)\n#11 51.39 Collecting cuda-pathfinder~=1.1 (from cuda-bindings<14,>=13.0.3->torch->mambular==1.0.2)\n#11 51.61   Downloading cuda_pathfinder-1.5.4-py3-none-any.whl.metadata (1.9 kB)\n#11 58.00 Collecting aiohttp!=4.0.0a0,!=4.0.0a1 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 58.76   Downloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#11 58.99 Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas->mambular==1.0.2)\n#11 59.16   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\n#11 59.42 Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch->mambular==1.0.2)\n#11 59.59   Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)\n#11 60.41 Collecting MarkupSafe>=2.0 (from jinja2->torch->mambular==1.0.2)\n#11 60.90   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\n#11 61.20 Collecting aiohappyeyeballs>=2.5.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 63.47   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\n#11 63.64 Collecting aiosignal>=1.4.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 65.64   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\n#11 65.91 Collecting attrs>=17.3.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 66.88   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\n#11 67.50 Collecting frozenlist>=1.1.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 67.96   Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\n#11 70.27 Collecting multidict<7.0,>=4.5 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 70.84   Downloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\n#11 71.48 Collecting propcache>=0.2.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 71.75   Downloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\n#11 73.56 Collecting yarl<2.0,>=1.17.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 74.02   Downloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#11 74.63 Requirement already satisfied: idna>=2.0 in /usr/local/lib/python3.12/site-packages (from yarl<2.0,>=1.17.0->aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2) (3.13)\n#11 74.84 Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n#11 101.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 714.8 kB/s eta 0:00:00\n#11 101.6 Downloading lightning-2.6.1-py3-none-any.whl (853 kB)\n#11 102.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 853.6/853.6 kB 844.3 kB/s eta 0:00:00\n#11 103.0 Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl (530.7 MB)\n#11 535.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.7/530.7 MB 1.6 MB/s eta 0:00:00\n#11 536.2 Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#11 536.5 Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n#11 762.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 1.8 MB/s eta 0:00:00\n#11 762.8 Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n#11 855.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 1.9 MB/s eta 0:00:00\n#11 855.7 Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n#11 953.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 2.0 MB/s eta 0:00:00\n#11 953.5 Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n#11 983.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 2.1 MB/s eta 0:00:00\n#11 983.3 Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.3 MB)\n#11 1072.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.3/188.3 MB 2.1 MB/s eta 0:00:00\n#11 1072.6 Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n#11 1262.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 2.5 MB/s eta 0:00:00\n#11 1263.0 Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n#11 1267.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 2.2 MB/s eta 0:00:00\n#11 1268.1 Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n#11 1307.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 2.3 MB/s eta 0:00:00\n#11 1310.1 Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n#11 1311.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 1.2 MB/s eta 0:00:00\n#11 1312.3 Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n#11 1399.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 2.4 MB/s eta 0:00:00\n#11 1399.4 Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#11 1400.0    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.4 MB/s eta 0:00:00\n#11 1400.2 Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n#11 1423.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 2.6 MB/s eta 0:00:00\n#11 1423.4 Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n#11 1506.5    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 2.4 MB/s eta 0:00:00\n#11 1506.7 Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n#11 1575.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 1.8 MB/s eta 0:00:00\n#11 1575.7 Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n#11 1596.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 2.0 MB/s eta 0:00:00\n#11 1597.7 Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\n#11 1600.1 Downloading setuptools-81.0.0-py3-none-any.whl (1.1 MB)\n#11 1601.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 671.8 kB/s eta 0:00:00\n#11 1603.0 Downloading torchmetrics-1.9.0-py3-none-any.whl (983 kB)\n#11 1606.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 983.4/983.4 kB 300.8 kB/s eta 0:00:00\n#11 1607.2 Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (10.9 MB)\n#11 1615.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.9/10.9 MB 1.4 MB/s eta 0:00:00\n#11 1616.3 Downloading properscoring-0.1-py2.py3-none-any.whl (23 kB)\n#11 1617.2 Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (8.9 MB)\n#11 1624.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.9/8.9 MB 1.3 MB/s eta 0:00:00\n#11 1625.3 Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl (107 kB)\n#11 1626.6 Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n#11 1630.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 1.5 MB/s eta 0:00:00\n#11 1631.8 Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#11 1632.9 Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#11 1634.5 Downloading lightning_utilities-0.15.3-py3-none-any.whl (31 kB)\n#11 1635.5 Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)\n#11 1636.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 1.8 MB/s eta 0:00:00\n#11 1637.6 Downloading pyaml-26.2.1-py3-none-any.whl (27 kB)\n#11 1638.5 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#11 1639.4 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#11 1639.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 2.0 MB/s eta 0:00:00\n#11 1640.7 Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n#11 1656.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 2.3 MB/s eta 0:00:00\n#11 1658.1 Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#11 1662.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 1.3 MB/s eta 0:00:00\n#11 1663.7 Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#11 1665.3 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#11 1666.5 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#11 1667.9 Downloading pytorch_lightning-2.6.1-py3-none-any.whl (857 kB)\n#11 1669.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 857.3/857.3 kB 699.9 kB/s eta 0:00:00\n#11 1671.1 Downloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n#11 1673.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 892.1 kB/s eta 0:00:00\n#11 1674.6 Downloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\n#11 1675.8 Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\n#11 1677.2 Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#11 1677.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 1.0 MB/s eta 0:00:00\n#11 1679.7 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#11 1681.1 Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#11 1689.1 Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#11 1691.5 Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#11 1693.6 Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (242 kB)\n#11 1695.8 Downloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (256 kB)\n#11 1698.1 Downloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (221 kB)\n#11 1702.0 Downloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (100 kB)\n#11 1707.3 Building wheels for collected packages: mambular\n#11 1707.3   Building editable for mambular (pyproject.toml): started\n#11 1707.6   Building editable for mambular (pyproject.toml): finished with status 'done'\n#11 1707.6   Created wheel for mambular: filename=mambular-1.0.2-0.editable-py3-none-any.whl size=10476 sha256=f161dfb97231b34c3087ed608b3472103ce3e4441bff14d7be475493f32f75cc\n#11 1707.6   Stored in directory: /tmp/pip-ephem-wheel-cache-pl76rk9j/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#11 1707.6 Successfully built mambular\n#11 1707.8 Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, triton, tqdm, threadpoolctl, sympy, six, setuptools, PyYAML, propcache, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, multidict, MarkupSafe, lightning-utilities, joblib, fsspec, frozenlist, cuda-pathfinder, attrs, aiohappyeyeballs, yarl, scipy, python-dateutil, pyaml, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, jinja2, cuda-bindings, aiosignal, scikit_learn, properscoring, pandas, nvidia-cusolver, aiohttp, scikit-optimize, torch, torchmetrics, pytorch-lightning, lightning, mambular\n#11 1755.1 Successfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 attrs-26.1.0 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 frozenlist-1.8.0 fsspec-2026.3.0 jinja2-3.1.6 joblib-1.5.3 lightning-2.6.1 lightning-utilities-0.15.3 mambular-1.0.2 mpmath-1.3.0 multidict-6.7.1 networkx-3.6.1 numpy-1.26.4 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 pandas-3.0.2 propcache-0.4.1 properscoring-0.1 pyaml-26.2.1 python-dateutil-2.9.0.post0 pytorch-lightning-2.6.1 scikit-optimize-0.10.2 scikit_learn-1.8.0 scipy-1.17.1 setuptools-81.0.0 six-1.17.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchmetrics-1.9.0 tqdm-4.67.3 triton-3.6.0 yarl-1.23.0\n#11 1755.1 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 1756.2s\n\n#12 [8/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 0.710 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#12 0.713 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#12 0.713 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\n#12 0.714 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#12 0.714 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#12 0.840 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 0.9s\n\n#13 [9/9] RUN sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py\n#13 DONE 0.4s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 6.4s done\n#14 writing image sha256:c6f4db5edfe177c6b77c7bb89763454b3dc556f2994be43c4dc247e6ff43f5e9 done\n#14 naming to docker.io/library/jayint-repo2run-basf__mamba-tabular done\n#14 DONE 6.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/yzri3v1zlr8p00yqc1956tyck\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-basf__mamba-tabular",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-basf__mamba-tabular sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-28T18:32:33.167135+08:00",
+          "finished_at": "2026-04-28T18:32:40.601610+08:00",
+          "duration_seconds": 7.434,
+          "stdout": "tests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNormalDistribution::test_evaluate_nll\ntests/test_distributions.py::TestNormalDistribution::test_initialization\ntests/test_distributions.py::TestNormalDistribution::test_predefined_transforms\ntests/test_distributions.py::TestPoissonDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestPoissonDistribution::test_initialization\ntests/test_distributions.py::TestBetaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestBetaDistribution::test_initialization\ntests/test_distributions.py::TestInverseGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestInverseGammaDistribution::test_initialization\ntests/test_distributions.py::TestDirichletDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestDirichletDistribution::test_initialization\ntests/test_distributions.py::TestGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestGammaDistribution::test_initialization\ntests/test_distributions.py::TestStudentTDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestStudentTDistribution::test_evaluate_nll\ntests/test_distributions.py::TestStudentTDistribution::test_initialization\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_initialization\ntests/test_distributions.py::TestCategoricalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestCategoricalDistribution::test_initialization\ntests/test_lss.py::TestMambularLSS::test_fit\ntests/test_lss.py::TestMambularLSS::test_initialization\ntests/test_lss.py::TestMambularLSS::test_normal_metrics\ntests/test_lss.py::TestMambularLSS::test_poisson_metrics\ntests/test_lss.py::TestMambularLSS::test_split_data\ntests/test_preprocessor.py::TestPreprocessor::test_decision_tree_bins\ntests/test_preprocessor.py::TestPreprocessor::test_fit\ntests/test_preprocessor.py::TestPreprocessor::test_fit_transform\ntests/test_preprocessor.py::TestPreprocessor::test_initialization\ntests/test_preprocessor.py::TestPreprocessor::test_ple\ntests/test_preprocessor.py::TestPreprocessor::test_transform_not_fitted\ntests/test_preprocessor.py::TestPreprocessor::test_transform_with_missing_values\ntests/test_regressor.py::TestMambularRegressor::test_evaluate\ntests/test_regressor.py::TestMambularRegressor::test_fit\ntests/test_regressor.py::TestMambularRegressor::test_initialization\ntests/test_regressor.py::TestMambularRegressor::test_predict\ntests/test_regressor.py::TestMambularRegressor::test_split_data\n\n43 tests collected in 5.49s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-basf__mamba-tabular",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/Dockerfile.eval -t jayint-repo2run-basf__mamba-tabular /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/basf__mamba-tabular",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-04-28T18:03:07.611056+08:00",
+        "finished_at": "2026-04-28T18:32:33.143341+08:00",
+        "duration_seconds": 1765.532,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.84kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 12.36MB 0.2s done\n#5 DONE 0.2s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [6/9] RUN sed -i 's/REQUIRES_PYTHON = \">=3.6, <=3.12.3\"/REQUIRES_PYTHON = \">=3.6\"/' setup.py\n#10 DONE 0.2s\n\n#11 [7/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e .' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.783 Obtaining file:///app\n#11 0.788   Installing build dependencies: started\n#11 4.876   Installing build dependencies: finished with status 'done'\n#11 4.877   Checking if build backend supports build_editable: started\n#11 5.081   Checking if build backend supports build_editable: finished with status 'done'\n#11 5.083   Getting requirements to build editable: started\n#11 5.278   Getting requirements to build editable: finished with status 'done'\n#11 5.279   Preparing editable metadata (pyproject.toml): started\n#11 5.476   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 7.986 Collecting numpy<=1.26.4 (from mambular==1.0.2)\n#11 9.009   Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\n#11 9.740 Collecting pandas (from mambular==1.0.2)\n#11 9.884   Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#11 10.89 Collecting lightning (from mambular==1.0.2)\n#11 11.06   Downloading lightning-2.6.1-py3-none-any.whl.metadata (44 kB)\n#11 12.36 Collecting scikit_learn (from mambular==1.0.2)\n#11 12.59   Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (11 kB)\n#11 13.04 Collecting torch (from mambular==1.0.2)\n#11 13.20   Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (29 kB)\n#11 14.56 Collecting torchmetrics (from mambular==1.0.2)\n#11 14.69   Downloading torchmetrics-1.9.0-py3-none-any.whl.metadata (23 kB)\n#11 16.07 Collecting setuptools (from mambular==1.0.2)\n#11 16.23   Downloading setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\n#11 16.58 Collecting properscoring (from mambular==1.0.2)\n#11 16.78   Downloading properscoring-0.1-py2.py3-none-any.whl.metadata (6.2 kB)\n#11 17.07 Collecting scikit-optimize (from mambular==1.0.2)\n#11 17.49   Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl.metadata (9.7 kB)\n#11 18.01 Collecting PyYAML<8.0,>5.4 (from lightning->mambular==1.0.2)\n#11 18.27   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#11 18.70 Collecting fsspec<2028.0,>=2022.5.0 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 19.22   Downloading fsspec-2026.3.0-py3-none-any.whl.metadata (10 kB)\n#11 19.45 Collecting lightning-utilities<2.0,>=0.10.0 (from lightning->mambular==1.0.2)\n#11 19.57   Downloading lightning_utilities-0.15.3-py3-none-any.whl.metadata (5.5 kB)\n#11 19.80 Requirement already satisfied: packaging<27.0,>=23.0 in /usr/local/lib/python3.12/site-packages (from lightning->mambular==1.0.2) (26.2)\n#11 20.20 Collecting tqdm<6.0,>=4.57.0 (from lightning->mambular==1.0.2)\n#11 20.68   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#11 21.99 Requirement already satisfied: typing-extensions<6.0,>4.5.0 in /usr/local/lib/python3.12/site-packages (from lightning->mambular==1.0.2) (4.15.0)\n#11 22.64 Collecting pytorch-lightning (from lightning->mambular==1.0.2)\n#11 22.85   Downloading pytorch_lightning-2.6.1-py3-none-any.whl.metadata (21 kB)\n#11 23.43 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from torch->mambular==1.0.2) (3.29.0)\n#11 23.46 Collecting setuptools (from mambular==1.0.2)\n#11 23.77   Downloading setuptools-81.0.0-py3-none-any.whl.metadata (6.6 kB)\n#11 23.99 Collecting sympy>=1.13.3 (from torch->mambular==1.0.2)\n#11 24.40   Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)\n#11 24.88 Collecting networkx>=2.5.1 (from torch->mambular==1.0.2)\n#11 25.00   Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)\n#11 25.77 Collecting jinja2 (from torch->mambular==1.0.2)\n#11 25.98   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#11 26.28 Collecting cuda-toolkit==13.0.2 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 26.62   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl.metadata (9.4 kB)\n#11 27.06 Collecting cuda-bindings<14,>=13.0.3 (from torch->mambular==1.0.2)\n#11 27.33   Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.3 kB)\n#11 28.01 Collecting nvidia-cudnn-cu13==9.19.0.56 (from torch->mambular==1.0.2)\n#11 28.30   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)\n#11 28.45 Collecting nvidia-cusparselt-cu13==0.8.0 (from torch->mambular==1.0.2)\n#11 28.80   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)\n#11 29.05 Collecting nvidia-nccl-cu13==2.28.9 (from torch->mambular==1.0.2)\n#11 29.21   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl.metadata (2.0 kB)\n#11 30.02 Collecting nvidia-nvshmem-cu13==3.4.5 (from torch->mambular==1.0.2)\n#11 30.19   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)\n#11 30.86 Collecting triton==3.6.0 (from torch->mambular==1.0.2)\n#11 31.05   Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)\n#11 31.61 Collecting nvidia-cublas==13.1.0.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 31.85   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\n#11 32.10 Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 33.46   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\n#11 33.79 Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 33.95   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\n#11 34.31 Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 34.57   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)\n#11 34.82 Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 35.00   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)\n#11 35.46 Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 35.62   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)\n#11 36.01 Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 36.15   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)\n#11 36.50 Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 37.08   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)\n#11 37.38 Collecting nvidia-nvjitlink==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 37.64   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\n#11 37.87 Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 38.06   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\n#11 38.30 Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch->mambular==1.0.2)\n#11 38.49   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)\n#11 38.87 Collecting python-dateutil>=2.8.2 (from pandas->mambular==1.0.2)\n#11 39.21   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\n#11 42.90 Collecting scipy (from properscoring->mambular==1.0.2)\n#11 43.31   Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\n#11 45.29 Collecting joblib>=1.3.0 (from scikit_learn->mambular==1.0.2)\n#11 45.59   Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)\n#11 45.82 Collecting threadpoolctl>=3.2.0 (from scikit_learn->mambular==1.0.2)\n#11 46.32   Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)\n#11 47.13 Collecting pyaml>=16.9 (from scikit-optimize->mambular==1.0.2)\n#11 47.61   Downloading pyaml-26.2.1-py3-none-any.whl.metadata (12 kB)\n#11 51.39 Collecting cuda-pathfinder~=1.1 (from cuda-bindings<14,>=13.0.3->torch->mambular==1.0.2)\n#11 51.61   Downloading cuda_pathfinder-1.5.4-py3-none-any.whl.metadata (1.9 kB)\n#11 58.00 Collecting aiohttp!=4.0.0a0,!=4.0.0a1 (from fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 58.76   Downloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#11 58.99 Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas->mambular==1.0.2)\n#11 59.16   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\n#11 59.42 Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch->mambular==1.0.2)\n#11 59.59   Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)\n#11 60.41 Collecting MarkupSafe>=2.0 (from jinja2->torch->mambular==1.0.2)\n#11 60.90   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\n#11 61.20 Collecting aiohappyeyeballs>=2.5.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 63.47   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\n#11 63.64 Collecting aiosignal>=1.4.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 65.64   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\n#11 65.91 Collecting attrs>=17.3.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 66.88   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\n#11 67.50 Collecting frozenlist>=1.1.1 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 67.96   Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\n#11 70.27 Collecting multidict<7.0,>=4.5 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 70.84   Downloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\n#11 71.48 Collecting propcache>=0.2.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 71.75   Downloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\n#11 73.56 Collecting yarl<2.0,>=1.17.0 (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2)\n#11 74.02   Downloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#11 74.63 Requirement already satisfied: idna>=2.0 in /usr/local/lib/python3.12/site-packages (from yarl<2.0,>=1.17.0->aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<2028.0,>=2022.5.0->lightning->mambular==1.0.2) (3.13)\n#11 74.84 Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n#11 101.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 714.8 kB/s eta 0:00:00\n#11 101.6 Downloading lightning-2.6.1-py3-none-any.whl (853 kB)\n#11 102.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 853.6/853.6 kB 844.3 kB/s eta 0:00:00\n#11 103.0 Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl (530.7 MB)\n#11 535.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.7/530.7 MB 1.6 MB/s eta 0:00:00\n#11 536.2 Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#11 536.5 Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n#11 762.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 1.8 MB/s eta 0:00:00\n#11 762.8 Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n#11 855.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 1.9 MB/s eta 0:00:00\n#11 855.7 Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n#11 953.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 2.0 MB/s eta 0:00:00\n#11 953.5 Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n#11 983.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 2.1 MB/s eta 0:00:00\n#11 983.3 Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.3 MB)\n#11 1072.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.3/188.3 MB 2.1 MB/s eta 0:00:00\n#11 1072.6 Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n#11 1262.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 2.5 MB/s eta 0:00:00\n#11 1263.0 Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n#11 1267.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 2.2 MB/s eta 0:00:00\n#11 1268.1 Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n#11 1307.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 2.3 MB/s eta 0:00:00\n#11 1310.1 Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n#11 1311.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 1.2 MB/s eta 0:00:00\n#11 1312.3 Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n#11 1399.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 2.4 MB/s eta 0:00:00\n#11 1399.4 Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#11 1400.0    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.4 MB/s eta 0:00:00\n#11 1400.2 Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n#11 1423.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 2.6 MB/s eta 0:00:00\n#11 1423.4 Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n#11 1506.5    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 2.4 MB/s eta 0:00:00\n#11 1506.7 Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n#11 1575.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 1.8 MB/s eta 0:00:00\n#11 1575.7 Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n#11 1596.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 2.0 MB/s eta 0:00:00\n#11 1597.7 Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\n#11 1600.1 Downloading setuptools-81.0.0-py3-none-any.whl (1.1 MB)\n#11 1601.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 671.8 kB/s eta 0:00:00\n#11 1603.0 Downloading torchmetrics-1.9.0-py3-none-any.whl (983 kB)\n#11 1606.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 983.4/983.4 kB 300.8 kB/s eta 0:00:00\n#11 1607.2 Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (10.9 MB)\n#11 1615.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.9/10.9 MB 1.4 MB/s eta 0:00:00\n#11 1616.3 Downloading properscoring-0.1-py2.py3-none-any.whl (23 kB)\n#11 1617.2 Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (8.9 MB)\n#11 1624.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.9/8.9 MB 1.3 MB/s eta 0:00:00\n#11 1625.3 Downloading scikit_optimize-0.10.2-py2.py3-none-any.whl (107 kB)\n#11 1626.6 Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n#11 1630.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 1.5 MB/s eta 0:00:00\n#11 1631.8 Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#11 1632.9 Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#11 1634.5 Downloading lightning_utilities-0.15.3-py3-none-any.whl (31 kB)\n#11 1635.5 Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)\n#11 1636.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 1.8 MB/s eta 0:00:00\n#11 1637.6 Downloading pyaml-26.2.1-py3-none-any.whl (27 kB)\n#11 1638.5 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#11 1639.4 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#11 1639.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 2.0 MB/s eta 0:00:00\n#11 1640.7 Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n#11 1656.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 2.3 MB/s eta 0:00:00\n#11 1658.1 Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#11 1662.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 1.3 MB/s eta 0:00:00\n#11 1663.7 Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#11 1665.3 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#11 1666.5 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#11 1667.9 Downloading pytorch_lightning-2.6.1-py3-none-any.whl (857 kB)\n#11 1669.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 857.3/857.3 kB 699.9 kB/s eta 0:00:00\n#11 1671.1 Downloading aiohttp-3.13.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n#11 1673.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 892.1 kB/s eta 0:00:00\n#11 1674.6 Downloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\n#11 1675.8 Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\n#11 1677.2 Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#11 1677.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 1.0 MB/s eta 0:00:00\n#11 1679.7 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#11 1681.1 Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#11 1689.1 Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#11 1691.5 Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#11 1693.6 Downloading frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (242 kB)\n#11 1695.8 Downloading multidict-6.7.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (256 kB)\n#11 1698.1 Downloading propcache-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (221 kB)\n#11 1702.0 Downloading yarl-1.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (100 kB)\n#11 1707.3 Building wheels for collected packages: mambular\n#11 1707.3   Building editable for mambular (pyproject.toml): started\n#11 1707.6   Building editable for mambular (pyproject.toml): finished with status 'done'\n#11 1707.6   Created wheel for mambular: filename=mambular-1.0.2-0.editable-py3-none-any.whl size=10476 sha256=f161dfb97231b34c3087ed608b3472103ce3e4441bff14d7be475493f32f75cc\n#11 1707.6   Stored in directory: /tmp/pip-ephem-wheel-cache-pl76rk9j/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#11 1707.6 Successfully built mambular\n#11 1707.8 Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, triton, tqdm, threadpoolctl, sympy, six, setuptools, PyYAML, propcache, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, multidict, MarkupSafe, lightning-utilities, joblib, fsspec, frozenlist, cuda-pathfinder, attrs, aiohappyeyeballs, yarl, scipy, python-dateutil, pyaml, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, jinja2, cuda-bindings, aiosignal, scikit_learn, properscoring, pandas, nvidia-cusolver, aiohttp, scikit-optimize, torch, torchmetrics, pytorch-lightning, lightning, mambular\n#11 1755.1 Successfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 attrs-26.1.0 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 frozenlist-1.8.0 fsspec-2026.3.0 jinja2-3.1.6 joblib-1.5.3 lightning-2.6.1 lightning-utilities-0.15.3 mambular-1.0.2 mpmath-1.3.0 multidict-6.7.1 networkx-3.6.1 numpy-1.26.4 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 pandas-3.0.2 propcache-0.4.1 properscoring-0.1 pyaml-26.2.1 python-dateutil-2.9.0.post0 pytorch-lightning-2.6.1 scikit-optimize-0.10.2 scikit_learn-1.8.0 scipy-1.17.1 setuptools-81.0.0 six-1.17.0 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.11.0 torchmetrics-1.9.0 tqdm-4.67.3 triton-3.6.0 yarl-1.23.0\n#11 1755.1 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 1756.2s\n\n#12 [8/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#12 0.710 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#12 0.713 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#12 0.713 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.2)\n#12 0.714 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#12 0.714 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#12 0.840 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 0.9s\n\n#13 [9/9] RUN sed -i 's/from mambular.utils.preprocessor/from mambular.preprocessing.preprocessor/' tests/test_preprocessor.py\n#13 DONE 0.4s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 6.4s done\n#14 writing image sha256:c6f4db5edfe177c6b77c7bb89763454b3dc556f2994be43c4dc247e6ff43f5e9 done\n#14 naming to docker.io/library/jayint-repo2run-basf__mamba-tabular done\n#14 DONE 6.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/yzri3v1zlr8p00yqc1956tyck\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-basf__mamba-tabular",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-basf__mamba-tabular sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-04-28T18:32:33.167135+08:00",
+              "finished_at": "2026-04-28T18:32:40.601610+08:00",
+              "duration_seconds": 7.434,
+              "stdout": "tests/test_classifier.py::TestMambularClassifier::test_evaluate\ntests/test_classifier.py::TestMambularClassifier::test_fit\ntests/test_classifier.py::TestMambularClassifier::test_initialization\ntests/test_classifier.py::TestMambularClassifier::test_predict\ntests/test_classifier.py::TestMambularClassifier::test_split_data\ntests/test_distributions.py::TestNormalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNormalDistribution::test_evaluate_nll\ntests/test_distributions.py::TestNormalDistribution::test_initialization\ntests/test_distributions.py::TestNormalDistribution::test_predefined_transforms\ntests/test_distributions.py::TestPoissonDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestPoissonDistribution::test_initialization\ntests/test_distributions.py::TestBetaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestBetaDistribution::test_initialization\ntests/test_distributions.py::TestInverseGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestInverseGammaDistribution::test_initialization\ntests/test_distributions.py::TestDirichletDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestDirichletDistribution::test_initialization\ntests/test_distributions.py::TestGammaDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestGammaDistribution::test_initialization\ntests/test_distributions.py::TestStudentTDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestStudentTDistribution::test_evaluate_nll\ntests/test_distributions.py::TestStudentTDistribution::test_initialization\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestNegativeBinomialDistribution::test_initialization\ntests/test_distributions.py::TestCategoricalDistribution::test_compute_loss_known_values\ntests/test_distributions.py::TestCategoricalDistribution::test_initialization\ntests/test_lss.py::TestMambularLSS::test_fit\ntests/test_lss.py::TestMambularLSS::test_initialization\ntests/test_lss.py::TestMambularLSS::test_normal_metrics\ntests/test_lss.py::TestMambularLSS::test_poisson_metrics\ntests/test_lss.py::TestMambularLSS::test_split_data\ntests/test_preprocessor.py::TestPreprocessor::test_decision_tree_bins\ntests/test_preprocessor.py::TestPreprocessor::test_fit\ntests/test_preprocessor.py::TestPreprocessor::test_fit_transform\ntests/test_preprocessor.py::TestPreprocessor::test_initialization\ntests/test_preprocessor.py::TestPreprocessor::test_ple\ntests/test_preprocessor.py::TestPreprocessor::test_transform_not_fitted\ntests/test_preprocessor.py::TestPreprocessor::test_transform_with_missing_values\ntests/test_regressor.py::TestMambularRegressor::test_evaluate\ntests/test_regressor.py::TestMambularRegressor::test_fit\ntests/test_regressor.py::TestMambularRegressor::test_initialization\ntests/test_regressor.py::TestMambularRegressor::test_predict\ntests/test_regressor.py::TestMambularRegressor::test_split_data\n\n43 tests collected in 5.49s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-basf__mamba-tabular"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-basf__mamba-tabular",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-28T18:32:40.608305+08:00",
+    "finished_at": "2026-04-28T18:32:40.634088+08:00",
+    "duration_seconds": 0.026,
+    "stdout": "Untagged: jayint-repo2run-basf__mamba-tabular:latest\nDeleted: sha256:c6f4db5edfe177c6b77c7bb89763454b3dc556f2994be43c4dc247e6ff43f5e9\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/basf__mamba-tabular/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

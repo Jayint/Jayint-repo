@@ -1,0 +1,869 @@
+{
+  "dataset_entry": {
+    "instance_id": "dottxt-ai__outlines-core",
+    "full_name": "dottxt-ai/outlines-core",
+    "repo_url": "https://github.com/dottxt-ai/outlines-core.git",
+    "sha": "31ab9f",
+    "base_commit": "31ab9f",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/dottxt-ai/outlines-core.git",
+      "--base-commit",
+      "31ab9f",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/dottxt-ai/outlines-core.git --base-commit 31ab9f --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T08:54:31.611724+08:00",
+    "finished_at": "2026-05-09T09:15:10.532056+08:00",
+    "duration_seconds": 1238.92,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core...\nCloning https://github.com/dottxt-ai/outlines-core.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 31ab9f\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 15 potentially relevant files\n[ImageSelector]   ✗ setup.cfg\n[ImageSelector]   ✗ .github/scripts/build_sdist_and_wheel.sh\n[ImageSelector]   ✓ .github/workflows/asv_benchmark_pr.yml\n[ImageSelector]   ✓ .github/workflows/tests.yml\n[ImageSelector]   ✓ environment.yml\n[ImageSelector]   ✓ .readthedocs.yaml\n[ImageSelector]   ✗ .github/workflows/release_rust.yaml\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ Cargo.toml\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✗ RELEASE.md\n[ImageSelector]   ✓ setup.py\n[ImageSelector]   ✓ .github/workflows/release_pypi.yaml\n[ImageSelector] 10 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses heavy ML dependencies (torch, transformers, tokenizers==0.20.3, huggingface_hub==0.3.2) with pinned versions that are primarily tested on x86_64 architecture. Apple Silicon (ARM64) developers may encounter compilation or runtime issues with native extensions. Consider using linux/amd64 platform for the container if running on Apple Silicon.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/logs/image_selector_logs\nInitializing container from python:3.10...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.10 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:4fb2a\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/logs/compression_logs\nStarting agent for repository: https://github.com/dottxt-ai/outlines-core.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2339, Output: 100, Total: 2439\n\n[Thought]\nLet me start by inspecting the key configuration files to understand the project's dependencies, build process, and test setup.\n\n[Action]\ncat pyproject.toml\n[Container ID: 6a88554f5b95]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"setuptools>=45\", \"setuptools_scm[toml]>=6.2\", \"setuptools-rust\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"outlines_core\"\nauthors= [{name = \"Outlines Developers\"}]\ndescription = \"Structured Text Generation in Rust\"\nrequires-python = \">=3.8\"\nlicense = {text = \"Apache-2.0\"}\nkeywords=[\n    \"machine learning\",\n    \"deep learning\",\n    \"language models\",\n    \"structured generation\",\n]\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Information Technology\",\n    \"Intended Audience :: Science/Research\",\n    \"Operating System :: OS Independent\",\n    \"Programming Language :: Python :: 3\",\n    \"Topic :: Scientific/Engineering :: Artificial Intelligence\",\n]\ndependencies = [\n   \"interegular\",\n   \"jsonschema\",\n]\ndynamic = [\"version\"]\n\n[project.optional-dependencies]\ntest = [\n    \"pre-commit\",\n    \"pydantic\",\n    \"pytest\",\n    \"pytest-benchmark\",\n    \"pytest-cov\",\n    \"pytest-mock\",\n    \"coverage[toml]>=5.1\",\n    \"diff-cover\",\n    \"accelerate\",\n    \"beartype<0.16.0\",\n    \"huggingface_hub\",\n    \"torch\",\n    \"numpy\",\n    \"scipy\",\n    \"transformers\",\n    \"datasets\",\n    \"pillow\",\n    \"asv\",\n    \"psutil\",\n    \"setuptools-rust\",\n]\n\n[project.urls]\nhomepage = \"https://github.com/dottxt-ai/outlines-core\"\ndocumentation = \"https://dottxt-ai.github.io/outlines-core/\"\nrepository = \"https://github.com/dottxt-ai/outlines-core\"\n\n[project.readme]\nfile=\"README.md\"\ncontent-type = \"text/markdown\"\n\n[tool.cibuildwheel]\nskip = [\"*-musllinux_i686\"]\n\n[tool.setuptools]\npackages = [\"outlines_core\"]\npackage-dir = {\"\" = \"python\"}\n\n[tool.setuptools.package-data]\n\"outlines_core\" = [\"py.typed\", \"**/*.pyi\"]\n\n[tool.setuptools_scm]\nwrite_to = \"python/outlines_core/_version.py\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\nfilterwarnings = [\n    \"error\",\n    \"ignore::pydantic.warnings.PydanticDeprecatedSince20\",\n    \"ignore::UserWarning\",\n    \"ignore::DeprecationWarning\",\n]\naddopts = [\n    \"--import-mode=importlib\"\n]\n\n[tool.mypy]\nexclude=[\"examples\", \"tests\", \"benchmarks\"]\n\n[[tool.mypy.overrides]]\nmodule = [\n    \"jsonschema.*\",\n    \"pydantic.*\",\n    \"pytest\",\n    \"interegular.*\",\n    \"setuptools.*\",\n    \"setuptools_rust.*\",\n]\nignore_missing_imports = true\n\n[tool.coverage.run]\nomit = [\n    \"python/outlines_core/_version.py\",\n    \"python/outlines_core/__init__.py\",\n    \"tests/*\",\n]\nbranch = true\nrelative_files = true\n\n[tool.coverage.report]\nomit = [\n    \"tests/*\",\n]\nexclude_lines = [\n    \"pragma: no cover\",\n    \"if TYPE_CHECKING:\",\n    \"\\\\.\\\\.\\\\.\",\n]\nshow_missing = true\n\n[tool.diff_cover]\ncompare_branch = \"origin/main\"\ndiff_range_notation = \"..\"\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 3121, Output: 62, Total: 3183\n\n[Thought]\nThis is a Python project with Rust extensions built via setuptools-rust. Let me check the setup.py and Cargo.toml to understand the full build process.\n\n[Action]\ncat setup.py\n[Container ID: 6a88554f5b95]\nExecuting: cat setup.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport os\n\nfrom setuptools import setup\nfrom setuptools_rust import Binding, RustExtension\n\nCURRENT_DIR = os.path.dirname(os.path.abspath(__file__))\n\n\nrust_extensions = [\n    RustExtension(\n        \"outlines_core.fsm.outlines_core_rs\",\n        f\"{CURRENT_DIR}/Cargo.toml\",\n        binding=Binding.PyO3,\n        features=[\"python-bindings\"],\n        rustc_flags=[\"--crate-type=cdylib\"],\n    ),\n]\n\nsetup(\n    rust_extensions=rust_extensions,\n)\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3276, Output: 100, Total: 3376\n\n[Thought]\nThis is a hybrid Python/Rust project. The Rust extension needs to be compiled. Let me check the Cargo.toml and the test directory structure.\n\n[Action]\ncat Cargo.toml\n[Container ID: 6a88554f5b95]\nExecuting: cat Cargo.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[package]\nname = \"outlines-core\"\nversion = \"0.0.0\"\nedition = \"2021\"\ndescription = \"Structured Generation\"\nlicense = \"Apache-2.0\"\nrepository = \"https://github.com/dottxt-ai/outlines-core\"\n\n[dependencies]\nonce_cell = \"1.20\"\nthiserror = \"2.0\"\npyo3 = { version = \"0.22.0\", features = [\"extension-module\"], optional = true }\nregex = \"1.10.6\"\nserde-pyobject = \"0.4.0\"\nserde_json = { version = \"1.0\", features = [\"preserve_order\"] }\nserde = {version = \"1.0\", features = [\"derive\"]}\nbincode = \"2.0.0-rc.3\"\n# Fragile dependencies, minor updates often break the code\nhf-hub = \"=0.3.2\"\ntokenizers = { version = \"=0.20.3\", features = [\"http\"] }\nrustc-hash = \"2.1.0\"\n\n[features]\npython-bindings = [\"pyo3\"]\n\n[lib]\nname = \"outlines_core\"\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[profile.release]\nopt-level = 3\nlto = true\ncodegen-units = 1\nstrip = true\npanic = 'abort'\n\n[package.metadata.scripts]\nbuild-python-extension = \"python setup.py build_rust --inplace --debug\"\nbuild-python-extension-release = \"python setup.py build_rust --inplace --release\"\n\n[lints.rust]\nunexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(tarpaulin_include)'] }\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3684, Output: 180, Total: 3864\n\n[Thought]\nThis is a Python/Rust hybrid project using setuptools-rust. I need to check if Rust toolchain is available and install the necessary dependencies. Let me first check the environment.\n\n[Action]\nwhich cargo rustc 2>&1; python3 --version; pip3 --version\n[Container ID: 6a88554f5b95]\nExecuting: which cargo rustc 2>&1; python3 --version; pip3 --version\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nPython 3.10.20\npip 23.0.1 from /usr/local/lib/python3.10/site-packages/pip (python 3.10)\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3790, Output: 109, Total: 3899\n\n[Thought]\nRust is not installed in this environment. I need to install Rust toolchain first since this is a Python/Rust hybrid project.\n\n[Action]\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -20\n[Container ID: 6a88554f5b95]\nExecuting: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -20\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3953, Output: 85, Total: 4038\n\n[Thought]\nRust is not installed. Let me install the Rust toolchain using the official installer.\n\n[Action]\ncurl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1\n[Container ID: 6a88554f5b95]\nExecuting: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:2c8ab\n\n[Observation]\ninfo: downloading installer\nwarn: It looks like you have an existing rustup settings file at:\nwarn: /root/.rustup/settings.toml\nwarn: Rustup will install the default toolchain as specified in the settings file,\nwarn: instead of the one inferred from the default host triple.\ninfo: profile set to default\ninfo: default host triple is x86_64-unknown-linux-gnu\ninfo: syncing channel updates for stable-x86_64-unknown-linux-gnu\ninfo: latest update on 2026-04-16 for version 1.95.0 (59807616e 2026-04-14)\ninfo: downloading 6 components\ninfo: default toolchain set to stable-x86_64-unknown-linux-gnu\n\n  stable-x86_64-unknown-linux-gnu installed - rustc 1.95.0 (59807616e 2026-04-14)\n\n\nRust is installed now. Great!\n\nTo get started you may need to restart your current shell.\nThis would reload your PATH environment variable to include\nCargo's bin directory ($HOME/.cargo/bin).\n\nTo configure your current shell, you need to source\nthe corresponding env file under $HOME/.cargo.\n\nThis is usually done by running one of the following (note the leading DOT):\n. \"$HOME/.cargo/env\"            # For sh/bash/zsh/ash/dash/pdksh\nsource \"$HOME/.cargo/env.fish\"  # For fish\nsource \"~/.cargo/env.nu\"  # For nushell\nsource \"$HOME/.cargo/env.tcsh\"  # For tcsh\n. \"$HOME/.cargo/env.ps1\"        # For pwsh\nsource \"$HOME/.cargo/env.xsh\"   # For xonsh\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4391, Output: 68, Total: 4459\n\n[Thought]\nRust is installed. Now let me source the environment and verify the installation.\n\n[Action]\n. \"$HOME/.cargo/env\" && cargo --version && rustc --version\n[Container ID: 6a88554f5b95]\nExecuting: . \"$HOME/.cargo/env\" && cargo --version && rustc --version\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4505, Output: 48, Total: 4553\n\n[Thought]\nI need to source the cargo environment first, then verify the installation separately.\n\n[Action]\n. \"$HOME/.cargo/env\"\n[Container ID: 6a88554f5b95]\nExecuting: . \"$HOME/.cargo/env\"\nCommand succeeded.\n[Snapshot Created] sha256:d54aa\n\n[Observation]\n(No output)\n\n==================== Step 9 ====================\n\n[Tokens] Input: 4544, Output: 51, Total: 4595\n\n[Thought]\nGood, the environment is sourced. Let me verify cargo and rustc are available.\n\n[Action]\ncargo --version && rustc --version\n[Container ID: 6a88554f5b95]\nExecuting: cargo --version && rustc --version\nCommand succeeded.\n[Snapshot Created] sha256:980be\n\n[Observation]\ncargo 1.95.0 (f2d3ce0bd 2026-03-21)\nrustc 1.95.0 (59807616e 2026-04-14)\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 4629, Output: 68, Total: 4697\n\n[Thought]\nRust toolchain is available. Now let me install the Python test dependencies from pyproject.toml.\n\n[Action]\npip install -e \".[test]\" 2>&1\n[Container ID: 6a88554f5b95]\nExecuting: pip install -e \".[test]\" 2>&1\n[Sandbox Retry] Transient pip install failure; retrying attempt 2/3.\n[Sandbox Retry] Transient pip install failure; retrying attempt 3/3.\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n[SYSTEM] Transient pip install failure on attempt 1; retrying the same command.\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Getting requirements to build editable did not run successfully.\n  │ exit code: 1\n  ╰─> [28 lines of output]\n      /tmp/pip-build-env-2_s7s3sf/overlay/lib/python3.10/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      running egg_info\n      creating python/outlines_core.egg-info\n      writing python/outlines_core.egg-info/PKG-INFO\n      writing dependency_links to python/outlines_core.egg-info/dependency_links.txt\n      writing requirements to python/outlines_core.egg-info/requires.txt\n      writing top-level names to python/outlines_core.egg-info/top_level.txt\n      writing manifest file 'python/outlines_core.egg-info/SOURCES.txt'\n      /tmp/pip-build-env-2_s7s3sf/overlay/lib/python3.10/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n[SYSTEM] Transient pip install failure on attempt 2; retrying the same command.\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Getting requirements to build editable did not run successfully.\n  │ exit code: 1\n  ╰─> [26 lines of output]\n      /tmp/pip-build-env-lt68_vbm/overlay/lib/python3.10/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      running egg_info\n      writing python/outlines_core.egg-info/PKG-INFO\n      writing dependency_links to python/outlines_core.egg-info/dependency_links.txt\n      writing requirements to python/outlines_core.egg-info/requires.txt\n      writing top-level names to python/outlines_core.egg-info/top_level.txt\n      /tmp/pip-build-env-lt68_vbm/overlay/lib/python3.10/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Getting requirements to build editable did not run successfully.\n  │ exit code: 1\n  ╰─> [26 lines of output]\n      /tmp/pip-build-env-gfu2pudx/overlay/lib/python3.10/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated\n      !!\n      \n              ********************************************************************************\n              Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).\n      \n              By 2027-Feb-18, you need to update your project and remove deprecated calls\n              or your builds will no longer be supported.\n      \n              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.\n              ********************************************************************************\n      \n      !!\n        corresp(dist, value, root_dir)\n      running egg_info\n      writing python/outlines_core.egg-info/PKG-INFO\n      writing dependency_links to python/outlines_core.egg-info/dependency_links.txt\n      writing requirements to python/outlines_core.egg-info/requires.txt\n      writing top-level names to python/outlines_core.egg-info/top_level.txt\n      /tmp/pip-build-env-gfu2pudx/overlay/lib/python3.10/site-packages/vcs_versioning/overrides.py:609: UserWarning: No GlobalOverrides context is active. Auto-creating one with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using 'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n      \n          git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 11 ====================\n\n[Tokens] Input: 6679, Output: 82, Total: 6761\n\n[Thought]\nThe installation failed due to a git safe.directory issue. Let me add the /app directory to git's safe directory list.\n\n[Action]\ngit config --global --add safe.directory /app\n[Container ID: 6a88554f5b95]\nExecuting: git config --global --add safe.directory /app\nCommand succeeded.\n[Snapshot Created] sha256:a3edb\n\n[Observation]\n(No output)\n\n==================== Step 12 ====================\n\n[Tokens] Input: 6733, Output: 51, Total: 6784\n\n[Thought]\nGit safe directory is configured. Now let me retry the pip install.\n\n[Action]\npip install -e \".[test]\" 2>&1\n[Container ID: 6a88554f5b95]\nExecuting: pip install -e \".[test]\" 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:577f1\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting jsonschema\n  Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 659.7 kB/s eta 0:00:00\nCollecting interegular\n  Downloading interegular-0.3.3-py37-none-any.whl (23 kB)\nCollecting numpy\n  Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 6.0 MB/s eta 0:00:00\nCollecting psutil\n  Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 4.6 MB/s eta 0:00:00\nCollecting huggingface_hub\n  Downloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 5.4 MB/s eta 0:00:00\nCollecting beartype<0.16.0\n  Downloading beartype-0.15.0-py3-none-any.whl (777 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 777.6/777.6 kB 5.7 MB/s eta 0:00:00\nCollecting coverage[toml]>=5.1\n  Downloading coverage-7.13.5-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (248 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 248.3/248.3 kB 15.3 MB/s eta 0:00:00\nCollecting setuptools-rust\n  Using cached setuptools_rust-1.12.1-py3-none-any.whl (28 kB)\nCollecting accelerate\n  Downloading accelerate-1.13.0-py3-none-any.whl (383 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 383.7/383.7 kB 5.3 MB/s eta 0:00:00\nCollecting torch\n  Downloading torch-2.11.0-cp310-cp310-manylinux_2_28_x86_64.whl (530.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.6/530.6 MB 1.8 MB/s eta 0:00:00\nCollecting transformers\n  Downloading transformers-5.8.0-py3-none-any.whl (10.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.6/10.6 MB 6.5 MB/s eta 0:00:00\nCollecting scipy\n  Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 5.8 MB/s eta 0:00:00\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 5.7 MB/s eta 0:00:00\nCollecting pre-commit\n  Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 5.0 MB/s eta 0:00:00\nCollecting datasets\n  Downloading datasets-4.8.5-py3-none-any.whl (528 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 529.0/529.0 kB 5.8 MB/s eta 0:00:00\nCollecting pytest-cov\n  Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\nCollecting asv\n  Downloading asv-0.6.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (253 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 253.8/253.8 kB 5.9 MB/s eta 0:00:00\nCollecting pytest-benchmark\n  Downloading pytest_benchmark-5.2.3-py3-none-any.whl (45 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.3/45.3 kB 6.0 MB/s eta 0:00:00\nCollecting pillow\n  Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 5.9 MB/s eta 0:00:00\nCollecting diff-cover\n  Downloading diff_cover-10.2.0-py3-none-any.whl (56 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.7/56.7 kB 9.2 MB/s eta 0:00:00\nCollecting pydantic\n  Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 5.2 MB/s eta 0:00:00\nCollecting pytest-mock\n  Downloading pytest_mock-3.15.1-py3-none-any.whl (10 kB)\nCollecting tomli\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting packaging>=20.0\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting pyyaml\n  Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 5.8 MB/s eta 0:00:00\nCollecting safetensors>=0.4.3\n  Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 6.1 MB/s eta 0:00:00\nCollecting tqdm>=4.42.1\n  Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 2.9 MB/s eta 0:00:00\nCollecting hf-xet<2.0.0,>=1.4.3\n  Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.0 MB/s eta 0:00:00\nCollecting httpx<1,>=0.23.0\n  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 9.6 MB/s eta 0:00:00\nCollecting typing-extensions>=4.1.0\n  Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nCollecting typer>=0.20.0\n  Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 6.8 MB/s eta 0:00:00\nCollecting filelock>=3.10.0\n  Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\nCollecting fsspec>=2023.5.0\n  Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 203.4/203.4 kB 9.2 MB/s eta 0:00:00\nRequirement already satisfied: setuptools<82 in /usr/local/lib/python3.10/site-packages (from torch->outlines_core==0.1.25) (79.0.1)\nCollecting nvidia-cudnn-cu13==9.19.0.56\n  Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 1.8 MB/s eta 0:00:00\nCollecting cuda-bindings<14,>=13.0.3\n  Downloading cuda_bindings-13.2.0-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 5.1 MB/s eta 0:00:00\nCollecting triton==3.6.0\n  Downloading triton-3.6.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.1/188.1 MB 3.1 MB/s eta 0:00:00\nCollecting networkx>=2.5.1\n  Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.2 MB/s eta 0:00:00\nCollecting cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2\n  Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\nCollecting nvidia-nccl-cu13==2.28.9\n  Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 3.8 MB/s eta 0:00:00\nCollecting nvidia-cusparselt-cu13==0.8.0\n  Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 5.4 MB/s eta 0:00:00\nCollecting jinja2\n  Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 4.3 MB/s eta 0:00:00\nCollecting nvidia-nvshmem-cu13==3.4.5\n  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 5.7 MB/s eta 0:00:00\nCollecting sympy>=1.13.3\n  Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.0 MB/s eta 0:00:00\nCollecting nvidia-cuda-nvrtc==13.0.88.*\n  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 6.1 MB/s eta 0:00:00\nCollecting nvidia-cuda-cupti==13.0.85.*\n  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 6.6 MB/s eta 0:00:00\nCollecting nvidia-curand==10.4.0.35.*\n  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 5.7 MB/s eta 0:00:00\nCollecting nvidia-cufft==12.0.0.61.*\n  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 2.4 MB/s eta 0:00:00\nCollecting nvidia-cublas==13.1.0.3.*\n  Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 1.1 MB/s eta 0:00:00\nCollecting nvidia-cufile==1.15.1.6.*\n  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 8.5 MB/s eta 0:00:00\nCollecting nvidia-cuda-runtime==13.0.96.*\n  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 9.8 MB/s eta 0:00:00\nCollecting nvidia-cusparse==12.6.3.3.*\n  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 5.1 MB/s eta 0:00:00\nCollecting nvidia-cusolver==12.0.4.66.*\n  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 3.0 MB/s eta 0:00:00\nCollecting nvidia-nvjitlink==13.0.88.*\n  Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 5.7 MB/s eta 0:00:00\nCollecting nvidia-nvtx==13.0.85.*\n  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 148.0/148.0 kB 7.7 MB/s eta 0:00:00\nCollecting virtualenv\n  Downloading virtualenv-21.3.1-py3-none-any.whl (7.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.8 MB/s eta 0:00:00\nCollecting asv-runner>=v0.2.1\n  Downloading asv_runner-0.2.1-py3-none-any.whl (47 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.7/47.7 kB 7.2 MB/s eta 0:00:00\nCollecting importlib-metadata\n  Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\nCollecting build\n  Downloading build-1.5.0-py3-none-any.whl (26 kB)\nCollecting pympler\n  Downloading Pympler-1.1-py3-none-any.whl (165 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 165.8/165.8 kB 9.3 MB/s eta 0:00:00\nCollecting tabulate\n  Downloading tabulate-0.10.0-py3-none-any.whl (39 kB)\nCollecting json5\n  Downloading json5-0.14.0-py3-none-any.whl (36 kB)\nCollecting requests>=2.32.2\n  Downloading requests-2.33.1-py3-none-any.whl (64 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 17.1 MB/s eta 0:00:00\nCollecting xxhash\n  Downloading xxhash-3.7.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.3/193.3 kB 6.6 MB/s eta 0:00:00\nCollecting multiprocess<0.70.20\n  Downloading multiprocess-0.70.19-py310-none-any.whl (134 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 6.9 MB/s eta 0:00:00\nCollecting pandas\n  Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 5.6 MB/s eta 0:00:00\nCollecting fsspec[http]<=2026.2.0,>=2023.1.0\n  Downloading fsspec-2026.2.0-py3-none-any.whl (202 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.5/202.5 kB 6.7 MB/s eta 0:00:00\nCollecting pyarrow>=21.0.0\n  Downloading pyarrow-24.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (48.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 5.8 MB/s eta 0:00:00\nCollecting dill<0.4.2,>=0.3.0\n  Downloading dill-0.4.1-py3-none-any.whl (120 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 5.0 MB/s eta 0:00:00\nCollecting chardet>=3.0.0\n  Downloading chardet-7.4.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (886 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 886.5/886.5 kB 6.8 MB/s eta 0:00:00\nCollecting Pygments<3.0.0,>=2.19.1\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 7.2 MB/s eta 0:00:00\nCollecting pluggy<2,>=0.13.1\n  Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting referencing>=0.28.4\n  Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\nCollecting rpds-py>=0.25.0\n  Downloading rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 390.5/390.5 kB 7.1 MB/s eta 0:00:00\nCollecting attrs>=22.2.0\n  Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 11.1 MB/s eta 0:00:00\nCollecting jsonschema-specifications>=2023.03.6\n  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\nCollecting nodeenv>=0.11.1\n  Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\nCollecting identify>=1.0.0\n  Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 5.0 MB/s eta 0:00:00\nCollecting cfgv>=2.0.0\n  Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\nCollecting typing-inspection>=0.4.2\n  Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nCollecting pydantic-core==2.46.4\n  Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 8.7 MB/s eta 0:00:00\nCollecting annotated-types>=0.6.0\n  Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nCollecting exceptiongroup>=1\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting iniconfig>=1.0.1\n  Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nCollecting py-cpuinfo\n  Downloading py_cpuinfo-9.0.0-py3-none-any.whl (22 kB)\nCollecting semantic_version<3,>=2.8.2\n  Using cached semantic_version-2.10.0-py2.py3-none-any.whl (15 kB)\nCollecting regex>=2025.10.22\n  Downloading regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 10.3 MB/s eta 0:00:00\nCollecting tokenizers<=0.23.0,>=0.22.0\n  Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 8.4 MB/s eta 0:00:00\nCollecting cuda-pathfinder~=1.1\n  Downloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.7/51.7 kB 5.5 MB/s eta 0:00:00\nCollecting aiohttp!=4.0.0a0,!=4.0.0a1\n  Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 12.9 MB/s eta 0:00:00\nCollecting certifi\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 22.6 MB/s eta 0:00:00\nCollecting idna\n  Downloading idna-3.13-py3-none-any.whl (68 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 11.8 MB/s eta 0:00:00\nCollecting anyio\n  Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 11.2 MB/s eta 0:00:00\nCollecting httpcore==1.*\n  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 13.6 MB/s eta 0:00:00\nCollecting h11>=0.16\n  Downloading h11-0.16.0-py3-none-any.whl (37 kB)\nCollecting MarkupSafe>=2.0\n  Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\nCollecting charset_normalizer<4,>=2\n  Downloading charset_normalizer-3.4.7-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.9/216.9 kB 13.4 MB/s eta 0:00:00\nCollecting urllib3<3,>=1.26\n  Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 21.1 MB/s eta 0:00:00\nCollecting mpmath<1.4,>=1.1.0\n  Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 12.8 MB/s eta 0:00:00\nCollecting shellingham>=1.3.0\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting annotated-doc>=0.0.2\n  Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nCollecting click>=8.2.1\n  Downloading click-8.3.3-py3-none-any.whl (110 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 16.4 MB/s eta 0:00:00\nCollecting rich>=13.8.0\n  Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 14.1 MB/s eta 0:00:00\nCollecting python-discovery>=1.2.2\n  Downloading python_discovery-1.3.0-py3-none-any.whl (33 kB)\nCollecting platformdirs<5,>=3.9.1\n  Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nCollecting distlib<1,>=0.3.7\n  Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 10.4 MB/s eta 0:00:00\nCollecting pyproject_hooks\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nCollecting zipp>=3.20\n  Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\nCollecting python-dateutil>=2.8.2\n  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 14.8 MB/s eta 0:00:00\nCollecting tzdata>=2022.7\n  Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 11.1 MB/s eta 0:00:00\nCollecting pytz>=2020.1\n  Downloading pytz-2026.2-py2.py3-none-any.whl (510 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.1/510.1 kB 11.3 MB/s eta 0:00:00\nCollecting multidict<7.0,>=4.5\n  Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 13.0 MB/s eta 0:00:00\nCollecting async-timeout<6.0,>=4.0\n  Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\nCollecting aiohappyeyeballs>=2.5.0\n  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\nCollecting propcache>=0.2.0\n  Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 5.5 MB/s eta 0:00:00\nCollecting yarl<2.0,>=1.17.0\n  Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 10.2 MB/s eta 0:00:00\nCollecting aiosignal>=1.4.0\n  Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\nCollecting frozenlist>=1.1.1\n  Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 11.1 MB/s eta 0:00:00\nCollecting six>=1.5\n  Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nCollecting markdown-it-py>=2.2.0\n  Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 15.4 MB/s eta 0:00:00\nCollecting mdurl~=0.1\n  Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nBuilding wheels for collected packages: outlines_core\n  Building editable for outlines_core (pyproject.toml): started\n  Building editable for outlines_core (pyproject.toml): still running...\n  Building editable for outlines_core (pyproject.toml): finished with status 'done'\n  Created wheel for outlines_core: filename=outlines_core-0.1.25-0.editable-cp310-cp310-linux_x86_64.whl size=6829 sha256=35481e538e3c988e471084fa0453abb1b14656890d3e2c38f2f3fd3b22f45313\n  Stored in directory: /tmp/pip-ephem-wheel-cache-x2bose3b/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\nSuccessfully built outlines_core\nInstalling collected packages: pytz, py-cpuinfo, nvidia-cusparselt-cu13, mpmath, distlib, cuda-toolkit, zipp, xxhash, urllib3, tzdata, typing-extensions, triton, tqdm, tomli, tabulate, sympy, six, shellingham, semantic_version, safetensors, rpds-py, regex, pyyaml, pyproject_hooks, pympler, Pygments, pyarrow, psutil, propcache, pluggy, platformdirs, pillow, packaging, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, nodeenv, networkx, mdurl, MarkupSafe, json5, interegular, iniconfig, idna, identify, hf-xet, h11, fsspec, frozenlist, filelock, dill, cuda-pathfinder, coverage, click, charset_normalizer, chardet, cfgv, certifi, beartype, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, typing-inspection, setuptools-rust, scipy, requests, referencing, python-discovery, python-dateutil, pydantic-core, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, multiprocess, multidict, markdown-it-py, jinja2, importlib-metadata, httpcore, exceptiongroup, cuda-bindings, build, aiosignal, yarl, virtualenv, rich, pytest, pydantic, pandas, nvidia-cusolver, jsonschema-specifications, diff-cover, asv-runner, anyio, typer, pytest-mock, pytest-cov, pytest-benchmark, pre-commit, jsonschema, httpx, asv, aiohttp, torch, outlines_core, huggingface_hub, tokenizers, datasets, accelerate, transformers\nSuccessfully installed MarkupSafe-3.0.3 Pygments-2.20.0 accelerate-1.13.0 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.13.0 asv-0.6.5 asv-runner-0.2.1 async-timeout-5.0.1 attrs-26.1.0 beartype-0.15.0 build-1.5.0 certifi-2026.4.22 cfgv-3.5.0 chardet-7.4.3 charset_normalizer-3.4.7 click-8.3.3 coverage-7.13.5 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 datasets-4.8.5 diff-cover-10.2.0 dill-0.4.1 distlib-0.4.0 exceptiongroup-1.3.1 filelock-3.29.0 frozenlist-1.8.0 fsspec-2026.2.0 h11-0.16.0 hf-xet-1.5.0 httpcore-1.0.9 httpx-0.28.1 huggingface_hub-1.14.0 identify-2.6.19 idna-3.13 importlib-metadata-9.0.0 iniconfig-2.3.0 interegular-0.3.3 jinja2-3.1.6 json5-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mpmath-1.3.0 multidict-6.7.1 multiprocess-0.70.19 networkx-3.4.2 nodeenv-1.10.0 numpy-2.2.6 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 outlines_core-0.1.25 packaging-26.2 pandas-2.3.3 pillow-12.2.0 platformdirs-4.9.6 pluggy-1.6.0 pre-commit-4.6.0 propcache-0.5.2 psutil-7.2.2 py-cpuinfo-9.0.0 pyarrow-24.0.0 pydantic-2.13.4 pydantic-core-2.46.4 pympler-1.1 pyproject_hooks-1.2.0 pytest-9.0.3 pytest-benchmark-5.2.3 pytest-cov-7.1.0 pytest-mock-3.15.1 python-dateutil-2.9.0.post0 python-discovery-1.3.0 pytz-2026.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.4.4 requests-2.33.1 rich-15.0.0 rpds-py-0.30.0 safetensors-0.7.0 scipy-1.15.3 semantic_version-2.10.0 setuptools-rust-1.12.1 shellingham-1.5.4 six-1.17.0 sympy-1.14.0 tabulate-0.10.0 tokenizers-0.22.2 tomli-2.4.1 torch-2.11.0 tqdm-4.67.3 transformers-5.8.0 triton-3.6.0 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2026.2 urllib3-2.7.0 virtualenv-21.3.1 xxhash-3.7.0 yarl-1.23.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 14381, Output: 86, Total: 14467\n\n[Thought]\nThe installation succeeded including the Rust extension build. Now let me verify pytest can collect the tests from the repository.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: 6a88554f5b95]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:2f0e3\n\n[Observation]\ntests/fsm/test_guide.py::test_stop_at_eos\ntests/fsm/test_guide.py::test_regex_vocabulary_error\ntests/fsm/test_guide.py::test_from_regex\ntests/fsm/test_guide.py::test_from_fsm\ntests/fsm/test_guide.py::test_regex_multi_byte_llama_like\ntests/fsm/test_guide.py::test_regex_multi_byte_gpt2_like\ntests/fsm/test_guide.py::test_regex_final_state\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[None]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[[\\\\n ]*]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[abc]\ntests/fsm/test_json_schema.py::test_one_of_doesnt_produce_illegal_lookaround\ntests/fsm/test_json_schema.py::test_match_object\ntests/fsm/test_regex.py::test_walk_fsm\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[identity]\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[to_bytes]\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end_multi_byte\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[a-c]+-\\U0001f600-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^a-c]+-\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-\\U0001f600\\U0001f600\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-a-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-aa-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-aa-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f60e-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f613-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f64f-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f60e-False]\ntests/fsm/test_regex.py::test_regex_index_performance\ntests/fsm/test_regex.py::test_token_trans_keys_identical\ntests/fsm/test_regex.py::test_token_trans_keys_walk_fsm\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd.]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.0]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.1]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_byte_tokens\ntests/fsm/test_serialization.py::test_serialization\ntests/fsm/test_serialization.py::test_complex_serialization[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_serialization.py::test_complex_serialization[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_serialization.py::test_complex_serialization[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_serialization.py::test_complex_serialization[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_statistical.py::test_generate_length\n\n55 tests collected in 5.33s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings 2>&1\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 14 ====================\n\n[Tokens] Input: 15988, Output: 160, Total: 16148\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded with 55 tests collected. The environment is properly set up with:\n\n1. Rust toolchain installed\n2. Python dependencies installed (including test dependencies)\n3. The Rust extension successfully built\n4. pytest can collect all 55 tests\n\nNow I need to provide the final answer with the verification bundle.\n</think>\n\nThought: The environment setup is complete. Pytest successfully collected 55 tests from the repository. The Rust toolchain was installed, the Python package with test dependencies was installed via `pip install -e \".[test]\"`, and the Rust extension compiled successfully. Let me provide the final verification.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 4 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/dottxt-ai__outlines-core.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/dottxt-ai/outlines-core.git",
+    "configuration_success": true,
+    "base_image": "python:3.10",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings 2>&1"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 13,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 2,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"setuptools>=45\", \"setuptools_scm[toml]>=6.2\", \"setuptools-rust\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"outlines_core\"\nauthors= [{name = \"Outlines Developers\"}]\ndescription = \"Structured Text Generation in Rust\"\nrequires-python = \">=3.8\"\nlicense = {text = \"Apache-2.0\"}\nkeywords=[\n    \"machine learning\",\n    \"deep learning\",\n    \"language models\",\n    \"structured generation\",\n]\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Information Technology\",\n    \"Intended A\n... (1472 chars omitted for recipe synthesis) ...\ns\", \"benchmarks\"]\n\n[[tool.mypy.overrides]]\nmodule = [\n    \"jsonschema.*\",\n    \"pydantic.*\",\n    \"pytest\",\n    \"interegular.*\",\n    \"setuptools.*\",\n    \"setuptools_rust.*\",\n]\nignore_missing_imports = true\n\n[tool.coverage.run]\nomit = [\n    \"python/outlines_core/_version.py\",\n    \"python/outlines_core/__init__.py\",\n    \"tests/*\",\n]\nbranch = true\nrelative_files = true\n\n[tool.coverage.report]\nomit = [\n    \"tests/*\",\n]\nexclude_lines = [\n    \"pragma: no cover\",\n    \"if TYPE_CHECKING:\",\n    \"\\\\.\\\\.\\\\.\",\n]\nshow_missing = true\n\n[tool.diff_cover]\ncompare_branch = \"origin/main\"\ndiff_range_notation = \"..\"\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat setup.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import os\n\nfrom setuptools import setup\nfrom setuptools_rust import Binding, RustExtension\n\nCURRENT_DIR = os.path.dirname(os.path.abspath(__file__))\n\n\nrust_extensions = [\n    RustExtension(\n        \"outlines_core.fsm.outlines_core_rs\",\n        f\"{CURRENT_DIR}/Cargo.toml\",\n        binding=Binding.PyO3,\n        features=[\"python-bindings\"],\n        rustc_flags=[\"--crate-type=cdylib\"],\n    ),\n]\n\nsetup(\n    rust_extensions=rust_extensions,\n)\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat Cargo.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[package]\nname = \"outlines-core\"\nversion = \"0.0.0\"\nedition = \"2021\"\ndescription = \"Structured Generation\"\nlicense = \"Apache-2.0\"\nrepository = \"https://github.com/dottxt-ai/outlines-core\"\n\n[dependencies]\nonce_cell = \"1.20\"\nthiserror = \"2.0\"\npyo3 = { version = \"0.22.0\", features = [\"extension-module\"], optional = true }\nregex = \"1.10.6\"\nserde-pyobject = \"0.4.0\"\nserde_json = { version = \"1.0\", features = [\"preserve_order\"] }\nserde = {version = \"1.0\", features = [\"derive\"]}\nbincode = \"2.0.0-rc.3\"\n# Fragile dependencies, minor updates often break the code\nhf-hub = \"=0.3.2\"\ntokenizers = { version = \"=0.20.3\", features = [\"http\"] }\nrustc-hash = \"2.1.0\"\n\n[features]\npython-bindings = [\"pyo3\"]\n\n[lib]\nname = \"outlines_core\"\ncrate-type = [\"cdylib\", \"rlib\"]\n\n[profile.release]\nopt-level = 3\nlto = true\ncodegen-units = 1\nstrip = true\npanic = 'abort'\n\n[package.metadata.scripts]\nbuild-python-extension = \"python setup.py build_rust --inplace --debug\"\nbuild-python-extension-release = \"python setup.py build_rust --inplace --release\"\n\n[lints.rust]\nunexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(tarpaulin_include)'] }\n"
+      },
+      {
+        "step_index": 4,
+        "command": "which cargo rustc 2>&1; python3 --version; pip3 --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.10.20\npip 23.0.1 from /usr/local/lib/python3.10/site-packages/pip (python 3.10)\n"
+      },
+      {
+        "step_index": 6,
+        "command": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "info: downloading installer\nwarn: It looks like you have an existing rustup settings file at:\nwarn: /root/.rustup/settings.toml\nwarn: Rustup will install the default toolchain as specified in the settings file,\nwarn: instead of the one inferred from the default host triple.\ninfo: profile set to default\ninfo: default host triple is x86_64-unknown-linux-gnu\ninfo: syncing channel updates for stable-x86_64-unknown-linux-gnu\ninfo: latest update on 2026-04-16 for version 1.95.0 (59807616e 2026-04-14)\ninfo: downloading 6 components\ninfo: default toolchain set to stable-x86_64-unknown-linux-gnu\n\n  sta\n... (127 chars omitted for recipe synthesis) ...\nu may need to restart your current shell.\nThis would reload your PATH environment variable to include\nCargo's bin directory ($HOME/.cargo/bin).\n\nTo configure your current shell, you need to source\nthe corresponding env file under $HOME/.cargo.\n\nThis is usually done by running one of the following (note the leading DOT):\n. \"$HOME/.cargo/env\"            # For sh/bash/zsh/ash/dash/pdksh\nsource \"$HOME/.cargo/env.fish\"  # For fish\nsource \"~/.cargo/env.nu\"  # For nushell\nsource \"$HOME/.cargo/env.tcsh\"  # For tcsh\n. \"$HOME/.cargo/env.ps1\"        # For pwsh\nsource \"$HOME/.cargo/env.xsh\"   # For xonsh\n"
+      },
+      {
+        "step_index": 8,
+        "command": ". \"$HOME/.cargo/env\"",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 9,
+        "command": "cargo --version && rustc --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)\nrustc 1.95.0 (59807616e 2026-04-14)\n"
+      },
+      {
+        "step_index": 11,
+        "command": "git config --global --add safe.directory /app",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 12,
+        "command": "pip install -e \".[test]\" 2>&1",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting jsonschema\n  Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n   \n... (22858 chars omitted for recipe synthesis) ...\n7.0 sympy-1.14.0 tabulate-0.10.0 tokenizers-0.22.2 tomli-2.4.1 torch-2.11.0 tqdm-4.67.3 transformers-5.8.0 triton-3.6.0 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2026.2 urllib3-2.7.0 virtualenv-21.3.1 xxhash-3.7.0 yarl-1.23.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 13,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/fsm/test_guide.py::test_stop_at_eos\ntests/fsm/test_guide.py::test_regex_vocabulary_error\ntests/fsm/test_guide.py::test_from_regex\ntests/fsm/test_guide.py::test_from_fsm\ntests/fsm/test_guide.py::test_regex_multi_byte_llama_like\ntests/fsm/test_guide.py::test_regex_multi_byte_gpt2_like\ntests/fsm/test_guide.py::test_regex_final_state\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[None]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[[\\\\n ]*]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[abc]\ntests/fsm/test_json_\n... (3324 chars omitted for recipe synthesis) ...\nerialization\ntests/fsm/test_serialization.py::test_complex_serialization[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_serialization.py::test_complex_serialization[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_serialization.py::test_complex_serialization[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_serialization.py::test_complex_serialization[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_statistical.py::test_generate_length\n\n55 tests collected in 5.33s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 5,
+        "command": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -20",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      },
+      {
+        "step_index": 7,
+        "command": ". \"$HOME/.cargo/env\" && cargo --version && rustc --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 10,
+        "command": "pip install -e \".[test]\" 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n[SYSTEM] Transient pip install failure on attempt 1; retrying th\n... (8155 chars omitted for recipe synthesis) ...\n        git config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in repository at '/app'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable",
+        ". \"$HOME/.cargo/env\"",
+        "git config --global --add safe.directory /app",
+        "pip install -e \".[test]\""
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat pyproject.toml (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat setup.py (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat Cargo.toml (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "which cargo rustc 2>&1; python3 --version; pip3 --version (read-only version probe)",
+          "reason": ""
+        },
+        {
+          "command": "curl ... | sh ... | tail -20 (system rejection - output filtering prohibited)",
+          "reason": ""
+        },
+        {
+          "command": ". \"$HOME/.cargo/env\" && cargo --version && rustc --version (system rejection - combined mutation with verification)",
+          "reason": ""
+        },
+        {
+          "command": "pip install -e \".[test]\" (failed attempt - git safe.directory issue, superseded by step 11 fix then step 12 retry)",
+          "reason": ""
+        }
+      ],
+      "rationale": "This is a Python/Rust hybrid project (outlines-core) using setuptools-rust with PyO3 bindings. The build trajectory required: (1) Rust toolchain installation via rustup since the project compiles Rust extensions during pip install -e, (2) sourcing the cargo environment to make Rust tools available in PATH, (3) verifying the Rust installation, (4) fixing the git safe.directory issue that blocked editable installs in containerized environments, and (5) installing the package with test dependencies which triggers the Rust extension build. Steps 8-9 (cargo sourcing and verification) are kept as separate commands per the rejection rules - they must be individually verifiable. The failed attempts (steps 5, 7, 10) were excluded because they were either system rejections (output filtering, combined mutation+verification) or a transient failure that was properly resolved by the fix-then-retry pattern. The read-only inspection steps (1-4) were correctly excluded as they are not persistent environment changes.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 2,
+      "compressed_steps": 1,
+      "saved_tokens_est": 2155
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 2672,
+        "raw_tokens_est": 668,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 46,
+        "reflect_input_tokens": 1836,
+        "reflect_output_tokens": 962
+      },
+      {
+        "step_id": 2,
+        "action": "cat setup.py",
+        "success": true,
+        "raw_chars": 442,
+        "raw_tokens_est": 110,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat Cargo.toml",
+        "success": true,
+        "raw_chars": 1119,
+        "raw_tokens_est": 279,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "which cargo rustc 2>&1; python3 --version; pip3 --version",
+        "success": true,
+        "raw_chars": 89,
+        "raw_tokens_est": 22,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -20",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1",
+        "success": true,
+        "raw_chars": 1327,
+        "raw_tokens_est": 331,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": ". \"$HOME/.cargo/env\" && cargo --version && rustc --version",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": ". \"$HOME/.cargo/env\"",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "cargo --version && rustc --version",
+        "success": true,
+        "raw_chars": 72,
+        "raw_tokens_est": 18,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "pip install -e \".[test]\" 2>&1",
+        "success": false,
+        "raw_chars": 9355,
+        "raw_tokens_est": 2338,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2155,
+        "reflect_input_tokens": 12167,
+        "reflect_output_tokens": 403
+      },
+      {
+        "step_id": 11,
+        "action": "git config --global --add safe.directory /app",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "pip install -e \".[test]\" 2>&1",
+        "success": true,
+        "raw_chars": 24058,
+        "raw_tokens_est": 6014,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 4524,
+        "raw_tokens_est": 1131,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 18417,
+        "output_tokens": 7998,
+        "total_tokens": 26415
+      },
+      "planner": {
+        "input_tokens": 82013,
+        "output_tokens": 1250,
+        "total_tokens": 83263
+      },
+      "reflection": {
+        "input_tokens": 14003,
+        "output_tokens": 1365,
+        "total_tokens": 15368
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 12781,
+        "output_tokens": 2612,
+        "total_tokens": 15393
+      },
+      "total": {
+        "input_tokens": 127214,
+        "output_tokens": 13225,
+        "total_tokens": 140439
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+    "base_commit": "31ab9f",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dottxt-ai__outlines-core /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:15:10.559822+08:00",
+      "finished_at": "2026-05-09T09:15:10.615719+08:00",
+      "duration_seconds": 0.056,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context'...\n完成。\n注意：正在切换到 '31ab9f1d08d9eed566ad9bef2a7a39a37f39b125'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "31ab9f"
+      ],
+      "command_shell": "git checkout --force 31ab9f",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:15:10.616128+08:00",
+      "finished_at": "2026-05-09T09:15:10.626586+08:00",
+      "duration_seconds": 0.01,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 31ab9f1 Allow threads on Index init\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:15:10.626948+08:00",
+      "finished_at": "2026-05-09T09:15:10.632439+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-dottxt-ai__outlines-core",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval -t jayint-repo2run-dottxt-ai__outlines-core /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T09:15:10.647727+08:00",
+    "finished_at": "2026-05-09T09:26:29.365589+08:00",
+    "duration_seconds": 678.718,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.26kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#5 CACHED\n\n#6 [3/9] WORKDIR /app\n#6 CACHED\n\n#7 [internal] load build context\n#7 transferring context: 6.06MB 0.1s done\n#7 DONE 0.1s\n\n#8 [4/9] COPY . /app\n#8 DONE 0.4s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 1.1s\n\n#10 [6/9] RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable\n#10 0.752 info: downloading installer\n#10 5.145 warn: It looks like you have an existing rustup settings file at:\n#10 5.145 warn: /root/.rustup/settings.toml\n#10 5.145 warn: Rustup will install the default toolchain as specified in the settings file,\n#10 5.145 warn: instead of the one inferred from the default host triple.\n#10 5.170 info: profile set to default\n#10 5.170 info: default host triple is x86_64-unknown-linux-gnu\n#10 5.181 info: syncing channel updates for stable-x86_64-unknown-linux-gnu\n#10 6.352 info: latest update on 2026-04-16 for version 1.95.0 (59807616e 2026-04-14)\n#10 6.357 info: downloading 6 components\n#10 36.14 info: default toolchain set to stable-x86_64-unknown-linux-gnu\n#10 36.14 \n#10 36.20   stable-x86_64-unknown-linux-gnu installed - rustc 1.95.0 (59807616e 2026-04-14)\n#10 36.20 \n#10 36.20 \n#10 36.20 Rust is installed now. Great!\n#10 36.20 \n#10 36.20 To get started you may need to restart your current shell.\n#10 36.20 This would reload your PATH environment variable to include\n#10 36.20 Cargo's bin directory ($HOME/.cargo/bin).\n#10 36.20 \n#10 36.20 To configure your current shell, you need to source\n#10 36.20 the corresponding env file under $HOME/.cargo.\n#10 36.20 \n#10 36.20 This is usually done by running one of the following (note the leading DOT):\n#10 36.20 . \"$HOME/.cargo/env\"            # For sh/bash/zsh/ash/dash/pdksh\n#10 36.20 source \"$HOME/.cargo/env.fish\"  # For fish\n#10 36.20 source \"~/.cargo/env.nu\"  # For nushell\n#10 36.20 source \"$HOME/.cargo/env.tcsh\"  # For tcsh\n#10 36.20 . \"$HOME/.cargo/env.ps1\"        # For pwsh\n#10 36.20 source \"$HOME/.cargo/env.xsh\"   # For xonsh\n#10 DONE 36.5s\n\n#11 [7/9] RUN . \"$HOME/.cargo/env\"\n#11 DONE 0.2s\n\n#12 [8/9] RUN git config --global --add safe.directory /app\n#12 DONE 0.5s\n\n#13 [9/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \".[test]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#13 0.646 Obtaining file:///app\n#13 0.650   Installing build dependencies: started\n#13 5.240   Installing build dependencies: finished with status 'done'\n#13 5.241   Checking if build backend supports build_editable: started\n#13 5.417   Checking if build backend supports build_editable: finished with status 'done'\n#13 5.419   Getting requirements to build editable: started\n#13 5.818   Getting requirements to build editable: finished with status 'done'\n#13 5.819   Preparing editable metadata (pyproject.toml): started\n#13 6.202   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#13 7.063 Collecting interegular\n#13 7.522   Downloading interegular-0.3.3-py37-none-any.whl (23 kB)\n#13 7.854 Collecting jsonschema\n#13 7.984   Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#13 8.124      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 752.8 kB/s eta 0:00:00\n#13 8.301 Collecting beartype<0.16.0\n#13 8.428   Downloading beartype-0.15.0-py3-none-any.whl (777 kB)\n#13 8.657      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 777.6/777.6 kB 3.5 MB/s eta 0:00:00\n#13 8.955 Collecting huggingface_hub\n#13 9.076   Downloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n#13 9.120      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 16.1 MB/s eta 0:00:00\n#13 9.594 Collecting pre-commit\n#13 9.715   Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n#13 9.735      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 14.3 MB/s eta 0:00:00\n#13 9.899 Collecting accelerate\n#13 10.02   Downloading accelerate-1.13.0-py3-none-any.whl (383 kB)\n#13 10.05      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 383.7/383.7 kB 17.0 MB/s eta 0:00:00\n#13 10.21 Collecting pytest-cov\n#13 10.34   Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\n#13 10.35 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (from outlines_core==0.1.25) (9.0.3)\n#13 10.53 Collecting diff-cover\n#13 10.65   Downloading diff_cover-10.2.0-py3-none-any.whl (56 kB)\n#13 10.66      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.7/56.7 kB 124.1 MB/s eta 0:00:00\n#13 10.81 Collecting setuptools-rust\n#13 10.94   Downloading setuptools_rust-1.12.1-py3-none-any.whl (28 kB)\n#13 12.54 Collecting pydantic\n#13 12.66   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#13 12.69      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 17.2 MB/s eta 0:00:00\n#13 12.87 Collecting datasets\n#13 12.99   Downloading datasets-4.8.5-py3-none-any.whl (528 kB)\n#13 13.02      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 529.0/529.0 kB 23.0 MB/s eta 0:00:00\n#13 13.53 Collecting pillow\n#13 13.65   Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n#13 14.65      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 7.1 MB/s eta 0:00:00\n#13 15.07 Collecting pytest-benchmark\n#13 15.20   Downloading pytest_benchmark-5.2.3-py3-none-any.whl (45 kB)\n#13 15.21      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.3/45.3 kB 11.5 MB/s eta 0:00:00\n#13 15.43 Collecting torch\n#13 15.55   Downloading torch-2.11.0-cp310-cp310-manylinux_2_28_x86_64.whl (530.6 MB)\n#13 102.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.6/530.6 MB 6.2 MB/s eta 0:00:00\n#13 104.2 Collecting coverage[toml]>=5.1\n#13 104.3   Downloading coverage-7.13.5-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (248 kB)\n#13 104.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 248.3/248.3 kB 6.6 MB/s eta 0:00:00\n#13 105.0 Collecting scipy\n#13 105.1   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)\n#13 111.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 6.2 MB/s eta 0:00:00\n#13 111.7 Collecting psutil\n#13 111.8   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#13 111.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 5.4 MB/s eta 0:00:00\n#13 112.0 Collecting transformers\n#13 112.2   Downloading transformers-5.8.0-py3-none-any.whl (10.6 MB)\n#13 113.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.6/10.6 MB 6.8 MB/s eta 0:00:00\n#13 114.3 Collecting numpy\n#13 114.4   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#13 117.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 6.2 MB/s eta 0:00:00\n#13 117.5 Collecting asv\n#13 117.6   Downloading asv-0.6.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (253 kB)\n#13 117.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 253.8/253.8 kB 7.5 MB/s eta 0:00:00\n#13 117.8 Collecting pytest-mock\n#13 117.9   Downloading pytest_mock-3.15.1-py3-none-any.whl (10 kB)\n#13 118.0 Requirement already satisfied: tomli in /usr/local/lib/python3.10/site-packages (from coverage[toml]>=5.1->outlines_core==0.1.25) (2.4.1)\n#13 118.2 Collecting pyyaml\n#13 118.3   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#13 118.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 7.0 MB/s eta 0:00:00\n#13 118.8 Collecting safetensors>=0.4.3\n#13 118.9   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#13 119.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 7.2 MB/s eta 0:00:00\n#13 119.0 Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.10/site-packages (from accelerate->outlines_core==0.1.25) (26.2)\n#13 119.2 Collecting hf-xet<2.0.0,>=1.4.3\n#13 119.3   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#13 119.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.8 MB/s eta 0:00:00\n#13 120.0 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (0.28.1)\n#13 120.1 Collecting typer>=0.20.0\n#13 120.2   Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#13 120.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 139.5 MB/s eta 0:00:00\n#13 120.4 Collecting tqdm>=4.42.1\n#13 120.6   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#13 120.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 12.8 MB/s eta 0:00:00\n#13 120.7 Collecting fsspec>=2023.5.0\n#13 120.9   Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#13 120.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 203.4/203.4 kB 8.1 MB/s eta 0:00:00\n#13 120.9 Requirement already satisfied: filelock>=3.10.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (3.29.0)\n#13 120.9 Requirement already satisfied: typing-extensions>=4.1.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (4.15.0)\n#13 121.1 Collecting triton==3.6.0\n#13 121.2   Downloading triton-3.6.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.1 MB)\n#13 151.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.1/188.1 MB 6.2 MB/s eta 0:00:00\n#13 152.4 Collecting sympy>=1.13.3\n#13 152.5   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#13 153.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.2 MB/s eta 0:00:00\n#13 153.6 Collecting cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2\n#13 153.7   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#13 153.8 Collecting nvidia-nccl-cu13==2.28.9\n#13 154.0   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n#13 186.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 6.2 MB/s eta 0:00:00\n#13 186.9 Collecting networkx>=2.5.1\n#13 187.1   Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n#13 187.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.3 MB/s eta 0:00:00\n#13 187.5 Collecting nvidia-cusparselt-cu13==0.8.0\n#13 187.6   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n#13 215.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 6.2 MB/s eta 0:00:00\n#13 215.5 Requirement already satisfied: setuptools<82 in /usr/local/lib/python3.10/site-packages (from torch->outlines_core==0.1.25) (79.0.1)\n#13 215.7 Collecting cuda-bindings<14,>=13.0.3\n#13 215.8   Downloading cuda_bindings-13.2.0-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n#13 216.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.3 MB/s eta 0:00:00\n#13 216.9 Collecting nvidia-nvshmem-cu13==3.4.5\n#13 217.0   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n#13 226.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 6.2 MB/s eta 0:00:00\n#13 227.3 Collecting nvidia-cudnn-cu13==9.19.0.56\n#13 227.5   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n#13 287.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 6.2 MB/s eta 0:00:00\n#13 288.3 Collecting jinja2\n#13 288.5   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#13 288.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 5.8 MB/s eta 0:00:00\n#13 288.7 Collecting nvidia-cuda-cupti==13.0.85.*\n#13 288.9   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n#13 290.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 6.8 MB/s eta 0:00:00\n#13 290.6 Collecting nvidia-cusolver==12.0.4.66.*\n#13 290.7   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n#13 323.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 5.6 MB/s eta 0:00:00\n#13 324.3 Collecting nvidia-cufft==12.0.0.61.*\n#13 324.4   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n#13 359.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 6.4 MB/s eta 0:00:00\n#13 359.9 Collecting nvidia-cusparse==12.6.3.3.*\n#13 360.0   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n#13 383.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 6.6 MB/s eta 0:00:00\n#13 384.1 Collecting nvidia-cuda-nvrtc==13.0.88.*\n#13 384.3   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n#13 398.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 6.2 MB/s eta 0:00:00\n#13 399.2 Collecting nvidia-curand==10.4.0.35.*\n#13 399.3   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n#13 408.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 6.2 MB/s eta 0:00:00\n#13 409.1 Collecting nvidia-cublas==13.1.0.3.*\n#13 409.3   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n#13 478.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 6.2 MB/s eta 0:00:00\n#13 479.2 Collecting nvidia-nvtx==13.0.85.*\n#13 479.3   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\n#13 479.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 148.0/148.0 kB 9.6 MB/s eta 0:00:00\n#13 479.5 Collecting nvidia-nvjitlink==13.0.88.*\n#13 479.6   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n#13 486.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 6.2 MB/s eta 0:00:00\n#13 486.3 Collecting nvidia-cufile==1.15.1.6.*\n#13 486.4   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#13 486.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.5 MB/s eta 0:00:00\n#13 486.8 Collecting nvidia-cuda-runtime==13.0.96.*\n#13 486.9   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n#13 487.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 7.2 MB/s eta 0:00:00\n#13 487.4 Collecting tabulate\n#13 487.6   Downloading tabulate-0.10.0-py3-none-any.whl (39 kB)\n#13 487.7 Collecting json5\n#13 487.9   Downloading json5-0.14.0-py3-none-any.whl (36 kB)\n#13 488.0 Collecting pympler\n#13 488.1   Downloading Pympler-1.1-py3-none-any.whl (165 kB)\n#13 488.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 165.8/165.8 kB 6.6 MB/s eta 0:00:00\n#13 488.2 Requirement already satisfied: virtualenv in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (21.3.0)\n#13 488.2 Requirement already satisfied: build in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (1.4.4)\n#13 488.2 Requirement already satisfied: importlib-metadata in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (9.0.0)\n#13 488.6 Collecting asv-runner>=v0.2.1\n#13 488.8   Downloading asv_runner-0.2.1-py3-none-any.whl (47 kB)\n#13 488.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.7/47.7 kB 102.7 MB/s eta 0:00:00\n#13 489.4 Collecting multiprocess<0.70.20\n#13 489.5   Downloading multiprocess-0.70.19-py310-none-any.whl (134 kB)\n#13 489.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 14.6 MB/s eta 0:00:00\n#13 489.8 Collecting pandas\n#13 490.0   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#13 492.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 5.8 MB/s eta 0:00:00\n#13 492.1 Collecting fsspec[http]<=2026.2.0,>=2023.1.0\n#13 492.2   Downloading fsspec-2026.2.0-py3-none-any.whl (202 kB)\n#13 492.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.5/202.5 kB 15.2 MB/s eta 0:00:00\n#13 492.5 Collecting xxhash\n#13 492.6   Downloading xxhash-3.7.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\n#13 492.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.3/193.3 kB 12.8 MB/s eta 0:00:00\n#13 492.8 Collecting dill<0.4.2,>=0.3.0\n#13 492.9   Downloading dill-0.4.1-py3-none-any.whl (120 kB)\n#13 492.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 11.4 MB/s eta 0:00:00\n#13 492.9 Requirement already satisfied: requests>=2.32.2 in /usr/local/lib/python3.10/site-packages (from datasets->outlines_core==0.1.25) (2.33.1)\n#13 493.2 Collecting pyarrow>=21.0.0\n#13 493.4   Downloading pyarrow-24.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (48.8 MB)\n#13 501.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 6.2 MB/s eta 0:00:00\n#13 501.4 Collecting chardet>=3.0.0\n#13 501.5   Downloading chardet-7.4.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (886 kB)\n#13 501.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 886.5/886.5 kB 6.6 MB/s eta 0:00:00\n#13 501.7 Requirement already satisfied: Pygments<3.0.0,>=2.19.1 in /usr/local/lib/python3.10/site-packages (from diff-cover->outlines_core==0.1.25) (2.20.0)\n#13 501.7 Requirement already satisfied: pluggy<2,>=0.13.1 in /usr/local/lib/python3.10/site-packages (from diff-cover->outlines_core==0.1.25) (1.6.0)\n#13 502.5 Collecting referencing>=0.28.4\n#13 502.7   Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#13 502.8 Collecting jsonschema-specifications>=2023.03.6\n#13 502.9   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#13 503.9 Collecting rpds-py>=0.25.0\n#13 504.0   Downloading rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)\n#13 504.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 390.5/390.5 kB 6.9 MB/s eta 0:00:00\n#13 504.2 Collecting attrs>=22.2.0\n#13 504.3   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#13 504.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 25.2 MB/s eta 0:00:00\n#13 504.5 Collecting nodeenv>=0.11.1\n#13 504.7   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#13 504.9 Collecting identify>=1.0.0\n#13 505.0   Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n#13 505.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 7.1 MB/s eta 0:00:00\n#13 505.2 Collecting cfgv>=2.0.0\n#13 505.3   Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\n#13 505.5 Collecting typing-inspection>=0.4.2\n#13 505.7   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#13 507.0 Collecting pydantic-core==2.46.4\n#13 507.2   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#13 507.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 7.0 MB/s eta 0:00:00\n#13 507.9 Collecting annotated-types>=0.6.0\n#13 508.1   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#13 508.2 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest->outlines_core==0.1.25) (1.3.1)\n#13 508.2 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest->outlines_core==0.1.25) (2.3.0)\n#13 508.3 Collecting py-cpuinfo\n#13 508.5   Downloading py_cpuinfo-9.0.0-py3-none-any.whl (22 kB)\n#13 508.7 Collecting semantic_version<3,>=2.8.2\n#13 508.8   Downloading semantic_version-2.10.0-py2.py3-none-any.whl (15 kB)\n#13 509.3 Collecting tokenizers<=0.23.0,>=0.22.0\n#13 509.5   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#13 509.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 8.7 MB/s eta 0:00:00\n#13 510.6 Collecting regex>=2025.10.22\n#13 510.7   Downloading regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)\n#13 510.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 8.7 MB/s eta 0:00:00\n#13 511.0 Collecting cuda-pathfinder~=1.1\n#13 511.2   Downloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\n#13 511.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.7/51.7 kB 50.2 MB/s eta 0:00:00\n#13 512.4 Collecting aiohttp!=4.0.0a0,!=4.0.0a1\n#13 512.5   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#13 512.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 9.6 MB/s eta 0:00:00\n#13 512.7 Requirement already satisfied: certifi in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (2026.4.22)\n#13 512.7 Requirement already satisfied: idna in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (3.13)\n#13 512.7 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (1.0.9)\n#13 512.7 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (4.13.0)\n#13 512.7 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (0.16.0)\n#13 512.9 Collecting MarkupSafe>=2.0\n#13 513.1   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#13 513.2 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests>=2.32.2->datasets->outlines_core==0.1.25) (2.6.3)\n#13 513.2 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests>=2.32.2->datasets->outlines_core==0.1.25) (3.4.7)\n#13 513.7 Collecting mpmath<1.4,>=1.1.0\n#13 513.8   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#13 513.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 12.9 MB/s eta 0:00:00\n#13 514.1 Collecting rich>=13.8.0\n#13 514.2   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#13 514.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 12.4 MB/s eta 0:00:00\n#13 514.2 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer>=0.20.0->huggingface_hub->outlines_core==0.1.25) (1.5.4)\n#13 514.4 Collecting click>=8.2.1\n#13 514.5   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#13 514.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 7.7 MB/s eta 0:00:00\n#13 514.7 Collecting annotated-doc>=0.0.2\n#13 514.8   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#13 514.9 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (4.9.6)\n#13 514.9 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (0.4.0)\n#13 514.9 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (1.2.2)\n#13 514.9 Requirement already satisfied: pyproject_hooks in /usr/local/lib/python3.10/site-packages (from build->asv->outlines_core==0.1.25) (1.2.0)\n#13 514.9 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib-metadata->asv->outlines_core==0.1.25) (3.23.1)\n#13 515.4 Collecting pytz>=2020.1\n#13 515.6   Downloading pytz-2026.2-py2.py3-none-any.whl (510 kB)\n#13 515.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.1/510.1 kB 10.7 MB/s eta 0:00:00\n#13 515.8 Collecting tzdata>=2022.7\n#13 515.9   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#13 516.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 13.1 MB/s eta 0:00:00\n#13 516.1 Collecting python-dateutil>=2.8.2\n#13 516.3   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#13 516.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 9.2 MB/s eta 0:00:00\n#13 516.9 Collecting multidict<7.0,>=4.5\n#13 517.0   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#13 517.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 9.4 MB/s eta 0:00:00\n#13 517.2 Collecting async-timeout<6.0,>=4.0\n#13 517.3   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#13 517.5 Collecting aiosignal>=1.4.0\n#13 517.6   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#13 517.8 Collecting propcache>=0.2.0\n#13 518.0   Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n#13 518.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 8.7 MB/s eta 0:00:00\n#13 518.6 Collecting yarl<2.0,>=1.17.0\n#13 518.7   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#13 518.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 13.9 MB/s eta 0:00:00\n#13 519.0 Collecting frozenlist>=1.1.1\n#13 519.1   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#13 519.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 8.2 MB/s eta 0:00:00\n#13 519.3 Collecting aiohappyeyeballs>=2.5.0\n#13 519.4   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#13 519.7 Collecting six>=1.5\n#13 519.8   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#13 520.0 Collecting markdown-it-py>=2.2.0\n#13 520.1   Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#13 520.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 129.9 MB/s eta 0:00:00\n#13 520.4 Collecting mdurl~=0.1\n#13 520.5   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#13 520.6 Building wheels for collected packages: outlines_core\n#13 520.6   Building editable for outlines_core (pyproject.toml): started\n#13 579.0   Building editable for outlines_core (pyproject.toml): finished with status 'done'\n#13 579.0   Created wheel for outlines_core: filename=outlines_core-0.1.25-0.editable-cp310-cp310-linux_x86_64.whl size=6829 sha256=e0470e310dd4f8235edd796cc8c26dfbe832230f8f129f8554e084f53395af67\n#13 579.0   Stored in directory: /tmp/pip-ephem-wheel-cache-k1j4kovk/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#13 579.0 Successfully built outlines_core\n#13 579.8 Installing collected packages: pytz, py-cpuinfo, nvidia-cusparselt-cu13, mpmath, cuda-toolkit, xxhash, tzdata, typing-inspection, triton, tqdm, tabulate, sympy, six, semantic_version, safetensors, rpds-py, regex, pyyaml, pympler, pydantic-core, pyarrow, psutil, propcache, pillow, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, nodeenv, networkx, multidict, mdurl, MarkupSafe, json5, interegular, identify, hf-xet, fsspec, frozenlist, dill, cuda-pathfinder, coverage, click, chardet, cfgv, beartype, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, setuptools-rust, scipy, referencing, python-dateutil, pydantic, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, multiprocess, markdown-it-py, jinja2, cuda-bindings, asv-runner, aiosignal, rich, pytest-mock, pytest-cov, pytest-benchmark, pre-commit, pandas, nvidia-cusolver, jsonschema-specifications, diff-cover, asv, aiohttp, typer, jsonschema, torch, outlines_core, huggingface_hub, tokenizers, datasets, accelerate, transformers\n#13 624.5 Successfully installed MarkupSafe-3.0.3 accelerate-1.13.0 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 asv-0.6.5 asv-runner-0.2.1 async-timeout-5.0.1 attrs-26.1.0 beartype-0.15.0 cfgv-3.5.0 chardet-7.4.3 click-8.3.3 coverage-7.13.5 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 datasets-4.8.5 diff-cover-10.2.0 dill-0.4.1 frozenlist-1.8.0 fsspec-2026.2.0 hf-xet-1.5.0 huggingface_hub-1.14.0 identify-2.6.19 interegular-0.3.3 jinja2-3.1.6 json5-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mpmath-1.3.0 multidict-6.7.1 multiprocess-0.70.19 networkx-3.4.2 nodeenv-1.10.0 numpy-2.2.6 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 outlines_core-0.1.25 pandas-2.3.3 pillow-12.2.0 pre-commit-4.6.0 propcache-0.5.2 psutil-7.2.2 py-cpuinfo-9.0.0 pyarrow-24.0.0 pydantic-2.13.4 pydantic-core-2.46.4 pympler-1.1 pytest-benchmark-5.2.3 pytest-cov-7.1.0 pytest-mock-3.15.1 python-dateutil-2.9.0.post0 pytz-2026.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.4.4 rich-15.0.0 rpds-py-0.30.0 safetensors-0.7.0 scipy-1.15.3 semantic_version-2.10.0 setuptools-rust-1.12.1 six-1.17.0 sympy-1.14.0 tabulate-0.10.0 tokenizers-0.22.2 torch-2.11.0 tqdm-4.67.3 transformers-5.8.0 triton-3.6.0 typer-0.25.1 typing-inspection-0.4.2 tzdata-2026.2 xxhash-3.7.0 yarl-1.23.0\n#13 624.6 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#13 DONE 626.6s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 12.6s done\n#14 writing image sha256:cc4855f4769721e0dccfea69000b4baf9f67044e113eeabd0541558ebba3b3d2 done\n#14 naming to docker.io/library/jayint-repo2run-dottxt-ai__outlines-core done\n#14 DONE 12.6s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/frvl9alugwio03tif5is5mdyl\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-dottxt-ai__outlines-core",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-dottxt-ai__outlines-core sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-09T09:26:29.380038+08:00",
+          "finished_at": "2026-05-09T09:26:37.168075+08:00",
+          "duration_seconds": 7.788,
+          "stdout": "tests/fsm/test_guide.py::test_stop_at_eos\ntests/fsm/test_guide.py::test_regex_vocabulary_error\ntests/fsm/test_guide.py::test_from_regex\ntests/fsm/test_guide.py::test_from_fsm\ntests/fsm/test_guide.py::test_regex_multi_byte_llama_like\ntests/fsm/test_guide.py::test_regex_multi_byte_gpt2_like\ntests/fsm/test_guide.py::test_regex_final_state\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[None]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[[\\\\n ]*]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[abc]\ntests/fsm/test_json_schema.py::test_one_of_doesnt_produce_illegal_lookaround\ntests/fsm/test_json_schema.py::test_match_object\ntests/fsm/test_regex.py::test_walk_fsm\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[identity]\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[to_bytes]\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end_multi_byte\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[a-c]+-\\U0001f600-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^a-c]+-\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-\\U0001f600\\U0001f600\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-a-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-aa-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-aa-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f60e-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f613-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f64f-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f60e-False]\ntests/fsm/test_regex.py::test_regex_index_performance\ntests/fsm/test_regex.py::test_token_trans_keys_identical\ntests/fsm/test_regex.py::test_token_trans_keys_walk_fsm\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd.]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.0]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.1]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_byte_tokens\ntests/fsm/test_serialization.py::test_serialization\ntests/fsm/test_serialization.py::test_complex_serialization[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_serialization.py::test_complex_serialization[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_serialization.py::test_complex_serialization[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_serialization.py::test_complex_serialization[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_statistical.py::test_generate_length\n\n55 tests collected in 5.16s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-dottxt-ai__outlines-core",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/Dockerfile.eval -t jayint-repo2run-dottxt-ai__outlines-core /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-09T09:15:10.647727+08:00",
+        "finished_at": "2026-05-09T09:26:29.365589+08:00",
+        "duration_seconds": 678.718,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.26kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#5 CACHED\n\n#6 [3/9] WORKDIR /app\n#6 CACHED\n\n#7 [internal] load build context\n#7 transferring context: 6.06MB 0.1s done\n#7 DONE 0.1s\n\n#8 [4/9] COPY . /app\n#8 DONE 0.4s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 1.1s\n\n#10 [6/9] RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable\n#10 0.752 info: downloading installer\n#10 5.145 warn: It looks like you have an existing rustup settings file at:\n#10 5.145 warn: /root/.rustup/settings.toml\n#10 5.145 warn: Rustup will install the default toolchain as specified in the settings file,\n#10 5.145 warn: instead of the one inferred from the default host triple.\n#10 5.170 info: profile set to default\n#10 5.170 info: default host triple is x86_64-unknown-linux-gnu\n#10 5.181 info: syncing channel updates for stable-x86_64-unknown-linux-gnu\n#10 6.352 info: latest update on 2026-04-16 for version 1.95.0 (59807616e 2026-04-14)\n#10 6.357 info: downloading 6 components\n#10 36.14 info: default toolchain set to stable-x86_64-unknown-linux-gnu\n#10 36.14 \n#10 36.20   stable-x86_64-unknown-linux-gnu installed - rustc 1.95.0 (59807616e 2026-04-14)\n#10 36.20 \n#10 36.20 \n#10 36.20 Rust is installed now. Great!\n#10 36.20 \n#10 36.20 To get started you may need to restart your current shell.\n#10 36.20 This would reload your PATH environment variable to include\n#10 36.20 Cargo's bin directory ($HOME/.cargo/bin).\n#10 36.20 \n#10 36.20 To configure your current shell, you need to source\n#10 36.20 the corresponding env file under $HOME/.cargo.\n#10 36.20 \n#10 36.20 This is usually done by running one of the following (note the leading DOT):\n#10 36.20 . \"$HOME/.cargo/env\"            # For sh/bash/zsh/ash/dash/pdksh\n#10 36.20 source \"$HOME/.cargo/env.fish\"  # For fish\n#10 36.20 source \"~/.cargo/env.nu\"  # For nushell\n#10 36.20 source \"$HOME/.cargo/env.tcsh\"  # For tcsh\n#10 36.20 . \"$HOME/.cargo/env.ps1\"        # For pwsh\n#10 36.20 source \"$HOME/.cargo/env.xsh\"   # For xonsh\n#10 DONE 36.5s\n\n#11 [7/9] RUN . \"$HOME/.cargo/env\"\n#11 DONE 0.2s\n\n#12 [8/9] RUN git config --global --add safe.directory /app\n#12 DONE 0.5s\n\n#13 [9/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \".[test]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#13 0.646 Obtaining file:///app\n#13 0.650   Installing build dependencies: started\n#13 5.240   Installing build dependencies: finished with status 'done'\n#13 5.241   Checking if build backend supports build_editable: started\n#13 5.417   Checking if build backend supports build_editable: finished with status 'done'\n#13 5.419   Getting requirements to build editable: started\n#13 5.818   Getting requirements to build editable: finished with status 'done'\n#13 5.819   Preparing editable metadata (pyproject.toml): started\n#13 6.202   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#13 7.063 Collecting interegular\n#13 7.522   Downloading interegular-0.3.3-py37-none-any.whl (23 kB)\n#13 7.854 Collecting jsonschema\n#13 7.984   Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#13 8.124      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 752.8 kB/s eta 0:00:00\n#13 8.301 Collecting beartype<0.16.0\n#13 8.428   Downloading beartype-0.15.0-py3-none-any.whl (777 kB)\n#13 8.657      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 777.6/777.6 kB 3.5 MB/s eta 0:00:00\n#13 8.955 Collecting huggingface_hub\n#13 9.076   Downloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n#13 9.120      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 16.1 MB/s eta 0:00:00\n#13 9.594 Collecting pre-commit\n#13 9.715   Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n#13 9.735      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 14.3 MB/s eta 0:00:00\n#13 9.899 Collecting accelerate\n#13 10.02   Downloading accelerate-1.13.0-py3-none-any.whl (383 kB)\n#13 10.05      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 383.7/383.7 kB 17.0 MB/s eta 0:00:00\n#13 10.21 Collecting pytest-cov\n#13 10.34   Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\n#13 10.35 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (from outlines_core==0.1.25) (9.0.3)\n#13 10.53 Collecting diff-cover\n#13 10.65   Downloading diff_cover-10.2.0-py3-none-any.whl (56 kB)\n#13 10.66      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.7/56.7 kB 124.1 MB/s eta 0:00:00\n#13 10.81 Collecting setuptools-rust\n#13 10.94   Downloading setuptools_rust-1.12.1-py3-none-any.whl (28 kB)\n#13 12.54 Collecting pydantic\n#13 12.66   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#13 12.69      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 17.2 MB/s eta 0:00:00\n#13 12.87 Collecting datasets\n#13 12.99   Downloading datasets-4.8.5-py3-none-any.whl (528 kB)\n#13 13.02      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 529.0/529.0 kB 23.0 MB/s eta 0:00:00\n#13 13.53 Collecting pillow\n#13 13.65   Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n#13 14.65      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 7.1 MB/s eta 0:00:00\n#13 15.07 Collecting pytest-benchmark\n#13 15.20   Downloading pytest_benchmark-5.2.3-py3-none-any.whl (45 kB)\n#13 15.21      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.3/45.3 kB 11.5 MB/s eta 0:00:00\n#13 15.43 Collecting torch\n#13 15.55   Downloading torch-2.11.0-cp310-cp310-manylinux_2_28_x86_64.whl (530.6 MB)\n#13 102.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 530.6/530.6 MB 6.2 MB/s eta 0:00:00\n#13 104.2 Collecting coverage[toml]>=5.1\n#13 104.3   Downloading coverage-7.13.5-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (248 kB)\n#13 104.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 248.3/248.3 kB 6.6 MB/s eta 0:00:00\n#13 105.0 Collecting scipy\n#13 105.1   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)\n#13 111.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 6.2 MB/s eta 0:00:00\n#13 111.7 Collecting psutil\n#13 111.8   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#13 111.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 5.4 MB/s eta 0:00:00\n#13 112.0 Collecting transformers\n#13 112.2   Downloading transformers-5.8.0-py3-none-any.whl (10.6 MB)\n#13 113.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.6/10.6 MB 6.8 MB/s eta 0:00:00\n#13 114.3 Collecting numpy\n#13 114.4   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#13 117.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 6.2 MB/s eta 0:00:00\n#13 117.5 Collecting asv\n#13 117.6   Downloading asv-0.6.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (253 kB)\n#13 117.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 253.8/253.8 kB 7.5 MB/s eta 0:00:00\n#13 117.8 Collecting pytest-mock\n#13 117.9   Downloading pytest_mock-3.15.1-py3-none-any.whl (10 kB)\n#13 118.0 Requirement already satisfied: tomli in /usr/local/lib/python3.10/site-packages (from coverage[toml]>=5.1->outlines_core==0.1.25) (2.4.1)\n#13 118.2 Collecting pyyaml\n#13 118.3   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#13 118.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 7.0 MB/s eta 0:00:00\n#13 118.8 Collecting safetensors>=0.4.3\n#13 118.9   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#13 119.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 7.2 MB/s eta 0:00:00\n#13 119.0 Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.10/site-packages (from accelerate->outlines_core==0.1.25) (26.2)\n#13 119.2 Collecting hf-xet<2.0.0,>=1.4.3\n#13 119.3   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#13 119.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.8 MB/s eta 0:00:00\n#13 120.0 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (0.28.1)\n#13 120.1 Collecting typer>=0.20.0\n#13 120.2   Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#13 120.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 139.5 MB/s eta 0:00:00\n#13 120.4 Collecting tqdm>=4.42.1\n#13 120.6   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#13 120.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 12.8 MB/s eta 0:00:00\n#13 120.7 Collecting fsspec>=2023.5.0\n#13 120.9   Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#13 120.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 203.4/203.4 kB 8.1 MB/s eta 0:00:00\n#13 120.9 Requirement already satisfied: filelock>=3.10.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (3.29.0)\n#13 120.9 Requirement already satisfied: typing-extensions>=4.1.0 in /usr/local/lib/python3.10/site-packages (from huggingface_hub->outlines_core==0.1.25) (4.15.0)\n#13 121.1 Collecting triton==3.6.0\n#13 121.2   Downloading triton-3.6.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (188.1 MB)\n#13 151.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 188.1/188.1 MB 6.2 MB/s eta 0:00:00\n#13 152.4 Collecting sympy>=1.13.3\n#13 152.5   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#13 153.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.2 MB/s eta 0:00:00\n#13 153.6 Collecting cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2\n#13 153.7   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#13 153.8 Collecting nvidia-nccl-cu13==2.28.9\n#13 154.0   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl (196.5 MB)\n#13 186.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.5/196.5 MB 6.2 MB/s eta 0:00:00\n#13 186.9 Collecting networkx>=2.5.1\n#13 187.1   Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n#13 187.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.3 MB/s eta 0:00:00\n#13 187.5 Collecting nvidia-cusparselt-cu13==0.8.0\n#13 187.6   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl (169.9 MB)\n#13 215.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 169.9/169.9 MB 6.2 MB/s eta 0:00:00\n#13 215.5 Requirement already satisfied: setuptools<82 in /usr/local/lib/python3.10/site-packages (from torch->outlines_core==0.1.25) (79.0.1)\n#13 215.7 Collecting cuda-bindings<14,>=13.0.3\n#13 215.8   Downloading cuda_bindings-13.2.0-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)\n#13 216.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.3 MB/s eta 0:00:00\n#13 216.9 Collecting nvidia-nvshmem-cu13==3.4.5\n#13 217.0   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)\n#13 226.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 6.2 MB/s eta 0:00:00\n#13 227.3 Collecting nvidia-cudnn-cu13==9.19.0.56\n#13 227.5   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl (366.1 MB)\n#13 287.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.1/366.1 MB 6.2 MB/s eta 0:00:00\n#13 288.3 Collecting jinja2\n#13 288.5   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#13 288.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 5.8 MB/s eta 0:00:00\n#13 288.7 Collecting nvidia-cuda-cupti==13.0.85.*\n#13 288.9   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)\n#13 290.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 6.8 MB/s eta 0:00:00\n#13 290.6 Collecting nvidia-cusolver==12.0.4.66.*\n#13 290.7   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)\n#13 323.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 5.6 MB/s eta 0:00:00\n#13 324.3 Collecting nvidia-cufft==12.0.0.61.*\n#13 324.4   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)\n#13 359.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 6.4 MB/s eta 0:00:00\n#13 359.9 Collecting nvidia-cusparse==12.6.3.3.*\n#13 360.0   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)\n#13 383.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 6.6 MB/s eta 0:00:00\n#13 384.1 Collecting nvidia-cuda-nvrtc==13.0.88.*\n#13 384.3   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)\n#13 398.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 6.2 MB/s eta 0:00:00\n#13 399.2 Collecting nvidia-curand==10.4.0.35.*\n#13 399.3   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)\n#13 408.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 6.2 MB/s eta 0:00:00\n#13 409.1 Collecting nvidia-cublas==13.1.0.3.*\n#13 409.3   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)\n#13 478.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 6.2 MB/s eta 0:00:00\n#13 479.2 Collecting nvidia-nvtx==13.0.85.*\n#13 479.3   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)\n#13 479.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 148.0/148.0 kB 9.6 MB/s eta 0:00:00\n#13 479.5 Collecting nvidia-nvjitlink==13.0.88.*\n#13 479.6   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)\n#13 486.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 6.2 MB/s eta 0:00:00\n#13 486.3 Collecting nvidia-cufile==1.15.1.6.*\n#13 486.4   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#13 486.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.5 MB/s eta 0:00:00\n#13 486.8 Collecting nvidia-cuda-runtime==13.0.96.*\n#13 486.9   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)\n#13 487.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 7.2 MB/s eta 0:00:00\n#13 487.4 Collecting tabulate\n#13 487.6   Downloading tabulate-0.10.0-py3-none-any.whl (39 kB)\n#13 487.7 Collecting json5\n#13 487.9   Downloading json5-0.14.0-py3-none-any.whl (36 kB)\n#13 488.0 Collecting pympler\n#13 488.1   Downloading Pympler-1.1-py3-none-any.whl (165 kB)\n#13 488.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 165.8/165.8 kB 6.6 MB/s eta 0:00:00\n#13 488.2 Requirement already satisfied: virtualenv in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (21.3.0)\n#13 488.2 Requirement already satisfied: build in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (1.4.4)\n#13 488.2 Requirement already satisfied: importlib-metadata in /usr/local/lib/python3.10/site-packages (from asv->outlines_core==0.1.25) (9.0.0)\n#13 488.6 Collecting asv-runner>=v0.2.1\n#13 488.8   Downloading asv_runner-0.2.1-py3-none-any.whl (47 kB)\n#13 488.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.7/47.7 kB 102.7 MB/s eta 0:00:00\n#13 489.4 Collecting multiprocess<0.70.20\n#13 489.5   Downloading multiprocess-0.70.19-py310-none-any.whl (134 kB)\n#13 489.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 14.6 MB/s eta 0:00:00\n#13 489.8 Collecting pandas\n#13 490.0   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#13 492.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 5.8 MB/s eta 0:00:00\n#13 492.1 Collecting fsspec[http]<=2026.2.0,>=2023.1.0\n#13 492.2   Downloading fsspec-2026.2.0-py3-none-any.whl (202 kB)\n#13 492.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.5/202.5 kB 15.2 MB/s eta 0:00:00\n#13 492.5 Collecting xxhash\n#13 492.6   Downloading xxhash-3.7.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\n#13 492.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.3/193.3 kB 12.8 MB/s eta 0:00:00\n#13 492.8 Collecting dill<0.4.2,>=0.3.0\n#13 492.9   Downloading dill-0.4.1-py3-none-any.whl (120 kB)\n#13 492.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 11.4 MB/s eta 0:00:00\n#13 492.9 Requirement already satisfied: requests>=2.32.2 in /usr/local/lib/python3.10/site-packages (from datasets->outlines_core==0.1.25) (2.33.1)\n#13 493.2 Collecting pyarrow>=21.0.0\n#13 493.4   Downloading pyarrow-24.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (48.8 MB)\n#13 501.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 6.2 MB/s eta 0:00:00\n#13 501.4 Collecting chardet>=3.0.0\n#13 501.5   Downloading chardet-7.4.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (886 kB)\n#13 501.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 886.5/886.5 kB 6.6 MB/s eta 0:00:00\n#13 501.7 Requirement already satisfied: Pygments<3.0.0,>=2.19.1 in /usr/local/lib/python3.10/site-packages (from diff-cover->outlines_core==0.1.25) (2.20.0)\n#13 501.7 Requirement already satisfied: pluggy<2,>=0.13.1 in /usr/local/lib/python3.10/site-packages (from diff-cover->outlines_core==0.1.25) (1.6.0)\n#13 502.5 Collecting referencing>=0.28.4\n#13 502.7   Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#13 502.8 Collecting jsonschema-specifications>=2023.03.6\n#13 502.9   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#13 503.9 Collecting rpds-py>=0.25.0\n#13 504.0   Downloading rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)\n#13 504.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 390.5/390.5 kB 6.9 MB/s eta 0:00:00\n#13 504.2 Collecting attrs>=22.2.0\n#13 504.3   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#13 504.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 25.2 MB/s eta 0:00:00\n#13 504.5 Collecting nodeenv>=0.11.1\n#13 504.7   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#13 504.9 Collecting identify>=1.0.0\n#13 505.0   Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n#13 505.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 7.1 MB/s eta 0:00:00\n#13 505.2 Collecting cfgv>=2.0.0\n#13 505.3   Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\n#13 505.5 Collecting typing-inspection>=0.4.2\n#13 505.7   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#13 507.0 Collecting pydantic-core==2.46.4\n#13 507.2   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#13 507.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 7.0 MB/s eta 0:00:00\n#13 507.9 Collecting annotated-types>=0.6.0\n#13 508.1   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#13 508.2 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest->outlines_core==0.1.25) (1.3.1)\n#13 508.2 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest->outlines_core==0.1.25) (2.3.0)\n#13 508.3 Collecting py-cpuinfo\n#13 508.5   Downloading py_cpuinfo-9.0.0-py3-none-any.whl (22 kB)\n#13 508.7 Collecting semantic_version<3,>=2.8.2\n#13 508.8   Downloading semantic_version-2.10.0-py2.py3-none-any.whl (15 kB)\n#13 509.3 Collecting tokenizers<=0.23.0,>=0.22.0\n#13 509.5   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#13 509.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 8.7 MB/s eta 0:00:00\n#13 510.6 Collecting regex>=2025.10.22\n#13 510.7   Downloading regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)\n#13 510.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 8.7 MB/s eta 0:00:00\n#13 511.0 Collecting cuda-pathfinder~=1.1\n#13 511.2   Downloading cuda_pathfinder-1.5.4-py3-none-any.whl (51 kB)\n#13 511.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.7/51.7 kB 50.2 MB/s eta 0:00:00\n#13 512.4 Collecting aiohttp!=4.0.0a0,!=4.0.0a1\n#13 512.5   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#13 512.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 9.6 MB/s eta 0:00:00\n#13 512.7 Requirement already satisfied: certifi in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (2026.4.22)\n#13 512.7 Requirement already satisfied: idna in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (3.13)\n#13 512.7 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (1.0.9)\n#13 512.7 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (4.13.0)\n#13 512.7 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->huggingface_hub->outlines_core==0.1.25) (0.16.0)\n#13 512.9 Collecting MarkupSafe>=2.0\n#13 513.1   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#13 513.2 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests>=2.32.2->datasets->outlines_core==0.1.25) (2.6.3)\n#13 513.2 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests>=2.32.2->datasets->outlines_core==0.1.25) (3.4.7)\n#13 513.7 Collecting mpmath<1.4,>=1.1.0\n#13 513.8   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#13 513.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 12.9 MB/s eta 0:00:00\n#13 514.1 Collecting rich>=13.8.0\n#13 514.2   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#13 514.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 12.4 MB/s eta 0:00:00\n#13 514.2 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer>=0.20.0->huggingface_hub->outlines_core==0.1.25) (1.5.4)\n#13 514.4 Collecting click>=8.2.1\n#13 514.5   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#13 514.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 7.7 MB/s eta 0:00:00\n#13 514.7 Collecting annotated-doc>=0.0.2\n#13 514.8   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#13 514.9 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (4.9.6)\n#13 514.9 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (0.4.0)\n#13 514.9 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv->asv->outlines_core==0.1.25) (1.2.2)\n#13 514.9 Requirement already satisfied: pyproject_hooks in /usr/local/lib/python3.10/site-packages (from build->asv->outlines_core==0.1.25) (1.2.0)\n#13 514.9 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib-metadata->asv->outlines_core==0.1.25) (3.23.1)\n#13 515.4 Collecting pytz>=2020.1\n#13 515.6   Downloading pytz-2026.2-py2.py3-none-any.whl (510 kB)\n#13 515.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.1/510.1 kB 10.7 MB/s eta 0:00:00\n#13 515.8 Collecting tzdata>=2022.7\n#13 515.9   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#13 516.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 13.1 MB/s eta 0:00:00\n#13 516.1 Collecting python-dateutil>=2.8.2\n#13 516.3   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#13 516.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 9.2 MB/s eta 0:00:00\n#13 516.9 Collecting multidict<7.0,>=4.5\n#13 517.0   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#13 517.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 9.4 MB/s eta 0:00:00\n#13 517.2 Collecting async-timeout<6.0,>=4.0\n#13 517.3   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#13 517.5 Collecting aiosignal>=1.4.0\n#13 517.6   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#13 517.8 Collecting propcache>=0.2.0\n#13 518.0   Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n#13 518.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 8.7 MB/s eta 0:00:00\n#13 518.6 Collecting yarl<2.0,>=1.17.0\n#13 518.7   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#13 518.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 13.9 MB/s eta 0:00:00\n#13 519.0 Collecting frozenlist>=1.1.1\n#13 519.1   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#13 519.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 8.2 MB/s eta 0:00:00\n#13 519.3 Collecting aiohappyeyeballs>=2.5.0\n#13 519.4   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#13 519.7 Collecting six>=1.5\n#13 519.8   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#13 520.0 Collecting markdown-it-py>=2.2.0\n#13 520.1   Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#13 520.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 129.9 MB/s eta 0:00:00\n#13 520.4 Collecting mdurl~=0.1\n#13 520.5   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#13 520.6 Building wheels for collected packages: outlines_core\n#13 520.6   Building editable for outlines_core (pyproject.toml): started\n#13 579.0   Building editable for outlines_core (pyproject.toml): finished with status 'done'\n#13 579.0   Created wheel for outlines_core: filename=outlines_core-0.1.25-0.editable-cp310-cp310-linux_x86_64.whl size=6829 sha256=e0470e310dd4f8235edd796cc8c26dfbe832230f8f129f8554e084f53395af67\n#13 579.0   Stored in directory: /tmp/pip-ephem-wheel-cache-k1j4kovk/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#13 579.0 Successfully built outlines_core\n#13 579.8 Installing collected packages: pytz, py-cpuinfo, nvidia-cusparselt-cu13, mpmath, cuda-toolkit, xxhash, tzdata, typing-inspection, triton, tqdm, tabulate, sympy, six, semantic_version, safetensors, rpds-py, regex, pyyaml, pympler, pydantic-core, pyarrow, psutil, propcache, pillow, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, nodeenv, networkx, multidict, mdurl, MarkupSafe, json5, interegular, identify, hf-xet, fsspec, frozenlist, dill, cuda-pathfinder, coverage, click, chardet, cfgv, beartype, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, setuptools-rust, scipy, referencing, python-dateutil, pydantic, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, multiprocess, markdown-it-py, jinja2, cuda-bindings, asv-runner, aiosignal, rich, pytest-mock, pytest-cov, pytest-benchmark, pre-commit, pandas, nvidia-cusolver, jsonschema-specifications, diff-cover, asv, aiohttp, typer, jsonschema, torch, outlines_core, huggingface_hub, tokenizers, datasets, accelerate, transformers\n#13 624.5 Successfully installed MarkupSafe-3.0.3 accelerate-1.13.0 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 asv-0.6.5 asv-runner-0.2.1 async-timeout-5.0.1 attrs-26.1.0 beartype-0.15.0 cfgv-3.5.0 chardet-7.4.3 click-8.3.3 coverage-7.13.5 cuda-bindings-13.2.0 cuda-pathfinder-1.5.4 cuda-toolkit-13.0.2 datasets-4.8.5 diff-cover-10.2.0 dill-0.4.1 frozenlist-1.8.0 fsspec-2026.2.0 hf-xet-1.5.0 huggingface_hub-1.14.0 identify-2.6.19 interegular-0.3.3 jinja2-3.1.6 json5-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mpmath-1.3.0 multidict-6.7.1 multiprocess-0.70.19 networkx-3.4.2 nodeenv-1.10.0 numpy-2.2.6 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 outlines_core-0.1.25 pandas-2.3.3 pillow-12.2.0 pre-commit-4.6.0 propcache-0.5.2 psutil-7.2.2 py-cpuinfo-9.0.0 pyarrow-24.0.0 pydantic-2.13.4 pydantic-core-2.46.4 pympler-1.1 pytest-benchmark-5.2.3 pytest-cov-7.1.0 pytest-mock-3.15.1 python-dateutil-2.9.0.post0 pytz-2026.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.4.4 rich-15.0.0 rpds-py-0.30.0 safetensors-0.7.0 scipy-1.15.3 semantic_version-2.10.0 setuptools-rust-1.12.1 six-1.17.0 sympy-1.14.0 tabulate-0.10.0 tokenizers-0.22.2 torch-2.11.0 tqdm-4.67.3 transformers-5.8.0 triton-3.6.0 typer-0.25.1 typing-inspection-0.4.2 tzdata-2026.2 xxhash-3.7.0 yarl-1.23.0\n#13 624.6 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#13 DONE 626.6s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 12.6s done\n#14 writing image sha256:cc4855f4769721e0dccfea69000b4baf9f67044e113eeabd0541558ebba3b3d2 done\n#14 naming to docker.io/library/jayint-repo2run-dottxt-ai__outlines-core done\n#14 DONE 12.6s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/frvl9alugwio03tif5is5mdyl\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-dottxt-ai__outlines-core",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-dottxt-ai__outlines-core sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-09T09:26:29.380038+08:00",
+              "finished_at": "2026-05-09T09:26:37.168075+08:00",
+              "duration_seconds": 7.788,
+              "stdout": "tests/fsm/test_guide.py::test_stop_at_eos\ntests/fsm/test_guide.py::test_regex_vocabulary_error\ntests/fsm/test_guide.py::test_from_regex\ntests/fsm/test_guide.py::test_from_fsm\ntests/fsm/test_guide.py::test_regex_multi_byte_llama_like\ntests/fsm/test_guide.py::test_regex_multi_byte_gpt2_like\ntests/fsm/test_guide.py::test_regex_final_state\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[None]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[[\\\\n ]*]\ntests/fsm/test_json_schema.py::test_json_schema_custom_whitespace_pattern[abc]\ntests/fsm/test_json_schema.py::test_one_of_doesnt_produce_illegal_lookaround\ntests/fsm/test_json_schema.py::test_match_object\ntests/fsm/test_regex.py::test_walk_fsm\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[identity]\ntests/fsm/test_regex.py::test_walk_fsm_multi_bytes[to_bytes]\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end\ntests/fsm/test_regex.py::test_create_fsm_index_end_to_end_multi_byte\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_regex.py::test_create_fsm_index_tokenizer[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[a-c]+-\\U0001f600-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^a-c]+-\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-\\U0001f600\\U0001f600\\U0001f600-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[\\U0001f600+-a-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f60d]{2}-aa-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-aa-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f608\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f60e-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f613-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f60d]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f60e\\U0001f608-False]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f64f-True]\ntests/fsm/test_regex.py::test_make_byte_level_fsm[[^\\U0001f600-\\U0001f64c]{2}-\\U0001f64f\\U0001f60e-False]\ntests/fsm/test_regex.py::test_regex_index_performance\ntests/fsm/test_regex.py::test_token_trans_keys_identical\ntests/fsm/test_regex.py::test_token_trans_keys_walk_fsm\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd.]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.0]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\ufffd.1]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_rare_tokens[\\u2581\\u2581\\ufffd..]\ntests/fsm/test_regex.py::test_reduced_vocabulary_with_byte_tokens\ntests/fsm/test_serialization.py::test_serialization\ntests/fsm/test_serialization.py::test_complex_serialization[openai-community/gpt2-607a30d783dfa663caf39e06633721c8d4cfcd7e]\ntests/fsm/test_serialization.py::test_complex_serialization[microsoft/phi-2-ef382358ec9e382308935a992d908de099b64c23]\ntests/fsm/test_serialization.py::test_complex_serialization[Qwen/Qwen1.5-0.5B-Chat-4d14e384a4b037942bb3f3016665157c8bcb70ea]\ntests/fsm/test_serialization.py::test_complex_serialization[NousResearch/Hermes-2-Pro-Llama-3-8B-783fd50eb82d7f57758de033861f54d62dde234f]\ntests/fsm/test_statistical.py::test_generate_length\n\n55 tests collected in 5.16s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-dottxt-ai__outlines-core"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-dottxt-ai__outlines-core",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T09:26:37.177919+08:00",
+    "finished_at": "2026-05-09T09:26:37.199943+08:00",
+    "duration_seconds": 0.022,
+    "stdout": "Untagged: jayint-repo2run-dottxt-ai__outlines-core:latest\nDeleted: sha256:cc4855f4769721e0dccfea69000b4baf9f67044e113eeabd0541558ebba3b3d2\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dottxt-ai__outlines-core/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+FROM python:3.12
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN pip3 install -r /app/requirements.txt
+RUN pip3 install torchao==0.5.0
+RUN pip3 install diffusers==0.31.0
+RUN pip3 install transformers==4.45.2
+RUN pip3 install pytest

@@ -1,0 +1,443 @@
+{
+  "dataset_entry": {
+    "instance_id": "AdityaNG__kan-gpt",
+    "full_name": "AdityaNG/kan-gpt",
+    "repo_url": "https://github.com/AdityaNG/kan-gpt.git",
+    "sha": "0c6e4c",
+    "base_commit": "0c6e4c",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/AdityaNG/kan-gpt.git",
+      "--base-commit",
+      "0c6e4c",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/AdityaNG/kan-gpt.git --base-commit 0c6e4c --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T04:41:20.540823+08:00",
+    "finished_at": "2026-04-24T04:56:05.491060+08:00",
+    "duration_seconds": 884.95,
+    "stdout": "Cloning https://github.com/AdityaNG/kan-gpt.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt...\nClone successful.\nChecked out commit: 0c6e4c\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 13 potentially relevant files\n[ImageSelector]   ✓ .github/workflows/release.yml\n[ImageSelector]   ✓ setup.py\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✗ kan_gpt/VERSION\n[ImageSelector]   ✓ Containerfile\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✗ kan_gpt/__init__.py\n[ImageSelector]   ✗ tests/conftest.py\n[ImageSelector]   ✓ .github/workflows/main.yml\n[ImageSelector]   ✓ requirements-test.txt\n[ImageSelector]   ✗ .github/workflows/rename_project.yml\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ CONTRIBUTING.md\n[ImageSelector] 9 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/logs/image_selector_logs\nInitializing container from python:3.12...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:29445\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/logs/compression_logs\nStarting agent for repository: https://github.com/AdityaNG/kan-gpt.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2271, Output: 142, Total: 2413\n\n[Thought]\nI'll start by examining the repository's dependency and configuration files to understand what needs to be installed.\n\n[Action]\ncat kan-gpt/requirements.txt kan-gpt/requirements-test.txt kan-gpt/setup.py 2>/dev/null | head -100\n[Container ID: 766c5b61f7a5]\nExecuting: cat kan-gpt/requirements.txt kan-gpt/requirements-test.txt kan-gpt/setup.py 2>/dev/null | head -100\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n(No output)\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2335, Output: 42, Total: 2377\n\n[Thought]\nLet me check the working directory and files properly.\n\n[Action]\nls -la && pwd\n[Container ID: 766c5b61f7a5]\nExecuting: ls -la && pwd\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 124\ndrwxr-xr-x 10 root root     4096 Apr 23 20:43 .\ndrwxr-xr-x  1 root root     4096 Apr 23 20:43 ..\n-rw-r--r--  1  501 dialout    95 Apr 23 20:41 .coveragerc\ndrwxr-xr-x  7  501 dialout  4096 Apr 23 20:41 .git\ndrwxr-xr-x  4  501 dialout  4096 Apr 23 20:41 .github\n-rw-r--r--  1  501 dialout  1865 Apr 23 20:41 .gitignore\n-rw-r--r--  1  501 dialout  3625 Apr 23 20:41 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout    80 Apr 23 20:41 Containerfile\n-rw-r--r--  1  501 dialout  8627 Apr 23 20:41 HISTORY.md\n-rw-r--r--  1  501 dialout 13385 Apr 23 20:41 KAN_GPT.ipynb\n-rw-r--r--  1  501 dialout  1079 Apr 23 20:41 LICENSE\n-rw-r--r--  1  501 dialout    83 Apr 23 20:41 MANIFEST.in\n-rw-r--r--  1  501 dialout  4369 Apr 23 20:41 Makefile\n-rw-r--r--  1  501 dialout  5623 Apr 23 20:41 README.md\ndrwxr-xr-x  3  501 dialout  4096 Apr 23 20:41 docs\ndrwxr-xr-x  5  501 dialout  4096 Apr 23 20:41 kan_gpt\ndrwxr-xr-x  3  501 dialout  4096 Apr 23 20:41 logs\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 media\n-rw-r--r--  1  501 dialout    75 Apr 23 20:41 mkdocs.yml\n-rw-r--r--  1  501 dialout   183 Apr 23 20:41 requirements-test.txt\n-rw-r--r--  1  501 dialout   189 Apr 23 20:41 requirements.txt\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 scripts\n-rw-r--r--  1  501 dialout  1235 Apr 23 20:41 setup.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 tests\n/app\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3022, Output: 63, Total: 3085\n\n[Thought]\nThe repository is in /app directly. Let me check the dependency files.\n\n[Action]\ncat /app/requirements.txt /app/requirements-test.txt /app/setup.py\n[Container ID: 766c5b61f7a5]\nExecuting: cat /app/requirements.txt /app/requirements-test.txt /app/setup.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nmatplotlib>=3.6.2\nnumpy>=1.24.4\nscikit_learn>=1.1.3\nsetuptools>=65.5.0\nsympy>=1.11.1\ntorch>=2.0.1\ntqdm>=4.66.2\npandas>=2.0.3\nrequests>=2.31.0\ntransformers>=4.40.1\nwandb>=0.16.6\ntorchvision\n# This requirements are for development and testing only, not for production.\npytest\ncoverage\nflake8\nblack\nisort\npytest-cov\nmypy\ngitchangelog\nmkdocs\nlark\ntypes-requests\nrequests-mock\n\"\"\"Python setup.py for kan_gpt package\"\"\"\nimport io\nimport os\nfrom setuptools import find_packages, setup\n\n\ndef read(*paths, **kwargs):\n    \"\"\"Read the contents of a text file safely.\n    >>> read(\"kan_gpt\", \"VERSION\")\n    '0.1.0'\n    >>> read(\"README.md\")\n    ...\n    \"\"\"\n\n    content = \"\"\n    with io.open(\n        os.path.join(os.path.dirname(__file__), *paths),\n        encoding=kwargs.get(\"encoding\", \"utf8\"),\n    ) as open_file:\n        content = open_file.read().strip()\n    return content\n\n\ndef read_requirements(path):\n    return [\n        line.strip()\n        for line in read(path).split(\"\\n\")\n        if not line.startswith(('\"', \"#\", \"-\", \"git+\"))\n    ]\n\n\nsetup(\n    name=\"kan_gpt\",\n    version=read(\"kan_gpt\", \"VERSION\"),\n    description=\"Awesome kan_gpt created by AdityaNG\",\n    url=\"https://github.com/AdityaNG/kan-gpt/\",\n    long_description=read(\"README.md\"),\n    long_description_content_type=\"text/markdown\",\n    author=\"AdityaNG\",\n    packages=find_packages(exclude=[\"tests\", \".github\"]),\n    install_requires=read_requirements(\"requirements.txt\"),\n    entry_points={\n        \"console_scripts\": [\"kan_gpt = kan_gpt.__main__:main\"]\n    },\n    extras_require={\"test\": read_requirements(\"requirements-test.txt\")},\n)\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3530, Output: 69, Total: 3599\n\n[Thought]\nNow I'll install the package with its dependencies. Let me install the requirements first, then the package in editable mode with test dependencies.\n\n[Action]\npip install -e \".[test]\" 2>&1 | tail -30\n[Container ID: 766c5b61f7a5]\nExecuting: pip install -e \".[test]\" 2>&1 | tail -30\nCommand succeeded.\n[Snapshot Created] sha256:332f3\n\n[Observation]\nDownloading typer-0.24.2-py3-none-any.whl (55 kB)\nDownloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\nDownloading gitdb-4.0.12-py3-none-any.whl (62 kB)\nDownloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 6.3 MB/s eta 0:00:00\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading rich-15.0.0-py3-none-any.whl (310 kB)\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nDownloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\nDownloading smmap-5.0.3-py3-none-any.whl (24 kB)\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nBuilding wheels for collected packages: kan_gpt\n  Building editable for kan_gpt (pyproject.toml): started\n  Building editable for kan_gpt (pyproject.toml): finished with status 'done'\n  Created wheel for kan_gpt: filename=kan_gpt-1.2.0-0.editable-py3-none-any.whl size=6152 sha256=326f42c02de6b2a67d65542041c792847965effd0828123a84170e67e723fa94\n  Stored in directory: /tmp/pip-ephem-wheel-cache-k2at53us/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\nSuccessfully built kan_gpt\nInstalling collected packages: nvidia-cusparselt-cu13, mpmath, gitchangelog, cuda-toolkit, watchdog, urllib3, typing-extensions, triton, tqdm, threadpoolctl, sympy, smmap, six, shellingham, setuptools, safetensors, regex, pyyaml, pytokens, pyparsing, pygments, pyflakes, pycodestyle, protobuf, pluggy, platformdirs, pillow, pathspec, packaging, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, mypy-extensions, mergedeep, mdurl, mccabe, markupsafe, markdown, librt, lark, kiwisolver, joblib, isort, iniconfig, idna, hf-xet, h11, fsspec, fonttools, filelock, cycler, cuda-pathfinder, coverage, click, charset_normalizer, certifi, annotated-types, annotated-doc, typing-inspection, types-requests, sentry-sdk, scipy, requests, pyyaml-env-tag, python-dateutil, pytest, pydantic-core, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, mypy, mkdocs-get-deps, markdown-it-py, jinja2, httpcore, gitdb, flake8, cuda-bindings, contourpy, black, anyio, scikit_learn, rich, requests-mock, pytest-cov, pydantic, pandas, nvidia-cusolver, matplotlib, httpx, gitpython, ghp-import, wandb, typer, mkdocs, torch, huggingface-hub, torchvision, tokenizers, transformers, kan_gpt\nSuccessfully installed annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.13.0 black-26.3.1 certifi-2026.4.22 charset_normalizer-3.4.7 click-8.3.3 contourpy-1.3.3 coverage-7.13.5 cuda-bindings-13.2.0 cuda-pathfinder-1.5.3 cuda-toolkit-13.0.2 cycler-0.12.1 filelock-3.29.0 flake8-7.3.0 fonttools-4.62.1 fsspec-2026.3.0 ghp-import-2.1.0 gitchangelog-3.0.4 gitdb-4.0.12 gitpython-3.1.47 h11-0.16.0 hf-xet-1.4.3 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.11.0 idna-3.13 iniconfig-2.3.0 isort-8.0.1 jinja2-3.1.6 joblib-1.5.3 kan_gpt-1.2.0 kiwisolver-1.5.0 lark-1.3.1 librt-0.9.0 markdown-3.10.2 markdown-it-py-4.0.0 markupsafe-3.0.3 matplotlib-3.10.8 mccabe-0.7.0 mdurl-0.1.2 mergedeep-1.3.4 mkdocs-1.6.1 mkdocs-get-deps-0.2.2 mpmath-1.3.0 mypy-1.20.2 mypy-extensions-1.1.0 networkx-3.6.1 numpy-2.4.4 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 packaging-26.1 pandas-3.0.2 pathspec-1.1.0 pillow-12.2.0 platformdirs-4.9.6 pluggy-1.6.0 protobuf-7.34.1 pycodestyle-2.14.0 pydantic-2.13.3 pydantic-core-2.46.3 pyflakes-3.4.0 pygments-2.20.0 pyparsing-3.3.2 pytest-9.0.3 pytest-cov-7.1.0 python-dateutil-2.9.0.post0 pytokens-0.4.1 pyyaml-6.0.3 pyyaml-env-tag-1.1 regex-2026.4.4 requests-2.33.1 requests-mock-1.12.1 rich-15.0.0 safetensors-0.7.0 scikit_learn-1.8.0 scipy-1.17.1 sentry-sdk-2.58.0 setuptools-81.0.0 shellingham-1.5.4 six-1.17.0 smmap-5.0.3 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 torch-2.11.0 torchvision-0.26.0 tqdm-4.67.3 transformers-5.6.2 triton-3.6.0 typer-0.24.2 types-requests-2.33.0.20260408 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 wandb-0.26.1 watchdog-6.0.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 5709, Output: 60, Total: 5769\n\n[Thought]\nThe package is installed successfully. Now let me verify that pytest can collect the tests.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: 766c5b61f7a5]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:fba47\n\n[Observation]\ntests/test_base.py::test_base\ntests/test_dataset_download.py::test_download_tinyshakespeare\ntests/test_dataset_download.py::test_download_webtext\ntests/test_efficient_kan.py::test_forward\ntests/test_efficient_kan.py::test_backward\ntests/test_efficient_kan.py::test_forward_batched\ntests/test_efficient_kan.py::test_backward_batched\ntests/test_gpt_kan.py::test_forward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_forward[get_gpt_model_original]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_original]\ntests/test_gpt_kan.py::test_forward_batched[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_forward_batched[get_gpt_model_original]\ntests/test_gpt_kan.py::test_backward_batched[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_backward_batched[get_gpt_model_original]\ntests/test_gpt_mlp.py::test_forward\ntests/test_gpt_mlp.py::test_backward\ntests/test_gpt_mlp.py::test_forward_batched\ntests/test_gpt_mlp.py::test_backward_batched\ntests/test_gpt_mlp.py::test_CN\ntests/test_gpt_mlp.py::test_seed_set\ntests/test_gpt_mlp.py::test_setup_logging\ntests/test_kan.py::test_forward\ntests/test_kan.py::test_backward\ntests/test_kan.py::test_forward_batched\ntests/test_kan.py::test_backward_batched\ntests/test_kan.py::test_plot\ntests/test_kan.py::test_train\ntests/test_prompt.py::test_train\ntests/test_train.py::test_save_model\ntests/test_train.py::test_train\n\n31 tests collected in 7.07s\n\n[Skipped Test Command] pytest --collect-only -q --disable-warnings 2>&1 (no_reliable_test_execution_signal).\n\n==================== Step 6 ====================\n\n[Tokens] Input: 6172, Output: 79, Total: 6251\n\n[Finished] Agent has reached a conclusion.\n<think>\nAll tests are collected successfully. The environment is set up correctly. Let me provide the final verification bundle.\n</think>\n\nThought: All 31 tests are collected successfully with no import or configuration errors. The environment is properly set up.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report without system-level test-signal validation.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/AdityaNG__kan-gpt.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/AdityaNG/kan-gpt.git",
+    "configuration_success": true,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [
+      {
+        "step_index": 5,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 1,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat kan-gpt/requirements.txt kan-gpt/requirements-test.txt kan-gpt/setup.py 2>/dev/null | head -100",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 2,
+        "command": "ls -la && pwd",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 124\ndrwxr-xr-x 10 root root     4096 Apr 23 20:43 .\ndrwxr-xr-x  1 root root     4096 Apr 23 20:43 ..\n-rw-r--r--  1  501 dialout    95 Apr 23 20:41 .coveragerc\ndrwxr-xr-x  7  501 dialout  4096 Apr 23 20:41 .git\ndrwxr-xr-x  4  501 dialout  4096 Apr 23 20:41 .github\n-rw-r--r--  1  501 dialout  1865 Apr 23 20:41 .gitignore\n-rw-r--r--  1  501 dialout  3625 Apr 23 20:41 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout    80 Apr 23 20:41 Containerfile\n-rw-r--r--  1  501 dialout  8627 Apr 23 20:41 HISTORY.md\n-rw-r--r--  1  501 dialout 13385 Apr 23 20:41 KAN_GPT.ipynb\n-rw-r--r--  1  501 dialout  1079 A\n... (151 chars omitted for recipe synthesis) ...\n dialout  5623 Apr 23 20:41 README.md\ndrwxr-xr-x  3  501 dialout  4096 Apr 23 20:41 docs\ndrwxr-xr-x  5  501 dialout  4096 Apr 23 20:41 kan_gpt\ndrwxr-xr-x  3  501 dialout  4096 Apr 23 20:41 logs\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 media\n-rw-r--r--  1  501 dialout    75 Apr 23 20:41 mkdocs.yml\n-rw-r--r--  1  501 dialout   183 Apr 23 20:41 requirements-test.txt\n-rw-r--r--  1  501 dialout   189 Apr 23 20:41 requirements.txt\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 scripts\n-rw-r--r--  1  501 dialout  1235 Apr 23 20:41 setup.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 20:41 tests\n/app\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat /app/requirements.txt /app/requirements-test.txt /app/setup.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "matplotlib>=3.6.2\nnumpy>=1.24.4\nscikit_learn>=1.1.3\nsetuptools>=65.5.0\nsympy>=1.11.1\ntorch>=2.0.1\ntqdm>=4.66.2\npandas>=2.0.3\nrequests>=2.31.0\ntransformers>=4.40.1\nwandb>=0.16.6\ntorchvision\n# This requirements are for development and testing only, not for production.\npytest\ncoverage\nflake8\nblack\nisort\npytest-cov\nmypy\ngitchangelog\nmkdocs\nlark\ntypes-requests\nrequests-mock\n\"\"\"Python setup.py for kan_gpt package\"\"\"\nimport io\nimport os\nfrom setuptools import find_packages, setup\n\n\ndef read(*paths, **kwargs):\n    \"\"\"Read the contents of a text file safely.\n    >>> read(\"kan_gpt\", \"VERSION\")\n    '0.1.\n... (407 chars omitted for recipe synthesis) ...\n(('\"', \"#\", \"-\", \"git+\"))\n    ]\n\n\nsetup(\n    name=\"kan_gpt\",\n    version=read(\"kan_gpt\", \"VERSION\"),\n    description=\"Awesome kan_gpt created by AdityaNG\",\n    url=\"https://github.com/AdityaNG/kan-gpt/\",\n    long_description=read(\"README.md\"),\n    long_description_content_type=\"text/markdown\",\n    author=\"AdityaNG\",\n    packages=find_packages(exclude=[\"tests\", \".github\"]),\n    install_requires=read_requirements(\"requirements.txt\"),\n    entry_points={\n        \"console_scripts\": [\"kan_gpt = kan_gpt.__main__:main\"]\n    },\n    extras_require={\"test\": read_requirements(\"requirements-test.txt\")},\n)\n"
+      },
+      {
+        "step_index": 4,
+        "command": "pip install -e \".[test]\" 2>&1 | tail -30",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Downloading typer-0.24.2-py3-none-any.whl (55 kB)\nDownloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\nDownloading gitdb-4.0.12-py3-none-any.whl (62 kB)\nDownloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 6.3 MB/s eta 0:00:00\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading rich-15.0.0-py3-none-any.whl (310 kB)\nDownl\n... (4043 chars omitted for recipe synthesis) ...\n types-requests-2.33.0.20260408 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 wandb-0.26.1 watchdog-6.0.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/test_base.py::test_base\ntests/test_dataset_download.py::test_download_tinyshakespeare\ntests/test_dataset_download.py::test_download_webtext\ntests/test_efficient_kan.py::test_forward\ntests/test_efficient_kan.py::test_backward\ntests/test_efficient_kan.py::test_forward_batched\ntests/test_efficient_kan.py::test_backward_batched\ntests/test_gpt_kan.py::test_forward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_forward[get_gpt_model_original]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_original]\ntests/test_gpt_kan.py::t\n... (260 chars omitted for recipe synthesis) ...\nst_gpt_mlp.py::test_forward\ntests/test_gpt_mlp.py::test_backward\ntests/test_gpt_mlp.py::test_forward_batched\ntests/test_gpt_mlp.py::test_backward_batched\ntests/test_gpt_mlp.py::test_CN\ntests/test_gpt_mlp.py::test_seed_set\ntests/test_gpt_mlp.py::test_setup_logging\ntests/test_kan.py::test_forward\ntests/test_kan.py::test_backward\ntests/test_kan.py::test_forward_batched\ntests/test_kan.py::test_backward_batched\ntests/test_kan.py::test_plot\ntests/test_kan.py::test_train\ntests/test_prompt.py::test_train\ntests/test_train.py::test_save_model\ntests/test_train.py::test_train\n\n31 tests collected in 7.07s\n"
+      }
+    ],
+    "failed_actions": [],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e \".[test]\""
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat kan-gpt/requirements.txt kan-gpt/requirements-test.txt kan-gpt/setup.py 2>/dev/null | head -100",
+          "reason": "Read-only file inspection with no environment effect"
+        },
+        {
+          "command": "ls -la && pwd",
+          "reason": "Read-only directory listing for orientation"
+        },
+        {
+          "command": "cat /app/requirements.txt /app/requirements-test.txt /app/setup.py",
+          "reason": "Read-only dependency file inspection; content already understood by the retained install command"
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings",
+          "reason": "Final verification/collection-only command; test_commands left empty per synthesis instructions since no actual tests were executed in the trajectory"
+        }
+      ],
+      "rationale": "Step 4 (`pip install -e \".[test]\"`) is the only state-changing action and it fully succeeded: it installed the kan_gpt package in editable mode plus all 89 transitive dependencies (torch, transformers, sympy, wandb, pandas, matplotlib, torchvision, triton, pytest, pytest-cov, mypy, flake8, black, isort, lark, etc.). Step 5 confirmed that pytest can collect 31 tests, but since it used `--collect-only` (no actual test execution signal), test_commands are left empty. Steps 1–3 were all read-only exploration with no persistent effect; they are excluded. The single `pip install -e \".[test]\"` command is sufficient because setup.py's `extras_require={'test': read_requirements('requirements-test.txt')}` pulls in both core and test dependencies from the packaged requirements files.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 1,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat kan-gpt/requirements.txt kan-gpt/requirements-test.txt kan-gpt/setup.py 2>/dev/null | head -100",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la && pwd",
+        "success": true,
+        "raw_chars": 1351,
+        "raw_tokens_est": 337,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat /app/requirements.txt /app/requirements-test.txt /app/setup.py",
+        "success": true,
+        "raw_chars": 1607,
+        "raw_tokens_est": 401,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 246,
+        "reflect_input_tokens": 4333,
+        "reflect_output_tokens": 355
+      },
+      {
+        "step_id": 4,
+        "action": "pip install -e \".[test]\" 2>&1 | tail -30",
+        "success": true,
+        "raw_chars": 5243,
+        "raw_tokens_est": 1310,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 1460,
+        "raw_tokens_est": 365,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 17736,
+        "output_tokens": 5191,
+        "total_tokens": 22927
+      },
+      "planner": {
+        "input_tokens": 23039,
+        "output_tokens": 455,
+        "total_tokens": 23494
+      },
+      "reflection": {
+        "input_tokens": 4333,
+        "output_tokens": 355,
+        "total_tokens": 4688
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 7904,
+        "output_tokens": 1156,
+        "total_tokens": 9060
+      },
+      "total": {
+        "input_tokens": 53012,
+        "output_tokens": 7157,
+        "total_tokens": 60169
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "verification_command_source": "repo2run_pytest_collect_only",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-adityang__kan-gpt",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt"
+    ],
+    "command_shell": "docker build -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/Dockerfile.eval -t jayint-repo2run-adityang__kan-gpt /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AdityaNG__kan-gpt",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T04:56:05.510228+08:00",
+    "finished_at": "2026-04-24T05:06:07.935659+08:00",
+    "duration_seconds": 602.425,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 450B done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 ...\n\n#3 [auth] library/python:pull token for registry-1.docker.io\n#3 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 1.9s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.1s\n\n#5 [1/6] FROM docker.io/library/python:3.12@sha256:5b5e75c01e04932ad3ad874ca870c74664760a02f94bca7817a3eeb662bb7c25\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 4.28MB 0.1s done\n#6 DONE 0.1s\n\n#7 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#7 CACHED\n\n#8 [3/6] WORKDIR /app\n#8 CACHED\n\n#9 [4/6] COPY . /app\n#9 DONE 0.1s\n\n#10 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#10 DONE 0.2s\n\n#11 [6/6] RUN pip install -e \".[test]\"\n#11 0.382 Obtaining file:///app\n#11 0.383   Installing build dependencies: started\n#11 2.712   Installing build dependencies: finished with status 'done'\n#11 2.713   Checking if build backend supports build_editable: started\n#11 2.801   Checking if build backend supports build_editable: finished with status 'done'\n#11 2.801   Getting requirements to build editable: started\n#11 2.881   Getting requirements to build editable: finished with status 'done'\n#11 2.882   Preparing editable metadata (pyproject.toml): started\n#11 2.962   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 3.620 Collecting matplotlib>=3.6.2 (from kan_gpt==1.2.0)\n#11 3.933   Downloading matplotlib-3.10.8-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (52 kB)\n#11 4.583 Collecting numpy>=1.24.4 (from kan_gpt==1.2.0)\n#11 4.695   Downloading numpy-2.4.4-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (6.6 kB)\n#11 4.863 Collecting scikit_learn>=1.1.3 (from kan_gpt==1.2.0)\n#11 4.981   Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (11 kB)\n#11 5.174 Collecting setuptools>=65.5.0 (from kan_gpt==1.2.0)\n#11 5.175   Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\n#11 5.304 Collecting sympy>=1.11.1 (from kan_gpt==1.2.0)\n#11 5.421   Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)\n#11 5.763 Collecting torch>=2.0.1 (from kan_gpt==1.2.0)\n#11 5.877   Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_aarch64.whl.metadata (29 kB)\n#11 6.057 Collecting tqdm>=4.66.2 (from kan_gpt==1.2.0)\n#11 6.171   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#11 6.392 Collecting pandas>=2.0.3 (from kan_gpt==1.2.0)\n#11 6.502   Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl.metadata (79 kB)\n#11 6.567 Requirement already satisfied: requests>=2.31.0 in /usr/local/lib/python3.12/site-packages (from kan_gpt==1.2.0) (2.33.1)\n#11 6.701 Collecting transformers>=4.40.1 (from kan_gpt==1.2.0)\n#11 6.813   Downloading transformers-5.6.2-py3-none-any.whl.metadata (33 kB)\n#11 7.045 Collecting wandb>=0.16.6 (from kan_gpt==1.2.0)\n#11 7.156   Downloading wandb-0.26.1-py3-none-manylinux_2_28_aarch64.whl.metadata (11 kB)\n#11 7.324 Collecting torchvision (from kan_gpt==1.2.0)\n#11 7.444   Downloading torchvision-0.26.0-cp312-cp312-manylinux_2_28_aarch64.whl.metadata (5.5 kB)\n#11 7.453 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (from kan_gpt==1.2.0) (9.0.3)\n#11 7.761 Collecting coverage (from kan_gpt==1.2.0)\n#11 7.870   Downloading coverage-7.13.5-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (8.5 kB)\n#11 8.016 Collecting flake8 (from kan_gpt==1.2.0)\n#11 8.136   Downloading flake8-7.3.0-py2.py3-none-any.whl.metadata (3.8 kB)\n#11 8.295 Collecting black (from kan_gpt==1.2.0)\n#11 8.408   Downloading black-26.3.1-py3-none-any.whl.metadata (91 kB)\n#11 8.598 Collecting isort (from kan_gpt==1.2.0)\n#11 8.710   Downloading isort-8.0.1-py3-none-any.whl.metadata (11 kB)\n#11 8.857 Collecting pytest-cov (from kan_gpt==1.2.0)\n#11 8.969   Downloading pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)\n#11 9.166 Collecting mypy (from kan_gpt==1.2.0)\n#11 9.284   Downloading mypy-1.20.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (2.4 kB)\n#11 9.425 Collecting gitchangelog (from kan_gpt==1.2.0)\n#11 9.538   Downloading gitchangelog-3.0.4-py2.py3-none-any.whl.metadata (39 kB)\n#11 9.695 Collecting mkdocs (from kan_gpt==1.2.0)\n#11 9.808   Downloading mkdocs-1.6.1-py3-none-any.whl.metadata (6.0 kB)\n#11 9.940 Collecting lark (from kan_gpt==1.2.0)\n#11 10.06   Downloading lark-1.3.1-py3-none-any.whl.metadata (1.8 kB)\n#11 10.23 Collecting types-requests (from kan_gpt==1.2.0)\n#11 10.35   Downloading types_requests-2.33.0.20260408-py3-none-any.whl.metadata (2.0 kB)\n#11 10.49 Collecting requests-mock (from kan_gpt==1.2.0)\n#11 10.61   Downloading requests_mock-1.12.1-py2.py3-none-any.whl.metadata (4.1 kB)\n#11 10.77 Collecting contourpy>=1.0.1 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 10.89   Downloading contourpy-1.3.3-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (5.5 kB)\n#11 11.03 Collecting cycler>=0.10 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 11.15   Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)\n#11 11.36 Collecting fonttools>=4.22.0 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 11.47   Downloading fonttools-4.62.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (117 kB)\n#11 11.71 Collecting kiwisolver>=1.3.1 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 11.83   Downloading kiwisolver-1.5.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl.metadata (5.1 kB)\n#11 11.84 Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.12/site-packages (from matplotlib>=3.6.2->kan_gpt==1.2.0) (26.1)\n#11 12.04 Collecting pillow>=8 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 12.16   Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (8.8 kB)\n#11 12.29 Collecting pyparsing>=3 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 12.40   Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)\n#11 12.54 Collecting python-dateutil>=2.7 (from matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 12.65   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\n#11 12.68 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests>=2.31.0->kan_gpt==1.2.0) (3.4.7)\n#11 12.68 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests>=2.31.0->kan_gpt==1.2.0) (3.13)\n#11 12.68 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests>=2.31.0->kan_gpt==1.2.0) (2.6.3)\n#11 12.68 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests>=2.31.0->kan_gpt==1.2.0) (2026.4.22)\n#11 13.10 Collecting scipy>=1.10.0 (from scikit_learn>=1.1.3->kan_gpt==1.2.0)\n#11 13.21   Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (62 kB)\n#11 13.38 Collecting joblib>=1.3.0 (from scikit_learn>=1.1.3->kan_gpt==1.2.0)\n#11 13.50   Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)\n#11 13.64 Collecting threadpoolctl>=3.2.0 (from scikit_learn>=1.1.3->kan_gpt==1.2.0)\n#11 13.75   Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)\n#11 13.90 Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.11.1->kan_gpt==1.2.0)\n#11 14.01   Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)\n#11 14.02 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from torch>=2.0.1->kan_gpt==1.2.0) (3.29.0)\n#11 14.02 Requirement already satisfied: typing-extensions>=4.10.0 in /usr/local/lib/python3.12/site-packages (from torch>=2.0.1->kan_gpt==1.2.0) (4.15.0)\n#11 14.06 Collecting setuptools>=65.5.0 (from kan_gpt==1.2.0)\n#11 14.17   Downloading setuptools-81.0.0-py3-none-any.whl.metadata (6.6 kB)\n#11 14.32 Collecting networkx>=2.5.1 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 14.44   Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)\n#11 14.58 Collecting jinja2 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 14.70   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#11 14.85 Collecting fsspec>=0.8.5 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 14.96   Downloading fsspec-2026.3.0-py3-none-any.whl.metadata (10 kB)\n#11 15.14 Collecting cuda-toolkit==13.0.2 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 15.25   Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl.metadata (9.4 kB)\n#11 15.41 Collecting cuda-bindings<14,>=13.0.3 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 15.53   Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl.metadata (2.3 kB)\n#11 15.68 Collecting nvidia-cudnn-cu13==9.19.0.56 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 15.80   Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl.metadata (1.9 kB)\n#11 15.93 Collecting nvidia-cusparselt-cu13==0.8.0 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 16.05   Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_aarch64.whl.metadata (12 kB)\n#11 16.19 Collecting nvidia-nccl-cu13==2.28.9 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 16.31   Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_aarch64.whl.metadata (2.0 kB)\n#11 16.44 Collecting nvidia-nvshmem-cu13==3.4.5 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 16.56   Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (2.1 kB)\n#11 16.70 Collecting triton==3.6.0 (from torch>=2.0.1->kan_gpt==1.2.0)\n#11 16.82   Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (1.7 kB)\n#11 16.96 Collecting nvidia-cublas==13.1.0.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 17.08   Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_aarch64.whl.metadata (1.7 kB)\n#11 17.22 Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 17.34   Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.7 kB)\n#11 17.48 Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 17.60   Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.8 kB)\n#11 17.74 Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 17.86   Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux_2_27_aarch64.whl.metadata (1.7 kB)\n#11 18.00 Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 18.11   Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_aarch64.whl.metadata (1.7 kB)\n#11 18.25 Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 18.37   Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_aarch64.whl.metadata (1.7 kB)\n#11 18.51 Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 18.63   Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl.metadata (1.8 kB)\n#11 18.76 Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 18.89   Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.8 kB)\n#11 19.03 Collecting nvidia-nvjitlink==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 19.15   Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.7 kB)\n#11 19.29 Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 19.41   Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.7 kB)\n#11 19.55 Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.2; platform_system == \"Linux\"->torch>=2.0.1->kan_gpt==1.2.0)\n#11 19.67   Downloading nvidia_nvtx-13.0.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (1.8 kB)\n#11 19.83 Collecting huggingface-hub<2.0,>=1.5.0 (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 19.95   Downloading huggingface_hub-1.11.0-py3-none-any.whl.metadata (14 kB)\n#11 20.12 Collecting pyyaml>=5.1 (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 20.24   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (2.4 kB)\n#11 20.55 Collecting regex>=2025.10.22 (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 20.66   Downloading regex-2026.4.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (40 kB)\n#11 20.88 Collecting tokenizers<=0.23.0,>=0.22.0 (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 20.99   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (7.3 kB)\n#11 21.17 Collecting typer (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 21.28   Downloading typer-0.24.2-py3-none-any.whl.metadata (15 kB)\n#11 21.46 Collecting safetensors>=0.4.3 (from transformers>=4.40.1->kan_gpt==1.2.0)\n#11 21.58   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.1 kB)\n#11 21.73 Collecting click>=8.0.1 (from wandb>=0.16.6->kan_gpt==1.2.0)\n#11 21.85   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#11 22.00 Collecting gitpython!=3.1.29,>=1.0.0 (from wandb>=0.16.6->kan_gpt==1.2.0)\n#11 22.11   Downloading gitpython-3.1.47-py3-none-any.whl.metadata (14 kB)\n#11 22.13 Requirement already satisfied: platformdirs in /usr/local/lib/python3.12/site-packages (from wandb>=0.16.6->kan_gpt==1.2.0) (4.9.6)\n#11 22.33 Collecting protobuf!=5.28.0,!=5.29.0,<8,>4.21.0 (from wandb>=0.16.6->kan_gpt==1.2.0)\n#11 22.45   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_aarch64.whl.metadata (595 bytes)\n#11 22.64 Collecting pydantic<3 (from wandb>=0.16.6->kan_gpt==1.2.0)\n#11 22.75   Downloading pydantic-2.13.3-py3-none-any.whl.metadata (108 kB)\n#11 22.95 Collecting sentry-sdk>=2.0.0 (from wandb>=0.16.6->kan_gpt==1.2.0)\n#11 23.06   Downloading sentry_sdk-2.58.0-py2.py3-none-any.whl.metadata (10 kB)\n#11 23.23 Collecting mypy-extensions>=0.4.3 (from black->kan_gpt==1.2.0)\n#11 23.34   Downloading mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)\n#11 23.48 Collecting pathspec>=1.0.0 (from black->kan_gpt==1.2.0)\n#11 23.60   Downloading pathspec-1.1.0-py3-none-any.whl.metadata (14 kB)\n#11 23.74 Collecting pytokens~=0.4.0 (from black->kan_gpt==1.2.0)\n#11 23.86   Downloading pytokens-0.4.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (3.8 kB)\n#11 24.00 Collecting mccabe<0.8.0,>=0.7.0 (from flake8->kan_gpt==1.2.0)\n#11 24.12   Downloading mccabe-0.7.0-py2.py3-none-any.whl.metadata (5.0 kB)\n#11 24.25 Collecting pycodestyle<2.15.0,>=2.14.0 (from flake8->kan_gpt==1.2.0)\n#11 24.37   Downloading pycodestyle-2.14.0-py2.py3-none-any.whl.metadata (4.5 kB)\n#11 24.52 Collecting pyflakes<3.5.0,>=3.4.0 (from flake8->kan_gpt==1.2.0)\n#11 24.64   Downloading pyflakes-3.4.0-py2.py3-none-any.whl.metadata (3.5 kB)\n#11 24.78 Collecting ghp-import>=1.0 (from mkdocs->kan_gpt==1.2.0)\n#11 24.89   Downloading ghp_import-2.1.0-py3-none-any.whl.metadata (7.2 kB)\n#11 25.04 Collecting markdown>=3.3.6 (from mkdocs->kan_gpt==1.2.0)\n#11 25.16   Downloading markdown-3.10.2-py3-none-any.whl.metadata (5.1 kB)\n#11 25.32 Collecting markupsafe>=2.0.1 (from mkdocs->kan_gpt==1.2.0)\n#11 25.44   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (2.7 kB)\n#11 25.57 Collecting mergedeep>=1.3.4 (from mkdocs->kan_gpt==1.2.0)\n#11 25.70   Downloading mergedeep-1.3.4-py3-none-any.whl.metadata (4.3 kB)\n#11 25.83 Collecting mkdocs-get-deps>=0.2.0 (from mkdocs->kan_gpt==1.2.0)\n#11 25.95   Downloading mkdocs_get_deps-0.2.2-py3-none-any.whl.metadata (4.0 kB)\n#11 26.09 Collecting pyyaml-env-tag>=0.1 (from mkdocs->kan_gpt==1.2.0)\n#11 26.21   Downloading pyyaml_env_tag-1.1-py3-none-any.whl.metadata (5.5 kB)\n#11 26.37 Collecting watchdog>=2.0 (from mkdocs->kan_gpt==1.2.0)\n#11 26.48   Downloading watchdog-6.0.0-py3-none-manylinux2014_aarch64.whl.metadata (44 kB)\n#11 26.71 Collecting librt>=0.8.0 (from mypy->kan_gpt==1.2.0)\n#11 26.82   Downloading librt-0.9.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (1.3 kB)\n#11 26.83 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest->kan_gpt==1.2.0) (2.3.0)\n#11 26.83 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest->kan_gpt==1.2.0) (1.6.0)\n#11 26.83 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest->kan_gpt==1.2.0) (2.20.0)\n#11 26.98 Collecting cuda-pathfinder~=1.1 (from cuda-bindings<14,>=13.0.3->torch>=2.0.1->kan_gpt==1.2.0)\n#11 27.10   Downloading cuda_pathfinder-1.5.3-py3-none-any.whl.metadata (1.9 kB)\n#11 27.26 Collecting gitdb<5,>=4.0.1 (from gitpython!=3.1.29,>=1.0.0->wandb>=0.16.6->kan_gpt==1.2.0)\n#11 27.38   Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)\n#11 27.55 Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface-hub<2.0,>=1.5.0->transformers>=4.40.1->kan_gpt==1.2.0)\n#11 27.67   Downloading hf_xet-1.4.3-cp37-abi3-manylinux_2_28_aarch64.whl.metadata (4.9 kB)\n#11 27.68 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.12/site-packages (from huggingface-hub<2.0,>=1.5.0->transformers>=4.40.1->kan_gpt==1.2.0) (0.28.1)\n#11 27.84 Collecting annotated-types>=0.6.0 (from pydantic<3->wandb>=0.16.6->kan_gpt==1.2.0)\n#11 27.95   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#11 28.40 Collecting pydantic-core==2.46.3 (from pydantic<3->wandb>=0.16.6->kan_gpt==1.2.0)\n#11 28.52   Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.6 kB)\n#11 28.65 Collecting typing-inspection>=0.4.2 (from pydantic<3->wandb>=0.16.6->kan_gpt==1.2.0)\n#11 28.77   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#11 28.92 Collecting six>=1.5 (from python-dateutil>=2.7->matplotlib>=3.6.2->kan_gpt==1.2.0)\n#11 29.04   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\n#11 29.09 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/site-packages (from typer->transformers>=4.40.1->kan_gpt==1.2.0) (1.5.4)\n#11 29.23 Collecting rich>=12.3.0 (from typer->transformers>=4.40.1->kan_gpt==1.2.0)\n#11 29.34   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#11 29.47 Collecting annotated-doc>=0.0.2 (from typer->transformers>=4.40.1->kan_gpt==1.2.0)\n#11 29.59   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#11 29.74 Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->gitpython!=3.1.29,>=1.0.0->wandb>=0.16.6->kan_gpt==1.2.0)\n#11 29.86   Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)\n#11 29.87 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=4.40.1->kan_gpt==1.2.0) (4.13.0)\n#11 29.87 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=4.40.1->kan_gpt==1.2.0) (1.0.9)\n#11 29.88 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=4.40.1->kan_gpt==1.2.0) (0.16.0)\n#11 30.01 Collecting markdown-it-py>=2.2.0 (from rich>=12.3.0->typer->transformers>=4.40.1->kan_gpt==1.2.0)\n#11 30.12   Downloading markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)\n#11 30.27 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=12.3.0->typer->transformers>=4.40.1->kan_gpt==1.2.0)\n#11 30.39   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#11 30.53 Downloading matplotlib-3.10.8-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (9.6 MB)\n#11 31.99    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.6/9.6 MB 6.7 MB/s eta 0:00:00\n#11 32.10 Downloading numpy-2.4.4-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (15.7 MB)\n#11 34.52    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.7/15.7 MB 6.4 MB/s eta 0:00:00\n#11 34.64 Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (10.4 MB)\n#11 36.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 6.0 MB/s eta 0:00:00\n#11 36.49 Downloading scikit_learn-1.8.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (8.7 MB)\n#11 37.79    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.7/8.7 MB 6.8 MB/s eta 0:00:00\n#11 37.90 Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#11 38.90    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 6.2 MB/s eta 0:00:00\n#11 39.01 Downloading torch-2.11.0-cp312-cp312-manylinux_2_28_aarch64.whl (419.7 MB)\n#11 108.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 419.7/419.7 MB 6.0 MB/s eta 0:00:00\n#11 108.4 Downloading cuda_toolkit-13.0.2-py2.py3-none-any.whl (2.4 kB)\n#11 108.5 Downloading nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl (433.8 MB)\n#11 180.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 433.8/433.8 MB 6.0 MB/s eta 0:00:00\n#11 180.2 Downloading nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_aarch64.whl (220.8 MB)\n#11 216.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 220.8/220.8 MB 6.0 MB/s eta 0:00:00\n#11 217.0 Downloading nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_aarch64.whl (196.6 MB)\n#11 249.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.6/196.6 MB 6.0 MB/s eta 0:00:00\n#11 249.5 Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (60.2 MB)\n#11 259.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.2/60.2 MB 6.2 MB/s eta 0:00:00\n#11 259.2 Downloading triton-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (176.1 MB)\n#11 288.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.1/176.1 MB 6.1 MB/s eta 0:00:00\n#11 288.2 Downloading nvidia_cublas-13.1.0.3-py3-none-manylinux_2_27_aarch64.whl (542.9 MB)\n#11 377.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 542.9/542.9 MB 6.0 MB/s eta 0:00:00\n#11 377.8 Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_aarch64.whl (10.3 MB)\n#11 379.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.3/10.3 MB 6.7 MB/s eta 0:00:00\n#11 379.4 Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (43.0 MB)\n#11 386.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.0/43.0 MB 6.2 MB/s eta 0:00:00\n#11 386.4 Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (2.3 MB)\n#11 387.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 3.2 MB/s eta 0:00:00\n#11 387.2 Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (214.1 MB)\n#11 422.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 6.0 MB/s eta 0:00:00\n#11 422.6 Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux_2_27_aarch64.whl (1.1 MB)\n#11 422.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 6.4 MB/s eta 0:00:00\n#11 422.8 Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_aarch64.whl (62.0 MB)\n#11 433.0    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.0/62.0 MB 6.1 MB/s eta 0:00:00\n#11 433.1 Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl (223.5 MB)\n#11 469.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 223.5/223.5 MB 6.0 MB/s eta 0:00:00\n#11 470.0 Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (162.2 MB)\n#11 496.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 162.2/162.2 MB 6.0 MB/s eta 0:00:00\n#11 497.0 Downloading nvidia_nvjitlink-13.0.88-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (38.8 MB)\n#11 503.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.8/38.8 MB 6.3 MB/s eta 0:00:00\n#11 503.3 Downloading nvidia_nvtx-13.0.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (148 kB)\n#11 503.4 Downloading setuptools-81.0.0-py3-none-any.whl (1.1 MB)\n#11 503.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 6.3 MB/s eta 0:00:00\n#11 503.7 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#11 503.8 Downloading transformers-5.6.2-py3-none-any.whl (10.4 MB)\n#11 505.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 6.7 MB/s eta 0:00:00\n#11 505.5 Downloading wandb-0.26.1-py3-none-manylinux_2_28_aarch64.whl (25.4 MB)\n#11 509.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 25.4/25.4 MB 6.0 MB/s eta 0:00:00\n#11 509.8 Downloading black-26.3.1-py3-none-any.whl (207 kB)\n#11 510.0 Downloading coverage-7.13.5-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (255 kB)\n#11 510.3 Downloading flake8-7.3.0-py2.py3-none-any.whl (57 kB)\n#11 510.4 Downloading gitchangelog-3.0.4-py2.py3-none-any.whl (54 kB)\n#11 510.5 Downloading isort-8.0.1-py3-none-any.whl (89 kB)\n#11 510.6 Downloading lark-1.3.1-py3-none-any.whl (113 kB)\n#11 510.8 Downloading mkdocs-1.6.1-py3-none-any.whl (3.9 MB)\n#11 511.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.9/3.9 MB 6.9 MB/s eta 0:00:00\n#11 511.4 Downloading mypy-1.20.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (13.7 MB)\n#11 513.5    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.7/13.7 MB 6.5 MB/s eta 0:00:00\n#11 513.6 Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\n#11 513.8 Downloading requests_mock-1.12.1-py2.py3-none-any.whl (27 kB)\n#11 513.9 Downloading torchvision-0.26.0-cp312-cp312-manylinux_2_28_aarch64.whl (7.8 MB)\n#11 515.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.8/7.8 MB 6.0 MB/s eta 0:00:00\n#11 515.3 Downloading types_requests-2.33.0.20260408-py3-none-any.whl (20 kB)\n#11 515.4 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#11 515.6 Downloading contourpy-1.3.3-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (332 kB)\n#11 515.8 Downloading cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (5.7 MB)\n#11 516.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.7/5.7 MB 5.9 MB/s eta 0:00:00\n#11 516.8 Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)\n#11 517.0 Downloading fonttools-4.62.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (5.0 MB)\n#11 517.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.0/5.0 MB 6.6 MB/s eta 0:00:00\n#11 517.9 Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#11 518.0 Downloading ghp_import-2.1.0-py3-none-any.whl (11 kB)\n#11 518.1 Downloading gitpython-3.1.47-py3-none-any.whl (209 kB)\n#11 518.3 Downloading huggingface_hub-1.11.0-py3-none-any.whl (645 kB)\n#11 518.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 645.5/645.5 kB 7.8 MB/s eta 0:00:00\n#11 518.5 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#11 518.6 Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#11 518.8 Downloading kiwisolver-1.5.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (1.3 MB)\n#11 518.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 8.6 MB/s eta 0:00:00\n#11 519.0 Downloading librt-0.9.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (215 kB)\n#11 519.2 Downloading markdown-3.10.2-py3-none-any.whl (108 kB)\n#11 519.3 Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (24 kB)\n#11 519.4 Downloading mccabe-0.7.0-py2.py3-none-any.whl (7.3 kB)\n#11 519.5 Downloading mergedeep-1.3.4-py3-none-any.whl (6.4 kB)\n#11 519.7 Downloading mkdocs_get_deps-0.2.2-py3-none-any.whl (9.6 kB)\n#11 519.8 Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#11 519.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 8.6 MB/s eta 0:00:00\n#11 520.0 Downloading mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)\n#11 520.1 Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)\n#11 520.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.4 MB/s eta 0:00:00\n#11 520.4 Downloading pathspec-1.1.0-py3-none-any.whl (56 kB)\n#11 520.5 Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (6.4 MB)\n#11 521.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 6.9 MB/s eta 0:00:00\n#11 521.5 Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_aarch64.whl (325 kB)\n#11 521.7 Downloading pycodestyle-2.14.0-py2.py3-none-any.whl (31 kB)\n#11 521.8 Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#11 522.0 Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (2.0 MB)\n#11 522.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 11.3 MB/s eta 0:00:00\n#11 522.3 Downloading pyflakes-3.4.0-py2.py3-none-any.whl (63 kB)\n#11 522.4 Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)\n#11 522.5 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#11 522.6 Downloading pytokens-0.4.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (255 kB)\n#11 522.8 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (775 kB)\n#11 522.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 775.1/775.1 kB 10.2 MB/s eta 0:00:00\n#11 523.0 Downloading pyyaml_env_tag-1.1-py3-none-any.whl (4.7 kB)\n#11 523.1 Downloading regex-2026.4.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (796 kB)\n#11 523.1    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 796.7/796.7 kB 12.4 MB/s eta 0:00:00\n#11 523.2 Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (491 kB)\n#11 523.4 Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (32.9 MB)\n#11 528.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 32.9/32.9 MB 6.0 MB/s eta 0:00:00\n#11 529.0 Downloading sentry_sdk-2.58.0-py2.py3-none-any.whl (460 kB)\n#11 529.2 Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#11 529.3 Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (3.3 MB)\n#11 529.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 5.9 MB/s eta 0:00:00\n#11 530.0 Downloading watchdog-6.0.0-py3-none-manylinux2014_aarch64.whl (79 kB)\n#11 530.1 Downloading typer-0.24.2-py3-none-any.whl (55 kB)\n#11 530.2 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#11 530.4 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#11 530.5 Downloading cuda_pathfinder-1.5.3-py3-none-any.whl (49 kB)\n#11 530.6 Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#11 530.7 Downloading hf_xet-1.4.3-cp37-abi3-manylinux_2_28_aarch64.whl (4.0 MB)\n#11 531.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 6.1 MB/s eta 0:00:00\n#11 531.5 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#11 531.7 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#11 531.8 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#11 531.9 Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#11 532.1 Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#11 532.2 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#11 533.9 Building wheels for collected packages: kan_gpt\n#11 533.9   Building editable for kan_gpt (pyproject.toml): started\n#11 534.0   Building editable for kan_gpt (pyproject.toml): finished with status 'done'\n#11 534.0   Created wheel for kan_gpt: filename=kan_gpt-1.2.0-0.editable-py3-none-any.whl size=6152 sha256=844f9cb6c202dc315835c6d9f7a30601f2b91e23032870f9e3c81718903b8841\n#11 534.0   Stored in directory: /tmp/pip-ephem-wheel-cache-4vepentc/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#11 534.0 Successfully built kan_gpt\n#11 534.2 Installing collected packages: nvidia-cusparselt-cu13, mpmath, gitchangelog, cuda-toolkit, watchdog, typing-inspection, types-requests, triton, tqdm, threadpoolctl, sympy, smmap, six, setuptools, sentry-sdk, safetensors, regex, pyyaml, pytokens, pyparsing, pyflakes, pydantic-core, pycodestyle, protobuf, pillow, pathspec, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, nvidia-cublas, numpy, networkx, mypy-extensions, mergedeep, mdurl, mccabe, markupsafe, markdown, librt, lark, kiwisolver, joblib, isort, hf-xet, fsspec, fonttools, cycler, cuda-pathfinder, coverage, click, annotated-types, annotated-doc, scipy, requests-mock, pyyaml-env-tag, python-dateutil, pydantic, nvidia-cusparse, nvidia-cufft, nvidia-cudnn-cu13, mypy, mkdocs-get-deps, markdown-it-py, jinja2, gitdb, flake8, cuda-bindings, contourpy, black, scikit_learn, rich, pytest-cov, pandas, nvidia-cusolver, matplotlib, gitpython, ghp-import, wandb, typer, mkdocs, torch, huggingface-hub, torchvision, tokenizers, transformers, kan_gpt\n#11 582.0 Successfully installed annotated-doc-0.0.4 annotated-types-0.7.0 black-26.3.1 click-8.3.3 contourpy-1.3.3 coverage-7.13.5 cuda-bindings-13.2.0 cuda-pathfinder-1.5.3 cuda-toolkit-13.0.2 cycler-0.12.1 flake8-7.3.0 fonttools-4.62.1 fsspec-2026.3.0 ghp-import-2.1.0 gitchangelog-3.0.4 gitdb-4.0.12 gitpython-3.1.47 hf-xet-1.4.3 huggingface-hub-1.11.0 isort-8.0.1 jinja2-3.1.6 joblib-1.5.3 kan_gpt-1.2.0 kiwisolver-1.5.0 lark-1.3.1 librt-0.9.0 markdown-3.10.2 markdown-it-py-4.0.0 markupsafe-3.0.3 matplotlib-3.10.8 mccabe-0.7.0 mdurl-0.1.2 mergedeep-1.3.4 mkdocs-1.6.1 mkdocs-get-deps-0.2.2 mpmath-1.3.0 mypy-1.20.2 mypy-extensions-1.1.0 networkx-3.6.1 numpy-2.4.4 nvidia-cublas-13.1.0.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.19.0.56 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.0 nvidia-nccl-cu13-2.28.9 nvidia-nvjitlink-13.0.88 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 pandas-3.0.2 pathspec-1.1.0 pillow-12.2.0 protobuf-7.34.1 pycodestyle-2.14.0 pydantic-2.13.3 pydantic-core-2.46.3 pyflakes-3.4.0 pyparsing-3.3.2 pytest-cov-7.1.0 python-dateutil-2.9.0.post0 pytokens-0.4.1 pyyaml-6.0.3 pyyaml-env-tag-1.1 regex-2026.4.4 requests-mock-1.12.1 rich-15.0.0 safetensors-0.7.0 scikit_learn-1.8.0 scipy-1.17.1 sentry-sdk-2.58.0 setuptools-81.0.0 six-1.17.0 smmap-5.0.3 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 torch-2.11.0 torchvision-0.26.0 tqdm-4.67.3 transformers-5.6.2 triton-3.6.0 typer-0.24.2 types-requests-2.33.0.20260408 typing-inspection-0.4.2 wandb-0.26.1 watchdog-6.0.0\n#11 582.0 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 582.1 \n#11 582.1 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#11 582.1 [notice] To update, run: pip install --upgrade pip\n#11 DONE 583.1s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 16.1s done\n#12 writing image sha256:4de45598dd0c280ddc3df2306da9b48e9cb1a6b54450cf9a8146f35ec61bd0c6 done\n#12 naming to docker.io/library/jayint-repo2run-adityang__kan-gpt done\n#12 DONE 16.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/t9pdiiuv4x89c993lafx6pggc\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "jayint-repo2run-adityang__kan-gpt",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i jayint-repo2run-adityang__kan-gpt sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-24T05:06:07.946753+08:00",
+          "finished_at": "2026-04-24T05:06:13.856033+08:00",
+          "duration_seconds": 5.909,
+          "stdout": "tests/test_base.py::test_base\ntests/test_dataset_download.py::test_download_tinyshakespeare\ntests/test_dataset_download.py::test_download_webtext\ntests/test_efficient_kan.py::test_forward\ntests/test_efficient_kan.py::test_backward\ntests/test_efficient_kan.py::test_forward_batched\ntests/test_efficient_kan.py::test_backward_batched\ntests/test_gpt_kan.py::test_forward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_forward[get_gpt_model_original]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_backward[get_gpt_model_original]\ntests/test_gpt_kan.py::test_forward_batched[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_forward_batched[get_gpt_model_original]\ntests/test_gpt_kan.py::test_backward_batched[get_gpt_model_efficient]\ntests/test_gpt_kan.py::test_backward_batched[get_gpt_model_original]\ntests/test_gpt_mlp.py::test_forward\ntests/test_gpt_mlp.py::test_backward\ntests/test_gpt_mlp.py::test_forward_batched\ntests/test_gpt_mlp.py::test_backward_batched\ntests/test_gpt_mlp.py::test_CN\ntests/test_gpt_mlp.py::test_seed_set\ntests/test_gpt_mlp.py::test_setup_logging\ntests/test_kan.py::test_forward\ntests/test_kan.py::test_backward\ntests/test_kan.py::test_forward_batched\ntests/test_kan.py::test_backward_batched\ntests/test_kan.py::test_plot\ntests/test_kan.py::test_train\ntests/test_prompt.py::test_train\ntests/test_train.py::test_save_model\ntests/test_train.py::test_train\n\n31 tests collected in 3.77s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": false,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-adityang__kan-gpt"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-adityang__kan-gpt",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T05:06:13.864452+08:00",
+    "finished_at": "2026-04-24T05:06:13.907806+08:00",
+    "duration_seconds": 0.043,
+    "stdout": "Untagged: jayint-repo2run-adityang__kan-gpt:latest\nDeleted: sha256:4de45598dd0c280ddc3df2306da9b48e9cb1a6b54450cf9a8146f35ec61bd0c6\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/docker_build.stderr.log"
+    },
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AdityaNG__kan-gpt/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

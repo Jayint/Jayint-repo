@@ -1,0 +1,10 @@
+FROM python:3.13
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ gfortran libopenblas-dev liblapack-dev
+RUN git --version && python scripts/get_version.py > version.txt 2>&1 || echo "0.3.0.dev" > version.txt && cat version.txt
+RUN pip install -e ".[dev]"

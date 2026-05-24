@@ -1,0 +1,891 @@
+{
+  "dataset_entry": {
+    "instance_id": "hinthornw__trustcall",
+    "full_name": "hinthornw/trustcall",
+    "repo_url": "https://github.com/hinthornw/trustcall.git",
+    "sha": "eaaaad",
+    "base_commit": "eaaaad",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/hinthornw/trustcall.git",
+      "--base-commit",
+      "eaaaad",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/hinthornw/trustcall.git --base-commit eaaaad --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-12T15:05:57.951496+08:00",
+    "finished_at": "2026-05-12T15:12:27.196967+08:00",
+    "duration_seconds": 389.245,
+    "stdout": "Cloning https://github.com/hinthornw/trustcall.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: eaaaad\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 11 potentially relevant files\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ .github/workflows/eval.yml\n[ImageSelector]   ✗ trustcall/__init__.py\n[ImageSelector]   ✗ tests/evals/test_evals.py\n[ImageSelector]   ✗ tests/unit_tests/test_extraction.py\n[ImageSelector]   ✓ .github/workflows/test.yml\n[ImageSelector]   ✗ tests/unit_tests/test_utils.py\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✗ tests/conftest.py\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector] 4 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns identified. This is a pure Python project with no native extensions, embedded databases, or other architecture-specific binaries. The container should work on both x86_64 and ARM64 (Apple Silicon) platforms.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:fd2b5\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/logs/compression_logs\nStarting agent for repository: https://github.com/hinthornw/trustcall.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2249, Output: 74, Total: 2323\n\n[Thought]\nI'll start by examining the pyproject.toml to understand the project's dependencies, build system, and test configuration.\n\n[Action]\ncat hinthornw__trustcall/pyproject.toml\n[Container ID: bf90236a2f3d]\nExecuting: cat hinthornw__trustcall/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: hinthornw__trustcall/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2315, Output: 44, Total: 2359\n\n[Thought]\nThe directory might have a different name. Let me check the current working directory and list its contents.\n\n[Action]\npwd && ls -la\n[Container ID: bf90236a2f3d]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 404\ndrwxr-xr-x 8 root root      4096 May 12 07:08 .\ndrwxr-xr-x 1 root root      4096 May 12 07:08 ..\ndrwxr-xr-x 7  501 dialout   4096 May 12 07:06 .git\ndrwxr-xr-x 3  501 dialout   4096 May 12 07:06 .github\n-rw-r--r-- 1  501 dialout   3139 May 12 07:06 .gitignore\n-rw-r--r-- 1  501 dialout   1067 May 12 07:06 LICENSE\n-rw-r--r-- 1  501 dialout    957 May 12 07:06 Makefile\n-rw-r--r-- 1  501 dialout  29231 May 12 07:06 README.md\ndrwxr-xr-x 2  501 dialout   4096 May 12 07:06 _static\ndrwxr-xr-x 3  501 dialout   4096 May 12 07:06 logs\n-rw-r--r-- 1  501 dialout   1858 May 12 07:06 pyproject.toml\ndrwxr-xr-x 5  501 dialout   4096 May 12 07:06 tests\ndrwxr-xr-x 2  501 dialout   4096 May 12 07:06 trustcall\n-rw-r--r-- 1  501 dialout 328329 May 12 07:06 uv.lock\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2720, Output: 66, Total: 2786\n\n[Thought]\nGood, the repository is at /app. Let me examine the pyproject.toml to understand the project dependencies and test configuration.\n\n[Action]\ncat /app/pyproject.toml\n[Container ID: bf90236a2f3d]\nExecuting: cat /app/pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nauthors = [\n    { name = \"William Fu-Hinthorn\", email = \"13333726+hinthornw@users.noreply.github.com\" },\n]\nlicense = { text = \"MIT\" }\nrequires-python = \"<4.0,>=3.10\"\ndependencies = [\n    \"langgraph>=0.2.25\",\n    \"dydantic<1.0.0,>=0.0.7\",\n    \"jsonpatch<2.0,>=1.33\",\n]\nname = \"trustcall\"\nversion = \"0.0.26\"\ndescription = \"Tenacious & trustworthy tool calling built on LangGraph.\"\nreadme = \"README.md\"\n\n\n[dependency-groups]\ndev = [\n    \"ruff<1.0.0,>=0.4.10\",\n    \"mypy<2.0.0,>=1.10.1\",\n    \"pytest<9.0.0,>=8.2.2\",\n    \"pytest-socket<1.0.0,>=0.7.0\",\n    \"langchain<1.0,>=0.3\",\n    \"langchain-openai<1.0,>=0.2\",\n    \"langchain-fireworks<1.0,>=0.2\",\n    \"langchain-anthropic<1.0,>=0.2\",\n    \"vcrpy<7.0.0,>=6.0.1\",\n    \"pytest-watch>=4.2.0\",\n    \"pytest-xdist>=3.6.1\",\n    \"anyio>=4.7.0\",\n    \"pytest-asyncio-cooperative>=0.37.0\",\n]\n\n[tool.setuptools]\npackages = [\"trustcall\"]\n[tool.setuptools.package-dir]\n\"trustcall\" = \"trustcall\"\n\n[tool.ruff]\nlint.select = [\n    \"E\",    # pycodestyle\n    \"F\",    # pyflakes\n    \"I\",    # isort\n    \"D\",    # pydocstyle\n    \"D401\", # First line should be in imperative mood\n]\n\n[tool.ruff.lint.per-file-ignores]\n\"tests/*\" = [\"D\"]\n\n[tool.ruff.lint.pydocstyle]\nconvention = \"google\"\n\n\n[tool.ruff.format]\ndocstring-code-format = true\ndocstring-code-line-length = 80\n\n[tool.pytest.ini_options]\n# --strict-markers will raise errors on unknown marks.\n# https://docs.pytest.org/en/7.1.x/how-to/mark.html#raising-errors-on-unknown-marks\n#\n# https://docs.pytest.org/en/7.1.x/reference/reference.html\n# --strict-config       any warnings encountered while parsing the `pytest`\n#                       section of the configuration file raise errors.\naddopts = \"--strict-markers --strict-config --durations=5 -vv\"\n\n\n[tool.uv.sources]\ntrustcall = { workspace = true }\n\n[tool.pytest-watcher]\nnow = true\ndelay = 3\npatterns = [\"*.py\"]\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3412, Output: 210, Total: 3622\n\n[Thought]\nThe project uses uv as its package manager (evident from uv.lock and [tool.uv.sources]). Let me check if uv is available and install the project with its dev dependencies.\n\n[Action]\nwhich uv && uv --version\n[Container ID: bf90236a2f3d]\nExecuting: which uv && uv --version\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3539, Output: 42, Total: 3581\n\n[Thought]\nI need to split the commands. Let me first check if uv is available.\n\n[Action]\nwhich uv\n[Container ID: bf90236a2f3d]\nExecuting: which uv\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3574, Output: 52, Total: 3626\n\n[Thought]\nuv is not installed. Let me install it first using pip.\n\n[Action]\npip install uv\n[Container ID: bf90236a2f3d]\nExecuting: pip install uv\nCommand succeeded.\n[Snapshot Created] sha256:9916f\n\n[Observation]\nCollecting uv\n  Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 2.3 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.13\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 3845, Output: 78, Total: 3923\n\n[Thought]\nuv is now installed. Let me install the project with its dev dependencies using uv sync with the dev group.\n\n[Action]\ncd /app && uv sync --group dev\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && uv sync --group dev\nCommand succeeded.\n[Snapshot Created] sha256:f01f9\n\n[Observation]\nUsing CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\nResolved 77 packages in 19ms\nDownloading numpy (17.1MiB)\nDownloading pillow (4.2MiB)\nDownloading mypy (12.0MiB)\nDownloading ruff (10.7MiB)\nDownloading pydantic-core (2.1MiB)\nDownloading sqlalchemy (3.1MiB)\nDownloading tiktoken (1.1MiB)\nDownloading aiohttp (1.6MiB)\n   Building docopt==0.6.2\n   Building pytest-watch==4.2.0\n Downloaded tiktoken\n Downloaded aiohttp\n Downloaded pydantic-core\n      Built pytest-watch==4.2.0\n      Built docopt==0.6.2\n Downloaded sqlalchemy\n Downloaded pillow\n Downloaded ruff\n Downloaded mypy\n Downloaded numpy\nPrepared 73 packages in 13.15s\nInstalled 73 packages in 69ms\n + aiohappyeyeballs==2.4.4\n + aiohttp==3.11.10\n + aiosignal==1.3.1\n + annotated-types==0.7.0\n + anthropic==0.40.0\n + anyio==4.7.0\n + attrs==24.2.0\n + certifi==2024.8.30\n + charset-normalizer==3.4.0\n + colorama==0.4.6\n + defusedxml==0.7.1\n + distro==1.9.0\n + docopt==0.6.2\n + dydantic==0.0.7\n + execnet==2.1.1\n + fireworks-ai==0.15.10\n + frozenlist==1.5.0\n + greenlet==3.1.1\n + h11==0.14.0\n + httpcore==1.0.7\n + httpx==0.28.1\n + httpx-sse==0.4.0\n + httpx-ws==0.7.0\n + idna==3.10\n + iniconfig==2.0.0\n + jiter==0.8.2\n + jsonpatch==1.33\n + jsonpointer==3.0.0\n + langchain==0.3.11\n + langchain-anthropic==0.3.0\n + langchain-core==0.3.24\n + langchain-fireworks==0.2.5\n + langchain-openai==0.2.12\n + langchain-text-splitters==0.3.2\n + langgraph==0.2.58\n + langgraph-checkpoint==2.0.8\n + langgraph-sdk==0.1.43\n + langsmith==0.2.2\n + msgpack==1.1.0\n + multidict==6.1.0\n + mypy==1.13.0\n + mypy-extensions==1.0.0\n + numpy==1.26.4\n + openai==1.57.2\n + orjson==3.10.12\n + packaging==24.2\n + pillow==11.0.0\n + pluggy==1.5.0\n + propcache==0.2.1\n + pydantic==2.10.3\n + pydantic-core==2.27.1\n + pytest==8.3.4\n + pytest-asyncio-cooperative==0.37.0\n + pytest-socket==0.7.0\n + pytest-watch==4.2.0\n + pytest-xdist==3.6.1\n + pyyaml==6.0.2\n + regex==2024.11.6\n + requests==2.32.3\n + requests-toolbelt==1.0.0\n + ruff==0.8.2\n + sniffio==1.3.1\n + sqlalchemy==2.0.36\n + tenacity==9.0.0\n + tiktoken==0.8.0\n + tqdm==4.67.1\n + typing-extensions==4.12.2\n + urllib3==1.26.20\n + vcrpy==6.0.2\n + watchdog==6.0.0\n + wrapt==1.17.0\n + wsproto==1.2.0\n + yarl==1.18.3\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4873, Output: 65, Total: 4938\n\n[Thought]\nDependencies are installed successfully. Now let me run the pytest collection command to verify that tests can be collected.\n\n[Action]\ncd /app && uv run pytest --collect-only -q --disable-warnings\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && uv run pytest --collect-only -q --disable-warnings\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 3 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 0 items / 3 errors\n\n==================================== ERRORS ====================================\n__________________ ERROR collecting tests/evals/test_evals.py __________________\nImportError while importing test module '/app/tests/evals/test_evals.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/evals/test_evals.py:15: in <module>\n    from trustcall import ExtractionInputs, ExtractionOutputs, create_extractor\nE   ModuleNotFoundError: No module named 'trustcall'\n_____________ ERROR collecting tests/unit_tests/test_extraction.py _____________\nImportError while importing test module '/app/tests/unit_tests/test_extraction.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_extraction.py:18: in <module>\n    from trustcall._base import (\nE   ModuleNotFoundError: No module named 'trustcall'\n_______________ ERROR collecting tests/unit_tests/test_utils.py ________________\nImportError while importing test module '/app/tests/unit_tests/test_utils.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_utils.py:8: in <module>\n    from trustcall._base import _convert_any_typed_dicts_to_pydantic\nE   ModuleNotFoundError: No module named 'trustcall'\n=========================== short test summary info ============================\nERROR tests/evals/test_evals.py\nERROR tests/unit_tests/test_extraction.py\nERROR tests/unit_tests/test_utils.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!\n==================== no tests collected, 3 errors in 1.01s =====================\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 9 ====================\n\n[Tokens] Input: 5538, Output: 181, Total: 5719\n\n[Thought]\nThe trustcall module is not being found. Let me check the trustcall directory structure and see if it needs to be installed differently.\n\n[Action]\nls -la /app/trustcall/\n[Container ID: bf90236a2f3d]\nExecuting: ls -la /app/trustcall/\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 64\ndrwxr-xr-x  2  501 dialout  4096 May 12 07:06 .\ndrwxr-xr-x 10 root root     4096 May 12 07:09 ..\n-rw-r--r--  1  501 dialout   488 May 12 07:06 __init__.py\n-rw-r--r--  1  501 dialout 50521 May 12 07:06 _base.py\n-rw-r--r--  1  501 dialout     0 May 12 07:06 py.typed\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 5724, Output: 227, Total: 5951\n\n[Thought]\nThe trustcall module exists but wasn't installed properly. The project uses a workspace setup. Let me install it in editable mode.\n\n[Action]\ncd /app && pip install -e .\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && pip install -e .\nCommand succeeded.\n[Snapshot Created] sha256:20759\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting langgraph>=0.2.25 (from trustcall==0.0.26)\n  Downloading langgraph-1.2.0-py3-none-any.whl.metadata (8.0 kB)\nCollecting dydantic<1.0.0,>=0.0.7 (from trustcall==0.0.26)\n  Downloading dydantic-0.0.8-py3-none-any.whl.metadata (3.6 kB)\nCollecting jsonpatch<2.0,>=1.33 (from trustcall==0.0.26)\n  Downloading jsonpatch-1.33-py2.py3-none-any.whl.metadata (3.0 kB)\nCollecting pydantic<3,>=2 (from dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n  Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\nCollecting jsonpointer>=1.9 (from jsonpatch<2.0,>=1.33->trustcall==0.0.26)\n  Downloading jsonpointer-3.1.1-py3-none-any.whl.metadata (2.4 kB)\nCollecting langchain-core<2,>=1.4.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langchain_core-1.4.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting langgraph-checkpoint<5.0.0,>=4.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langgraph_checkpoint-4.1.0-py3-none-any.whl.metadata (5.2 kB)\nCollecting langgraph-prebuilt<1.2.0,>=1.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langgraph_prebuilt-1.1.0-py3-none-any.whl.metadata (5.2 kB)\nCollecting langgraph-sdk<0.4.0,>=0.3.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langgraph_sdk-0.3.14-py3-none-any.whl.metadata (1.7 kB)\nCollecting xxhash>=3.5.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\nCollecting langchain-protocol>=0.0.14 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langchain_protocol-0.0.15-py3-none-any.whl.metadata (2.4 kB)\nCollecting langsmith<1.0.0,>=0.3.45 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading langsmith-0.8.3-py3-none-any.whl.metadata (15 kB)\nCollecting packaging>=23.2.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pyyaml<7.0.0,>=5.3.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\nCollecting tenacity!=8.4.0,<10.0.0,>=8.1.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\nCollecting typing-extensions<5.0.0,>=4.7.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting uuid-utils<1.0,>=0.12.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.5 kB)\nCollecting ormsgpack>=1.12.0 (from langgraph-checkpoint<5.0.0,>=4.1.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)\nCollecting httpx>=0.25.2 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting orjson>=3.11.5 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (41 kB)\nCollecting annotated-types>=0.6.0 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\nCollecting pydantic-core==2.46.4 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n  Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\nCollecting typing-inspection>=0.4.2 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\nCollecting anyio (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting certifi (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting httpcore==1.* (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting idna (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading idna-3.14-py3-none-any.whl.metadata (8.0 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting requests-toolbelt>=1.0.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\nCollecting requests>=2.0.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading requests-2.34.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting zstandard>=0.23.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)\nCollecting charset_normalizer<4,>=2 (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting urllib3<3,>=1.26 (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nDownloading dydantic-0.0.8-py3-none-any.whl (8.6 kB)\nDownloading jsonpatch-1.33-py2.py3-none-any.whl (12 kB)\nDownloading langgraph-1.2.0-py3-none-any.whl (234 kB)\nDownloading jsonpointer-3.1.1-py3-none-any.whl (7.7 kB)\nDownloading langchain_core-1.4.0-py3-none-any.whl (548 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 548.1/548.1 kB 806.4 kB/s eta 0:00:00\nDownloading langgraph_checkpoint-4.1.0-py3-none-any.whl (56 kB)\nDownloading langgraph_prebuilt-1.1.0-py3-none-any.whl (41 kB)\nDownloading langgraph_sdk-0.3.14-py3-none-any.whl (97 kB)\nDownloading pydantic-2.13.4-py3-none-any.whl (472 kB)\nDownloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 1.3 MB/s eta 0:00:00\nDownloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading langchain_protocol-0.0.15-py3-none-any.whl (7.0 kB)\nDownloading langsmith-0.8.3-py3-none-any.whl (399 kB)\nDownloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (134 kB)\nDownloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (212 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 1.7 MB/s eta 0:00:00\nDownloading tenacity-9.1.4-py3-none-any.whl (28 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nDownloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (324 kB)\nDownloading requests-2.34.0-py3-none-any.whl (73 kB)\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\nDownloading idna-3.14-py3-none-any.whl (72 kB)\nDownloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\nDownloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 1.6 MB/s eta 0:00:00\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\nBuilding wheels for collected packages: trustcall\n  Building editable for trustcall (pyproject.toml): started\n  Building editable for trustcall (pyproject.toml): finished with status 'done'\n  Created wheel for trustcall: filename=trustcall-0.0.26-0.editable-py3-none-any.whl size=12982 sha256=a6c1c86da782072e68677d0ca912286d00dda33efd350be2662ab0b79d967146\n  Stored in directory: /tmp/pip-ephem-wheel-cache-98_cgh6k/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\nSuccessfully built trustcall\nInstalling collected packages: zstandard, xxhash, uuid-utils, urllib3, typing-extensions, tenacity, pyyaml, packaging, ormsgpack, orjson, jsonpointer, idna, h11, charset_normalizer, certifi, annotated-types, typing-inspection, requests, pydantic-core, langchain-protocol, jsonpatch, httpcore, anyio, requests-toolbelt, pydantic, httpx, langsmith, langgraph-sdk, dydantic, langchain-core, langgraph-checkpoint, langgraph-prebuilt, langgraph, trustcall\nSuccessfully installed annotated-types-0.7.0 anyio-4.13.0 certifi-2026.4.22 charset_normalizer-3.4.7 dydantic-0.0.8 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.14 jsonpatch-1.33 jsonpointer-3.1.1 langchain-core-1.4.0 langchain-protocol-0.0.15 langgraph-1.2.0 langgraph-checkpoint-4.1.0 langgraph-prebuilt-1.1.0 langgraph-sdk-0.3.14 langsmith-0.8.3 orjson-3.11.9 ormsgpack-1.12.2 packaging-26.2 pydantic-2.13.4 pydantic-core-2.46.4 pyyaml-6.0.3 requests-2.34.0 requests-toolbelt-1.0.0 tenacity-9.1.4 trustcall-0.0.26 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 uuid-utils-0.15.0 xxhash-3.7.0 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 9722, Output: 69, Total: 9791\n\n[Thought]\nThe trustcall package is now installed. Let me run pytest collection again to verify that tests can be collected.\n\n[Action]\ncd /app && uv run pytest --collect-only -q --disable-warnings\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && uv run pytest --collect-only -q --disable-warnings\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] ⚠️  TEST FAILURE DETECTED: 3 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 0 items / 3 errors\n\n==================================== ERRORS ====================================\n__________________ ERROR collecting tests/evals/test_evals.py __________________\nImportError while importing test module '/app/tests/evals/test_evals.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/evals/test_evals.py:15: in <module>\n    from trustcall import ExtractionInputs, ExtractionOutputs, create_extractor\nE   ModuleNotFoundError: No module named 'trustcall'\n_____________ ERROR collecting tests/unit_tests/test_extraction.py _____________\nImportError while importing test module '/app/tests/unit_tests/test_extraction.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_extraction.py:18: in <module>\n    from trustcall._base import (\nE   ModuleNotFoundError: No module named 'trustcall'\n_______________ ERROR collecting tests/unit_tests/test_utils.py ________________\nImportError while importing test module '/app/tests/unit_tests/test_utils.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_utils.py:8: in <module>\n    from trustcall._base import _convert_any_typed_dicts_to_pydantic\nE   ModuleNotFoundError: No module named 'trustcall'\n=========================== short test summary info ============================\nERROR tests/evals/test_evals.py\nERROR tests/unit_tests/test_extraction.py\nERROR tests/unit_tests/test_utils.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!\n==================== no tests collected, 3 errors in 0.50s =====================\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 12 ====================\n\n[Tokens] Input: 10388, Output: 138, Total: 10526\n\n[Thought]\nThe issue is that `uv run` uses the virtual environment created by uv, but trustcall was installed via pip -e . in the global Python. Let me check where trustcall is installed and ensure the tests can use it.\n\n[Action]\npython -c \"import trustcall; print(trustcall.__file__)\"\n[Container ID: bf90236a2f3d]\nExecuting: python -c \"import trustcall; print(trustcall.__file__)\"\nCommand succeeded.\n[Snapshot Created] sha256:f2564\n\n[Observation]\n/app/trustcall/__init__.py\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 6758, Output: 189, Total: 6947\n\n[Thought]\nThe issue is that uv creates its own virtual environment, but trustcall was installed via pip -e . in the system Python. Let me reinstall trustcall using uv to make it available in the uv-managed venv.\n\n[Action]\ncd /app && uv pip install -e .\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && uv pip install -e .\nCommand succeeded.\n[Snapshot Created] sha256:2115d\n\n[Observation]\nResolved 29 packages in 2.64s\n   Building trustcall @ file:///app\n      Built trustcall @ file:///app\nPrepared 1 package in 681ms\nInstalled 1 package in 1ms\n + trustcall==0.0.26 (from file:///app)\n\n\n==================== Step 14 ====================\n\n[Tokens] Input: 6557, Output: 63, Total: 6620\n\n[Thought]\ntrustcall is now installed in the uv-managed environment. Let me run pytest collection again.\n\n[Action]\ncd /app && uv run pytest --collect-only -q --disable-warnings\n[Container ID: bf90236a2f3d]\nExecuting: cd /app && uv run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:8be96\n\n[Observation]\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... /app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n  teardown[0].send(outcome)\nRuntimeWarning: Enable tracemalloc to get the object allocation traceback\ncollected 110 items\n\n<Dir app>\n  <Dir tests>\n    <Package evals>\n      <Module test_evals.py>\n        <Function test_model[gpt-4o]>\n        <Function test_model[gpt-4o-mini]>\n        <Function test_model[claude-3-5-sonnet-20240620]>\n        <Function test_simple>\n        <Function test_multi_tool>\n    <Package unit_tests>\n      <Module test_extraction.py>\n        <Function test_extraction_with_retries[list-patches0-typeddict]>\n        <Function test_extraction_with_retries[list-patches0-fn]>\n        <Function test_extraction_with_retries[list-patches0-tool]>\n        <Function test_extraction_with_retries[list-patches0-schema]>\n        <Function test_extraction_with_retries[list-patches0-model]>\n        <Function test_extraction_with_retries[list-patches0-injected_fn]>\n        <Function test_extraction_with_retries[list-patches0-injected_tool]>\n        <Function test_extraction_with_retries[list-patches1-typeddict]>\n        <Function test_extraction_with_retries[list-patches1-fn]>\n        <Function test_extraction_with_retries[list-patches1-tool]>\n        <Function test_extraction_with_retries[list-patches1-schema]>\n        <Function test_extraction_with_retries[list-patches1-model]>\n        <Function test_extraction_with_retries[list-patches1-injected_fn]>\n        <Function test_extraction_with_retries[list-patches1-injected_tool]>\n        <Function test_extraction_with_retries[list-patches2-typeddict]>\n        <Function test_extraction_with_retries[list-patches2-fn]>\n        <Function test_extraction_with_retries[list-patches2-tool]>\n        <Function test_extraction_with_retries[list-patches2-schema]>\n        <Function test_extraction_with_retries[list-patches2-model]>\n        <Function test_extraction_with_retries[list-patches2-injected_fn]>\n        <Function test_extraction_with_retries[list-patches2-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches0-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches0-model]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches1-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches1-model]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches2-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches2-model]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_tool]>\n        <Function test_extraction_with_retries[state-patches0-typeddict]>\n        <Function test_extraction_with_retries[state-patches0-fn]>\n        <Function test_extraction_with_retries[state-patches0-tool]>\n        <Function test_extraction_with_retries[state-patches0-schema]>\n        <Function test_extraction_with_retries[state-patches0-model]>\n        <Function test_extraction_with_retries[state-patches0-injected_fn]>\n        <Function test_extraction_with_retries[state-patches0-injected_tool]>\n        <Function test_extraction_with_retries[state-patches1-typeddict]>\n        <Function test_extraction_with_retries[state-patches1-fn]>\n        <Function test_extraction_with_retries[state-patches1-tool]>\n        <Function test_extraction_with_retries[state-patches1-schema]>\n        <Function test_extraction_with_retries[state-patches1-model]>\n        <Function test_extraction_with_retries[state-patches1-injected_fn]>\n        <Function test_extraction_with_retries[state-patches1-injected_tool]>\n        <Function test_extraction_with_retries[state-patches2-typeddict]>\n        <Function test_extraction_with_retries[state-patches2-fn]>\n        <Function test_extraction_with_retries[state-patches2-tool]>\n        <Function test_extraction_with_retries[state-patches2-schema]>\n        <Function test_extraction_with_retries[state-patches2-model]>\n        <Function test_extraction_with_retries[state-patches2-injected_fn]>\n        <Function test_extraction_with_retries[state-patches2-injected_tool]>\n        <Function test_patch_existing[patches0-True-existing0-fn]>\n        <Function test_patch_existing[patches0-True-existing0-tool]>\n        <Function test_patch_existing[patches0-True-existing0-schema]>\n        <Function test_patch_existing[patches0-True-existing0-model]>\n        <Function test_patch_existing[patches0-False-existing1-fn]>\n        <Function test_patch_existing[patches0-False-existing1-tool]>\n        <Function test_patch_existing[patches0-False-existing1-schema]>\n        <Function test_patch_existing[patches0-False-existing1-model]>\n        <Function test_patch_existing[patches1-True-existing0-fn]>\n        <Function test_patch_existing[patches1-True-existing0-tool]>\n        <Function test_patch_existing[patches1-True-existing0-schema]>\n        <Function test_patch_existing[patches1-True-existing0-model]>\n        <Function test_patch_existing[patches1-False-existing1-fn]>\n        <Function test_patch_existing[patches1-False-existing1-tool]>\n        <Function test_patch_existing[patches1-False-existing1-schema]>\n        <Function test_patch_existing[patches1-False-existing1-model]>\n        <Function test_patch_existing[patches2-True-existing0-fn]>\n        <Function test_patch_existing[patches2-True-existing0-tool]>\n        <Function test_patch_existing[patches2-True-existing0-schema]>\n        <Function test_patch_existing[patches2-True-existing0-model]>\n        <Function test_patch_existing[patches2-False-existing1-fn]>\n        <Function test_patch_existing[patches2-False-existing1-tool]>\n        <Function test_patch_existing[patches2-False-existing1-schema]>\n        <Function test_patch_existing[patches2-False-existing1-model]>\n        <Function test_patch_existing[patches3-True-existing0-fn]>\n        <Function test_patch_existing[patches3-True-existing0-tool]>\n        <Function test_patch_existing[patches3-True-existing0-schema]>\n        <Function test_patch_existing[patches3-True-existing0-model]>\n        <Function test_patch_existing[patches3-False-existing1-fn]>\n        <Function test_patch_existing[patches3-False-existing1-tool]>\n        <Function test_patch_existing[patches3-False-existing1-schema]>\n        <Function test_patch_existing[patches3-False-existing1-model]>\n        <Function test_validate_existing[existing0-tools0-True]>\n        <Function test_validate_existing[existing1-tools1-False]>\n        <Function test_validate_existing[existing2-tools2-True]>\n        <Function test_validate_existing[existing3-tools3-False]>\n        <Function test_validate_existing[existing4-tools4-True]>\n        <Function test_validate_existing[existing5-tools5-False]>\n        <Function test_validate_existing[invalid_type-tools6-False]>\n      <Module test_utils.py>\n        <Function test_convert_any_typed_dicts_to_pydantic>\n        <Function test_nested_typed_dict_conversion>\n        <Function test_recursive_typed_dict_conversion>\n\n========================= 110 tests collected in 0.52s =========================\n\n\n==================== Step 15 ====================\n\n[Tokens] Input: 8733, Output: 147, Total: 8880\n\n[Finished] Agent has reached a conclusion.\n<think>\nExcellent! The pytest collection succeeded - 110 tests were collected. The environment is now properly configured. \n\nThe RuntimeWarning about a coroutine not being awaited is just a warning and doesn't affect test collection. The tests are all collected successfully.\n\nLet me provide the final verification bundle.\n</think>\n\nThought: Pytest collection succeeded with 110 tests collected. The environment is properly configured with all dependencies installed via uv and the trustcall package installed in editable mode. The RuntimeWarning about a coroutine is a minor issue that doesn't affect test collection.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"cd /app && uv run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 5 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/hinthornw__trustcall.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/hinthornw/trustcall.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 404\ndrwxr-xr-x 8 root root      4096 May 12 07:08 .\ndrwxr-xr-x 1 root root      4096 May 12 07:08 ..\ndrwxr-xr-x 7  501 dialout   4096 May 12 07:06 .git\ndrwxr-xr-x 3  501 dialout   4096 May 12 07:06 .github\n-rw-r--r-- 1  501 dialout   3139 May 12 07:06 .gitignore\n-rw-r--r-- 1  501 dialout   1067 May 12 07:06 LICENSE\n-rw-r--r-- 1  501 dialout    957 May 12 07:06 Makefile\n-rw-r--r-- 1  501 dialout  29231 May 12 07:06 README.md\ndrwxr-xr-x 2  501 dialout   4096 May 12 07:06 _static\ndrwxr-xr-x 3  501 dialout   4096 May 12 07:06 logs\n-rw-r--r-- 1  501 dialout   1858 May 12 07:06 pyproject.toml\ndrwxr-xr-x 5  501 dialout   4096 May 12 07:06 tests\ndrwxr-xr-x 2  501 dialout   4096 May 12 07:06 trustcall\n-rw-r--r-- 1  501 dialout 328329 May 12 07:06 uv.lock\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat /app/pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nauthors = [\n    { name = \"William Fu-Hinthorn\", email = \"13333726+hinthornw@users.noreply.github.com\" },\n]\nlicense = { text = \"MIT\" }\nrequires-python = \"<4.0,>=3.10\"\ndependencies = [\n    \"langgraph>=0.2.25\",\n    \"dydantic<1.0.0,>=0.0.7\",\n    \"jsonpatch<2.0,>=1.33\",\n]\nname = \"trustcall\"\nversion = \"0.0.26\"\ndescription = \"Tenacious & trustworthy tool calling built on LangGraph.\"\nreadme = \"README.md\"\n\n\n[dependency-groups]\ndev = [\n    \"ruff<1.0.0,>=0.4.10\",\n    \"mypy<2.0.0,>=1.10.1\",\n    \"pytest<9.0.0,>=8.2.2\",\n    \"pytest-socket<1.0.0,>=0.7.0\",\n    \"langchain<1.0,>=0.3\",\n    \"langchain-o\n... (658 chars omitted for recipe synthesis) ...\nrmat = true\ndocstring-code-line-length = 80\n\n[tool.pytest.ini_options]\n# --strict-markers will raise errors on unknown marks.\n# https://docs.pytest.org/en/7.1.x/how-to/mark.html#raising-errors-on-unknown-marks\n#\n# https://docs.pytest.org/en/7.1.x/reference/reference.html\n# --strict-config       any warnings encountered while parsing the `pytest`\n#                       section of the configuration file raise errors.\naddopts = \"--strict-markers --strict-config --durations=5 -vv\"\n\n\n[tool.uv.sources]\ntrustcall = { workspace = true }\n\n[tool.pytest-watcher]\nnow = true\ndelay = 3\npatterns = [\"*.py\"]\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install uv",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting uv\n  Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 2.3 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.13\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 7,
+        "command": "cd /app && uv sync --group dev",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\nResolved 77 packages in 19ms\nDownloading numpy (17.1MiB)\nDownloading pillow (4.2MiB)\nDownloading mypy (12.0MiB)\nDownloading ruff (10.7MiB)\nDownloading pydantic-core (2.1MiB)\nDownloading sqlalchemy (3.1MiB)\nDownloading tiktoken (1.1MiB)\nDownloading aiohttp (1.6MiB)\n   Building docopt==0.6.2\n   Building pytest-watch==4.2.0\n Downloaded tiktoken\n Downloaded aiohttp\n Downloaded pydantic-core\n      Built pytest-watch==4.2.0\n      Built docopt==0.6.2\n Downloaded sqlalchemy\n Downloaded pillow\n Downloade\n... (1032 chars omitted for recipe synthesis) ...\n=1.57.2\n + orjson==3.10.12\n + packaging==24.2\n + pillow==11.0.0\n + pluggy==1.5.0\n + propcache==0.2.1\n + pydantic==2.10.3\n + pydantic-core==2.27.1\n + pytest==8.3.4\n + pytest-asyncio-cooperative==0.37.0\n + pytest-socket==0.7.0\n + pytest-watch==4.2.0\n + pytest-xdist==3.6.1\n + pyyaml==6.0.2\n + regex==2024.11.6\n + requests==2.32.3\n + requests-toolbelt==1.0.0\n + ruff==0.8.2\n + sniffio==1.3.1\n + sqlalchemy==2.0.36\n + tenacity==9.0.0\n + tiktoken==0.8.0\n + tqdm==4.67.1\n + typing-extensions==4.12.2\n + urllib3==1.26.20\n + vcrpy==6.0.2\n + watchdog==6.0.0\n + wrapt==1.17.0\n + wsproto==1.2.0\n + yarl==1.18.3\n"
+      },
+      {
+        "step_index": 9,
+        "command": "ls -la /app/trustcall/",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 64\ndrwxr-xr-x  2  501 dialout  4096 May 12 07:06 .\ndrwxr-xr-x 10 root root     4096 May 12 07:09 ..\n-rw-r--r--  1  501 dialout   488 May 12 07:06 __init__.py\n-rw-r--r--  1  501 dialout 50521 May 12 07:06 _base.py\n-rw-r--r--  1  501 dialout     0 May 12 07:06 py.typed\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cd /app && pip install -e .",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting langgraph>=0.2.25 (from trustcall==0.0.26)\n  Downloading langgraph-1.2.\n... (9852 chars omitted for recipe synthesis) ...\ncall-0.0.26 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 uuid-utils-0.15.0 xxhash-3.7.0 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 12,
+        "command": "python -c \"import trustcall; print(trustcall.__file__)\"",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app/trustcall/__init__.py\n"
+      },
+      {
+        "step_index": 13,
+        "command": "cd /app && uv pip install -e .",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Resolved 29 packages in 2.64s\n   Building trustcall @ file:///app\n      Built trustcall @ file:///app\nPrepared 1 package in 681ms\nInstalled 1 package in 1ms\n + trustcall==0.0.26 (from file:///app)\n"
+      },
+      {
+        "step_index": 14,
+        "command": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... /app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n  teardown[0].send(outcome)\nRuntimeWarning: Enable tracemalloc to get the object allocation traceback\ncollected 110 items\n\n<Dir app>\n  <Dir tests>\n    <Pa\n... (7351 chars omitted for recipe synthesis) ...\nnction test_validate_existing[existing2-tools2-True]>\n        <Function test_validate_existing[existing3-tools3-False]>\n        <Function test_validate_existing[existing4-tools4-True]>\n        <Function test_validate_existing[existing5-tools5-False]>\n        <Function test_validate_existing[invalid_type-tools6-False]>\n      <Module test_utils.py>\n        <Function test_convert_any_typed_dicts_to_pydantic>\n        <Function test_nested_typed_dict_conversion>\n        <Function test_recursive_typed_dict_conversion>\n\n========================= 110 tests collected in 0.52s =========================\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat hinthornw__trustcall/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: hinthornw__trustcall/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "which uv && uv --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 5,
+        "command": "which uv",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 8,
+        "command": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 3 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 0 items / 3 errors\n\n===================\n... (1414 chars omitted for recipe synthesis) ...\nimport_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_utils.py:8: in <module>\n    from trustcall._base import _convert_any_typed_dicts_to_pydantic\nE   ModuleNotFoundError: No module named 'trustcall'\n=========================== short test summary info ============================\nERROR tests/evals/test_evals.py\nERROR tests/unit_tests/test_extraction.py\nERROR tests/unit_tests/test_utils.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!\n==================== no tests collected, 3 errors in 1.01s =====================\n"
+      },
+      {
+        "step_index": 11,
+        "command": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 3 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 0 items / 3 errors\n\n===================\n... (1414 chars omitted for recipe synthesis) ...\nimport_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/unit_tests/test_utils.py:8: in <module>\n    from trustcall._base import _convert_any_typed_dicts_to_pydantic\nE   ModuleNotFoundError: No module named 'trustcall'\n=========================== short test summary info ============================\nERROR tests/evals/test_evals.py\nERROR tests/unit_tests/test_extraction.py\nERROR tests/unit_tests/test_utils.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!\n==================== no tests collected, 3 errors in 0.50s =====================\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && uv run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install uv",
+        "cd /app && uv sync --group dev",
+        "cd /app && pip install -e .",
+        "cd /app && uv pip install -e .",
+        "cd /app && uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "pwd && ls -la: read-only directory inspection",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/pyproject.toml: read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /app/trustcall/: read-only directory inspection",
+          "reason": ""
+        },
+        {
+          "command": "which uv && uv --version: read-only version check (rejected by system, no execution)",
+          "reason": ""
+        },
+        {
+          "command": "which uv: read-only version check (no output)",
+          "reason": ""
+        },
+        {
+          "command": "python -c \"import trustcall; print(trustcall.__file__)\": read-only import verification",
+          "reason": ""
+        },
+        {
+          "command": "cd /app && pip install -e .: failed attempt - installed to system Python instead of uv venv",
+          "reason": ""
+        },
+        {
+          "command": "cat hinthornw__trustcall/pyproject.toml: failed read-only attempt (wrong path)",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful setup trajectory requires three state-changing commands in sequence: (1) pip install uv to bootstrap the uv package manager, (2) uv sync --group dev to create the uv virtual environment and install all dev dependencies (pytest, ruff, mypy, etc.) from pyproject.toml, and (3) uv pip install -e . to install the trustcall package itself in editable mode into the uv-managed venv. This last step is critical because a prior attempt with system pip install -e . installed trustcall to system Python where it was importable but invisible to pytest running via 'uv run' which uses the uv venv. The final verification command confirms 110 tests are collectible. All read-only exploration, version probes, and failed attempts are excluded.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 5,
+      "compressed_steps": 3,
+      "saved_tokens_est": 3023
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat hinthornw__trustcall/pyproject.toml",
+        "success": false,
+        "raw_chars": 68,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 767,
+        "raw_tokens_est": 191,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat /app/pyproject.toml",
+        "success": true,
+        "raw_chars": 1858,
+        "raw_tokens_est": 464,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 218,
+        "reflect_input_tokens": 1730,
+        "reflect_output_tokens": 665
+      },
+      {
+        "step_id": 4,
+        "action": "which uv && uv --version",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "which uv",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install uv",
+        "success": true,
+        "raw_chars": 824,
+        "raw_tokens_est": 206,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "cd /app && uv sync --group dev",
+        "success": true,
+        "raw_chars": 2232,
+        "raw_tokens_est": 558,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 93,
+        "reflect_input_tokens": 2638,
+        "reflect_output_tokens": 1112
+      },
+      {
+        "step_id": 8,
+        "action": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "raw_chars": 2614,
+        "raw_tokens_est": 653,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 428,
+        "reflect_input_tokens": 6745,
+        "reflect_output_tokens": 388
+      },
+      {
+        "step_id": 9,
+        "action": "ls -la /app/trustcall/",
+        "success": true,
+        "raw_chars": 274,
+        "raw_tokens_est": 68,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "cd /app && pip install -e .",
+        "success": true,
+        "raw_chars": 11052,
+        "raw_tokens_est": 2763,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2260,
+        "reflect_input_tokens": 5783,
+        "reflect_output_tokens": 791
+      },
+      {
+        "step_id": 11,
+        "action": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": false,
+        "raw_chars": 2614,
+        "raw_tokens_est": 653,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 335,
+        "reflect_input_tokens": 1990,
+        "reflect_output_tokens": 516
+      },
+      {
+        "step_id": 12,
+        "action": "python -c \"import trustcall; print(trustcall.__file__)\"",
+        "success": true,
+        "raw_chars": 27,
+        "raw_tokens_est": 6,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "cd /app && uv pip install -e .",
+        "success": true,
+        "raw_chars": 197,
+        "raw_tokens_est": 49,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 14,
+        "action": "cd /app && uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 8551,
+        "raw_tokens_est": 2137,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 20634,
+        "output_tokens": 4741,
+        "total_tokens": 25375
+      },
+      "planner": {
+        "input_tokens": 79947,
+        "output_tokens": 1645,
+        "total_tokens": 81592
+      },
+      "reflection": {
+        "input_tokens": 18886,
+        "output_tokens": 3472,
+        "total_tokens": 22358
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 14404,
+        "output_tokens": 2376,
+        "total_tokens": 16780
+      },
+      "total": {
+        "input_tokens": 133871,
+        "output_tokens": 12234,
+        "total_tokens": 146105
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+    "base_commit": "eaaaad",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/hinthornw__trustcall /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-12T15:12:27.200503+08:00",
+      "finished_at": "2026-05-12T15:12:27.264951+08:00",
+      "duration_seconds": 0.064,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context'...\n完成。\n注意：正在切换到 'eaaaad1f8dfc1eba22cede42b3a9bf8be99ec9d0'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "eaaaad"
+      ],
+      "command_shell": "git checkout --force eaaaad",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-12T15:12:27.265021+08:00",
+      "finished_at": "2026-05-12T15:12:27.318384+08:00",
+      "duration_seconds": 0.053,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 eaaaad1 Migrate to UV (#22)\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-12T15:12:27.319127+08:00",
+      "finished_at": "2026-05-12T15:12:27.325090+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_uv_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "uv run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-hinthornw__trustcall",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval -t jayint-repo2run-hinthornw__trustcall /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-12T15:12:27.343924+08:00",
+    "finished_at": "2026-05-12T15:13:13.781721+08:00",
+    "duration_seconds": 46.438,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.41kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [ 1/10] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 17.21MB 0.7s done\n#5 DONE 0.7s\n\n#6 [ 2/10] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [ 3/10] WORKDIR /app\n#7 CACHED\n\n#8 [ 4/10] COPY . /app\n#8 DONE 0.4s\n\n#9 [ 5/10] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [ 6/10] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.455 Collecting uv\n#10 2.955   Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.076 Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 6.998    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.113 Installing collected packages: uv\n#10 7.581 Successfully installed uv-0.11.13\n#10 7.581 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 7.7s\n\n#11 [ 7/10] RUN cd /app && uv sync --group dev\n#11 0.513 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#11 0.514 Creating virtual environment at: .venv\n#11 0.558 Resolved 77 packages in 19ms\n#11 1.344 Downloading numpy (17.1MiB)\n#11 1.345 Downloading ruff (10.7MiB)\n#11 1.345 Downloading aiohttp (1.6MiB)\n#11 1.347 Downloading pydantic-core (2.1MiB)\n#11 1.347 Downloading mypy (12.0MiB)\n#11 1.348 Downloading sqlalchemy (3.1MiB)\n#11 1.355 Downloading pillow (4.2MiB)\n#11 1.355 Downloading tiktoken (1.1MiB)\n#11 3.108    Building pytest-watch==4.2.0\n#11 3.118    Building docopt==0.6.2\n#11 4.412  Downloaded tiktoken\n#11 4.920  Downloaded aiohttp\n#11 5.444  Downloaded pydantic-core\n#11 6.497  Downloaded sqlalchemy\n#11 6.942       Built docopt==0.6.2\n#11 6.943       Built pytest-watch==4.2.0\n#11 7.321  Downloaded pillow\n#11 10.48  Downloaded ruff\n#11 11.00  Downloaded mypy\n#11 12.09  Downloaded numpy\n#11 12.09 Prepared 73 packages in 11.51s\n#11 12.16 Installed 73 packages in 73ms\n#11 12.16  + aiohappyeyeballs==2.4.4\n#11 12.16  + aiohttp==3.11.10\n#11 12.16  + aiosignal==1.3.1\n#11 12.16  + annotated-types==0.7.0\n#11 12.16  + anthropic==0.40.0\n#11 12.16  + anyio==4.7.0\n#11 12.16  + attrs==24.2.0\n#11 12.16  + certifi==2024.8.30\n#11 12.16  + charset-normalizer==3.4.0\n#11 12.16  + colorama==0.4.6\n#11 12.16  + defusedxml==0.7.1\n#11 12.16  + distro==1.9.0\n#11 12.16  + docopt==0.6.2\n#11 12.16  + dydantic==0.0.7\n#11 12.16  + execnet==2.1.1\n#11 12.16  + fireworks-ai==0.15.10\n#11 12.16  + frozenlist==1.5.0\n#11 12.16  + greenlet==3.1.1\n#11 12.16  + h11==0.14.0\n#11 12.16  + httpcore==1.0.7\n#11 12.16  + httpx==0.28.1\n#11 12.16  + httpx-sse==0.4.0\n#11 12.16  + httpx-ws==0.7.0\n#11 12.16  + idna==3.10\n#11 12.16  + iniconfig==2.0.0\n#11 12.16  + jiter==0.8.2\n#11 12.16  + jsonpatch==1.33\n#11 12.16  + jsonpointer==3.0.0\n#11 12.16  + langchain==0.3.11\n#11 12.16  + langchain-anthropic==0.3.0\n#11 12.16  + langchain-core==0.3.24\n#11 12.16  + langchain-fireworks==0.2.5\n#11 12.16  + langchain-openai==0.2.12\n#11 12.16  + langchain-text-splitters==0.3.2\n#11 12.16  + langgraph==0.2.58\n#11 12.16  + langgraph-checkpoint==2.0.8\n#11 12.16  + langgraph-sdk==0.1.43\n#11 12.16  + langsmith==0.2.2\n#11 12.16  + msgpack==1.1.0\n#11 12.16  + multidict==6.1.0\n#11 12.16  + mypy==1.13.0\n#11 12.16  + mypy-extensions==1.0.0\n#11 12.16  + numpy==1.26.4\n#11 12.16  + openai==1.57.2\n#11 12.16  + orjson==3.10.12\n#11 12.16  + packaging==24.2\n#11 12.16  + pillow==11.0.0\n#11 12.16  + pluggy==1.5.0\n#11 12.16  + propcache==0.2.1\n#11 12.16  + pydantic==2.10.3\n#11 12.16  + pydantic-core==2.27.1\n#11 12.16  + pytest==8.3.4\n#11 12.16  + pytest-asyncio-cooperative==0.37.0\n#11 12.16  + pytest-socket==0.7.0\n#11 12.16  + pytest-watch==4.2.0\n#11 12.16  + pytest-xdist==3.6.1\n#11 12.16  + pyyaml==6.0.2\n#11 12.16  + regex==2024.11.6\n#11 12.16  + requests==2.32.3\n#11 12.16  + requests-toolbelt==1.0.0\n#11 12.16  + ruff==0.8.2\n#11 12.16  + sniffio==1.3.1\n#11 12.16  + sqlalchemy==2.0.36\n#11 12.16  + tenacity==9.0.0\n#11 12.16  + tiktoken==0.8.0\n#11 12.16  + tqdm==4.67.1\n#11 12.16  + typing-extensions==4.12.2\n#11 12.16  + urllib3==1.26.20\n#11 12.16  + vcrpy==6.0.2\n#11 12.16  + watchdog==6.0.0\n#11 12.16  + wrapt==1.17.0\n#11 12.16  + wsproto==1.2.0\n#11 12.16  + yarl==1.18.3\n#11 DONE 12.4s\n\n#12 [ 8/10] RUN cd /app && pip install -e .\n#12 0.484 Obtaining file:///app\n#12 0.487   Installing build dependencies: started\n#12 2.713   Installing build dependencies: finished with status 'done'\n#12 2.715   Checking if build backend supports build_editable: started\n#12 2.886   Checking if build backend supports build_editable: finished with status 'done'\n#12 2.888   Getting requirements to build editable: started\n#12 3.085   Getting requirements to build editable: finished with status 'done'\n#12 3.086   Preparing editable metadata (pyproject.toml): started\n#12 3.282   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#12 4.022 Collecting langgraph>=0.2.25 (from trustcall==0.0.26)\n#12 5.454   Downloading langgraph-1.2.0-py3-none-any.whl.metadata (8.0 kB)\n#12 5.653 Collecting dydantic<1.0.0,>=0.0.7 (from trustcall==0.0.26)\n#12 5.778   Downloading dydantic-0.0.8-py3-none-any.whl.metadata (3.6 kB)\n#12 6.111 Collecting jsonpatch<2.0,>=1.33 (from trustcall==0.0.26)\n#12 6.238   Downloading jsonpatch-1.33-py2.py3-none-any.whl.metadata (3.0 kB)\n#12 6.527 Collecting pydantic<3,>=2 (from dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 6.651   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\n#12 6.906 Collecting jsonpointer>=1.9 (from jsonpatch<2.0,>=1.33->trustcall==0.0.26)\n#12 7.028   Downloading jsonpointer-3.1.1-py3-none-any.whl.metadata (2.4 kB)\n#12 7.199 Collecting langchain-core<2,>=1.4.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 7.510   Downloading langchain_core-1.4.0-py3-none-any.whl.metadata (4.5 kB)\n#12 7.650 Collecting langgraph-checkpoint<5.0.0,>=4.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 7.765   Downloading langgraph_checkpoint-4.1.0-py3-none-any.whl.metadata (5.2 kB)\n#12 7.894 Collecting langgraph-prebuilt<1.2.0,>=1.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.016   Downloading langgraph_prebuilt-1.1.0-py3-none-any.whl.metadata (5.2 kB)\n#12 8.163 Collecting langgraph-sdk<0.4.0,>=0.3.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.287   Downloading langgraph_sdk-0.3.14-py3-none-any.whl.metadata (1.7 kB)\n#12 8.490 Collecting xxhash>=3.5.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.601   Downloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\n#12 8.743 Collecting langchain-protocol>=0.0.14 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.062   Downloading langchain_protocol-0.0.15-py3-none-any.whl.metadata (2.4 kB)\n#12 9.257 Collecting langsmith<1.0.0,>=0.3.45 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.368   Downloading langsmith-0.8.3-py3-none-any.whl.metadata (15 kB)\n#12 9.386 Requirement already satisfied: packaging>=23.2.0 in /usr/local/lib/python3.12/site-packages (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (26.2)\n#12 9.530 Collecting pyyaml<7.0.0,>=5.3.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.652   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#12 9.781 Collecting tenacity!=8.4.0,<10.0.0,>=8.1.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.901   Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\n#12 9.916 Requirement already satisfied: typing-extensions<5.0.0,>=4.7.0 in /usr/local/lib/python3.12/site-packages (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (4.15.0)\n#12 10.09 Collecting uuid-utils<1.0,>=0.12.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 10.40   Downloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.5 kB)\n#12 10.58 Collecting ormsgpack>=1.12.0 (from langgraph-checkpoint<5.0.0,>=4.1.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 10.71   Downloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)\n#12 10.75 Requirement already satisfied: httpx>=0.25.2 in /usr/local/lib/python3.12/site-packages (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (0.28.1)\n#12 11.09 Collecting orjson>=3.11.5 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 11.21   Downloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (41 kB)\n#12 11.35 Collecting annotated-types>=0.6.0 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 11.46   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#12 12.00 Collecting pydantic-core==2.46.4 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 12.12   Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#12 12.24 Collecting typing-inspection>=0.4.2 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 12.36   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#12 12.38 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (4.13.0)\n#12 12.38 Requirement already satisfied: certifi in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (2026.4.22)\n#12 12.38 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (1.0.9)\n#12 12.39 Requirement already satisfied: idna in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (3.14)\n#12 12.39 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (0.16.0)\n#12 12.40 Requirement already satisfied: requests-toolbelt>=1.0.0 in /usr/local/lib/python3.12/site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (1.0.0)\n#12 12.40 Requirement already satisfied: requests>=2.0.0 in /usr/local/lib/python3.12/site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (2.34.0)\n#12 12.59 Collecting zstandard>=0.23.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 12.71   Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)\n#12 12.73 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (3.4.7)\n#12 12.73 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (2.7.0)\n#12 12.86 Downloading dydantic-0.0.8-py3-none-any.whl (8.6 kB)\n#12 13.00 Downloading jsonpatch-1.33-py2.py3-none-any.whl (12 kB)\n#12 13.13 Downloading langgraph-1.2.0-py3-none-any.whl (234 kB)\n#12 13.34 Downloading jsonpointer-3.1.1-py3-none-any.whl (7.7 kB)\n#12 13.47 Downloading langchain_core-1.4.0-py3-none-any.whl (548 kB)\n#12 13.55    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 548.1/548.1 kB 5.8 MB/s eta 0:00:00\n#12 13.67 Downloading langgraph_checkpoint-4.1.0-py3-none-any.whl (56 kB)\n#12 13.79 Downloading langgraph_prebuilt-1.1.0-py3-none-any.whl (41 kB)\n#12 13.92 Downloading langgraph_sdk-0.3.14-py3-none-any.whl (97 kB)\n#12 14.04 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#12 14.18 Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#12 14.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 9.6 MB/s eta 0:00:00\n#12 14.50 Downloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\n#12 14.66 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#12 14.81 Downloading langchain_protocol-0.0.15-py3-none-any.whl (7.0 kB)\n#12 14.93 Downloading langsmith-0.8.3-py3-none-any.whl (399 kB)\n#12 15.08 Downloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (134 kB)\n#12 15.22 Downloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (212 kB)\n#12 15.39 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#12 15.42    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 25.8 MB/s eta 0:00:00\n#12 15.60 Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#12 15.82 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#12 16.04 Downloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (324 kB)\n#12 16.24 Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)\n#12 17.00    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 7.0 MB/s eta 0:00:00\n#12 17.05 Building wheels for collected packages: trustcall\n#12 17.05   Building editable for trustcall (pyproject.toml): started\n#12 17.26   Building editable for trustcall (pyproject.toml): finished with status 'done'\n#12 17.26   Created wheel for trustcall: filename=trustcall-0.0.26-0.editable-py3-none-any.whl size=12982 sha256=85d73f2fad5ef09d872b3d657dcc60dc10ee6759f55582b10a7dc3c14528d042\n#12 17.26   Stored in directory: /tmp/pip-ephem-wheel-cache-0r4uixre/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#12 17.27 Successfully built trustcall\n#12 17.31 Installing collected packages: zstandard, xxhash, uuid-utils, typing-inspection, tenacity, pyyaml, pydantic-core, ormsgpack, orjson, langchain-protocol, jsonpointer, annotated-types, pydantic, jsonpatch, langsmith, langgraph-sdk, dydantic, langchain-core, langgraph-checkpoint, langgraph-prebuilt, langgraph, trustcall\n#12 18.28 Successfully installed annotated-types-0.7.0 dydantic-0.0.8 jsonpatch-1.33 jsonpointer-3.1.1 langchain-core-1.4.0 langchain-protocol-0.0.15 langgraph-1.2.0 langgraph-checkpoint-4.1.0 langgraph-prebuilt-1.1.0 langgraph-sdk-0.3.14 langsmith-0.8.3 orjson-3.11.9 ormsgpack-1.12.2 pydantic-2.13.4 pydantic-core-2.46.4 pyyaml-6.0.3 tenacity-9.1.4 trustcall-0.0.26 typing-inspection-0.4.2 uuid-utils-0.15.0 xxhash-3.7.0 zstandard-0.25.0\n#12 18.28 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 18.4s\n\n#13 [ 9/10] RUN cd /app && uv pip install -e .\n#13 2.250 Resolved 29 packages in 1.88s\n#13 2.264    Building trustcall @ file:///app\n#13 3.285       Built trustcall @ file:///app\n#13 3.312 Prepared 1 package in 1.05s\n#13 3.316 Installed 1 package in 4ms\n#13 3.317  + trustcall==0.0.26 (from file:///app)\n#13 DONE 3.3s\n\n#14 [10/10] RUN cd /app && uv run pytest --collect-only -q --disable-warnings\n#14 0.903 ============================= test session starts ==============================\n#14 0.903 platform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\n#14 0.903 cachedir: .pytest_cache\n#14 0.903 rootdir: /app\n#14 0.903 configfile: pyproject.toml\n#14 0.903 plugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\n#14 0.903 collecting ... /app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n#14 1.962   teardown[0].send(outcome)\n#14 1.962 RuntimeWarning: Enable tracemalloc to get the object allocation traceback\n#14 1.964 collected 110 items\n#14 1.964 \n#14 1.964 <Dir app>\n#14 1.964   <Dir tests>\n#14 1.964     <Package evals>\n#14 1.964       <Module test_evals.py>\n#14 1.964         <Function test_model[gpt-4o]>\n#14 1.964         <Function test_model[gpt-4o-mini]>\n#14 1.964         <Function test_model[claude-3-5-sonnet-20240620]>\n#14 1.964         <Function test_simple>\n#14 1.964         <Function test_multi_tool>\n#14 1.964     <Package unit_tests>\n#14 1.964       <Module test_extraction.py>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-injected_tool]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-model]>\n#14 1.964         <Function test_validate_existing[existing0-tools0-True]>\n#14 1.964         <Function test_validate_existing[existing1-tools1-False]>\n#14 1.964         <Function test_validate_existing[existing2-tools2-True]>\n#14 1.964         <Function test_validate_existing[existing3-tools3-False]>\n#14 1.964         <Function test_validate_existing[existing4-tools4-True]>\n#14 1.964         <Function test_validate_existing[existing5-tools5-False]>\n#14 1.964         <Function test_validate_existing[invalid_type-tools6-False]>\n#14 1.964       <Module test_utils.py>\n#14 1.964         <Function test_convert_any_typed_dicts_to_pydantic>\n#14 1.964         <Function test_nested_typed_dict_conversion>\n#14 1.964         <Function test_recursive_typed_dict_conversion>\n#14 1.964 \n#14 1.964 ========================= 110 tests collected in 1.06s =========================\n#14 DONE 2.1s\n\n#15 exporting to image\n#15 exporting layers\n#15 exporting layers 0.6s done\n#15 writing image sha256:9c5c872090f1a94f4f1bf40751647d84c0bf2517c27241a406c2df0322bd67d5 done\n#15 naming to docker.io/library/jayint-repo2run-hinthornw__trustcall done\n#15 DONE 0.6s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/ryeaknmqlji4lwclcmvwqm644\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-hinthornw__trustcall",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-hinthornw__trustcall sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-12T15:13:13.785622+08:00",
+          "finished_at": "2026-05-12T15:13:15.010047+08:00",
+          "duration_seconds": 1.224,
+          "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 110 items\n\n<Dir app>\n  <Dir tests>\n    <Package evals>\n      <Module test_evals.py>\n        <Function test_model[gpt-4o]>\n        <Function test_model[gpt-4o-mini]>\n        <Function test_model[claude-3-5-sonnet-20240620]>\n        <Function test_simple>\n        <Function test_multi_tool>\n    <Package unit_tests>\n      <Module test_extraction.py>\n        <Function test_extraction_with_retries[list-patches0-typeddict]>\n        <Function test_extraction_with_retries[list-patches0-fn]>\n        <Function test_extraction_with_retries[list-patches0-tool]>\n        <Function test_extraction_with_retries[list-patches0-schema]>\n        <Function test_extraction_with_retries[list-patches0-model]>\n        <Function test_extraction_with_retries[list-patches0-injected_fn]>\n        <Function test_extraction_with_retries[list-patches0-injected_tool]>\n        <Function test_extraction_with_retries[list-patches1-typeddict]>\n        <Function test_extraction_with_retries[list-patches1-fn]>\n        <Function test_extraction_with_retries[list-patches1-tool]>\n        <Function test_extraction_with_retries[list-patches1-schema]>\n        <Function test_extraction_with_retries[list-patches1-model]>\n        <Function test_extraction_with_retries[list-patches1-injected_fn]>\n        <Function test_extraction_with_retries[list-patches1-injected_tool]>\n        <Function test_extraction_with_retries[list-patches2-typeddict]>\n        <Function test_extraction_with_retries[list-patches2-fn]>\n        <Function test_extraction_with_retries[list-patches2-tool]>\n        <Function test_extraction_with_retries[list-patches2-schema]>\n        <Function test_extraction_with_retries[list-patches2-model]>\n        <Function test_extraction_with_retries[list-patches2-injected_fn]>\n        <Function test_extraction_with_retries[list-patches2-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches0-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches0-model]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches1-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches1-model]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches2-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches2-model]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_tool]>\n        <Function test_extraction_with_retries[state-patches0-typeddict]>\n        <Function test_extraction_with_retries[state-patches0-fn]>\n        <Function test_extraction_with_retries[state-patches0-tool]>\n        <Function test_extraction_with_retries[state-patches0-schema]>\n        <Function test_extraction_with_retries[state-patches0-model]>\n        <Function test_extraction_with_retries[state-patches0-injected_fn]>\n        <Function test_extraction_with_retries[state-patches0-injected_tool]>\n        <Function test_extraction_with_retries[state-patches1-typeddict]>\n        <Function test_extraction_with_retries[state-patches1-fn]>\n        <Function test_extraction_with_retries[state-patches1-tool]>\n        <Function test_extraction_with_retries[state-patches1-schema]>\n        <Function test_extraction_with_retries[state-patches1-model]>\n        <Function test_extraction_with_retries[state-patches1-injected_fn]>\n        <Function test_extraction_with_retries[state-patches1-injected_tool]>\n        <Function test_extraction_with_retries[state-patches2-typeddict]>\n        <Function test_extraction_with_retries[state-patches2-fn]>\n        <Function test_extraction_with_retries[state-patches2-tool]>\n        <Function test_extraction_with_retries[state-patches2-schema]>\n        <Function test_extraction_with_retries[state-patches2-model]>\n        <Function test_extraction_with_retries[state-patches2-injected_fn]>\n        <Function test_extraction_with_retries[state-patches2-injected_tool]>\n        <Function test_patch_existing[patches0-True-existing0-fn]>\n        <Function test_patch_existing[patches0-True-existing0-tool]>\n        <Function test_patch_existing[patches0-True-existing0-schema]>\n        <Function test_patch_existing[patches0-True-existing0-model]>\n        <Function test_patch_existing[patches0-False-existing1-fn]>\n        <Function test_patch_existing[patches0-False-existing1-tool]>\n        <Function test_patch_existing[patches0-False-existing1-schema]>\n        <Function test_patch_existing[patches0-False-existing1-model]>\n        <Function test_patch_existing[patches1-True-existing0-fn]>\n        <Function test_patch_existing[patches1-True-existing0-tool]>\n        <Function test_patch_existing[patches1-True-existing0-schema]>\n        <Function test_patch_existing[patches1-True-existing0-model]>\n        <Function test_patch_existing[patches1-False-existing1-fn]>\n        <Function test_patch_existing[patches1-False-existing1-tool]>\n        <Function test_patch_existing[patches1-False-existing1-schema]>\n        <Function test_patch_existing[patches1-False-existing1-model]>\n        <Function test_patch_existing[patches2-True-existing0-fn]>\n        <Function test_patch_existing[patches2-True-existing0-tool]>\n        <Function test_patch_existing[patches2-True-existing0-schema]>\n        <Function test_patch_existing[patches2-True-existing0-model]>\n        <Function test_patch_existing[patches2-False-existing1-fn]>\n        <Function test_patch_existing[patches2-False-existing1-tool]>\n        <Function test_patch_existing[patches2-False-existing1-schema]>\n        <Function test_patch_existing[patches2-False-existing1-model]>\n        <Function test_patch_existing[patches3-True-existing0-fn]>\n        <Function test_patch_existing[patches3-True-existing0-tool]>\n        <Function test_patch_existing[patches3-True-existing0-schema]>\n        <Function test_patch_existing[patches3-True-existing0-model]>\n        <Function test_patch_existing[patches3-False-existing1-fn]>\n        <Function test_patch_existing[patches3-False-existing1-tool]>\n        <Function test_patch_existing[patches3-False-existing1-schema]>\n        <Function test_patch_existing[patches3-False-existing1-model]>\n        <Function test_validate_existing[existing0-tools0-True]>\n        <Function test_validate_existing[existing1-tools1-False]>\n        <Function test_validate_existing[existing2-tools2-True]>\n        <Function test_validate_existing[existing3-tools3-False]>\n        <Function test_validate_existing[existing4-tools4-True]>\n        <Function test_validate_existing[existing5-tools5-False]>\n        <Function test_validate_existing[invalid_type-tools6-False]>\n      <Module test_utils.py>\n        <Function test_convert_any_typed_dicts_to_pydantic>\n        <Function test_nested_typed_dict_conversion>\n        <Function test_recursive_typed_dict_conversion>\n\n========================= 110 tests collected in 0.47s =========================\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "/app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n  teardown[0].send(outcome)\nRuntimeWarning: Enable tracemalloc to get the object allocation traceback\n",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-hinthornw__trustcall",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/Dockerfile.eval -t jayint-repo2run-hinthornw__trustcall /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-12T15:12:27.343924+08:00",
+        "finished_at": "2026-05-12T15:13:13.781721+08:00",
+        "duration_seconds": 46.438,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.41kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [ 1/10] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 17.21MB 0.7s done\n#5 DONE 0.7s\n\n#6 [ 2/10] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [ 3/10] WORKDIR /app\n#7 CACHED\n\n#8 [ 4/10] COPY . /app\n#8 DONE 0.4s\n\n#9 [ 5/10] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [ 6/10] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.455 Collecting uv\n#10 2.955   Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.076 Downloading uv-0.11.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 6.998    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.113 Installing collected packages: uv\n#10 7.581 Successfully installed uv-0.11.13\n#10 7.581 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 7.7s\n\n#11 [ 7/10] RUN cd /app && uv sync --group dev\n#11 0.513 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#11 0.514 Creating virtual environment at: .venv\n#11 0.558 Resolved 77 packages in 19ms\n#11 1.344 Downloading numpy (17.1MiB)\n#11 1.345 Downloading ruff (10.7MiB)\n#11 1.345 Downloading aiohttp (1.6MiB)\n#11 1.347 Downloading pydantic-core (2.1MiB)\n#11 1.347 Downloading mypy (12.0MiB)\n#11 1.348 Downloading sqlalchemy (3.1MiB)\n#11 1.355 Downloading pillow (4.2MiB)\n#11 1.355 Downloading tiktoken (1.1MiB)\n#11 3.108    Building pytest-watch==4.2.0\n#11 3.118    Building docopt==0.6.2\n#11 4.412  Downloaded tiktoken\n#11 4.920  Downloaded aiohttp\n#11 5.444  Downloaded pydantic-core\n#11 6.497  Downloaded sqlalchemy\n#11 6.942       Built docopt==0.6.2\n#11 6.943       Built pytest-watch==4.2.0\n#11 7.321  Downloaded pillow\n#11 10.48  Downloaded ruff\n#11 11.00  Downloaded mypy\n#11 12.09  Downloaded numpy\n#11 12.09 Prepared 73 packages in 11.51s\n#11 12.16 Installed 73 packages in 73ms\n#11 12.16  + aiohappyeyeballs==2.4.4\n#11 12.16  + aiohttp==3.11.10\n#11 12.16  + aiosignal==1.3.1\n#11 12.16  + annotated-types==0.7.0\n#11 12.16  + anthropic==0.40.0\n#11 12.16  + anyio==4.7.0\n#11 12.16  + attrs==24.2.0\n#11 12.16  + certifi==2024.8.30\n#11 12.16  + charset-normalizer==3.4.0\n#11 12.16  + colorama==0.4.6\n#11 12.16  + defusedxml==0.7.1\n#11 12.16  + distro==1.9.0\n#11 12.16  + docopt==0.6.2\n#11 12.16  + dydantic==0.0.7\n#11 12.16  + execnet==2.1.1\n#11 12.16  + fireworks-ai==0.15.10\n#11 12.16  + frozenlist==1.5.0\n#11 12.16  + greenlet==3.1.1\n#11 12.16  + h11==0.14.0\n#11 12.16  + httpcore==1.0.7\n#11 12.16  + httpx==0.28.1\n#11 12.16  + httpx-sse==0.4.0\n#11 12.16  + httpx-ws==0.7.0\n#11 12.16  + idna==3.10\n#11 12.16  + iniconfig==2.0.0\n#11 12.16  + jiter==0.8.2\n#11 12.16  + jsonpatch==1.33\n#11 12.16  + jsonpointer==3.0.0\n#11 12.16  + langchain==0.3.11\n#11 12.16  + langchain-anthropic==0.3.0\n#11 12.16  + langchain-core==0.3.24\n#11 12.16  + langchain-fireworks==0.2.5\n#11 12.16  + langchain-openai==0.2.12\n#11 12.16  + langchain-text-splitters==0.3.2\n#11 12.16  + langgraph==0.2.58\n#11 12.16  + langgraph-checkpoint==2.0.8\n#11 12.16  + langgraph-sdk==0.1.43\n#11 12.16  + langsmith==0.2.2\n#11 12.16  + msgpack==1.1.0\n#11 12.16  + multidict==6.1.0\n#11 12.16  + mypy==1.13.0\n#11 12.16  + mypy-extensions==1.0.0\n#11 12.16  + numpy==1.26.4\n#11 12.16  + openai==1.57.2\n#11 12.16  + orjson==3.10.12\n#11 12.16  + packaging==24.2\n#11 12.16  + pillow==11.0.0\n#11 12.16  + pluggy==1.5.0\n#11 12.16  + propcache==0.2.1\n#11 12.16  + pydantic==2.10.3\n#11 12.16  + pydantic-core==2.27.1\n#11 12.16  + pytest==8.3.4\n#11 12.16  + pytest-asyncio-cooperative==0.37.0\n#11 12.16  + pytest-socket==0.7.0\n#11 12.16  + pytest-watch==4.2.0\n#11 12.16  + pytest-xdist==3.6.1\n#11 12.16  + pyyaml==6.0.2\n#11 12.16  + regex==2024.11.6\n#11 12.16  + requests==2.32.3\n#11 12.16  + requests-toolbelt==1.0.0\n#11 12.16  + ruff==0.8.2\n#11 12.16  + sniffio==1.3.1\n#11 12.16  + sqlalchemy==2.0.36\n#11 12.16  + tenacity==9.0.0\n#11 12.16  + tiktoken==0.8.0\n#11 12.16  + tqdm==4.67.1\n#11 12.16  + typing-extensions==4.12.2\n#11 12.16  + urllib3==1.26.20\n#11 12.16  + vcrpy==6.0.2\n#11 12.16  + watchdog==6.0.0\n#11 12.16  + wrapt==1.17.0\n#11 12.16  + wsproto==1.2.0\n#11 12.16  + yarl==1.18.3\n#11 DONE 12.4s\n\n#12 [ 8/10] RUN cd /app && pip install -e .\n#12 0.484 Obtaining file:///app\n#12 0.487   Installing build dependencies: started\n#12 2.713   Installing build dependencies: finished with status 'done'\n#12 2.715   Checking if build backend supports build_editable: started\n#12 2.886   Checking if build backend supports build_editable: finished with status 'done'\n#12 2.888   Getting requirements to build editable: started\n#12 3.085   Getting requirements to build editable: finished with status 'done'\n#12 3.086   Preparing editable metadata (pyproject.toml): started\n#12 3.282   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#12 4.022 Collecting langgraph>=0.2.25 (from trustcall==0.0.26)\n#12 5.454   Downloading langgraph-1.2.0-py3-none-any.whl.metadata (8.0 kB)\n#12 5.653 Collecting dydantic<1.0.0,>=0.0.7 (from trustcall==0.0.26)\n#12 5.778   Downloading dydantic-0.0.8-py3-none-any.whl.metadata (3.6 kB)\n#12 6.111 Collecting jsonpatch<2.0,>=1.33 (from trustcall==0.0.26)\n#12 6.238   Downloading jsonpatch-1.33-py2.py3-none-any.whl.metadata (3.0 kB)\n#12 6.527 Collecting pydantic<3,>=2 (from dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 6.651   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\n#12 6.906 Collecting jsonpointer>=1.9 (from jsonpatch<2.0,>=1.33->trustcall==0.0.26)\n#12 7.028   Downloading jsonpointer-3.1.1-py3-none-any.whl.metadata (2.4 kB)\n#12 7.199 Collecting langchain-core<2,>=1.4.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 7.510   Downloading langchain_core-1.4.0-py3-none-any.whl.metadata (4.5 kB)\n#12 7.650 Collecting langgraph-checkpoint<5.0.0,>=4.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 7.765   Downloading langgraph_checkpoint-4.1.0-py3-none-any.whl.metadata (5.2 kB)\n#12 7.894 Collecting langgraph-prebuilt<1.2.0,>=1.1.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.016   Downloading langgraph_prebuilt-1.1.0-py3-none-any.whl.metadata (5.2 kB)\n#12 8.163 Collecting langgraph-sdk<0.4.0,>=0.3.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.287   Downloading langgraph_sdk-0.3.14-py3-none-any.whl.metadata (1.7 kB)\n#12 8.490 Collecting xxhash>=3.5.0 (from langgraph>=0.2.25->trustcall==0.0.26)\n#12 8.601   Downloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\n#12 8.743 Collecting langchain-protocol>=0.0.14 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.062   Downloading langchain_protocol-0.0.15-py3-none-any.whl.metadata (2.4 kB)\n#12 9.257 Collecting langsmith<1.0.0,>=0.3.45 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.368   Downloading langsmith-0.8.3-py3-none-any.whl.metadata (15 kB)\n#12 9.386 Requirement already satisfied: packaging>=23.2.0 in /usr/local/lib/python3.12/site-packages (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (26.2)\n#12 9.530 Collecting pyyaml<7.0.0,>=5.3.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.652   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#12 9.781 Collecting tenacity!=8.4.0,<10.0.0,>=8.1.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 9.901   Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\n#12 9.916 Requirement already satisfied: typing-extensions<5.0.0,>=4.7.0 in /usr/local/lib/python3.12/site-packages (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (4.15.0)\n#12 10.09 Collecting uuid-utils<1.0,>=0.12.0 (from langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 10.40   Downloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.5 kB)\n#12 10.58 Collecting ormsgpack>=1.12.0 (from langgraph-checkpoint<5.0.0,>=4.1.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 10.71   Downloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)\n#12 10.75 Requirement already satisfied: httpx>=0.25.2 in /usr/local/lib/python3.12/site-packages (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (0.28.1)\n#12 11.09 Collecting orjson>=3.11.5 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 11.21   Downloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (41 kB)\n#12 11.35 Collecting annotated-types>=0.6.0 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 11.46   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#12 12.00 Collecting pydantic-core==2.46.4 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 12.12   Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#12 12.24 Collecting typing-inspection>=0.4.2 (from pydantic<3,>=2->dydantic<1.0.0,>=0.0.7->trustcall==0.0.26)\n#12 12.36   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#12 12.38 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (4.13.0)\n#12 12.38 Requirement already satisfied: certifi in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (2026.4.22)\n#12 12.38 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (1.0.9)\n#12 12.39 Requirement already satisfied: idna in /usr/local/lib/python3.12/site-packages (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (3.14)\n#12 12.39 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph>=0.2.25->trustcall==0.0.26) (0.16.0)\n#12 12.40 Requirement already satisfied: requests-toolbelt>=1.0.0 in /usr/local/lib/python3.12/site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (1.0.0)\n#12 12.40 Requirement already satisfied: requests>=2.0.0 in /usr/local/lib/python3.12/site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (2.34.0)\n#12 12.59 Collecting zstandard>=0.23.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26)\n#12 12.71   Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)\n#12 12.73 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (3.4.7)\n#12 12.73 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2,>=1.4.0->langgraph>=0.2.25->trustcall==0.0.26) (2.7.0)\n#12 12.86 Downloading dydantic-0.0.8-py3-none-any.whl (8.6 kB)\n#12 13.00 Downloading jsonpatch-1.33-py2.py3-none-any.whl (12 kB)\n#12 13.13 Downloading langgraph-1.2.0-py3-none-any.whl (234 kB)\n#12 13.34 Downloading jsonpointer-3.1.1-py3-none-any.whl (7.7 kB)\n#12 13.47 Downloading langchain_core-1.4.0-py3-none-any.whl (548 kB)\n#12 13.55    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 548.1/548.1 kB 5.8 MB/s eta 0:00:00\n#12 13.67 Downloading langgraph_checkpoint-4.1.0-py3-none-any.whl (56 kB)\n#12 13.79 Downloading langgraph_prebuilt-1.1.0-py3-none-any.whl (41 kB)\n#12 13.92 Downloading langgraph_sdk-0.3.14-py3-none-any.whl (97 kB)\n#12 14.04 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#12 14.18 Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#12 14.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 9.6 MB/s eta 0:00:00\n#12 14.50 Downloading xxhash-3.7.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)\n#12 14.66 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#12 14.81 Downloading langchain_protocol-0.0.15-py3-none-any.whl (7.0 kB)\n#12 14.93 Downloading langsmith-0.8.3-py3-none-any.whl (399 kB)\n#12 15.08 Downloading orjson-3.11.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (134 kB)\n#12 15.22 Downloading ormsgpack-1.12.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (212 kB)\n#12 15.39 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#12 15.42    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 25.8 MB/s eta 0:00:00\n#12 15.60 Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#12 15.82 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#12 16.04 Downloading uuid_utils-0.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (324 kB)\n#12 16.24 Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)\n#12 17.00    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 7.0 MB/s eta 0:00:00\n#12 17.05 Building wheels for collected packages: trustcall\n#12 17.05   Building editable for trustcall (pyproject.toml): started\n#12 17.26   Building editable for trustcall (pyproject.toml): finished with status 'done'\n#12 17.26   Created wheel for trustcall: filename=trustcall-0.0.26-0.editable-py3-none-any.whl size=12982 sha256=85d73f2fad5ef09d872b3d657dcc60dc10ee6759f55582b10a7dc3c14528d042\n#12 17.26   Stored in directory: /tmp/pip-ephem-wheel-cache-0r4uixre/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#12 17.27 Successfully built trustcall\n#12 17.31 Installing collected packages: zstandard, xxhash, uuid-utils, typing-inspection, tenacity, pyyaml, pydantic-core, ormsgpack, orjson, langchain-protocol, jsonpointer, annotated-types, pydantic, jsonpatch, langsmith, langgraph-sdk, dydantic, langchain-core, langgraph-checkpoint, langgraph-prebuilt, langgraph, trustcall\n#12 18.28 Successfully installed annotated-types-0.7.0 dydantic-0.0.8 jsonpatch-1.33 jsonpointer-3.1.1 langchain-core-1.4.0 langchain-protocol-0.0.15 langgraph-1.2.0 langgraph-checkpoint-4.1.0 langgraph-prebuilt-1.1.0 langgraph-sdk-0.3.14 langsmith-0.8.3 orjson-3.11.9 ormsgpack-1.12.2 pydantic-2.13.4 pydantic-core-2.46.4 pyyaml-6.0.3 tenacity-9.1.4 trustcall-0.0.26 typing-inspection-0.4.2 uuid-utils-0.15.0 xxhash-3.7.0 zstandard-0.25.0\n#12 18.28 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 DONE 18.4s\n\n#13 [ 9/10] RUN cd /app && uv pip install -e .\n#13 2.250 Resolved 29 packages in 1.88s\n#13 2.264    Building trustcall @ file:///app\n#13 3.285       Built trustcall @ file:///app\n#13 3.312 Prepared 1 package in 1.05s\n#13 3.316 Installed 1 package in 4ms\n#13 3.317  + trustcall==0.0.26 (from file:///app)\n#13 DONE 3.3s\n\n#14 [10/10] RUN cd /app && uv run pytest --collect-only -q --disable-warnings\n#14 0.903 ============================= test session starts ==============================\n#14 0.903 platform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\n#14 0.903 cachedir: .pytest_cache\n#14 0.903 rootdir: /app\n#14 0.903 configfile: pyproject.toml\n#14 0.903 plugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\n#14 0.903 collecting ... /app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n#14 1.962   teardown[0].send(outcome)\n#14 1.962 RuntimeWarning: Enable tracemalloc to get the object allocation traceback\n#14 1.964 collected 110 items\n#14 1.964 \n#14 1.964 <Dir app>\n#14 1.964   <Dir tests>\n#14 1.964     <Package evals>\n#14 1.964       <Module test_evals.py>\n#14 1.964         <Function test_model[gpt-4o]>\n#14 1.964         <Function test_model[gpt-4o-mini]>\n#14 1.964         <Function test_model[claude-3-5-sonnet-20240620]>\n#14 1.964         <Function test_simple>\n#14 1.964         <Function test_multi_tool>\n#14 1.964     <Package unit_tests>\n#14 1.964       <Module test_extraction.py>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[list-patches2-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[prompt_value-patches2-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches0-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches1-injected_tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-typeddict]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-tool]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-schema]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-model]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-injected_fn]>\n#14 1.964         <Function test_extraction_with_retries[state-patches2-injected_tool]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches0-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches0-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches1-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches1-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches2-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches2-False-existing1-model]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-fn]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-tool]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-schema]>\n#14 1.964         <Function test_patch_existing[patches3-True-existing0-model]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-fn]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-tool]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-schema]>\n#14 1.964         <Function test_patch_existing[patches3-False-existing1-model]>\n#14 1.964         <Function test_validate_existing[existing0-tools0-True]>\n#14 1.964         <Function test_validate_existing[existing1-tools1-False]>\n#14 1.964         <Function test_validate_existing[existing2-tools2-True]>\n#14 1.964         <Function test_validate_existing[existing3-tools3-False]>\n#14 1.964         <Function test_validate_existing[existing4-tools4-True]>\n#14 1.964         <Function test_validate_existing[existing5-tools5-False]>\n#14 1.964         <Function test_validate_existing[invalid_type-tools6-False]>\n#14 1.964       <Module test_utils.py>\n#14 1.964         <Function test_convert_any_typed_dicts_to_pydantic>\n#14 1.964         <Function test_nested_typed_dict_conversion>\n#14 1.964         <Function test_recursive_typed_dict_conversion>\n#14 1.964 \n#14 1.964 ========================= 110 tests collected in 1.06s =========================\n#14 DONE 2.1s\n\n#15 exporting to image\n#15 exporting layers\n#15 exporting layers 0.6s done\n#15 writing image sha256:9c5c872090f1a94f4f1bf40751647d84c0bf2517c27241a406c2df0322bd67d5 done\n#15 naming to docker.io/library/jayint-repo2run-hinthornw__trustcall done\n#15 DONE 0.6s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/ryeaknmqlji4lwclcmvwqm644\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "uv run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-hinthornw__trustcall",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-hinthornw__trustcall sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-12T15:13:13.785622+08:00",
+              "finished_at": "2026-05-12T15:13:15.010047+08:00",
+              "duration_seconds": 1.224,
+              "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.5.0 -- /app/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /app\nconfigfile: pyproject.toml\nplugins: socket-0.7.0, xdist-3.6.1, anyio-4.7.0, asyncio-cooperative-0.37.0\ncollecting ... collected 110 items\n\n<Dir app>\n  <Dir tests>\n    <Package evals>\n      <Module test_evals.py>\n        <Function test_model[gpt-4o]>\n        <Function test_model[gpt-4o-mini]>\n        <Function test_model[claude-3-5-sonnet-20240620]>\n        <Function test_simple>\n        <Function test_multi_tool>\n    <Package unit_tests>\n      <Module test_extraction.py>\n        <Function test_extraction_with_retries[list-patches0-typeddict]>\n        <Function test_extraction_with_retries[list-patches0-fn]>\n        <Function test_extraction_with_retries[list-patches0-tool]>\n        <Function test_extraction_with_retries[list-patches0-schema]>\n        <Function test_extraction_with_retries[list-patches0-model]>\n        <Function test_extraction_with_retries[list-patches0-injected_fn]>\n        <Function test_extraction_with_retries[list-patches0-injected_tool]>\n        <Function test_extraction_with_retries[list-patches1-typeddict]>\n        <Function test_extraction_with_retries[list-patches1-fn]>\n        <Function test_extraction_with_retries[list-patches1-tool]>\n        <Function test_extraction_with_retries[list-patches1-schema]>\n        <Function test_extraction_with_retries[list-patches1-model]>\n        <Function test_extraction_with_retries[list-patches1-injected_fn]>\n        <Function test_extraction_with_retries[list-patches1-injected_tool]>\n        <Function test_extraction_with_retries[list-patches2-typeddict]>\n        <Function test_extraction_with_retries[list-patches2-fn]>\n        <Function test_extraction_with_retries[list-patches2-tool]>\n        <Function test_extraction_with_retries[list-patches2-schema]>\n        <Function test_extraction_with_retries[list-patches2-model]>\n        <Function test_extraction_with_retries[list-patches2-injected_fn]>\n        <Function test_extraction_with_retries[list-patches2-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches0-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches0-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches0-model]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches0-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches1-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches1-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches1-model]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches1-injected_tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-typeddict]>\n        <Function test_extraction_with_retries[prompt_value-patches2-fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-tool]>\n        <Function test_extraction_with_retries[prompt_value-patches2-schema]>\n        <Function test_extraction_with_retries[prompt_value-patches2-model]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_fn]>\n        <Function test_extraction_with_retries[prompt_value-patches2-injected_tool]>\n        <Function test_extraction_with_retries[state-patches0-typeddict]>\n        <Function test_extraction_with_retries[state-patches0-fn]>\n        <Function test_extraction_with_retries[state-patches0-tool]>\n        <Function test_extraction_with_retries[state-patches0-schema]>\n        <Function test_extraction_with_retries[state-patches0-model]>\n        <Function test_extraction_with_retries[state-patches0-injected_fn]>\n        <Function test_extraction_with_retries[state-patches0-injected_tool]>\n        <Function test_extraction_with_retries[state-patches1-typeddict]>\n        <Function test_extraction_with_retries[state-patches1-fn]>\n        <Function test_extraction_with_retries[state-patches1-tool]>\n        <Function test_extraction_with_retries[state-patches1-schema]>\n        <Function test_extraction_with_retries[state-patches1-model]>\n        <Function test_extraction_with_retries[state-patches1-injected_fn]>\n        <Function test_extraction_with_retries[state-patches1-injected_tool]>\n        <Function test_extraction_with_retries[state-patches2-typeddict]>\n        <Function test_extraction_with_retries[state-patches2-fn]>\n        <Function test_extraction_with_retries[state-patches2-tool]>\n        <Function test_extraction_with_retries[state-patches2-schema]>\n        <Function test_extraction_with_retries[state-patches2-model]>\n        <Function test_extraction_with_retries[state-patches2-injected_fn]>\n        <Function test_extraction_with_retries[state-patches2-injected_tool]>\n        <Function test_patch_existing[patches0-True-existing0-fn]>\n        <Function test_patch_existing[patches0-True-existing0-tool]>\n        <Function test_patch_existing[patches0-True-existing0-schema]>\n        <Function test_patch_existing[patches0-True-existing0-model]>\n        <Function test_patch_existing[patches0-False-existing1-fn]>\n        <Function test_patch_existing[patches0-False-existing1-tool]>\n        <Function test_patch_existing[patches0-False-existing1-schema]>\n        <Function test_patch_existing[patches0-False-existing1-model]>\n        <Function test_patch_existing[patches1-True-existing0-fn]>\n        <Function test_patch_existing[patches1-True-existing0-tool]>\n        <Function test_patch_existing[patches1-True-existing0-schema]>\n        <Function test_patch_existing[patches1-True-existing0-model]>\n        <Function test_patch_existing[patches1-False-existing1-fn]>\n        <Function test_patch_existing[patches1-False-existing1-tool]>\n        <Function test_patch_existing[patches1-False-existing1-schema]>\n        <Function test_patch_existing[patches1-False-existing1-model]>\n        <Function test_patch_existing[patches2-True-existing0-fn]>\n        <Function test_patch_existing[patches2-True-existing0-tool]>\n        <Function test_patch_existing[patches2-True-existing0-schema]>\n        <Function test_patch_existing[patches2-True-existing0-model]>\n        <Function test_patch_existing[patches2-False-existing1-fn]>\n        <Function test_patch_existing[patches2-False-existing1-tool]>\n        <Function test_patch_existing[patches2-False-existing1-schema]>\n        <Function test_patch_existing[patches2-False-existing1-model]>\n        <Function test_patch_existing[patches3-True-existing0-fn]>\n        <Function test_patch_existing[patches3-True-existing0-tool]>\n        <Function test_patch_existing[patches3-True-existing0-schema]>\n        <Function test_patch_existing[patches3-True-existing0-model]>\n        <Function test_patch_existing[patches3-False-existing1-fn]>\n        <Function test_patch_existing[patches3-False-existing1-tool]>\n        <Function test_patch_existing[patches3-False-existing1-schema]>\n        <Function test_patch_existing[patches3-False-existing1-model]>\n        <Function test_validate_existing[existing0-tools0-True]>\n        <Function test_validate_existing[existing1-tools1-False]>\n        <Function test_validate_existing[existing2-tools2-True]>\n        <Function test_validate_existing[existing3-tools3-False]>\n        <Function test_validate_existing[existing4-tools4-True]>\n        <Function test_validate_existing[existing5-tools5-False]>\n        <Function test_validate_existing[invalid_type-tools6-False]>\n      <Module test_utils.py>\n        <Function test_convert_any_typed_dicts_to_pydantic>\n        <Function test_nested_typed_dict_conversion>\n        <Function test_recursive_typed_dict_conversion>\n\n========================= 110 tests collected in 0.47s =========================\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "/app/.venv/lib/python3.12/site-packages/pluggy/_callers.py:156: RuntimeWarning: coroutine 'test_wrapper' was never awaited\n  teardown[0].send(outcome)\nRuntimeWarning: Enable tracemalloc to get the object allocation traceback\n",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-hinthornw__trustcall"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-hinthornw__trustcall",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-12T15:13:15.014658+08:00",
+    "finished_at": "2026-05-12T15:13:15.037806+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-hinthornw__trustcall:latest\nDeleted: sha256:9c5c872090f1a94f4f1bf40751647d84c0bf2517c27241a406c2df0322bd67d5\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/hinthornw__trustcall/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

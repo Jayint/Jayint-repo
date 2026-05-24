@@ -1,0 +1,660 @@
+{
+  "dataset_entry": {
+    "instance_id": "darrenburns__posting",
+    "full_name": "darrenburns/posting",
+    "repo_url": "https://github.com/darrenburns/posting.git",
+    "sha": "94feab",
+    "base_commit": "94feab",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/darrenburns/posting.git",
+      "--base-commit",
+      "94feab",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/darrenburns/posting.git --base-commit 94feab --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-08T01:17:26.952444+08:00",
+    "finished_at": "2026-05-08T01:22:57.895830+08:00",
+    "duration_seconds": 330.943,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting...\nCloning https://github.com/darrenburns/posting.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 94feab\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 8 potentially relevant files\n[ImageSelector]   ✗ Makefile\n[ImageSelector]   ✓ .github/workflows/docs.yml\n[ImageSelector]   ✗ .github/workflows/coverage.yml\n[ImageSelector]   ✓ .github/workflows/test.yml\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ uv.lock\n[ImageSelector]   ✓ .python-version\n[ImageSelector] 5 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.11\n[DockerAgent] Selected base image: python:3.11\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/logs/image_selector_logs\nInitializing container from python:3.11...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:1e54a\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/logs/compression_logs\nStarting agent for repository: https://github.com/darrenburns/posting.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 3345, Output: 62, Total: 3407\n\n[Thought]\nLet me start by examining the pyproject.toml to understand the project dependencies and test configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: c6187a36dfe7]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nname = \"posting\"\nversion = \"2.3.0\"\ndescription = \"The modern API client that lives in your terminal.\"\nauthors = [\n    { name = \"Darren Burns\", email = \"darrenb900@gmail.com\" }\n]\ndependencies = [\n    \"click>=8.1.7,<9.0.0\",\n    \"xdg-base-dirs>=6.0.1,<7.0.0\",\n    \"click-default-group>=1.2.4,<2.0.0\",\n    \"httpx[brotli]>=0.27.2,<1.0.0\",\n    \"pyperclip>=1.9.0,<2.0.0\",\n    \"pydantic>=2.9.2,<3.0.0\",\n    \"pyyaml>=6.0.2,<7.0.0\",\n    \"pydantic-settings>=2.4.0,<3.0.0\",\n    \"python-dotenv>=1.0.1,<2.0.0\",\n    \"textual[syntax]==0.86.2\",\n    # pinned intentionally\n    \"textual-autocomplete==3.0.0a13\",\n    # pinned intentionally\n    \"watchfiles>=0.24.0\",\n]\nreadme = \"README.md\"\nrequires-python = \">= 3.11\"\nlicense = { file = \"LICENSE\" }\nkeywords = [\"tui\", \"http\", \"client\", \"terminal\", \"api\", \"testing\", \"textual\", \"cli\", \"posting\", \"developer-tool\"]\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Environment :: Console\",\n    \"Intended Audience :: Developers\",\n    \"License :: OSI Approved :: Apache Software License\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n]\n\n[project.urls]\nHomepage = \"https://github.com/darrenburns/posting\"\nRepository = \"https://github.com/darrenburns/posting\"\nIssues = \"https://github.com/darrenburns/posting/issues\"\nDocumentation = \"https://github.com/darrenburns/posting/blob/main/README.md\"\n\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[project.scripts]\nposting = \"posting.__main__:cli\"\n\n[tool.uv]\ndev-dependencies = [\n    \"textual-dev>=1.5.1\",\n    \"pytest>=8.3.1\",\n    \"jinja2>=3.1.4\",\n    \"syrupy>=4.6.1\",\n    \"pytest-xdist>=3.6.1\",\n    \"pytest-cov>=5.0.0\",\n    \"pytest-textual-snapshot>=1.0.0\",\n    \"mkdocs-material>=9.5.30\",\n]\n\n[tool.hatch.metadata]\nallow-direct-references = true\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/posting\"]\n\n[tool.pytest.ini_options]\nmarkers = [\n    \"serial\",  # used to indicate tests must not run in parallel\n]\n\n[tool.coverage.run]\nrelative_files = true\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 4071, Output: 134, Total: 4205\n\n[Thought]\nLet me examine the Makefile to understand the project's build and test commands.\n\n[Action]\ncat Makefile\n[Container ID: c6187a36dfe7]\nExecuting: cat Makefile\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n\n.PHONY: test\ntest:\n\t$(run) pytest --cov=posting tests/ -n 24 -m \"not serial\" $(ARGS)\n\t$(run) pytest --cov-report term-missing --cov-append --cov=posting tests/ -m serial $(ARGS)\n\n.PHONY: test-snapshot-update\ntest-snapshot-update:\n\t$(run) pytest --cov=posting tests/ -n 24 -m \"not serial\" --snapshot-update $(ARGS)\n\t$(run) pytest --cov-report term-missing --cov-append --cov=posting tests/ -m serial --snapshot-update $(ARGS)\n\n\n.PHONY: test-ci\ntest-ci:\n\t$(run) pytest --cov=posting tests/ --cov-report term-missing $(ARGS)\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 4266, Output: 48, Total: 4314\n\n[Thought]\nLet me check the GitHub workflow file to understand how tests are run in CI.\n\n[Action]\ncat .github/workflows/test.yml\n[Container ID: c6187a36dfe7]\nExecuting: cat .github/workflows/test.yml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nname: Continuous Integration\n\non:\n    pull_request:\n    push:\n      branches:\n        - \"main\"\n\nenv:\n    PYTEST_ADDOPTS: \"--color=yes\"\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n      pull-requests: write\n    steps:\n      - uses: actions/checkout@v4\n      - name: Set up uv\n        # Install a specific uv version using the installer\n        run: curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh\n      - name: \"Set up Python\"\n        uses: actions/setup-python@v5\n        with:\n          python-version-file: \".python-version\"\n      - name: Install Dependencies\n        run: uv sync --all-extras --dev\n      - name: Run Tests\n        run: |\n            uv run make test-ci\n      - name: Attach Code Coverage\n        uses: py-cov-action/python-coverage-comment-action@v3.25\n        with:\n            GITHUB_TOKEN: ${{ github.token }}\n\n      - name: Save Snapshot Report\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: snapshot-report-posting\n          path: snapshot_report.html\n    \n      - name: Store Pull Request Comment\n        uses: actions/upload-artifact@v4\n        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'\n        with:\n            # If you use a different name, update COMMENT_ARTIFACT_NAME accordingly\n            name: python-coverage-comment-action\n            # If you use a different name, update COMMENT_FILENAME accordingly\n            path: python-coverage-comment-action.txt\n\n==================== Step 4 ====================\n\n[Tokens] Input: 4663, Output: 96, Total: 4759\n\n[Thought]\nLet me check the Python version required by the project.\n\n[Action]\ncat .python-version\n[Container ID: c6187a36dfe7]\nExecuting: cat .python-version\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n3.11.7\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4700, Output: 115, Total: 4815\n\n[Thought]\nThe project uses `uv` for dependency management. Let me install the dependencies using `uv sync` with all extras and dev dependencies.\n\n[Action]\nuv sync --all-extras --dev\n[Container ID: c6187a36dfe7]\nExecuting: uv sync --all-extras --dev\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: uv: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4764, Output: 68, Total: 4832\n\n[Thought]\n`uv` is not installed. Let me install it first using the official installer.\n\n[Action]\ncurl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh\n[Container ID: c6187a36dfe7]\nExecuting: curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh\nCommand failed (exit 35). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\ncurl: (35) TLS connect error: error:0A000126:SSL routines::unexpected eof while reading\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4951, Output: 59, Total: 5010\n\n[Thought]\nThe curl command failed with a TLS error. Let me try installing `uv` via pip instead.\n\n[Action]\npip install uv\n[Container ID: c6187a36dfe7]\nExecuting: pip install uv\nCommand succeeded.\n[Snapshot Created] sha256:cf1d8\n\n[Observation]\nCollecting uv\n  Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.6/24.6 MB 6.0 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.11\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 5200, Output: 59, Total: 5259\n\n[Thought]\nGood, `uv` is now installed. Let me sync the dependencies with all extras and dev dependencies.\n\n[Action]\nuv sync --all-extras --dev\n[Container ID: c6187a36dfe7]\nExecuting: uv sync --all-extras --dev\nCommand succeeded.\n[Snapshot Created] sha256:2fb8b\n\n[Observation]\nwarning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\nDownloading cpython-3.11.7-linux-x86_64-gnu (download) (28.0MiB)\n Downloaded cpython-3.11.7-linux-x86_64-gnu (download)\nUsing CPython 3.11.7\nCreating virtual environment at: .venv\nResolved 82 packages in 3.64s\n   Building posting @ file:///app\nDownloading tree-sitter-languages (8.0MiB)\nDownloading mkdocs (3.7MiB)\nDownloading aiohttp (1.2MiB)\nDownloading pygments (1.1MiB)\nDownloading pydantic-core (2.0MiB)\nDownloading mkdocs-material (8.3MiB)\nDownloading brotli (2.8MiB)\nDownloading babel (9.1MiB)\n   Building pyperclip==1.9.0\n      Built pyperclip==1.9.0\n Downloaded pygments\n Downloaded aiohttp\n Downloaded pydantic-core\n Downloaded brotli\n Downloaded mkdocs\n      Built posting @ file:///app\n Downloaded tree-sitter-languages\n Downloaded mkdocs-material\n Downloaded babel\nPrepared 77 packages in 7.97s\nInstalled 77 packages in 121ms\n + aiohappyeyeballs==2.4.3\n + aiohttp==3.10.10\n + aiohttp-jinja2==1.6\n + aiosignal==1.3.1\n + annotated-types==0.7.0\n + anyio==4.4.0\n + attrs==24.2.0\n + babel==2.16.0\n + brotli==1.1.0\n + certifi==2024.7.4\n + charset-normalizer==3.4.0\n + click==8.1.7\n + click-default-group==1.2.4\n + colorama==0.4.6\n + coverage==7.6.2\n + execnet==2.1.1\n + frozenlist==1.4.1\n + ghp-import==2.1.0\n + h11==0.14.0\n + httpcore==1.0.5\n + httpx==0.27.2\n + idna==3.8\n + iniconfig==2.0.0\n + jinja2==3.1.4\n + linkify-it-py==2.0.3\n + markdown==3.7\n + markdown-it-py==3.0.0\n + markupsafe==3.0.1\n + mdit-py-plugins==0.4.1\n + mdurl==0.1.2\n + mergedeep==1.3.4\n + mkdocs==1.6.1\n + mkdocs-get-deps==0.2.0\n + mkdocs-material==9.5.40\n + mkdocs-material-extensions==1.3.1\n + msgpack==1.1.0\n + multidict==6.1.0\n + packaging==24.1\n + paginate==0.5.7\n + pathspec==0.12.1\n + platformdirs==4.2.2\n + pluggy==1.5.0\n + posting==2.3.0 (from file:///app)\n + propcache==0.2.0\n + pydantic==2.9.2\n + pydantic-core==2.23.4\n + pydantic-settings==2.4.0\n + pygments==2.18.0\n + pymdown-extensions==10.11.2\n + pyperclip==1.9.0\n + pytest==8.3.3\n + pytest-cov==5.0.0\n + pytest-textual-snapshot==1.0.0\n + pytest-xdist==3.6.1\n + python-dateutil==2.9.0.post0\n + python-dotenv==1.0.1\n + pyyaml==6.0.2\n + pyyaml-env-tag==0.1\n + regex==2024.9.11\n + requests==2.32.3\n + rich==13.8.0\n + six==1.16.0\n + sniffio==1.3.1\n + syrupy==4.7.2\n + textual==0.86.2\n + textual-autocomplete==3.0.0a13\n + textual-dev==1.6.1\n + textual-serve==1.1.1\n + tree-sitter==0.20.4\n + tree-sitter-languages==1.10.2\n + typing-extensions==4.12.2\n + uc-micro-py==1.0.3\n + urllib3==2.2.3\n + watchdog==5.0.3\n + watchfiles==0.24.0\n + xdg-base-dirs==6.0.1\n + yarl==1.14.0\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 6382, Output: 60, Total: 6442\n\n[Thought]\nDependencies are installed. Now let me verify that pytest can collect the tests from the repository using the uv environment.\n\n[Action]\nuv run pytest --collect-only -q --disable-warnings\n[Container ID: c6187a36dfe7]\nExecuting: uv run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:f20e2\n\n[Observation]\nwarning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\ntests/test_curl_import.py::test_simple_get\ntests/test_curl_import.py::test_get_with_headers\ntests/test_curl_import.py::test_post_with_form_data\ntests/test_curl_import.py::test_post_with_json_data\ntests/test_curl_import.py::test_post_with_form_option\ntests/test_curl_import.py::test_multiple_data_options\ntests/test_curl_import.py::test_curl_with_user_and_password\ntests/test_curl_import.py::test_curl_with_insecure\ntests/test_curl_import.py::test_curl_with_referer\ntests/test_curl_import.py::test_curl_with_user_agent\ntests/test_curl_import.py::test_curl_with_compressed\ntests/test_curl_import.py::test_curl_with_method_and_data\ntests/test_curl_import.py::test_curl_with_data_raw\ntests/test_curl_import.py::test_curl_with_data_binary\ntests/test_curl_import.py::test_curl_with_escaped_newlines\ntests/test_curl_import.py::test_curl_with_no_space_in_header\ntests/test_curl_import.py::test_curl_with_complex_command\ntests/test_curl_import.py::test_curl_with_utf8_characters\ntests/test_curl_import.py::test_curl_with_special_characters_in_data\ntests/test_files.py::test_is_valid_filename[valid_filename.txt-True]\ntests/test_files.py::test_is_valid_filename[-False]\ntests/test_files.py::test_is_valid_filename[   -False]\ntests/test_files.py::test_is_valid_filename[file/with/path.txt-False]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]\ntests/test_files.py::test_is_valid_filename[CON-False]\ntests/test_files.py::test_is_valid_filename[PRN.txt-False]\ntests/test_files.py::test_is_valid_filename[AUX.log-False]\ntests/test_files.py::test_is_valid_filename[NUL.dat-False]\ntests/test_files.py::test_is_valid_filename[COM1.bin-False]\ntests/test_files.py::test_is_valid_filename[LPT1.tmp-False]\ntests/test_files.py::test_is_valid_filename[file..with..dots.txt-False]\ntests/test_files.py::test_is_valid_filename[.hidden_file.txt-False]\ntests/test_files.py::test_is_valid_filename[normal.file.txt-True]\ntests/test_files.py::test_is_valid_filename[file-with-dashes.txt-True]\ntests/test_files.py::test_is_valid_filename[file_with_underscores.txt-True]\ntests/test_files.py::test_is_valid_filename[file with spaces.txt-True]\ntests/test_files.py::test_is_valid_filename[file.with.multiple.extensions.txt-True]\ntests/test_files.py::test_is_valid_filename[../filename.txt-False]\ntests/test_files.py::test_is_valid_filename[filename/../something.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/../bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/./bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[/etc/passwd-False]\ntests/test_files.py::test_is_valid_filename[/var/log/system.log-False]\ntests/test_files.py::test_is_valid_filename[/home/user/file.txt-False]\ntests/test_files.py::test_is_valid_filename[/file.txt-False]\ntests/test_files.py::test_is_valid_filename[C:/Program Files/file.txt-False]\ntests/test_files.py::test_is_valid_filename_with_none\ntests/test_files.py::test_is_valid_filename_os_specific[COM0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[LPT0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[CON.txt-False]\ntests/test_files.py::test_is_valid_filename_os_specific[AUX.log-False]\ntests/test_snapshots.py::TestJumpMode::test_loads\ntests/test_snapshots.py::TestJumpMode::test_focus_switch\ntests/test_snapshots.py::TestJumpMode::test_click_switch\ntests/test_snapshots.py::TestMethodSelection::test_select_post_method\ntests/test_snapshots.py::TestUrlBar::test_dropdown_appears_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_filters_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_enter_key\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_tab_key\ntests/test_snapshots.py::TestCommandPalette::test_loads_and_shows_discovery_options\ntests/test_snapshots.py::TestCommandPalette::test_can_type_to_filter_options\ntests/test_snapshots.py::TestCommandPalette::test_can_run_command__hide_collection_browser\ntests/test_snapshots.py::TestNewRequest::test_dialog_loads_and_can_be_used\ntests/test_snapshots.py::TestNewRequest::test_new_request_added_to_tree_correctly_and_notification_shown\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_hide_collection_browser\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_request_section\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_then_reset\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__headers\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__body\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__query_params\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__auth\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__options\ntests/test_snapshots.py::TestHelpScreen::test_help_screen_appears\ntests/test_snapshots.py::TestSave::test_no_request_selected__dialog_is_prefilled_correctly\ntests/test_snapshots.py::TestSendRequest::test_send_request\ntests/test_snapshots.py::TestConfig::test_config\ntests/test_snapshots.py::TestVariables::test_unresolved_variables_highlighted\ntests/test_snapshots.py::TestVariables::test_resolved_variables_highlight_and_preview\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_set_on_startup_and_in_command_palette\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__url\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__json\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__url\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__json\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\ntests/test_snapshots.py::TestScripts::test_script_runs\n\n90 tests collected in 0.56s\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 8096, Output: 127, Total: 8223\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded - 90 tests were collected successfully. The environment is properly set up with all dependencies installed via `uv sync --all-extras --dev`.\n\nLet me now provide the final verification bundle and declare success.\n</think>\n\nThought: The pytest collection succeeded - 90 tests were collected successfully. All dependencies have been installed via `uv sync --all-extras --dev` and the test suite is ready to run. The environment is properly configured.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"uv run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 3 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/darrenburns__posting.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/darrenburns/posting.git",
+    "configuration_success": true,
+    "base_image": "python:3.11",
+    "platform_override": null,
+    "verified_test_command": "uv run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nname = \"posting\"\nversion = \"2.3.0\"\ndescription = \"The modern API client that lives in your terminal.\"\nauthors = [\n    { name = \"Darren Burns\", email = \"darrenb900@gmail.com\" }\n]\ndependencies = [\n    \"click>=8.1.7,<9.0.0\",\n    \"xdg-base-dirs>=6.0.1,<7.0.0\",\n    \"click-default-group>=1.2.4,<2.0.0\",\n    \"httpx[brotli]>=0.27.2,<1.0.0\",\n    \"pyperclip>=1.9.0,<2.0.0\",\n    \"pydantic>=2.9.2,<3.0.0\",\n    \"pyyaml>=6.0.2,<7.0.0\",\n    \"pydantic-settings>=2.4.0,<3.0.0\",\n    \"python-dotenv>=1.0.1,<2.0.0\",\n    \"textual[syntax]==0.86.2\",\n    # pinned intentionally\n    \"textual-autocomplete==3.0.0a13\n... (874 chars omitted for recipe synthesis) ...\ning\"]\nbuild-backend = \"hatchling.build\"\n\n[project.scripts]\nposting = \"posting.__main__:cli\"\n\n[tool.uv]\ndev-dependencies = [\n    \"textual-dev>=1.5.1\",\n    \"pytest>=8.3.1\",\n    \"jinja2>=3.1.4\",\n    \"syrupy>=4.6.1\",\n    \"pytest-xdist>=3.6.1\",\n    \"pytest-cov>=5.0.0\",\n    \"pytest-textual-snapshot>=1.0.0\",\n    \"mkdocs-material>=9.5.30\",\n]\n\n[tool.hatch.metadata]\nallow-direct-references = true\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/posting\"]\n\n[tool.pytest.ini_options]\nmarkers = [\n    \"serial\",  # used to indicate tests must not run in parallel\n]\n\n[tool.coverage.run]\nrelative_files = true\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat Makefile",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "\n.PHONY: test\ntest:\n\t$(run) pytest --cov=posting tests/ -n 24 -m \"not serial\" $(ARGS)\n\t$(run) pytest --cov-report term-missing --cov-append --cov=posting tests/ -m serial $(ARGS)\n\n.PHONY: test-snapshot-update\ntest-snapshot-update:\n\t$(run) pytest --cov=posting tests/ -n 24 -m \"not serial\" --snapshot-update $(ARGS)\n\t$(run) pytest --cov-report term-missing --cov-append --cov=posting tests/ -m serial --snapshot-update $(ARGS)\n\n\n.PHONY: test-ci\ntest-ci:\n\t$(run) pytest --cov=posting tests/ --cov-report term-missing $(ARGS)\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat .github/workflows/test.yml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "name: Continuous Integration\n\non:\n    pull_request:\n    push:\n      branches:\n        - \"main\"\n\nenv:\n    PYTEST_ADDOPTS: \"--color=yes\"\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write\n      pull-requests: write\n    steps:\n      - uses: actions/checkout@v4\n      - name: Set up uv\n        # Install a specific uv version using the installer\n        run: curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh\n      - name: \"Set up Python\"\n        uses: actions/setup-python@v5\n        with:\n          python-version-file: \".python-version\"\n      - name: Install Depende\n... (305 chars omitted for recipe synthesis) ...\n Report\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: snapshot-report-posting\n          path: snapshot_report.html\n    \n      - name: Store Pull Request Comment\n        uses: actions/upload-artifact@v4\n        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'\n        with:\n            # If you use a different name, update COMMENT_ARTIFACT_NAME accordingly\n            name: python-coverage-comment-action\n            # If you use a different name, update COMMENT_FILENAME accordingly\n            path: python-coverage-comment-action.txt"
+      },
+      {
+        "step_index": 4,
+        "command": "cat .python-version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "3.11.7\n"
+      },
+      {
+        "step_index": 7,
+        "command": "pip install uv",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting uv\n  Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.6/24.6 MB 6.0 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.11\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 8,
+        "command": "uv sync --all-extras --dev",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\nDownloading cpython-3.11.7-linux-x86_64-gnu (download) (28.0MiB)\n Downloaded cpython-3.11.7-linux-x86_64-gnu (download)\nUsing CPython 3.11.7\nCreating virtual environment at: .venv\nResolved 82 packages in 3.64s\n   Building posting @ file:///app\nDownloading tree-sitter-languages (8.0MiB)\nDownloading mkdocs (3.7MiB)\nDownloading aiohttp (1.2MiB)\nDownloading pygments (1.1MiB)\nDownloading pydantic-core (2.0MiB)\nDownloading mkdocs-material\n... (1475 chars omitted for recipe synthesis) ...\n pytest==8.3.3\n + pytest-cov==5.0.0\n + pytest-textual-snapshot==1.0.0\n + pytest-xdist==3.6.1\n + python-dateutil==2.9.0.post0\n + python-dotenv==1.0.1\n + pyyaml==6.0.2\n + pyyaml-env-tag==0.1\n + regex==2024.9.11\n + requests==2.32.3\n + rich==13.8.0\n + six==1.16.0\n + sniffio==1.3.1\n + syrupy==4.7.2\n + textual==0.86.2\n + textual-autocomplete==3.0.0a13\n + textual-dev==1.6.1\n + textual-serve==1.1.1\n + tree-sitter==0.20.4\n + tree-sitter-languages==1.10.2\n + typing-extensions==4.12.2\n + uc-micro-py==1.0.3\n + urllib3==2.2.3\n + watchdog==5.0.3\n + watchfiles==0.24.0\n + xdg-base-dirs==6.0.1\n + yarl==1.14.0\n"
+      },
+      {
+        "step_index": 9,
+        "command": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\ntests/test_curl_import.py::test_simple_get\ntests/test_curl_import.py::test_get_with_headers\ntests/test_curl_import.py::test_post_with_form_data\ntests/test_curl_import.py::test_post_with_json_data\ntests/test_curl_import.py::test_post_with_form_option\ntests/test_curl_import.py::test_multiple_data_options\ntests/test_curl_import.py::test_curl_with_user_and_password\ntests/test_curl_import.py::test_curl_with_insecure\ntests/test_curl_impor\n... (5782 chars omitted for recipe synthesis) ...\ntom_theme__json\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\ntests/test_snapshots.py::TestScripts::test_script_runs\n\n90 tests collected in 0.56s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 5,
+        "command": "uv sync --all-extras --dev",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: uv: command not found\n"
+      },
+      {
+        "step_index": 6,
+        "command": "curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\ncurl: (35) TLS connect error: error:0A000126:SSL routines::unexpected eof while reading\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install uv",
+        "uv sync --all-extras --dev",
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "Steps 1-4 (cat pyproject.toml, Makefile, test.yml, .python-version): Read-only file inspection, not environment setup",
+          "reason": ""
+        },
+        {
+          "command": "Step 5 (uv sync --all-extras --dev): Failed with 'command not found' - uv not pre-installed",
+          "reason": ""
+        },
+        {
+          "command": "Step 6 (curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh): Failed with TLS connect error",
+          "reason": ""
+        },
+        {
+          "command": "Step 9 (uv run pytest --collect-only -q --disable-warnings): Final verification command, not a build step",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful trajectory first installs uv via pip (step 7), then syncs all dependencies including extras and dev dependencies (step 8). Failed attempts with uv (step 5) and curl installer (step 6) are excluded as they did not succeed. Read-only file inspections (steps 1-4) provide context but are not build commands. The final verification pytest command (step 9) confirms 90 tests are discoverable but is a test command, not a persistent environment setup step. All 82 packages from pyproject.toml are resolved and installed by uv sync into .venv.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 2,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 2074,
+        "raw_tokens_est": 518,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 205,
+        "reflect_input_tokens": 1837,
+        "reflect_output_tokens": 646
+      },
+      {
+        "step_id": 2,
+        "action": "cat Makefile",
+        "success": true,
+        "raw_chars": 523,
+        "raw_tokens_est": 130,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat .github/workflows/test.yml",
+        "success": true,
+        "raw_chars": 1505,
+        "raw_tokens_est": 376,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 61,
+        "reflect_input_tokens": 1186,
+        "reflect_output_tokens": 575
+      },
+      {
+        "step_id": 4,
+        "action": "cat .python-version",
+        "success": true,
+        "raw_chars": 7,
+        "raw_tokens_est": 1,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "uv sync --all-extras --dev",
+        "success": false,
+        "raw_chars": 41,
+        "raw_tokens_est": 10,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "curl -LsSf https://astral.sh/uv/0.3.3/install.sh | sh",
+        "success": false,
+        "raw_chars": 624,
+        "raw_tokens_est": 156,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "pip install uv",
+        "success": true,
+        "raw_chars": 680,
+        "raw_tokens_est": 170,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "uv sync --all-extras --dev",
+        "success": true,
+        "raw_chars": 2675,
+        "raw_tokens_est": 668,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 6982,
+        "raw_tokens_est": 1745,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 122976,
+        "output_tokens": 4940,
+        "total_tokens": 127916
+      },
+      "planner": {
+        "input_tokens": 50438,
+        "output_tokens": 828,
+        "total_tokens": 51266
+      },
+      "reflection": {
+        "input_tokens": 3023,
+        "output_tokens": 1221,
+        "total_tokens": 4244
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 9927,
+        "output_tokens": 1394,
+        "total_tokens": 11321
+      },
+      "total": {
+        "input_tokens": 186364,
+        "output_tokens": 8383,
+        "total_tokens": 194747
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_uv_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "uv run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-darrenburns__posting",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval -t jayint-repo2run-darrenburns__posting /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-08T01:22:57.900417+08:00",
+    "finished_at": "2026-05-08T01:23:27.900752+08:00",
+    "duration_seconds": 30.0,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.33kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 33.26MB 0.2s done\n#5 DONE 0.2s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 1.562 Collecting uv\n#10 1.986   Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 2.150 Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.6 MB)\n#10 6.278    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.6/24.6 MB 6.1 MB/s eta 0:00:00\n#10 6.490 Installing collected packages: uv\n#10 6.696 Successfully installed uv-0.11.11\n#10 6.697 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 6.8s\n\n#11 [7/8] RUN uv sync --all-extras --dev\n#11 0.197 warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n#11 1.087 Downloading cpython-3.11.7-linux-x86_64-gnu (download) (28.0MiB)\n#11 5.963  Downloaded cpython-3.11.7-linux-x86_64-gnu (download)\n#11 6.147 Using CPython 3.11.7\n#11 6.148 Creating virtual environment at: .venv\n#11 10.38 Resolved 82 packages in 4.20s\n#11 10.46    Building posting @ file:///app\n#11 11.15 Downloading tree-sitter-languages (8.0MiB)\n#11 11.24 Downloading mkdocs (3.7MiB)\n#11 11.24 Downloading pygments (1.1MiB)\n#11 11.24 Downloading pydantic-core (2.0MiB)\n#11 11.24 Downloading aiohttp (1.2MiB)\n#11 11.25 Downloading brotli (2.8MiB)\n#11 11.25 Downloading mkdocs-material (8.3MiB)\n#11 11.25 Downloading babel (9.1MiB)\n#11 12.21    Building pyperclip==1.9.0\n#11 12.47       Built pyperclip==1.9.0\n#11 14.10  Downloaded pygments\n#11 14.12  Downloaded aiohttp\n#11 14.88  Downloaded pydantic-core\n#11 15.68  Downloaded brotli\n#11 16.30  Downloaded mkdocs\n#11 17.59       Built posting @ file:///app\n#11 18.33  Downloaded tree-sitter-languages\n#11 18.53  Downloaded mkdocs-material\n#11 18.75  Downloaded babel\n#11 18.75 Prepared 77 packages in 8.31s\n#11 18.88 Installed 77 packages in 126ms\n#11 18.88  + aiohappyeyeballs==2.4.3\n#11 18.88  + aiohttp==3.10.10\n#11 18.88  + aiohttp-jinja2==1.6\n#11 18.88  + aiosignal==1.3.1\n#11 18.88  + annotated-types==0.7.0\n#11 18.88  + anyio==4.4.0\n#11 18.88  + attrs==24.2.0\n#11 18.88  + babel==2.16.0\n#11 18.88  + brotli==1.1.0\n#11 18.88  + certifi==2024.7.4\n#11 18.88  + charset-normalizer==3.4.0\n#11 18.88  + click==8.1.7\n#11 18.88  + click-default-group==1.2.4\n#11 18.88  + colorama==0.4.6\n#11 18.88  + coverage==7.6.2\n#11 18.88  + execnet==2.1.1\n#11 18.88  + frozenlist==1.4.1\n#11 18.88  + ghp-import==2.1.0\n#11 18.88  + h11==0.14.0\n#11 18.88  + httpcore==1.0.5\n#11 18.88  + httpx==0.27.2\n#11 18.88  + idna==3.8\n#11 18.88  + iniconfig==2.0.0\n#11 18.88  + jinja2==3.1.4\n#11 18.88  + linkify-it-py==2.0.3\n#11 18.88  + markdown==3.7\n#11 18.88  + markdown-it-py==3.0.0\n#11 18.88  + markupsafe==3.0.1\n#11 18.88  + mdit-py-plugins==0.4.1\n#11 18.88  + mdurl==0.1.2\n#11 18.88  + mergedeep==1.3.4\n#11 18.88  + mkdocs==1.6.1\n#11 18.88  + mkdocs-get-deps==0.2.0\n#11 18.88  + mkdocs-material==9.5.40\n#11 18.88  + mkdocs-material-extensions==1.3.1\n#11 18.88  + msgpack==1.1.0\n#11 18.88  + multidict==6.1.0\n#11 18.88  + packaging==24.1\n#11 18.88  + paginate==0.5.7\n#11 18.88  + pathspec==0.12.1\n#11 18.88  + platformdirs==4.2.2\n#11 18.88  + pluggy==1.5.0\n#11 18.88  + posting==2.3.0 (from file:///app)\n#11 18.88  + propcache==0.2.0\n#11 18.88  + pydantic==2.9.2\n#11 18.88  + pydantic-core==2.23.4\n#11 18.88  + pydantic-settings==2.4.0\n#11 18.88  + pygments==2.18.0\n#11 18.88  + pymdown-extensions==10.11.2\n#11 18.88  + pyperclip==1.9.0\n#11 18.88  + pytest==8.3.3\n#11 18.88  + pytest-cov==5.0.0\n#11 18.88  + pytest-textual-snapshot==1.0.0\n#11 18.88  + pytest-xdist==3.6.1\n#11 18.88  + python-dateutil==2.9.0.post0\n#11 18.88  + python-dotenv==1.0.1\n#11 18.88  + pyyaml==6.0.2\n#11 18.88  + pyyaml-env-tag==0.1\n#11 18.88  + regex==2024.9.11\n#11 18.88  + requests==2.32.3\n#11 18.88  + rich==13.8.0\n#11 18.88  + six==1.16.0\n#11 18.88  + sniffio==1.3.1\n#11 18.88  + syrupy==4.7.2\n#11 18.88  + textual==0.86.2\n#11 18.88  + textual-autocomplete==3.0.0a13\n#11 18.88  + textual-dev==1.6.1\n#11 18.88  + textual-serve==1.1.1\n#11 18.88  + tree-sitter==0.20.4\n#11 18.88  + tree-sitter-languages==1.10.2\n#11 18.88  + typing-extensions==4.12.2\n#11 18.88  + uc-micro-py==1.0.3\n#11 18.88  + urllib3==2.2.3\n#11 18.88  + watchdog==5.0.3\n#11 18.88  + watchfiles==0.24.0\n#11 18.88  + xdg-base-dirs==6.0.1\n#11 18.88  + yarl==1.14.0\n#11 DONE 19.3s\n\n#12 [8/8] RUN uv run pytest --collect-only -q --disable-warnings\n#12 0.200 warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n#12 1.850 tests/test_curl_import.py::test_simple_get\n#12 1.850 tests/test_curl_import.py::test_get_with_headers\n#12 1.850 tests/test_curl_import.py::test_post_with_form_data\n#12 1.850 tests/test_curl_import.py::test_post_with_json_data\n#12 1.850 tests/test_curl_import.py::test_post_with_form_option\n#12 1.850 tests/test_curl_import.py::test_multiple_data_options\n#12 1.850 tests/test_curl_import.py::test_curl_with_user_and_password\n#12 1.850 tests/test_curl_import.py::test_curl_with_insecure\n#12 1.850 tests/test_curl_import.py::test_curl_with_referer\n#12 1.850 tests/test_curl_import.py::test_curl_with_user_agent\n#12 1.850 tests/test_curl_import.py::test_curl_with_compressed\n#12 1.850 tests/test_curl_import.py::test_curl_with_method_and_data\n#12 1.850 tests/test_curl_import.py::test_curl_with_data_raw\n#12 1.850 tests/test_curl_import.py::test_curl_with_data_binary\n#12 1.850 tests/test_curl_import.py::test_curl_with_escaped_newlines\n#12 1.850 tests/test_curl_import.py::test_curl_with_no_space_in_header\n#12 1.850 tests/test_curl_import.py::test_curl_with_complex_command\n#12 1.850 tests/test_curl_import.py::test_curl_with_utf8_characters\n#12 1.850 tests/test_curl_import.py::test_curl_with_special_characters_in_data\n#12 1.850 tests/test_files.py::test_is_valid_filename[valid_filename.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[   -False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file/with/path.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[CON-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[PRN.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[AUX.log-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[NUL.dat-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[COM1.bin-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[LPT1.tmp-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file..with..dots.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[.hidden_file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[normal.file.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file-with-dashes.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file_with_underscores.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file with spaces.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file.with.multiple.extensions.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[../filename.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[filename/../something.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[foo/../bar/baz.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[foo/./bar/baz.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/etc/passwd-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/var/log/system.log-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/home/user/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[C:/Program Files/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename_with_none\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[COM0-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[LPT0-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[CON.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[AUX.log-False]\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_loads\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_focus_switch\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_click_switch\n#12 1.850 tests/test_snapshots.py::TestMethodSelection::test_select_post_method\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_appears_on_typing\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_filters_on_typing\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_enter_key\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_tab_key\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_loads_and_shows_discovery_options\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_can_type_to_filter_options\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_can_run_command__hide_collection_browser\n#12 1.850 tests/test_snapshots.py::TestNewRequest::test_dialog_loads_and_can_be_used\n#12 1.850 tests/test_snapshots.py::TestNewRequest::test_new_request_added_to_tree_correctly_and_notification_shown\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_hide_collection_browser\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_request_section\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_then_reset\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__headers\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__body\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__query_params\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__auth\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__options\n#12 1.850 tests/test_snapshots.py::TestHelpScreen::test_help_screen_appears\n#12 1.850 tests/test_snapshots.py::TestSave::test_no_request_selected__dialog_is_prefilled_correctly\n#12 1.850 tests/test_snapshots.py::TestSendRequest::test_send_request\n#12 1.850 tests/test_snapshots.py::TestConfig::test_config\n#12 1.850 tests/test_snapshots.py::TestVariables::test_unresolved_variables_highlighted\n#12 1.850 tests/test_snapshots.py::TestVariables::test_resolved_variables_highlight_and_preview\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_set_on_startup_and_in_command_palette\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__url\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__json\n#12 1.850 tests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__url\n#12 1.850 tests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__json\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\n#12 1.850 tests/test_snapshots.py::TestScripts::test_script_runs\n#12 1.850 \n#12 1.850 90 tests collected in 0.58s\n#12 DONE 2.0s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.1s done\n#13 writing image sha256:e5a815cc56a5fd7511a12913671773be7545366c2db84817e418fab041202137\n#13 writing image sha256:e5a815cc56a5fd7511a12913671773be7545366c2db84817e418fab041202137 done\n#13 naming to docker.io/library/jayint-repo2run-darrenburns__posting done\n#13 DONE 1.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/qia9zi8wiff98kjopnsdaaei9\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-darrenburns__posting",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-darrenburns__posting sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-08T01:23:27.904013+08:00",
+          "finished_at": "2026-05-08T01:23:29.506059+08:00",
+          "duration_seconds": 1.602,
+          "stdout": "tests/test_curl_import.py::test_simple_get\ntests/test_curl_import.py::test_get_with_headers\ntests/test_curl_import.py::test_post_with_form_data\ntests/test_curl_import.py::test_post_with_json_data\ntests/test_curl_import.py::test_post_with_form_option\ntests/test_curl_import.py::test_multiple_data_options\ntests/test_curl_import.py::test_curl_with_user_and_password\ntests/test_curl_import.py::test_curl_with_insecure\ntests/test_curl_import.py::test_curl_with_referer\ntests/test_curl_import.py::test_curl_with_user_agent\ntests/test_curl_import.py::test_curl_with_compressed\ntests/test_curl_import.py::test_curl_with_method_and_data\ntests/test_curl_import.py::test_curl_with_data_raw\ntests/test_curl_import.py::test_curl_with_data_binary\ntests/test_curl_import.py::test_curl_with_escaped_newlines\ntests/test_curl_import.py::test_curl_with_no_space_in_header\ntests/test_curl_import.py::test_curl_with_complex_command\ntests/test_curl_import.py::test_curl_with_utf8_characters\ntests/test_curl_import.py::test_curl_with_special_characters_in_data\ntests/test_files.py::test_is_valid_filename[valid_filename.txt-True]\ntests/test_files.py::test_is_valid_filename[-False]\ntests/test_files.py::test_is_valid_filename[   -False]\ntests/test_files.py::test_is_valid_filename[file/with/path.txt-False]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]\ntests/test_files.py::test_is_valid_filename[CON-False]\ntests/test_files.py::test_is_valid_filename[PRN.txt-False]\ntests/test_files.py::test_is_valid_filename[AUX.log-False]\ntests/test_files.py::test_is_valid_filename[NUL.dat-False]\ntests/test_files.py::test_is_valid_filename[COM1.bin-False]\ntests/test_files.py::test_is_valid_filename[LPT1.tmp-False]\ntests/test_files.py::test_is_valid_filename[file..with..dots.txt-False]\ntests/test_files.py::test_is_valid_filename[.hidden_file.txt-False]\ntests/test_files.py::test_is_valid_filename[normal.file.txt-True]\ntests/test_files.py::test_is_valid_filename[file-with-dashes.txt-True]\ntests/test_files.py::test_is_valid_filename[file_with_underscores.txt-True]\ntests/test_files.py::test_is_valid_filename[file with spaces.txt-True]\ntests/test_files.py::test_is_valid_filename[file.with.multiple.extensions.txt-True]\ntests/test_files.py::test_is_valid_filename[../filename.txt-False]\ntests/test_files.py::test_is_valid_filename[filename/../something.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/../bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/./bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[/etc/passwd-False]\ntests/test_files.py::test_is_valid_filename[/var/log/system.log-False]\ntests/test_files.py::test_is_valid_filename[/home/user/file.txt-False]\ntests/test_files.py::test_is_valid_filename[/file.txt-False]\ntests/test_files.py::test_is_valid_filename[C:/Program Files/file.txt-False]\ntests/test_files.py::test_is_valid_filename_with_none\ntests/test_files.py::test_is_valid_filename_os_specific[COM0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[LPT0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[CON.txt-False]\ntests/test_files.py::test_is_valid_filename_os_specific[AUX.log-False]\ntests/test_snapshots.py::TestJumpMode::test_loads\ntests/test_snapshots.py::TestJumpMode::test_focus_switch\ntests/test_snapshots.py::TestJumpMode::test_click_switch\ntests/test_snapshots.py::TestMethodSelection::test_select_post_method\ntests/test_snapshots.py::TestUrlBar::test_dropdown_appears_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_filters_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_enter_key\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_tab_key\ntests/test_snapshots.py::TestCommandPalette::test_loads_and_shows_discovery_options\ntests/test_snapshots.py::TestCommandPalette::test_can_type_to_filter_options\ntests/test_snapshots.py::TestCommandPalette::test_can_run_command__hide_collection_browser\ntests/test_snapshots.py::TestNewRequest::test_dialog_loads_and_can_be_used\ntests/test_snapshots.py::TestNewRequest::test_new_request_added_to_tree_correctly_and_notification_shown\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_hide_collection_browser\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_request_section\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_then_reset\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__headers\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__body\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__query_params\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__auth\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__options\ntests/test_snapshots.py::TestHelpScreen::test_help_screen_appears\ntests/test_snapshots.py::TestSave::test_no_request_selected__dialog_is_prefilled_correctly\ntests/test_snapshots.py::TestSendRequest::test_send_request\ntests/test_snapshots.py::TestConfig::test_config\ntests/test_snapshots.py::TestVariables::test_unresolved_variables_highlighted\ntests/test_snapshots.py::TestVariables::test_resolved_variables_highlight_and_preview\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_set_on_startup_and_in_command_palette\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__url\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__json\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__url\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__json\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\ntests/test_snapshots.py::TestScripts::test_script_runs\n\n90 tests collected in 0.22s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n   Building posting @ file:///app\n      Built posting @ file:///app\nUninstalled 1 package in 4ms\nInstalled 1 package in 1ms\n",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-darrenburns__posting",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/Dockerfile.eval -t jayint-repo2run-darrenburns__posting /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/darrenburns__posting",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-08T01:22:57.900417+08:00",
+        "finished_at": "2026-05-08T01:23:27.900752+08:00",
+        "duration_seconds": 30.0,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.33kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 33.26MB 0.2s done\n#5 DONE 0.2s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 1.562 Collecting uv\n#10 1.986   Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 2.150 Downloading uv-0.11.11-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.6 MB)\n#10 6.278    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.6/24.6 MB 6.1 MB/s eta 0:00:00\n#10 6.490 Installing collected packages: uv\n#10 6.696 Successfully installed uv-0.11.11\n#10 6.697 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 6.8s\n\n#11 [7/8] RUN uv sync --all-extras --dev\n#11 0.197 warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n#11 1.087 Downloading cpython-3.11.7-linux-x86_64-gnu (download) (28.0MiB)\n#11 5.963  Downloaded cpython-3.11.7-linux-x86_64-gnu (download)\n#11 6.147 Using CPython 3.11.7\n#11 6.148 Creating virtual environment at: .venv\n#11 10.38 Resolved 82 packages in 4.20s\n#11 10.46    Building posting @ file:///app\n#11 11.15 Downloading tree-sitter-languages (8.0MiB)\n#11 11.24 Downloading mkdocs (3.7MiB)\n#11 11.24 Downloading pygments (1.1MiB)\n#11 11.24 Downloading pydantic-core (2.0MiB)\n#11 11.24 Downloading aiohttp (1.2MiB)\n#11 11.25 Downloading brotli (2.8MiB)\n#11 11.25 Downloading mkdocs-material (8.3MiB)\n#11 11.25 Downloading babel (9.1MiB)\n#11 12.21    Building pyperclip==1.9.0\n#11 12.47       Built pyperclip==1.9.0\n#11 14.10  Downloaded pygments\n#11 14.12  Downloaded aiohttp\n#11 14.88  Downloaded pydantic-core\n#11 15.68  Downloaded brotli\n#11 16.30  Downloaded mkdocs\n#11 17.59       Built posting @ file:///app\n#11 18.33  Downloaded tree-sitter-languages\n#11 18.53  Downloaded mkdocs-material\n#11 18.75  Downloaded babel\n#11 18.75 Prepared 77 packages in 8.31s\n#11 18.88 Installed 77 packages in 126ms\n#11 18.88  + aiohappyeyeballs==2.4.3\n#11 18.88  + aiohttp==3.10.10\n#11 18.88  + aiohttp-jinja2==1.6\n#11 18.88  + aiosignal==1.3.1\n#11 18.88  + annotated-types==0.7.0\n#11 18.88  + anyio==4.4.0\n#11 18.88  + attrs==24.2.0\n#11 18.88  + babel==2.16.0\n#11 18.88  + brotli==1.1.0\n#11 18.88  + certifi==2024.7.4\n#11 18.88  + charset-normalizer==3.4.0\n#11 18.88  + click==8.1.7\n#11 18.88  + click-default-group==1.2.4\n#11 18.88  + colorama==0.4.6\n#11 18.88  + coverage==7.6.2\n#11 18.88  + execnet==2.1.1\n#11 18.88  + frozenlist==1.4.1\n#11 18.88  + ghp-import==2.1.0\n#11 18.88  + h11==0.14.0\n#11 18.88  + httpcore==1.0.5\n#11 18.88  + httpx==0.27.2\n#11 18.88  + idna==3.8\n#11 18.88  + iniconfig==2.0.0\n#11 18.88  + jinja2==3.1.4\n#11 18.88  + linkify-it-py==2.0.3\n#11 18.88  + markdown==3.7\n#11 18.88  + markdown-it-py==3.0.0\n#11 18.88  + markupsafe==3.0.1\n#11 18.88  + mdit-py-plugins==0.4.1\n#11 18.88  + mdurl==0.1.2\n#11 18.88  + mergedeep==1.3.4\n#11 18.88  + mkdocs==1.6.1\n#11 18.88  + mkdocs-get-deps==0.2.0\n#11 18.88  + mkdocs-material==9.5.40\n#11 18.88  + mkdocs-material-extensions==1.3.1\n#11 18.88  + msgpack==1.1.0\n#11 18.88  + multidict==6.1.0\n#11 18.88  + packaging==24.1\n#11 18.88  + paginate==0.5.7\n#11 18.88  + pathspec==0.12.1\n#11 18.88  + platformdirs==4.2.2\n#11 18.88  + pluggy==1.5.0\n#11 18.88  + posting==2.3.0 (from file:///app)\n#11 18.88  + propcache==0.2.0\n#11 18.88  + pydantic==2.9.2\n#11 18.88  + pydantic-core==2.23.4\n#11 18.88  + pydantic-settings==2.4.0\n#11 18.88  + pygments==2.18.0\n#11 18.88  + pymdown-extensions==10.11.2\n#11 18.88  + pyperclip==1.9.0\n#11 18.88  + pytest==8.3.3\n#11 18.88  + pytest-cov==5.0.0\n#11 18.88  + pytest-textual-snapshot==1.0.0\n#11 18.88  + pytest-xdist==3.6.1\n#11 18.88  + python-dateutil==2.9.0.post0\n#11 18.88  + python-dotenv==1.0.1\n#11 18.88  + pyyaml==6.0.2\n#11 18.88  + pyyaml-env-tag==0.1\n#11 18.88  + regex==2024.9.11\n#11 18.88  + requests==2.32.3\n#11 18.88  + rich==13.8.0\n#11 18.88  + six==1.16.0\n#11 18.88  + sniffio==1.3.1\n#11 18.88  + syrupy==4.7.2\n#11 18.88  + textual==0.86.2\n#11 18.88  + textual-autocomplete==3.0.0a13\n#11 18.88  + textual-dev==1.6.1\n#11 18.88  + textual-serve==1.1.1\n#11 18.88  + tree-sitter==0.20.4\n#11 18.88  + tree-sitter-languages==1.10.2\n#11 18.88  + typing-extensions==4.12.2\n#11 18.88  + uc-micro-py==1.0.3\n#11 18.88  + urllib3==2.2.3\n#11 18.88  + watchdog==5.0.3\n#11 18.88  + watchfiles==0.24.0\n#11 18.88  + xdg-base-dirs==6.0.1\n#11 18.88  + yarl==1.14.0\n#11 DONE 19.3s\n\n#12 [8/8] RUN uv run pytest --collect-only -q --disable-warnings\n#12 0.200 warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n#12 1.850 tests/test_curl_import.py::test_simple_get\n#12 1.850 tests/test_curl_import.py::test_get_with_headers\n#12 1.850 tests/test_curl_import.py::test_post_with_form_data\n#12 1.850 tests/test_curl_import.py::test_post_with_json_data\n#12 1.850 tests/test_curl_import.py::test_post_with_form_option\n#12 1.850 tests/test_curl_import.py::test_multiple_data_options\n#12 1.850 tests/test_curl_import.py::test_curl_with_user_and_password\n#12 1.850 tests/test_curl_import.py::test_curl_with_insecure\n#12 1.850 tests/test_curl_import.py::test_curl_with_referer\n#12 1.850 tests/test_curl_import.py::test_curl_with_user_agent\n#12 1.850 tests/test_curl_import.py::test_curl_with_compressed\n#12 1.850 tests/test_curl_import.py::test_curl_with_method_and_data\n#12 1.850 tests/test_curl_import.py::test_curl_with_data_raw\n#12 1.850 tests/test_curl_import.py::test_curl_with_data_binary\n#12 1.850 tests/test_curl_import.py::test_curl_with_escaped_newlines\n#12 1.850 tests/test_curl_import.py::test_curl_with_no_space_in_header\n#12 1.850 tests/test_curl_import.py::test_curl_with_complex_command\n#12 1.850 tests/test_curl_import.py::test_curl_with_utf8_characters\n#12 1.850 tests/test_curl_import.py::test_curl_with_special_characters_in_data\n#12 1.850 tests/test_files.py::test_is_valid_filename[valid_filename.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[   -False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file/with/path.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[CON-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[PRN.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[AUX.log-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[NUL.dat-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[COM1.bin-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[LPT1.tmp-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file..with..dots.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[.hidden_file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[normal.file.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file-with-dashes.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file_with_underscores.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file with spaces.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[file.with.multiple.extensions.txt-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename[../filename.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[filename/../something.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[foo/../bar/baz.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[foo/./bar/baz.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/etc/passwd-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/var/log/system.log-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/home/user/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename[C:/Program Files/file.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename_with_none\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[COM0-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[LPT0-True]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[CON.txt-False]\n#12 1.850 tests/test_files.py::test_is_valid_filename_os_specific[AUX.log-False]\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_loads\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_focus_switch\n#12 1.850 tests/test_snapshots.py::TestJumpMode::test_click_switch\n#12 1.850 tests/test_snapshots.py::TestMethodSelection::test_select_post_method\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_appears_on_typing\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_filters_on_typing\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_enter_key\n#12 1.850 tests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_tab_key\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_loads_and_shows_discovery_options\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_can_type_to_filter_options\n#12 1.850 tests/test_snapshots.py::TestCommandPalette::test_can_run_command__hide_collection_browser\n#12 1.850 tests/test_snapshots.py::TestNewRequest::test_dialog_loads_and_can_be_used\n#12 1.850 tests/test_snapshots.py::TestNewRequest::test_new_request_added_to_tree_correctly_and_notification_shown\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_hide_collection_browser\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_request_section\n#12 1.850 tests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_then_reset\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__headers\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__body\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__query_params\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__auth\n#12 1.850 tests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__options\n#12 1.850 tests/test_snapshots.py::TestHelpScreen::test_help_screen_appears\n#12 1.850 tests/test_snapshots.py::TestSave::test_no_request_selected__dialog_is_prefilled_correctly\n#12 1.850 tests/test_snapshots.py::TestSendRequest::test_send_request\n#12 1.850 tests/test_snapshots.py::TestConfig::test_config\n#12 1.850 tests/test_snapshots.py::TestVariables::test_unresolved_variables_highlighted\n#12 1.850 tests/test_snapshots.py::TestVariables::test_resolved_variables_highlight_and_preview\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_set_on_startup_and_in_command_palette\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__url\n#12 1.850 tests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__json\n#12 1.850 tests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__url\n#12 1.850 tests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__json\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\n#12 1.850 tests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\n#12 1.850 tests/test_snapshots.py::TestScripts::test_script_runs\n#12 1.850 \n#12 1.850 90 tests collected in 0.58s\n#12 DONE 2.0s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.1s done\n#13 writing image sha256:e5a815cc56a5fd7511a12913671773be7545366c2db84817e418fab041202137\n#13 writing image sha256:e5a815cc56a5fd7511a12913671773be7545366c2db84817e418fab041202137 done\n#13 naming to docker.io/library/jayint-repo2run-darrenburns__posting done\n#13 DONE 1.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/qia9zi8wiff98kjopnsdaaei9\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "uv run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-darrenburns__posting",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-darrenburns__posting sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-08T01:23:27.904013+08:00",
+              "finished_at": "2026-05-08T01:23:29.506059+08:00",
+              "duration_seconds": 1.602,
+              "stdout": "tests/test_curl_import.py::test_simple_get\ntests/test_curl_import.py::test_get_with_headers\ntests/test_curl_import.py::test_post_with_form_data\ntests/test_curl_import.py::test_post_with_json_data\ntests/test_curl_import.py::test_post_with_form_option\ntests/test_curl_import.py::test_multiple_data_options\ntests/test_curl_import.py::test_curl_with_user_and_password\ntests/test_curl_import.py::test_curl_with_insecure\ntests/test_curl_import.py::test_curl_with_referer\ntests/test_curl_import.py::test_curl_with_user_agent\ntests/test_curl_import.py::test_curl_with_compressed\ntests/test_curl_import.py::test_curl_with_method_and_data\ntests/test_curl_import.py::test_curl_with_data_raw\ntests/test_curl_import.py::test_curl_with_data_binary\ntests/test_curl_import.py::test_curl_with_escaped_newlines\ntests/test_curl_import.py::test_curl_with_no_space_in_header\ntests/test_curl_import.py::test_curl_with_complex_command\ntests/test_curl_import.py::test_curl_with_utf8_characters\ntests/test_curl_import.py::test_curl_with_special_characters_in_data\ntests/test_files.py::test_is_valid_filename[valid_filename.txt-True]\ntests/test_files.py::test_is_valid_filename[-False]\ntests/test_files.py::test_is_valid_filename[   -False]\ntests/test_files.py::test_is_valid_filename[file/with/path.txt-False]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-True]\ntests/test_files.py::test_is_valid_filename[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-False]\ntests/test_files.py::test_is_valid_filename[CON-False]\ntests/test_files.py::test_is_valid_filename[PRN.txt-False]\ntests/test_files.py::test_is_valid_filename[AUX.log-False]\ntests/test_files.py::test_is_valid_filename[NUL.dat-False]\ntests/test_files.py::test_is_valid_filename[COM1.bin-False]\ntests/test_files.py::test_is_valid_filename[LPT1.tmp-False]\ntests/test_files.py::test_is_valid_filename[file..with..dots.txt-False]\ntests/test_files.py::test_is_valid_filename[.hidden_file.txt-False]\ntests/test_files.py::test_is_valid_filename[normal.file.txt-True]\ntests/test_files.py::test_is_valid_filename[file-with-dashes.txt-True]\ntests/test_files.py::test_is_valid_filename[file_with_underscores.txt-True]\ntests/test_files.py::test_is_valid_filename[file with spaces.txt-True]\ntests/test_files.py::test_is_valid_filename[file.with.multiple.extensions.txt-True]\ntests/test_files.py::test_is_valid_filename[../filename.txt-False]\ntests/test_files.py::test_is_valid_filename[filename/../something.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/../bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[foo/./bar/baz.txt-False]\ntests/test_files.py::test_is_valid_filename[/etc/passwd-False]\ntests/test_files.py::test_is_valid_filename[/var/log/system.log-False]\ntests/test_files.py::test_is_valid_filename[/home/user/file.txt-False]\ntests/test_files.py::test_is_valid_filename[/file.txt-False]\ntests/test_files.py::test_is_valid_filename[C:/Program Files/file.txt-False]\ntests/test_files.py::test_is_valid_filename_with_none\ntests/test_files.py::test_is_valid_filename_os_specific[COM0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[LPT0-True]\ntests/test_files.py::test_is_valid_filename_os_specific[CON.txt-False]\ntests/test_files.py::test_is_valid_filename_os_specific[AUX.log-False]\ntests/test_snapshots.py::TestJumpMode::test_loads\ntests/test_snapshots.py::TestJumpMode::test_focus_switch\ntests/test_snapshots.py::TestJumpMode::test_click_switch\ntests/test_snapshots.py::TestMethodSelection::test_select_post_method\ntests/test_snapshots.py::TestUrlBar::test_dropdown_appears_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_filters_on_typing\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_enter_key\ntests/test_snapshots.py::TestUrlBar::test_dropdown_completion_selected_via_tab_key\ntests/test_snapshots.py::TestCommandPalette::test_loads_and_shows_discovery_options\ntests/test_snapshots.py::TestCommandPalette::test_can_type_to_filter_options\ntests/test_snapshots.py::TestCommandPalette::test_can_run_command__hide_collection_browser\ntests/test_snapshots.py::TestNewRequest::test_dialog_loads_and_can_be_used\ntests/test_snapshots.py::TestNewRequest::test_new_request_added_to_tree_correctly_and_notification_shown\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_hide_collection_browser\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_request_section\ntests/test_snapshots.py::TestUserInterfaceShortcuts::test_expand_then_reset\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__headers\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__body\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__query_params\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__auth\ntests/test_snapshots.py::TestLoadingRequest::test_request_loaded_into_view__options\ntests/test_snapshots.py::TestHelpScreen::test_help_screen_appears\ntests/test_snapshots.py::TestSave::test_no_request_selected__dialog_is_prefilled_correctly\ntests/test_snapshots.py::TestSendRequest::test_send_request\ntests/test_snapshots.py::TestConfig::test_config\ntests/test_snapshots.py::TestVariables::test_unresolved_variables_highlighted\ntests/test_snapshots.py::TestVariables::test_resolved_variables_highlight_and_preview\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_set_on_startup_and_in_command_palette\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__url\ntests/test_snapshots.py::TestCustomThemeSimple::test_theme_sensible_defaults__json\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__url\ntests/test_snapshots.py::TestCustomThemeComplex::test_highlighting_applied_from_custom_theme__json\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[headers]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[body]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[query]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[url]\ntests/test_snapshots.py::TestFocusAutoSwitchingConfig::test_focus_on_request_open__open_body[method]\ntests/test_snapshots.py::TestScripts::test_script_runs\n\n90 tests collected in 0.22s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead\n   Building posting @ file:///app\n      Built posting @ file:///app\nUninstalled 1 package in 4ms\nInstalled 1 package in 1ms\n",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-darrenburns__posting"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-darrenburns__posting",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-08T01:23:29.509733+08:00",
+    "finished_at": "2026-05-08T01:23:29.533211+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-darrenburns__posting:latest\nDeleted: sha256:e5a815cc56a5fd7511a12913671773be7545366c2db84817e418fab041202137\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/darrenburns__posting/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

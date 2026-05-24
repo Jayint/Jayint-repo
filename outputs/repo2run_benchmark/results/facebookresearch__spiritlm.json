@@ -1,0 +1,850 @@
+{
+  "dataset_entry": {
+    "instance_id": "facebookresearch__spiritlm",
+    "full_name": "facebookresearch/spiritlm",
+    "repo_url": "https://github.com/facebookresearch/spiritlm.git",
+    "sha": "52fb2f",
+    "base_commit": "52fb2f",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/facebookresearch/spiritlm.git",
+      "--base-commit",
+      "52fb2f",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/facebookresearch/spiritlm.git --base-commit 52fb2f --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-10T03:10:07.673061+08:00",
+    "finished_at": "2026-05-10T03:28:56.695438+08:00",
+    "duration_seconds": 1129.022,
+    "stdout": "Cloning https://github.com/facebookresearch/spiritlm.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 52fb2f\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 6 potentially relevant files\n[ImageSelector]   ✓ setup.py\n[ImageSelector]   ✓ requirements.dev.txt\n[ImageSelector]   ✗ MODEL_CARD.md\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ env.yml\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector] 5 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: While this project uses torchfcpe and other packages with native/CUDA binaries, there are no embedded database dependencies (like embedded-postgres) that would cause ARM64 compatibility issues. The ML packages (PyTorch, torchaudio, librosa) all provide cross-platform support including ARM64. However, for GPU-enabled testing with CUDA, consider using `nvidia/cuda:*-cudnn8-runtime-ubuntu22.04` or `nvidia/cuda:*-cudnn8-devel-ubuntu22.04` as a base and installing Python 3.9 on top if NVIDIA GPU access is required for testing.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.9\n[DockerAgent] Selected base image: python:3.9\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/logs/image_selector_logs\nInitializing container from python:3.9...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.9 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:530c4\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/logs/compression_logs\nStarting agent for repository: https://github.com/facebookresearch/spiritlm.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2382, Output: 60, Total: 2442\n\n[Thought]\nI'll start by examining the repository's configuration files to understand the dependencies and setup requirements.\n\n[Action]\ncat facebookresearch__spiritlm/requirements.txt\n[Container ID: 3c09b7faf812]\nExecuting: cat facebookresearch__spiritlm/requirements.txt\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: facebookresearch__spiritlm/requirements.txt: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2440, Output: 79, Total: 2519\n\n[Thought]\nThe requirements.txt file wasn't found. Let me check the actual directory structure and look for the requirements files mentioned in the repository structure.\n\n[Action]\nls -la facebookresearch__spiritlm/\n[Container ID: 3c09b7faf812]\nExecuting: ls -la facebookresearch__spiritlm/\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\nls: cannot access 'facebookresearch__spiritlm/': No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2508, Output: 54, Total: 2562\n\n[Thought]\nLet me check the current directory to see where the repository files are located.\n\n[Action]\nls -la\n[Container ID: 3c09b7faf812]\nExecuting: ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 92\ndrwxr-xr-x 10 root root     4096 May  9 19:11 .\ndrwxr-xr-x  1 root root     4096 May  9 19:11 ..\ndrwxr-xr-x  7  501 dialout  4096 May  9 19:10 .git\n-rw-r--r--  1  501 dialout  3206 May  9 19:10 .gitignore\n-rw-r--r--  1  501 dialout  3537 May  9 19:10 CODE_OF_CONDUCT.md\n-rw-r--r--  1  501 dialout  1250 May  9 19:10 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout 11854 May  9 19:10 LICENSE\n-rw-r--r--  1  501 dialout  5405 May  9 19:10 MODEL_CARD.md\n-rw-r--r--  1  501 dialout  1772 May  9 19:10 README.md\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 assets\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 checkpoints\ndrwxr-xr-x  3  501 dialout  4096 May  9 19:10 data\n-rw-r--r--  1  501 dialout   319 May  9 19:10 env.yml\ndrwxr-xr-x  6  501 dialout  4096 May  9 19:10 examples\ndrwxr-xr-x  3  501 dialout  4096 May  9 19:10 logs\n-rw-r--r--  1  501 dialout     6 May  9 19:10 requirements.dev.txt\n-rw-r--r--  1  501 dialout   137 May  9 19:10 requirements.txt\n-rw-r--r--  1  501 dialout  1733 May  9 19:10 setup.py\ndrwxr-xr-x  5  501 dialout  4096 May  9 19:10 spiritlm\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 tests\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3101, Output: 73, Total: 3174\n\n[Thought]\nThe repository is directly in the current directory. Let me examine the requirements files and setup.py to understand the dependencies.\n\n[Action]\ncat requirements.txt\n[Container ID: 3c09b7faf812]\nExecuting: cat requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nomegaconf>=2.2.0\nlibrosa>=0.10\nlocal-attention>=1.9\nencodec>=0.1\ntransformers\nfairscale>=0.4\nsentencepiece\npyarrow>=14.0\ntorchfcpe>=0.0.4\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3205, Output: 45, Total: 3250\n\n[Thought]\nLet me check the dev requirements and setup.py file.\n\n[Action]\ncat requirements.dev.txt && echo \"---\" && cat setup.py\n[Container ID: 3c09b7faf812]\nExecuting: cat requirements.dev.txt && echo \"---\" && cat setup.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\npytest---\n# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nimport os\nfrom pathlib import Path\n\nfrom setuptools import find_packages, setup\n\nNAME = \"spiritlm\"\nVERSION = \"0.1.0\"\nDESCRIPTION = \"Interleaved Spoken and Written Language Model\"\nURL = \"https://github.com/facebookresearch/spiritlm\"\nKEYWORDS = [\n    \"Language Model, Speech Language Model, Multimodal, Crossmodal, Expressivity Modeling\"\n]\nLICENSE = \"FAIR Noncommercial Research License\"\n\n\ndef _get_long_description():\n    with (Path(__file__).parent / \"README.md\").open(encoding=\"utf-8\") as file:\n        long_description = file.read()\n    return long_description\n\n\ndef _read_reqs(relpath):\n    fullpath = os.path.join(os.path.dirname(__file__), relpath)\n    with open(fullpath) as f:\n        return [\n            s.strip() for s in f.readlines() if (s.strip() and not s.startswith(\"#\"))\n        ]\n\n\nsetup(\n    name=NAME,\n    version=VERSION,\n    description=DESCRIPTION,\n    long_description=_get_long_description(),\n    long_description_content_type=\"text/plain\",\n    url=URL,\n    license=LICENSE,\n    author=\"Meta\",\n    keywords=KEYWORDS,\n    classifiers=[\n        \"Intended Audience :: Science/Research\",\n        \"License :: FAIR Noncommercial Research License\",\n        \"Topic :: Multimedia :: Sound/Audio\",\n        \"Topic :: Scientific/Engineering :: Artificial Intelligence\",\n    ],\n    packages=find_packages(),\n    zip_safe=False,\n    python_requires=\">=3.9\",\n    install_requires=_read_reqs(\"requirements.txt\"),\n    extras_require={\n        \"dev\": [\"pytest\"],\n        \"eval\": [\"pandas\"],\n    },\n)\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3646, Output: 51, Total: 3697\n\n[Thought]\nLet me check the env.yml file and the test files to understand the testing setup.\n\n[Action]\ncat env.yml\n[Container ID: 3c09b7faf812]\nExecuting: cat env.yml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nname: spiritlm_test\nchannels:\n  - pytorch\n  - nvidia\ndependencies:\n  - python=3.9\n  - pip\n  - pytorch-cuda=11.8\n  - pytorch\n  - torchaudio\n  - pip:\n    - omegaconf==2.2.0\n    - librosa~=0.10\n    - local-attention~=1.9\n    - encodec~=0.1\n    - transformers\n    - fairscale~=0.4\n    - sentencepiece\n    - torchfcpe~=0.0.4\n\n==================== Step 7 ====================\n\n[Tokens] Input: 3815, Output: 45, Total: 3860\n\n[Thought]\nLet me check the test files to understand what's being tested.\n\n[Action]\ncat tests/test_tokenizer.py\n[Container ID: 3c09b7faf812]\nExecuting: cat tests/test_tokenizer.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nimport pytest\nimport torchaudio\nfrom spiritlm.speech_tokenizer import spiritlm_base, spiritlm_expressive\n\n\n@pytest.fixture\ndef spiritlm_expressive_tokenizer():\n    return spiritlm_expressive()\n\n\n@pytest.fixture\ndef spiritlm_base_tokenizer():\n    return spiritlm_base()\n\n\ndef test_expressive_tokenizer_encode_units(spiritlm_expressive_tokenizer):\n    audio = \"examples/audio/7143-88743-0029.flac\"\n    units = spiritlm_expressive_tokenizer.encode_units(audio)\n    expected = {\n        \"hubert\": \"99 49 38 149 149 71 423 427 492 288 315 153 153 389 497 412 247 354 7 96 452 452 176 266 266 77 248 336 336 211 166 65 94 224 224 148 492 191 440 440 41 41 457 79 382 451 332 216 114 340 478 74 79 370 272 370 370 53 477 65 171 60 258 111 111 111 111 338 338 23 23 338 23 338 338 338 7 338 338 149 406 7 361 361 361 99 99 99 99 99 99 99 209 209 209 209 209 479 50 50 7 149 149 35 35 130 130 169 169 72 434 119 272 4 249 245 245 433 159 294 139 359 343 269 302 226 370 216 459 424 424 226 382 7 58 138 428 397 350 350 306 306 306 84 11 171 171 60 314 227 227 355 9 58 138 226 370 272 382 334 330 176 176 307 145 248 493 64 44 388 7 111 111 111 111 23 23 481 149 149 80 70 431 457 79 79 249 249 245 245 245 433 433 316 316 180 458 458 458 86 86 225 103 60 96 119 119 129 356 218 4 259 259 392 490 75 488 166 65 171 60 7 54 54 85 85 361 361\",\n        \"pitch\": \"39 39 39 48 56 40 42 39 51 40 43 54 3 35 39 25 58 26 44 40 13 20 46 41 26 40 26 56 41 46 46 41 41 40 40 40 39 39 57 59 59 59 59 59 59 59 59 20 20 20 35 35 13 3 9 6 0 20 57 56 56 56 56 59 44 57 41 59 42 51 59 57 59 59 39 39 46 56 58 41 41 40 39 39 39 59 59 59 15 27 13 55 13 27 35 36 3 53 3 26 43 53 54 39 25 14 41 46 46 46 46 41 41 41\",\n        \"style\": \"71 71 71 71 71 71 71 71 71 83\",\n    }\n    for token_key in [\"hubert\", \"pitch\", \"style\"]:\n        assert (\n            expected[token_key] == units[token_key]\n        ), f\"{token_key} expected {expected[token_key]}, got {units[token_key]}\"\n\n\ndef test_expressive_tokenizer_encode_units_with_tensor_input(\n    spiritlm_expressive_tokenizer,\n):\n    wav = torchaudio.load(\"examples/audio/7143-88743-0029.flac\")[0].squeeze(0)\n    units = spiritlm_expressive_tokenizer.encode_units(wav)\n    expected = {\n        \"hubert\": \"99 49 38 149 149 71 423 427 492 288 315 153 153 389 497 412 247 354 7 96 452 452 176 266 266 77 248 336 336 211 166 65 94 224 224 148 492 191 440 440 41 41 457 79 382 451 332 216 114 340 478 74 79 370 272 370 370 53 477 65 171 60 258 111 111 111 111 338 338 23 23 338 23 338 338 338 7 338 338 149 406 7 361 361 361 99 99 99 99 99 99 99 209 209 209 209 209 479 50 50 7 149 149 35 35 130 130 169 169 72 434 119 272 4 249 245 245 433 159 294 139 359 343 269 302 226 370 216 459 424 424 226 382 7 58 138 428 397 350 350 306 306 306 84 11 171 171 60 314 227 227 355 9 58 138 226 370 272 382 334 330 176 176 307 145 248 493 64 44 388 7 111 111 111 111 23 23 481 149 149 80 70 431 457 79 79 249 249 245 245 245 433 433 316 316 180 458 458 458 86 86 225 103 60 96 119 119 129 356 218 4 259 259 392 490 75 488 166 65 171 60 7 54 54 85 85 361 361\",\n        \"pitch\": \"39 39 39 48 56 40 42 39 51 40 43 54 3 35 39 25 58 26 44 40 13 20 46 41 26 40 26 56 41 46 46 41 41 40 40 40 39 39 57 59 59 59 59 59 59 59 59 20 20 20 35 35 13 3 9 6 0 20 57 56 56 56 56 59 44 57 41 59 42 51 59 57 59 59 39 39 46 56 58 41 41 40 39 39 39 59 59 59 15 27 13 55 13 27 35 36 3 53 3 26 43 53 54 39 25 14 41 46 46 46 46 41 41 41\",\n        \"style\": \"71 71 71 71 71 71 71 71 71 83\",\n    }\n    for token_key in [\"hubert\", \"pitch\", \"style\"]:\n        assert (\n            expected[token_key] == units[token_key]\n        ), f\"{token_key} expected {expected[token_key]}, got {units[token_key]}\"\n\n\ndef test_base_tokenizer_encode_units(spiritlm_base_tokenizer):\n    audio = \"examples/audio/7143-88743-0029.flac\"\n    units = spiritlm_base_tokenizer.encode_units(audio)\n    expected_hubert = \"99 49 38 149 149 71 423 427 492 288 315 153 153 389 497 412 247 354 7 96 452 452 176 266 266 77 248 336 336 211 166 65 94 224 224 148 492 191 440 440 41 41 457 79 382 451 332 216 114 340 478 74 79 370 272 370 370 53 477 65 171 60 258 111 111 111 111 338 338 23 23 338 23 338 338 338 7 338 338 149 406 7 361 361 361 99 99 99 99 99 99 99 209 209 209 209 209 479 50 50 7 149 149 35 35 130 130 169 169 72 434 119 272 4 249 245 245 433 159 294 139 359 343 269 302 226 370 216 459 424 424 226 382 7 58 138 428 397 350 350 306 306 306 84 11 171 171 60 314 227 227 355 9 58 138 226 370 272 382 334 330 176 176 307 145 248 493 64 44 388 7 111 111 111 111 23 23 481 149 149 80 70 431 457 79 79 249 249 245 245 245 433 433 316 316 180 458 458 458 86 86 225 103 60 96 119 119 129 356 218 4 259 259 392 490 75 488 166 65 171 60 7 54 54 85 85 361 361\"\n    assert expected_hubert == units[\"hubert\"]\n\n\ndef test_expressive_tokenizer_encode_string(spiritlm_expressive_tokenizer):\n    audio = \"examples/audio/7143-88743-0029.flac\"\n    encoded_string = spiritlm_expressive_tokenizer.encode_string(audio)\n    expected = \"[St71][Pi39][Hu99][Hu49][Hu38][Hu149][Hu71][Pi48][Hu423][Hu427][Pi56][Hu492][Hu288][Pi40][Hu315][Hu153][Pi42][Hu389][Pi39][Hu497][Hu412][Pi51][Hu247][Hu354][Pi40][Hu7][Hu96][Pi43][Hu452][Pi54][Hu176][Hu266][Pi3][St71][Hu77][Pi35][Hu248][Hu336][Pi39][Hu211][Pi25][Hu166][Hu65][Pi58][Hu94][Hu224][Pi26][Hu148][Pi44][Hu492][Hu191][Pi40][Hu440][Pi13][Hu41][Pi20][Hu457][Hu79][Pi46][Hu382][Hu451][Pi41][Hu332][Hu216][Pi26][Hu114][Hu340][St71][Pi40][Hu478][Hu74][Pi26][Hu79][Hu370][Pi56][Hu272][Hu370][Pi41][Hu53][Pi46][Hu477][Hu65][Hu171][Hu60][Pi41][Hu258][Hu111][Pi40][Hu338][Hu23][Hu338][Pi39][Hu23][Hu338][St71][Pi57][Hu7][Hu338][Pi59][Hu149][Hu406][Hu7][Hu361][Hu99][Hu209][Pi20][Hu479][Hu50][St71][Pi35][Hu7][Hu149][Hu35][Pi13][Hu130][Pi3][Hu169][Pi9][Hu72][Pi6][Hu434][Hu119][Pi0][Hu272][Hu4][Pi20][Hu249][Hu245][Pi57][Hu433][Pi56][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][St71][Hu226][Pi59][Hu370][Hu216][Pi44][Hu459][Hu424][Pi57][Hu226][Pi41][Hu382][Hu7][Pi59][Hu58][Hu138][Pi42][Hu428][Hu397][Pi51][Hu350][Pi59][Hu306][Pi57][Hu84][Pi59][Hu11][Hu171][Hu60][Pi39][Hu314][Hu227][St71][Hu355][Pi46][Hu9][Hu58][Pi56][Hu138][Hu226][Pi58][Hu370][Hu272][Pi41][Hu382][Hu334][Hu330][Hu176][Pi40][Hu307][Pi39][Hu145][Hu248][Hu493][Hu64][Hu44][Hu388][Pi59][Hu7][Hu111][St71][Hu23][Pi15][Hu481][Pi27][Hu149][Pi13][Hu80][Hu70][Pi55][Hu431][Hu457][Pi13][Hu79][Pi27][Hu249][Pi35][Hu245][Pi36][Hu433][Pi3][Hu316][Pi53][Hu180][Pi3][Hu458][Pi26][Hu86][St71][Pi43][Hu225][Pi53][Hu103][Hu60][Pi54][Hu96][Hu119][Pi39][Hu129][Pi25][Hu356][Hu218][Pi14][Hu4][Hu259][Pi41][Hu392][Pi46][Hu490][Hu75][Hu488][Hu166][Hu65][Hu171][Hu60][Hu7][Pi41][Hu54][Hu85][St83][Hu361]\"\n    assert encoded_string == expected\n\n\ndef test_base_tokenizer_encode_string(spiritlm_base_tokenizer):\n    audio = \"examples/audio/7143-88743-0029.flac\"\n    encoded_string = spiritlm_base_tokenizer.encode_string(audio)\n    expected = \"[Hu99][Hu49][Hu38][Hu149][Hu71][Hu423][Hu427][Hu492][Hu288][Hu315][Hu153][Hu389][Hu497][Hu412][Hu247][Hu354][Hu7][Hu96][Hu452][Hu176][Hu266][Hu77][Hu248][Hu336][Hu211][Hu166][Hu65][Hu94][Hu224][Hu148][Hu492][Hu191][Hu440][Hu41][Hu457][Hu79][Hu382][Hu451][Hu332][Hu216][Hu114][Hu340][Hu478][Hu74][Hu79][Hu370][Hu272][Hu370][Hu53][Hu477][Hu65][Hu171][Hu60][Hu258][Hu111][Hu338][Hu23][Hu338][Hu23][Hu338][Hu7][Hu338][Hu149][Hu406][Hu7][Hu361][Hu99][Hu209][Hu479][Hu50][Hu7][Hu149][Hu35][Hu130][Hu169][Hu72][Hu434][Hu119][Hu272][Hu4][Hu249][Hu245][Hu433][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][Hu226][Hu370][Hu216][Hu459][Hu424][Hu226][Hu382][Hu7][Hu58][Hu138][Hu428][Hu397][Hu350][Hu306][Hu84][Hu11][Hu171][Hu60][Hu314][Hu227][Hu355][Hu9][Hu58][Hu138][Hu226][Hu370][Hu272][Hu382][Hu334][Hu330][Hu176][Hu307][Hu145][Hu248][Hu493][Hu64][Hu44][Hu388][Hu7][Hu111][Hu23][Hu481][Hu149][Hu80][Hu70][Hu431][Hu457][Hu79][Hu249][Hu245][Hu433][Hu316][Hu180][Hu458][Hu86][Hu225][Hu103][Hu60][Hu96][Hu119][Hu129][Hu356][Hu218][Hu4][Hu259][Hu392][Hu490][Hu75][Hu488][Hu166][Hu65][Hu171][Hu60][Hu7][Hu54][Hu85][Hu361]\"\n    assert encoded_string == expected\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 7203, Output: 86, Total: 7289\n\n[Thought]\nLet me check the other test file and the spiritlm package structure to understand the full setup requirements.\n\n[Action]\ncat tests/test_spirit_model.py\n[Container ID: 3c09b7faf812]\nExecuting: cat tests/test_spirit_model.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nfrom unittest.mock import Mock, patch\n\nimport pytest\nfrom spiritlm.model.spiritlm_model import Spiritlm\nfrom spiritlm.model.utils import (\n    does_end_with_speech_token,\n    does_start_with_speech_token,\n    find_prompt_last_speech_start_position,\n)\n\n\n@pytest.mark.parametrize(\n    \"content,expected\",\n    [\n        (\n            \"abc[Speech][St1][Pi234][Hu123][Hu45][Text]hello world[\",\n            [(\"abc\", \"t\"), (\"[St1][Pi234][Hu123][Hu45]\", \"s\"), (\"hello world[\", \"t\")],\n        ),\n        (\n            \"[St1][Pi234][Hu123][Hu45]\",\n            [(\"[St1][Pi234][Hu123][Hu45]\", \"s\")],\n        ),\n        (\n            \"abc\",\n            [(\"abc\", \"t\")],\n        ),\n        (\n            \"abc[]\",\n            [(\"abc[]\", \"t\")],\n        ),\n        (\n            \"[St1][Pi234][Hu123][Hu45][Text][abc\",\n            [(\"[St1][Pi234][Hu123][Hu45]\", \"s\"), (\"[abc\", \"t\")],\n        ),\n        (\n            \"abc[Text]def\",\n            [(\"abcdef\", \"t\")],\n        ),\n    ],\n)\ndef test_parse_speech_and_text(content, expected):\n    with patch(\n        \"spiritlm.model.spiritlm_model.Spiritlm.__init__\", Mock(return_value=None)\n    ):\n        mock_spiritlm_model = Spiritlm(\"spirit-lm-base-7b\")\n        mock_spiritlm_model.speech_prompt_prefix = \"[Speech]\"\n        assert mock_spiritlm_model._parse_speech_and_text(content) == expected\n\n\n@pytest.mark.parametrize(\n    \"content,expected\",\n    [\n        (\n            \"[Hu338][Text] and they went out together[Speech][Hu431][Pi0][Hu457][Hu79][Pi11][Hu258][Hu85][Hu28][Hu50][Text] and mrs johnson  shoes except in mourning[Speech][Pi59][Hu32][Pi20][Hu453][Pi35][Pi26][Hu166]\",\n            [\n                (\"[Hu338]\", \"s\"),\n                (\" and they went out together\", \"t\"),\n                (\"[Hu431][Pi0][Hu457][Hu79][Pi11][Hu258][Hu85][Hu28][Hu50]\", \"s\"),\n                (\" and mrs johnson  shoes except in mourning\", \"t\"),\n                (\"[Pi59][Hu32][Pi20][Hu453][Pi35][Pi26][Hu166]\", \"s\"),\n            ],\n        )\n    ],\n)\ndef test_parse_speech_and_text_with_expressive_tokens(content, expected):\n    with patch(\n        \"spiritlm.model.spiritlm_model.Spiritlm.__init__\", Mock(return_value=None)\n    ):\n        mock_spiritlm_model = Spiritlm(\"spirit-lm-base-7b\")\n        mock_spiritlm_model.speech_prompt_prefix = \"[Speech]\"\n        print(f\"content: {content}\")\n        print(f\"expected: {expected}\")\n        assert mock_spiritlm_model._parse_speech_and_text(content) == expected\n\n\n@pytest.mark.parametrize(\n    \"encoded_string,expected\",\n    [\n        (\n            \"]]\",\n            False,\n        ),\n        (\n            \"[]\",\n            False,\n        ),\n        (\n            \"[Hu100]\",\n            True,\n        ),\n        (\"abc[]\", False),\n        (\n            \"[St1][Pi234][Hu123][Hu45][Text][abc]\",\n            False,\n        ),\n        (\n            \"abc[Text]def\",\n            False,\n        ),\n        (\n            \"[Pi9]\",\n            True,\n        ),\n        (\n            \"[St0]\",\n            True,\n        ),\n    ],\n)\ndef test_does_prompt_end_by_speech(encoded_string, expected):\n    assert does_end_with_speech_token(encoded_string) == expected\n\n\n@pytest.mark.parametrize(\n    \"encoded_string,expected\",\n    [\n        (\n            \"abc[Hu123][Hu456][Pi23][St2]\",\n            3,\n        ),\n        (\n            \"[Hu123]abc[Hu123][Hu456][Pi23][St2]\",\n            10,\n        ),\n        (\n            \"[Hu123][Hu456][Pi23][St2]\",\n            0,\n        ),\n        (\n            \"abc\",\n            None,\n        ),\n        (\n            \"[Speech][St71][Pi39][Hu99][Hu49][Pi57][Hu38][Hu149][Pi48][Hu71][Hu423][Hu427][Pi56][Hu492][Hu288][Pi44][Hu315][Hu153][Pi42][Hu389][Pi59][Hu497][Hu412][Pi51][Hu247][Hu354][Pi44][Hu7][Hu96][Pi43][Hu452][Pi0][Hu176][Hu266][Pi54][St71][Hu77][Pi13][Hu248][Hu336][Pi39][Hu211][Pi25][Hu166][Hu65][Pi58][Hu94][Hu224][Pi26][Hu148][Pi44][Hu492][Hu191][Pi26][Hu440][Pi13][Hu41][Pi20][Hu457][Hu79][Pi46][Hu382][Hu451][Pi26][Hu332][Hu216][Hu114][Hu340][St71][Pi40][Hu478][Hu74][Pi26][Hu79][Hu370][Pi56][Hu272][Hu370][Pi51][Hu53][Pi14][Hu477][Hu65][Pi46][Hu171][Hu60][Pi41][Hu258][Hu111][Pi40][Hu338][Hu23][Pi39][Hu338][Hu23][Hu338][St71][Pi57][Hu7][Hu338][Hu149][Pi59][Hu406][Hu7][Hu361][Hu99][Pi20][Hu209][Hu479][Pi35][Hu50][St71][Hu7][Hu149][Pi55][Hu35][Pi13][Hu130][Pi3][Hu169][Pi52][Hu72][Pi9][Hu434][Hu119][Hu272][Hu4][Pi20][Hu249][Hu245][Pi57][Hu433][Pi56][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][St71][Hu226][Pi32][Hu370][Hu216][Pi39][Hu459][Hu424][Pi57][Hu226][Pi46][Hu382][Hu7][Pi27][Hu58][Hu138][Pi20][Hu428][Hu397][Pi44][Hu350][Pi32][Hu306][Pi59][Hu84][Hu11][Hu171][Pi42][Hu60][Pi48][Hu314][Hu227][St71][Hu355][Pi56][Hu9][Hu58][Pi44][Hu138][Hu226][Pi25][Hu370][Hu272][Pi56][Hu382][Hu334][Pi26][Hu330][Hu176][Pi56][Hu307][Pi46][Hu145][Hu248][Pi56][Hu493][Hu64][Pi40][Hu44][Hu388][Pi39][Hu7][Hu111][Pi59][St71][Hu23][Hu481][Pi13][Hu149][Pi15][Hu80][Hu70][Pi47][Hu431][Hu457][Pi13][Hu79][Pi27][Hu249][Pi55][Hu245][Pi54][Hu433][Pi36][Hu316][Pi53][Hu180][Pi3][Hu458][Pi26][Hu86][St71][Pi43][Hu225][Pi49][Hu103][Hu60][Pi3][Hu96][Hu119][Pi39][Hu129][Pi41][Hu356][Hu218][Pi14][Hu4][Hu259][Pi56][Hu392][Pi46][Hu490][Hu75][Pi14][Hu488][Hu166][Pi46][Hu65][Hu171][Pi40][Hu60][Hu7][Hu54][Pi39][Hu85][St83][Pi40][Hu361]\",\n            8,\n        ),\n    ],\n)\ndef test_find_prompt_last_speech_start_position(encoded_string, expected):\n    assert find_prompt_last_speech_start_position(encoded_string) == expected\n\n\n@pytest.mark.parametrize(\n    \"encoded_string,expected\",\n    [\n        (\n            \"[[\",\n            False,\n        ),\n        (\n            \"[]\",\n            False,\n        ),\n        (\n            \"[Hu100]\",\n            True,\n        ),\n        (\"abc[]\", False),\n        (\n            \"[St1][Pi234][Hu123][Hu45][Text][abc]\",\n            True,\n        ),\n        (\n            \"abc[Text]def\",\n            False,\n        ),\n        (\n            \"[Pi9]\",\n            True,\n        ),\n        (\n            \"[St0]\",\n            True,\n        ),\n    ],\n)\ndef test_does_start_with_speech_token(encoded_string, expected):\n    assert does_start_with_speech_token(encoded_string) == expected\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 9214, Output: 103, Total: 9317\n\n[Thought]\nLet me check the Python version and pip availability, then install the package with its dependencies.\n\n[Action]\npython3 --version && pip3 --version\n[Container ID: 3c09b7faf812]\nExecuting: python3 --version && pip3 --version\nCommand succeeded.\n[Snapshot Created] sha256:f76cb\n\n[Observation]\nPython 3.9.25\npip 23.0.1 from /usr/local/lib/python3.9/site-packages/pip (python 3.9)\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 6097, Output: 93, Total: 6190\n\n[Thought]\nLet me check the README for any additional installation instructions.\n\n[Action]\ncat README.md\n[Container ID: 3c09b7faf812]\nExecuting: cat README.md\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n# Meta Spirit LM: Interleaved Spoken and Written Language Model\n\nThis repository contains the model weights, inference code and evaluation scripts for the Spirit LM [paper](https://arxiv.org/pdf/2402.05755.pdf). You can find more generation samples on our [demo page](https://speechbot.github.io/spiritlm/).\n\n## Spirit LM Model Overview\n<img src=\"assets/spiritlm_overview.png\">\n\n## Installation Setup\n### Conda\n```\nconda env create -f env.yml\npip install -e '.[eval]'\n\n```\n### Pip\n```\npip install -e '.[eval]'\n```\n\n### Dev\n(Optionally, use only if you want to run the tests.)\n```\npip install -e '.[dev]'\n```\n\n## Checkpoints Setup\nSee [checkpoints/README.md](checkpoints/README.md)\n\n## Quick Start\n### Speech Tokenization\nSee [spiritlm/speech_tokenizer/README.md](spiritlm/speech_tokenizer/README.md)\n### Spirit LM Generation\nSee [spiritlm/model/README.md](spiritlm/model/README.md)\n### Speech-Text Sentiment Preservation benchmark (STSP)\nSee [spiritlm/eval/README.md](spiritlm/eval/README.md)\n\n## Model Card\nMore details of the model can be found in [MODEL_CARD.md](MODEL_CARD.md).\n\n## License\nThe present code is provided under the **FAIR Noncommercial Research License** found in [LICENSE](LICENSE).\n\n## Citation\n```\n@misc{nguyen2024spiritlminterleavedspokenwritten,\n      title={SpiRit-LM: Interleaved Spoken and Written Language Model},\n      author={Tu Anh Nguyen and Benjamin Muller and Bokai Yu and Marta R. Costa-jussa and Maha Elbayad and Sravya Popuri and Paul-Ambroise Duquenne and Robin Algayres and Ruslan Mavlyutov and Itai Gat and Gabriel Synnaeve and Juan Pino and Benoit Sagot and Emmanuel Dupoux},\n      year={2024},\n      eprint={2402.05755},\n      archivePrefix={arXiv},\n      primaryClass={cs.CL},\n      url={https://arxiv.org/abs/2402.05755},\n}\n```\n\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 5353, Output: 138, Total: 5491\n\n[Thought]\nNow I'll install the package in editable mode with the dev dependencies as specified in the README.\n\n[Action]\npip install -e '.[dev]'\n[Container ID: 3c09b7faf812]\nExecuting: pip install -e '.[dev]'\nCommand succeeded.\n[Snapshot Created] sha256:69e16\n\n[Observation]\nObtaining file:///app\n  Preparing metadata (setup.py): started\n  Preparing metadata (setup.py): finished with status 'done'\nCollecting omegaconf>=2.2.0\n  Downloading omegaconf-2.3.0-py3-none-any.whl (79 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 1.7 MB/s eta 0:00:00\nCollecting librosa>=0.10\n  Downloading librosa-0.11.0-py3-none-any.whl (260 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 260.7/260.7 kB 2.8 MB/s eta 0:00:00\nCollecting local-attention>=1.9\n  Downloading local_attention-1.11.2-py3-none-any.whl (9.5 kB)\nCollecting encodec>=0.1\n  Downloading encodec-0.1.1.tar.gz (3.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.9 MB/s eta 0:00:00\n  Preparing metadata (setup.py): started\n  Preparing metadata (setup.py): finished with status 'done'\nCollecting transformers\n  Downloading transformers-4.57.6-py3-none-any.whl (12.0 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 6.0 MB/s eta 0:00:00\nCollecting fairscale>=0.4\n  Downloading fairscale-0.4.13.tar.gz (266 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 266.3/266.3 kB 6.4 MB/s eta 0:00:00\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Getting requirements to build wheel: started\n  Getting requirements to build wheel: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nCollecting sentencepiece\n  Downloading sentencepiece-0.2.1-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 6.1 MB/s eta 0:00:00\nCollecting pyarrow>=14.0\n  Downloading pyarrow-21.0.0-cp39-cp39-manylinux_2_28_x86_64.whl (42.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.7/42.7 MB 5.8 MB/s eta 0:00:00\nCollecting torchfcpe>=0.0.4\n  Downloading torchfcpe-0.0.4-py3-none-any.whl (40.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.2/40.2 MB 6.4 MB/s eta 0:00:00\nCollecting pytest\n  Downloading pytest-8.4.2-py3-none-any.whl (365 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 365.8/365.8 kB 5.9 MB/s eta 0:00:00\nCollecting numpy\n  Downloading numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (19.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.5/19.5 MB 6.0 MB/s eta 0:00:00\nCollecting torch\n  Downloading torch-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (888.0 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 888.0/888.0 MB 1.1 MB/s eta 0:00:00\nCollecting torchaudio\n  Downloading torchaudio-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (4.0 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 5.5 MB/s eta 0:00:00\nCollecting einops\n  Downloading einops-0.8.2-py3-none-any.whl (65 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.6/65.6 kB 8.0 MB/s eta 0:00:00\nCollecting scipy>=1.6.0\n  Downloading scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (38.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.6/38.6 MB 5.8 MB/s eta 0:00:00\nCollecting joblib>=1.0\n  Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 5.8 MB/s eta 0:00:00\nCollecting decorator>=4.3.0\n  Downloading decorator-5.2.1-py3-none-any.whl (9.2 kB)\nCollecting scikit-learn>=1.1.0\n  Downloading scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.5/13.5 MB 5.4 MB/s eta 0:00:00\nCollecting audioread>=2.1.9\n  Downloading audioread-3.1.0-py3-none-any.whl (23 kB)\nCollecting lazy_loader>=0.1\n  Downloading lazy_loader-0.5-py3-none-any.whl (8.0 kB)\nCollecting pooch>=1.1\n  Downloading pooch-1.9.0-py3-none-any.whl (67 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.2/67.2 kB 1.4 MB/s eta 0:00:00\nCollecting typing_extensions>=4.1.1\n  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 5.0 MB/s eta 0:00:00\nCollecting soundfile>=0.12.1\n  Downloading soundfile-0.13.1-py2.py3-none-manylinux_2_28_x86_64.whl (1.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 7.8 MB/s eta 0:00:00\nCollecting numba>=0.51.0\n  Downloading numba-0.60.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 8.0 MB/s eta 0:00:00\nCollecting msgpack>=1.0\n  Downloading msgpack-1.1.2-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (404 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 404.7/404.7 kB 9.9 MB/s eta 0:00:00\nCollecting soxr>=0.3.2\n  Downloading soxr-1.1.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (245 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 245.4/245.4 kB 7.9 MB/s eta 0:00:00\nCollecting hyper-connections>=0.1.8\n  Downloading hyper_connections-0.4.10-py3-none-any.whl (29 kB)\nCollecting antlr4-python3-runtime==4.9.*\n  Downloading antlr4-python3-runtime-4.9.3.tar.gz (117 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.0/117.0 kB 6.7 MB/s eta 0:00:00\n  Preparing metadata (setup.py): started\n  Preparing metadata (setup.py): finished with status 'done'\nCollecting PyYAML>=5.1.0\n  Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 10.0 MB/s eta 0:00:00\nCollecting iniconfig>=1\n  Downloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)\nCollecting pygments>=2.7.2\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 11.0 MB/s eta 0:00:00\nCollecting tomli>=1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting packaging>=20\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting exceptiongroup>=1\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting pluggy<2,>=1.5\n  Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting tqdm>=4.27\n  Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 7.2 MB/s eta 0:00:00\nCollecting huggingface-hub<1.0,>=0.34.0\n  Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 12.7 MB/s eta 0:00:00\nCollecting filelock\n  Downloading filelock-3.19.1-py3-none-any.whl (15 kB)\nCollecting tokenizers<=0.23.0,>=0.22.0\n  Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.6 MB/s eta 0:00:00\nCollecting requests\n  Downloading requests-2.32.5-py3-none-any.whl (64 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.7/64.7 kB 10.9 MB/s eta 0:00:00\nCollecting safetensors>=0.4.3\n  Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 13.8 MB/s eta 0:00:00\nCollecting regex!=2019.12.17\n  Downloading regex-2026.1.15-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (791 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 791.3/791.3 kB 13.9 MB/s eta 0:00:00\nCollecting fsspec>=2023.5.0\n  Downloading fsspec-2025.10.0-py3-none-any.whl (200 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 201.0/201.0 kB 12.2 MB/s eta 0:00:00\nCollecting hf-xet<2.0.0,>=1.1.3\n  Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.5 MB/s eta 0:00:00\nCollecting torch-einops-utils>=0.0.20\n  Downloading torch_einops_utils-0.0.32-py3-none-any.whl (7.3 kB)\nCollecting llvmlite<0.44,>=0.43.0dev0\n  Downloading llvmlite-0.43.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (43.9 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.9/43.9 MB 5.7 MB/s eta 0:00:00\nCollecting platformdirs>=2.5.0\n  Downloading platformdirs-4.4.0-py3-none-any.whl (18 kB)\nCollecting idna<4,>=2.5\n  Downloading idna-3.13-py3-none-any.whl (68 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 4.1 MB/s eta 0:00:00\nCollecting certifi>=2017.4.17\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 4.2 MB/s eta 0:00:00\nCollecting urllib3<3,>=1.21.1\n  Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 4.4 MB/s eta 0:00:00\nCollecting charset_normalizer<4,>=2\n  Downloading charset_normalizer-3.4.7-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (208 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 208.4/208.4 kB 5.6 MB/s eta 0:00:00\nCollecting threadpoolctl>=3.1.0\n  Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nCollecting cffi>=1.0\n  Downloading cffi-2.0.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (216 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.5/216.5 kB 5.3 MB/s eta 0:00:00\nCollecting nvidia-nvjitlink-cu12==12.8.93\n  Downloading nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.3/39.3 MB 5.8 MB/s eta 0:00:00\nCollecting nvidia-cuda-cupti-cu12==12.8.90\n  Downloading nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (10.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.2/10.2 MB 6.7 MB/s eta 0:00:00\nCollecting jinja2\n  Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 3.0 MB/s eta 0:00:00\nCollecting nvidia-cuda-runtime-cu12==12.8.90\n  Downloading nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (954 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 954.8/954.8 kB 9.2 MB/s eta 0:00:00\nCollecting nvidia-nccl-cu12==2.27.3\n  Downloading nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (322.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 322.4/322.4 MB 4.3 MB/s eta 0:00:00\nCollecting triton==3.4.0\n  Downloading triton-3.4.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (155.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.4/155.4 MB 5.4 MB/s eta 0:00:00\nCollecting nvidia-cublas-cu12==12.8.4.1\n  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl (594.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 594.3/594.3 MB 2.4 MB/s eta 0:00:00\nCollecting nvidia-cufft-cu12==11.3.3.83\n  Downloading nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (193.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.1/193.1 MB 5.1 MB/s eta 0:00:00\nCollecting nvidia-cufile-cu12==1.13.1.3\n  Downloading nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.9 MB/s eta 0:00:00\nCollecting networkx\n  Downloading networkx-3.2.1-py3-none-any.whl (1.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 7.7 MB/s eta 0:00:00\nCollecting sympy>=1.13.3\n  Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.1 MB/s eta 0:00:00\nCollecting nvidia-cusparselt-cu12==0.7.1\n  Downloading nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl (287.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 287.2/287.2 MB 4.5 MB/s eta 0:00:00\nCollecting nvidia-cusolver-cu12==11.7.3.90\n  Downloading nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl (267.5 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 267.5/267.5 MB 4.3 MB/s eta 0:00:00\nCollecting nvidia-nvtx-cu12==12.8.90\n  Downloading nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (89 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.0/90.0 kB 12.7 MB/s eta 0:00:00\nCollecting nvidia-cusparse-cu12==12.5.8.93\n  Downloading nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (288.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 288.2/288.2 MB 4.0 MB/s eta 0:00:00\nCollecting nvidia-cudnn-cu12==9.10.2.21\n  Downloading nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl (706.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 706.8/706.8 MB 3.1 MB/s eta 0:00:00\nCollecting nvidia-curand-cu12==10.3.9.90\n  Downloading nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl (63.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.6/63.6 MB 5.4 MB/s eta 0:00:00\nCollecting nvidia-cuda-nvrtc-cu12==12.8.93\n  Downloading nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (88.0 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 88.0/88.0 MB 5.1 MB/s eta 0:00:00\nCollecting importlib-metadata\n  Downloading importlib_metadata-8.7.1-py3-none-any.whl (27 kB)\nRequirement already satisfied: setuptools>=40.8.0 in /usr/local/lib/python3.9/site-packages (from triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (79.0.1)\nCollecting pycparser\n  Downloading pycparser-2.23-py3-none-any.whl (118 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 118.1/118.1 kB 6.1 MB/s eta 0:00:00\nCollecting mpmath<1.4,>=1.1.0\n  Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 6.1 MB/s eta 0:00:00\nCollecting MarkupSafe>=2.0\n  Downloading markupsafe-3.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\nCollecting zipp>=3.20\n  Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\nBuilding wheels for collected packages: encodec, fairscale, antlr4-python3-runtime\n  Building wheel for encodec (setup.py): started\n  Building wheel for encodec (setup.py): finished with status 'done'\n  Created wheel for encodec: filename=encodec-0.1.1-py3-none-any.whl size=45852 sha256=f0dab7d68b733e123a0afd890cd42c46cdef3f6bbadba6bc01b5d04d1f94c1e6\n  Stored in directory: /root/.cache/pip/wheels/1d/9d/20/489d6aafffb505e18fcfcfbe722562f91c26af0a8a6da7d00b\n  Building wheel for fairscale (pyproject.toml): started\n  Building wheel for fairscale (pyproject.toml): finished with status 'done'\n  Created wheel for fairscale: filename=fairscale-0.4.13-py3-none-any.whl size=332207 sha256=179c15b57cf5cc5f1ade25718601a611676f549c5f5873aecaefbf1541b75312\n  Stored in directory: /root/.cache/pip/wheels/10/ea/7f/8f35af83599829bb4790bdc16949dd99aeeb62e9a1faf47d47\n  Building wheel for antlr4-python3-runtime (setup.py): started\n  Building wheel for antlr4-python3-runtime (setup.py): finished with status 'done'\n  Created wheel for antlr4-python3-runtime: filename=antlr4_python3_runtime-4.9.3-py3-none-any.whl size=144590 sha256=ef7273e3561a61dead3faeb2739aed9226aaf0d065ed0ca131afe17f532005fd\n  Stored in directory: /root/.cache/pip/wheels/23/cf/80/f3efa822e6ab23277902ee9165fe772eeb1dfb8014f359020a\nSuccessfully built encodec fairscale antlr4-python3-runtime\nInstalling collected packages: nvidia-cusparselt-cu12, mpmath, antlr4-python3-runtime, zipp, urllib3, typing_extensions, tqdm, tomli, threadpoolctl, sympy, sentencepiece, safetensors, regex, PyYAML, pygments, pycparser, pyarrow, pluggy, platformdirs, packaging, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufile-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, networkx, msgpack, MarkupSafe, llvmlite, joblib, iniconfig, idna, hf-xet, fsspec, filelock, einops, decorator, charset_normalizer, certifi, audioread, soxr, scipy, requests, omegaconf, nvidia-cusparse-cu12, nvidia-cufft-cu12, nvidia-cudnn-cu12, numba, lazy_loader, jinja2, importlib-metadata, exceptiongroup, cffi, triton, soundfile, scikit-learn, pytest, pooch, nvidia-cusolver-cu12, huggingface-hub, torch, tokenizers, librosa, transformers, torchaudio, torch-einops-utils, fairscale, hyper-connections, encodec, local-attention, torchfcpe, spiritlm\n  Running setup.py develop for spiritlm\nSuccessfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 antlr4-python3-runtime-4.9.3 audioread-3.1.0 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 decorator-5.2.1 einops-0.8.2 encodec-0.1.1 exceptiongroup-1.3.1 fairscale-0.4.13 filelock-3.19.1 fsspec-2025.10.0 hf-xet-1.5.0 huggingface-hub-0.36.2 hyper-connections-0.4.10 idna-3.13 importlib-metadata-8.7.1 iniconfig-2.1.0 jinja2-3.1.6 joblib-1.5.3 lazy_loader-0.5 librosa-0.11.0 llvmlite-0.43.0 local-attention-1.11.2 mpmath-1.3.0 msgpack-1.1.2 networkx-3.2.1 numba-0.60.0 numpy-2.0.2 nvidia-cublas-cu12-12.8.4.1 nvidia-cuda-cupti-cu12-12.8.90 nvidia-cuda-nvrtc-cu12-12.8.93 nvidia-cuda-runtime-cu12-12.8.90 nvidia-cudnn-cu12-9.10.2.21 nvidia-cufft-cu12-11.3.3.83 nvidia-cufile-cu12-1.13.1.3 nvidia-curand-cu12-10.3.9.90 nvidia-cusolver-cu12-11.7.3.90 nvidia-cusparse-cu12-12.5.8.93 nvidia-cusparselt-cu12-0.7.1 nvidia-nccl-cu12-2.27.3 nvidia-nvjitlink-cu12-12.8.93 nvidia-nvtx-cu12-12.8.90 omegaconf-2.3.0 packaging-26.2 platformdirs-4.4.0 pluggy-1.6.0 pooch-1.9.0 pyarrow-21.0.0 pycparser-2.23 pygments-2.20.0 pytest-8.4.2 regex-2026.1.15 requests-2.32.5 safetensors-0.7.0 scikit-learn-1.6.1 scipy-1.13.1 sentencepiece-0.2.1 soundfile-0.13.1 soxr-1.1.0 spiritlm-0.1.0 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 tomli-2.4.1 torch-2.8.0 torch-einops-utils-0.0.32 torchaudio-2.8.0 torchfcpe-0.0.4 tqdm-4.67.3 transformers-4.57.6 triton-3.4.0 typing_extensions-4.15.0 urllib3-2.6.3 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 12 ====================\n\n[Tokens] Input: 12399, Output: 67, Total: 12466\n\n[Thought]\nThe package was installed successfully. Now let me run pytest collection to verify the tests can be collected properly.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 3c09b7faf812]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:48ddd\n\n[Observation]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[Speech][St1][Pi234][Hu123][Hu45][Text]hello world[-expected0]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45]-expected1]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc-expected2]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[]-expected3]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45][Text][abc-expected4]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[Text]def-expected5]\ntests/test_spirit_model.py::test_parse_speech_and_text_with_expressive_tokens[[Hu338][Text] and they went out together[Speech][Hu431][Pi0][Hu457][Hu79][Pi11][Hu258][Hu85][Hu28][Hu50][Text] and mrs johnson  shoes except in mourning[Speech][Pi59][Hu32][Pi20][Hu453][Pi35][Pi26][Hu166]-expected0]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[]]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Hu100]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St1][Pi234][Hu123][Hu45][Text][abc]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Pi9]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St0]-True]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc[Hu123][Hu456][Pi23][St2]-3]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123]abc[Hu123][Hu456][Pi23][St2]-10]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123][Hu456][Pi23][St2]-0]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc-None]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Speech][St71][Pi39][Hu99][Hu49][Pi57][Hu38][Hu149][Pi48][Hu71][Hu423][Hu427][Pi56][Hu492][Hu288][Pi44][Hu315][Hu153][Pi42][Hu389][Pi59][Hu497][Hu412][Pi51][Hu247][Hu354][Pi44][Hu7][Hu96][Pi43][Hu452][Pi0][Hu176][Hu266][Pi54][St71][Hu77][Pi13][Hu248][Hu336][Pi39][Hu211][Pi25][Hu166][Hu65][Pi58][Hu94][Hu224][Pi26][Hu148][Pi44][Hu492][Hu191][Pi26][Hu440][Pi13][Hu41][Pi20][Hu457][Hu79][Pi46][Hu382][Hu451][Pi26][Hu332][Hu216][Hu114][Hu340][St71][Pi40][Hu478][Hu74][Pi26][Hu79][Hu370][Pi56][Hu272][Hu370][Pi51][Hu53][Pi14][Hu477][Hu65][Pi46][Hu171][Hu60][Pi41][Hu258][Hu111][Pi40][Hu338][Hu23][Pi39][Hu338][Hu23][Hu338][St71][Pi57][Hu7][Hu338][Hu149][Pi59][Hu406][Hu7][Hu361][Hu99][Pi20][Hu209][Hu479][Pi35][Hu50][St71][Hu7][Hu149][Pi55][Hu35][Pi13][Hu130][Pi3][Hu169][Pi52][Hu72][Pi9][Hu434][Hu119][Hu272][Hu4][Pi20][Hu249][Hu245][Pi57][Hu433][Pi56][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][St71][Hu226][Pi32][Hu370][Hu216][Pi39][Hu459][Hu424][Pi57][Hu226][Pi46][Hu382][Hu7][Pi27][Hu58][Hu138][Pi20][Hu428][Hu397][Pi44][Hu350][Pi32][Hu306][Pi59][Hu84][Hu11][Hu171][Pi42][Hu60][Pi48][Hu314][Hu227][St71][Hu355][Pi56][Hu9][Hu58][Pi44][Hu138][Hu226][Pi25][Hu370][Hu272][Pi56][Hu382][Hu334][Pi26][Hu330][Hu176][Pi56][Hu307][Pi46][Hu145][Hu248][Pi56][Hu493][Hu64][Pi40][Hu44][Hu388][Pi39][Hu7][Hu111][Pi59][St71][Hu23][Hu481][Pi13][Hu149][Pi15][Hu80][Hu70][Pi47][Hu431][Hu457][Pi13][Hu79][Pi27][Hu249][Pi55][Hu245][Pi54][Hu433][Pi36][Hu316][Pi53][Hu180][Pi3][Hu458][Pi26][Hu86][St71][Pi43][Hu225][Pi49][Hu103][Hu60][Pi3][Hu96][Hu119][Pi39][Hu129][Pi41][Hu356][Hu218][Pi14][Hu4][Hu259][Pi56][Hu392][Pi46][Hu490][Hu75][Pi14][Hu488][Hu166][Pi46][Hu65][Hu171][Pi40][Hu60][Hu7][Hu54][Pi39][Hu85][St83][Pi40][Hu361]-8]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[[-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Hu100]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St1][Pi234][Hu123][Hu45][Text][abc]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Pi9]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St0]-True]\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units_with_tensor_input\ntests/test_tokenizer.py::test_base_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_string\ntests/test_tokenizer.py::test_base_tokenizer_encode_string\n\n33 tests collected in 5.66s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 13 ====================\n\n[Tokens] Input: 14119, Output: 144, Total: 14263\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful. All 33 tests were collected. There are some deprecation warnings about swigvarlink, but these are not errors and don't affect the test collection. The environment is properly set up with all dependencies installed.\n\nLet me verify this is the final state and output the verification bundle.\n</think>\n\nThought: The pytest collection succeeded, with all 33 tests being collected. The environment is properly configured with all dependencies installed. The deprecation warning about `swigvarlink` is a minor issue not affecting test collection.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/facebookresearch__spiritlm.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/facebookresearch/spiritlm.git",
+    "configuration_success": true,
+    "base_image": "python:3.9",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 12,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 3,
+        "command": "ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 92\ndrwxr-xr-x 10 root root     4096 May  9 19:11 .\ndrwxr-xr-x  1 root root     4096 May  9 19:11 ..\ndrwxr-xr-x  7  501 dialout  4096 May  9 19:10 .git\n-rw-r--r--  1  501 dialout  3206 May  9 19:10 .gitignore\n-rw-r--r--  1  501 dialout  3537 May  9 19:10 CODE_OF_CONDUCT.md\n-rw-r--r--  1  501 dialout  1250 May  9 19:10 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout 11854 May  9 19:10 LICENSE\n-rw-r--r--  1  501 dialout  5405 May  9 19:10 MODEL_CARD.md\n-rw-r--r--  1  501 dialout  1772 May  9 19:10 README.md\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 assets\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 checkpoints\ndrwxr-xr-x  3  501 dialout  4096 May  9 19:10 data\n-rw-r--r--  1  501 dialout   319 May  9 19:10 env.yml\ndrwxr-xr-x  6  501 dialout  4096 May  9 19:10 examples\ndrwxr-xr-x  3  501 dialout  4096 May  9 19:10 logs\n-rw-r--r--  1  501 dialout     6 May  9 19:10 requirements.dev.txt\n-rw-r--r--  1  501 dialout   137 May  9 19:10 requirements.txt\n-rw-r--r--  1  501 dialout  1733 May  9 19:10 setup.py\ndrwxr-xr-x  5  501 dialout  4096 May  9 19:10 spiritlm\ndrwxr-xr-x  2  501 dialout  4096 May  9 19:10 tests\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "omegaconf>=2.2.0\nlibrosa>=0.10\nlocal-attention>=1.9\nencodec>=0.1\ntransformers\nfairscale>=0.4\nsentencepiece\npyarrow>=14.0\ntorchfcpe>=0.0.4"
+      },
+      {
+        "step_index": 5,
+        "command": "cat requirements.dev.txt && echo \"---\" && cat setup.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "pytest---\n# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nimport os\nfrom pathlib import Path\n\nfrom setuptools import find_packages, setup\n\nNAME = \"spiritlm\"\nVERSION = \"0.1.0\"\nDESCRIPTION = \"Interleaved Spoken and Written Language Model\"\nURL = \"https://github.com/facebookresearch/spiritlm\"\nKEYWORDS = [\n    \"Language Model, Speech Language Model, Multimodal, Crossmodal, Expressivity Modeling\"\n]\nLICENSE = \"FAIR Noncommer\n... (543 chars omitted for recipe synthesis) ...\nription(),\n    long_description_content_type=\"text/plain\",\n    url=URL,\n    license=LICENSE,\n    author=\"Meta\",\n    keywords=KEYWORDS,\n    classifiers=[\n        \"Intended Audience :: Science/Research\",\n        \"License :: FAIR Noncommercial Research License\",\n        \"Topic :: Multimedia :: Sound/Audio\",\n        \"Topic :: Scientific/Engineering :: Artificial Intelligence\",\n    ],\n    packages=find_packages(),\n    zip_safe=False,\n    python_requires=\">=3.9\",\n    install_requires=_read_reqs(\"requirements.txt\"),\n    extras_require={\n        \"dev\": [\"pytest\"],\n        \"eval\": [\"pandas\"],\n    },\n)\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cat env.yml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "name: spiritlm_test\nchannels:\n  - pytorch\n  - nvidia\ndependencies:\n  - python=3.9\n  - pip\n  - pytorch-cuda=11.8\n  - pytorch\n  - torchaudio\n  - pip:\n    - omegaconf==2.2.0\n    - librosa~=0.10\n    - local-attention~=1.9\n    - encodec~=0.1\n    - transformers\n    - fairscale~=0.4\n    - sentencepiece\n    - torchfcpe~=0.0.4"
+      },
+      {
+        "step_index": 7,
+        "command": "cat tests/test_tokenizer.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nimport pytest\nimport torchaudio\nfrom spiritlm.speech_tokenizer import spiritlm_base, spiritlm_expressive\n\n\n@pytest.fixture\ndef spiritlm_expressive_tokenizer():\n    return spiritlm_expressive()\n\n\n@pytest.fixture\ndef spiritlm_base_tokenizer():\n    return spiritlm_base()\n\n\ndef test_expressive_tokenizer_encode_units(spiritlm_expressive_tokenizer):\n    audio = \"examples/audio\n... (7035 chars omitted for recipe synthesis) ...\n][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][Hu226][Hu370][Hu216][Hu459][Hu424][Hu226][Hu382][Hu7][Hu58][Hu138][Hu428][Hu397][Hu350][Hu306][Hu84][Hu11][Hu171][Hu60][Hu314][Hu227][Hu355][Hu9][Hu58][Hu138][Hu226][Hu370][Hu272][Hu382][Hu334][Hu330][Hu176][Hu307][Hu145][Hu248][Hu493][Hu64][Hu44][Hu388][Hu7][Hu111][Hu23][Hu481][Hu149][Hu80][Hu70][Hu431][Hu457][Hu79][Hu249][Hu245][Hu433][Hu316][Hu180][Hu458][Hu86][Hu225][Hu103][Hu60][Hu96][Hu119][Hu129][Hu356][Hu218][Hu4][Hu259][Hu392][Hu490][Hu75][Hu488][Hu166][Hu65][Hu171][Hu60][Hu7][Hu54][Hu85][Hu361]\"\n    assert encoded_string == expected\n"
+      },
+      {
+        "step_index": 8,
+        "command": "cat tests/test_spirit_model.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# Copyright (c) Meta Platforms, Inc. and affiliates.\n# All rights reserved.\n#\n# This source code is licensed under the FAIR Noncommercial Research License\n# found in the LICENSE file in the root directory of this source tree.\n\nfrom unittest.mock import Mock, patch\n\nimport pytest\nfrom spiritlm.model.spiritlm_model import Spiritlm\nfrom spiritlm.model.utils import (\n    does_end_with_speech_token,\n    does_start_with_speech_token,\n    find_prompt_last_speech_start_position,\n)\n\n\n@pytest.mark.parametrize(\n    \"content,expected\",\n    [\n        (\n            \"abc[Speech][St1][Pi234][Hu123][Hu45][Text\n... (5124 chars omitted for recipe synthesis) ...\n\",\n            False,\n        ),\n        (\n            \"[]\",\n            False,\n        ),\n        (\n            \"[Hu100]\",\n            True,\n        ),\n        (\"abc[]\", False),\n        (\n            \"[St1][Pi234][Hu123][Hu45][Text][abc]\",\n            True,\n        ),\n        (\n            \"abc[Text]def\",\n            False,\n        ),\n        (\n            \"[Pi9]\",\n            True,\n        ),\n        (\n            \"[St0]\",\n            True,\n        ),\n    ],\n)\ndef test_does_start_with_speech_token(encoded_string, expected):\n    assert does_start_with_speech_token(encoded_string) == expected\n"
+      },
+      {
+        "step_index": 9,
+        "command": "python3 --version && pip3 --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.9.25\npip 23.0.1 from /usr/local/lib/python3.9/site-packages/pip (python 3.9)\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cat README.md",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "# Meta Spirit LM: Interleaved Spoken and Written Language Model\n\nThis repository contains the model weights, inference code and evaluation scripts for the Spirit LM [paper](https://arxiv.org/pdf/2402.05755.pdf). You can find more generation samples on our [demo page](https://speechbot.github.io/spiritlm/).\n\n## Spirit LM Model Overview\n<img src=\"assets/spiritlm_overview.png\">\n\n## Installation Setup\n### Conda\n```\nconda env create -f env.yml\npip install -e '.[eval]'\n\n```\n### Pip\n```\npip install -e '.[eval]'\n```\n\n### Dev\n(Optionally, use only if you want to run the tests.)\n```\npip install -e '.[de\n... (572 chars omitted for recipe synthesis) ...\n found in [LICENSE](LICENSE).\n\n## Citation\n```\n@misc{nguyen2024spiritlminterleavedspokenwritten,\n      title={SpiRit-LM: Interleaved Spoken and Written Language Model},\n      author={Tu Anh Nguyen and Benjamin Muller and Bokai Yu and Marta R. Costa-jussa and Maha Elbayad and Sravya Popuri and Paul-Ambroise Duquenne and Robin Algayres and Ruslan Mavlyutov and Itai Gat and Gabriel Synnaeve and Juan Pino and Benoit Sagot and Emmanuel Dupoux},\n      year={2024},\n      eprint={2402.05755},\n      archivePrefix={arXiv},\n      primaryClass={cs.CL},\n      url={https://arxiv.org/abs/2402.05755},\n}\n```\n\n"
+      },
+      {
+        "step_index": 11,
+        "command": "pip install -e '.[dev]'",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Preparing metadata (setup.py): started\n  Preparing metadata (setup.py): finished with status 'done'\nCollecting omegaconf>=2.2.0\n  Downloading omegaconf-2.3.0-py3-none-any.whl (79 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 1.7 MB/s eta 0:00:00\nCollecting librosa>=0.10\n  Downloading librosa-0.11.0-py3-none-any.whl (260 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 260.7/260.7 kB 2.8 MB/s eta 0:00:00\nCollecting local-attention>=1.9\n  Downloading local_attention-1.11.2-py3-none-any.whl (9.5 kB)\nCollecting encodec>=0.1\n  Downloading encodec-0.1.1.tar.g\n... (16642 chars omitted for recipe synthesis) ...\ne-0.13.1 soxr-1.1.0 spiritlm-0.1.0 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 tomli-2.4.1 torch-2.8.0 torch-einops-utils-0.0.32 torchaudio-2.8.0 torchfcpe-0.0.4 tqdm-4.67.3 transformers-4.57.6 triton-3.4.0 typing_extensions-4.15.0 urllib3-2.6.3 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 12,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_spirit_model.py::test_parse_speech_and_text[abc[Speech][St1][Pi234][Hu123][Hu45][Text]hello world[-expected0]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45]-expected1]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc-expected2]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[]-expected3]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45][Text][abc-expected4]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[Text]def-expected5]\ntests/test_spirit_model.py::test_parse_speech_and_text_with_expr\n... (3491 chars omitted for recipe synthesis) ...\next]def-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Pi9]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St0]-True]\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units_with_tensor_input\ntests/test_tokenizer.py::test_base_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_string\ntests/test_tokenizer.py::test_base_tokenizer_encode_string\n\n33 tests collected in 5.66s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat facebookresearch__spiritlm/requirements.txt",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: facebookresearch__spiritlm/requirements.txt: No such file or directory\n"
+      },
+      {
+        "step_index": 2,
+        "command": "ls -la facebookresearch__spiritlm/",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "ls: cannot access 'facebookresearch__spiritlm/': No such file or directory\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e '.[dev]'"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat facebookresearch__spiritlm/requirements.txt - Failed path exploration, excluded per failed_attempts context",
+          "reason": ""
+        },
+        {
+          "command": "ls -la facebookresearch__spiritlm/ - Failed path exploration, excluded per failed_attempts context",
+          "reason": ""
+        },
+        {
+          "command": "ls -la - Read-only repository structure inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat requirements.txt - Read-only dependency inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat requirements.dev.txt && echo '---' && cat setup.py - Read-only package configuration inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat env.yml - Read-only conda environment inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_tokenizer.py - Read-only test file inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_spirit_model.py - Read-only test file inspection, no state change",
+          "reason": ""
+        },
+        {
+          "command": "python3 --version && pip3 --version - Read-only version check, no state change",
+          "reason": ""
+        },
+        {
+          "command": "cat README.md - Read-only documentation inspection, no state change",
+          "reason": ""
+        }
+      ],
+      "rationale": "The only state-changing command in the successful trajectory is Step 11: 'pip install -e '.[dev]''. This single command installs the spiritlm package in editable mode along with all runtime dependencies (omegaconf, librosa, local-attention, encodec, transformers, fairscale, sentencepiece, torchfcpe) and dev dependencies (pytest) as defined in setup.py. Steps 1-10 are all read-only exploration or failed attempts that do not contribute to the final environment state. Step 12 is the final verification test command, not a build command. The base image 'python:3.9' (from agent_run_summary) provides Python 3.9 which matches the repo's python_requires>=3.9 and the observed python3 --version output.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 4,
+      "compressed_steps": 3,
+      "saved_tokens_est": 2810
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat facebookresearch__spiritlm/requirements.txt",
+        "success": false,
+        "raw_chars": 76,
+        "raw_tokens_est": 19,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la facebookresearch__spiritlm/",
+        "success": false,
+        "raw_chars": 75,
+        "raw_tokens_est": 18,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "ls -la",
+        "success": true,
+        "raw_chars": 1125,
+        "raw_tokens_est": 281,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat requirements.txt",
+        "success": true,
+        "raw_chars": 137,
+        "raw_tokens_est": 34,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "cat requirements.dev.txt && echo \"---\" && cat setup.py",
+        "success": true,
+        "raw_chars": 1743,
+        "raw_tokens_est": 435,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 375,
+        "reflect_input_tokens": 4934,
+        "reflect_output_tokens": 266
+      },
+      {
+        "step_id": 6,
+        "action": "cat env.yml",
+        "success": true,
+        "raw_chars": 319,
+        "raw_tokens_est": 79,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "cat tests/test_tokenizer.py",
+        "success": true,
+        "raw_chars": 8235,
+        "raw_tokens_est": 2058,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1553,
+        "reflect_input_tokens": 6475,
+        "reflect_output_tokens": 1003
+      },
+      {
+        "step_id": 8,
+        "action": "cat tests/test_spirit_model.py",
+        "success": true,
+        "raw_chars": 6324,
+        "raw_tokens_est": 1581,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 882,
+        "reflect_input_tokens": 3610,
+        "reflect_output_tokens": 1044
+      },
+      {
+        "step_id": 9,
+        "action": "python3 --version && pip3 --version",
+        "success": true,
+        "raw_chars": 86,
+        "raw_tokens_est": 21,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "cat README.md",
+        "success": true,
+        "raw_chars": 1772,
+        "raw_tokens_est": 443,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 89,
+        "reflect_input_tokens": 9822,
+        "reflect_output_tokens": 533
+      },
+      {
+        "step_id": 11,
+        "action": "pip install -e '.[dev]'",
+        "success": true,
+        "raw_chars": 17842,
+        "raw_tokens_est": 4460,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 4691,
+        "raw_tokens_est": 1172,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 7656,
+        "output_tokens": 3428,
+        "total_tokens": 11084
+      },
+      "planner": {
+        "input_tokens": 75482,
+        "output_tokens": 1038,
+        "total_tokens": 76520
+      },
+      "reflection": {
+        "input_tokens": 24841,
+        "output_tokens": 2846,
+        "total_tokens": 27687
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 12457,
+        "output_tokens": 1759,
+        "total_tokens": 14216
+      },
+      "total": {
+        "input_tokens": 120436,
+        "output_tokens": 9071,
+        "total_tokens": 129507
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+    "base_commit": "52fb2f",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/facebookresearch__spiritlm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-10T03:28:56.709716+08:00",
+      "finished_at": "2026-05-10T03:28:56.781326+08:00",
+      "duration_seconds": 0.072,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context'...\n完成。\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "52fb2f"
+      ],
+      "command_shell": "git checkout --force 52fb2f",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-10T03:28:56.781381+08:00",
+      "finished_at": "2026-05-10T03:28:56.807444+08:00",
+      "duration_seconds": 0.026,
+      "stdout": "",
+      "stderr": "注意：正在切换到 '52fb2f'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\nHEAD 目前位于 52fb2f4 Fix the pip install instruction\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-10T03:28:56.807496+08:00",
+      "finished_at": "2026-05-10T03:28:56.813138+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-facebookresearch__spiritlm",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval -t jayint-repo2run-facebookresearch__spiritlm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-10T03:28:56.831215+08:00",
+    "finished_at": "2026-05-10T03:42:18.035002+08:00",
+    "duration_seconds": 801.204,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.9\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.9\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 9.36MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.3s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e '\"'\"'.[dev]'\"'\"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.933 Obtaining file:///app\n#10 0.936   Preparing metadata (setup.py): started\n#10 1.496   Preparing metadata (setup.py): finished with status 'done'\n#10 2.225 Collecting omegaconf>=2.2.0\n#10 2.600   Downloading omegaconf-2.3.0-py3-none-any.whl (79 kB)\n#10 2.710      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 739.8 kB/s eta 0:00:00\n#10 2.866 Collecting librosa>=0.10\n#10 2.966   Downloading librosa-0.11.0-py3-none-any.whl (260 kB)\n#10 3.057      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 260.7/260.7 kB 3.0 MB/s eta 0:00:00\n#10 3.218 Collecting local-attention>=1.9\n#10 3.319   Downloading local_attention-1.11.2-py3-none-any.whl (9.5 kB)\n#10 3.746 Collecting encodec>=0.1\n#10 3.841   Downloading encodec-0.1.1.tar.gz (3.7 MB)\n#10 4.289      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 8.5 MB/s eta 0:00:00\n#10 4.359   Preparing metadata (setup.py): started\n#10 4.550   Preparing metadata (setup.py): finished with status 'done'\n#10 4.783 Collecting transformers\n#10 4.873   Downloading transformers-4.57.6-py3-none-any.whl (12.0 MB)\n#10 6.664      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 6.2 MB/s eta 0:00:00\n#10 6.848 Collecting fairscale>=0.4\n#10 6.941   Downloading fairscale-0.4.13.tar.gz (266 kB)\n#10 6.996      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 266.3/266.3 kB 5.6 MB/s eta 0:00:00\n#10 7.040   Installing build dependencies: started\n#10 10.80   Installing build dependencies: finished with status 'done'\n#10 10.80   Getting requirements to build wheel: started\n#10 10.99   Getting requirements to build wheel: finished with status 'done'\n#10 10.99   Installing backend dependencies: started\n#10 12.58   Installing backend dependencies: finished with status 'done'\n#10 12.58   Preparing metadata (pyproject.toml): started\n#10 12.79   Preparing metadata (pyproject.toml): finished with status 'done'\n#10 13.01 Collecting sentencepiece\n#10 13.10   Downloading sentencepiece-0.2.1-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n#10 13.34      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 6.1 MB/s eta 0:00:00\n#10 13.69 Collecting pyarrow>=14.0\n#10 13.78   Downloading pyarrow-21.0.0-cp39-cp39-manylinux_2_28_x86_64.whl (42.7 MB)\n#10 20.57      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.7/42.7 MB 6.2 MB/s eta 0:00:00\n#10 20.79 Collecting torchfcpe>=0.0.4\n#10 21.08   Downloading torchfcpe-0.0.4-py3-none-any.whl (40.2 MB)\n#10 27.55      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.2/40.2 MB 6.2 MB/s eta 0:00:00\n#10 27.66 Requirement already satisfied: pytest in /usr/local/lib/python3.9/site-packages (from spiritlm==0.1.0) (8.4.2)\n#10 28.26 Collecting numpy\n#10 28.35   Downloading numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (19.5 MB)\n#10 31.37      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.5/19.5 MB 6.1 MB/s eta 0:00:00\n#10 31.65 Collecting torch\n#10 31.74   Downloading torch-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (888.0 MB)\n#10 177.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 888.0/888.0 MB 6.1 MB/s eta 0:00:00\n#10 179.3 Collecting torchaudio\n#10 179.4   Downloading torchaudio-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (4.0 MB)\n#10 179.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 7.8 MB/s eta 0:00:00\n#10 180.0 Collecting einops\n#10 180.1   Downloading einops-0.8.2-py3-none-any.whl (65 kB)\n#10 180.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.6/65.6 kB 94.1 MB/s eta 0:00:00\n#10 180.3 Collecting decorator>=4.3.0\n#10 180.4   Downloading decorator-5.2.1-py3-none-any.whl (9.2 kB)\n#10 180.6 Collecting lazy_loader>=0.1\n#10 180.7   Downloading lazy_loader-0.5-py3-none-any.whl (8.0 kB)\n#10 181.1 Collecting scipy>=1.6.0\n#10 181.2   Downloading scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (38.6 MB)\n#10 187.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.6/38.6 MB 6.2 MB/s eta 0:00:00\n#10 187.4 Requirement already satisfied: msgpack>=1.0 in /usr/local/lib/python3.9/site-packages (from librosa>=0.10->spiritlm==0.1.0) (1.1.2)\n#10 187.5 Collecting pooch>=1.1\n#10 187.6   Downloading pooch-1.9.0-py3-none-any.whl (67 kB)\n#10 187.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.2/67.2 kB 16.9 MB/s eta 0:00:00\n#10 187.8 Collecting soundfile>=0.12.1\n#10 187.9   Downloading soundfile-0.13.1-py2.py3-none-manylinux_2_28_x86_64.whl (1.3 MB)\n#10 188.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 7.2 MB/s eta 0:00:00\n#10 188.4 Collecting scikit-learn>=1.1.0\n#10 188.5   Downloading scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.5 MB)\n#10 190.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.5/13.5 MB 6.2 MB/s eta 0:00:00\n#10 190.7 Collecting audioread>=2.1.9\n#10 190.8   Downloading audioread-3.1.0-py3-none-any.whl (23 kB)\n#10 191.0 Collecting soxr>=0.3.2\n#10 191.1   Downloading soxr-1.1.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (245 kB)\n#10 191.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 245.4/245.4 kB 6.4 MB/s eta 0:00:00\n#10 191.2 Requirement already satisfied: typing_extensions>=4.1.1 in /usr/local/lib/python3.9/site-packages (from librosa>=0.10->spiritlm==0.1.0) (4.15.0)\n#10 191.3 Collecting joblib>=1.0\n#10 191.4   Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#10 191.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 6.7 MB/s eta 0:00:00\n#10 191.8 Collecting numba>=0.51.0\n#10 191.9   Downloading numba-0.60.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)\n#10 192.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.5 MB/s eta 0:00:00\n#10 192.6 Collecting hyper-connections>=0.1.8\n#10 192.7   Downloading hyper_connections-0.4.10-py3-none-any.whl (29 kB)\n#10 192.9 Collecting PyYAML>=5.1.0\n#10 193.0   Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n#10 193.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 9.4 MB/s eta 0:00:00\n#10 193.2 Collecting antlr4-python3-runtime==4.9.*\n#10 193.3   Downloading antlr4-python3-runtime-4.9.3.tar.gz (117 kB)\n#10 193.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.0/117.0 kB 10.1 MB/s eta 0:00:00\n#10 193.3   Preparing metadata (setup.py): started\n#10 193.6   Preparing metadata (setup.py): finished with status 'done'\n#10 193.6 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (1.6.0)\n#10 193.6 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.4.1)\n#10 193.6 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (1.3.1)\n#10 193.6 Requirement already satisfied: packaging>=20 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (26.1)\n#10 193.6 Requirement already satisfied: iniconfig>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.1.0)\n#10 193.6 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.20.0)\n#10 194.4 Collecting tokenizers<=0.23.0,>=0.22.0\n#10 194.5   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#10 194.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 8.1 MB/s eta 0:00:00\n#10 195.3 Collecting safetensors>=0.4.3\n#10 195.4   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#10 195.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 10.3 MB/s eta 0:00:00\n#10 195.5 Requirement already satisfied: filelock in /usr/local/lib/python3.9/site-packages (from transformers->spiritlm==0.1.0) (3.19.1)\n#10 195.7 Collecting tqdm>=4.27\n#10 195.8   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 195.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 15.6 MB/s eta 0:00:00\n#10 196.0 Collecting huggingface-hub<1.0,>=0.34.0\n#10 196.1   Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)\n#10 196.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 11.8 MB/s eta 0:00:00\n#10 196.1 Requirement already satisfied: requests in /usr/local/lib/python3.9/site-packages (from transformers->spiritlm==0.1.0) (2.32.5)\n#10 197.1 Collecting regex!=2019.12.17\n#10 197.2   Downloading regex-2026.1.15-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (791 kB)\n#10 197.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 791.3/791.3 kB 11.2 MB/s eta 0:00:00\n#10 197.6 Collecting fsspec>=2023.5.0\n#10 197.7   Downloading fsspec-2025.10.0-py3-none-any.whl (200 kB)\n#10 197.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 201.0/201.0 kB 13.4 MB/s eta 0:00:00\n#10 197.9 Collecting hf-xet<2.0.0,>=1.1.3\n#10 198.0   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#10 198.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.7 MB/s eta 0:00:00\n#10 198.9 Collecting torch-einops-utils>=0.0.20\n#10 199.0   Downloading torch_einops_utils-0.0.32-py3-none-any.whl (7.3 kB)\n#10 199.5 Collecting llvmlite<0.44,>=0.43.0dev0\n#10 199.6   Downloading llvmlite-0.43.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (43.9 MB)\n#10 206.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.9/43.9 MB 6.1 MB/s eta 0:00:00\n#10 206.7 Requirement already satisfied: platformdirs>=2.5.0 in /usr/local/lib/python3.9/site-packages (from pooch>=1.1->librosa>=0.10->spiritlm==0.1.0) (4.4.0)\n#10 206.7 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (3.4.7)\n#10 206.7 Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (2026.4.22)\n#10 206.7 Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (2.6.3)\n#10 206.7 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (3.13)\n#10 206.9 Collecting threadpoolctl>=3.1.0\n#10 207.0   Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#10 207.0 Requirement already satisfied: cffi>=1.0 in /usr/local/lib/python3.9/site-packages (from soundfile>=0.12.1->librosa>=0.10->spiritlm==0.1.0) (2.0.0)\n#10 207.2 Collecting nvidia-cufile-cu12==1.13.1.3\n#10 207.3   Downloading nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#10 207.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 7.0 MB/s eta 0:00:00\n#10 207.6 Collecting nvidia-cublas-cu12==12.8.4.1\n#10 207.7   Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl (594.3 MB)\n#10 304.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 594.3/594.3 MB 6.7 MB/s eta 0:00:00\n#10 306.0 Collecting nvidia-nvjitlink-cu12==12.8.93\n#10 306.0   Downloading nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.3 MB)\n#10 312.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.3/39.3 MB 6.1 MB/s eta 0:00:00\n#10 312.6 Collecting nvidia-cuda-nvrtc-cu12==12.8.93\n#10 312.7   Downloading nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (88.0 MB)\n#10 327.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 88.0/88.0 MB 6.1 MB/s eta 0:00:00\n#10 327.3 Collecting sympy>=1.13.3\n#10 327.4   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#10 328.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 5.6 MB/s eta 0:00:00\n#10 328.7 Collecting nvidia-cusparselt-cu12==0.7.1\n#10 328.8   Downloading nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl (287.2 MB)\n#10 375.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 287.2/287.2 MB 6.1 MB/s eta 0:00:00\n#10 376.2 Collecting nvidia-cufft-cu12==11.3.3.83\n#10 376.3   Downloading nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (193.1 MB)\n#10 408.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.1/193.1 MB 6.2 MB/s eta 0:00:00\n#10 408.4 Collecting jinja2\n#10 408.5   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 408.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 5.0 MB/s eta 0:00:00\n#10 408.7 Collecting networkx\n#10 408.8   Downloading networkx-3.2.1-py3-none-any.whl (1.6 MB)\n#10 409.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 7.0 MB/s eta 0:00:00\n#10 409.2 Collecting nvidia-curand-cu12==10.3.9.90\n#10 409.3   Downloading nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl (63.6 MB)\n#10 419.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.6/63.6 MB 6.2 MB/s eta 0:00:00\n#10 419.8 Collecting nvidia-cuda-cupti-cu12==12.8.90\n#10 419.9   Downloading nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (10.2 MB)\n#10 421.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.2/10.2 MB 6.8 MB/s eta 0:00:00\n#10 421.6 Collecting nvidia-cusolver-cu12==11.7.3.90\n#10 421.7   Downloading nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl (267.5 MB)\n#10 465.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 267.5/267.5 MB 6.2 MB/s eta 0:00:00\n#10 465.9 Collecting nvidia-nccl-cu12==2.27.3\n#10 466.0   Downloading nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (322.4 MB)\n#10 518.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 322.4/322.4 MB 6.2 MB/s eta 0:00:00\n#10 519.4 Collecting nvidia-nvtx-cu12==12.8.90\n#10 519.5   Downloading nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (89 kB)\n#10 519.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.0/90.0 kB 5.6 MB/s eta 0:00:00\n#10 519.7 Collecting triton==3.4.0\n#10 519.8   Downloading triton-3.4.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (155.4 MB)\n#10 545.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.4/155.4 MB 6.2 MB/s eta 0:00:00\n#10 545.5 Collecting nvidia-cudnn-cu12==9.10.2.21\n#10 545.5   Downloading nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl (706.8 MB)\n#10 661.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 706.8/706.8 MB 6.2 MB/s eta 0:00:00\n#10 662.5 Collecting nvidia-cuda-runtime-cu12==12.8.90\n#10 662.6   Downloading nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (954 kB)\n#10 662.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 954.8/954.8 kB 4.3 MB/s eta 0:00:00\n#10 663.2 Collecting nvidia-cusparse-cu12==12.5.8.93\n#10 663.3   Downloading nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (288.2 MB)\n#10 710.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 288.2/288.2 MB 6.2 MB/s eta 0:00:00\n#10 710.8 Requirement already satisfied: setuptools>=40.8.0 in /usr/local/lib/python3.9/site-packages (from triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (79.0.1)\n#10 710.8 Requirement already satisfied: importlib-metadata in /usr/local/lib/python3.9/site-packages (from triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (8.7.1)\n#10 710.8 Requirement already satisfied: pycparser in /usr/local/lib/python3.9/site-packages (from cffi>=1.0->soundfile>=0.12.1->librosa>=0.10->spiritlm==0.1.0) (2.23)\n#10 711.0 Collecting mpmath<1.4,>=1.1.0\n#10 711.1   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#10 711.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 2.1 MB/s eta 0:00:00\n#10 711.6 Collecting MarkupSafe>=2.0\n#10 711.7   Downloading markupsafe-3.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#10 711.8 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.9/site-packages (from importlib-metadata->triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (3.23.1)\n#10 711.9 Building wheels for collected packages: encodec, fairscale, antlr4-python3-runtime\n#10 711.9   Building wheel for encodec (setup.py): started\n#10 712.2   Building wheel for encodec (setup.py): finished with status 'done'\n#10 712.2   Created wheel for encodec: filename=encodec-0.1.1-py3-none-any.whl size=45852 sha256=77d0b7c03358aac8b1dbaf5f66bae40b0ce1d9faad9388e13d26f2b50616d88a\n#10 712.2   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/1d/9d/20/489d6aafffb505e18fcfcfbe722562f91c26af0a8a6da7d00b\n#10 712.2   Building wheel for fairscale (pyproject.toml): started\n#10 712.5   Building wheel for fairscale (pyproject.toml): finished with status 'done'\n#10 712.5   Created wheel for fairscale: filename=fairscale-0.4.13-py3-none-any.whl size=332207 sha256=26701a48867dcc6f84fba2b118e5dea829b350feefd8c67e570a995062fd888d\n#10 712.5   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/10/ea/7f/8f35af83599829bb4790bdc16949dd99aeeb62e9a1faf47d47\n#10 712.5   Building wheel for antlr4-python3-runtime (setup.py): started\n#10 712.7   Building wheel for antlr4-python3-runtime (setup.py): finished with status 'done'\n#10 712.7   Created wheel for antlr4-python3-runtime: filename=antlr4_python3_runtime-4.9.3-py3-none-any.whl size=144590 sha256=7b6a9a851e89ae35f72ae80dcdc4e1f6df8fcaad40958dceeff59ab0d453d2ee\n#10 712.7   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/23/cf/80/f3efa822e6ab23277902ee9165fe772eeb1dfb8014f359020a\n#10 712.7 Successfully built encodec fairscale antlr4-python3-runtime\n#10 713.7 Installing collected packages: nvidia-cusparselt-cu12, mpmath, antlr4-python3-runtime, tqdm, threadpoolctl, sympy, sentencepiece, safetensors, regex, PyYAML, pyarrow, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufile-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, networkx, MarkupSafe, llvmlite, lazy_loader, joblib, hf-xet, fsspec, einops, decorator, audioread, triton, soxr, soundfile, scipy, pooch, omegaconf, nvidia-cusparse-cu12, nvidia-cufft-cu12, nvidia-cudnn-cu12, numba, jinja2, huggingface-hub, tokenizers, scikit-learn, nvidia-cusolver-cu12, transformers, torch, librosa, torchaudio, torch-einops-utils, fairscale, hyper-connections, encodec, local-attention, torchfcpe, spiritlm\n#10 785.6   Running setup.py develop for spiritlm\n#10 786.8 Successfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 antlr4-python3-runtime-4.9.3 audioread-3.1.0 decorator-5.2.1 einops-0.8.2 encodec-0.1.1 fairscale-0.4.13 fsspec-2025.10.0 hf-xet-1.5.0 huggingface-hub-0.36.2 hyper-connections-0.4.10 jinja2-3.1.6 joblib-1.5.3 lazy_loader-0.5 librosa-0.11.0 llvmlite-0.43.0 local-attention-1.11.2 mpmath-1.3.0 networkx-3.2.1 numba-0.60.0 numpy-2.0.2 nvidia-cublas-cu12-12.8.4.1 nvidia-cuda-cupti-cu12-12.8.90 nvidia-cuda-nvrtc-cu12-12.8.93 nvidia-cuda-runtime-cu12-12.8.90 nvidia-cudnn-cu12-9.10.2.21 nvidia-cufft-cu12-11.3.3.83 nvidia-cufile-cu12-1.13.1.3 nvidia-curand-cu12-10.3.9.90 nvidia-cusolver-cu12-11.7.3.90 nvidia-cusparse-cu12-12.5.8.93 nvidia-cusparselt-cu12-0.7.1 nvidia-nccl-cu12-2.27.3 nvidia-nvjitlink-cu12-12.8.93 nvidia-nvtx-cu12-12.8.90 omegaconf-2.3.0 pooch-1.9.0 pyarrow-21.0.0 regex-2026.1.15 safetensors-0.7.0 scikit-learn-1.6.1 scipy-1.13.1 sentencepiece-0.2.1 soundfile-0.13.1 soxr-1.1.0 spiritlm-0.1.0 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 torch-2.8.0 torch-einops-utils-0.0.32 torchaudio-2.8.0 torchfcpe-0.0.4 tqdm-4.67.3 transformers-4.57.6 triton-3.4.0\n#10 786.8 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 788.2s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 11.7s done\n#11 writing image sha256:8176853e4ec22349a5b08857a9b66a15fa5e4b4656f146cf14151394132132e8\n#11 writing image sha256:8176853e4ec22349a5b08857a9b66a15fa5e4b4656f146cf14151394132132e8 done\n#11 naming to docker.io/library/jayint-repo2run-facebookresearch__spiritlm done\n#11 DONE 11.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/rwr3l7yy695nlx95mx49xo1l2\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-facebookresearch__spiritlm",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-facebookresearch__spiritlm sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-10T03:42:18.048643+08:00",
+          "finished_at": "2026-05-10T03:42:25.122891+08:00",
+          "duration_seconds": 7.074,
+          "stdout": "tests/test_spirit_model.py::test_parse_speech_and_text[abc[Speech][St1][Pi234][Hu123][Hu45][Text]hello world[-expected0]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45]-expected1]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc-expected2]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[]-expected3]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45][Text][abc-expected4]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[Text]def-expected5]\ntests/test_spirit_model.py::test_parse_speech_and_text_with_expressive_tokens[[Hu338][Text] and they went out together[Speech][Hu431][Pi0][Hu457][Hu79][Pi11][Hu258][Hu85][Hu28][Hu50][Text] and mrs johnson  shoes except in mourning[Speech][Pi59][Hu32][Pi20][Hu453][Pi35][Pi26][Hu166]-expected0]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[]]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Hu100]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St1][Pi234][Hu123][Hu45][Text][abc]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Pi9]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St0]-True]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc[Hu123][Hu456][Pi23][St2]-3]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123]abc[Hu123][Hu456][Pi23][St2]-10]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123][Hu456][Pi23][St2]-0]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc-None]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Speech][St71][Pi39][Hu99][Hu49][Pi57][Hu38][Hu149][Pi48][Hu71][Hu423][Hu427][Pi56][Hu492][Hu288][Pi44][Hu315][Hu153][Pi42][Hu389][Pi59][Hu497][Hu412][Pi51][Hu247][Hu354][Pi44][Hu7][Hu96][Pi43][Hu452][Pi0][Hu176][Hu266][Pi54][St71][Hu77][Pi13][Hu248][Hu336][Pi39][Hu211][Pi25][Hu166][Hu65][Pi58][Hu94][Hu224][Pi26][Hu148][Pi44][Hu492][Hu191][Pi26][Hu440][Pi13][Hu41][Pi20][Hu457][Hu79][Pi46][Hu382][Hu451][Pi26][Hu332][Hu216][Hu114][Hu340][St71][Pi40][Hu478][Hu74][Pi26][Hu79][Hu370][Pi56][Hu272][Hu370][Pi51][Hu53][Pi14][Hu477][Hu65][Pi46][Hu171][Hu60][Pi41][Hu258][Hu111][Pi40][Hu338][Hu23][Pi39][Hu338][Hu23][Hu338][St71][Pi57][Hu7][Hu338][Hu149][Pi59][Hu406][Hu7][Hu361][Hu99][Pi20][Hu209][Hu479][Pi35][Hu50][St71][Hu7][Hu149][Pi55][Hu35][Pi13][Hu130][Pi3][Hu169][Pi52][Hu72][Pi9][Hu434][Hu119][Hu272][Hu4][Pi20][Hu249][Hu245][Pi57][Hu433][Pi56][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][St71][Hu226][Pi32][Hu370][Hu216][Pi39][Hu459][Hu424][Pi57][Hu226][Pi46][Hu382][Hu7][Pi27][Hu58][Hu138][Pi20][Hu428][Hu397][Pi44][Hu350][Pi32][Hu306][Pi59][Hu84][Hu11][Hu171][Pi42][Hu60][Pi48][Hu314][Hu227][St71][Hu355][Pi56][Hu9][Hu58][Pi44][Hu138][Hu226][Pi25][Hu370][Hu272][Pi56][Hu382][Hu334][Pi26][Hu330][Hu176][Pi56][Hu307][Pi46][Hu145][Hu248][Pi56][Hu493][Hu64][Pi40][Hu44][Hu388][Pi39][Hu7][Hu111][Pi59][St71][Hu23][Hu481][Pi13][Hu149][Pi15][Hu80][Hu70][Pi47][Hu431][Hu457][Pi13][Hu79][Pi27][Hu249][Pi55][Hu245][Pi54][Hu433][Pi36][Hu316][Pi53][Hu180][Pi3][Hu458][Pi26][Hu86][St71][Pi43][Hu225][Pi49][Hu103][Hu60][Pi3][Hu96][Hu119][Pi39][Hu129][Pi41][Hu356][Hu218][Pi14][Hu4][Hu259][Pi56][Hu392][Pi46][Hu490][Hu75][Pi14][Hu488][Hu166][Pi46][Hu65][Hu171][Pi40][Hu60][Hu7][Hu54][Pi39][Hu85][St83][Pi40][Hu361]-8]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[[-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Hu100]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St1][Pi234][Hu123][Hu45][Text][abc]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Pi9]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St0]-True]\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units_with_tensor_input\ntests/test_tokenizer.py::test_base_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_string\ntests/test_tokenizer.py::test_base_tokenizer_encode_string\n\n33 tests collected in 4.72s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-facebookresearch__spiritlm",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/Dockerfile.eval -t jayint-repo2run-facebookresearch__spiritlm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-10T03:28:56.831215+08:00",
+        "finished_at": "2026-05-10T03:42:18.035002+08:00",
+        "duration_seconds": 801.204,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.9\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.9\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 9.36MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.3s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e '\"'\"'.[dev]'\"'\"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.933 Obtaining file:///app\n#10 0.936   Preparing metadata (setup.py): started\n#10 1.496   Preparing metadata (setup.py): finished with status 'done'\n#10 2.225 Collecting omegaconf>=2.2.0\n#10 2.600   Downloading omegaconf-2.3.0-py3-none-any.whl (79 kB)\n#10 2.710      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 739.8 kB/s eta 0:00:00\n#10 2.866 Collecting librosa>=0.10\n#10 2.966   Downloading librosa-0.11.0-py3-none-any.whl (260 kB)\n#10 3.057      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 260.7/260.7 kB 3.0 MB/s eta 0:00:00\n#10 3.218 Collecting local-attention>=1.9\n#10 3.319   Downloading local_attention-1.11.2-py3-none-any.whl (9.5 kB)\n#10 3.746 Collecting encodec>=0.1\n#10 3.841   Downloading encodec-0.1.1.tar.gz (3.7 MB)\n#10 4.289      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 8.5 MB/s eta 0:00:00\n#10 4.359   Preparing metadata (setup.py): started\n#10 4.550   Preparing metadata (setup.py): finished with status 'done'\n#10 4.783 Collecting transformers\n#10 4.873   Downloading transformers-4.57.6-py3-none-any.whl (12.0 MB)\n#10 6.664      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 6.2 MB/s eta 0:00:00\n#10 6.848 Collecting fairscale>=0.4\n#10 6.941   Downloading fairscale-0.4.13.tar.gz (266 kB)\n#10 6.996      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 266.3/266.3 kB 5.6 MB/s eta 0:00:00\n#10 7.040   Installing build dependencies: started\n#10 10.80   Installing build dependencies: finished with status 'done'\n#10 10.80   Getting requirements to build wheel: started\n#10 10.99   Getting requirements to build wheel: finished with status 'done'\n#10 10.99   Installing backend dependencies: started\n#10 12.58   Installing backend dependencies: finished with status 'done'\n#10 12.58   Preparing metadata (pyproject.toml): started\n#10 12.79   Preparing metadata (pyproject.toml): finished with status 'done'\n#10 13.01 Collecting sentencepiece\n#10 13.10   Downloading sentencepiece-0.2.1-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n#10 13.34      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 6.1 MB/s eta 0:00:00\n#10 13.69 Collecting pyarrow>=14.0\n#10 13.78   Downloading pyarrow-21.0.0-cp39-cp39-manylinux_2_28_x86_64.whl (42.7 MB)\n#10 20.57      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.7/42.7 MB 6.2 MB/s eta 0:00:00\n#10 20.79 Collecting torchfcpe>=0.0.4\n#10 21.08   Downloading torchfcpe-0.0.4-py3-none-any.whl (40.2 MB)\n#10 27.55      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.2/40.2 MB 6.2 MB/s eta 0:00:00\n#10 27.66 Requirement already satisfied: pytest in /usr/local/lib/python3.9/site-packages (from spiritlm==0.1.0) (8.4.2)\n#10 28.26 Collecting numpy\n#10 28.35   Downloading numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (19.5 MB)\n#10 31.37      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.5/19.5 MB 6.1 MB/s eta 0:00:00\n#10 31.65 Collecting torch\n#10 31.74   Downloading torch-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (888.0 MB)\n#10 177.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 888.0/888.0 MB 6.1 MB/s eta 0:00:00\n#10 179.3 Collecting torchaudio\n#10 179.4   Downloading torchaudio-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (4.0 MB)\n#10 179.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 7.8 MB/s eta 0:00:00\n#10 180.0 Collecting einops\n#10 180.1   Downloading einops-0.8.2-py3-none-any.whl (65 kB)\n#10 180.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.6/65.6 kB 94.1 MB/s eta 0:00:00\n#10 180.3 Collecting decorator>=4.3.0\n#10 180.4   Downloading decorator-5.2.1-py3-none-any.whl (9.2 kB)\n#10 180.6 Collecting lazy_loader>=0.1\n#10 180.7   Downloading lazy_loader-0.5-py3-none-any.whl (8.0 kB)\n#10 181.1 Collecting scipy>=1.6.0\n#10 181.2   Downloading scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (38.6 MB)\n#10 187.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.6/38.6 MB 6.2 MB/s eta 0:00:00\n#10 187.4 Requirement already satisfied: msgpack>=1.0 in /usr/local/lib/python3.9/site-packages (from librosa>=0.10->spiritlm==0.1.0) (1.1.2)\n#10 187.5 Collecting pooch>=1.1\n#10 187.6   Downloading pooch-1.9.0-py3-none-any.whl (67 kB)\n#10 187.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.2/67.2 kB 16.9 MB/s eta 0:00:00\n#10 187.8 Collecting soundfile>=0.12.1\n#10 187.9   Downloading soundfile-0.13.1-py2.py3-none-manylinux_2_28_x86_64.whl (1.3 MB)\n#10 188.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 7.2 MB/s eta 0:00:00\n#10 188.4 Collecting scikit-learn>=1.1.0\n#10 188.5   Downloading scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.5 MB)\n#10 190.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.5/13.5 MB 6.2 MB/s eta 0:00:00\n#10 190.7 Collecting audioread>=2.1.9\n#10 190.8   Downloading audioread-3.1.0-py3-none-any.whl (23 kB)\n#10 191.0 Collecting soxr>=0.3.2\n#10 191.1   Downloading soxr-1.1.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (245 kB)\n#10 191.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 245.4/245.4 kB 6.4 MB/s eta 0:00:00\n#10 191.2 Requirement already satisfied: typing_extensions>=4.1.1 in /usr/local/lib/python3.9/site-packages (from librosa>=0.10->spiritlm==0.1.0) (4.15.0)\n#10 191.3 Collecting joblib>=1.0\n#10 191.4   Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#10 191.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 6.7 MB/s eta 0:00:00\n#10 191.8 Collecting numba>=0.51.0\n#10 191.9   Downloading numba-0.60.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)\n#10 192.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.5 MB/s eta 0:00:00\n#10 192.6 Collecting hyper-connections>=0.1.8\n#10 192.7   Downloading hyper_connections-0.4.10-py3-none-any.whl (29 kB)\n#10 192.9 Collecting PyYAML>=5.1.0\n#10 193.0   Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n#10 193.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 9.4 MB/s eta 0:00:00\n#10 193.2 Collecting antlr4-python3-runtime==4.9.*\n#10 193.3   Downloading antlr4-python3-runtime-4.9.3.tar.gz (117 kB)\n#10 193.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.0/117.0 kB 10.1 MB/s eta 0:00:00\n#10 193.3   Preparing metadata (setup.py): started\n#10 193.6   Preparing metadata (setup.py): finished with status 'done'\n#10 193.6 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (1.6.0)\n#10 193.6 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.4.1)\n#10 193.6 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (1.3.1)\n#10 193.6 Requirement already satisfied: packaging>=20 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (26.1)\n#10 193.6 Requirement already satisfied: iniconfig>=1 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.1.0)\n#10 193.6 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.9/site-packages (from pytest->spiritlm==0.1.0) (2.20.0)\n#10 194.4 Collecting tokenizers<=0.23.0,>=0.22.0\n#10 194.5   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#10 194.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 8.1 MB/s eta 0:00:00\n#10 195.3 Collecting safetensors>=0.4.3\n#10 195.4   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#10 195.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 10.3 MB/s eta 0:00:00\n#10 195.5 Requirement already satisfied: filelock in /usr/local/lib/python3.9/site-packages (from transformers->spiritlm==0.1.0) (3.19.1)\n#10 195.7 Collecting tqdm>=4.27\n#10 195.8   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 195.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 15.6 MB/s eta 0:00:00\n#10 196.0 Collecting huggingface-hub<1.0,>=0.34.0\n#10 196.1   Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)\n#10 196.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 11.8 MB/s eta 0:00:00\n#10 196.1 Requirement already satisfied: requests in /usr/local/lib/python3.9/site-packages (from transformers->spiritlm==0.1.0) (2.32.5)\n#10 197.1 Collecting regex!=2019.12.17\n#10 197.2   Downloading regex-2026.1.15-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (791 kB)\n#10 197.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 791.3/791.3 kB 11.2 MB/s eta 0:00:00\n#10 197.6 Collecting fsspec>=2023.5.0\n#10 197.7   Downloading fsspec-2025.10.0-py3-none-any.whl (200 kB)\n#10 197.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 201.0/201.0 kB 13.4 MB/s eta 0:00:00\n#10 197.9 Collecting hf-xet<2.0.0,>=1.1.3\n#10 198.0   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#10 198.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.7 MB/s eta 0:00:00\n#10 198.9 Collecting torch-einops-utils>=0.0.20\n#10 199.0   Downloading torch_einops_utils-0.0.32-py3-none-any.whl (7.3 kB)\n#10 199.5 Collecting llvmlite<0.44,>=0.43.0dev0\n#10 199.6   Downloading llvmlite-0.43.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (43.9 MB)\n#10 206.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.9/43.9 MB 6.1 MB/s eta 0:00:00\n#10 206.7 Requirement already satisfied: platformdirs>=2.5.0 in /usr/local/lib/python3.9/site-packages (from pooch>=1.1->librosa>=0.10->spiritlm==0.1.0) (4.4.0)\n#10 206.7 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (3.4.7)\n#10 206.7 Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (2026.4.22)\n#10 206.7 Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (2.6.3)\n#10 206.7 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.9/site-packages (from requests->transformers->spiritlm==0.1.0) (3.13)\n#10 206.9 Collecting threadpoolctl>=3.1.0\n#10 207.0   Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\n#10 207.0 Requirement already satisfied: cffi>=1.0 in /usr/local/lib/python3.9/site-packages (from soundfile>=0.12.1->librosa>=0.10->spiritlm==0.1.0) (2.0.0)\n#10 207.2 Collecting nvidia-cufile-cu12==1.13.1.3\n#10 207.3   Downloading nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)\n#10 207.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 7.0 MB/s eta 0:00:00\n#10 207.6 Collecting nvidia-cublas-cu12==12.8.4.1\n#10 207.7   Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl (594.3 MB)\n#10 304.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 594.3/594.3 MB 6.7 MB/s eta 0:00:00\n#10 306.0 Collecting nvidia-nvjitlink-cu12==12.8.93\n#10 306.0   Downloading nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.3 MB)\n#10 312.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.3/39.3 MB 6.1 MB/s eta 0:00:00\n#10 312.6 Collecting nvidia-cuda-nvrtc-cu12==12.8.93\n#10 312.7   Downloading nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (88.0 MB)\n#10 327.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 88.0/88.0 MB 6.1 MB/s eta 0:00:00\n#10 327.3 Collecting sympy>=1.13.3\n#10 327.4   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#10 328.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 5.6 MB/s eta 0:00:00\n#10 328.7 Collecting nvidia-cusparselt-cu12==0.7.1\n#10 328.8   Downloading nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl (287.2 MB)\n#10 375.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 287.2/287.2 MB 6.1 MB/s eta 0:00:00\n#10 376.2 Collecting nvidia-cufft-cu12==11.3.3.83\n#10 376.3   Downloading nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (193.1 MB)\n#10 408.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.1/193.1 MB 6.2 MB/s eta 0:00:00\n#10 408.4 Collecting jinja2\n#10 408.5   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 408.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 5.0 MB/s eta 0:00:00\n#10 408.7 Collecting networkx\n#10 408.8   Downloading networkx-3.2.1-py3-none-any.whl (1.6 MB)\n#10 409.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 7.0 MB/s eta 0:00:00\n#10 409.2 Collecting nvidia-curand-cu12==10.3.9.90\n#10 409.3   Downloading nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl (63.6 MB)\n#10 419.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.6/63.6 MB 6.2 MB/s eta 0:00:00\n#10 419.8 Collecting nvidia-cuda-cupti-cu12==12.8.90\n#10 419.9   Downloading nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (10.2 MB)\n#10 421.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.2/10.2 MB 6.8 MB/s eta 0:00:00\n#10 421.6 Collecting nvidia-cusolver-cu12==11.7.3.90\n#10 421.7   Downloading nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl (267.5 MB)\n#10 465.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 267.5/267.5 MB 6.2 MB/s eta 0:00:00\n#10 465.9 Collecting nvidia-nccl-cu12==2.27.3\n#10 466.0   Downloading nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (322.4 MB)\n#10 518.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 322.4/322.4 MB 6.2 MB/s eta 0:00:00\n#10 519.4 Collecting nvidia-nvtx-cu12==12.8.90\n#10 519.5   Downloading nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (89 kB)\n#10 519.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.0/90.0 kB 5.6 MB/s eta 0:00:00\n#10 519.7 Collecting triton==3.4.0\n#10 519.8   Downloading triton-3.4.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (155.4 MB)\n#10 545.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.4/155.4 MB 6.2 MB/s eta 0:00:00\n#10 545.5 Collecting nvidia-cudnn-cu12==9.10.2.21\n#10 545.5   Downloading nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl (706.8 MB)\n#10 661.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 706.8/706.8 MB 6.2 MB/s eta 0:00:00\n#10 662.5 Collecting nvidia-cuda-runtime-cu12==12.8.90\n#10 662.6   Downloading nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (954 kB)\n#10 662.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 954.8/954.8 kB 4.3 MB/s eta 0:00:00\n#10 663.2 Collecting nvidia-cusparse-cu12==12.5.8.93\n#10 663.3   Downloading nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (288.2 MB)\n#10 710.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 288.2/288.2 MB 6.2 MB/s eta 0:00:00\n#10 710.8 Requirement already satisfied: setuptools>=40.8.0 in /usr/local/lib/python3.9/site-packages (from triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (79.0.1)\n#10 710.8 Requirement already satisfied: importlib-metadata in /usr/local/lib/python3.9/site-packages (from triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (8.7.1)\n#10 710.8 Requirement already satisfied: pycparser in /usr/local/lib/python3.9/site-packages (from cffi>=1.0->soundfile>=0.12.1->librosa>=0.10->spiritlm==0.1.0) (2.23)\n#10 711.0 Collecting mpmath<1.4,>=1.1.0\n#10 711.1   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#10 711.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 2.1 MB/s eta 0:00:00\n#10 711.6 Collecting MarkupSafe>=2.0\n#10 711.7   Downloading markupsafe-3.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#10 711.8 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.9/site-packages (from importlib-metadata->triton==3.4.0->torch->encodec>=0.1->spiritlm==0.1.0) (3.23.1)\n#10 711.9 Building wheels for collected packages: encodec, fairscale, antlr4-python3-runtime\n#10 711.9   Building wheel for encodec (setup.py): started\n#10 712.2   Building wheel for encodec (setup.py): finished with status 'done'\n#10 712.2   Created wheel for encodec: filename=encodec-0.1.1-py3-none-any.whl size=45852 sha256=77d0b7c03358aac8b1dbaf5f66bae40b0ce1d9faad9388e13d26f2b50616d88a\n#10 712.2   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/1d/9d/20/489d6aafffb505e18fcfcfbe722562f91c26af0a8a6da7d00b\n#10 712.2   Building wheel for fairscale (pyproject.toml): started\n#10 712.5   Building wheel for fairscale (pyproject.toml): finished with status 'done'\n#10 712.5   Created wheel for fairscale: filename=fairscale-0.4.13-py3-none-any.whl size=332207 sha256=26701a48867dcc6f84fba2b118e5dea829b350feefd8c67e570a995062fd888d\n#10 712.5   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/10/ea/7f/8f35af83599829bb4790bdc16949dd99aeeb62e9a1faf47d47\n#10 712.5   Building wheel for antlr4-python3-runtime (setup.py): started\n#10 712.7   Building wheel for antlr4-python3-runtime (setup.py): finished with status 'done'\n#10 712.7   Created wheel for antlr4-python3-runtime: filename=antlr4_python3_runtime-4.9.3-py3-none-any.whl size=144590 sha256=7b6a9a851e89ae35f72ae80dcdc4e1f6df8fcaad40958dceeff59ab0d453d2ee\n#10 712.7   Stored in directory: /tmp/pip-ephem-wheel-cache-q4a4lc80/wheels/23/cf/80/f3efa822e6ab23277902ee9165fe772eeb1dfb8014f359020a\n#10 712.7 Successfully built encodec fairscale antlr4-python3-runtime\n#10 713.7 Installing collected packages: nvidia-cusparselt-cu12, mpmath, antlr4-python3-runtime, tqdm, threadpoolctl, sympy, sentencepiece, safetensors, regex, PyYAML, pyarrow, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufile-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, networkx, MarkupSafe, llvmlite, lazy_loader, joblib, hf-xet, fsspec, einops, decorator, audioread, triton, soxr, soundfile, scipy, pooch, omegaconf, nvidia-cusparse-cu12, nvidia-cufft-cu12, nvidia-cudnn-cu12, numba, jinja2, huggingface-hub, tokenizers, scikit-learn, nvidia-cusolver-cu12, transformers, torch, librosa, torchaudio, torch-einops-utils, fairscale, hyper-connections, encodec, local-attention, torchfcpe, spiritlm\n#10 785.6   Running setup.py develop for spiritlm\n#10 786.8 Successfully installed MarkupSafe-3.0.3 PyYAML-6.0.3 antlr4-python3-runtime-4.9.3 audioread-3.1.0 decorator-5.2.1 einops-0.8.2 encodec-0.1.1 fairscale-0.4.13 fsspec-2025.10.0 hf-xet-1.5.0 huggingface-hub-0.36.2 hyper-connections-0.4.10 jinja2-3.1.6 joblib-1.5.3 lazy_loader-0.5 librosa-0.11.0 llvmlite-0.43.0 local-attention-1.11.2 mpmath-1.3.0 networkx-3.2.1 numba-0.60.0 numpy-2.0.2 nvidia-cublas-cu12-12.8.4.1 nvidia-cuda-cupti-cu12-12.8.90 nvidia-cuda-nvrtc-cu12-12.8.93 nvidia-cuda-runtime-cu12-12.8.90 nvidia-cudnn-cu12-9.10.2.21 nvidia-cufft-cu12-11.3.3.83 nvidia-cufile-cu12-1.13.1.3 nvidia-curand-cu12-10.3.9.90 nvidia-cusolver-cu12-11.7.3.90 nvidia-cusparse-cu12-12.5.8.93 nvidia-cusparselt-cu12-0.7.1 nvidia-nccl-cu12-2.27.3 nvidia-nvjitlink-cu12-12.8.93 nvidia-nvtx-cu12-12.8.90 omegaconf-2.3.0 pooch-1.9.0 pyarrow-21.0.0 regex-2026.1.15 safetensors-0.7.0 scikit-learn-1.6.1 scipy-1.13.1 sentencepiece-0.2.1 soundfile-0.13.1 soxr-1.1.0 spiritlm-0.1.0 sympy-1.14.0 threadpoolctl-3.6.0 tokenizers-0.22.2 torch-2.8.0 torch-einops-utils-0.0.32 torchaudio-2.8.0 torchfcpe-0.0.4 tqdm-4.67.3 transformers-4.57.6 triton-3.4.0\n#10 786.8 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 788.2s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 11.7s done\n#11 writing image sha256:8176853e4ec22349a5b08857a9b66a15fa5e4b4656f146cf14151394132132e8\n#11 writing image sha256:8176853e4ec22349a5b08857a9b66a15fa5e4b4656f146cf14151394132132e8 done\n#11 naming to docker.io/library/jayint-repo2run-facebookresearch__spiritlm done\n#11 DONE 11.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/rwr3l7yy695nlx95mx49xo1l2\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-facebookresearch__spiritlm",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-facebookresearch__spiritlm sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-10T03:42:18.048643+08:00",
+              "finished_at": "2026-05-10T03:42:25.122891+08:00",
+              "duration_seconds": 7.074,
+              "stdout": "tests/test_spirit_model.py::test_parse_speech_and_text[abc[Speech][St1][Pi234][Hu123][Hu45][Text]hello world[-expected0]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45]-expected1]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc-expected2]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[]-expected3]\ntests/test_spirit_model.py::test_parse_speech_and_text[[St1][Pi234][Hu123][Hu45][Text][abc-expected4]\ntests/test_spirit_model.py::test_parse_speech_and_text[abc[Text]def-expected5]\ntests/test_spirit_model.py::test_parse_speech_and_text_with_expressive_tokens[[Hu338][Text] and they went out together[Speech][Hu431][Pi0][Hu457][Hu79][Pi11][Hu258][Hu85][Hu28][Hu50][Text] and mrs johnson  shoes except in mourning[Speech][Pi59][Hu32][Pi20][Hu453][Pi35][Pi26][Hu166]-expected0]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[]]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Hu100]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St1][Pi234][Hu123][Hu45][Text][abc]-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[Pi9]-True]\ntests/test_spirit_model.py::test_does_prompt_end_by_speech[[St0]-True]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc[Hu123][Hu456][Pi23][St2]-3]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123]abc[Hu123][Hu456][Pi23][St2]-10]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Hu123][Hu456][Pi23][St2]-0]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[abc-None]\ntests/test_spirit_model.py::test_find_prompt_last_speech_start_position[[Speech][St71][Pi39][Hu99][Hu49][Pi57][Hu38][Hu149][Pi48][Hu71][Hu423][Hu427][Pi56][Hu492][Hu288][Pi44][Hu315][Hu153][Pi42][Hu389][Pi59][Hu497][Hu412][Pi51][Hu247][Hu354][Pi44][Hu7][Hu96][Pi43][Hu452][Pi0][Hu176][Hu266][Pi54][St71][Hu77][Pi13][Hu248][Hu336][Pi39][Hu211][Pi25][Hu166][Hu65][Pi58][Hu94][Hu224][Pi26][Hu148][Pi44][Hu492][Hu191][Pi26][Hu440][Pi13][Hu41][Pi20][Hu457][Hu79][Pi46][Hu382][Hu451][Pi26][Hu332][Hu216][Hu114][Hu340][St71][Pi40][Hu478][Hu74][Pi26][Hu79][Hu370][Pi56][Hu272][Hu370][Pi51][Hu53][Pi14][Hu477][Hu65][Pi46][Hu171][Hu60][Pi41][Hu258][Hu111][Pi40][Hu338][Hu23][Pi39][Hu338][Hu23][Hu338][St71][Pi57][Hu7][Hu338][Hu149][Pi59][Hu406][Hu7][Hu361][Hu99][Pi20][Hu209][Hu479][Pi35][Hu50][St71][Hu7][Hu149][Pi55][Hu35][Pi13][Hu130][Pi3][Hu169][Pi52][Hu72][Pi9][Hu434][Hu119][Hu272][Hu4][Pi20][Hu249][Hu245][Pi57][Hu433][Pi56][Hu159][Hu294][Hu139][Hu359][Hu343][Hu269][Hu302][St71][Hu226][Pi32][Hu370][Hu216][Pi39][Hu459][Hu424][Pi57][Hu226][Pi46][Hu382][Hu7][Pi27][Hu58][Hu138][Pi20][Hu428][Hu397][Pi44][Hu350][Pi32][Hu306][Pi59][Hu84][Hu11][Hu171][Pi42][Hu60][Pi48][Hu314][Hu227][St71][Hu355][Pi56][Hu9][Hu58][Pi44][Hu138][Hu226][Pi25][Hu370][Hu272][Pi56][Hu382][Hu334][Pi26][Hu330][Hu176][Pi56][Hu307][Pi46][Hu145][Hu248][Pi56][Hu493][Hu64][Pi40][Hu44][Hu388][Pi39][Hu7][Hu111][Pi59][St71][Hu23][Hu481][Pi13][Hu149][Pi15][Hu80][Hu70][Pi47][Hu431][Hu457][Pi13][Hu79][Pi27][Hu249][Pi55][Hu245][Pi54][Hu433][Pi36][Hu316][Pi53][Hu180][Pi3][Hu458][Pi26][Hu86][St71][Pi43][Hu225][Pi49][Hu103][Hu60][Pi3][Hu96][Hu119][Pi39][Hu129][Pi41][Hu356][Hu218][Pi14][Hu4][Hu259][Pi56][Hu392][Pi46][Hu490][Hu75][Pi14][Hu488][Hu166][Pi46][Hu65][Hu171][Pi40][Hu60][Hu7][Hu54][Pi39][Hu85][St83][Pi40][Hu361]-8]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[[-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Hu100]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[]-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St1][Pi234][Hu123][Hu45][Text][abc]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[abc[Text]def-False]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[Pi9]-True]\ntests/test_spirit_model.py::test_does_start_with_speech_token[[St0]-True]\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_units_with_tensor_input\ntests/test_tokenizer.py::test_base_tokenizer_encode_units\ntests/test_tokenizer.py::test_expressive_tokenizer_encode_string\ntests/test_tokenizer.py::test_base_tokenizer_encode_string\n\n33 tests collected in 4.72s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-facebookresearch__spiritlm"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-facebookresearch__spiritlm",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-10T03:42:25.132324+08:00",
+    "finished_at": "2026-05-10T03:42:25.155154+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-facebookresearch__spiritlm:latest\nDeleted: sha256:8176853e4ec22349a5b08857a9b66a15fa5e4b4656f146cf14151394132132e8\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/facebookresearch__spiritlm/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

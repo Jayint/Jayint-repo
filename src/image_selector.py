@@ -248,6 +248,7 @@ class ImageSelector:
 
     def _write_summary_log(self, potential_files: List[str], relevant_files: List[str],
                            detected_language: str, selected_image: str,
+                           platform_override: Optional[str] = None,
                            detection_method: str = "unknown"):
         """Write summary.json with key results."""
         if not self._log_dir:
@@ -258,6 +259,7 @@ class ImageSelector:
             "detected_language": detected_language,
             "detection_method": detection_method,
             "selected_image": selected_image,
+            "platform_override": platform_override,
             "total_llm_calls": self._log_counter,
         }
         path = os.path.join(self._log_dir, "summary.json")
@@ -334,7 +336,14 @@ class ImageSelector:
         
         print(f"[ImageSelector] Selected base image: {selected_image}")
 
-        self._write_summary_log(potential_files, relevant_files, detected_language, selected_image, detection_method)
+        self._write_summary_log(
+            potential_files,
+            relevant_files,
+            detected_language,
+            selected_image,
+            platform_override=platform_override,
+            detection_method=detection_method,
+        )
         
         return selected_image, language_handler, docs, platform_override
     

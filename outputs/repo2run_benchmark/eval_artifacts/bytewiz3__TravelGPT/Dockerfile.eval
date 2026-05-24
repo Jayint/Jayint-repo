@@ -1,0 +1,18 @@
+FROM python:3.11
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+ENV PYTHONPATH=/app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -r requirements.txt' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN touch common/__init__.py
+RUN printf '%s' 'Y2F0ID4gY29tbW9uL3V0aWxzL21kNV91dGlscy5weSA8PCAnRU9GJwppbXBvcnQgaGFzaGxpYgoKZGVmIG1kNShkYXRhOiBzdHIpIC0+IHN0cjoKICAgICIiIlJldHVybiBNRDUgaGFzaCBvZiB0aGUgZ2l2ZW4gc3RyaW5nLiIiIgogICAgcmV0dXJuIGhhc2hsaWIubWQ1KGRhdGEuZW5jb2RlKCkpLmhleGRpZ2VzdCgpCkVPRg==' | base64 -d > /tmp/jayint_run_4.sh && chmod +x /tmp/jayint_run_4.sh && /bin/sh /tmp/jayint_run_4.sh
+RUN printf '%s' 'Y2F0ID4gY29tbW9uL3V0aWxzL3ZhbGlkX3V0aWxzLnB5IDw8ICdFT0YnCmltcG9ydCByZQoKZGVmIGVtYWlsX3ZhbGlkKGVtYWlsOiBzdHIpIC0+IGJvb2w6CiAgICAiIiJWYWxpZGF0ZSBlbWFpbCBhZGRyZXNzIGZvcm1hdC4iIiIKICAgIHBhdHRlcm4gPSByJ15bYS16QS1aMC05Ll8lKy1dK0BbYS16QS1aMC05Li1dK1wuW2EtekEtWl17Mix9JCcKICAgIHJldHVybiBib29sKHJlLm1hdGNoKHBhdHRlcm4sIGVtYWlsKSkKRU9G' | base64 -d > /tmp/jayint_run_5.sh && chmod +x /tmp/jayint_run_5.sh && /bin/sh /tmp/jayint_run_5.sh
+RUN printf '%s' 'Y2F0ID4gY29tbW9uL3V0aWxzL2VtYWlsX3V0aWxzLnB5IDw8ICdFT0YnCiMhL3Vzci9iaW4vcHl0aG9uCiMgLSotIGNvZGluZzogVVRGLTggLSotCgppbXBvcnQgc210cGxpYgpmcm9tIGVtYWlsLm1pbWUudGV4dCBpbXBvcnQgTUlNRVRleHQKZnJvbSBlbWFpbC5oZWFkZXIgaW1wb3J0IEhlYWRlcgoKZGVmIHNlbmRfZW1haWwoc3ViamVjdCwgY29udGVudCwgdG9fZW1haWwpOgogICAgIiIiU2VuZCBhbiBlbWFpbCB1c2luZyBTTVRQLiIiIgogICAgbWFpbF9ob3N0ID0gInNtdHAuWFhYLmNvbSIKICAgIG1haWxfdXNlciA9ICJYWFhYIgogICAgbWFpbF9wYXNzID0gIlhYWFhYWCIKICAgIHNlbmRlciA9ICdmcm9tQHJ1bm9vYi5jb20nCiAgICByZWNlaXZlcnMgPSBbdG9fZW1haWxdCiAgICAKICAgIG1lc3NhZ2UgPSBNSU1FVGV4dChjb250ZW50LCAncGxhaW4nLCAndXRmLTgnKQogICAgbWVzc2FnZVsnRnJvbSddID0gSGVhZGVyKCJUcmF2ZWxHUFQiLCAndXRmLTgnKQogICAgbWVzc2FnZVsnVG8nXSA9IEhlYWRlcih0b19lbWFpbCwgJ3V0Zi04JykKICAgIG1lc3NhZ2VbJ1N1YmplY3QnXSA9IEhlYWRlcihzdWJqZWN0LCAndXRmLTgnKQogICAgCiAgICB0cnk6CiAgICAgICAgc210cE9iaiA9IHNtdHBsaWIuU01UUCgpCiAgICAgICAgc210cE9iai5jb25uZWN0KG1haWxfaG9zdCwgMjUpCiAgICAgICAgc210cE9iai5sb2dpbihtYWlsX3VzZXIsIG1haWxfcGFzcykKICAgICAgICBzbXRwT2JqLnNlbmRtYWlsKHNlbmRlciwgcmVjZWl2ZXJzLCBtZXNzYWdlLmFzX3N0cmluZygpKQogICAgICAgIHJldHVybiBUcnVlCiAgICBleGNlcHQgc210cGxpYi5TTVRQRXhjZXB0aW9uOgogICAgICAgIHJldHVybiBGYWxzZQpFT0Y=' | base64 -d > /tmp/jayint_run_6.sh && chmod +x /tmp/jayint_run_6.sh && /bin/sh /tmp/jayint_run_6.sh

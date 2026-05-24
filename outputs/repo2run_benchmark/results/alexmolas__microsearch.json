@@ -1,0 +1,476 @@
+{
+  "dataset_entry": {
+    "instance_id": "alexmolas__microsearch",
+    "full_name": "alexmolas/microsearch",
+    "repo_url": "https://github.com/alexmolas/microsearch.git",
+    "sha": "632ff2",
+    "base_commit": "632ff2",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/alexmolas/microsearch.git",
+      "--base-commit",
+      "632ff2",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/alexmolas/microsearch.git --base-commit 632ff2 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T05:50:27.326228+08:00",
+    "finished_at": "2026-04-24T05:53:01.067223+08:00",
+    "duration_seconds": 153.741,
+    "stdout": "Cloning https://github.com/alexmolas/microsearch.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch...\nClone successful.\nChecked out commit: 632ff2\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 4 potentially relevant files\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ tox.ini\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector] 4 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns identified. The native extensions (pandas, pyarrow) have good ARM64 support in the versions specified (pandas 2.1.4, pyarrow 15.0.0). The project should work on both linux/amd64 and linux/arm64 platforms.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.11\n[DockerAgent] Selected base image: python:3.11\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/logs/image_selector_logs\nInitializing container from python:3.11...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.11 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:05276\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/logs/compression_logs\nStarting agent for repository: https://github.com/alexmolas/microsearch.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 1793, Output: 80, Total: 1873\n\n[Thought]\nI need to examine the project's dependency files to understand what needs to be installed. Let me start by looking at the pyproject.toml and requirements.txt.\n\n[Action]\ncat alexmolas__microsearch/pyproject.toml\n[Container ID: 0c06c18f7c54]\nExecuting: cat alexmolas__microsearch/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: alexmolas__microsearch/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 1866, Output: 48, Total: 1914\n\n[Thought]\nThe directory might have a different path. Let me check the current working directory and list the contents.\n\n[Action]\npwd && ls -la\n[Container ID: 0c06c18f7c54]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 84\ndrwxr-xr-x 7 root root     4096 Apr 23 21:51 .\ndrwxr-xr-x 1 root root     4096 Apr 23 21:51 ..\ndrwxr-xr-x 7  501 dialout  4096 Apr 23 21:50 .git\n-rw-r--r-- 1  501 dialout  4621 Apr 23 21:50 .gitignore\n-rw-r--r-- 1  501 dialout  1067 Apr 23 21:50 LICENSE\n-rw-r--r-- 1  501 dialout  2180 Apr 23 21:50 README.md\ndrwxr-xr-x 4  501 dialout  4096 Apr 23 21:50 app\n-rw-r--r-- 1  501 dialout  2234 Apr 23 21:50 download_content.py\n-rw-r--r-- 1  501 dialout 21655 Apr 23 21:50 feeds.txt\ndrwxr-xr-x 3  501 dialout  4096 Apr 23 21:50 logs\n-rw-r--r-- 1  501 dialout   707 Apr 23 21:50 pyproject.toml\n-rw-r--r-- 1  501 dialout   134 Apr 23 21:50 requirements.txt\ndrwxr-xr-x 3  501 dialout  4096 Apr 23 21:50 src\ndrwxr-xr-x 2  501 dialout  4096 Apr 23 21:50 tests\n-rw-r--r-- 1  501 dialout   344 Apr 23 21:50 tox.ini\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2296, Output: 61, Total: 2357\n\n[Thought]\nGood, I'm already in the repository directory. Let me check the pyproject.toml and requirements.txt to understand the dependencies.\n\n[Action]\ncat pyproject.toml requirements.txt\n[Container ID: 0c06c18f7c54]\nExecuting: cat pyproject.toml requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[project]\nname = \"microsearch\"\nversion = \"0.0.1\"\nauthors = [\n  { name=\"Alex Molas\", email=\"alexmolasmartin@gmail.com\" },\n]\ndescription = \"A minimal search engine in Python\"\nreadme = \"README.md\"\nrequires-python = \">=3.8\"\nclassifiers = [\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n]\ndependencies = [\n  \"aiohttp==3.9.1\",\n  \"beautifulsoup4==4.12.2\",\n  \"fastapi==0.108.0\",\n  \"feedparser==6.0.11\",\n  \"Jinja2==3.1.3\",\n  \"pandas==2.1.4\",\n  \"pyarrow==15.0.0\",\n  \"uvicorn==0.25.0\",\n]\n\n[project.urls]\nHomepage = \"https://github.com/alexmolas/microsearch\"\naiohttp==3.9.1\nbeautifulsoup4==4.12.2\nfastapi==0.108.0\nfeedparser==6.0.11\nJinja2==3.1.3\npandas==2.1.4\npyarrow==15.0.0\nuvicorn==0.25.0\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 2648, Output: 66, Total: 2714\n\n[Thought]\nNow let me check the test file to understand what tests exist, and also look at the tox.ini to see if there's additional test configuration.\n\n[Action]\ncat tests/test_engine.py tox.ini\n[Container ID: 0c06c18f7c54]\nExecuting: cat tests/test_engine.py tox.ini\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nfrom microsearch.engine import SearchEngine\n\n\ndef test_search_engine():\n    engine = SearchEngine()\n    docs = [(\"foo\", \"foo content\"), (\"bar\", \"bar content\")]\n    engine.bulk_index(docs)\n    \n    assert engine.search(\"content\")[\"foo\"] == engine.search(\"content\")[\"bar\"]\n    assert len(engine.search(\"foo\")) == 1\n    assert len(engine.search(\"bar\")) == 1\n[tox]\nenvlist = py311\n\n[testenv]\ndeps =\n    pytest\n    black\n    mypy\n    fastapi\n    types-requests\n    types-python-dateutil\n\ncommands =\n# NOTE: you can run any command line tool here - not just tests\n    mypy --ignore-missing-imports --check-untyped-defs src\n    mypy --ignore-missing-imports --check-untyped-defs tests\n    python -m pytest\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 2885, Output: 110, Total: 2995\n\n[Thought]\nNow I understand the project. I need to install the package in editable mode with its dependencies, plus pytest for testing. Let me install everything.\n\n[Action]\npip install -e . pytest\n[Container ID: 0c06c18f7c54]\nExecuting: pip install -e . pytest\nCommand succeeded.\n[Snapshot Created] sha256:3cb88\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting packaging>=22 (from pytest)\n  Using cached packaging-26.1-py3-none-any.whl.metadata (3.5 kB)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting aiohttp==3.9.1 (from microsearch==0.0.1)\n  Downloading aiohttp-3.9.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.4 kB)\nCollecting beautifulsoup4==4.12.2 (from microsearch==0.0.1)\n  Downloading beautifulsoup4-4.12.2-py3-none-any.whl.metadata (3.6 kB)\nCollecting fastapi==0.108.0 (from microsearch==0.0.1)\n  Downloading fastapi-0.108.0-py3-none-any.whl.metadata (24 kB)\nCollecting feedparser==6.0.11 (from microsearch==0.0.1)\n  Downloading feedparser-6.0.11-py3-none-any.whl.metadata (2.4 kB)\nCollecting jinja2==3.1.3 (from microsearch==0.0.1)\n  Downloading Jinja2-3.1.3-py3-none-any.whl.metadata (3.3 kB)\nCollecting pandas==2.1.4 (from microsearch==0.0.1)\n  Downloading pandas-2.1.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (18 kB)\nCollecting pyarrow==15.0.0 (from microsearch==0.0.1)\n  Downloading pyarrow-15.0.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (3.0 kB)\nCollecting uvicorn==0.25.0 (from microsearch==0.0.1)\n  Downloading uvicorn-0.25.0-py3-none-any.whl.metadata (6.4 kB)\nCollecting attrs>=17.3.0 (from aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\nCollecting multidict<7.0,>=4.5 (from aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading multidict-6.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\nCollecting yarl<2.0,>=1.0 (from aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.6/79.6 kB 953.6 kB/s eta 0:00:00\nCollecting frozenlist>=1.1.1 (from aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading frozenlist-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\nCollecting aiosignal>=1.1.2 (from aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\nCollecting soupsieve>1.2 (from beautifulsoup4==4.12.2->microsearch==0.0.1)\n  Downloading soupsieve-2.8.3-py3-none-any.whl.metadata (4.6 kB)\nCollecting pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4 (from fastapi==0.108.0->microsearch==0.0.1)\n  Downloading pydantic-2.13.3-py3-none-any.whl.metadata (108 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 108.8/108.8 kB 2.6 MB/s eta 0:00:00\nCollecting starlette<0.33.0,>=0.29.0 (from fastapi==0.108.0->microsearch==0.0.1)\n  Downloading starlette-0.32.0.post1-py3-none-any.whl.metadata (5.8 kB)\nCollecting typing-extensions>=4.8.0 (from fastapi==0.108.0->microsearch==0.0.1)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting sgmllib3k (from feedparser==6.0.11->microsearch==0.0.1)\n  Downloading sgmllib3k-1.0.0.tar.gz (5.8 kB)\n  Preparing metadata (setup.py): started\n  Preparing metadata (setup.py): finished with status 'done'\nCollecting MarkupSafe>=2.0 (from jinja2==3.1.3->microsearch==0.0.1)\n  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\nCollecting numpy<2,>=1.23.2 (from pandas==2.1.4->microsearch==0.0.1)\n  Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.0/61.0 kB 4.0 MB/s eta 0:00:00\nCollecting python-dateutil>=2.8.2 (from pandas==2.1.4->microsearch==0.0.1)\n  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\nCollecting pytz>=2020.1 (from pandas==2.1.4->microsearch==0.0.1)\n  Downloading pytz-2026.1.post1-py2.py3-none-any.whl.metadata (22 kB)\nCollecting tzdata>=2022.1 (from pandas==2.1.4->microsearch==0.0.1)\n  Downloading tzdata-2026.1-py2.py3-none-any.whl.metadata (1.4 kB)\nCollecting click>=7.0 (from uvicorn==0.25.0->microsearch==0.0.1)\n  Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\nCollecting h11>=0.8 (from uvicorn==0.25.0->microsearch==0.0.1)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting annotated-types>=0.6.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\nCollecting pydantic-core==2.46.3 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n  Downloading pydantic_core-2.46.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\nCollecting typing-inspection>=0.4.2 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\nCollecting six>=1.5 (from python-dateutil>=2.8.2->pandas==2.1.4->microsearch==0.0.1)\n  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\nCollecting anyio<5,>=3.4.0 (from starlette<0.33.0,>=0.29.0->fastapi==0.108.0->microsearch==0.0.1)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting idna>=2.0 (from yarl<2.0,>=1.0->aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)\nCollecting propcache>=0.2.1 (from yarl<2.0,>=1.0->aiohttp==3.9.1->microsearch==0.0.1)\n  Downloading propcache-0.4.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 3.2 MB/s eta 0:00:00\nDownloading aiohttp-3.9.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 9.7 MB/s eta 0:00:00\nDownloading beautifulsoup4-4.12.2-py3-none-any.whl (142 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 143.0/143.0 kB 16.7 MB/s eta 0:00:00\nDownloading fastapi-0.108.0-py3-none-any.whl (92 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 92.0/92.0 kB 10.7 MB/s eta 0:00:00\nDownloading feedparser-6.0.11-py3-none-any.whl (81 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.3/81.3 kB 7.6 MB/s eta 0:00:00\nDownloading Jinja2-3.1.3-py3-none-any.whl (133 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.2/133.2 kB 25.1 MB/s eta 0:00:00\nDownloading pandas-2.1.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (12.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.2/12.2 MB 6.0 MB/s eta 0:00:00\nDownloading pyarrow-15.0.0-cp311-cp311-manylinux_2_28_x86_64.whl (38.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.3/38.3 MB 6.0 MB/s eta 0:00:00\nDownloading uvicorn-0.25.0-py3-none-any.whl (60 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.3/60.3 kB 5.2 MB/s eta 0:00:00\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nUsing cached packaging-26.1-py3-none-any.whl (95 kB)\nUsing cached pluggy-1.6.0-py3-none-any.whl (20 kB)\nDownloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.5 MB/s eta 0:00:00\nDownloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\nDownloading attrs-26.1.0-py3-none-any.whl (67 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 7.6 MB/s eta 0:00:00\nDownloading click-8.3.3-py3-none-any.whl (110 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 5.2 MB/s eta 0:00:00\nDownloading frozenlist-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (231 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 231.1/231.1 kB 5.5 MB/s eta 0:00:00\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\nDownloading multidict-6.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (246 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 246.3/246.3 kB 5.5 MB/s eta 0:00:00\nDownloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.3/18.3 MB 6.0 MB/s eta 0:00:00\nDownloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 5.3 MB/s eta 0:00:00\nDownloading pydantic_core-2.46.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 7.2 MB/s eta 0:00:00\nDownloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 6.9 MB/s eta 0:00:00\nDownloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 7.9 MB/s eta 0:00:00\nDownloading soupsieve-2.8.3-py3-none-any.whl (37 kB)\nDownloading starlette-0.32.0.post1-py3-none-any.whl (70 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.0/70.0 kB 7.5 MB/s eta 0:00:00\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 4.3 MB/s eta 0:00:00\nDownloading tzdata-2026.1-py2.py3-none-any.whl (348 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.0/349.0 kB 6.5 MB/s eta 0:00:00\nDownloading yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.7/102.7 kB 7.9 MB/s eta 0:00:00\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 5.5 MB/s eta 0:00:00\nDownloading idna-3.13-py3-none-any.whl (68 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 7.1 MB/s eta 0:00:00\nDownloading propcache-0.4.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (210 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 210.0/210.0 kB 6.5 MB/s eta 0:00:00\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nBuilding wheels for collected packages: microsearch, sgmllib3k\n  Building editable for microsearch (pyproject.toml): started\n  Building editable for microsearch (pyproject.toml): finished with status 'done'\n  Created wheel for microsearch: filename=microsearch-0.0.1-py3-none-any.whl size=3077 sha256=d20b4614495d899c7a6b8c049e221e499b9f14da9ff20376009e6c510e7647bf\n  Stored in directory: /tmp/pip-ephem-wheel-cache-ctkb0cw7/wheels/57/0f/98/bb57b2b57b95807699b822a35c022f139d38a02c27922f27ce\n  Building wheel for sgmllib3k (setup.py): started\n  Building wheel for sgmllib3k (setup.py): finished with status 'done'\n  Created wheel for sgmllib3k: filename=sgmllib3k-1.0.0-py3-none-any.whl size=6090 sha256=80a4afcb3131cefc87b68dcca1c97fdf7a2270e2e1c144de241b36ab53fbdd84\n  Stored in directory: /root/.cache/pip/wheels/3b/25/2a/105d6a15df6914f4d15047691c6c28f9052cc1173e40285d03\nSuccessfully built microsearch sgmllib3k\nInstalling collected packages: sgmllib3k, pytz, tzdata, typing-extensions, soupsieve, six, pygments, propcache, pluggy, packaging, numpy, multidict, MarkupSafe, iniconfig, idna, h11, frozenlist, feedparser, click, attrs, annotated-types, yarl, uvicorn, typing-inspection, python-dateutil, pytest, pydantic-core, pyarrow, jinja2, beautifulsoup4, anyio, aiosignal, starlette, pydantic, pandas, aiohttp, fastapi, microsearch\nSuccessfully installed MarkupSafe-3.0.3 aiohttp-3.9.1 aiosignal-1.4.0 annotated-types-0.7.0 anyio-4.13.0 attrs-26.1.0 beautifulsoup4-4.12.2 click-8.3.3 fastapi-0.108.0 feedparser-6.0.11 frozenlist-1.8.0 h11-0.16.0 idna-3.13 iniconfig-2.3.0 jinja2-3.1.3 microsearch-0.0.1 multidict-6.7.1 numpy-1.26.4 packaging-26.1 pandas-2.1.4 pluggy-1.6.0 propcache-0.4.1 pyarrow-15.0.0 pydantic-2.13.3 pydantic-core-2.46.3 pygments-2.20.0 pytest-9.0.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 sgmllib3k-1.0.0 six-1.17.0 soupsieve-2.8.3 starlette-0.32.0.post1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2026.1 uvicorn-0.25.0 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 8238, Output: 65, Total: 8303\n\n[Thought]\nThe package and its dependencies were installed successfully. Now let me run pytest collection to verify the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 0c06c18f7c54]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:c13a7\n\n[Observation]\ntests/test_engine.py::test_search_engine\n\n1 test collected in 0.01s\n\n[Skipped Test Command] pytest --collect-only -q --disable-warnings (no_reliable_test_execution_signal).\n\n==================== Step 7 ====================\n\n[Tokens] Input: 8305, Output: 155, Total: 8460\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful. The test can be collected properly. Let me verify the final state and provide the verification bundle.\n\nThe environment is set up correctly:\n1. The microsearch package was installed in editable mode with all its dependencies\n2. pytest was installed\n3. Test collection succeeded - 1 test collected\n\nNow I should provide the final answer with the verification bundle.\n</think>\n\nThought: The environment setup is complete. The microsearch package was installed in editable mode with all its dependencies, pytest was installed, and the test collection succeeded (1 test collected). No runtime preparation commands are needed.\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report without system-level test-signal validation.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/alexmolas__microsearch.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/alexmolas/microsearch.git",
+    "configuration_success": true,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 84\ndrwxr-xr-x 7 root root     4096 Apr 23 21:51 .\ndrwxr-xr-x 1 root root     4096 Apr 23 21:51 ..\ndrwxr-xr-x 7  501 dialout  4096 Apr 23 21:50 .git\n-rw-r--r-- 1  501 dialout  4621 Apr 23 21:50 .gitignore\n-rw-r--r-- 1  501 dialout  1067 Apr 23 21:50 LICENSE\n-rw-r--r-- 1  501 dialout  2180 Apr 23 21:50 README.md\ndrwxr-xr-x 4  501 dialout  4096 Apr 23 21:50 app\n-rw-r--r-- 1  501 dialout  2234 Apr 23 21:50 download_content.py\n-rw-r--r-- 1  501 dialout 21655 Apr 23 21:50 feeds.txt\ndrwxr-xr-x 3  501 dialout  4096 Apr 23 21:50 logs\n-rw-r--r-- 1  501 dialout   707 Apr 23 21:50 pyproject.toml\n-rw-r--r-- 1  501 dialout   134 Apr 23 21:50 requirements.txt\ndrwxr-xr-x 3  501 dialout  4096 Apr 23 21:50 src\ndrwxr-xr-x 2  501 dialout  4096 Apr 23 21:50 tests\n-rw-r--r-- 1  501 dialout   344 Apr 23 21:50 tox.ini\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[project]\nname = \"microsearch\"\nversion = \"0.0.1\"\nauthors = [\n  { name=\"Alex Molas\", email=\"alexmolasmartin@gmail.com\" },\n]\ndescription = \"A minimal search engine in Python\"\nreadme = \"README.md\"\nrequires-python = \">=3.8\"\nclassifiers = [\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n]\ndependencies = [\n  \"aiohttp==3.9.1\",\n  \"beautifulsoup4==4.12.2\",\n  \"fastapi==0.108.0\",\n  \"feedparser==6.0.11\",\n  \"Jinja2==3.1.3\",\n  \"pandas==2.1.4\",\n  \"pyarrow==15.0.0\",\n  \"uvicorn==0.25.0\",\n]\n\n[project.urls]\nHomepage = \"https://github.com/alexmolas/microsearch\"\naiohttp==3.9.1\nbeautifulsoup4==4.12.2\nfastapi==0.108.0\nfeedparser==6.0.11\nJinja2==3.1.3\npandas==2.1.4\npyarrow==15.0.0\nuvicorn==0.25.0\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat tests/test_engine.py tox.ini",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "from microsearch.engine import SearchEngine\n\n\ndef test_search_engine():\n    engine = SearchEngine()\n    docs = [(\"foo\", \"foo content\"), (\"bar\", \"bar content\")]\n    engine.bulk_index(docs)\n    \n    assert engine.search(\"content\")[\"foo\"] == engine.search(\"content\")[\"bar\"]\n    assert len(engine.search(\"foo\")) == 1\n    assert len(engine.search(\"bar\")) == 1\n[tox]\nenvlist = py311\n\n[testenv]\ndeps =\n    pytest\n    black\n    mypy\n    fastapi\n    types-requests\n    types-python-dateutil\n\ncommands =\n# NOTE: you can run any command line tool here - not just tests\n    mypy --ignore-missing-imports --check-untyped-defs src\n    mypy --ignore-missing-imports --check-untyped-defs tests\n    python -m pytest\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e . pytest",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): fini\n... (12120 chars omitted for recipe synthesis) ...\nydantic-2.13.3 pydantic-core-2.46.3 pygments-2.20.0 pytest-9.0.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 sgmllib3k-1.0.0 six-1.17.0 soupsieve-2.8.3 starlette-0.32.0.post1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2026.1 uvicorn-0.25.0 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/test_engine.py::test_search_engine\n\n1 test collected in 0.01s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat alexmolas__microsearch/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: alexmolas__microsearch/pyproject.toml: No such file or directory\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e . pytest"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat alexmolas__microsearch/pyproject.toml",
+          "reason": "Failed read-only attempt with wrong path"
+        },
+        {
+          "command": "pwd && ls -la",
+          "reason": "Read-only directory inspection"
+        },
+        {
+          "command": "cat pyproject.toml requirements.txt",
+          "reason": "Read-only dependency inspection"
+        },
+        {
+          "command": "cat tests/test_engine.py tox.ini",
+          "reason": "Read-only test file inspection"
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings",
+          "reason": "Verification/test command, not a persistent build step"
+        }
+      ],
+      "rationale": "The only persistent state-changing action is 'pip install -e . pytest', which installs the microsearch package in editable mode and pytest. The editable install is critical because the test imports 'from microsearch.engine import SearchEngine', requiring the package to be discoverable on the Python path. Steps 1-4 are all read-only inspection (including a failed path lookup). Step 6 is the verification command that runs tests, not a build step. No post-test patches are needed.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 0,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat alexmolas__microsearch/pyproject.toml",
+        "success": false,
+        "raw_chars": 70,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 817,
+        "raw_tokens_est": 204,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml requirements.txt",
+        "success": true,
+        "raw_chars": 841,
+        "raw_tokens_est": 210,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat tests/test_engine.py tox.ini",
+        "success": true,
+        "raw_chars": 699,
+        "raw_tokens_est": 174,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e . pytest",
+        "success": true,
+        "raw_chars": 13320,
+        "raw_tokens_est": 3330,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 68,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 5272,
+        "output_tokens": 2189,
+        "total_tokens": 7461
+      },
+      "planner": {
+        "input_tokens": 28031,
+        "output_tokens": 585,
+        "total_tokens": 28616
+      },
+      "reflection": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 6809,
+        "output_tokens": 1252,
+        "total_tokens": 8061
+      },
+      "total": {
+        "input_tokens": 40112,
+        "output_tokens": 4026,
+        "total_tokens": 44138
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "verification_command_source": "repo2run_pytest_collect_only",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-alexmolas__microsearch",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch"
+    ],
+    "command_shell": "docker build -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/Dockerfile.eval -t jayint-repo2run-alexmolas__microsearch /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/alexmolas__microsearch",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T05:53:01.068530+08:00",
+    "finished_at": "2026-04-24T05:54:09.270906+08:00",
+    "duration_seconds": 68.202,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 449B done\n#1 DONE 0.0s\n\n#2 [auth] library/python:pull token for registry-1.docker.io\n#2 DONE 0.0s\n\n#3 [internal] load metadata for docker.io/library/python:3.11\n#3 DONE 3.5s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/6] FROM docker.io/library/python:3.11@sha256:501da89b27cb16c97aabfe9181c976cd6be0324f5de7480e9888c1a4be7eff2d\n#5 resolve docker.io/library/python:3.11@sha256:501da89b27cb16c97aabfe9181c976cd6be0324f5de7480e9888c1a4be7eff2d done\n#5 CACHED\n\n#6 [internal] load build context\n#6 transferring context: 321.90kB 0.0s done\n#6 DONE 0.0s\n\n#7 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#7 1.471 Collecting pytest\n#7 1.786   Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\n#7 2.013 Collecting pytest-xdist\n#7 2.134   Downloading pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)\n#7 2.351 Collecting poetry\n#7 2.480   Downloading poetry-2.3.4-py3-none-any.whl.metadata (7.2 kB)\n#7 2.629 Collecting iniconfig>=1.0.1 (from pytest)\n#7 2.748   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\n#7 2.902 Collecting packaging>=22 (from pytest)\n#7 3.022   Downloading packaging-26.1-py3-none-any.whl.metadata (3.5 kB)\n#7 3.168 Collecting pluggy<2,>=1.5 (from pytest)\n#7 3.290   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\n#7 3.449 Collecting pygments>=2.7.2 (from pytest)\n#7 3.568   Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\n#7 3.947 Collecting execnet>=2.1 (from pytest-xdist)\n#7 4.066   Downloading execnet-2.1.2-py3-none-any.whl.metadata (2.9 kB)\n#7 4.236 Collecting build<2.0.0,>=1.2.1 (from poetry)\n#7 4.355   Downloading build-1.4.4-py3-none-any.whl.metadata (5.8 kB)\n#7 4.501 Collecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#7 4.621   Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\n#7 4.771 Collecting cleo<3.0.0,>=2.1.0 (from poetry)\n#7 4.902   Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\n#7 5.247 Collecting dulwich<2,>=0.25.0 (from poetry)\n#7 5.363   Downloading dulwich-1.2.0-cp311-cp311-manylinux_2_28_aarch64.whl.metadata (6.0 kB)\n#7 5.502 Collecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n#7 5.621   Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\n#7 5.765 Collecting findpython<0.8.0,>=0.6.2 (from poetry)\n#7 5.891   Downloading findpython-0.7.1-py3-none-any.whl.metadata (5.4 kB)\n#7 6.023 Collecting installer<0.8.0,>=0.7.0 (from poetry)\n#7 6.138   Downloading installer-0.7.0-py3-none-any.whl.metadata (936 bytes)\n#7 6.317 Collecting keyring<26.0.0,>=25.1.0 (from poetry)\n#7 6.436   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\n#7 6.620 Collecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#7 6.738   Downloading pbs_installer-2026.4.7-py3-none-any.whl.metadata (990 bytes)\n#7 6.887 Collecting pkginfo<2.0,>=1.12 (from poetry)\n#7 7.006   Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\n#7 7.173 Collecting platformdirs<5,>=3.0.0 (from poetry)\n#7 7.294   Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\n#7 7.450 Collecting poetry-core==2.3.2 (from poetry)\n#7 7.571   Downloading poetry_core-2.3.2-py3-none-any.whl.metadata (3.8 kB)\n#7 7.710 Collecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n#7 7.831   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\n#7 7.982 Collecting requests<3.0,>=2.26 (from poetry)\n#7 8.102   Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)\n#7 8.235 Collecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n#7 8.353   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\n#7 8.511 Collecting shellingham<2.0,>=1.5 (from poetry)\n#7 8.857   Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\n#7 9.005 Collecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n#7 9.124   Downloading tomlkit-0.14.0-py3-none-any.whl.metadata (2.8 kB)\n#7 9.281 Collecting trove-classifiers>=2022.5.19 (from poetry)\n#7 9.399   Downloading trove_classifiers-2026.1.14.14-py3-none-any.whl.metadata (2.4 kB)\n#7 9.583 Collecting virtualenv>=20.26.6 (from poetry)\n#7 9.703   Downloading virtualenv-21.2.4-py3-none-any.whl.metadata (3.5 kB)\n#7 9.952 Collecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#7 10.08   Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (8.1 kB)\n#7 10.24 Collecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#7 10.36   Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\n#7 10.50 Collecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n#7 10.84   Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\n#7 11.34 Collecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n#7 11.47   Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (12 kB)\n#7 11.66 Collecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n#7 11.77   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)\n#7 11.92 Collecting typing_extensions>=4.6.0 (from dulwich<2,>=0.25.0->poetry)\n#7 12.04   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\n#7 12.22 Collecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#7 12.34   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\n#7 12.48 Collecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#7 12.60   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\n#7 12.76 Collecting importlib_metadata>=4.11.4 (from keyring<26.0.0,>=25.1.0->poetry)\n#7 12.88   Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\n#7 13.02 Collecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n#7 13.14   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\n#7 13.29 Collecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n#7 13.41   Downloading jaraco_functools-4.4.0-py3-none-any.whl.metadata (3.0 kB)\n#7 13.55 Collecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n#7 13.67   Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\n#7 13.84 Collecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#7 13.96   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\n#7 14.14 Collecting zstandard>=0.21.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#7 14.26   Downloading zstandard-0.25.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (3.3 kB)\n#7 14.47 Collecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n#7 14.58   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (40 kB)\n#7 14.64      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 1.1 MB/s eta 0:00:00\n#7 14.79 Collecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n#7 14.91   Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)\n#7 15.07 Collecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n#7 15.19   Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\n#7 15.35 Collecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n#7 15.46   Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\n#7 15.62 Collecting python-discovery>=1.2.2 (from virtualenv>=20.26.6->poetry)\n#7 15.74   Downloading python_discovery-1.2.2-py3-none-any.whl.metadata (5.4 kB)\n#7 15.92 Collecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#7 16.27   Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\n#7 16.42 Collecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#7 16.53   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\n#7 16.69 Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#7 16.81   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\n#7 16.98 Collecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry)\n#7 17.10   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#7 17.41 Collecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#7 17.52   Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_aarch64.whl.metadata (5.7 kB)\n#7 17.67 Collecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n#7 17.78   Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\n#7 17.82      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 1.3 MB/s eta 0:00:00\n#7 17.98 Collecting backports.tarfile (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry)\n#7 18.10   Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)\n#7 18.32 Collecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#7 18.44   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl.metadata (2.6 kB)\n#7 18.61 Collecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#7 18.73   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\n#7 18.87 Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n#7 19.04    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 2.3 MB/s eta 0:00:00\n#7 19.16 Downloading pytest_xdist-3.8.0-py3-none-any.whl (46 kB)\n#7 19.17    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.4/46.4 kB 3.2 MB/s eta 0:00:00\n#7 19.28 Downloading poetry-2.3.4-py3-none-any.whl (289 kB)\n#7 19.32    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 289.2/289.2 kB 8.1 MB/s eta 0:00:00\n#7 19.43 Downloading poetry_core-2.3.2-py3-none-any.whl (340 kB)\n#7 19.48    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 340.9/340.9 kB 8.1 MB/s eta 0:00:00\n#7 19.59 Downloading build-1.4.4-py3-none-any.whl (25 kB)\n#7 19.71 Downloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\n#7 19.83 Downloading cleo-2.1.0-py3-none-any.whl (78 kB)\n#7 19.85    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 8.0 MB/s eta 0:00:00\n#7 19.96 Downloading dulwich-1.2.0-cp311-cp311-manylinux_2_28_aarch64.whl (1.4 MB)\n#7 20.08    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 11.5 MB/s eta 0:00:00\n#7 20.20 Downloading execnet-2.1.2-py3-none-any.whl (40 kB)\n#7 20.21    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 kB 3.4 MB/s eta 0:00:00\n#7 20.32 Downloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\n#7 20.44 Downloading findpython-0.7.1-py3-none-any.whl (21 kB)\n#7 20.57 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\n#7 20.69 Downloading installer-0.7.0-py3-none-any.whl (453 kB)\n#7 20.71    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 453.8/453.8 kB 37.2 MB/s eta 0:00:00\n#7 20.82 Downloading keyring-25.7.0-py3-none-any.whl (39 kB)\n#7 20.94 Downloading packaging-26.1-py3-none-any.whl (95 kB)\n#7 20.95    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 95.8/95.8 kB 8.3 MB/s eta 0:00:00\n#7 21.06 Downloading pbs_installer-2026.4.7-py3-none-any.whl (73 kB)\n#7 21.07    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.7/73.7 kB 6.5 MB/s eta 0:00:00\n#7 21.19 Downloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\n#7 21.31 Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\n#7 21.43 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\n#7 21.55 Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n#7 21.61    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 24.4 MB/s eta 0:00:00\n#7 21.73 Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\n#7 21.85 Downloading requests-2.33.1-py3-none-any.whl (64 kB)\n#7 21.86    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 9.3 MB/s eta 0:00:00\n#7 21.97 Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n#7 21.98    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 4.4 MB/s eta 0:00:00\n#7 22.10 Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\n#7 22.21 Downloading tomlkit-0.14.0-py3-none-any.whl (39 kB)\n#7 22.34 Downloading trove_classifiers-2026.1.14.14-py3-none-any.whl (14 kB)\n#7 22.46 Downloading virtualenv-21.2.4-py3-none-any.whl (5.8 MB)\n#7 23.27    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.8/5.8 MB 7.2 MB/s eta 0:00:00\n#7 23.38 Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n#7 23.39    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 14.2 MB/s eta 0:00:00\n#7 23.51 Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (206 kB)\n#7 23.52    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 206.4/206.4 kB 13.5 MB/s eta 0:00:00\n#7 23.65 Downloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\n#7 23.76 Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n#7 23.80    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 13.3 MB/s eta 0:00:00\n#7 23.91 Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\n#7 24.04 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n#7 24.05    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 6.2 MB/s eta 0:00:00\n#7 24.16 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n#7 24.17    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 7.3 MB/s eta 0:00:00\n#7 24.29 Downloading idna-3.13-py3-none-any.whl (68 kB)\n#7 24.30    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 7.4 MB/s eta 0:00:00\n#7 24.41 Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\n#7 24.53 Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n#7 24.54    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 6.6 MB/s eta 0:00:00\n#7 24.65 Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (416 kB)\n#7 24.69    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 417.0/417.0 kB 12.4 MB/s eta 0:00:00\n#7 24.80 Downloading python_discovery-1.2.2-py3-none-any.whl (31 kB)\n#7 24.92 Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (1.4 MB)\n#7 25.02    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 13.6 MB/s eta 0:00:00\n#7 25.13 Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\n#7 25.26 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n#7 25.27    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 4.4 MB/s eta 0:00:00\n#7 25.38 Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)\n#7 25.39    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 15.7 MB/s eta 0:00:00\n#7 25.73 Downloading zstandard-0.25.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (5.1 MB)\n#7 26.50    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 6.5 MB/s eta 0:00:00\n#7 26.62 Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\n#7 26.75 Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\n#7 26.87 Downloading jaraco_functools-4.4.0-py3-none-any.whl (10 kB)\n#7 26.99 Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_aarch64.whl (4.3 MB)\n#7 27.55    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 7.7 MB/s eta 0:00:00\n#7 27.67 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#7 27.78 Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n#7 27.80    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 10.5 MB/s eta 0:00:00\n#7 27.91 Downloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\n#7 28.03 Downloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n#7 28.04    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 7.0 MB/s eta 0:00:00\n#7 28.16 Downloading cffi-2.0.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl (216 kB)\n#7 28.18    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.5/216.5 kB 10.3 MB/s eta 0:00:00\n#7 28.29 Downloading h11-0.16.0-py3-none-any.whl (37 kB)\n#7 28.42 Downloading pycparser-3.0-py3-none-any.whl (48 kB)\n#7 28.43    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 6.3 MB/s eta 0:00:00\n#7 28.58 Installing collected packages: trove-classifiers, fastjsonschema, distlib, zstandard, zipp, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pygments, pycparser, poetry-core, pluggy, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, iniconfig, idna, h11, filelock, execnet, crashtest, charset_normalizer, certifi, backports.tarfile, requests, python-discovery, pytest, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, pytest-xdist, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\n#7 30.13 Successfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 build-1.4.4 cachecontrol-0.14.4 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-46.0.7 distlib-0.4.0 dulwich-1.2.0 execnet-2.1.2 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.7.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.13 importlib_metadata-9.0.0 iniconfig-2.3.0 installer-0.7.0 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.4.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.1 pbs-installer-2026.4.7 pkginfo-1.12.1.2 platformdirs-4.9.6 pluggy-1.6.0 poetry-2.3.4 poetry-core-2.3.2 pycparser-3.0 pygments-2.20.0 pyproject-hooks-1.2.0 pytest-9.0.3 pytest-xdist-3.8.0 python-discovery-1.2.2 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.14.0 trove-classifiers-2026.1.14.14 typing_extensions-4.15.0 urllib3-2.6.3 virtualenv-21.2.4 zipp-3.23.1 zstandard-0.25.0\n#7 30.13 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#7 30.57 \n#7 30.57 [notice] A new release of pip is available: 24.0 -> 26.0.1\n#7 30.57 [notice] To update, run: pip install --upgrade pip\n#7 DONE 30.9s\n\n#8 [3/6] WORKDIR /app\n#8 DONE 0.0s\n\n#9 [4/6] COPY . /app\n#9 DONE 0.0s\n\n#10 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#10 DONE 0.1s\n\n#11 [6/6] RUN pip install -e . pytest\n#11 0.255 Obtaining file:///app\n#11 0.255   Installing build dependencies: started\n#11 2.435   Installing build dependencies: finished with status 'done'\n#11 2.435   Checking if build backend supports build_editable: started\n#11 2.451   Checking if build backend supports build_editable: finished with status 'done'\n#11 2.451   Getting requirements to build editable: started\n#11 2.490   Getting requirements to build editable: finished with status 'done'\n#11 2.491   Installing backend dependencies: started\n#11 3.666   Installing backend dependencies: finished with status 'done'\n#11 3.667   Preparing editable metadata (pyproject.toml): started\n#11 3.722   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#11 3.728 Requirement already satisfied: pytest in /usr/local/lib/python3.11/site-packages (9.0.3)\n#11 3.731 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.11/site-packages (from pytest) (2.3.0)\n#11 3.732 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.11/site-packages (from pytest) (26.1)\n#11 3.732 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.11/site-packages (from pytest) (1.6.0)\n#11 3.733 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.11/site-packages (from pytest) (2.20.0)\n#11 4.624 Collecting aiohttp==3.9.1 (from microsearch==0.0.1)\n#11 4.954   Downloading aiohttp-3.9.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (7.4 kB)\n#11 5.108 Collecting beautifulsoup4==4.12.2 (from microsearch==0.0.1)\n#11 5.231   Downloading beautifulsoup4-4.12.2-py3-none-any.whl.metadata (3.6 kB)\n#11 5.409 Collecting fastapi==0.108.0 (from microsearch==0.0.1)\n#11 5.528   Downloading fastapi-0.108.0-py3-none-any.whl.metadata (24 kB)\n#11 5.695 Collecting feedparser==6.0.11 (from microsearch==0.0.1)\n#11 5.814   Downloading feedparser-6.0.11-py3-none-any.whl.metadata (2.4 kB)\n#11 5.962 Collecting jinja2==3.1.3 (from microsearch==0.0.1)\n#11 6.082   Downloading Jinja2-3.1.3-py3-none-any.whl.metadata (3.3 kB)\n#11 6.283 Collecting pandas==2.1.4 (from microsearch==0.0.1)\n#11 6.398   Downloading pandas-2.1.4-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (18 kB)\n#11 6.588 Collecting pyarrow==15.0.0 (from microsearch==0.0.1)\n#11 6.706   Downloading pyarrow-15.0.0-cp311-cp311-manylinux_2_28_aarch64.whl.metadata (3.0 kB)\n#11 6.887 Collecting uvicorn==0.25.0 (from microsearch==0.0.1)\n#11 7.001   Downloading uvicorn-0.25.0-py3-none-any.whl.metadata (6.4 kB)\n#11 7.155 Collecting attrs>=17.3.0 (from aiohttp==3.9.1->microsearch==0.0.1)\n#11 7.273   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\n#11 7.529 Collecting multidict<7.0,>=4.5 (from aiohttp==3.9.1->microsearch==0.0.1)\n#11 7.650   Downloading multidict-6.7.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (5.3 kB)\n#11 7.947 Collecting yarl<2.0,>=1.0 (from aiohttp==3.9.1->microsearch==0.0.1)\n#11 8.060   Downloading yarl-1.23.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (79 kB)\n#11 8.155      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.6/79.6 kB 979.6 kB/s eta 0:00:00\n#11 8.332 Collecting frozenlist>=1.1.1 (from aiohttp==3.9.1->microsearch==0.0.1)\n#11 8.443   Downloading frozenlist-1.8.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (20 kB)\n#11 8.589 Collecting aiosignal>=1.1.2 (from aiohttp==3.9.1->microsearch==0.0.1)\n#11 8.710   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\n#11 8.868 Collecting soupsieve>1.2 (from beautifulsoup4==4.12.2->microsearch==0.0.1)\n#11 8.988   Downloading soupsieve-2.8.3-py3-none-any.whl.metadata (4.6 kB)\n#11 9.213 Collecting pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4 (from fastapi==0.108.0->microsearch==0.0.1)\n#11 9.322   Downloading pydantic-2.13.3-py3-none-any.whl.metadata (108 kB)\n#11 9.390      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 108.8/108.8 kB 1.6 MB/s eta 0:00:00\n#11 9.545 Collecting starlette<0.33.0,>=0.29.0 (from fastapi==0.108.0->microsearch==0.0.1)\n#11 9.656   Downloading starlette-0.32.0.post1-py3-none-any.whl.metadata (5.8 kB)\n#11 9.666 Requirement already satisfied: typing-extensions>=4.8.0 in /usr/local/lib/python3.11/site-packages (from fastapi==0.108.0->microsearch==0.0.1) (4.15.0)\n#11 9.798 Collecting sgmllib3k (from feedparser==6.0.11->microsearch==0.0.1)\n#11 9.920   Downloading sgmllib3k-1.0.0.tar.gz (5.8 kB)\n#11 9.931   Preparing metadata (setup.py): started\n#11 10.09   Preparing metadata (setup.py): finished with status 'done'\n#11 10.24 Collecting MarkupSafe>=2.0 (from jinja2==3.1.3->microsearch==0.0.1)\n#11 10.36   Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (2.7 kB)\n#11 10.65 Collecting numpy<2,>=1.23.2 (from pandas==2.1.4->microsearch==0.0.1)\n#11 10.76   Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (62 kB)\n#11 10.78      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.3/62.3 kB 4.1 MB/s eta 0:00:00\n#11 10.92 Collecting python-dateutil>=2.8.2 (from pandas==2.1.4->microsearch==0.0.1)\n#11 11.04   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\n#11 11.20 Collecting pytz>=2020.1 (from pandas==2.1.4->microsearch==0.0.1)\n#11 11.31   Downloading pytz-2026.1.post1-py2.py3-none-any.whl.metadata (22 kB)\n#11 11.47 Collecting tzdata>=2022.1 (from pandas==2.1.4->microsearch==0.0.1)\n#11 11.58   Downloading tzdata-2026.1-py2.py3-none-any.whl.metadata (1.4 kB)\n#11 11.75 Collecting click>=7.0 (from uvicorn==0.25.0->microsearch==0.0.1)\n#11 11.87   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#11 11.88 Requirement already satisfied: h11>=0.8 in /usr/local/lib/python3.11/site-packages (from uvicorn==0.25.0->microsearch==0.0.1) (0.16.0)\n#11 12.04 Collecting annotated-types>=0.6.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n#11 12.15   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#11 12.70 Collecting pydantic-core==2.46.3 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n#11 12.81   Downloading pydantic_core-2.46.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.6 kB)\n#11 12.95 Collecting typing-inspection>=0.4.2 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.108.0->microsearch==0.0.1)\n#11 13.07   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#11 13.22 Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas==2.1.4->microsearch==0.0.1)\n#11 13.34   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\n#11 13.36 Requirement already satisfied: anyio<5,>=3.4.0 in /usr/local/lib/python3.11/site-packages (from starlette<0.33.0,>=0.29.0->fastapi==0.108.0->microsearch==0.0.1) (4.13.0)\n#11 13.37 Requirement already satisfied: idna>=2.0 in /usr/local/lib/python3.11/site-packages (from yarl<2.0,>=1.0->aiohttp==3.9.1->microsearch==0.0.1) (3.13)\n#11 13.54 Collecting propcache>=0.2.1 (from yarl<2.0,>=1.0->aiohttp==3.9.1->microsearch==0.0.1)\n#11 13.65   Downloading propcache-0.4.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (13 kB)\n#11 13.80 Downloading aiohttp-3.9.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.3 MB)\n#11 14.01    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 6.5 MB/s eta 0:00:00\n#11 14.12 Downloading beautifulsoup4-4.12.2-py3-none-any.whl (142 kB)\n#11 14.13    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 143.0/143.0 kB 12.5 MB/s eta 0:00:00\n#11 14.24 Downloading fastapi-0.108.0-py3-none-any.whl (92 kB)\n#11 14.26    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 92.0/92.0 kB 7.7 MB/s eta 0:00:00\n#11 14.37 Downloading feedparser-6.0.11-py3-none-any.whl (81 kB)\n#11 14.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.3/81.3 kB 8.5 MB/s eta 0:00:00\n#11 14.49 Downloading Jinja2-3.1.3-py3-none-any.whl (133 kB)\n#11 14.51    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.2/133.2 kB 8.6 MB/s eta 0:00:00\n#11 14.62 Downloading pandas-2.1.4-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.8 MB)\n#11 16.98    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.8/14.8 MB 8.6 MB/s eta 0:00:00\n#11 17.09 Downloading pyarrow-15.0.0-cp311-cp311-manylinux_2_28_aarch64.whl (35.7 MB)\n#11 22.80    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.7/35.7 MB 5.9 MB/s eta 0:00:00\n#11 22.91 Downloading uvicorn-0.25.0-py3-none-any.whl (60 kB)\n#11 22.92    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.3/60.3 kB 4.9 MB/s eta 0:00:00\n#11 23.04 Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#11 23.16 Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#11 23.18    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 2.8 MB/s eta 0:00:00\n#11 23.29 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#11 23.32    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 5.4 MB/s eta 0:00:00\n#11 23.43 Downloading frozenlist-1.8.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (233 kB)\n#11 23.47    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 233.2/233.2 kB 5.5 MB/s eta 0:00:00\n#11 23.58 Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (24 kB)\n#11 23.71 Downloading multidict-6.7.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (246 kB)\n#11 23.75    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 246.4/246.4 kB 6.0 MB/s eta 0:00:00\n#11 23.86 Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.2 MB)\n#11 26.05    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.2/14.2 MB 6.2 MB/s eta 0:00:00\n#11 26.16 Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#11 26.24    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 6.2 MB/s eta 0:00:00\n#11 26.35 Downloading pydantic_core-2.46.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (2.0 MB)\n#11 26.64    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 6.7 MB/s eta 0:00:00\n#11 26.76 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#11 26.79    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 6.5 MB/s eta 0:00:00\n#11 26.90 Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n#11 26.98    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 6.5 MB/s eta 0:00:00\n#11 27.09 Downloading soupsieve-2.8.3-py3-none-any.whl (37 kB)\n#11 27.22 Downloading starlette-0.32.0.post1-py3-none-any.whl (70 kB)\n#11 27.23    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.0/70.0 kB 5.5 MB/s eta 0:00:00\n#11 27.34 Downloading tzdata-2026.1-py2.py3-none-any.whl (348 kB)\n#11 27.40    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.0/349.0 kB 6.4 MB/s eta 0:00:00\n#11 27.51 Downloading yarl-1.23.0-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (100 kB)\n#11 27.54    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.6/100.6 kB 4.6 MB/s eta 0:00:00\n#11 27.66 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#11 27.77 Downloading propcache-0.4.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (214 kB)\n#11 27.81    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.9/214.9 kB 6.7 MB/s eta 0:00:00\n#11 27.92 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#11 28.05 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#11 28.13 Building wheels for collected packages: microsearch, sgmllib3k\n#11 28.14   Building editable for microsearch (pyproject.toml): started\n#11 28.15   Building editable for microsearch (pyproject.toml): finished with status 'done'\n#11 28.15   Created wheel for microsearch: filename=microsearch-0.0.1-py3-none-any.whl size=3077 sha256=d20b4614495d899c7a6b8c049e221e499b9f14da9ff20376009e6c510e7647bf\n#11 28.15   Stored in directory: /tmp/pip-ephem-wheel-cache-7hgil5wf/wheels/57/0f/98/bb57b2b57b95807699b822a35c022f139d38a02c27922f27ce\n#11 28.15   Building wheel for sgmllib3k (setup.py): started\n#11 28.24   Building wheel for sgmllib3k (setup.py): finished with status 'done'\n#11 28.24   Created wheel for sgmllib3k: filename=sgmllib3k-1.0.0-py3-none-any.whl size=6090 sha256=1a65489671c452b6bd0795a65c763833c0934d80e4160e84cd4a3b2f46c1577a\n#11 28.24   Stored in directory: /root/.cache/pip/wheels/3b/25/2a/105d6a15df6914f4d15047691c6c28f9052cc1173e40285d03\n#11 28.24 Successfully built microsearch sgmllib3k\n#11 28.38 Installing collected packages: sgmllib3k, pytz, tzdata, typing-inspection, soupsieve, six, pydantic-core, propcache, numpy, multidict, MarkupSafe, frozenlist, feedparser, click, attrs, annotated-types, yarl, uvicorn, starlette, python-dateutil, pydantic, pyarrow, jinja2, beautifulsoup4, aiosignal, pandas, fastapi, aiohttp, microsearch\n#11 31.91 Successfully installed MarkupSafe-3.0.3 aiohttp-3.9.1 aiosignal-1.4.0 annotated-types-0.7.0 attrs-26.1.0 beautifulsoup4-4.12.2 click-8.3.3 fastapi-0.108.0 feedparser-6.0.11 frozenlist-1.8.0 jinja2-3.1.3 microsearch-0.0.1 multidict-6.7.1 numpy-1.26.4 pandas-2.1.4 propcache-0.4.1 pyarrow-15.0.0 pydantic-2.13.3 pydantic-core-2.46.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 sgmllib3k-1.0.0 six-1.17.0 soupsieve-2.8.3 starlette-0.32.0.post1 typing-inspection-0.4.2 tzdata-2026.1 uvicorn-0.25.0 yarl-1.23.0\n#11 31.91 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#11 31.91 \n#11 31.91 [notice] A new release of pip is available: 24.0 -> 26.0.1\n#11 31.91 [notice] To update, run: pip install --upgrade pip\n#11 DONE 32.7s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 0.6s done\n#12 writing image sha256:264361db09a3ed9c348eb85a7d6dbcd98ff5ec48c07d95a193e251a919061d6a\n#12 writing image sha256:264361db09a3ed9c348eb85a7d6dbcd98ff5ec48c07d95a193e251a919061d6a done\n#12 naming to docker.io/library/jayint-repo2run-alexmolas__microsearch done\n#12 DONE 0.6s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/7xrrqtj7efxqnkfuudrj4z2fn\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "jayint-repo2run-alexmolas__microsearch",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i jayint-repo2run-alexmolas__microsearch sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-24T05:54:09.273727+08:00",
+          "finished_at": "2026-04-24T05:54:09.698971+08:00",
+          "duration_seconds": 0.425,
+          "stdout": "tests/test_engine.py::test_search_engine\n\n1 test collected in 0.01s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": false,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-alexmolas__microsearch"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-alexmolas__microsearch",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T05:54:09.699835+08:00",
+    "finished_at": "2026-04-24T05:54:09.724826+08:00",
+    "duration_seconds": 0.025,
+    "stdout": "Untagged: jayint-repo2run-alexmolas__microsearch:latest\nDeleted: sha256:264361db09a3ed9c348eb85a7d6dbcd98ff5ec48c07d95a193e251a919061d6a\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/docker_build.stderr.log"
+    },
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/alexmolas__microsearch/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

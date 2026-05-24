@@ -1,0 +1,690 @@
+{
+  "dataset_entry": {
+    "instance_id": "modelcontextprotocol__python-sdk",
+    "full_name": "modelcontextprotocol/python-sdk",
+    "repo_url": "https://github.com/modelcontextprotocol/python-sdk.git",
+    "sha": "aaf32b",
+    "base_commit": "aaf32b",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/modelcontextprotocol/python-sdk.git",
+      "--base-commit",
+      "aaf32b",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/modelcontextprotocol/python-sdk.git --base-commit aaf32b --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T03:29:02.621125+08:00",
+    "finished_at": "2026-05-17T03:32:09.800783+08:00",
+    "duration_seconds": 187.18,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk...\nCloning https://github.com/modelcontextprotocol/python-sdk.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: aaf32b\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 12 potentially relevant files\n[ImageSelector]   ✗ .github/workflows/main-checks.yml\n[ImageSelector]   ✓ examples/servers/simple-prompt/pyproject.toml\n[ImageSelector]   ✗ .github/workflows/pull-request-checks.yml\n[ImageSelector]   ✓ CONTRIBUTING.md\n[ImageSelector]   ✓ .github/workflows/shared.yml\n[ImageSelector]   ✓ .python-version\n[ImageSelector]   ✗ RELEASE.md\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ examples/servers/simple-tool/pyproject.toml\n[ImageSelector]   ✓ uv.lock\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ examples/servers/simple-resource/pyproject.toml\n[ImageSelector] 8 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific dependencies detected. This is a pure Python SDK using only standard Python packages (anyio, httpx, pydantic, starlette, pytest, ruff, pyright). No embedded databases or native C extensions with architecture-specific binaries are used.\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/logs/image_selector_logs\nInitializing container from python:3.10...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:68bb5\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/logs/compression_logs\nStarting agent for repository: https://github.com/modelcontextprotocol/python-sdk.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2396, Output: 65, Total: 2461\n\n[Thought]\nI need to examine the repository's dependency and test configuration files to understand how to set up the environment properly.\n\n[Action]\ncat modelcontextprotocol__python-sdk/pyproject.toml\n[Container ID: 65fb9dc4f5ac]\nExecuting: cat modelcontextprotocol__python-sdk/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: modelcontextprotocol__python-sdk/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2461, Output: 58, Total: 2519\n\n[Thought]\nLet me check the current directory and locate the repository files.\n\n[Action]\nls -la && pwd\n[Container ID: 65fb9dc4f5ac]\nExecuting: ls -la && pwd\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 136\ndrwxr-xr-x 8 root root     4096 May 16 19:30 .\ndrwxr-xr-x 1 root root     4096 May 16 19:30 ..\ndrwxr-xr-x 7  501 dialout  4096 May 16 19:29 .git\ndrwxr-xr-x 4  501 dialout  4096 May 16 19:29 .github\n-rw-r--r-- 1  501 dialout  3139 May 16 19:29 .gitignore\n-rw-r--r-- 1  501 dialout     5 May 16 19:29 .python-version\n-rw-r--r-- 1  501 dialout  5223 May 16 19:29 CODE_OF_CONDUCT.md\n-rw-r--r-- 1  501 dialout  1368 May 16 19:29 CONTRIBUTING.md\n-rw-r--r-- 1  501 dialout  1071 May 16 19:29 LICENSE\n-rw-r--r-- 1  501 dialout 13413 May 16 19:29 README.md\n-rw-r--r-- 1  501 dialout   525 May 16 19:29 RELEASE.md\n-rw-r--r-- 1  501 dialout   837 May 16 19:29 SECURITY.md\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 examples\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 logs\n-rw-r--r-- 1  501 dialout  1750 May 16 19:29 pyproject.toml\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 src\ndrwxr-xr-x 5  501 dialout  4096 May 16 19:29 tests\n-rw-r--r-- 1  501 dialout 52184 May 16 19:29 uv.lock\n/app\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2965, Output: 58, Total: 3023\n\n[Thought]\nThe repository is already in /app. Let me examine the pyproject.toml to understand the dependencies and test configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: 65fb9dc4f5ac]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[project]\nname = \"mcp\"\nversion = \"1.1.1.dev0\"\ndescription = \"Model Context Protocol SDK\"\nreadme = \"README.md\"\nrequires-python = \">=3.10\"\nauthors = [{ name = \"Anthropic, PBC.\" }]\nmaintainers = [\n    { name = \"David Soria Parra\", email = \"davidsp@anthropic.com\" },\n    { name = \"Justin Spahr-Summers\", email = \"justin@anthropic.com\" },\n]\nkeywords = [\"git\", \"mcp\", \"llm\", \"automation\"]\nlicense = { text = \"MIT\" }\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\",\n]\ndependencies = [\n    \"anyio>=4.5\",\n    \"httpx>=0.27\",\n    \"httpx-sse>=0.4\",\n    \"pydantic>=2.7.2\",\n    \"starlette>=0.27\",\n    \"sse-starlette>=2.0\",\n]\n\n[project.urls]\nHomepage = \"https://modelcontextprotocol.io\"\nRepository = \"https://github.com/modelcontextprotocol/python-sdk\"\nIssues = \"https://github.com/modelcontextprotocol/python-sdk/issues\"\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/mcp\"]\n\n[tool.pyright]\ninclude = [\"src/mcp\", \"tests\"]\nvenvPath = \".\"\nvenv = \".venv\"\n\n[tool.ruff.lint]\nselect = [\"E\", \"F\", \"I\"]\nignore = []\n\n[tool.ruff]\nline-length = 88\ntarget-version = \"py310\"\n\n[tool.ruff.lint.per-file-ignores]\n\"__init__.py\" = [\"F401\"]\n\n[tool.uv]\nresolution = \"lowest-direct\"\ndev-dependencies = [\n    \"pyright>=1.1.378\",\n    \"pytest>=8.3.3\",\n    \"ruff>=0.6.9\",\n    \"trio>=0.26.2\",\n]\n\n[tool.uv.workspace]\nmembers = [\"examples/servers/*\"]\n\n[tool.uv.sources]\nmcp = { workspace = true }\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3554, Output: 156, Total: 3710\n\n[Thought]\nThis project uses `uv` for dependency management with a uv.lock file. I need to install the dependencies using uv and then verify pytest can collect tests.\n\n[Action]\nuv sync --dev --frozen\n[Container ID: 65fb9dc4f5ac]\nExecuting: uv sync --dev --frozen\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: uv: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3621, Output: 103, Total: 3724\n\n[Thought]\n`uv` is not available. Let me check for pip and install dependencies manually using the pyproject.toml as a reference.\n\n[Action]\npip install -e \".[dev]\" 2>/dev/null || pip install -e . pytest trio pyright ruff httpx-sse pydantic starlette sse-starlette anyio httpx 2>&1 | tail -20\n[Container ID: 65fb9dc4f5ac]\nExecuting: pip install -e \".[dev]\" 2>/dev/null || pip install -e . pytest trio pyright ruff httpx-sse pydantic starlette sse-starlette anyio httpx 2>&1 | tail -20\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3790, Output: 76, Total: 3866\n\n[Thought]\nI need to install the dependencies without output filtering. Let me install the package in editable mode along with test dependencies.\n\n[Action]\npip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff\n[Container ID: 65fb9dc4f5ac]\nExecuting: pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff\nCommand succeeded.\n[Snapshot Created] sha256:ec683\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 1.8 MB/s eta 0:00:00\nCollecting trio\n  Downloading trio-0.33.0-py3-none-any.whl (510 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.3/510.3 kB 9.5 MB/s eta 0:00:00\nCollecting httpx-sse\n  Downloading httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)\nCollecting pydantic\n  Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 22.9 MB/s eta 0:00:00\nCollecting starlette\n  Downloading starlette-1.0.0-py3-none-any.whl (72 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.7/72.7 kB 9.5 MB/s eta 0:00:00\nCollecting sse-starlette\n  Downloading sse_starlette-3.4.4-py3-none-any.whl (16 kB)\nCollecting anyio\n  Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 14.0 MB/s eta 0:00:00\nCollecting httpx\n  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 8.9 MB/s eta 0:00:00\nCollecting pyright\n  Downloading pyright-1.1.409-py3-none-any.whl (6.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 6.9 MB/s eta 0:00:00\nCollecting ruff\n  Downloading ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.4/11.4 MB 6.1 MB/s eta 0:00:00\nCollecting tomli>=1\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting exceptiongroup>=1\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting packaging>=22\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting pygments>=2.7.2\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 5.7 MB/s eta 0:00:00\nCollecting iniconfig>=1.0.1\n  Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nCollecting pluggy<2,>=1.5\n  Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting sortedcontainers\n  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)\nCollecting outcome\n  Downloading outcome-1.3.0.post0-py2.py3-none-any.whl (10 kB)\nCollecting attrs>=23.2.0\n  Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 3.3 MB/s eta 0:00:00\nCollecting sniffio>=1.3.0\n  Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\nCollecting idna\n  Downloading idna-3.15-py3-none-any.whl (72 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.3/72.3 kB 3.7 MB/s eta 0:00:00\nCollecting pydantic-core==2.46.4\n  Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.0 MB/s eta 0:00:00\nCollecting typing-inspection>=0.4.2\n  Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nCollecting typing-extensions>=4.14.1\n  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 6.8 MB/s eta 0:00:00\nCollecting annotated-types>=0.6.0\n  Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nCollecting certifi\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 3.9 MB/s eta 0:00:00\nCollecting httpcore==1.*\n  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 3.0 MB/s eta 0:00:00\nCollecting h11>=0.16\n  Downloading h11-0.16.0-py3-none-any.whl (37 kB)\nCollecting nodeenv>=1.6.0\n  Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\nBuilding wheels for collected packages: mcp\n  Building editable for mcp (pyproject.toml): started\n  Building editable for mcp (pyproject.toml): finished with status 'done'\n  Created wheel for mcp: filename=mcp-1.1.1.dev0-py3-none-any.whl size=6238 sha256=f547ec107bae2bd665274bd8081f737cfa8f2e68b87f2dcf0cd334e102684fdd\n  Stored in directory: /tmp/pip-ephem-wheel-cache-sfb8r39m/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\nSuccessfully built mcp\nInstalling collected packages: sortedcontainers, typing-extensions, tomli, sniffio, ruff, pygments, pluggy, packaging, nodeenv, iniconfig, idna, httpx-sse, h11, certifi, attrs, annotated-types, typing-inspection, pyright, pydantic-core, outcome, httpcore, exceptiongroup, trio, pytest, pydantic, anyio, starlette, httpx, sse-starlette, mcp\nSuccessfully installed annotated-types-0.7.0 anyio-4.13.0 attrs-26.1.0 certifi-2026.4.22 exceptiongroup-1.3.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 httpx-sse-0.4.3 idna-3.15 iniconfig-2.3.0 mcp-1.1.1.dev0 nodeenv-1.10.0 outcome-1.3.0.post0 packaging-26.2 pluggy-1.6.0 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 pyright-1.1.409 pytest-9.0.3 ruff-0.15.13 sniffio-1.3.1 sortedcontainers-2.4.0 sse-starlette-3.4.4 starlette-1.0.0 tomli-2.4.1 trio-0.33.0 typing-extensions-4.15.0 typing-inspection-0.4.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 5946, Output: 59, Total: 6005\n\n[Thought]\nDependencies are installed. Now let me run pytest collection to verify the tests can be collected properly.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 65fb9dc4f5ac]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:6dfd9\n\n[Observation]\ntests/client/test_session.py::test_client_session_initialize[asyncio]\ntests/client/test_session.py::test_client_session_initialize[trio]\ntests/client/test_stdio.py::test_stdio_client[asyncio]\ntests/client/test_stdio.py::test_stdio_client[trio]\ntests/server/test_session.py::test_server_session_initialize[asyncio]\ntests/server/test_session.py::test_server_capabilities[asyncio]\ntests/server/test_session.py::test_server_session_initialize[trio]\ntests/server/test_session.py::test_server_capabilities[trio]\ntests/server/test_stdio.py::test_stdio_server[asyncio]\ntests/server/test_stdio.py::test_stdio_server[trio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[asyncio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[trio]\ntests/test_types.py::test_jsonrpc_request\n\n13 tests collected in 0.03s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 6184, Output: 115, Total: 6299\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. 13 tests were collected successfully. The environment is properly set up.\n\nLet me provide the final verification bundle and success message.\n</think>\n\nThought: The pytest collection succeeded with 13 tests collected. The environment is properly set up with all dependencies installed in editable mode. The verification command `pytest --collect-only -q --disable-warnings` confirms the repository's tests can be collected.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/modelcontextprotocol__python-sdk.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/modelcontextprotocol/python-sdk.git",
+    "configuration_success": true,
+    "base_image": "python:3.10",
+    "platform_override": null,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 7,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "ls -la && pwd",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 136\ndrwxr-xr-x 8 root root     4096 May 16 19:30 .\ndrwxr-xr-x 1 root root     4096 May 16 19:30 ..\ndrwxr-xr-x 7  501 dialout  4096 May 16 19:29 .git\ndrwxr-xr-x 4  501 dialout  4096 May 16 19:29 .github\n-rw-r--r-- 1  501 dialout  3139 May 16 19:29 .gitignore\n-rw-r--r-- 1  501 dialout     5 May 16 19:29 .python-version\n-rw-r--r-- 1  501 dialout  5223 May 16 19:29 CODE_OF_CONDUCT.md\n-rw-r--r-- 1  501 dialout  1368 May 16 19:29 CONTRIBUTING.md\n-rw-r--r-- 1  501 dialout  1071 May 16 19:29 LICENSE\n-rw-r--r-- 1  501 dialout 13413 May 16 19:29 README.md\n-rw-r--r-- 1  501 dialout   525 May 16 19:29 RELEASE.md\n-rw-r--r-- 1  501 dialout   837 May 16 19:29 SECURITY.md\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 examples\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 logs\n-rw-r--r-- 1  501 dialout  1750 May 16 19:29 pyproject.toml\ndrwxr-xr-x 3  501 dialout  4096 May 16 19:29 src\ndrwxr-xr-x 5  501 dialout  4096 May 16 19:29 tests\n-rw-r--r-- 1  501 dialout 52184 May 16 19:29 uv.lock\n/app\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n\n[project]\nname = \"mcp\"\nversion = \"1.1.1.dev0\"\ndescription = \"Model Context Protocol SDK\"\nreadme = \"README.md\"\nrequires-python = \">=3.10\"\nauthors = [{ name = \"Anthropic, PBC.\" }]\nmaintainers = [\n    { name = \"David Soria Parra\", email = \"davidsp@anthropic.com\" },\n    { name = \"Justin Spahr-Summers\", email = \"justin@anthropic.com\" },\n]\nkeywords = [\"git\", \"mcp\", \"llm\", \"automation\"]\nlicense = { text = \"MIT\" }\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n    \"License :: OSI Ap\n... (550 chars omitted for recipe synthesis) ...\nthub.com/modelcontextprotocol/python-sdk/issues\"\n\n[tool.hatch.build.targets.wheel]\npackages = [\"src/mcp\"]\n\n[tool.pyright]\ninclude = [\"src/mcp\", \"tests\"]\nvenvPath = \".\"\nvenv = \".venv\"\n\n[tool.ruff.lint]\nselect = [\"E\", \"F\", \"I\"]\nignore = []\n\n[tool.ruff]\nline-length = 88\ntarget-version = \"py310\"\n\n[tool.ruff.lint.per-file-ignores]\n\"__init__.py\" = [\"F401\"]\n\n[tool.uv]\nresolution = \"lowest-direct\"\ndev-dependencies = [\n    \"pyright>=1.1.378\",\n    \"pytest>=8.3.3\",\n    \"ruff>=0.6.9\",\n    \"trio>=0.26.2\",\n]\n\n[tool.uv.workspace]\nmembers = [\"examples/servers/*\"]\n\n[tool.uv.sources]\nmcp = { workspace = true }\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): fini\n... (4679 chars omitted for recipe synthesis) ...\naging-26.2 pluggy-1.6.0 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 pyright-1.1.409 pytest-9.0.3 ruff-0.15.13 sniffio-1.3.1 sortedcontainers-2.4.0 sse-starlette-3.4.4 starlette-1.0.0 tomli-2.4.1 trio-0.33.0 typing-extensions-4.15.0 typing-inspection-0.4.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 7,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/client/test_session.py::test_client_session_initialize[asyncio]\ntests/client/test_session.py::test_client_session_initialize[trio]\ntests/client/test_stdio.py::test_stdio_client[asyncio]\ntests/client/test_stdio.py::test_stdio_client[trio]\ntests/server/test_session.py::test_server_session_initialize[asyncio]\ntests/server/test_session.py::test_server_capabilities[asyncio]\ntests/server/test_session.py::test_server_session_initialize[trio]\ntests/server/test_session.py::test_server_capabilities[trio]\ntests/server/test_stdio.py::test_stdio_server[asyncio]\ntests/server/test_stdio.py::test_stdio_server[trio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[asyncio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[trio]\ntests/test_types.py::test_jsonrpc_request\n\n13 tests collected in 0.03s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat modelcontextprotocol__python-sdk/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: modelcontextprotocol__python-sdk/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "uv sync --dev --frozen",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: uv: command not found\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e \".[dev]\" 2>/dev/null || pip install -e . pytest trio pyright ruff httpx-sse pydantic starlette sse-starlette anyio httpx 2>&1 | tail -20",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat modelcontextprotocol__python-sdk/pyproject.toml: failed read with wrong path, not replayed",
+          "reason": ""
+        },
+        {
+          "command": "ls -la && pwd: read-only directory exploration, not persistent",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml: read-only file inspection, provided context only",
+          "reason": ""
+        },
+        {
+          "command": "uv sync --dev --frozen: failed - uv not available in base image",
+          "reason": ""
+        },
+        {
+          "command": "pip install -e \".[dev]\" 2>/dev/null || pip install -e . pytest trio pyright ruff httpx-sse pydantic starlette sse-starlette anyio httpx 2>&1 | tail -20: command rejected by system for output piping; replaced with clean equivalent",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state change was pip install with the editable package and all runtime/dev dependencies. The pyproject.toml showed pydantic, starlette, sse-starlette, anyio, httpx, httpx-sse as runtime deps and pytest, trio, pyright, ruff as dev-deps. The pip install command installed all of these plus the mcp package itself via `-e .`. The final pytest collection verified 13 tests were discoverable. Failed attempts used unavailable tools (uv) or disallowed output filters (tail). Read-only explorations provided context but are not persistent state changes.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 1,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat modelcontextprotocol__python-sdk/pyproject.toml",
+        "success": false,
+        "raw_chars": 80,
+        "raw_tokens_est": 20,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la && pwd",
+        "success": true,
+        "raw_chars": 993,
+        "raw_tokens_est": 248,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1750,
+        "raw_tokens_est": 437,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 262,
+        "reflect_input_tokens": 1808,
+        "reflect_output_tokens": 627
+      },
+      {
+        "step_id": 4,
+        "action": "uv sync --dev --frozen",
+        "success": false,
+        "raw_chars": 41,
+        "raw_tokens_est": 10,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e \".[dev]\" 2>/dev/null || pip install -e . pytest trio pyright ruff httpx-sse pydantic starlette sse-starlette anyio httpx 2>&1 | tail -20",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff",
+        "success": true,
+        "raw_chars": 5879,
+        "raw_tokens_est": 1469,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 839,
+        "raw_tokens_est": 209,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 39924,
+        "output_tokens": 4914,
+        "total_tokens": 44838
+      },
+      "planner": {
+        "input_tokens": 30917,
+        "output_tokens": 690,
+        "total_tokens": 31607
+      },
+      "reflection": {
+        "input_tokens": 1808,
+        "output_tokens": 627,
+        "total_tokens": 2435
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 8897,
+        "output_tokens": 2113,
+        "total_tokens": 11010
+      },
+      "total": {
+        "input_tokens": 81546,
+        "output_tokens": 8344,
+        "total_tokens": 89890
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+    "base_commit": "aaf32b",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/modelcontextprotocol__python-sdk /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-17T03:32:09.807358+08:00",
+      "finished_at": "2026-05-17T03:32:09.849867+08:00",
+      "duration_seconds": 0.043,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context'...\n完成。\n注意：正在切换到 'aaf32b530738ff79ba607c2884374243350f521c'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "aaf32b"
+      ],
+      "command_shell": "git checkout --force aaf32b",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T03:32:09.849938+08:00",
+      "finished_at": "2026-05-17T03:32:09.859589+08:00",
+      "duration_seconds": 0.01,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 aaf32b5 Merge branch 'v1.1.x'\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T03:32:09.859633+08:00",
+      "finished_at": "2026-05-17T03:32:09.864821+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-modelcontextprotocol__python-sdk",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval -t jayint-repo2run-modelcontextprotocol__python-sdk /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T03:32:09.866909+08:00",
+    "finished_at": "2026-05-17T03:32:29.320622+08:00",
+    "duration_seconds": 19.454,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.15kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 7.47MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.610 Obtaining file:///app\n#10 0.614   Installing build dependencies: started\n#10 3.907   Installing build dependencies: finished with status 'done'\n#10 3.910   Checking if build backend supports build_editable: started\n#10 4.006   Checking if build backend supports build_editable: finished with status 'done'\n#10 4.009   Getting requirements to build editable: started\n#10 4.133   Getting requirements to build editable: finished with status 'done'\n#10 4.136   Installing backend dependencies: started\n#10 5.748   Installing backend dependencies: finished with status 'done'\n#10 5.749   Preparing editable metadata (pyproject.toml): started\n#10 5.916   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 5.922 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#10 6.464 Collecting trio\n#10 6.871   Downloading trio-0.33.0-py3-none-any.whl (510 kB)\n#10 7.058      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.3/510.3 kB 2.9 MB/s eta 0:00:00\n#10 7.214 Collecting httpx-sse\n#10 7.322   Downloading httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)\n#10 7.808 Collecting pydantic\n#10 7.912   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 7.939      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 19.0 MB/s eta 0:00:00\n#10 8.311 Collecting starlette\n#10 8.409   Downloading starlette-1.0.0-py3-none-any.whl (72 kB)\n#10 8.412      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.7/72.7 kB 187.3 MB/s eta 0:00:00\n#10 8.766 Collecting sse-starlette\n#10 8.867   Downloading sse_starlette-3.4.4-py3-none-any.whl (16 kB)\n#10 8.878 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (4.13.0)\n#10 8.879 Requirement already satisfied: httpx in /usr/local/lib/python3.10/site-packages (0.28.1)\n#10 9.081 Collecting pyright\n#10 9.177   Downloading pyright-1.1.409-py3-none-any.whl (6.4 MB)\n#10 10.08      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 7.2 MB/s eta 0:00:00\n#10 10.99 Collecting ruff\n#10 11.08   Downloading ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.4 MB)\n#10 12.78      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.4/11.4 MB 6.2 MB/s eta 0:00:00\n#10 12.83 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#10 12.83 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#10 12.83 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#10 12.84 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#10 12.84 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#10 12.84 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest) (2.20.0)\n#10 12.84 Requirement already satisfied: idna in /usr/local/lib/python3.10/site-packages (from trio) (3.13)\n#10 12.97 Collecting sniffio>=1.3.0\n#10 13.08   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 13.23 Collecting outcome\n#10 13.34   Downloading outcome-1.3.0.post0-py2.py3-none-any.whl (10 kB)\n#10 13.49 Collecting attrs>=23.2.0\n#10 13.59   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 13.61      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 3.5 MB/s eta 0:00:00\n#10 13.75 Collecting sortedcontainers\n#10 13.85   Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)\n#10 15.63 Collecting pydantic-core==2.46.4\n#10 15.73   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 16.08      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.1 MB/s eta 0:00:00\n#10 16.09 Requirement already satisfied: typing-extensions>=4.14.1 in /usr/local/lib/python3.10/site-packages (from pydantic) (4.15.0)\n#10 16.24 Collecting annotated-types>=0.6.0\n#10 16.34   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 16.48 Collecting typing-inspection>=0.4.2\n#10 16.58   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 16.66 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx) (1.0.9)\n#10 16.66 Requirement already satisfied: certifi in /usr/local/lib/python3.10/site-packages (from httpx) (2026.4.22)\n#10 16.67 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx) (0.16.0)\n#10 16.81 Collecting nodeenv>=1.6.0\n#10 16.91   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 16.99 Building wheels for collected packages: mcp\n#10 16.99   Building editable for mcp (pyproject.toml): started\n#10 17.06   Building editable for mcp (pyproject.toml): finished with status 'done'\n#10 17.06   Created wheel for mcp: filename=mcp-1.1.1.dev0-py3-none-any.whl size=6238 sha256=f547ec107bae2bd665274bd8081f737cfa8f2e68b87f2dcf0cd334e102684fdd\n#10 17.06   Stored in directory: /tmp/pip-ephem-wheel-cache-_he0ql2r/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#10 17.06 Successfully built mcp\n#10 17.24 Installing collected packages: sortedcontainers, typing-inspection, sniffio, ruff, pydantic-core, nodeenv, httpx-sse, attrs, annotated-types, pyright, pydantic, outcome, trio, starlette, sse-starlette, mcp\n#10 18.28 Successfully installed annotated-types-0.7.0 attrs-26.1.0 httpx-sse-0.4.3 mcp-1.1.1.dev0 nodeenv-1.10.0 outcome-1.3.0.post0 pydantic-2.13.4 pydantic-core-2.46.4 pyright-1.1.409 ruff-0.15.13 sniffio-1.3.1 sortedcontainers-2.4.0 sse-starlette-3.4.4 starlette-1.0.0 trio-0.33.0 typing-inspection-0.4.2\n#10 18.28 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 18.6s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.2s done\n#11 writing image sha256:61dbe4ea28a38cc7b8fce8e2c0376f6c6a0b259303409a4c1c7f850f6eb99cbc\n#11 writing image sha256:61dbe4ea28a38cc7b8fce8e2c0376f6c6a0b259303409a4c1c7f850f6eb99cbc done\n#11 naming to docker.io/library/jayint-repo2run-modelcontextprotocol__python-sdk done\n#11 DONE 0.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/5o83jm5ir1ovlzdflgnmopty3\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-modelcontextprotocol__python-sdk",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-modelcontextprotocol__python-sdk sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-17T03:32:29.324146+08:00",
+          "finished_at": "2026-05-17T03:32:30.247795+08:00",
+          "duration_seconds": 0.924,
+          "stdout": "tests/client/test_session.py::test_client_session_initialize[asyncio]\ntests/client/test_session.py::test_client_session_initialize[trio]\ntests/client/test_stdio.py::test_stdio_client[asyncio]\ntests/client/test_stdio.py::test_stdio_client[trio]\ntests/server/test_session.py::test_server_session_initialize[asyncio]\ntests/server/test_session.py::test_server_capabilities[asyncio]\ntests/server/test_session.py::test_server_session_initialize[trio]\ntests/server/test_session.py::test_server_capabilities[trio]\ntests/server/test_stdio.py::test_stdio_server[asyncio]\ntests/server/test_stdio.py::test_stdio_server[trio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[asyncio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[trio]\ntests/test_types.py::test_jsonrpc_request\n\n13 tests collected in 0.03s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-modelcontextprotocol__python-sdk",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/Dockerfile.eval -t jayint-repo2run-modelcontextprotocol__python-sdk /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-17T03:32:09.866909+08:00",
+        "finished_at": "2026-05-17T03:32:29.320622+08:00",
+        "duration_seconds": 19.454,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.15kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 7.47MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e . pytest trio httpx-sse pydantic starlette sse-starlette anyio httpx pyright ruff' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.610 Obtaining file:///app\n#10 0.614   Installing build dependencies: started\n#10 3.907   Installing build dependencies: finished with status 'done'\n#10 3.910   Checking if build backend supports build_editable: started\n#10 4.006   Checking if build backend supports build_editable: finished with status 'done'\n#10 4.009   Getting requirements to build editable: started\n#10 4.133   Getting requirements to build editable: finished with status 'done'\n#10 4.136   Installing backend dependencies: started\n#10 5.748   Installing backend dependencies: finished with status 'done'\n#10 5.749   Preparing editable metadata (pyproject.toml): started\n#10 5.916   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 5.922 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#10 6.464 Collecting trio\n#10 6.871   Downloading trio-0.33.0-py3-none-any.whl (510 kB)\n#10 7.058      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.3/510.3 kB 2.9 MB/s eta 0:00:00\n#10 7.214 Collecting httpx-sse\n#10 7.322   Downloading httpx_sse-0.4.3-py3-none-any.whl (9.0 kB)\n#10 7.808 Collecting pydantic\n#10 7.912   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 7.939      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 19.0 MB/s eta 0:00:00\n#10 8.311 Collecting starlette\n#10 8.409   Downloading starlette-1.0.0-py3-none-any.whl (72 kB)\n#10 8.412      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.7/72.7 kB 187.3 MB/s eta 0:00:00\n#10 8.766 Collecting sse-starlette\n#10 8.867   Downloading sse_starlette-3.4.4-py3-none-any.whl (16 kB)\n#10 8.878 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (4.13.0)\n#10 8.879 Requirement already satisfied: httpx in /usr/local/lib/python3.10/site-packages (0.28.1)\n#10 9.081 Collecting pyright\n#10 9.177   Downloading pyright-1.1.409-py3-none-any.whl (6.4 MB)\n#10 10.08      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.4/6.4 MB 7.2 MB/s eta 0:00:00\n#10 10.99 Collecting ruff\n#10 11.08   Downloading ruff-0.15.13-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.4 MB)\n#10 12.78      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.4/11.4 MB 6.2 MB/s eta 0:00:00\n#10 12.83 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#10 12.83 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#10 12.83 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#10 12.84 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#10 12.84 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#10 12.84 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest) (2.20.0)\n#10 12.84 Requirement already satisfied: idna in /usr/local/lib/python3.10/site-packages (from trio) (3.13)\n#10 12.97 Collecting sniffio>=1.3.0\n#10 13.08   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 13.23 Collecting outcome\n#10 13.34   Downloading outcome-1.3.0.post0-py2.py3-none-any.whl (10 kB)\n#10 13.49 Collecting attrs>=23.2.0\n#10 13.59   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 13.61      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 3.5 MB/s eta 0:00:00\n#10 13.75 Collecting sortedcontainers\n#10 13.85   Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)\n#10 15.63 Collecting pydantic-core==2.46.4\n#10 15.73   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 16.08      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.1 MB/s eta 0:00:00\n#10 16.09 Requirement already satisfied: typing-extensions>=4.14.1 in /usr/local/lib/python3.10/site-packages (from pydantic) (4.15.0)\n#10 16.24 Collecting annotated-types>=0.6.0\n#10 16.34   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 16.48 Collecting typing-inspection>=0.4.2\n#10 16.58   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 16.66 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx) (1.0.9)\n#10 16.66 Requirement already satisfied: certifi in /usr/local/lib/python3.10/site-packages (from httpx) (2026.4.22)\n#10 16.67 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx) (0.16.0)\n#10 16.81 Collecting nodeenv>=1.6.0\n#10 16.91   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 16.99 Building wheels for collected packages: mcp\n#10 16.99   Building editable for mcp (pyproject.toml): started\n#10 17.06   Building editable for mcp (pyproject.toml): finished with status 'done'\n#10 17.06   Created wheel for mcp: filename=mcp-1.1.1.dev0-py3-none-any.whl size=6238 sha256=f547ec107bae2bd665274bd8081f737cfa8f2e68b87f2dcf0cd334e102684fdd\n#10 17.06   Stored in directory: /tmp/pip-ephem-wheel-cache-_he0ql2r/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#10 17.06 Successfully built mcp\n#10 17.24 Installing collected packages: sortedcontainers, typing-inspection, sniffio, ruff, pydantic-core, nodeenv, httpx-sse, attrs, annotated-types, pyright, pydantic, outcome, trio, starlette, sse-starlette, mcp\n#10 18.28 Successfully installed annotated-types-0.7.0 attrs-26.1.0 httpx-sse-0.4.3 mcp-1.1.1.dev0 nodeenv-1.10.0 outcome-1.3.0.post0 pydantic-2.13.4 pydantic-core-2.46.4 pyright-1.1.409 ruff-0.15.13 sniffio-1.3.1 sortedcontainers-2.4.0 sse-starlette-3.4.4 starlette-1.0.0 trio-0.33.0 typing-inspection-0.4.2\n#10 18.28 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 18.6s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.2s done\n#11 writing image sha256:61dbe4ea28a38cc7b8fce8e2c0376f6c6a0b259303409a4c1c7f850f6eb99cbc\n#11 writing image sha256:61dbe4ea28a38cc7b8fce8e2c0376f6c6a0b259303409a4c1c7f850f6eb99cbc done\n#11 naming to docker.io/library/jayint-repo2run-modelcontextprotocol__python-sdk done\n#11 DONE 0.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/5o83jm5ir1ovlzdflgnmopty3\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-modelcontextprotocol__python-sdk",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-modelcontextprotocol__python-sdk sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-17T03:32:29.324146+08:00",
+              "finished_at": "2026-05-17T03:32:30.247795+08:00",
+              "duration_seconds": 0.924,
+              "stdout": "tests/client/test_session.py::test_client_session_initialize[asyncio]\ntests/client/test_session.py::test_client_session_initialize[trio]\ntests/client/test_stdio.py::test_stdio_client[asyncio]\ntests/client/test_stdio.py::test_stdio_client[trio]\ntests/server/test_session.py::test_server_session_initialize[asyncio]\ntests/server/test_session.py::test_server_capabilities[asyncio]\ntests/server/test_session.py::test_server_session_initialize[trio]\ntests/server/test_session.py::test_server_capabilities[trio]\ntests/server/test_stdio.py::test_stdio_server[asyncio]\ntests/server/test_stdio.py::test_stdio_server[trio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[asyncio]\ntests/shared/test_memory.py::test_memory_server_and_client_connection[trio]\ntests/test_types.py::test_jsonrpc_request\n\n13 tests collected in 0.03s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-modelcontextprotocol__python-sdk"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-modelcontextprotocol__python-sdk",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T03:32:30.248517+08:00",
+    "finished_at": "2026-05-17T03:32:30.274011+08:00",
+    "duration_seconds": 0.025,
+    "stdout": "Untagged: jayint-repo2run-modelcontextprotocol__python-sdk:latest\nDeleted: sha256:61dbe4ea28a38cc7b8fce8e2c0376f6c6a0b259303409a4c1c7f850f6eb99cbc\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/modelcontextprotocol__python-sdk/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

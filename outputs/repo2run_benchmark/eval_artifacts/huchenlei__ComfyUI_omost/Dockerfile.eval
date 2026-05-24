@@ -1,0 +1,41 @@
+FROM python:3.11
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+
+WORKDIR /app
+COPY . /app
+
+RUN sed -i 's/license = "LICENSE"/license = {text = "See LICENSE file"}/' pyproject.toml
+
+RUN cat >> pyproject.toml << 'EOF'
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib_omost*", "tests*"]
+exclude = ["js*", "logs*", "examples*"]
+EOF
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e .' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+RUN git config --global --add safe.directory /app
+
+RUN rm -f tests/conftest.py
+
+RUN rm -rf /app/__pycache__ /app/tests/__pycache__ /app/lib_omost/__pycache__ /app/.pytest_cache
+
+RUN mkdir -p /app/site-packages/comfy/sd
+
+RUN echo 'import sys' > /app/site-packages/sitecustomize.py && \
+    echo 'from unittest.mock import MagicMock' >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['comfy'] = MagicMock()" >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['comfy.model_management'] = MagicMock()" >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['comfy.model_patcher'] = MagicMock()" >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['comfy.sd'] = MagicMock()" >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['comfy.sd.CLIP'] = MagicMock()" >> /app/site-packages/sitecustomize.py && \
+    echo "sys.modules['nodes'] = MagicMock()" >> /app/site-packages/sitecustomize.py
+
+ENV PYTHONPATH=/app/site-packages

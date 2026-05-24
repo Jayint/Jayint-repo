@@ -1,0 +1,834 @@
+{
+  "dataset_entry": {
+    "instance_id": "MinishLab__model2vec",
+    "full_name": "MinishLab/model2vec",
+    "repo_url": "https://github.com/MinishLab/model2vec.git",
+    "sha": "4e3fba",
+    "base_commit": "4e3fba",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/MinishLab/model2vec.git",
+      "--base-commit",
+      "4e3fba",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/MinishLab/model2vec.git --base-commit 4e3fba --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T22:04:14.253888+08:00",
+    "finished_at": "2026-05-16T22:19:59.096630+08:00",
+    "duration_seconds": 944.843,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec...\nCloning https://github.com/MinishLab/model2vec.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 4e3fba\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 8 potentially relevant files\n[ImageSelector]   ✗ tutorials/README.md\n[ImageSelector]   ✓ uv.lock\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✗ results/README.md\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ .github/workflows/ci.yaml\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ .pre-commit-config.yaml\n[ImageSelector] 5 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns detected. All dependencies (numpy, tokenizers, safetensors) have pre-built wheels for both amd64 and arm64 platforms.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:44d5f\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/logs/compression_logs\nStarting agent for repository: https://github.com/MinishLab/model2vec.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2304, Output: 84, Total: 2388\n\n[Thought]\nI need to examine the repository's configuration files to understand the dependencies and test setup. Let me start by reading the pyproject.toml file.\n\n[Action]\ncat MinishLab__model2vec/pyproject.toml\n[Container ID: 403e7d6348d5]\nExecuting: cat MinishLab__model2vec/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: MinishLab__model2vec/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2377, Output: 62, Total: 2439\n\n[Thought]\nThe path doesn't seem to exist as expected. Let me check the current working directory and see what's available.\n\n[Action]\npwd && ls -la\n[Container ID: 403e7d6348d5]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 324\ndrwxr-xr-x 11 root root      4096 May 16 14:06 .\ndrwxr-xr-x  1 root root      4096 May 16 14:06 ..\ndrwxr-xr-x  7  501 dialout   4096 May 16 14:04 .git\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 .github\n-rw-r--r--  1  501 dialout   3266 May 16 14:04 .gitignore\n-rw-r--r--  1  501 dialout   1207 May 16 14:04 .pre-commit-config.yaml\n-rw-r--r--  1  501 dialout   1074 May 16 14:04 LICENSE\n-rw-r--r--  1  501 dialout    281 May 16 14:04 Makefile\n-rw-r--r--  1  501 dialout  21528 May 16 14:04 README.md\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 assets\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 logs\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 model2vec\n-rw-r--r--  1  501 dialout   2866 May 16 14:04 pyproject.toml\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 results\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 scripts\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 tests\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 tutorials\n-rw-r--r--  1  501 dialout 240411 May 16 14:04 uv.lock\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2905, Output: 65, Total: 2970\n\n[Thought]\nI'm already in the repository root. Let me read the pyproject.toml file to understand the dependencies and test configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: 403e7d6348d5]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nname = \"model2vec\"\ndescription = \"The Fastest State-of-the-Art Static Embeddings in the World\"\nreadme = { file = \"README.md\", content-type = \"text/markdown\" }\nlicense = { file = \"LICENSE\" }\nrequires-python = \">=3.9\"\nauthors = [{ name = \"Stéphan Tulkens\", email = \"stephantul@gmail.com\"}, {name = \"Thomas van Dongen\", email = \"thomas123@live.nl\"}]\ndynamic = [\"version\"]\n\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Science/Research\",\n    \"Topic :: Scientific/Engineering :: Artificial Intelligence\",\n    \"Topic :: Software Development :: Libraries\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Programming Language :: Python :: 3 :: Only\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Natural Language :: English\",\n]\n\ndependencies = [\n    \"jinja2\",\n    \"numpy\",\n    \"rich\",\n    \"safetensors\",\n    \"setuptools\",\n    \"tokenizers>=0.20\",\n    \"tqdm\",\n]\n\n[build-system]\nrequires = [\"setuptools>=64\", \"setuptools_scm>=8\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.setuptools]\npackages = [\"model2vec\"]\ninclude-package-data = true\n\n[tool.setuptools.package-data]\nmodel2vec = [\"assets/model_card_template.md\"]\n\n[project.optional-dependencies]\ndev = [\n    \"black\",\n    \"ipython\",\n    \"mypy\",\n    \"pre-commit\",\n    \"pytest\",\n    \"pytest-coverage\",\n    \"ruff\",\n]\ndistill = [\"torch\", \"transformers\", \"scikit-learn\"]\n\nonnx = [\"onnx\", \"torch\"]\n\n[project.urls]\n\"Homepage\" = \"https://github.com/MinishLab\"\n\"Bug Reports\" = \"https://github.com/MinishLab/model2vec/issues\"\n\"Source\" = \"https://github.com/MinishLab/model2vec\"\n\n[tool.ruff]\nexclude = [\".venv/\"]\nline-length = 120\ntarget-version = \"py310\"\n\n[tool.ruff.lint]\nselect = [\n    # Annotations: Enforce type annotations\n    \"ANN\",\n    # Complexity: Enforce a maximum cyclomatic complexity\n    \"C90\",\n    # Pydocstyle: Enforce docstrings\n    \"D\",\n    # Isort: Enforce import order\n    \"I\",\n    # Numpy: Enforce numpy style\n    \"NPY\",\n    # Print: Forbid print statements\n    \"T20\",\n]\n\nignore = [\n    # Allow self and cls to be untyped, and allow Any type\n    \"ANN101\", \"ANN102\", \"ANN401\",\n    # Pydocstyle ignores\n    \"D100\", \"D101\", \"D104\", \"D203\", \"D212\", \"D401\",\n    # Allow use of f-strings in logging\n    \"G004\"\n]\n\n[tool.pydoclint]\nstyle = \"sphinx\"\nexclude = \"test_\"\nallow-init-docstring = true\narg-type-hints-in-docstring = false\ncheck-return-types = false\nrequire-return-section-when-returning-nothing = false\n\n[tool.mypy]\npython_version = \"3.10\"\nwarn_unused_configs = true\nignore_missing_imports = true\n\n[tool.setuptools_scm]\n# can be empty if no extra settings are needed, presence enables setuptools_scm\n\n[tool.setuptools.dynamic]\nversion = {attr = \"model2vec.version.__version__\"}\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3753, Output: 163, Total: 3916\n\n[Thought]\nI can see the pyproject.toml. This is a Python project using setuptools with pytest for testing. The dev dependencies include pytest. Let me check the test configuration and conftest.py.\n\n[Action]\ncat tests/conftest.py\n[Container ID: 403e7d6348d5]\nExecuting: cat tests/conftest.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nfrom __future__ import annotations\n\nfrom typing import Any\n\nimport numpy as np\nimport pytest\nimport torch\nfrom tokenizers import Tokenizer\nfrom tokenizers.models import WordLevel\nfrom tokenizers.pre_tokenizers import Whitespace\nfrom transformers import AutoModel, AutoTokenizer\n\n\n@pytest.fixture\ndef mock_tokenizer() -> Tokenizer:\n    \"\"\"Create a mock tokenizer.\"\"\"\n    vocab = [\"word1\", \"word2\", \"word3\", \"[UNK]\", \"[PAD]\"]\n    unk_token = \"[UNK]\"\n\n    model = WordLevel(vocab={word: idx for idx, word in enumerate(vocab)}, unk_token=unk_token)\n    tokenizer = Tokenizer(model)\n    tokenizer.pre_tokenizer = Whitespace()\n\n    return tokenizer\n\n\n@pytest.fixture(scope=\"function\")\ndef mock_berttokenizer() -> AutoTokenizer:\n    \"\"\"Load the real BertTokenizerFast from the provided tokenizer.json file.\"\"\"\n    return AutoTokenizer.from_pretrained(\"tests/data/test_tokenizer\")\n\n\n@pytest.fixture\ndef mock_transformer() -> AutoModel:\n    \"\"\"Create a mock transformer model.\"\"\"\n\n    class MockPreTrainedModel:\n        def __init__(self) -> None:\n            self.device = \"cpu\"\n            self.name_or_path = \"mock-model\"\n\n        def to(self, device: str) -> MockPreTrainedModel:\n            self.device = device\n            return self\n\n        def forward(self, *args: Any, **kwargs: Any) -> Any:\n            # Simulate a last_hidden_state output for a transformer model\n            batch_size, seq_length = kwargs[\"input_ids\"].shape\n            # Return a tensor of shape (batch_size, seq_length, 768)\n            return type(\n                \"BaseModelOutputWithPoolingAndCrossAttentions\",\n                (object,),\n                {\n                    \"last_hidden_state\": torch.rand(batch_size, seq_length, 768)  # Simulate 768 hidden units\n                },\n            )\n\n        def __call__(self, *args: Any, **kwargs: Any) -> Any:\n            # Simply call the forward method to simulate the same behavior as transformers models\n            return self.forward(*args, **kwargs)\n\n    return MockPreTrainedModel()\n\n\n@pytest.fixture\ndef mock_vectors() -> np.ndarray:\n    \"\"\"Create mock vectors.\"\"\"\n    return np.array([[0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.0, 0.0], [0.0, 0.0]])\n\n\n@pytest.fixture\ndef mock_config() -> dict[str, str]:\n    \"\"\"Create a mock config.\"\"\"\n    return {\"some_config\": \"value\"}\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4363, Output: 104, Total: 4467\n\n[Thought]\nI see the conftest.py uses transformers, torch, and tokenizers. Let me check the Makefile and README to understand the test commands.\n\n[Action]\ncat Makefile && echo \"---\" && cat README.md | head -100\n[Container ID: 403e7d6348d5]\nExecuting: cat Makefile && echo \"---\" && cat README.md | head -100\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nclean:\n\n\nvenv:\n\tuv venv\n\ninstall:\n\tuv sync --all-extras\n\tuv run pre-commit install\n\ninstall-no-pre-commit:\n\tuv pip install \".[dev,distill]\"\n\ninstall-base:\n\tuv sync --extra dev\n\nfix:\n\tuv run pre-commit run --all-files\n\ntest:\n\tuv run pytest --cov=model2vec --cov-report=term-missing\n---\n\n<div align=\"center\">\n    <picture>\n      <img width=\"35%\" alt=\"Model2Vec logo\" src=\"assets/images/logo_v2.png\">\n    </picture>\n  </a>\n</div>\n\n<div align=\"center\">\n  <h2>The Fastest State-of-the-Art Static Embeddings in the World</h2>\n</div>\n\n<div align=\"center\">\n  <h2>\n    <a href=\"https://huggingface.co/minishlab\"><strong>🤗 Models</strong></a> |\n    <a href=\"https://github.com/MinishLab/model2vec/tree/main/tutorials\"><strong>📚 Tutorials</strong></a> |\n    <a href=\"https://minishlab.github.io/\"><strong>🌐 Website</strong></a> |\n    <a href=\"https://github.com/MinishLab/model2vec/blob/main/results/README.md\"><strong>🏆 Results</strong></a>\n  </h2>\n</div>\n\n<div align=\"center\">\n  <h2>\n    <a href=\"https://pypi.org/project/model2vec/\"><img src=\"https://img.shields.io/pypi/v/model2vec?color=%23007ec6&label=pypi%20package\" alt=\"Package version\"></a>\n    <a href=\"https://pypi.org/project/model2vec/\"><img src=\"https://img.shields.io/pypi/pyversions/model2vec\" alt=\"Supported Python versions\"></a>\n    <a href=\"https://pepy.tech/project/model2vec\">\n    <img src=\"https://static.pepy.tech/badge/model2vec\" alt=\"Downloads\">\n    </a>\n    <a href=\"https://app.codecov.io/gh/MinishLab/model2vec\">\n    <img src=\"https://codecov.io/gh/MinishLab/model2vec/graph/badge.svg?token=21TWJ6B5ET\" alt=\"Codecov\">\n    </a>\n  </a>\n    <a href=\"https://github.com/MinishLab/model2vec/blob/main/LICENSE\"><img src=\"https://img.shields.io/badge/license-MIT-green\" alt=\"License - MIT\"></a>\n  </h2>\n</div>\n\n<div align=\"center\">\n    <img src=\"assets/images/model2vec_model_diagram_transparant_dark.png#gh-dark-mode-only\" width=\"90%\">\n    <img src=\"assets/images/model2vec_model_diagram_transparant_light.png#gh-light-mode-only\" width=\"90%\">\n</div>\n\nModel2Vec is a technique to turn any sentence transformer into a really small static model, reducing model size by 15x and making the models up to 500x faster, with a small drop in performance. Our [best model](https://huggingface.co/minishlab/potion-base-8M) is the most performant static embedding model in the world. See our results [here](results/README.md), or dive in to see how it works.\n\n\n## Updates & Announcements\n\n- **30/10/2024**: We released three new models: [potion-base-8M](https://huggingface.co/minishlab/potion-base-8M), [potion-base-4M](https://huggingface.co/minishlab/potion-base-4M), and [potion-base-2M](https://huggingface.co/minishlab/potion-base-2M). These models are trained using [Tokenlearn](https://github.com/MinishLab/tokenlearn). Find out more in our [blog post](https://minishlab.github.io/tokenlearn_blogpost/). NOTE: for users of any of our old English M2V models, we recommend switching to these new models as they [perform better on all tasks](https://github.com/MinishLab/model2vec/tree/main/results).\n\n## Table of Contents\n- [Quickstart](#quickstart)\n- [Main Features](#main-features)\n- [What is Model2Vec?](#what-is-model2vec)\n- [Usage](#usage)\n    - [Inference](#inference)\n    - [Distillation](#distillation)\n    - [Evaluation](#evaluation)\n- [Integrations](#integrations)\n- [Model List](#model-list)\n- [Results](#results)\n\n## Quickstart\n\nInstall the package with:\n\n```bash\npip install model2vec\n```\n\nThis will install the base inference package, which only depends on `numpy` and a few other minor dependencies. If you want to distill your own models, you can install the distillation extras with:\n\n```bash\npip install model2vec[distill]\n```\n\nThe easiest way to get started with Model2Vec is to load one of our [flagship models from the HuggingFace hub](https://huggingface.co/collections/minishlab/potion-6721e0abd4ea41881417f062). These models are pre-trained and ready to use. The following code snippet shows how to load a model and make embeddings:\n```python\nfrom model2vec import StaticModel\n\n# Load a model from the HuggingFace hub (in this case the potion-base-8M model)\nmodel = StaticModel.from_pretrained(\"minishlab/potion-base-8M\")\n\n# Make embeddings\nembeddings = model.encode([\"It's dangerous to go alone!\", \"It's a secret to everybody.\"])\n\n# Make sequences of token embeddings\ntoken_embeddings = model.encode_as_sequence([\"It's dangerous to go alone!\", \"It's a secret to everybody.\"])\n```\n\nAnd that's it. You can use the model to classify texts, to cluster, or to build a RAG system.\n\nInstead of using one of our models, you can also distill your own Model2Vec model from a Sentence Transformer model. The following code snippet shows how to distill a model:\n```python\nfrom model2vec.distill import distill\n\n# Distill a Sentence Transformer model, in this case the BAAI/bge-base-en-v1.5 model\nm2v_model = distill(model_name=\"BAAI/bge-base-en-v1.5\", pca_dims=256)\n\n# Save the model\nm2v_model.save_pretrained(\"m2v_model\")\n```\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 5790, Output: 145, Total: 5935\n\n[Thought]\nThe project uses `uv` for package management. Let me check if uv is available and install the dependencies.\n\n[Action]\nwhich uv && uv --version\n[Container ID: 403e7d6348d5]\nExecuting: which uv && uv --version\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 5901, Output: 40, Total: 5941\n\n[Thought]\nI need to check if uv is available first as a separate action.\n\n[Action]\nwhich uv\n[Container ID: 403e7d6348d5]\nExecuting: which uv\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4797, Output: 36, Total: 4833\n\n[Thought]\n`uv` is not installed. Let me install it using pip.\n\n[Action]\npip install uv\n[Container ID: 403e7d6348d5]\nExecuting: pip install uv\nCommand succeeded.\n[Snapshot Created] sha256:ce439\n\n[Observation]\nCollecting uv\n  Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.14\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 5069, Output: 78, Total: 5147\n\n[Thought]\nuv is installed. Now let me install the dependencies using uv sync with all extras as specified in the Makefile.\n\n[Action]\nuv sync --all-extras\n[Container ID: 403e7d6348d5]\nExecuting: uv sync --all-extras\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\nUsing CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\n  × Failed to build `model2vec @ file:///app`\n  ├─▶ The build backend returned an error\n  ╰─▶ Call to `setuptools.build_meta.build_editable` failed (exit status: 1)\n\n      [stdout]\n      running egg_info\n      creating model2vec.egg-info\n      writing model2vec.egg-info/PKG-INFO\n      writing dependency_links to model2vec.egg-info/dependency_links.txt\n      writing requirements to model2vec.egg-info/requires.txt\n      writing top-level names to model2vec.egg-info/top_level.txt\n      writing manifest file 'model2vec.egg-info/SOURCES.txt'\n\n      [stderr]\n      /root/.cache/uv/builds-v0/.tmphvRgbY/lib/python3.12/site-packages/setuptools_scm/_integration/deprecation.py:7:\n      UserWarning: pyproject.toml: at [tool.setuptools.dynamic]\n      version = {attr = ...} is forcing setuptools to override the version\n      setuptools-scm did already set\n      When using setuptools-scm it's invalid to use setuptools dynamic version\n      as well, please remove it.\n      Setuptools-scm is responsible for setting the version, forcing\n      setuptools to override creates errors.\n        warnings.warn(\n      /root/.cache/uv/builds-v0/.tmphvRgbY/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:82:\n      SetuptoolsDeprecationWarning: `project.license` as a TOML table is\n      deprecated\n      !!\n\n      \n      ********************************************************************************\n              Please use a simple string containing a SPDX expression for\n      `project.license`. You can also use `project.license-files`. (Both\n      options available on setuptools>=77.0.0).\n\n              By 2027-Feb-18, you need to update your project and remove\n      deprecated calls\n              or your builds will no longer be supported.\n\n              See\n      https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license\n      for details.\n      \n      ********************************************************************************\n\n      !!\n        corresp(dist, value, root_dir)\n      /root/.cache/uv/builds-v0/.tmphvRgbY/lib/python3.12/site-packages/setuptools/config/_apply_pyprojecttoml.py:61:\n      SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n\n      \n      ********************************************************************************\n              Please consider removing the following classifiers in favor of a\n      SPDX license expression:\n\n              License :: OSI Approved :: MIT License\n\n              See\n      https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license\n      for details.\n      \n      ********************************************************************************\n\n      !!\n        dist._finalize_license_expression()\n      /root/.cache/uv/builds-v0/.tmphvRgbY/lib/python3.12/site-packages/setuptools/dist.py:765:\n      SetuptoolsDeprecationWarning: License classifiers are deprecated.\n      !!\n\n      \n      ********************************************************************************\n              Please consider removing the following classifiers in favor of a\n      SPDX license expression:\n\n              License :: OSI Approved :: MIT License\n\n              See\n      https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license\n      for details.\n      \n      ********************************************************************************\n\n      !!\n        self._finalize_license_expression()\n      /root/.cache/uv/builds-v0/.tmphvRgbY/lib/python3.12/site-packages/vcs_versioning/overrides.py:609:\n      UserWarning: No GlobalOverrides context is active. Auto-creating one\n      with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using\n      'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n\n      \tgit config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in\n      repository at '/app'\n\n      hint: This usually indicates a problem with the package or the build\n      environment.\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 10 ====================\n\n[Tokens] Input: 6012, Output: 52, Total: 6064\n\n[Thought]\nThere's a git ownership issue. I need to add the directory as safe.\n\n[Action]\ngit config --global --add safe.directory /app\n[Container ID: 403e7d6348d5]\nExecuting: git config --global --add safe.directory /app\nCommand succeeded.\n[Snapshot Created] sha256:3f901\n\n[Observation]\n(No output)\n\n==================== Step 11 ====================\n\n[Tokens] Input: 6055, Output: 41, Total: 6096\n\n[Thought]\nGit config updated. Now let me try the uv sync again.\n\n[Action]\nuv sync --all-extras\n[Container ID: 403e7d6348d5]\nExecuting: uv sync --all-extras\nCommand succeeded.\n[Snapshot Created] sha256:a817a\n\n[Observation]\nResolved 86 packages in 3.55s\n   Building model2vec @ file:///app\n      Built model2vec @ file:///app\nDownloading nvidia-cuda-nvrtc-cu12 (23.5MiB)\nDownloading nvidia-cublas-cu12 (346.6MiB)\nDownloading networkx (1.6MiB)\nDownloading mypy (12.0MiB)\nDownloading torch (864.4MiB)\nDownloading scipy (36.4MiB)\nDownloading jedi (1.5MiB)\nDownloading setuptools (1.2MiB)\nDownloading onnx (15.3MiB)\nDownloading ruff (10.4MiB)\nDownloading tokenizers (2.8MiB)\nDownloading pygments (1.1MiB)\nDownloading sympy (5.9MiB)\nDownloading scikit-learn (12.3MiB)\nDownloading numpy (18.3MiB)\nDownloading nvidia-cusparse-cu12 (197.8MiB)\nDownloading nvidia-nccl-cu12 (179.9MiB)\nDownloading nvidia-curand-cu12 (53.7MiB)\nDownloading virtualenv (3.0MiB)\nDownloading black (1.7MiB)\nDownloading nvidia-cuda-cupti-cu12 (13.2MiB)\nDownloading nvidia-cudnn-cu12 (634.0MiB)\nDownloading nvidia-cufft-cu12 (201.7MiB)\nDownloading nvidia-cusolver-cu12 (122.0MiB)\nDownloading triton (199.8MiB)\nDownloading transformers (9.4MiB)\nDownloading nvidia-nvjitlink-cu12 (20.1MiB)\n Downloaded pygments\n Downloaded setuptools\n Downloaded jedi\n Downloaded networkx\n Downloaded black\n Downloaded virtualenv\n Downloaded tokenizers\n Downloaded sympy\n Downloaded transformers\n Downloaded ruff\n Downloaded mypy\n Downloaded scikit-learn\n Downloaded nvidia-cuda-cupti-cu12\n Downloaded onnx\n Downloaded numpy\n Downloaded nvidia-nvjitlink-cu12\n Downloaded nvidia-cuda-nvrtc-cu12\n Downloaded scipy\n Downloaded nvidia-curand-cu12\n Downloaded nvidia-cusolver-cu12\n Downloaded nvidia-nccl-cu12\n Downloaded nvidia-cusparse-cu12\n Downloaded nvidia-cufft-cu12\n Downloaded triton\n Downloaded nvidia-cublas-cu12\n Downloaded nvidia-cudnn-cu12\n Downloaded torch\nPrepared 83 packages in 8m 59s\nInstalled 83 packages in 420ms\n + asttokens==2.4.1\n + black==24.10.0\n + certifi==2024.8.30\n + cfgv==3.4.0\n + charset-normalizer==3.4.0\n + click==8.1.7\n + coverage==7.6.3\n + decorator==5.1.1\n + distlib==0.3.9\n + executing==2.1.0\n + filelock==3.16.1\n + fsspec==2024.9.0\n + huggingface-hub==0.26.0\n + identify==2.6.1\n + idna==3.10\n + iniconfig==2.0.0\n + ipython==8.18.1\n + jedi==0.19.1\n + jinja2==3.1.4\n + joblib==1.4.2\n + markdown-it-py==3.0.0\n + markupsafe==3.0.2\n + matplotlib-inline==0.1.7\n + mdurl==0.1.2\n + model2vec==0.3.3 (from file:///app)\n + mpmath==1.3.0\n + mypy==1.12.0\n + mypy-extensions==1.0.0\n + networkx==3.2.1\n + nodeenv==1.9.1\n + numpy==2.0.2\n + nvidia-cublas-cu12==12.4.5.8\n + nvidia-cuda-cupti-cu12==12.4.127\n + nvidia-cuda-nvrtc-cu12==12.4.127\n + nvidia-cuda-runtime-cu12==12.4.127\n + nvidia-cudnn-cu12==9.1.0.70\n + nvidia-cufft-cu12==11.2.1.3\n + nvidia-curand-cu12==10.3.5.147\n + nvidia-cusolver-cu12==11.6.1.9\n + nvidia-cusparse-cu12==12.3.1.170\n + nvidia-nccl-cu12==2.21.5\n + nvidia-nvjitlink-cu12==12.4.127\n + nvidia-nvtx-cu12==12.4.127\n + onnx==1.17.0\n + packaging==24.1\n + parso==0.8.4\n + pathspec==0.12.1\n + pexpect==4.9.0\n + platformdirs==4.3.6\n + pluggy==1.5.0\n + pre-commit==4.0.1\n + prompt-toolkit==3.0.48\n + protobuf==5.28.3\n + ptyprocess==0.7.0\n + pure-eval==0.2.3\n + pygments==2.18.0\n + pytest==8.3.3\n + pytest-cov==5.0.0\n + pytest-cover==3.0.0\n + pytest-coverage==0.0\n + pyyaml==6.0.2\n + regex==2024.9.11\n + requests==2.32.3\n + rich==13.9.2\n + ruff==0.7.0\n + safetensors==0.4.5\n + scikit-learn==1.5.2\n + scipy==1.13.1\n + setuptools==75.2.0\n + six==1.16.0\n + stack-data==0.6.3\n + sympy==1.13.1\n + threadpoolctl==3.5.0\n + tokenizers==0.20.1\n + torch==2.5.0\n + tqdm==4.66.5\n + traitlets==5.14.3\n + transformers==4.45.2\n + triton==3.1.0\n + typing-extensions==4.12.2\n + urllib3==2.2.3\n + virtualenv==20.27.0\n + wcwidth==0.2.13\n\n\n==================== Step 12 ====================\n\n[Tokens] Input: 6891, Output: 59, Total: 6950\n\n[Thought]\nDependencies are installed. Now let me run pytest to collect the tests to verify the setup works.\n\n[Action]\nuv run pytest --collect-only -q --disable-warnings\n[Container ID: 403e7d6348d5]\nExecuting: uv run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:83dce\n\n[Observation]\ntests/test_distillation.py::test_distill_from_model[None-True-256-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\ntests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\ntests/test_distillation.py::test_distill_from_model[None-True-auto-False]\ntests/test_distillation.py::test_distill_from_model[None-True-1024-False]\ntests/test_distillation.py::test_distill_from_model[None-True-None-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\ntests/test_distillation.py::test_distill_from_model[None-False-256-True]\ntests/test_distillation.py::test_distill[None-True-256-True-expected_shape0]\ntests/test_distillation.py::test_distill[vocabulary1-False-4-False-expected_shape1]\ntests/test_distillation.py::test_distill[None-True-auto-False-expected_shape2]\ntests/test_distillation.py::test_distill[None-True-1024-False-expected_shape3]\ntests/test_distillation.py::test_distill[vocabulary4-True-4-False-expected_shape4]\ntests/test_distillation.py::test_distill[None-True-None-True-expected_shape5]\ntests/test_distillation.py::test_distill[vocabulary6-False-4-True-expected_shape6]\ntests/test_distillation.py::test_distill[None-False-256-True-None]\ntests/test_distillation.py::test_missing_modelinfo\ntests/test_distillation.py::test__post_process_embeddings[embeddings0-256-False-expected_shape0]\ntests/test_distillation.py::test__post_process_embeddings[embeddings1-None-False-expected_shape1]\ntests/test_distillation.py::test__post_process_embeddings[embeddings2-256-True-expected_shape2]\ntests/test_distillation.py::test__post_process_embeddings[embeddings3-256-False-expected_shape3]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary0-added_tokens0-expected_output0-expected_warnings0]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary1-added_tokens1-expected_output1-expected_warnings1]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary2-added_tokens2-expected_output2-expected_warnings2]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary3-added_tokens3-expected_output3-expected_warnings3]\ntests/test_model.py::test_initialization\ntests/test_model.py::test_initialization_token_vector_mismatch\ntests/test_model.py::test_tokenize\ntests/test_model.py::test_encode_batch_fast\ntests/test_model.py::test_encode_single_sentence\ntests/test_model.py::test_encode_single_sentence_empty\ntests/test_model.py::test_encode_multiple_sentences\ntests/test_model.py::test_encode_as_tokens\ntests/test_model.py::test_encode_as_tokens_empty\ntests/test_model.py::test_encode_empty_sentence\ntests/test_model.py::test_normalize\ntests/test_model.py::test_save_pretrained\ntests/test_model.py::test_load_pretrained\ntests/test_model.py::test_initialize_normalize\ntests/test_model.py::test_set_normalize\ntests/test_model.py::test_dim\ntests/test_model.py::test_local_load_from_model\ntests/test_model.py::test_local_load_from_model_no_folder\ntests/test_utils.py::test__get_metadata_from_readme_not_exists\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file_keys\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-False]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-False]\ntests/test_utils.py::test_select_optimal_device[clown-clown-False-False]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-True]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\ntests/test_utils.py::test_select_optimal_device[None-mps-False-True]\ntests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\ntests/test_utils.py::test_importable\ntests/test_utils.py::test_get_package_extras\ntests/test_utils.py::test_get_package_extras_empty\ntests/test_utils.py::test_local_load[config0-expected0]\ntests/test_utils.py::test_local_load[config1-expected1]\ntests/test_utils.py::test_local_load[None-expected2]\ntests/test_utils.py::test_local_load_mismatch\n\n62 tests collected in 3.54s\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 8024, Output: 150, Total: 8174\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded with 62 tests collected. The environment is properly set up with all dependencies installed. \n\nLet me provide the final verification and success response.\n\nThe runtime_preparation_commands would be empty since everything is installed via uv sync and no runtime services are needed.\n\nThe test_commands is `uv run pytest --collect-only -q --disable-warnings` which successfully collected 62 tests.\n</think>\n\nThought: The pytest collection succeeded with 62 tests collected. All dependencies are properly installed via uv sync with all extras. The environment is fully configured and ready for testing.\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"uv run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 4 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/MinishLab__model2vec.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/MinishLab/model2vec.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "uv run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 324\ndrwxr-xr-x 11 root root      4096 May 16 14:06 .\ndrwxr-xr-x  1 root root      4096 May 16 14:06 ..\ndrwxr-xr-x  7  501 dialout   4096 May 16 14:04 .git\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 .github\n-rw-r--r--  1  501 dialout   3266 May 16 14:04 .gitignore\n-rw-r--r--  1  501 dialout   1207 May 16 14:04 .pre-commit-config.yaml\n-rw-r--r--  1  501 dialout   1074 May 16 14:04 LICENSE\n-rw-r--r--  1  501 dialout    281 May 16 14:04 Makefile\n-rw-r--r--  1  501 dialout  21528 May 16 14:04 README.md\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 assets\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 logs\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 model2vec\n-rw-r--r--  1  501 dialout   2866 May 16 14:04 pyproject.toml\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 results\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 scripts\ndrwxr-xr-x  3  501 dialout   4096 May 16 14:04 tests\ndrwxr-xr-x  2  501 dialout   4096 May 16 14:04 tutorials\n-rw-r--r--  1  501 dialout 240411 May 16 14:04 uv.lock\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nname = \"model2vec\"\ndescription = \"The Fastest State-of-the-Art Static Embeddings in the World\"\nreadme = { file = \"README.md\", content-type = \"text/markdown\" }\nlicense = { file = \"LICENSE\" }\nrequires-python = \">=3.9\"\nauthors = [{ name = \"Stéphan Tulkens\", email = \"stephantul@gmail.com\"}, {name = \"Thomas van Dongen\", email = \"thomas123@live.nl\"}]\ndynamic = [\"version\"]\n\nclassifiers = [\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Science/Research\",\n    \"Topic :: Scientific/Engineering :: Artificial Intelligence\",\n    \"Topic :: So\n... (1665 chars omitted for recipe synthesis) ...\n # Pydocstyle ignores\n    \"D100\", \"D101\", \"D104\", \"D203\", \"D212\", \"D401\",\n    # Allow use of f-strings in logging\n    \"G004\"\n]\n\n[tool.pydoclint]\nstyle = \"sphinx\"\nexclude = \"test_\"\nallow-init-docstring = true\narg-type-hints-in-docstring = false\ncheck-return-types = false\nrequire-return-section-when-returning-nothing = false\n\n[tool.mypy]\npython_version = \"3.10\"\nwarn_unused_configs = true\nignore_missing_imports = true\n\n[tool.setuptools_scm]\n# can be empty if no extra settings are needed, presence enables setuptools_scm\n\n[tool.setuptools.dynamic]\nversion = {attr = \"model2vec.version.__version__\"}\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat tests/conftest.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "from __future__ import annotations\n\nfrom typing import Any\n\nimport numpy as np\nimport pytest\nimport torch\nfrom tokenizers import Tokenizer\nfrom tokenizers.models import WordLevel\nfrom tokenizers.pre_tokenizers import Whitespace\nfrom transformers import AutoModel, AutoTokenizer\n\n\n@pytest.fixture\ndef mock_tokenizer() -> Tokenizer:\n    \"\"\"Create a mock tokenizer.\"\"\"\n    vocab = [\"word1\", \"word2\", \"word3\", \"[UNK]\", \"[PAD]\"]\n    unk_token = \"[UNK]\"\n\n    model = WordLevel(vocab={word: idx for idx, word in enumerate(vocab)}, unk_token=unk_token)\n    tokenizer = Tokenizer(model)\n    tokenizer.pre_toke\n... (1109 chars omitted for recipe synthesis) ...\n 768)  # Simulate 768 hidden units\n                },\n            )\n\n        def __call__(self, *args: Any, **kwargs: Any) -> Any:\n            # Simply call the forward method to simulate the same behavior as transformers models\n            return self.forward(*args, **kwargs)\n\n    return MockPreTrainedModel()\n\n\n@pytest.fixture\ndef mock_vectors() -> np.ndarray:\n    \"\"\"Create mock vectors.\"\"\"\n    return np.array([[0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.0, 0.0], [0.0, 0.0]])\n\n\n@pytest.fixture\ndef mock_config() -> dict[str, str]:\n    \"\"\"Create a mock config.\"\"\"\n    return {\"some_config\": \"value\"}\n"
+      },
+      {
+        "step_index": 5,
+        "command": "cat Makefile && echo \"---\" && cat README.md | head -100",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "clean:\n\n\nvenv:\n\tuv venv\n\ninstall:\n\tuv sync --all-extras\n\tuv run pre-commit install\n\ninstall-no-pre-commit:\n\tuv pip install \".[dev,distill]\"\n\ninstall-base:\n\tuv sync --extra dev\n\nfix:\n\tuv run pre-commit run --all-files\n\ntest:\n\tuv run pytest --cov=model2vec --cov-report=term-missing\n---\n\n<div align=\"center\">\n    <picture>\n      <img width=\"35%\" alt=\"Model2Vec logo\" src=\"assets/images/logo_v2.png\">\n    </picture>\n  </a>\n</div>\n\n<div align=\"center\">\n  <h2>The Fastest State-of-the-Art Static Embeddings in the World</h2>\n</div>\n\n<div align=\"center\">\n  <h2>\n    <a href=\"https://huggingface.co/minishla\n... (3795 chars omitted for recipe synthesis) ...\nt's dangerous to go alone!\", \"It's a secret to everybody.\"])\n```\n\nAnd that's it. You can use the model to classify texts, to cluster, or to build a RAG system.\n\nInstead of using one of our models, you can also distill your own Model2Vec model from a Sentence Transformer model. The following code snippet shows how to distill a model:\n```python\nfrom model2vec.distill import distill\n\n# Distill a Sentence Transformer model, in this case the BAAI/bge-base-en-v1.5 model\nm2v_model = distill(model_name=\"BAAI/bge-base-en-v1.5\", pca_dims=256)\n\n# Save the model\nm2v_model.save_pretrained(\"m2v_model\")\n```\n"
+      },
+      {
+        "step_index": 8,
+        "command": "pip install uv",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting uv\n  Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\nDownloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.1 MB/s eta 0:00:00\nInstalling collected packages: uv\nSuccessfully installed uv-0.11.14\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 10,
+        "command": "git config --global --add safe.directory /app",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 11,
+        "command": "uv sync --all-extras",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Resolved 86 packages in 3.55s\n   Building model2vec @ file:///app\n      Built model2vec @ file:///app\nDownloading nvidia-cuda-nvrtc-cu12 (23.5MiB)\nDownloading nvidia-cublas-cu12 (346.6MiB)\nDownloading networkx (1.6MiB)\nDownloading mypy (12.0MiB)\nDownloading torch (864.4MiB)\nDownloading scipy (36.4MiB)\nDownloading jedi (1.5MiB)\nDownloading setuptools (1.2MiB)\nDownloading onnx (15.3MiB)\nDownloading ruff (10.4MiB)\nDownloading tokenizers (2.8MiB)\nDownloading pygments (1.1MiB)\nDownloading sympy (5.9MiB)\nDownloading scikit-learn (12.3MiB)\nDownloading numpy (18.3MiB)\nDownloading nvidia-cusparse-cu12 \n... (2375 chars omitted for recipe synthesis) ...\n + ptyprocess==0.7.0\n + pure-eval==0.2.3\n + pygments==2.18.0\n + pytest==8.3.3\n + pytest-cov==5.0.0\n + pytest-cover==3.0.0\n + pytest-coverage==0.0\n + pyyaml==6.0.2\n + regex==2024.9.11\n + requests==2.32.3\n + rich==13.9.2\n + ruff==0.7.0\n + safetensors==0.4.5\n + scikit-learn==1.5.2\n + scipy==1.13.1\n + setuptools==75.2.0\n + six==1.16.0\n + stack-data==0.6.3\n + sympy==1.13.1\n + threadpoolctl==3.5.0\n + tokenizers==0.20.1\n + torch==2.5.0\n + tqdm==4.66.5\n + traitlets==5.14.3\n + transformers==4.45.2\n + triton==3.1.0\n + typing-extensions==4.12.2\n + urllib3==2.2.3\n + virtualenv==20.27.0\n + wcwidth==0.2.13\n"
+      },
+      {
+        "step_index": 12,
+        "command": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_distillation.py::test_distill_from_model[None-True-256-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\ntests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\ntests/test_distillation.py::test_distill_from_model[None-True-auto-False]\ntests/test_distillation.py::test_distill_from_model[None-True-1024-False]\ntests/test_distillation.py::test_distill_from_model[None-True-None-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\ntests/test_distillation.py::test_distill_from_model[None-False-256-True]\n... (2992 chars omitted for recipe synthesis) ...\ne-cuda-True-True]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\ntests/test_utils.py::test_select_optimal_device[None-mps-False-True]\ntests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\ntests/test_utils.py::test_importable\ntests/test_utils.py::test_get_package_extras\ntests/test_utils.py::test_get_package_extras_empty\ntests/test_utils.py::test_local_load[config0-expected0]\ntests/test_utils.py::test_local_load[config1-expected1]\ntests/test_utils.py::test_local_load[None-expected2]\ntests/test_utils.py::test_local_load_mismatch\n\n62 tests collected in 3.54s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat MinishLab__model2vec/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: MinishLab__model2vec/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 6,
+        "command": "which uv && uv --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 7,
+        "command": "which uv",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 9,
+        "command": "uv sync --all-extras",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\nCreating virtual environment at: .venv\n  × Failed to build `model2vec @ file:///app`\n  ├─▶ The build backend returned an error\n  ╰─▶ Call to `setuptools.build_meta.build_editable` failed (exit status: 1)\n\n      [stdout]\n      running egg_info\n      creating model2vec.egg-info\n      writing model2vec.egg-info/PKG-INFO\n      writing dependency_links to model2vec.egg-info/dependency_links.txt\n      writing requirements to model2vec.egg-info/requires.txt\n      writing top-level names to model2vec.egg-info/top_level.txt\n      writing mani\n... (3102 chars omitted for recipe synthesis) ...\ndes context is active. Auto-creating one\n      with SETUPTOOLS_SCM prefix for backwards compatibility. Consider using\n      'with GlobalOverrides.from_env(\"YOUR_TOOL\"):' explicitly.\n        return get_active_overrides().subprocess_timeout\n      fatal: detected dubious ownership in repository at '/app'\n      To add an exception for this directory, call:\n\n      \tgit config --global --add safe.directory /app\n      git introspection failed: fatal: detected dubious ownership in\n      repository at '/app'\n\n      hint: This usually indicates a problem with the package or the build\n      environment.\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install uv",
+        "git config --global --add safe.directory /app",
+        "uv sync --all-extras",
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "uv run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat MinishLab__model2vec/pyproject.toml - Wrong path, read-only exploration",
+          "reason": ""
+        },
+        {
+          "command": "pwd && ls -la - Read-only directory listing for context",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml - Read-only config inspection for context",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/conftest.py - Read-only config inspection for context",
+          "reason": ""
+        },
+        {
+          "command": "cat Makefile && echo \"---\" && cat README.md | head -100 - Read-only documentation review",
+          "reason": ""
+        },
+        {
+          "command": "which uv && uv --version - Combined mutation with probe, rejected by system",
+          "reason": ""
+        },
+        {
+          "command": "which uv - Read-only probe, uv not found in base image",
+          "reason": ""
+        },
+        {
+          "command": "uv sync --all-extras (first attempt) - Failed due to git ownership, fixed in subsequent step",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state-changing trajectory consists of three commands in order: (1) install uv package manager via pip, (2) configure git safe.directory for the workspace to fix ownership issues, and (3) sync all project dependencies including dev and distill extras. The first uv sync failed due to git ownership, but the fix was applied and the retry succeeded, installing 86 packages including torch, transformers, tokenizers, numpy, pytest, and development tools. The test command uses 'uv run pytest' to ensure tests execute within the managed environment. Commands were not merged or reordered to preserve the exact verified trajectory.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 4,
+      "compressed_steps": 2,
+      "saved_tokens_est": 1931
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat MinishLab__model2vec/pyproject.toml",
+        "success": false,
+        "raw_chars": 68,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 1018,
+        "raw_tokens_est": 254,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 2865,
+        "raw_tokens_est": 716,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 93,
+        "reflect_input_tokens": 3872,
+        "reflect_output_tokens": 1245
+      },
+      {
+        "step_id": 4,
+        "action": "cat tests/conftest.py",
+        "success": true,
+        "raw_chars": 2309,
+        "raw_tokens_est": 577,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 140,
+        "reflect_input_tokens": 3469,
+        "reflect_output_tokens": 742
+      },
+      {
+        "step_id": 5,
+        "action": "cat Makefile && echo \"---\" && cat README.md | head -100",
+        "success": true,
+        "raw_chars": 4995,
+        "raw_tokens_est": 1248,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1039,
+        "reflect_input_tokens": 2652,
+        "reflect_output_tokens": 476
+      },
+      {
+        "step_id": 6,
+        "action": "which uv && uv --version",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "which uv",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "pip install uv",
+        "success": true,
+        "raw_chars": 824,
+        "raw_tokens_est": 206,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "uv sync --all-extras",
+        "success": false,
+        "raw_chars": 4302,
+        "raw_tokens_est": 1075,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 892,
+        "reflect_input_tokens": 3323,
+        "reflect_output_tokens": 454
+      },
+      {
+        "step_id": 10,
+        "action": "git config --global --add safe.directory /app",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 11,
+        "action": "uv sync --all-extras",
+        "success": true,
+        "raw_chars": 3575,
+        "raw_tokens_est": 893,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "uv run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 4192,
+        "raw_tokens_est": 1048,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 130963,
+        "output_tokens": 4834,
+        "total_tokens": 135797
+      },
+      "planner": {
+        "input_tokens": 64241,
+        "output_tokens": 1079,
+        "total_tokens": 65320
+      },
+      "reflection": {
+        "input_tokens": 13316,
+        "output_tokens": 2917,
+        "total_tokens": 16233
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 12773,
+        "output_tokens": 2066,
+        "total_tokens": 14839
+      },
+      "total": {
+        "input_tokens": 221293,
+        "output_tokens": 10896,
+        "total_tokens": 232189
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+    "base_commit": "4e3fba",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MinishLab__model2vec /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-16T22:19:59.116807+08:00",
+      "finished_at": "2026-05-16T22:19:59.197576+08:00",
+      "duration_seconds": 0.081,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context'...\n完成。\n注意：正在切换到 '4e3fba3a44702c523c68ad7bd0b49fb0367909c8'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "4e3fba"
+      ],
+      "command_shell": "git checkout --force 4e3fba",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-16T22:19:59.198464+08:00",
+      "finished_at": "2026-05-16T22:19:59.244719+08:00",
+      "duration_seconds": 0.046,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 4e3fba3 feat: Updated config values (#136)\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-16T22:19:59.244916+08:00",
+      "finished_at": "2026-05-16T22:19:59.259260+08:00",
+      "duration_seconds": 0.014,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_uv_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "uv run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-minishlab__model2vec",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval -t jayint-repo2run-minishlab__model2vec /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T22:19:59.273343+08:00",
+    "finished_at": "2026-05-16T22:29:30.181549+08:00",
+    "duration_seconds": 570.908,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.37kB 0.0s done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 11.76MB 0.5s done\n#5 DONE 0.5s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.5s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 1.4s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.461 Collecting uv\n#10 2.992   Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.393 Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 7.471    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.588 Installing collected packages: uv\n#10 7.854 Successfully installed uv-0.11.14\n#10 7.854 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 8.0s\n\n#11 [7/9] RUN git config --global --add safe.directory /app\n#11 DONE 0.2s\n\n#12 [8/9] RUN uv sync --all-extras\n#12 0.452 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#12 0.453 Creating virtual environment at: .venv\n#12 6.506 Resolved 86 packages in 6.00s\n#12 6.561    Building model2vec @ file:///app\n#12 7.138 Downloading sympy (5.9MiB)\n#12 7.138 Downloading nvidia-cuda-nvrtc-cu12 (23.5MiB)\n#12 7.138 Downloading virtualenv (3.0MiB)\n#12 7.138 Downloading tokenizers (2.8MiB)\n#12 7.139 Downloading networkx (1.6MiB)\n#12 7.139 Downloading nvidia-nvjitlink-cu12 (20.1MiB)\n#12 7.139 Downloading nvidia-cusolver-cu12 (122.0MiB)\n#12 7.139 Downloading black (1.7MiB)\n#12 7.139 Downloading numpy (18.3MiB)\n#12 7.140 Downloading nvidia-curand-cu12 (53.7MiB)\n#12 7.140 Downloading setuptools (1.2MiB)\n#12 7.140 Downloading pygments (1.1MiB)\n#12 7.140 Downloading scipy (36.4MiB)\n#12 7.140 Downloading torch (864.4MiB)\n#12 7.140 Downloading mypy (12.0MiB)\n#12 7.147 Downloading jedi (1.5MiB)\n#12 7.147 Downloading nvidia-cusparse-cu12 (197.8MiB)\n#12 7.147 Downloading ruff (10.4MiB)\n#12 7.148 Downloading nvidia-cuda-cupti-cu12 (13.2MiB)\n#12 7.148 Downloading onnx (15.3MiB)\n#12 7.148 Downloading nvidia-cublas-cu12 (346.6MiB)\n#12 7.148 Downloading nvidia-nccl-cu12 (179.9MiB)\n#12 7.148 Downloading triton (199.8MiB)\n#12 7.148 Downloading nvidia-cudnn-cu12 (634.0MiB)\n#12 7.148 Downloading nvidia-cufft-cu12 (201.7MiB)\n#12 7.149 Downloading transformers (9.4MiB)\n#12 7.149 Downloading scikit-learn (12.3MiB)\n#12 7.446       Built model2vec @ file:///app\n#12 14.60  Downloaded pygments\n#12 14.70  Downloaded setuptools\n#12 16.23  Downloaded jedi\n#12 16.80  Downloaded networkx\n#12 16.93  Downloaded black\n#12 22.85  Downloaded tokenizers\n#12 23.27  Downloaded virtualenv\n#12 34.38  Downloaded sympy\n#12 45.35  Downloaded transformers\n#12 48.85  Downloaded ruff\n#12 53.46  Downloaded mypy\n#12 55.27  Downloaded scikit-learn\n#12 56.13  Downloaded nvidia-cuda-cupti-cu12\n#12 61.72  Downloaded onnx\n#12 68.92  Downloaded numpy\n#12 72.28  Downloaded nvidia-nvjitlink-cu12\n#12 78.47  Downloaded nvidia-cuda-nvrtc-cu12\n#12 101.9  Downloaded scipy\n#12 129.2  Downloaded nvidia-curand-cu12\n#12 226.6  Downloaded nvidia-cusolver-cu12\n#12 301.0  Downloaded nvidia-nccl-cu12\n#12 318.4  Downloaded nvidia-cusparse-cu12\n#12 319.7  Downloaded triton\n#12 320.6  Downloaded nvidia-cufft-cu12\n#12 397.5  Downloaded nvidia-cublas-cu12\n#12 496.0  Downloaded nvidia-cudnn-cu12\n#12 539.6  Downloaded torch\n#12 539.6 Prepared 83 packages in 8m 53s\n#12 539.9 Installed 83 packages in 337ms\n#12 539.9  + asttokens==2.4.1\n#12 539.9  + black==24.10.0\n#12 539.9  + certifi==2024.8.30\n#12 539.9  + cfgv==3.4.0\n#12 539.9  + charset-normalizer==3.4.0\n#12 539.9  + click==8.1.7\n#12 539.9  + coverage==7.6.3\n#12 539.9  + decorator==5.1.1\n#12 539.9  + distlib==0.3.9\n#12 539.9  + executing==2.1.0\n#12 539.9  + filelock==3.16.1\n#12 539.9  + fsspec==2024.9.0\n#12 539.9  + huggingface-hub==0.26.0\n#12 539.9  + identify==2.6.1\n#12 539.9  + idna==3.10\n#12 539.9  + iniconfig==2.0.0\n#12 539.9  + ipython==8.18.1\n#12 539.9  + jedi==0.19.1\n#12 539.9  + jinja2==3.1.4\n#12 539.9  + joblib==1.4.2\n#12 539.9  + markdown-it-py==3.0.0\n#12 539.9  + markupsafe==3.0.2\n#12 539.9  + matplotlib-inline==0.1.7\n#12 539.9  + mdurl==0.1.2\n#12 539.9  + model2vec==0.3.3 (from file:///app)\n#12 539.9  + mpmath==1.3.0\n#12 539.9  + mypy==1.12.0\n#12 539.9  + mypy-extensions==1.0.0\n#12 539.9  + networkx==3.2.1\n#12 539.9  + nodeenv==1.9.1\n#12 539.9  + numpy==2.0.2\n#12 539.9  + nvidia-cublas-cu12==12.4.5.8\n#12 539.9  + nvidia-cuda-cupti-cu12==12.4.127\n#12 539.9  + nvidia-cuda-nvrtc-cu12==12.4.127\n#12 539.9  + nvidia-cuda-runtime-cu12==12.4.127\n#12 539.9  + nvidia-cudnn-cu12==9.1.0.70\n#12 539.9  + nvidia-cufft-cu12==11.2.1.3\n#12 539.9  + nvidia-curand-cu12==10.3.5.147\n#12 539.9  + nvidia-cusolver-cu12==11.6.1.9\n#12 539.9  + nvidia-cusparse-cu12==12.3.1.170\n#12 539.9  + nvidia-nccl-cu12==2.21.5\n#12 539.9  + nvidia-nvjitlink-cu12==12.4.127\n#12 539.9  + nvidia-nvtx-cu12==12.4.127\n#12 539.9  + onnx==1.17.0\n#12 539.9  + packaging==24.1\n#12 539.9  + parso==0.8.4\n#12 539.9  + pathspec==0.12.1\n#12 539.9  + pexpect==4.9.0\n#12 539.9  + platformdirs==4.3.6\n#12 539.9  + pluggy==1.5.0\n#12 539.9  + pre-commit==4.0.1\n#12 539.9  + prompt-toolkit==3.0.48\n#12 539.9  + protobuf==5.28.3\n#12 539.9  + ptyprocess==0.7.0\n#12 539.9  + pure-eval==0.2.3\n#12 539.9  + pygments==2.18.0\n#12 539.9  + pytest==8.3.3\n#12 539.9  + pytest-cov==5.0.0\n#12 539.9  + pytest-cover==3.0.0\n#12 539.9  + pytest-coverage==0.0\n#12 539.9  + pyyaml==6.0.2\n#12 539.9  + regex==2024.9.11\n#12 539.9  + requests==2.32.3\n#12 539.9  + rich==13.9.2\n#12 539.9  + ruff==0.7.0\n#12 539.9  + safetensors==0.4.5\n#12 539.9  + scikit-learn==1.5.2\n#12 539.9  + scipy==1.13.1\n#12 539.9  + setuptools==75.2.0\n#12 539.9  + six==1.16.0\n#12 539.9  + stack-data==0.6.3\n#12 539.9  + sympy==1.13.1\n#12 539.9  + threadpoolctl==3.5.0\n#12 539.9  + tokenizers==0.20.1\n#12 539.9  + torch==2.5.0\n#12 539.9  + tqdm==4.66.5\n#12 539.9  + traitlets==5.14.3\n#12 539.9  + transformers==4.45.2\n#12 539.9  + triton==3.1.0\n#12 539.9  + typing-extensions==4.12.2\n#12 539.9  + urllib3==2.2.3\n#12 539.9  + virtualenv==20.27.0\n#12 539.9  + wcwidth==0.2.13\n#12 DONE 540.9s\n\n#13 [9/9] RUN uv run pytest --collect-only -q --disable-warnings\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-256-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-auto-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-1024-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-None-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-False-256-True]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-256-True-expected_shape0]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary1-False-4-False-expected_shape1]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-auto-False-expected_shape2]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-1024-False-expected_shape3]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary4-True-4-False-expected_shape4]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-None-True-expected_shape5]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary6-False-4-True-expected_shape6]\n#13 9.523 tests/test_distillation.py::test_distill[None-False-256-True-None]\n#13 9.523 tests/test_distillation.py::test_missing_modelinfo\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings0-256-False-expected_shape0]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings1-None-False-expected_shape1]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings2-256-True-expected_shape2]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings3-256-False-expected_shape3]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary0-added_tokens0-expected_output0-expected_warnings0]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary1-added_tokens1-expected_output1-expected_warnings1]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary2-added_tokens2-expected_output2-expected_warnings2]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary3-added_tokens3-expected_output3-expected_warnings3]\n#13 9.523 tests/test_model.py::test_initialization\n#13 9.523 tests/test_model.py::test_initialization_token_vector_mismatch\n#13 9.523 tests/test_model.py::test_tokenize\n#13 9.523 tests/test_model.py::test_encode_batch_fast\n#13 9.523 tests/test_model.py::test_encode_single_sentence\n#13 9.523 tests/test_model.py::test_encode_single_sentence_empty\n#13 9.523 tests/test_model.py::test_encode_multiple_sentences\n#13 9.523 tests/test_model.py::test_encode_as_tokens\n#13 9.523 tests/test_model.py::test_encode_as_tokens_empty\n#13 9.523 tests/test_model.py::test_encode_empty_sentence\n#13 9.523 tests/test_model.py::test_normalize\n#13 9.523 tests/test_model.py::test_save_pretrained\n#13 9.523 tests/test_model.py::test_load_pretrained\n#13 9.523 tests/test_model.py::test_initialize_normalize\n#13 9.523 tests/test_model.py::test_set_normalize\n#13 9.523 tests/test_model.py::test_dim\n#13 9.523 tests/test_model.py::test_local_load_from_model\n#13 9.523 tests/test_model.py::test_local_load_from_model_no_folder\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_not_exists\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_mocked_file\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_mocked_file_keys\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-True-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-True-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-False-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-False-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[clown-clown-False-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cuda-True-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-mps-False-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\n#13 9.523 tests/test_utils.py::test_importable\n#13 9.523 tests/test_utils.py::test_get_package_extras\n#13 9.523 tests/test_utils.py::test_get_package_extras_empty\n#13 9.523 tests/test_utils.py::test_local_load[config0-expected0]\n#13 9.523 tests/test_utils.py::test_local_load[config1-expected1]\n#13 9.523 tests/test_utils.py::test_local_load[None-expected2]\n#13 9.523 tests/test_utils.py::test_local_load_mismatch\n#13 9.523 \n#13 9.523 62 tests collected in 3.55s\n#13 DONE 10.2s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 8.1s done\n#14 writing image sha256:58aeddb2c30289c0b1167108fc11e45036780ba1c777aa9992a21e1dc94c1b00\n#14 writing image sha256:58aeddb2c30289c0b1167108fc11e45036780ba1c777aa9992a21e1dc94c1b00 done\n#14 naming to docker.io/library/jayint-repo2run-minishlab__model2vec done\n#14 DONE 8.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/jvmpjc5n3vnult0mmhft0b4pj\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "uv run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-minishlab__model2vec",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-minishlab__model2vec sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-16T22:29:30.189645+08:00",
+          "finished_at": "2026-05-16T22:29:34.167654+08:00",
+          "duration_seconds": 3.978,
+          "stdout": "tests/test_distillation.py::test_distill_from_model[None-True-256-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\ntests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\ntests/test_distillation.py::test_distill_from_model[None-True-auto-False]\ntests/test_distillation.py::test_distill_from_model[None-True-1024-False]\ntests/test_distillation.py::test_distill_from_model[None-True-None-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\ntests/test_distillation.py::test_distill_from_model[None-False-256-True]\ntests/test_distillation.py::test_distill[None-True-256-True-expected_shape0]\ntests/test_distillation.py::test_distill[vocabulary1-False-4-False-expected_shape1]\ntests/test_distillation.py::test_distill[None-True-auto-False-expected_shape2]\ntests/test_distillation.py::test_distill[None-True-1024-False-expected_shape3]\ntests/test_distillation.py::test_distill[vocabulary4-True-4-False-expected_shape4]\ntests/test_distillation.py::test_distill[None-True-None-True-expected_shape5]\ntests/test_distillation.py::test_distill[vocabulary6-False-4-True-expected_shape6]\ntests/test_distillation.py::test_distill[None-False-256-True-None]\ntests/test_distillation.py::test_missing_modelinfo\ntests/test_distillation.py::test__post_process_embeddings[embeddings0-256-False-expected_shape0]\ntests/test_distillation.py::test__post_process_embeddings[embeddings1-None-False-expected_shape1]\ntests/test_distillation.py::test__post_process_embeddings[embeddings2-256-True-expected_shape2]\ntests/test_distillation.py::test__post_process_embeddings[embeddings3-256-False-expected_shape3]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary0-added_tokens0-expected_output0-expected_warnings0]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary1-added_tokens1-expected_output1-expected_warnings1]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary2-added_tokens2-expected_output2-expected_warnings2]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary3-added_tokens3-expected_output3-expected_warnings3]\ntests/test_model.py::test_initialization\ntests/test_model.py::test_initialization_token_vector_mismatch\ntests/test_model.py::test_tokenize\ntests/test_model.py::test_encode_batch_fast\ntests/test_model.py::test_encode_single_sentence\ntests/test_model.py::test_encode_single_sentence_empty\ntests/test_model.py::test_encode_multiple_sentences\ntests/test_model.py::test_encode_as_tokens\ntests/test_model.py::test_encode_as_tokens_empty\ntests/test_model.py::test_encode_empty_sentence\ntests/test_model.py::test_normalize\ntests/test_model.py::test_save_pretrained\ntests/test_model.py::test_load_pretrained\ntests/test_model.py::test_initialize_normalize\ntests/test_model.py::test_set_normalize\ntests/test_model.py::test_dim\ntests/test_model.py::test_local_load_from_model\ntests/test_model.py::test_local_load_from_model_no_folder\ntests/test_utils.py::test__get_metadata_from_readme_not_exists\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file_keys\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-False]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-False]\ntests/test_utils.py::test_select_optimal_device[clown-clown-False-False]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-True]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\ntests/test_utils.py::test_select_optimal_device[None-mps-False-True]\ntests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\ntests/test_utils.py::test_importable\ntests/test_utils.py::test_get_package_extras\ntests/test_utils.py::test_get_package_extras_empty\ntests/test_utils.py::test_local_load[config0-expected0]\ntests/test_utils.py::test_local_load[config1-expected1]\ntests/test_utils.py::test_local_load[None-expected2]\ntests/test_utils.py::test_local_load_mismatch\n\n62 tests collected in 0.87s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-minishlab__model2vec",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/Dockerfile.eval -t jayint-repo2run-minishlab__model2vec /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-16T22:19:59.273343+08:00",
+        "finished_at": "2026-05-16T22:29:30.181549+08:00",
+        "duration_seconds": 570.908,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.37kB 0.0s done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/9] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 11.76MB 0.5s done\n#5 DONE 0.5s\n\n#6 [2/9] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/9] WORKDIR /app\n#7 CACHED\n\n#8 [4/9] COPY . /app\n#8 DONE 0.5s\n\n#9 [5/9] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 1.4s\n\n#10 [6/9] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install uv' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then break; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; if [ \"$JAYINT_PIP_STATUS\" -ne 0 ]; then curl -L --retry 5 --retry-delay 2 --retry-connrefused --fail --show-error --silent -o /tmp/jayint-uv-install.sh https://astral.sh/uv/install.sh && sh /tmp/jayint-uv-install.sh; fi\n#10 2.461 Collecting uv\n#10 2.992   Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)\n#10 3.393 Downloading uv-0.11.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.7 MB)\n#10 7.471    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.7/24.7 MB 6.4 MB/s eta 0:00:00\n#10 7.588 Installing collected packages: uv\n#10 7.854 Successfully installed uv-0.11.14\n#10 7.854 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 8.0s\n\n#11 [7/9] RUN git config --global --add safe.directory /app\n#11 DONE 0.2s\n\n#12 [8/9] RUN uv sync --all-extras\n#12 0.452 Using CPython 3.12.13 interpreter at: /usr/local/bin/python3\n#12 0.453 Creating virtual environment at: .venv\n#12 6.506 Resolved 86 packages in 6.00s\n#12 6.561    Building model2vec @ file:///app\n#12 7.138 Downloading sympy (5.9MiB)\n#12 7.138 Downloading nvidia-cuda-nvrtc-cu12 (23.5MiB)\n#12 7.138 Downloading virtualenv (3.0MiB)\n#12 7.138 Downloading tokenizers (2.8MiB)\n#12 7.139 Downloading networkx (1.6MiB)\n#12 7.139 Downloading nvidia-nvjitlink-cu12 (20.1MiB)\n#12 7.139 Downloading nvidia-cusolver-cu12 (122.0MiB)\n#12 7.139 Downloading black (1.7MiB)\n#12 7.139 Downloading numpy (18.3MiB)\n#12 7.140 Downloading nvidia-curand-cu12 (53.7MiB)\n#12 7.140 Downloading setuptools (1.2MiB)\n#12 7.140 Downloading pygments (1.1MiB)\n#12 7.140 Downloading scipy (36.4MiB)\n#12 7.140 Downloading torch (864.4MiB)\n#12 7.140 Downloading mypy (12.0MiB)\n#12 7.147 Downloading jedi (1.5MiB)\n#12 7.147 Downloading nvidia-cusparse-cu12 (197.8MiB)\n#12 7.147 Downloading ruff (10.4MiB)\n#12 7.148 Downloading nvidia-cuda-cupti-cu12 (13.2MiB)\n#12 7.148 Downloading onnx (15.3MiB)\n#12 7.148 Downloading nvidia-cublas-cu12 (346.6MiB)\n#12 7.148 Downloading nvidia-nccl-cu12 (179.9MiB)\n#12 7.148 Downloading triton (199.8MiB)\n#12 7.148 Downloading nvidia-cudnn-cu12 (634.0MiB)\n#12 7.148 Downloading nvidia-cufft-cu12 (201.7MiB)\n#12 7.149 Downloading transformers (9.4MiB)\n#12 7.149 Downloading scikit-learn (12.3MiB)\n#12 7.446       Built model2vec @ file:///app\n#12 14.60  Downloaded pygments\n#12 14.70  Downloaded setuptools\n#12 16.23  Downloaded jedi\n#12 16.80  Downloaded networkx\n#12 16.93  Downloaded black\n#12 22.85  Downloaded tokenizers\n#12 23.27  Downloaded virtualenv\n#12 34.38  Downloaded sympy\n#12 45.35  Downloaded transformers\n#12 48.85  Downloaded ruff\n#12 53.46  Downloaded mypy\n#12 55.27  Downloaded scikit-learn\n#12 56.13  Downloaded nvidia-cuda-cupti-cu12\n#12 61.72  Downloaded onnx\n#12 68.92  Downloaded numpy\n#12 72.28  Downloaded nvidia-nvjitlink-cu12\n#12 78.47  Downloaded nvidia-cuda-nvrtc-cu12\n#12 101.9  Downloaded scipy\n#12 129.2  Downloaded nvidia-curand-cu12\n#12 226.6  Downloaded nvidia-cusolver-cu12\n#12 301.0  Downloaded nvidia-nccl-cu12\n#12 318.4  Downloaded nvidia-cusparse-cu12\n#12 319.7  Downloaded triton\n#12 320.6  Downloaded nvidia-cufft-cu12\n#12 397.5  Downloaded nvidia-cublas-cu12\n#12 496.0  Downloaded nvidia-cudnn-cu12\n#12 539.6  Downloaded torch\n#12 539.6 Prepared 83 packages in 8m 53s\n#12 539.9 Installed 83 packages in 337ms\n#12 539.9  + asttokens==2.4.1\n#12 539.9  + black==24.10.0\n#12 539.9  + certifi==2024.8.30\n#12 539.9  + cfgv==3.4.0\n#12 539.9  + charset-normalizer==3.4.0\n#12 539.9  + click==8.1.7\n#12 539.9  + coverage==7.6.3\n#12 539.9  + decorator==5.1.1\n#12 539.9  + distlib==0.3.9\n#12 539.9  + executing==2.1.0\n#12 539.9  + filelock==3.16.1\n#12 539.9  + fsspec==2024.9.0\n#12 539.9  + huggingface-hub==0.26.0\n#12 539.9  + identify==2.6.1\n#12 539.9  + idna==3.10\n#12 539.9  + iniconfig==2.0.0\n#12 539.9  + ipython==8.18.1\n#12 539.9  + jedi==0.19.1\n#12 539.9  + jinja2==3.1.4\n#12 539.9  + joblib==1.4.2\n#12 539.9  + markdown-it-py==3.0.0\n#12 539.9  + markupsafe==3.0.2\n#12 539.9  + matplotlib-inline==0.1.7\n#12 539.9  + mdurl==0.1.2\n#12 539.9  + model2vec==0.3.3 (from file:///app)\n#12 539.9  + mpmath==1.3.0\n#12 539.9  + mypy==1.12.0\n#12 539.9  + mypy-extensions==1.0.0\n#12 539.9  + networkx==3.2.1\n#12 539.9  + nodeenv==1.9.1\n#12 539.9  + numpy==2.0.2\n#12 539.9  + nvidia-cublas-cu12==12.4.5.8\n#12 539.9  + nvidia-cuda-cupti-cu12==12.4.127\n#12 539.9  + nvidia-cuda-nvrtc-cu12==12.4.127\n#12 539.9  + nvidia-cuda-runtime-cu12==12.4.127\n#12 539.9  + nvidia-cudnn-cu12==9.1.0.70\n#12 539.9  + nvidia-cufft-cu12==11.2.1.3\n#12 539.9  + nvidia-curand-cu12==10.3.5.147\n#12 539.9  + nvidia-cusolver-cu12==11.6.1.9\n#12 539.9  + nvidia-cusparse-cu12==12.3.1.170\n#12 539.9  + nvidia-nccl-cu12==2.21.5\n#12 539.9  + nvidia-nvjitlink-cu12==12.4.127\n#12 539.9  + nvidia-nvtx-cu12==12.4.127\n#12 539.9  + onnx==1.17.0\n#12 539.9  + packaging==24.1\n#12 539.9  + parso==0.8.4\n#12 539.9  + pathspec==0.12.1\n#12 539.9  + pexpect==4.9.0\n#12 539.9  + platformdirs==4.3.6\n#12 539.9  + pluggy==1.5.0\n#12 539.9  + pre-commit==4.0.1\n#12 539.9  + prompt-toolkit==3.0.48\n#12 539.9  + protobuf==5.28.3\n#12 539.9  + ptyprocess==0.7.0\n#12 539.9  + pure-eval==0.2.3\n#12 539.9  + pygments==2.18.0\n#12 539.9  + pytest==8.3.3\n#12 539.9  + pytest-cov==5.0.0\n#12 539.9  + pytest-cover==3.0.0\n#12 539.9  + pytest-coverage==0.0\n#12 539.9  + pyyaml==6.0.2\n#12 539.9  + regex==2024.9.11\n#12 539.9  + requests==2.32.3\n#12 539.9  + rich==13.9.2\n#12 539.9  + ruff==0.7.0\n#12 539.9  + safetensors==0.4.5\n#12 539.9  + scikit-learn==1.5.2\n#12 539.9  + scipy==1.13.1\n#12 539.9  + setuptools==75.2.0\n#12 539.9  + six==1.16.0\n#12 539.9  + stack-data==0.6.3\n#12 539.9  + sympy==1.13.1\n#12 539.9  + threadpoolctl==3.5.0\n#12 539.9  + tokenizers==0.20.1\n#12 539.9  + torch==2.5.0\n#12 539.9  + tqdm==4.66.5\n#12 539.9  + traitlets==5.14.3\n#12 539.9  + transformers==4.45.2\n#12 539.9  + triton==3.1.0\n#12 539.9  + typing-extensions==4.12.2\n#12 539.9  + urllib3==2.2.3\n#12 539.9  + virtualenv==20.27.0\n#12 539.9  + wcwidth==0.2.13\n#12 DONE 540.9s\n\n#13 [9/9] RUN uv run pytest --collect-only -q --disable-warnings\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-256-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-auto-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-1024-False]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-True-None-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\n#13 9.523 tests/test_distillation.py::test_distill_from_model[None-False-256-True]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-256-True-expected_shape0]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary1-False-4-False-expected_shape1]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-auto-False-expected_shape2]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-1024-False-expected_shape3]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary4-True-4-False-expected_shape4]\n#13 9.523 tests/test_distillation.py::test_distill[None-True-None-True-expected_shape5]\n#13 9.523 tests/test_distillation.py::test_distill[vocabulary6-False-4-True-expected_shape6]\n#13 9.523 tests/test_distillation.py::test_distill[None-False-256-True-None]\n#13 9.523 tests/test_distillation.py::test_missing_modelinfo\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings0-256-False-expected_shape0]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings1-None-False-expected_shape1]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings2-256-True-expected_shape2]\n#13 9.523 tests/test_distillation.py::test__post_process_embeddings[embeddings3-256-False-expected_shape3]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary0-added_tokens0-expected_output0-expected_warnings0]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary1-added_tokens1-expected_output1-expected_warnings1]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary2-added_tokens2-expected_output2-expected_warnings2]\n#13 9.523 tests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary3-added_tokens3-expected_output3-expected_warnings3]\n#13 9.523 tests/test_model.py::test_initialization\n#13 9.523 tests/test_model.py::test_initialization_token_vector_mismatch\n#13 9.523 tests/test_model.py::test_tokenize\n#13 9.523 tests/test_model.py::test_encode_batch_fast\n#13 9.523 tests/test_model.py::test_encode_single_sentence\n#13 9.523 tests/test_model.py::test_encode_single_sentence_empty\n#13 9.523 tests/test_model.py::test_encode_multiple_sentences\n#13 9.523 tests/test_model.py::test_encode_as_tokens\n#13 9.523 tests/test_model.py::test_encode_as_tokens_empty\n#13 9.523 tests/test_model.py::test_encode_empty_sentence\n#13 9.523 tests/test_model.py::test_normalize\n#13 9.523 tests/test_model.py::test_save_pretrained\n#13 9.523 tests/test_model.py::test_load_pretrained\n#13 9.523 tests/test_model.py::test_initialize_normalize\n#13 9.523 tests/test_model.py::test_set_normalize\n#13 9.523 tests/test_model.py::test_dim\n#13 9.523 tests/test_model.py::test_local_load_from_model\n#13 9.523 tests/test_model.py::test_local_load_from_model_no_folder\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_not_exists\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_mocked_file\n#13 9.523 tests/test_utils.py::test__get_metadata_from_readme_mocked_file_keys\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-True-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-True-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-False-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[cpu-cpu-False-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[clown-clown-False-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cuda-True-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-mps-False-True]\n#13 9.523 tests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\n#13 9.523 tests/test_utils.py::test_importable\n#13 9.523 tests/test_utils.py::test_get_package_extras\n#13 9.523 tests/test_utils.py::test_get_package_extras_empty\n#13 9.523 tests/test_utils.py::test_local_load[config0-expected0]\n#13 9.523 tests/test_utils.py::test_local_load[config1-expected1]\n#13 9.523 tests/test_utils.py::test_local_load[None-expected2]\n#13 9.523 tests/test_utils.py::test_local_load_mismatch\n#13 9.523 \n#13 9.523 62 tests collected in 3.55s\n#13 DONE 10.2s\n\n#14 exporting to image\n#14 exporting layers\n#14 exporting layers 8.1s done\n#14 writing image sha256:58aeddb2c30289c0b1167108fc11e45036780ba1c777aa9992a21e1dc94c1b00\n#14 writing image sha256:58aeddb2c30289c0b1167108fc11e45036780ba1c777aa9992a21e1dc94c1b00 done\n#14 naming to docker.io/library/jayint-repo2run-minishlab__model2vec done\n#14 DONE 8.1s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/jvmpjc5n3vnult0mmhft0b4pj\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "uv run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\nuv run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-minishlab__model2vec",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-minishlab__model2vec sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-16T22:29:30.189645+08:00",
+              "finished_at": "2026-05-16T22:29:34.167654+08:00",
+              "duration_seconds": 3.978,
+              "stdout": "tests/test_distillation.py::test_distill_from_model[None-True-256-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary1-False-4-False]\ntests/test_distillation.py::test_distill_from_model[vocabulary2-True-4-False]\ntests/test_distillation.py::test_distill_from_model[None-True-auto-False]\ntests/test_distillation.py::test_distill_from_model[None-True-1024-False]\ntests/test_distillation.py::test_distill_from_model[None-True-None-True]\ntests/test_distillation.py::test_distill_from_model[vocabulary6-False-4-True]\ntests/test_distillation.py::test_distill_from_model[None-False-256-True]\ntests/test_distillation.py::test_distill[None-True-256-True-expected_shape0]\ntests/test_distillation.py::test_distill[vocabulary1-False-4-False-expected_shape1]\ntests/test_distillation.py::test_distill[None-True-auto-False-expected_shape2]\ntests/test_distillation.py::test_distill[None-True-1024-False-expected_shape3]\ntests/test_distillation.py::test_distill[vocabulary4-True-4-False-expected_shape4]\ntests/test_distillation.py::test_distill[None-True-None-True-expected_shape5]\ntests/test_distillation.py::test_distill[vocabulary6-False-4-True-expected_shape6]\ntests/test_distillation.py::test_distill[None-False-256-True-None]\ntests/test_distillation.py::test_missing_modelinfo\ntests/test_distillation.py::test__post_process_embeddings[embeddings0-256-False-expected_shape0]\ntests/test_distillation.py::test__post_process_embeddings[embeddings1-None-False-expected_shape1]\ntests/test_distillation.py::test__post_process_embeddings[embeddings2-256-True-expected_shape2]\ntests/test_distillation.py::test__post_process_embeddings[embeddings3-256-False-expected_shape3]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary0-added_tokens0-expected_output0-expected_warnings0]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary1-added_tokens1-expected_output1-expected_warnings1]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary2-added_tokens2-expected_output2-expected_warnings2]\ntests/test_distillation.py::test__clean_vocabulary[preprocessed_vocabulary3-added_tokens3-expected_output3-expected_warnings3]\ntests/test_model.py::test_initialization\ntests/test_model.py::test_initialization_token_vector_mismatch\ntests/test_model.py::test_tokenize\ntests/test_model.py::test_encode_batch_fast\ntests/test_model.py::test_encode_single_sentence\ntests/test_model.py::test_encode_single_sentence_empty\ntests/test_model.py::test_encode_multiple_sentences\ntests/test_model.py::test_encode_as_tokens\ntests/test_model.py::test_encode_as_tokens_empty\ntests/test_model.py::test_encode_empty_sentence\ntests/test_model.py::test_normalize\ntests/test_model.py::test_save_pretrained\ntests/test_model.py::test_load_pretrained\ntests/test_model.py::test_initialize_normalize\ntests/test_model.py::test_set_normalize\ntests/test_model.py::test_dim\ntests/test_model.py::test_local_load_from_model\ntests/test_model.py::test_local_load_from_model_no_folder\ntests/test_utils.py::test__get_metadata_from_readme_not_exists\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file\ntests/test_utils.py::test__get_metadata_from_readme_mocked_file_keys\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-True-False]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-True]\ntests/test_utils.py::test_select_optimal_device[cpu-cpu-False-False]\ntests/test_utils.py::test_select_optimal_device[clown-clown-False-False]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-True]\ntests/test_utils.py::test_select_optimal_device[None-cuda-True-False]\ntests/test_utils.py::test_select_optimal_device[None-mps-False-True]\ntests/test_utils.py::test_select_optimal_device[None-cpu-False-False]\ntests/test_utils.py::test_importable\ntests/test_utils.py::test_get_package_extras\ntests/test_utils.py::test_get_package_extras_empty\ntests/test_utils.py::test_local_load[config0-expected0]\ntests/test_utils.py::test_local_load[config1-expected1]\ntests/test_utils.py::test_local_load[None-expected2]\ntests/test_utils.py::test_local_load_mismatch\n\n62 tests collected in 0.87s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-minishlab__model2vec"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-minishlab__model2vec",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-16T22:29:34.171623+08:00",
+    "finished_at": "2026-05-16T22:29:34.194895+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-minishlab__model2vec:latest\nDeleted: sha256:58aeddb2c30289c0b1167108fc11e45036780ba1c777aa9992a21e1dc94c1b00\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "uv run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "uv run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MinishLab__model2vec/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

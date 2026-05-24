@@ -1,0 +1,585 @@
+{
+  "dataset_entry": {
+    "instance_id": "Comfy-Org__comfy-cli",
+    "full_name": "Comfy-Org/comfy-cli",
+    "repo_url": "https://github.com/Comfy-Org/comfy-cli.git",
+    "sha": "7711db",
+    "base_commit": "7711db",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/Comfy-Org/comfy-cli.git",
+      "--base-commit",
+      "7711db",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/Comfy-Org/comfy-cli.git --base-commit 7711db --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T12:12:02.457264+08:00",
+    "finished_at": "2026-05-04T12:16:33.701481+08:00",
+    "duration_seconds": 271.244,
+    "stdout": "Cloning https://github.com/Comfy-Org/comfy-cli.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli...\nClone successful.\nChecked out commit: 7711db\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 15 potentially relevant files\n[ImageSelector]   ✓ .github/workflows/test-mac.yml\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ tests/uv/mock_comfy/pyproject.toml\n[ImageSelector]   ✗ tests/uv/mock_requirements/requirements.compiled\n[ImageSelector]   ✗ .github/workflows/ruff_check.yml\n[ImageSelector]   ✗ pyrightconfig.json\n[ImageSelector]   ✗ tests/uv/mock_comfy/custom_nodes/x/requirements.txt\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ conda.listing.txt\n[ImageSelector]   ✓ tests/uv/mock_requirements/core_reqs.txt\n[ImageSelector]   ✓ .github/workflows/test-windows.yml\n[ImageSelector]   ✓ .github/workflows/build-and-test.yml\n[ImageSelector]   ✓ .github/workflows/pytest.yml\n[ImageSelector]   ✓ DEV_README.md\n[ImageSelector]   ✗ tests/uv/mock_comfy/custom_nodes/x/pyproject.toml\n[ImageSelector] 10 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.9\n[DockerAgent] Selected base image: python:3.9\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/logs/image_selector_logs\nInitializing container from python:3.9...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:ee9ec\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/logs/compression_logs\nStarting agent for repository: https://github.com/Comfy-Org/comfy-cli.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2454, Output: 66, Total: 2520\n\n[Thought]\nLet me start by examining the pyproject.toml to understand the project's dependencies, build system, and test configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: 1e3e0082e7a1]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"setuptools >= 61.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"comfy-cli\"\nlicense = { text = \"GPL-3.0-only\" }\nversion = \"0.0.0\"                                            # Will be filled in by the CI/CD pipeline. Check publish_package.py.\nrequires-python = \">= 3.9\"\ndescription = \"A CLI tool for installing and using ComfyUI.\"\nreadme = \"README.md\"\nkeywords = [\"comfyui\", \"stable diffusion\"]\n\nmaintainers = [\n  { name = \"Yoland Yan\", email = \"yoland@drip.art\" },\n  { name = \"James Kwon\", email = \"hongilkwon316@gmail.com\" },\n  { name = \"Robin Huang\", email = \"robin@drip.art\" },\n  { name = \"Dr.Lt.Data\", email = \"dr.lt.data@gmail.com\" },\n]\n\nclassifiers = [\n  \"Development Status :: 4 - Beta\",\n  \"Intended Audience :: Developers\",\n  \"License :: OSI Approved :: GNU General Public License v3 (GPLv3)\",\n]\n\ndependencies = [\n  \"charset-normalizer>=3.0.0\",\n  \"GitPython\",\n  \"httpx\",\n  \"mixpanel\",\n  \"packaging\",\n  \"pathspec\",\n  \"psutil\",\n  \"pyyaml\",\n  \"questionary\",\n  \"requests\",\n  \"rich\",\n  \"tomlkit\",\n  \"typer>=0.9.0\",\n  \"typing-extensions>=4.7.0\",\n  \"uv\",\n  \"websocket-client\",\n  \"semver~=3.0.2\",\n]\n\n[project.optional-dependencies]\ndev = [\"pre-commit\", \"pytest\", \"ruff\"]\n\n[project.scripts]\ncomfy = \"comfy_cli.__main__:main\"\ncomfy-cli = \"comfy_cli.__main__:main\"\ncomfycli = \"comfy_cli.__main__:main\"\n\n[project.urls]\nRepository = \"https://github.com/drip-art/comfy-cli.git\"\n\n[tool.setuptools.packages.find]\nwhere = [\".\"]\ninclude = [\"comfy_cli*\"]\n\n[tool.ruff]\nline-length = 120\ntarget-version = \"py39\"\n\n[tool.ruff.lint]\nselect = [\n  \"E4\", # default\n  \"E7\", # default\n  \"E9\", # default\n  \"F\",  # default\n  \"I\",  # isort-like behavior (import statement sorting)\n]\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 3029, Output: 101, Total: 3130\n\n[Thought]\nLet me check the test directory structure and look for any additional test configuration files.\n\n[Action]\nfind tests -type f -name \"*.py\" | head -30\n[Container ID: 1e3e0082e7a1]\nExecuting: find tests -type f -name \"*.py\" | head -30\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntests/uv/test_uv.py\ntests/uv/mock_comfy/setup.py\ntests/uv/mock_comfy/custom_nodes/y/setup.py\ntests/uv/mock_comfy/custom_nodes/z/setup.py\ntests/uv/mock_comfy/custom_nodes/x/setup.py\ntests/e2e/test_e2e.py\ntests/comfy_cli/test_install.py\ntests/comfy_cli/registry/test_config_parser.py\ntests/comfy_cli/registry/test_api.py\ntests/comfy_cli/command/test_command.py\ntests/comfy_cli/command/models/test_models.py\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3204, Output: 94, Total: 3298\n\n[Thought]\nLet me check if there's pytest configuration in pyproject.toml and look at the test files to understand what's being tested.\n\n[Action]\ngrep -A 20 \"\\[tool.pytest\" pyproject.toml && cat tests/comfy_cli/test_install.py | head -50\n[Container ID: 1e3e0082e7a1]\nExecuting: grep -A 20 \"\\[tool.pytest\" pyproject.toml && cat tests/comfy_cli/test_install.py | head -50\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3271, Output: 114, Total: 3385\n\n[Thought]\nNo pytest config in pyproject.toml. Let me check the test files and look for any conftest.py files that might contain fixtures.\n\n[Action]\nfind tests -name \"conftest.py\" -o -name \"pytest.ini\" -o -name \"setup.cfg\" 2>/dev/null | xargs cat 2>/dev/null; cat tests/comfy_cli/test_install.py | head -80\n[Container ID: 1e3e0082e7a1]\nExecuting: find tests -name \"conftest.py\" -o -name \"pytest.ini\" -o -name \"setup.cfg\" 2>/dev/null | xargs cat 2>/dev/null; cat tests/comfy_cli/test_install.py | head -80\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nfrom typing import Dict, List\nfrom unittest.mock import MagicMock, patch\n\nimport pytest\nimport requests\nimport semver\n\nfrom comfy_cli.command.install import (\n    GithubRelease,\n    fetch_github_releases,\n    parse_releases,\n    select_version,\n    validate_version,\n)\n\n\ndef test_validate_version_nightly():\n    assert validate_version(\"nightly\") == \"nightly\"\n    assert validate_version(\"NIGHTLY\") == \"nightly\"\n\n\ndef test_validate_version_latest():\n    assert validate_version(\"latest\") == \"latest\"\n    assert validate_version(\"LATEST\") == \"latest\"\n\n\ndef test_validate_version_valid_semver():\n    assert validate_version(\"1.2.3\") == \"1.2.3\"\n    assert validate_version(\"v1.2.3\") == \"1.2.3\"\n    assert validate_version(\"1.2.3-alpha\") == \"1.2.3-alpha\"\n\n\ndef test_validate_version_invalid():\n    with pytest.raises(ValueError):\n        validate_version(\"invalid_version\")\n\n\ndef test_validate_version_empty():\n    with pytest.raises(ValueError):\n        validate_version(\"\")\n\n\n# Tests for fetch_github_releases function\n@patch(\"requests.get\")\ndef test_fetch_releases_success(mock_get):\n    # Mock the response\n    mock_response = MagicMock()\n    mock_response.json.return_value = [{\"id\": 1, \"tag_name\": \"v1.0.0\"}, {\"id\": 2, \"tag_name\": \"v1.1.0\"}]\n    mock_get.return_value = mock_response\n\n    releases = fetch_github_releases(\"owner\", \"repo\")\n\n    assert len(releases) == 2\n    assert releases[0][\"tag_name\"] == \"v1.0.0\"\n    assert releases[1][\"tag_name\"] == \"v1.1.0\"\n    mock_get.assert_called_once_with(\"https://api.github.com/repos/owner/repo/releases\", headers={}, timeout=5)\n\n\n@patch(\"requests.get\")\ndef test_fetch_releases_empty(mock_get):\n    # Mock an empty response\n    mock_response = MagicMock()\n    mock_response.json.return_value = []\n    mock_get.return_value = mock_response\n\n    releases = fetch_github_releases(\"owner\", \"repo\")\n\n    assert len(releases) == 0\n\n\n@patch(\"requests.get\")\ndef test_fetch_releases_error(mock_get):\n    # Mock a request exception\n    mock_get.side_effect = requests.RequestException(\"API error\")\n\n    with pytest.raises(requests.RequestException):\n        fetch_github_releases(\"owner\", \"repo\")\n\n\ndef test_parse_releases_with_semver():\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3908, Output: 134, Total: 4042\n\n[Thought]\nNow I understand the project structure. Let me install the package in editable mode with dev dependencies and then run pytest collection.\n\n[Action]\npip install -e \".[dev]\"\n[Container ID: 1e3e0082e7a1]\nExecuting: pip install -e \".[dev]\"\nCommand succeeded.\n[Snapshot Created] sha256:55fd2\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting requests\n  Downloading requests-2.32.5-py3-none-any.whl (64 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.7/64.7 kB 661.5 kB/s eta 0:00:00\nCollecting uv\n  Downloading uv-0.11.8-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.8/24.8 MB 6.8 MB/s eta 0:00:00\nCollecting typer>=0.9.0\n  Downloading typer-0.23.2-py3-none-any.whl (56 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.8/56.8 kB 6.2 MB/s eta 0:00:00\nCollecting charset-normalizer>=3.0.0\n  Downloading charset_normalizer-3.4.7-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (208 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 208.4/208.4 kB 4.5 MB/s eta 0:00:00\nCollecting tomlkit\n  Downloading tomlkit-0.14.0-py3-none-any.whl (39 kB)\nCollecting rich\n  Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 5.5 MB/s eta 0:00:00\nCollecting mixpanel\n  Downloading mixpanel-5.1.0-py3-none-any.whl (24 kB)\nCollecting typing-extensions>=4.7.0\n  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 4.5 MB/s eta 0:00:00\nCollecting GitPython\n  Downloading gitpython-3.1.49-py3-none-any.whl (212 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 212.2/212.2 kB 5.2 MB/s eta 0:00:00\nCollecting websocket-client\n  Downloading websocket_client-1.9.0-py3-none-any.whl (82 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 82.6/82.6 kB 5.4 MB/s eta 0:00:00\nCollecting packaging\n  Downloading packaging-26.2-py3-none-any.whl (100 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 5.7 MB/s eta 0:00:00\nCollecting psutil\n  Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 4.7 MB/s eta 0:00:00\nCollecting pyyaml\n  Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 5.8 MB/s eta 0:00:00\nCollecting questionary\n  Downloading questionary-2.1.1-py3-none-any.whl (36 kB)\nCollecting semver~=3.0.2\n  Downloading semver-3.0.4-py3-none-any.whl (17 kB)\nCollecting pathspec\n  Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.3/57.3 kB 7.2 MB/s eta 0:00:00\nCollecting httpx\n  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 3.8 MB/s eta 0:00:00\nCollecting ruff\n  Downloading ruff-0.15.12-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 6.1 MB/s eta 0:00:00\nCollecting pre-commit\n  Downloading pre_commit-4.3.0-py2.py3-none-any.whl (220 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 221.0/221.0 kB 7.2 MB/s eta 0:00:00\nCollecting pytest\n  Downloading pytest-8.4.2-py3-none-any.whl (365 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 365.8/365.8 kB 6.8 MB/s eta 0:00:00\nCollecting click>=8.0.0\n  Downloading click-8.1.8-py3-none-any.whl (98 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.2/98.2 kB 5.6 MB/s eta 0:00:00\nCollecting shellingham>=1.3.0\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting annotated-doc>=0.0.2\n  Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nCollecting pygments<3.0.0,>=2.13.0\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 7.5 MB/s eta 0:00:00\nCollecting markdown-it-py>=2.2.0\n  Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.5/87.5 kB 11.2 MB/s eta 0:00:00\nCollecting gitdb<5,>=4.0.1\n  Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.8/62.8 kB 3.1 MB/s eta 0:00:00\nCollecting certifi\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 7.6 MB/s eta 0:00:00\nCollecting anyio\n  Downloading anyio-4.12.1-py3-none-any.whl (113 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 113.6/113.6 kB 5.9 MB/s eta 0:00:00\nCollecting httpcore==1.*\n  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 3.9 MB/s eta 0:00:00\nCollecting idna\n  Downloading idna-3.13-py3-none-any.whl (68 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 9.2 MB/s eta 0:00:00\nCollecting h11>=0.16\n  Downloading h11-0.16.0-py3-none-any.whl (37 kB)\nCollecting pydantic>=2.0.0\n  Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 8.3 MB/s eta 0:00:00\nCollecting json-logic==0.7.0a0\n  Downloading json_logic-0.7.0a0-py2.py3-none-any.whl (7.6 kB)\nCollecting asgiref>=3.0.0\n  Downloading asgiref-3.11.1-py3-none-any.whl (24 kB)\nCollecting six\n  Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nCollecting urllib3<3,>=1.21.1\n  Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 4.4 MB/s eta 0:00:00\nCollecting nodeenv>=0.11.1\n  Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\nCollecting virtualenv>=20.10.0\n  Downloading virtualenv-21.3.0-py3-none-any.whl (7.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.8 MB/s eta 0:00:00\nCollecting cfgv>=2.0.0\n  Downloading cfgv-3.4.0-py2.py3-none-any.whl (7.2 kB)\nCollecting identify>=1.0.0\n  Downloading identify-2.6.15-py2.py3-none-any.whl (99 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.2/99.2 kB 8.3 MB/s eta 0:00:00\nCollecting iniconfig>=1\n  Downloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)\nCollecting pluggy<2,>=1.5\n  Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting tomli>=1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting exceptiongroup>=1\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting prompt_toolkit<4.0,>=2.0\n  Downloading prompt_toolkit-3.0.52-py3-none-any.whl (391 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 391.4/391.4 kB 8.9 MB/s eta 0:00:00\nCollecting smmap<6,>=3.0.1\n  Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\nCollecting mdurl~=0.1\n  Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nCollecting wcwidth\n  Downloading wcwidth-0.7.0-py3-none-any.whl (110 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.8/110.8 kB 13.6 MB/s eta 0:00:00\nCollecting typing-inspection>=0.4.2\n  Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nCollecting pydantic-core==2.46.3\n  Downloading pydantic_core-2.46.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.4 MB/s eta 0:00:00\nCollecting annotated-types>=0.6.0\n  Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nCollecting platformdirs<5,>=3.9.1\n  Downloading platformdirs-4.4.0-py3-none-any.whl (18 kB)\nCollecting filelock<=3.19.1,>=3.16.1\n  Downloading filelock-3.19.1-py3-none-any.whl (15 kB)\nCollecting python-discovery>=1.2.2\n  Downloading python_discovery-1.2.2-py3-none-any.whl (31 kB)\nCollecting distlib<1,>=0.3.7\n  Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 14.6 MB/s eta 0:00:00\nBuilding wheels for collected packages: comfy-cli\n  Building editable for comfy-cli (pyproject.toml): started\n  Building editable for comfy-cli (pyproject.toml): finished with status 'done'\n  Created wheel for comfy-cli: filename=comfy_cli-0.0.0-0.editable-py3-none-any.whl size=19443 sha256=1d9b5c94d4c0d4d3b2f483aa24e35573fc3bc0edebedf839cfc83cbcf44fd546\n  Stored in directory: /tmp/pip-ephem-wheel-cache-lf4hv3o7/wheels/48/5b/9e/815b53f5a8df8525f516b542a370cd64ff3531d89e06062b64\nSuccessfully built comfy-cli\nInstalling collected packages: distlib, websocket-client, wcwidth, uv, urllib3, typing-extensions, tomlkit, tomli, smmap, six, shellingham, semver, ruff, pyyaml, pygments, psutil, pluggy, platformdirs, pathspec, packaging, nodeenv, mdurl, iniconfig, idna, identify, h11, filelock, click, charset-normalizer, cfgv, certifi, annotated-types, annotated-doc, typing-inspection, requests, python-discovery, pydantic-core, prompt_toolkit, markdown-it-py, json-logic, httpcore, gitdb, exceptiongroup, asgiref, virtualenv, rich, questionary, pytest, pydantic, GitPython, anyio, typer, pre-commit, httpx, mixpanel, comfy-cli\nSuccessfully installed GitPython-3.1.49 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.12.1 asgiref-3.11.1 certifi-2026.4.22 cfgv-3.4.0 charset-normalizer-3.4.7 click-8.1.8 comfy-cli-0.0.0 distlib-0.4.0 exceptiongroup-1.3.1 filelock-3.19.1 gitdb-4.0.12 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 identify-2.6.15 idna-3.13 iniconfig-2.1.0 json-logic-0.7.0a0 markdown-it-py-3.0.0 mdurl-0.1.2 mixpanel-5.1.0 nodeenv-1.10.0 packaging-26.2 pathspec-1.1.1 platformdirs-4.4.0 pluggy-1.6.0 pre-commit-4.3.0 prompt_toolkit-3.0.52 psutil-7.2.2 pydantic-2.13.3 pydantic-core-2.46.3 pygments-2.20.0 pytest-8.4.2 python-discovery-1.2.2 pyyaml-6.0.3 questionary-2.1.1 requests-2.32.5 rich-15.0.0 ruff-0.15.12 semver-3.0.4 shellingham-1.5.4 six-1.17.0 smmap-5.0.3 tomli-2.4.1 tomlkit-0.14.0 typer-0.23.2 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 uv-0.11.8 virtualenv-21.3.0 wcwidth-0.7.0 websocket-client-1.9.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 7809, Output: 66, Total: 7875\n\n[Thought]\nThe package was installed successfully with all dependencies. Now let me run pytest collection to verify that the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 1e3e0082e7a1]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:5b93d\n\n[Observation]\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_version\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_query\ntests/comfy_cli/command/models/test_models.py::test_valid_api_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_query_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_sd_audio\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_folder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_subfolder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_encoded_filename\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url_structure\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_com_domain\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_folder_structure\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_save\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_reset\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_existing_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_nonexistent_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states_no_active_nodes\ntests/comfy_cli/command/test_command.py::test_install_here[cmd0]\ntests/comfy_cli/command/test_command.py::test_install_here[cmd1]\ntests/comfy_cli/command/test_command.py::test_version\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_dev\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_prod\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text_dict\ntests/comfy_cli/registry/test_config_parser.py::test_extract_license_incorrect_format\ntests/comfy_cli/test_install.py::test_validate_version_nightly\ntests/comfy_cli/test_install.py::test_validate_version_latest\ntests/comfy_cli/test_install.py::test_validate_version_valid_semver\ntests/comfy_cli/test_install.py::test_validate_version_invalid\ntests/comfy_cli/test_install.py::test_validate_version_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_success\ntests/comfy_cli/test_install.py::test_fetch_releases_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_error\ntests/comfy_cli/test_install.py::test_parse_releases_with_semver\ntests/comfy_cli/test_install.py::test_parse_releases_with_special_tags\ntests/comfy_cli/test_install.py::test_parse_releases_mixed\ntests/comfy_cli/test_install.py::test_parse_releases_empty_list\ntests/comfy_cli/test_install.py::test_parse_releases_invalid_semver\ntests/comfy_cli/test_install.py::test_select_version_latest\ntests/comfy_cli/test_install.py::test_select_version_specific\ntests/comfy_cli/test_install.py::test_select_version_with_v_prefix\ntests/comfy_cli/test_install.py::test_select_version_nonexistent\ntests/comfy_cli/test_install.py::test_select_version_invalid\ntests/comfy_cli/test_install.py::test_select_version_case_insensitive_latest\ntests/comfy_cli/test_install.py::test_select_version_nightly\ntests/comfy_cli/test_install.py::test_select_version_empty_list\ntests/e2e/test_e2e.py::test_model\ntests/e2e/test_e2e.py::test_node\ntests/e2e/test_e2e.py::test_run\ntests/uv/test_uv.py::test_find_req_files\ntests/uv/test_uv.py::test_compile\n\n67 tests collected in 0.51s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 9035, Output: 128, Total: 9163\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful. All 67 tests were collected without any errors or warnings. The environment is properly configured with:\n1. The package installed in editable mode with all dependencies\n2. pytest and dev dependencies installed\n3. All tests can be collected successfully\n\nLet me provide the final verification bundle.\n</think>\n\nThought: Pytest collection succeeded with 67 tests collected. The repository is properly set up with all dependencies installed in editable mode and tests are discoverable.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/Comfy-Org__comfy-cli.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/Comfy-Org/comfy-cli.git",
+    "configuration_success": true,
+    "base_image": "python:3.9",
+    "platform_override": null,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"setuptools >= 61.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"comfy-cli\"\nlicense = { text = \"GPL-3.0-only\" }\nversion = \"0.0.0\"                                            # Will be filled in by the CI/CD pipeline. Check publish_package.py.\nrequires-python = \">= 3.9\"\ndescription = \"A CLI tool for installing and using ComfyUI.\"\nreadme = \"README.md\"\nkeywords = [\"comfyui\", \"stable diffusion\"]\n\nmaintainers = [\n  { name = \"Yoland Yan\", email = \"yoland@drip.art\" },\n  { name = \"James Kwon\", email = \"hongilkwon316@gmail.com\" },\n  { name = \"Robin Huang\", emai\n... (502 chars omitted for recipe synthesis) ...\nwebsocket-client\",\n  \"semver~=3.0.2\",\n]\n\n[project.optional-dependencies]\ndev = [\"pre-commit\", \"pytest\", \"ruff\"]\n\n[project.scripts]\ncomfy = \"comfy_cli.__main__:main\"\ncomfy-cli = \"comfy_cli.__main__:main\"\ncomfycli = \"comfy_cli.__main__:main\"\n\n[project.urls]\nRepository = \"https://github.com/drip-art/comfy-cli.git\"\n\n[tool.setuptools.packages.find]\nwhere = [\".\"]\ninclude = [\"comfy_cli*\"]\n\n[tool.ruff]\nline-length = 120\ntarget-version = \"py39\"\n\n[tool.ruff.lint]\nselect = [\n  \"E4\", # default\n  \"E7\", # default\n  \"E9\", # default\n  \"F\",  # default\n  \"I\",  # isort-like behavior (import statement sorting)\n]\n"
+      },
+      {
+        "step_index": 2,
+        "command": "find tests -type f -name \"*.py\" | head -30",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/uv/test_uv.py\ntests/uv/mock_comfy/setup.py\ntests/uv/mock_comfy/custom_nodes/y/setup.py\ntests/uv/mock_comfy/custom_nodes/z/setup.py\ntests/uv/mock_comfy/custom_nodes/x/setup.py\ntests/e2e/test_e2e.py\ntests/comfy_cli/test_install.py\ntests/comfy_cli/registry/test_config_parser.py\ntests/comfy_cli/registry/test_api.py\ntests/comfy_cli/command/test_command.py\ntests/comfy_cli/command/models/test_models.py\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py\n"
+      },
+      {
+        "step_index": 4,
+        "command": "find tests -name \"conftest.py\" -o -name \"pytest.ini\" -o -name \"setup.cfg\" 2>/dev/null | xargs cat 2>/dev/null; cat tests/comfy_cli/test_install.py | head -80",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "from typing import Dict, List\nfrom unittest.mock import MagicMock, patch\n\nimport pytest\nimport requests\nimport semver\n\nfrom comfy_cli.command.install import (\n    GithubRelease,\n    fetch_github_releases,\n    parse_releases,\n    select_version,\n    validate_version,\n)\n\n\ndef test_validate_version_nightly():\n    assert validate_version(\"nightly\") == \"nightly\"\n    assert validate_version(\"NIGHTLY\") == \"nightly\"\n\n\ndef test_validate_version_latest():\n    assert validate_version(\"latest\") == \"latest\"\n    assert validate_version(\"LATEST\") == \"latest\"\n\n\ndef test_validate_version_valid_semver():\n    as\n... (977 chars omitted for recipe synthesis) ...\n\n\n\n@patch(\"requests.get\")\ndef test_fetch_releases_empty(mock_get):\n    # Mock an empty response\n    mock_response = MagicMock()\n    mock_response.json.return_value = []\n    mock_get.return_value = mock_response\n\n    releases = fetch_github_releases(\"owner\", \"repo\")\n\n    assert len(releases) == 0\n\n\n@patch(\"requests.get\")\ndef test_fetch_releases_error(mock_get):\n    # Mock a request exception\n    mock_get.side_effect = requests.RequestException(\"API error\")\n\n    with pytest.raises(requests.RequestException):\n        fetch_github_releases(\"owner\", \"repo\")\n\n\ndef test_parse_releases_with_semver():\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e \".[dev]\"",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting requests\n  Downloading requests-2.32.5-py3-none-any.whl (64 kB)\n     ━━\n... (9046 chars omitted for recipe synthesis) ...\n1 requests-2.32.5 rich-15.0.0 ruff-0.15.12 semver-3.0.4 shellingham-1.5.4 six-1.17.0 smmap-5.0.3 tomli-2.4.1 tomlkit-0.14.0 typer-0.23.2 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 uv-0.11.8 virtualenv-21.3.0 wcwidth-0.7.0 websocket-client-1.9.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/comfy_cli/command/models/test_models.py::test_valid_model_url\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_version\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_query\ntests/comfy_cli/command/models/test_models.py::test_valid_api_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_query_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url\ntests/comfy_cli/command/models\n... (3633 chars omitted for recipe synthesis) ...\nc\ntests/comfy_cli/test_install.py::test_select_version_with_v_prefix\ntests/comfy_cli/test_install.py::test_select_version_nonexistent\ntests/comfy_cli/test_install.py::test_select_version_invalid\ntests/comfy_cli/test_install.py::test_select_version_case_insensitive_latest\ntests/comfy_cli/test_install.py::test_select_version_nightly\ntests/comfy_cli/test_install.py::test_select_version_empty_list\ntests/e2e/test_e2e.py::test_model\ntests/e2e/test_e2e.py::test_node\ntests/e2e/test_e2e.py::test_run\ntests/uv/test_uv.py::test_find_req_files\ntests/uv/test_uv.py::test_compile\n\n67 tests collected in 0.51s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 3,
+        "command": "grep -A 20 \"\\[tool.pytest\" pyproject.toml && cat tests/comfy_cli/test_install.py | head -50",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e \".[dev]\""
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat pyproject.toml (read-only inspection, step 1)",
+          "reason": ""
+        },
+        {
+          "command": "find tests -type f -name \"*.py\" | head -30 (read-only inspection, step 2)",
+          "reason": ""
+        },
+        {
+          "command": "grep -A 20 \"[tool.pytest\" pyproject.toml && cat tests/comfy_cli/test_install.py | head -50 (failed read-only grep, step 3)",
+          "reason": ""
+        },
+        {
+          "command": "find tests -name \"conftest.py\" -o -name \"pytest.ini\" -o -name \"setup.cfg\" 2>/dev/null | xargs cat 2>/dev/null; cat tests/comfy_cli/test_install.py | head -80 (read-only inspection, step 4)",
+          "reason": ""
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings (test command, not a build step)",
+          "reason": ""
+        }
+      ],
+      "rationale": "The only persistent state-changing command in the successful trajectory was 'pip install -e \".[dev]\"' which installs the comfy-cli package in editable mode along with all production dependencies (httpx, mixpanel, uv, typer, semver, etc.) and dev dependencies (pytest, ruff, pre-commit). The steps 1-4 were read-only inspection commands that explored project structure, dependencies, and test configuration. Step 5 was the successful editable install that made the package and its test dependencies available. Step 6 was the final verification test command which belongs in test_commands, not build_commands. No runtime_preparation_commands are needed since pip install -e is persistent across image builds.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 2,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1702,
+        "raw_tokens_est": 425,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 273,
+        "reflect_input_tokens": 1328,
+        "reflect_output_tokens": 422
+      },
+      {
+        "step_id": 2,
+        "action": "find tests -type f -name \"*.py\" | head -30",
+        "success": true,
+        "raw_chars": 463,
+        "raw_tokens_est": 115,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "grep -A 20 \"\\[tool.pytest\" pyproject.toml && cat tests/comfy_cli/test_install.py | head -50",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "find tests -name \"conftest.py\" -o -name \"pytest.ini\" -o -name \"setup.cfg\" 2>/dev/null | xargs cat 2>/dev/null; cat tests/comfy_cli/test_install.py | head -80",
+        "success": true,
+        "raw_chars": 2177,
+        "raw_tokens_est": 544,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 245,
+        "reflect_input_tokens": 6307,
+        "reflect_output_tokens": 702
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e \".[dev]\"",
+        "success": true,
+        "raw_chars": 10246,
+        "raw_tokens_est": 2561,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 4833,
+        "raw_tokens_est": 1208,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 42778,
+        "output_tokens": 7615,
+        "total_tokens": 50393
+      },
+      "planner": {
+        "input_tokens": 32710,
+        "output_tokens": 703,
+        "total_tokens": 33413
+      },
+      "reflection": {
+        "input_tokens": 7635,
+        "output_tokens": 1124,
+        "total_tokens": 8759
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 8294,
+        "output_tokens": 1486,
+        "total_tokens": 9780
+      },
+      "total": {
+        "input_tokens": 91417,
+        "output_tokens": 10928,
+        "total_tokens": 102345
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-comfy-org__comfy-cli",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval -t jayint-repo2run-comfy-org__comfy-cli /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T12:16:33.712806+08:00",
+    "finished_at": "2026-05-04T12:17:24.114592+08:00",
+    "duration_seconds": 50.402,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.9\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.9\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 11.26MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.0s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \".[dev]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.515 Obtaining file:///app\n#10 0.519   Installing build dependencies: started\n#10 25.95   Installing build dependencies: finished with status 'done'\n#10 25.95   Checking if build backend supports build_editable: started\n#10 26.14   Checking if build backend supports build_editable: finished with status 'done'\n#10 26.14   Getting requirements to build editable: started\n#10 26.35   Getting requirements to build editable: finished with status 'done'\n#10 26.35   Preparing editable metadata (pyproject.toml): started\n#10 26.55   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 26.57 Requirement already satisfied: packaging in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (26.1)\n#10 27.47 Collecting psutil\n#10 27.89   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#10 28.18      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 759.7 kB/s eta 0:00:00\n#10 28.38 Collecting typer>=0.9.0\n#10 28.49   Downloading typer-0.23.2-py3-none-any.whl (56 kB)\n#10 28.50      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.8/56.8 kB 4.3 MB/s eta 0:00:00\n#10 29.35 Collecting uv\n#10 29.46   Downloading uv-0.11.8-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.8 MB)\n#10 33.38      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.8/24.8 MB 6.2 MB/s eta 0:00:00\n#10 33.61 Collecting semver~=3.0.2\n#10 33.71   Downloading semver-3.0.4-py3-none-any.whl (17 kB)\n#10 33.96 Collecting rich\n#10 34.06   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 34.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 6.6 MB/s eta 0:00:00\n#10 34.29 Collecting websocket-client\n#10 34.41   Downloading websocket_client-1.9.0-py3-none-any.whl (82 kB)\n#10 34.42      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 82.6/82.6 kB 96.9 MB/s eta 0:00:00\n#10 34.43 Requirement already satisfied: typing-extensions>=4.7.0 in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (4.15.0)\n#10 34.43 Requirement already satisfied: charset-normalizer>=3.0.0 in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (3.4.7)\n#10 34.43 Requirement already satisfied: requests in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (2.32.5)\n#10 34.60 Collecting pathspec\n#10 34.70   Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)\n#10 34.71      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.3/57.3 kB 17.9 MB/s eta 0:00:00\n#10 34.88 Collecting mixpanel\n#10 34.98   Downloading mixpanel-5.1.0-py3-none-any.whl (24 kB)\n#10 35.14 Collecting questionary\n#10 35.25   Downloading questionary-2.1.1-py3-none-any.whl (36 kB)\n#10 35.26 Requirement already satisfied: httpx in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (0.28.1)\n#10 35.26 Requirement already satisfied: tomlkit in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (0.14.0)\n#10 35.48 Collecting pyyaml\n#10 35.58   Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n#10 35.69      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 7.3 MB/s eta 0:00:00\n#10 35.88 Collecting GitPython\n#10 35.98   Downloading gitpython-3.1.49-py3-none-any.whl (212 kB)\n#10 36.01      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 212.2/212.2 kB 7.9 MB/s eta 0:00:00\n#10 36.02 Requirement already satisfied: pytest in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (8.4.2)\n#10 37.01 Collecting ruff\n#10 37.13   Downloading ruff-0.15.12-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.3 MB)\n#10 38.85      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 6.5 MB/s eta 0:00:00\n#10 39.11 Collecting pre-commit\n#10 39.21   Downloading pre_commit-4.3.0-py2.py3-none-any.whl (220 kB)\n#10 39.24      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 221.0/221.0 kB 7.7 MB/s eta 0:00:00\n#10 39.42 Collecting annotated-doc>=0.0.2\n#10 39.53   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 39.54 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.9/site-packages (from typer>=0.9.0->comfy-cli==0.0.0) (1.5.4)\n#10 39.72 Collecting click>=8.0.0\n#10 39.83   Downloading click-8.1.8-py3-none-any.whl (98 kB)\n#10 39.85      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.2/98.2 kB 6.3 MB/s eta 0:00:00\n#10 40.03 Collecting markdown-it-py>=2.2.0\n#10 40.13   Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)\n#10 40.14      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.5/87.5 kB 49.7 MB/s eta 0:00:00\n#10 40.15 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.9/site-packages (from rich->comfy-cli==0.0.0) (2.20.0)\n#10 40.32 Collecting gitdb<5,>=4.0.1\n#10 40.43   Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#10 40.44      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.8/62.8 kB 39.6 MB/s eta 0:00:00\n#10 40.46 Requirement already satisfied: certifi in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (2026.4.22)\n#10 40.46 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (1.0.9)\n#10 40.46 Requirement already satisfied: idna in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (3.13)\n#10 40.46 Requirement already satisfied: anyio in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (4.12.1)\n#10 40.47 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.9/site-packages (from httpcore==1.*->httpx->comfy-cli==0.0.0) (0.16.0)\n#10 40.63 Collecting json-logic==0.7.0a0\n#10 40.74   Downloading json_logic-0.7.0a0-py2.py3-none-any.whl (7.6 kB)\n#10 40.92 Collecting asgiref>=3.0.0\n#10 41.02   Downloading asgiref-3.11.1-py3-none-any.whl (24 kB)\n#10 41.45 Collecting pydantic>=2.0.0\n#10 41.55   Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#10 41.62      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 7.7 MB/s eta 0:00:00\n#10 42.02 Collecting six\n#10 42.14   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#10 42.15 Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.9/site-packages (from requests->comfy-cli==0.0.0) (2.6.3)\n#10 42.32 Collecting cfgv>=2.0.0\n#10 42.42   Downloading cfgv-3.4.0-py2.py3-none-any.whl (7.2 kB)\n#10 42.43 Requirement already satisfied: virtualenv>=20.10.0 in /usr/local/lib/python3.9/site-packages (from pre-commit->comfy-cli==0.0.0) (21.2.4)\n#10 42.60 Collecting nodeenv>=0.11.1\n#10 42.71   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 42.95 Collecting identify>=1.0.0\n#10 43.05   Downloading identify-2.6.15-py2.py3-none-any.whl (99 kB)\n#10 43.07      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.2/99.2 kB 4.9 MB/s eta 0:00:00\n#10 43.12 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (2.4.1)\n#10 43.12 Requirement already satisfied: iniconfig>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (2.1.0)\n#10 43.12 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (1.3.1)\n#10 43.12 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (1.6.0)\n#10 43.31 Collecting prompt_toolkit<4.0,>=2.0\n#10 43.41   Downloading prompt_toolkit-3.0.52-py3-none-any.whl (391 kB)\n#10 43.46      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 391.4/391.4 kB 7.6 MB/s eta 0:00:00\n#10 43.66 Collecting smmap<6,>=3.0.1\n#10 43.77   Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#10 43.97 Collecting mdurl~=0.1\n#10 44.08   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 44.27 Collecting wcwidth\n#10 44.38   Downloading wcwidth-0.7.0-py3-none-any.whl (110 kB)\n#10 44.40      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.8/110.8 kB 7.8 MB/s eta 0:00:00\n#10 44.86 Collecting typing-inspection>=0.4.2\n#10 44.99   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 46.78 Collecting pydantic-core==2.46.3\n#10 46.89   Downloading pydantic_core-2.46.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 47.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 9.6 MB/s eta 0:00:00\n#10 47.28 Collecting annotated-types>=0.6.0\n#10 47.40   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 47.44 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (4.4.0)\n#10 47.44 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (0.4.0)\n#10 47.44 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (1.2.2)\n#10 47.44 Requirement already satisfied: filelock<=3.19.1,>=3.16.1 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (3.19.1)\n#10 47.50 Building wheels for collected packages: comfy-cli\n#10 47.50   Building editable for comfy-cli (pyproject.toml): started\n#10 47.72   Building editable for comfy-cli (pyproject.toml): finished with status 'done'\n#10 47.72   Created wheel for comfy-cli: filename=comfy_cli-0.0.0-0.editable-py3-none-any.whl size=19443 sha256=26eec4057b1bb980aa4da7b6a2ffc42bf33bc5217197d8e2445c04c32f54a803\n#10 47.72   Stored in directory: /tmp/pip-ephem-wheel-cache-6lntpfc5/wheels/48/5b/9e/815b53f5a8df8525f516b542a370cd64ff3531d89e06062b64\n#10 47.72 Successfully built comfy-cli\n#10 47.97 Installing collected packages: websocket-client, wcwidth, uv, typing-inspection, smmap, six, semver, ruff, pyyaml, pydantic-core, psutil, pathspec, nodeenv, mdurl, identify, click, cfgv, asgiref, annotated-types, annotated-doc, pydantic, prompt_toolkit, markdown-it-py, json-logic, gitdb, rich, questionary, pre-commit, GitPython, typer, mixpanel, comfy-cli\n#10 49.20 Successfully installed GitPython-3.1.49 annotated-doc-0.0.4 annotated-types-0.7.0 asgiref-3.11.1 cfgv-3.4.0 click-8.1.8 comfy-cli-0.0.0 gitdb-4.0.12 identify-2.6.15 json-logic-0.7.0a0 markdown-it-py-3.0.0 mdurl-0.1.2 mixpanel-5.1.0 nodeenv-1.10.0 pathspec-1.1.1 pre-commit-4.3.0 prompt_toolkit-3.0.52 psutil-7.2.2 pydantic-2.13.3 pydantic-core-2.46.3 pyyaml-6.0.3 questionary-2.1.1 rich-15.0.0 ruff-0.15.12 semver-3.0.4 six-1.17.0 smmap-5.0.3 typer-0.23.2 typing-inspection-0.4.2 uv-0.11.8 wcwidth-0.7.0 websocket-client-1.9.0\n#10 49.20 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 49.5s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.2s done\n#11 writing image sha256:10d32956a8f7b5e0729f7b518a71375ba819ef52de811add94a08302308e9384\n#11 writing image sha256:10d32956a8f7b5e0729f7b518a71375ba819ef52de811add94a08302308e9384 done\n#11 naming to docker.io/library/jayint-repo2run-comfy-org__comfy-cli done\n#11 DONE 0.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/vpbkg7ieqk9g4z7686wdqz9k8\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-comfy-org__comfy-cli",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-comfy-org__comfy-cli sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-04T12:17:24.119287+08:00",
+          "finished_at": "2026-05-04T12:17:25.414247+08:00",
+          "duration_seconds": 1.295,
+          "stdout": "tests/comfy_cli/command/models/test_models.py::test_valid_model_url\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_version\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_query\ntests/comfy_cli/command/models/test_models.py::test_valid_api_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_query_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_sd_audio\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_folder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_subfolder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_encoded_filename\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url_structure\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_com_domain\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_folder_structure\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_save\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_reset\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_existing_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_nonexistent_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states_no_active_nodes\ntests/comfy_cli/command/test_command.py::test_install_here[cmd0]\ntests/comfy_cli/command/test_command.py::test_install_here[cmd1]\ntests/comfy_cli/command/test_command.py::test_version\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_dev\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_prod\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text_dict\ntests/comfy_cli/registry/test_config_parser.py::test_extract_license_incorrect_format\ntests/comfy_cli/test_install.py::test_validate_version_nightly\ntests/comfy_cli/test_install.py::test_validate_version_latest\ntests/comfy_cli/test_install.py::test_validate_version_valid_semver\ntests/comfy_cli/test_install.py::test_validate_version_invalid\ntests/comfy_cli/test_install.py::test_validate_version_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_success\ntests/comfy_cli/test_install.py::test_fetch_releases_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_error\ntests/comfy_cli/test_install.py::test_parse_releases_with_semver\ntests/comfy_cli/test_install.py::test_parse_releases_with_special_tags\ntests/comfy_cli/test_install.py::test_parse_releases_mixed\ntests/comfy_cli/test_install.py::test_parse_releases_empty_list\ntests/comfy_cli/test_install.py::test_parse_releases_invalid_semver\ntests/comfy_cli/test_install.py::test_select_version_latest\ntests/comfy_cli/test_install.py::test_select_version_specific\ntests/comfy_cli/test_install.py::test_select_version_with_v_prefix\ntests/comfy_cli/test_install.py::test_select_version_nonexistent\ntests/comfy_cli/test_install.py::test_select_version_invalid\ntests/comfy_cli/test_install.py::test_select_version_case_insensitive_latest\ntests/comfy_cli/test_install.py::test_select_version_nightly\ntests/comfy_cli/test_install.py::test_select_version_empty_list\ntests/e2e/test_e2e.py::test_model\ntests/e2e/test_e2e.py::test_node\ntests/e2e/test_e2e.py::test_run\ntests/uv/test_uv.py::test_find_req_files\ntests/uv/test_uv.py::test_compile\n\n67 tests collected in 0.50s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-comfy-org__comfy-cli",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/Dockerfile.eval -t jayint-repo2run-comfy-org__comfy-cli /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Comfy-Org__comfy-cli",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-04T12:16:33.712806+08:00",
+        "finished_at": "2026-05-04T12:17:24.114592+08:00",
+        "duration_seconds": 50.402,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.9\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.9\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 11.26MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.0s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \".[dev]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.515 Obtaining file:///app\n#10 0.519   Installing build dependencies: started\n#10 25.95   Installing build dependencies: finished with status 'done'\n#10 25.95   Checking if build backend supports build_editable: started\n#10 26.14   Checking if build backend supports build_editable: finished with status 'done'\n#10 26.14   Getting requirements to build editable: started\n#10 26.35   Getting requirements to build editable: finished with status 'done'\n#10 26.35   Preparing editable metadata (pyproject.toml): started\n#10 26.55   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 26.57 Requirement already satisfied: packaging in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (26.1)\n#10 27.47 Collecting psutil\n#10 27.89   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#10 28.18      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 759.7 kB/s eta 0:00:00\n#10 28.38 Collecting typer>=0.9.0\n#10 28.49   Downloading typer-0.23.2-py3-none-any.whl (56 kB)\n#10 28.50      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.8/56.8 kB 4.3 MB/s eta 0:00:00\n#10 29.35 Collecting uv\n#10 29.46   Downloading uv-0.11.8-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (24.8 MB)\n#10 33.38      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 24.8/24.8 MB 6.2 MB/s eta 0:00:00\n#10 33.61 Collecting semver~=3.0.2\n#10 33.71   Downloading semver-3.0.4-py3-none-any.whl (17 kB)\n#10 33.96 Collecting rich\n#10 34.06   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 34.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 6.6 MB/s eta 0:00:00\n#10 34.29 Collecting websocket-client\n#10 34.41   Downloading websocket_client-1.9.0-py3-none-any.whl (82 kB)\n#10 34.42      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 82.6/82.6 kB 96.9 MB/s eta 0:00:00\n#10 34.43 Requirement already satisfied: typing-extensions>=4.7.0 in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (4.15.0)\n#10 34.43 Requirement already satisfied: charset-normalizer>=3.0.0 in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (3.4.7)\n#10 34.43 Requirement already satisfied: requests in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (2.32.5)\n#10 34.60 Collecting pathspec\n#10 34.70   Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)\n#10 34.71      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.3/57.3 kB 17.9 MB/s eta 0:00:00\n#10 34.88 Collecting mixpanel\n#10 34.98   Downloading mixpanel-5.1.0-py3-none-any.whl (24 kB)\n#10 35.14 Collecting questionary\n#10 35.25   Downloading questionary-2.1.1-py3-none-any.whl (36 kB)\n#10 35.26 Requirement already satisfied: httpx in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (0.28.1)\n#10 35.26 Requirement already satisfied: tomlkit in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (0.14.0)\n#10 35.48 Collecting pyyaml\n#10 35.58   Downloading pyyaml-6.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (750 kB)\n#10 35.69      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 750.8/750.8 kB 7.3 MB/s eta 0:00:00\n#10 35.88 Collecting GitPython\n#10 35.98   Downloading gitpython-3.1.49-py3-none-any.whl (212 kB)\n#10 36.01      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 212.2/212.2 kB 7.9 MB/s eta 0:00:00\n#10 36.02 Requirement already satisfied: pytest in /usr/local/lib/python3.9/site-packages (from comfy-cli==0.0.0) (8.4.2)\n#10 37.01 Collecting ruff\n#10 37.13   Downloading ruff-0.15.12-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.3 MB)\n#10 38.85      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 6.5 MB/s eta 0:00:00\n#10 39.11 Collecting pre-commit\n#10 39.21   Downloading pre_commit-4.3.0-py2.py3-none-any.whl (220 kB)\n#10 39.24      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 221.0/221.0 kB 7.7 MB/s eta 0:00:00\n#10 39.42 Collecting annotated-doc>=0.0.2\n#10 39.53   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 39.54 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.9/site-packages (from typer>=0.9.0->comfy-cli==0.0.0) (1.5.4)\n#10 39.72 Collecting click>=8.0.0\n#10 39.83   Downloading click-8.1.8-py3-none-any.whl (98 kB)\n#10 39.85      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.2/98.2 kB 6.3 MB/s eta 0:00:00\n#10 40.03 Collecting markdown-it-py>=2.2.0\n#10 40.13   Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)\n#10 40.14      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.5/87.5 kB 49.7 MB/s eta 0:00:00\n#10 40.15 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.9/site-packages (from rich->comfy-cli==0.0.0) (2.20.0)\n#10 40.32 Collecting gitdb<5,>=4.0.1\n#10 40.43   Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#10 40.44      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.8/62.8 kB 39.6 MB/s eta 0:00:00\n#10 40.46 Requirement already satisfied: certifi in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (2026.4.22)\n#10 40.46 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (1.0.9)\n#10 40.46 Requirement already satisfied: idna in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (3.13)\n#10 40.46 Requirement already satisfied: anyio in /usr/local/lib/python3.9/site-packages (from httpx->comfy-cli==0.0.0) (4.12.1)\n#10 40.47 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.9/site-packages (from httpcore==1.*->httpx->comfy-cli==0.0.0) (0.16.0)\n#10 40.63 Collecting json-logic==0.7.0a0\n#10 40.74   Downloading json_logic-0.7.0a0-py2.py3-none-any.whl (7.6 kB)\n#10 40.92 Collecting asgiref>=3.0.0\n#10 41.02   Downloading asgiref-3.11.1-py3-none-any.whl (24 kB)\n#10 41.45 Collecting pydantic>=2.0.0\n#10 41.55   Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#10 41.62      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 7.7 MB/s eta 0:00:00\n#10 42.02 Collecting six\n#10 42.14   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#10 42.15 Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.9/site-packages (from requests->comfy-cli==0.0.0) (2.6.3)\n#10 42.32 Collecting cfgv>=2.0.0\n#10 42.42   Downloading cfgv-3.4.0-py2.py3-none-any.whl (7.2 kB)\n#10 42.43 Requirement already satisfied: virtualenv>=20.10.0 in /usr/local/lib/python3.9/site-packages (from pre-commit->comfy-cli==0.0.0) (21.2.4)\n#10 42.60 Collecting nodeenv>=0.11.1\n#10 42.71   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 42.95 Collecting identify>=1.0.0\n#10 43.05   Downloading identify-2.6.15-py2.py3-none-any.whl (99 kB)\n#10 43.07      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.2/99.2 kB 4.9 MB/s eta 0:00:00\n#10 43.12 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (2.4.1)\n#10 43.12 Requirement already satisfied: iniconfig>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (2.1.0)\n#10 43.12 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (1.3.1)\n#10 43.12 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.9/site-packages (from pytest->comfy-cli==0.0.0) (1.6.0)\n#10 43.31 Collecting prompt_toolkit<4.0,>=2.0\n#10 43.41   Downloading prompt_toolkit-3.0.52-py3-none-any.whl (391 kB)\n#10 43.46      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 391.4/391.4 kB 7.6 MB/s eta 0:00:00\n#10 43.66 Collecting smmap<6,>=3.0.1\n#10 43.77   Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#10 43.97 Collecting mdurl~=0.1\n#10 44.08   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 44.27 Collecting wcwidth\n#10 44.38   Downloading wcwidth-0.7.0-py3-none-any.whl (110 kB)\n#10 44.40      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.8/110.8 kB 7.8 MB/s eta 0:00:00\n#10 44.86 Collecting typing-inspection>=0.4.2\n#10 44.99   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 46.78 Collecting pydantic-core==2.46.3\n#10 46.89   Downloading pydantic_core-2.46.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 47.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 9.6 MB/s eta 0:00:00\n#10 47.28 Collecting annotated-types>=0.6.0\n#10 47.40   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 47.44 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (4.4.0)\n#10 47.44 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (0.4.0)\n#10 47.44 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (1.2.2)\n#10 47.44 Requirement already satisfied: filelock<=3.19.1,>=3.16.1 in /usr/local/lib/python3.9/site-packages (from virtualenv>=20.10.0->pre-commit->comfy-cli==0.0.0) (3.19.1)\n#10 47.50 Building wheels for collected packages: comfy-cli\n#10 47.50   Building editable for comfy-cli (pyproject.toml): started\n#10 47.72   Building editable for comfy-cli (pyproject.toml): finished with status 'done'\n#10 47.72   Created wheel for comfy-cli: filename=comfy_cli-0.0.0-0.editable-py3-none-any.whl size=19443 sha256=26eec4057b1bb980aa4da7b6a2ffc42bf33bc5217197d8e2445c04c32f54a803\n#10 47.72   Stored in directory: /tmp/pip-ephem-wheel-cache-6lntpfc5/wheels/48/5b/9e/815b53f5a8df8525f516b542a370cd64ff3531d89e06062b64\n#10 47.72 Successfully built comfy-cli\n#10 47.97 Installing collected packages: websocket-client, wcwidth, uv, typing-inspection, smmap, six, semver, ruff, pyyaml, pydantic-core, psutil, pathspec, nodeenv, mdurl, identify, click, cfgv, asgiref, annotated-types, annotated-doc, pydantic, prompt_toolkit, markdown-it-py, json-logic, gitdb, rich, questionary, pre-commit, GitPython, typer, mixpanel, comfy-cli\n#10 49.20 Successfully installed GitPython-3.1.49 annotated-doc-0.0.4 annotated-types-0.7.0 asgiref-3.11.1 cfgv-3.4.0 click-8.1.8 comfy-cli-0.0.0 gitdb-4.0.12 identify-2.6.15 json-logic-0.7.0a0 markdown-it-py-3.0.0 mdurl-0.1.2 mixpanel-5.1.0 nodeenv-1.10.0 pathspec-1.1.1 pre-commit-4.3.0 prompt_toolkit-3.0.52 psutil-7.2.2 pydantic-2.13.3 pydantic-core-2.46.3 pyyaml-6.0.3 questionary-2.1.1 rich-15.0.0 ruff-0.15.12 semver-3.0.4 six-1.17.0 smmap-5.0.3 typer-0.23.2 typing-inspection-0.4.2 uv-0.11.8 wcwidth-0.7.0 websocket-client-1.9.0\n#10 49.20 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 49.5s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.2s done\n#11 writing image sha256:10d32956a8f7b5e0729f7b518a71375ba819ef52de811add94a08302308e9384\n#11 writing image sha256:10d32956a8f7b5e0729f7b518a71375ba819ef52de811add94a08302308e9384 done\n#11 naming to docker.io/library/jayint-repo2run-comfy-org__comfy-cli done\n#11 DONE 0.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/vpbkg7ieqk9g4z7686wdqz9k8\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-comfy-org__comfy-cli",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-comfy-org__comfy-cli sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-04T12:17:24.119287+08:00",
+              "finished_at": "2026-05-04T12:17:25.414247+08:00",
+              "duration_seconds": 1.295,
+              "stdout": "tests/comfy_cli/command/models/test_models.py::test_valid_model_url\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_version\ntests/comfy_cli/command/models/test_models.py::test_valid_model_url_with_query\ntests/comfy_cli/command/models/test_models.py::test_valid_api_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_url\ntests/comfy_cli/command/models/test_models.py::test_malformed_query_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_sd_audio\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_folder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_subfolder\ntests/comfy_cli/command/models/test_models.py::test_valid_huggingface_url_with_encoded_filename\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url\ntests/comfy_cli/command/models/test_models.py::test_invalid_huggingface_url_structure\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_com_domain\ntests/comfy_cli/command/models/test_models.py::test_huggingface_url_with_folder_structure\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_good_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_bad_resolved\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_save\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_reset\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_existing_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_load_nonexistent_state\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states\ntests/comfy_cli/command/nodes/test_bisect_custom_nodes.py::test_set_custom_node_enabled_states_no_active_nodes\ntests/comfy_cli/command/test_command.py::test_install_here[cmd0]\ntests/comfy_cli/command/test_command.py::test_install_here[cmd1]\ntests/comfy_cli/command/test_command.py::test_version\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_dev\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_determine_base_url_prod\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_install_node_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_list_all_nodes_success\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_failure\ntests/comfy_cli/registry/test_api.py::TestRegistryAPI::test_publish_node_version_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_success\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text\ntests/comfy_cli/registry/test_config_parser.py::test_extract_node_configuration_license_text_dict\ntests/comfy_cli/registry/test_config_parser.py::test_extract_license_incorrect_format\ntests/comfy_cli/test_install.py::test_validate_version_nightly\ntests/comfy_cli/test_install.py::test_validate_version_latest\ntests/comfy_cli/test_install.py::test_validate_version_valid_semver\ntests/comfy_cli/test_install.py::test_validate_version_invalid\ntests/comfy_cli/test_install.py::test_validate_version_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_success\ntests/comfy_cli/test_install.py::test_fetch_releases_empty\ntests/comfy_cli/test_install.py::test_fetch_releases_error\ntests/comfy_cli/test_install.py::test_parse_releases_with_semver\ntests/comfy_cli/test_install.py::test_parse_releases_with_special_tags\ntests/comfy_cli/test_install.py::test_parse_releases_mixed\ntests/comfy_cli/test_install.py::test_parse_releases_empty_list\ntests/comfy_cli/test_install.py::test_parse_releases_invalid_semver\ntests/comfy_cli/test_install.py::test_select_version_latest\ntests/comfy_cli/test_install.py::test_select_version_specific\ntests/comfy_cli/test_install.py::test_select_version_with_v_prefix\ntests/comfy_cli/test_install.py::test_select_version_nonexistent\ntests/comfy_cli/test_install.py::test_select_version_invalid\ntests/comfy_cli/test_install.py::test_select_version_case_insensitive_latest\ntests/comfy_cli/test_install.py::test_select_version_nightly\ntests/comfy_cli/test_install.py::test_select_version_empty_list\ntests/e2e/test_e2e.py::test_model\ntests/e2e/test_e2e.py::test_node\ntests/e2e/test_e2e.py::test_run\ntests/uv/test_uv.py::test_find_req_files\ntests/uv/test_uv.py::test_compile\n\n67 tests collected in 0.50s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-comfy-org__comfy-cli"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-comfy-org__comfy-cli",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-04T12:17:25.416966+08:00",
+    "finished_at": "2026-05-04T12:17:25.444625+08:00",
+    "duration_seconds": 0.028,
+    "stdout": "Untagged: jayint-repo2run-comfy-org__comfy-cli:latest\nDeleted: sha256:10d32956a8f7b5e0729f7b518a71375ba819ef52de811add94a08302308e9384\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Comfy-Org__comfy-cli/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

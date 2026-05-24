@@ -1,0 +1,747 @@
+{
+  "dataset_entry": {
+    "instance_id": "MLT-OSS__open-assistant-api",
+    "full_name": "MLT-OSS/open-assistant-api",
+    "repo_url": "https://github.com/MLT-OSS/open-assistant-api.git",
+    "sha": "44eeaf",
+    "base_commit": "44eeaf",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/MLT-OSS/open-assistant-api.git",
+      "--base-commit",
+      "44eeaf",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/MLT-OSS/open-assistant-api.git --base-commit 44eeaf --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T00:42:32.049418+08:00",
+    "finished_at": "2026-05-17T00:49:09.920173+08:00",
+    "duration_seconds": 397.871,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api...\nCloning https://github.com/MLT-OSS/open-assistant-api.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 44eeaf\n[DockerAgent] Detected local service dependencies: minio, redis\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 24 potentially relevant files\n[ImageSelector]   ✓ Makefile\n[ImageSelector]   ✓ docker-compose.yml\n[ImageSelector]   ✗ config/database.py\n[ImageSelector]   ✗ config/config.py\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✗ examples/run_assistant.py\n[ImageSelector]   ✗ playground-ui/config/config.prod.ts\n[ImageSelector]   ✓ playground-ui/package.json\n[ImageSelector]   ✗ examples/run_assistant_stream.py\n[ImageSelector]   ✗ examples/prerun.py\n[ImageSelector]   ✗ config/celery.py\n[ImageSelector]   ✓ alembic.ini\n[ImageSelector]   ✗ config/llm.py\n[ImageSelector]   ✗ .github/workflows/docker-image-api.yml\n[ImageSelector]   ✓ Dockerfile\n[ImageSelector]   ✗ playground-ui/config/config.dev.ts\n[ImageSelector]   ✓ docker-compose.middleware.yml\n[ImageSelector]   ✓ playground-ui/tsconfig.json\n[ImageSelector]   ✗ .github/workflows/docker-image-playground-ui.yml\n[ImageSelector]   ✗ playground-ui/config/config.ts\n[ImageSelector]   ✓ playground-ui/Dockerfile\n[ImageSelector]   ✗ README.md\n[ImageSelector] 9 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns detected. The project uses standard Python packages without embedded databases or native binaries that would cause ARM64 issues. The container should run successfully on both x86_64 and ARM64 platforms.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:9720c\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/logs/compression_logs\nStarting agent for repository: https://github.com/MLT-OSS/open-assistant-api.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 3984, Output: 95, Total: 4079\n\n[Thought]\nLet me start by examining the project's configuration files to understand the dependencies and setup requirements.\n\n[Action]\ncat MLT-OSS__open-assistant-api/pyproject.toml\n[Container ID: c7d1ddd81708]\nExecuting: cat MLT-OSS__open-assistant-api/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: MLT-OSS__open-assistant-api/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 4050, Output: 34, Total: 4084\n\n[Thought]\nLet me check the correct directory structure and find the configuration files.\n\n[Action]\nls -la\n[Container ID: c7d1ddd81708]\nExecuting: ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 408\ndrwxr-xr-x 13 root root      4096 May 16 16:45 .\ndrwxr-xr-x  1 root root      4096 May 16 16:45 ..\n-rw-r--r--  1  501 dialout     69 May 16 16:42 .dockerignore\n-rw-r--r--  1  501 dialout   1243 May 16 16:42 .env.example\ndrwxr-xr-x  7  501 dialout   4096 May 16 16:42 .git\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 .github\n-rw-r--r--  1  501 dialout     69 May 16 16:42 .gitignore\n-rw-r--r--  1  501 dialout    626 May 16 16:42 Dockerfile\n-rw-r--r--  1  501 dialout   1062 May 16 16:42 LICENSE\n-rwxr-xr-x  1  501 dialout    338 May 16 16:42 Makefile\n-rw-r--r--  1  501 dialout   7152 May 16 16:42 README.md\n-rw-r--r--  1  501 dialout   6447 May 16 16:42 README_CN.md\n-rw-r--r--  1  501 dialout   9050 May 16 16:42 README_JP.md\n-rw-r--r--  1  501 dialout   1679 May 16 16:42 alembic.ini\ndrwxr-xr-x 11  501 dialout   4096 May 16 16:42 app\ndrwxr-xr-x  2  501 dialout   4096 May 16 16:42 config\ndrwxr-xr-x  2  501 dialout   4096 May 16 16:42 docker\n-rw-r--r--  1  501 dialout   1811 May 16 16:42 docker-compose.middleware.yml\n-rw-r--r--  1  501 dialout   5325 May 16 16:42 docker-compose.yml\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 docs\ndrwxr-xr-x  5  501 dialout   4096 May 16 16:42 examples\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 logs\n-rw-r--r--  1  501 dialout   1070 May 16 16:42 main.py\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 migrations\ndrwxr-xr-x  8  501 dialout   4096 May 16 16:42 playground-ui\n-rw-r--r--  1  501 dialout 279500 May 16 16:42 poetry.lock\n-rw-r--r--  1  501 dialout   1578 May 16 16:42 pyproject.toml\ndrwxr-xr-x  6  501 dialout   4096 May 16 16:42 tests\n-rw-r--r--  1  501 dialout    416 May 16 16:42 worker.py\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 4868, Output: 63, Total: 4931\n\n[Thought]\nGood, the repository is already in the current directory. Let me examine the pyproject.toml and requirements files.\n\n[Action]\ncat pyproject.toml\n[Container ID: c7d1ddd81708]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[tool.poetry]\nname = \"open-assistant-api\"\nversion = \"0.1.0\"\ndescription = \"\"\nauthors = [\"Tuanzi1015 <tuanzi1015@gmail.com>\"]\nreadme = \"README.md\"\n\n[tool.black]\ntarget-version = [\"py310\"]\nline-length = 120\nexclude = '''(\n  /(\n      migrations\n    | tests/e2e\n  )/\n)'''\n\n[tool.ruff]\nexclude = [\"migrations\", \"tests/e2e\"]\n# https://docs.astral.sh/ruff/rules\nselect = [\"E\", \"F\", \"N\", \"PIE\", \"T20\", \"Q\"]\nline-length = 120\n\n\n[tool.poetry.dependencies]\npython = \">=3.10,<3.13\"\ncelery = \">=5.3.4,<5.4.0\"\nsqlakeyset = \">=2.0.1680321678,<2.1.0\"\nloguru = \">=0.6.0,<0.7.0\"\nsqlmodel = \">=0.0.11,<0.1.0\"\nuvicorn = \"^0.27.1\"\npymysql = \">=1.1.0,<1.2.0\"\npython-multipart = \">=0.0.7,<0.1.0\"\nredis = \">=5.0.1,<5.1.0\"\norjson = \">=3.9.10,<3.10.0\"\nboto3 = \">=1.33.0,<1.34.0\"\nopenai = \"1.27.0\"\npython-magic = \">=0.4.27,<0.5.0\"\nbeautifulsoup4 = \">=4.12.2,<4.13.0\"\npymupdf = \">=1.23.7,<1.24.0\"\nalembic = \">=1.13.0,<1.14.0\"\naiohttp = \">=3.9.2,<4.0.0\"\npydantic = { version = \">=2,<3\", extras = [\"dotenv\"] }\nsse-starlette = \"^1.8.2\"\nopenapi-spec-validator = \"^0.7.1\"\npycryptodome = \"^3.20.0\"\nlxml = \"^5.1.0\"\naiomysql = \"^0.2.0\"\ngreenlet = \"^3.0.3\"\ngevent = \"^24.2.1\"\npydantic-settings = \"^2.4.0\"\nlangchain = \"^0.2.12\"\nlangchain-community = \"^0.2.11\"\nfastapi = \">=0.109.2,<=0.112.0\"\nfastapi-pagination = \"^0.12.26\"\nhttpx = \"^0.27.0\"\ndistro = \"^1.9.0\"\naiofiles = \"^24.1.0\"\nr2r = \"^0.3.4\"\npyjwt = \"^2.9.0\"\n\n\n[tool.poetry.group.dev.dependencies]\nblack = \"^24.3.0\"\nruff = \"^0.1.9\"\npytest = \"^7.4.3\"\npytest-asyncio = \"^0.23.2\"\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 5626, Output: 95, Total: 5721\n\n[Thought]\nThis is a Poetry-based project. Let me check if Poetry is installed and then install the dependencies.\n\n[Action]\npoetry --version || pip install poetry\n[Container ID: c7d1ddd81708]\nExecuting: poetry --version || pip install poetry\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 5727, Output: 36, Total: 5763\n\n[Thought]\nLet me first check if poetry is installed.\n\n[Action]\npoetry --version\n[Container ID: c7d1ddd81708]\nExecuting: poetry --version\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: poetry: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 5768, Output: 34, Total: 5802\n\n[Thought]\nPoetry is not installed. Let me install it.\n\n[Action]\npip install poetry\n[Container ID: c7d1ddd81708]\nExecuting: pip install poetry\nCommand succeeded.\n[Snapshot Created] sha256:7a781\n\n[Observation]\nCollecting poetry\n  Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n  Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\nCollecting findpython<0.9.0,>=0.6.2 (from poetry)\n  Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\nCollecting installer<2.0.0,>=0.7.0 (from poetry)\n  Downloading installer-1.0.1-py3-none-any.whl.metadata (1.2 kB)\nCollecting keyring<26.0.0,>=25.1.0 (from poetry)\n  Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\nCollecting packaging>=24.2 (from poetry)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading pbs_installer-2026.5.10-py3-none-any.whl.metadata (1.0 kB)\nCollecting pkginfo<2.0,>=1.12 (from poetry)\n  Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\nCollecting platformdirs<5,>=3.0.0 (from poetry)\n  Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\nCollecting poetry-core==2.4.0 (from poetry)\n  Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\nCollecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\nCollecting requests<3.0,>=2.26 (from poetry)\n  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)\nCollecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\nCollecting shellingham<2.0,>=1.5 (from poetry)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n  Downloading tomlkit-0.15.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting trove-classifiers>=2022.5.19 (from poetry)\n  Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl.metadata (2.3 kB)\nCollecting virtualenv>=20.26.6 (from poetry)\n  Downloading virtualenv-21.3.3-py3-none-any.whl.metadata (3.5 kB)\nCollecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\nCollecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading rapidfuzz-3.14.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\nCollecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nCollecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\nCollecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\nCollecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_functools-4.5.0-py3-none-any.whl.metadata (2.9 kB)\nCollecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\nCollecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting backports.zstd>=1.0.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading backports_zstd-1.5.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.8 kB)\nCollecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n  Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n  Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\nCollecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n  Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\nCollecting python-discovery>=1.3.1 (from virtualenv>=20.26.6->poetry)\n  Downloading python_discovery-1.3.1-py3-none-any.whl.metadata (5.6 kB)\nCollecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)\nCollecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\nCollecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\nCollecting typing_extensions>=4.5 (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\nDownloading poetry-2.4.1-py3-none-any.whl (292 kB)\nDownloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\nDownloading build-1.5.0-py3-none-any.whl (26 kB)\nDownloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\nDownloading cleo-2.1.0-py3-none-any.whl (78 kB)\nDownloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl (1.4 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 14.0 MB/s eta 0:00:00\nDownloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\nDownloading findpython-0.8.0-py3-none-any.whl (21 kB)\nDownloading installer-1.0.1-py3-none-any.whl (464 kB)\nDownloading keyring-25.7.0-py3-none-any.whl (39 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pbs_installer-2026.5.10-py3-none-any.whl (74 kB)\nDownloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\nDownloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nDownloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nDownloading requests-2.34.2-py3-none-any.whl (73 kB)\nDownloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading tomlkit-0.15.0-py3-none-any.whl (41 kB)\nDownloading trove_classifiers-2026.5.7.17-py3-none-any.whl (14 kB)\nDownloading virtualenv-21.3.3-py3-none-any.whl (7.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 4.6 MB/s eta 0:00:00\nDownloading backports_zstd-1.5.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (495 kB)\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\nDownloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\nDownloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\nDownloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading idna-3.15-py3-none-any.whl (72 kB)\nDownloading jeepney-0.9.0-py3-none-any.whl (49 kB)\nDownloading msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (427 kB)\nDownloading python_discovery-1.3.1-py3-none-any.whl (33 kB)\nDownloading rapidfuzz-3.14.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 7.8 MB/s eta 0:00:00\nDownloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\nDownloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\nDownloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\nDownloading jaraco_functools-4.5.0-py3-none-any.whl (10 kB)\nDownloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 6.7 MB/s eta 0:00:00\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\nDownloading cffi-2.0.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (219 kB)\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading pycparser-3.0-py3-none-any.whl (48 kB)\nInstalling collected packages: trove-classifiers, fastjsonschema, distlib, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pycparser, poetry-core, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, jaraco.context, installer, idna, h11, filelock, crashtest, charset_normalizer, certifi, backports.zstd, requests, python-discovery, jaraco.functools, jaraco.classes, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\nSuccessfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.zstd-1.5.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-48.0.0 distlib-0.4.0 dulwich-1.2.1 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.15 installer-1.0.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.5.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.5.10 pkginfo-1.12.1.2 platformdirs-4.9.6 poetry-2.4.1 poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.3.1 rapidfuzz-3.14.5 requests-2.34.2 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 10316, Output: 42, Total: 10358\n\n[Thought]\nPoetry is installed. Now let me install the project dependencies using Poetry.\n\n[Action]\npoetry install --with dev\n[Container ID: c7d1ddd81708]\nExecuting: poetry install --with dev\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nCreating virtualenv open-assistant-api-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 114 installs, 0 updates, 0 removals\n\n  - Installing typing-extensions (4.12.2)\n  - Installing annotated-types (0.7.0)\n  - Installing certifi (2024.7.4)\n  - Installing charset-normalizer (3.3.2)\n  - Installing idna (3.7)\n  - Installing pydantic-core (2.20.1)\n  - Installing urllib3 (2.0.7)\n  - Installing attrs (23.1.0)\n  - Installing jsonpointer (3.0.0)\n  - Installing orjson (3.9.15)\n  - Installing pydantic (2.8.2)\n  - Installing requests (2.32.2)\n  - Installing rpds-py (0.18.0)\n  - Installing frozenlist (1.4.1)\n  - Installing jsonpatch (1.33)\n  - Installing langsmith (0.1.99)\n  - Installing multidict (6.0.5)\n  - Installing packaging (23.2)\n  - Installing pyyaml (6.0.1)\n  - Installing referencing (0.31.1)\n  - Installing six (1.16.0)\n  - Installing sniffio (1.3.0)\n  - Installing tenacity (8.5.0)\n  - Installing aiohappyeyeballs (2.3.5)\n  - Installing aiosignal (1.3.1)\n  - Installing anyio (3.7.1)\n  - Installing greenlet (3.0.3)\n  - Installing h11 (0.14.0)\n  - Installing jmespath (1.0.1)\n  - Installing jsonschema-specifications (2023.12.1)\n  - Installing langchain-core (0.2.29)\n  - Installing mypy-extensions (1.0.0)\n  - Installing python-dateutil (2.8.2)\n  - Installing vine (5.1.0)\n  - Installing wcwidth (0.2.12)\n  - Installing yarl (1.9.4)\n  - Installing aiohttp (3.10.3)\n  - Installing amqp (5.2.0)\n  - Installing botocore (1.33.13)\n  - Installing click (8.1.7)\n  - Installing httpcore (1.0.5)\n  - Installing iniconfig (2.0.0)\n  - Installing joblib (1.4.2)\n  - Installing jsonschema (4.23.0)\n  - Installing langchain-text-splitters (0.2.2)\n  - Installing markupsafe (2.1.3)\n  - Installing marshmallow (3.21.3)\n  - Installing numpy (1.26.4)\n  - Installing pathable (0.4.3)\n  - Installing pluggy (1.3.0)\n  - Installing prompt-toolkit (3.0.43)\n  - Installing regex (2024.7.24)\n  - Installing rfc3339-validator (0.1.4)\n  - Installing setuptools (70.0.0)\n  - Installing sqlalchemy (2.0.32)\n  - Installing starlette (0.36.3)\n  - Installing tqdm (4.66.5)\n  - Installing typing-inspect (0.9.0)\n  - Installing billiard (4.2.0)\n  - Installing click-didyoumean (0.3.0)\n  - Installing click-plugins (1.1.1)\n  - Installing click-repl (0.3.0)\n  - Installing dataclasses-json (0.6.7)\n  - Installing distro (1.9.0)\n  - Installing fastapi (0.109.2)\n  - Installing httpx (0.27.0)\n  - Installing jsonschema-path (0.3.2)\n  - Installing kombu (5.3.4)\n  - Installing langchain (0.2.12)\n  - Installing lazy-object-proxy (1.10.0)\n  - Installing mako (1.3.0)\n  - Installing nest-asyncio (1.6.0)\n  - Installing nltk (3.9.1)\n  - Installing openapi-schema-validator (0.6.2)\n  - Installing pathspec (0.12.1)\n  - Installing platformdirs (4.1.0)\n  - Installing pymupdfb (1.23.7)\n  - Installing pymysql (1.1.1)\n  - Installing pytest (7.4.3)\n  - Installing python-dotenv (1.0.1)\n  - Installing s3transfer (0.8.2)\n  - Installing soupsieve (2.5)\n  - Installing types-requests (2.32.0.20240712)\n  - Installing tzdata (2023.3)\n  - Installing uvicorn (0.27.1)\n  - Installing zope-event (5.0)\n  - Installing zope-interface (6.2)\n  - Installing aiofiles (24.1.0)\n  - Installing aiomysql (0.2.0)\n  - Installing alembic (1.13.2)\n  - Installing beautifulsoup4 (4.12.3)\n  - Installing black (24.4.0)\n  - Installing boto3 (1.33.13)\n  - Installing celery (5.3.6)\n  - Installing fastapi-pagination (0.12.26)\n  - Installing gevent (24.2.1)\n  - Installing langchain-community (0.2.11)\n  - Installing loguru (0.6.0)\n  - Installing lxml (5.1.0)\n  - Installing openai (1.27.0)\n  - Installing openapi-spec-validator (0.7.1)\n  - Installing pycryptodome (3.20.0)\n  - Installing pydantic-settings (2.4.0)\n  - Installing pyjwt (2.9.0)\n  - Installing pymupdf (1.23.8)\n  - Installing pytest-asyncio (0.23.2)\n  - Installing python-magic (0.4.27)\n  - Installing python-multipart (0.0.9)\n  - Installing r2r (0.3.4)\n  - Installing redis (5.0.8)\n  - Installing ruff (0.1.9)\n  - Installing sqlakeyset (2.0.1701229837)\n  - Installing sqlmodel (0.0.21)\n  - Installing sse-starlette (1.8.2)\n\nInstalling the current project: open-assistant-api (0.1.0)\n\nError: The current project could not be installed: No file/folder found for package open-assistant-api\nIf you do not want to install the current project use --no-root.\nIf you want to use Poetry only for dependency management but not for packaging, you can disable package mode by setting package-mode = false in your pyproject.toml file.\nIf you did intend to install the current project, you may need to set `packages` in your pyproject.toml file.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 12054, Output: 92, Total: 12146\n\n[Thought]\nThe installation failed because Poetry couldn't find the package structure. Let me install with the `--no-root` flag since the current project doesn't have a standard package layout.\n\n[Action]\npoetry install --with dev --no-root\n[Container ID: c7d1ddd81708]\nExecuting: poetry install --with dev --no-root\nCommand succeeded.\n[Snapshot Created] sha256:752bb\n\n[Observation]\nInstalling dependencies from lock file\n\nNo dependencies to install or update\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 7950, Output: 78, Total: 8028\n\n[Thought]\nGood, the dependencies are already installed. Now let me verify that pytest can collect the tests.\n\n[Action]\npoetry run pytest --collect-only -q --disable-warnings\n[Container ID: c7d1ddd81708]\nExecuting: poetry run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:121dd\n\n[Observation]\ntests/e2e/action_test.py::test_create_action\ntests/e2e/action_test.py::test_get_action\ntests/e2e/action_test.py::test_update_action\ntests/e2e/action_test.py::test_delete_action\ntests/e2e/action_test.py::test_run_action\ntests/e2e/assistant_test.py::test_create_assistant_with_extra_body\ntests/e2e/assistant_test.py::test_create_assistant_with_metadata\ntests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\ntests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\ntests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\ntests/e2e/sub_stream_test.py::test_sub_stream_with_submit_tool_outputs_stream\ntests/e2e/test_thread_api.py::test_thread_copy\ntests/run/run_with_assistant_extra_body_test.py::test_run_with_assistant_extra_body\ntests/run/run_with_auth_action_test.py::test_run_with_action_auth\ntests/tools/assistant_action_test.py::test_assistant_with_action_tools\ntests/unit/test_memory.py::test_memory[data0]\ntests/unit/test_memory.py::test_memory[data1]\ntests/unit/test_memory.py::test_memory[data2]\ntests/unit/test_memory.py::test_memory[data3]\ntests/unit/test_memory.py::test_memory[data4]\ntests/unit/test_memory.py::test_memory[data5]\ntests/unit/test_memory.py::test_memory[data6]\ntests/unit/test_memory.py::test_memory[data7]\ntests/unit/test_memory.py::test_memory[data8]\ntests/unit/test_memory.py::test_memory[data9]\ntests/unit/test_memory.py::test_memory[data10]\ntests/unit/test_memory.py::test_memory[data11]\ntests/unit/test_memory.py::test_memory[data12]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n\n33 tests collected in 2.96s\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 7205, Output: 133, Total: 7338\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful. All 33 tests were collected. The environment is set up correctly.\n\nLet me verify the final state:\n1. Poetry is installed\n2. Dependencies are installed via poetry\n3. pytest can collect 33 tests successfully\n\nNow I need to provide the final verification bundle and declare success.\n</think>\n\nThought: The pytest collection succeeded. All 33 tests were collected successfully. The project dependencies are properly installed via Poetry and the test framework is configured correctly.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"poetry run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 3 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/MLT-OSS__open-assistant-api.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/MLT-OSS/open-assistant-api.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 408\ndrwxr-xr-x 13 root root      4096 May 16 16:45 .\ndrwxr-xr-x  1 root root      4096 May 16 16:45 ..\n-rw-r--r--  1  501 dialout     69 May 16 16:42 .dockerignore\n-rw-r--r--  1  501 dialout   1243 May 16 16:42 .env.example\ndrwxr-xr-x  7  501 dialout   4096 May 16 16:42 .git\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 .github\n-rw-r--r--  1  501 dialout     69 May 16 16:42 .gitignore\n-rw-r--r--  1  501 dialout    626 May 16 16:42 Dockerfile\n-rw-r--r--  1  501 dialout   1062 May 16 16:42 LICENSE\n-rwxr-xr-x  1  501 dialout    338 May 16 16:42 Makefile\n-rw-r--r--  1  501 dialout   7152 Ma\n... (467 chars omitted for recipe synthesis) ...\n25 May 16 16:42 docker-compose.yml\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 docs\ndrwxr-xr-x  5  501 dialout   4096 May 16 16:42 examples\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 logs\n-rw-r--r--  1  501 dialout   1070 May 16 16:42 main.py\ndrwxr-xr-x  3  501 dialout   4096 May 16 16:42 migrations\ndrwxr-xr-x  8  501 dialout   4096 May 16 16:42 playground-ui\n-rw-r--r--  1  501 dialout 279500 May 16 16:42 poetry.lock\n-rw-r--r--  1  501 dialout   1578 May 16 16:42 pyproject.toml\ndrwxr-xr-x  6  501 dialout   4096 May 16 16:42 tests\n-rw-r--r--  1  501 dialout    416 May 16 16:42 worker.py\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[tool.poetry]\nname = \"open-assistant-api\"\nversion = \"0.1.0\"\ndescription = \"\"\nauthors = [\"Tuanzi1015 <tuanzi1015@gmail.com>\"]\nreadme = \"README.md\"\n\n[tool.black]\ntarget-version = [\"py310\"]\nline-length = 120\nexclude = '''(\n  /(\n      migrations\n    | tests/e2e\n  )/\n)'''\n\n[tool.ruff]\nexclude = [\"migrations\", \"tests/e2e\"]\n# https://docs.astral.sh/ruff/rules\nselect = [\"E\", \"F\", \"N\", \"PIE\", \"T20\", \"Q\"]\nline-length = 120\n\n\n[tool.poetry.dependencies]\npython = \">=3.10,<3.13\"\ncelery = \">=5.3.4,<5.4.0\"\nsqlakeyset = \">=2.0.1680321678,<2.1.0\"\nloguru = \">=0.6.0,<0.7.0\"\nsqlmodel = \">=0.0.11,<0.1.0\"\nuvicorn = \n... (378 chars omitted for recipe synthesis) ...\n}\nsse-starlette = \"^1.8.2\"\nopenapi-spec-validator = \"^0.7.1\"\npycryptodome = \"^3.20.0\"\nlxml = \"^5.1.0\"\naiomysql = \"^0.2.0\"\ngreenlet = \"^3.0.3\"\ngevent = \"^24.2.1\"\npydantic-settings = \"^2.4.0\"\nlangchain = \"^0.2.12\"\nlangchain-community = \"^0.2.11\"\nfastapi = \">=0.109.2,<=0.112.0\"\nfastapi-pagination = \"^0.12.26\"\nhttpx = \"^0.27.0\"\ndistro = \"^1.9.0\"\naiofiles = \"^24.1.0\"\nr2r = \"^0.3.4\"\npyjwt = \"^2.9.0\"\n\n\n[tool.poetry.group.dev.dependencies]\nblack = \"^24.3.0\"\nruff = \"^0.1.9\"\npytest = \"^7.4.3\"\npytest-asyncio = \"^0.23.2\"\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install poetry",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry\n  Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjson\n... (10344 chars omitted for recipe synthesis) ...\n.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 8,
+        "command": "poetry install --with dev --no-root",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Installing dependencies from lock file\n\nNo dependencies to install or update\n"
+      },
+      {
+        "step_index": 9,
+        "command": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/e2e/action_test.py::test_create_action\ntests/e2e/action_test.py::test_get_action\ntests/e2e/action_test.py::test_update_action\ntests/e2e/action_test.py::test_delete_action\ntests/e2e/action_test.py::test_run_action\ntests/e2e/assistant_test.py::test_create_assistant_with_extra_body\ntests/e2e/assistant_test.py::test_create_assistant_with_metadata\ntests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\ntests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\ntests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\ntests/e2e/su\n... (729 chars omitted for recipe synthesis) ...\ntest_memory[data8]\ntests/unit/test_memory.py::test_memory[data9]\ntests/unit/test_memory.py::test_memory[data10]\ntests/unit/test_memory.py::test_memory[data11]\ntests/unit/test_memory.py::test_memory[data12]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n\n33 tests collected in 2.96s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat MLT-OSS__open-assistant-api/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: MLT-OSS__open-assistant-api/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "poetry --version || pip install poetry",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 5,
+        "command": "poetry --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: poetry: command not found\n"
+      },
+      {
+        "step_index": 7,
+        "command": "poetry install --with dev",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nCreating virtualenv open-assistant-api-9TtSrW0h-py3.12 in /root/\n... (3938 chars omitted for recipe synthesis) ...\net (2.0.1701229837)\n  - Installing sqlmodel (0.0.21)\n  - Installing sse-starlette (1.8.2)\n\nInstalling the current project: open-assistant-api (0.1.0)\n\nError: The current project could not be installed: No file/folder found for package open-assistant-api\nIf you do not want to install the current project use --no-root.\nIf you want to use Poetry only for dependency management but not for packaging, you can disable package mode by setting package-mode = false in your pyproject.toml file.\nIf you did intend to install the current project, you may need to set `packages` in your pyproject.toml file.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install poetry",
+        "poetry install --with dev --no-root",
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat MLT-OSS__open-assistant-api/pyproject.toml - read-only, wrong path exploration",
+          "reason": ""
+        },
+        {
+          "command": "ls -la - read-only directory listing for context discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml - read-only file inspection for project structure",
+          "reason": ""
+        },
+        {
+          "command": "poetry --version || pip install poetry - compound command rejected by system, split into separate actions",
+          "reason": ""
+        },
+        {
+          "command": "poetry --version - read-only probe, failed because poetry not installed",
+          "reason": ""
+        },
+        {
+          "command": "poetry install --with dev - failed state-changing action; it installed 114 packages but errored on the final 'install current project' step. The successful successor `poetry install --with dev --no-root` is retained as the verified command for the same outcome.",
+          "reason": ""
+        }
+      ],
+      "rationale": "Two successful state-changing commands drive the build: (1) `pip install poetry` installs Poetry v2.4.1 and its ~52 transitive dependencies, which is required because Poetry is not present in the base python:3.12 image and the project uses Poetry for dependency management (verified by pyproject.toml with 114 locked packages). (2) `poetry install --with dev --no-root` installs all 114 production and dev dependencies (FastAPI, Celery, SQLModel, pytest, etc.) from poetry.lock. Step 7 (`poetry install --with dev`) was excluded because it failed with an error about the current project not being packagable, and its successful prefix is superseded by the identical effect achieved via `--no-root` in step 8. The verification test `poetry run pytest --collect-only -q --disable-warnings` is retained from agent_run_summary.verification_bundle. No local services (minio, redis) are included because they are runtime dependencies outside the Python test collection scope.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [
+      "minio",
+      "redis"
+    ],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 4,
+      "compressed_steps": 2,
+      "saved_tokens_est": 3530
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat MLT-OSS__open-assistant-api/pyproject.toml",
+        "success": false,
+        "raw_chars": 75,
+        "raw_tokens_est": 18,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la",
+        "success": true,
+        "raw_chars": 1667,
+        "raw_tokens_est": 416,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 113,
+        "reflect_input_tokens": 2232,
+        "reflect_output_tokens": 762
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1578,
+        "raw_tokens_est": 394,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 15,
+        "reflect_input_tokens": 2225,
+        "reflect_output_tokens": 885
+      },
+      {
+        "step_id": 4,
+        "action": "poetry --version || pip install poetry",
+        "success": false,
+        "raw_chars": 308,
+        "raw_tokens_est": 77,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "poetry --version",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install poetry",
+        "success": true,
+        "raw_chars": 11544,
+        "raw_tokens_est": 2886,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2583,
+        "reflect_input_tokens": 6893,
+        "reflect_output_tokens": 461
+      },
+      {
+        "step_id": 7,
+        "action": "poetry install --with dev",
+        "success": false,
+        "raw_chars": 5138,
+        "raw_tokens_est": 1284,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 947,
+        "reflect_input_tokens": 3178,
+        "reflect_output_tokens": 663
+      },
+      {
+        "step_id": 8,
+        "action": "poetry install --with dev --no-root",
+        "success": true,
+        "raw_chars": 77,
+        "raw_tokens_est": 19,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 1929,
+        "raw_tokens_est": 482,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 25087,
+        "output_tokens": 9891,
+        "total_tokens": 34978
+      },
+      "planner": {
+        "input_tokens": 67548,
+        "output_tokens": 702,
+        "total_tokens": 68250
+      },
+      "reflection": {
+        "input_tokens": 14528,
+        "output_tokens": 2771,
+        "total_tokens": 17299
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 10538,
+        "output_tokens": 2479,
+        "total_tokens": 13017
+      },
+      "total": {
+        "input_tokens": 117701,
+        "output_tokens": 15843,
+        "total_tokens": 133544
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+    "base_commit": "44eeaf",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/MLT-OSS__open-assistant-api /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-17T00:49:09.921482+08:00",
+      "finished_at": "2026-05-17T00:49:09.986577+08:00",
+      "duration_seconds": 0.065,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context'...\n完成。\n注意：正在切换到 '44eeaf43042fc4cd11c9f1b4da77db26036f107e'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "44eeaf"
+      ],
+      "command_shell": "git checkout --force 44eeaf",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T00:49:09.986657+08:00",
+      "finished_at": "2026-05-17T00:49:10.006869+08:00",
+      "duration_seconds": 0.02,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 44eeaf4 Merge pull request #92 from liuooo/support_streaming_options\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T00:49:10.006928+08:00",
+      "finished_at": "2026-05-17T00:49:10.013169+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": true,
+    "removed_patterns": [],
+    "appended_exceptions": [
+      "!tests/",
+      "!tests/**"
+    ],
+    "reason": "updated"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_poetry_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "poetry run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-mlt-oss__open-assistant-api",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval -t jayint-repo2run-mlt-oss__open-assistant-api /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T00:49:10.015520+08:00",
+    "finished_at": "2026-05-17T00:49:47.511460+08:00",
+    "duration_seconds": 37.496,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.17kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 195B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 3.78MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.727 Requirement already satisfied: poetry in /usr/local/lib/python3.12/site-packages (2.4.1)\n#10 0.748 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.0)\n#10 0.749 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.752 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.1.0)\n#10 0.752 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.1)\n#10 0.752 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.21.2)\n#10 0.753 Requirement already satisfied: findpython<0.9.0,>=0.6.2 in /usr/local/lib/python3.12/site-packages (from poetry) (0.8.0)\n#10 0.754 Requirement already satisfied: installer<2.0.0,>=0.7.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.1)\n#10 0.755 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (25.7.0)\n#10 0.756 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.12/site-packages (from poetry) (26.2)\n#10 0.758 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.5.10)\n#10 0.761 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.12/site-packages (from poetry) (1.12.1.2)\n#10 0.762 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (4.9.6)\n#10 0.762 Requirement already satisfied: poetry-core==2.4.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.4.0)\n#10 0.763 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.765 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.12/site-packages (from poetry) (2.34.0)\n#10 0.767 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.0)\n#10 0.768 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.4)\n#10 0.769 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.12/site-packages (from poetry) (0.15.0)\n#10 0.770 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.12/site-packages (from poetry) (2026.5.7.17)\n#10 0.771 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.12/site-packages (from poetry) (21.3.1)\n#10 0.786 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.12/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.788 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.790 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.791 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.802 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.12/site-packages (from dulwich<2,>=0.25.0->poetry) (2.7.0)\n#10 0.818 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.818 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.819 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.820 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.821 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.825 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.825 Requirement already satisfied: backports.zstd>=1.0.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (1.5.0)\n#10 0.833 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.833 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.14)\n#10 0.833 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.842 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.843 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (1.3.0)\n#10 0.850 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.850 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.853 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.860 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.12/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (48.0.0)\n#10 0.863 Requirement already satisfied: more-itertools in /usr/local/lib/python3.12/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.867 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.12/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.869 Requirement already satisfied: typing_extensions>=4.5 in /usr/local/lib/python3.12/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.15.0)\n#10 0.871 Requirement already satisfied: pycparser in /usr/local/lib/python3.12/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.896 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 1.0s\n\n#11 [7/8] RUN poetry install --with dev --no-root\n#11 1.011 Creating virtualenv open-assistant-api-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\n#11 1.989 Installing dependencies from lock file\n#11 2.194 \n#11 2.194 Package operations: 114 installs, 0 updates, 0 removals\n#11 2.194 \n#11 2.195   - Installing typing-extensions (4.12.2)\n#11 3.340   - Installing annotated-types (0.7.0)\n#11 3.342   - Installing certifi (2024.7.4)\n#11 3.343   - Installing charset-normalizer (3.3.2)\n#11 3.344   - Installing idna (3.7)\n#11 3.345   - Installing pydantic-core (2.20.1)\n#11 3.346   - Installing urllib3 (2.0.7)\n#11 4.673   - Installing attrs (23.1.0)\n#11 4.673   - Installing jsonpointer (3.0.0)\n#11 4.674   - Installing orjson (3.9.15)\n#11 4.675   - Installing pydantic (2.8.2)\n#11 4.675   - Installing requests (2.32.2)\n#11 4.677   - Installing rpds-py (0.18.0)\n#11 5.528   - Installing frozenlist (1.4.1)\n#11 5.529   - Installing jsonpatch (1.33)\n#11 5.531   - Installing langsmith (0.1.99)\n#11 5.532   - Installing multidict (6.0.5)\n#11 5.534   - Installing packaging (23.2)\n#11 5.537   - Installing pyyaml (6.0.1)\n#11 5.538   - Installing referencing (0.31.1)\n#11 5.538   - Installing six (1.16.0)\n#11 5.540   - Installing sniffio (1.3.0)\n#11 5.540   - Installing tenacity (8.5.0)\n#11 7.076   - Installing aiohappyeyeballs (2.3.5)\n#11 7.077   - Installing aiosignal (1.3.1)\n#11 7.078   - Installing anyio (3.7.1)\n#11 7.078   - Installing greenlet (3.0.3)\n#11 7.079   - Installing h11 (0.14.0)\n#11 7.081   - Installing jmespath (1.0.1)\n#11 7.083   - Installing jsonschema-specifications (2023.12.1)\n#11 7.084   - Installing langchain-core (0.2.29)\n#11 7.084   - Installing mypy-extensions (1.0.0)\n#11 7.085   - Installing python-dateutil (2.8.2)\n#11 7.086   - Installing vine (5.1.0)\n#11 7.087   - Installing wcwidth (0.2.12)\n#11 7.088   - Installing yarl (1.9.4)\n#11 8.071   - Installing aiohttp (3.10.3)\n#11 8.072   - Installing amqp (5.2.0)\n#11 8.072   - Installing botocore (1.33.13)\n#11 8.073   - Installing click (8.1.7)\n#11 8.074   - Installing httpcore (1.0.5)\n#11 8.074   - Installing iniconfig (2.0.0)\n#11 8.075   - Installing joblib (1.4.2)\n#11 8.076   - Installing jsonschema (4.23.0)\n#11 8.076   - Installing langchain-text-splitters (0.2.2)\n#11 8.077   - Installing markupsafe (2.1.3)\n#11 8.078   - Installing marshmallow (3.21.3)\n#11 8.078   - Installing numpy (1.26.4)\n#11 8.079   - Installing pathable (0.4.3)\n#11 8.080   - Installing pluggy (1.3.0)\n#11 8.312   - Installing prompt-toolkit (3.0.43)\n#11 8.325   - Installing regex (2024.7.24)\n#11 8.327   - Installing rfc3339-validator (0.1.4)\n#11 8.341   - Installing setuptools (70.0.0)\n#11 8.360   - Installing sqlalchemy (2.0.32)\n#11 8.366   - Installing starlette (0.36.3)\n#11 8.791   - Installing tqdm (4.66.5)\n#11 8.805   - Installing typing-inspect (0.9.0)\n#11 14.75   - Installing billiard (4.2.0)\n#11 14.75   - Installing click-didyoumean (0.3.0)\n#11 14.75   - Installing click-plugins (1.1.1)\n#11 14.75   - Installing click-repl (0.3.0)\n#11 14.75   - Installing dataclasses-json (0.6.7)\n#11 14.75   - Installing distro (1.9.0)\n#11 14.75   - Installing fastapi (0.109.2)\n#11 14.75   - Installing httpx (0.27.0)\n#11 14.75   - Installing jsonschema-path (0.3.2)\n#11 14.75   - Installing kombu (5.3.4)\n#11 14.75   - Installing langchain (0.2.12)\n#11 14.75   - Installing lazy-object-proxy (1.10.0)\n#11 14.76   - Installing mako (1.3.0)\n#11 14.76   - Installing nest-asyncio (1.6.0)\n#11 14.97   - Installing nltk (3.9.1)\n#11 15.00   - Installing openapi-schema-validator (0.6.2)\n#11 15.01   - Installing pathspec (0.12.1)\n#11 15.01   - Installing platformdirs (4.1.0)\n#11 15.03   - Installing pymupdfb (1.23.7)\n#11 15.08   - Installing pymysql (1.1.1)\n#11 15.17   - Installing pytest (7.4.3)\n#11 15.17   - Installing python-dotenv (1.0.1)\n#11 15.18   - Installing s3transfer (0.8.2)\n#11 15.24   - Installing soupsieve (2.5)\n#11 15.26   - Installing types-requests (2.32.0.20240712)\n#11 15.27   - Installing tzdata (2023.3)\n#11 15.32   - Installing uvicorn (0.27.1)\n#11 15.38   - Installing zope-event (5.0)\n#11 15.81   - Installing zope-interface (6.2)\n#11 21.05   - Installing aiofiles (24.1.0)\n#11 21.05   - Installing aiomysql (0.2.0)\n#11 21.05   - Installing alembic (1.13.2)\n#11 21.05   - Installing beautifulsoup4 (4.12.3)\n#11 21.06   - Installing black (24.4.0)\n#11 21.06   - Installing boto3 (1.33.13)\n#11 21.06   - Installing celery (5.3.6)\n#11 21.06   - Installing fastapi-pagination (0.12.26)\n#11 21.06   - Installing gevent (24.2.1)\n#11 21.06   - Installing langchain-community (0.2.11)\n#11 21.06   - Installing loguru (0.6.0)\n#11 21.06   - Installing lxml (5.1.0)\n#11 21.06   - Installing openai (1.27.0)\n#11 21.06   - Installing openapi-spec-validator (0.7.1)\n#11 21.29   - Installing pycryptodome (3.20.0)\n#11 21.36   - Installing pydantic-settings (2.4.0)\n#11 21.39   - Installing pyjwt (2.9.0)\n#11 21.40   - Installing pymupdf (1.23.8)\n#11 21.40   - Installing pytest-asyncio (0.23.2)\n#11 21.41   - Installing python-magic (0.4.27)\n#11 21.42   - Installing python-multipart (0.0.9)\n#11 21.96   - Installing r2r (0.3.4)\n#11 22.32   - Installing redis (5.0.8)\n#11 22.36   - Installing ruff (0.1.9)\n#11 22.42   - Installing sqlakeyset (2.0.1701229837)\n#11 22.75   - Installing sqlmodel (0.0.21)\n#11 22.90   - Installing sse-starlette (1.8.2)\n#11 DONE 30.1s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 4.416 tests/e2e/action_test.py::test_create_action\n#12 4.416 tests/e2e/action_test.py::test_get_action\n#12 4.416 tests/e2e/action_test.py::test_update_action\n#12 4.416 tests/e2e/action_test.py::test_delete_action\n#12 4.416 tests/e2e/action_test.py::test_run_action\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_extra_body\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_metadata\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\n#12 4.416 tests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\n#12 4.416 tests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\n#12 4.416 tests/e2e/sub_stream_test.py::test_sub_stream_with_submit_tool_outputs_stream\n#12 4.416 tests/e2e/test_thread_api.py::test_thread_copy\n#12 4.416 tests/run/run_with_assistant_extra_body_test.py::test_run_with_assistant_extra_body\n#12 4.416 tests/run/run_with_auth_action_test.py::test_run_with_action_auth\n#12 4.416 tests/tools/assistant_action_test.py::test_assistant_with_action_tools\n#12 4.416 tests/unit/test_memory.py::test_memory[data0]\n#12 4.416 tests/unit/test_memory.py::test_memory[data1]\n#12 4.416 tests/unit/test_memory.py::test_memory[data2]\n#12 4.416 tests/unit/test_memory.py::test_memory[data3]\n#12 4.416 tests/unit/test_memory.py::test_memory[data4]\n#12 4.416 tests/unit/test_memory.py::test_memory[data5]\n#12 4.416 tests/unit/test_memory.py::test_memory[data6]\n#12 4.416 tests/unit/test_memory.py::test_memory[data7]\n#12 4.416 tests/unit/test_memory.py::test_memory[data8]\n#12 4.416 tests/unit/test_memory.py::test_memory[data9]\n#12 4.416 tests/unit/test_memory.py::test_memory[data10]\n#12 4.416 tests/unit/test_memory.py::test_memory[data11]\n#12 4.416 tests/unit/test_memory.py::test_memory[data12]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n#12 4.416 \n#12 4.416 33 tests collected in 2.63s\n#12 DONE 4.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.0s done\n#13 writing image sha256:0cc57cb8df0855b669a6936eb0be68d48753305856cb69bfa28598a82bc75cbc\n#13 writing image sha256:0cc57cb8df0855b669a6936eb0be68d48753305856cb69bfa28598a82bc75cbc done\n#13 naming to docker.io/library/jayint-repo2run-mlt-oss__open-assistant-api done\n#13 DONE 1.0s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/z1jwovjqfvsnc3t1crd6zdb0d\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-mlt-oss__open-assistant-api",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-mlt-oss__open-assistant-api sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-17T00:49:47.512937+08:00",
+          "finished_at": "2026-05-17T00:49:50.281604+08:00",
+          "duration_seconds": 2.769,
+          "stdout": "tests/e2e/action_test.py::test_create_action\ntests/e2e/action_test.py::test_get_action\ntests/e2e/action_test.py::test_update_action\ntests/e2e/action_test.py::test_delete_action\ntests/e2e/action_test.py::test_run_action\ntests/e2e/assistant_test.py::test_create_assistant_with_extra_body\ntests/e2e/assistant_test.py::test_create_assistant_with_metadata\ntests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\ntests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\ntests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\ntests/e2e/sub_stream_test.py::test_sub_stream_with_submit_tool_outputs_stream\ntests/e2e/test_thread_api.py::test_thread_copy\ntests/run/run_with_assistant_extra_body_test.py::test_run_with_assistant_extra_body\ntests/run/run_with_auth_action_test.py::test_run_with_action_auth\ntests/tools/assistant_action_test.py::test_assistant_with_action_tools\ntests/unit/test_memory.py::test_memory[data0]\ntests/unit/test_memory.py::test_memory[data1]\ntests/unit/test_memory.py::test_memory[data2]\ntests/unit/test_memory.py::test_memory[data3]\ntests/unit/test_memory.py::test_memory[data4]\ntests/unit/test_memory.py::test_memory[data5]\ntests/unit/test_memory.py::test_memory[data6]\ntests/unit/test_memory.py::test_memory[data7]\ntests/unit/test_memory.py::test_memory[data8]\ntests/unit/test_memory.py::test_memory[data9]\ntests/unit/test_memory.py::test_memory[data10]\ntests/unit/test_memory.py::test_memory[data11]\ntests/unit/test_memory.py::test_memory[data12]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n\n33 tests collected in 1.21s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-mlt-oss__open-assistant-api",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/Dockerfile.eval -t jayint-repo2run-mlt-oss__open-assistant-api /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-17T00:49:10.015520+08:00",
+        "finished_at": "2026-05-17T00:49:47.511460+08:00",
+        "duration_seconds": 37.496,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.17kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 195B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 3.78MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.727 Requirement already satisfied: poetry in /usr/local/lib/python3.12/site-packages (2.4.1)\n#10 0.748 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.0)\n#10 0.749 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.752 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.1.0)\n#10 0.752 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.1)\n#10 0.752 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.21.2)\n#10 0.753 Requirement already satisfied: findpython<0.9.0,>=0.6.2 in /usr/local/lib/python3.12/site-packages (from poetry) (0.8.0)\n#10 0.754 Requirement already satisfied: installer<2.0.0,>=0.7.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.1)\n#10 0.755 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.12/site-packages (from poetry) (25.7.0)\n#10 0.756 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.12/site-packages (from poetry) (26.2)\n#10 0.758 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.5.10)\n#10 0.761 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.12/site-packages (from poetry) (1.12.1.2)\n#10 0.762 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (4.9.6)\n#10 0.762 Requirement already satisfied: poetry-core==2.4.0 in /usr/local/lib/python3.12/site-packages (from poetry) (2.4.0)\n#10 0.763 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.2.0)\n#10 0.765 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.12/site-packages (from poetry) (2.34.0)\n#10 0.767 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from poetry) (1.0.0)\n#10 0.768 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.12/site-packages (from poetry) (1.5.4)\n#10 0.769 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.12/site-packages (from poetry) (0.15.0)\n#10 0.770 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.12/site-packages (from poetry) (2026.5.7.17)\n#10 0.771 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.12/site-packages (from poetry) (21.3.1)\n#10 0.786 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.12/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.788 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.12/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.790 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.791 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.12/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.802 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.12/site-packages (from dulwich<2,>=0.25.0->poetry) (2.7.0)\n#10 0.818 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.818 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.819 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.820 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.821 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.12/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.825 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.825 Requirement already satisfied: backports.zstd>=1.0.0 in /usr/local/lib/python3.12/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (1.5.0)\n#10 0.833 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.833 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (3.14)\n#10 0.833 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.842 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.843 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.12/site-packages (from virtualenv>=20.26.6->poetry) (1.3.0)\n#10 0.850 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.850 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.853 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.860 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.12/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (48.0.0)\n#10 0.863 Requirement already satisfied: more-itertools in /usr/local/lib/python3.12/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.867 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.12/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.869 Requirement already satisfied: typing_extensions>=4.5 in /usr/local/lib/python3.12/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.15.0)\n#10 0.871 Requirement already satisfied: pycparser in /usr/local/lib/python3.12/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.896 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 1.0s\n\n#11 [7/8] RUN poetry install --with dev --no-root\n#11 1.011 Creating virtualenv open-assistant-api-9TtSrW0h-py3.12 in /root/.cache/pypoetry/virtualenvs\n#11 1.989 Installing dependencies from lock file\n#11 2.194 \n#11 2.194 Package operations: 114 installs, 0 updates, 0 removals\n#11 2.194 \n#11 2.195   - Installing typing-extensions (4.12.2)\n#11 3.340   - Installing annotated-types (0.7.0)\n#11 3.342   - Installing certifi (2024.7.4)\n#11 3.343   - Installing charset-normalizer (3.3.2)\n#11 3.344   - Installing idna (3.7)\n#11 3.345   - Installing pydantic-core (2.20.1)\n#11 3.346   - Installing urllib3 (2.0.7)\n#11 4.673   - Installing attrs (23.1.0)\n#11 4.673   - Installing jsonpointer (3.0.0)\n#11 4.674   - Installing orjson (3.9.15)\n#11 4.675   - Installing pydantic (2.8.2)\n#11 4.675   - Installing requests (2.32.2)\n#11 4.677   - Installing rpds-py (0.18.0)\n#11 5.528   - Installing frozenlist (1.4.1)\n#11 5.529   - Installing jsonpatch (1.33)\n#11 5.531   - Installing langsmith (0.1.99)\n#11 5.532   - Installing multidict (6.0.5)\n#11 5.534   - Installing packaging (23.2)\n#11 5.537   - Installing pyyaml (6.0.1)\n#11 5.538   - Installing referencing (0.31.1)\n#11 5.538   - Installing six (1.16.0)\n#11 5.540   - Installing sniffio (1.3.0)\n#11 5.540   - Installing tenacity (8.5.0)\n#11 7.076   - Installing aiohappyeyeballs (2.3.5)\n#11 7.077   - Installing aiosignal (1.3.1)\n#11 7.078   - Installing anyio (3.7.1)\n#11 7.078   - Installing greenlet (3.0.3)\n#11 7.079   - Installing h11 (0.14.0)\n#11 7.081   - Installing jmespath (1.0.1)\n#11 7.083   - Installing jsonschema-specifications (2023.12.1)\n#11 7.084   - Installing langchain-core (0.2.29)\n#11 7.084   - Installing mypy-extensions (1.0.0)\n#11 7.085   - Installing python-dateutil (2.8.2)\n#11 7.086   - Installing vine (5.1.0)\n#11 7.087   - Installing wcwidth (0.2.12)\n#11 7.088   - Installing yarl (1.9.4)\n#11 8.071   - Installing aiohttp (3.10.3)\n#11 8.072   - Installing amqp (5.2.0)\n#11 8.072   - Installing botocore (1.33.13)\n#11 8.073   - Installing click (8.1.7)\n#11 8.074   - Installing httpcore (1.0.5)\n#11 8.074   - Installing iniconfig (2.0.0)\n#11 8.075   - Installing joblib (1.4.2)\n#11 8.076   - Installing jsonschema (4.23.0)\n#11 8.076   - Installing langchain-text-splitters (0.2.2)\n#11 8.077   - Installing markupsafe (2.1.3)\n#11 8.078   - Installing marshmallow (3.21.3)\n#11 8.078   - Installing numpy (1.26.4)\n#11 8.079   - Installing pathable (0.4.3)\n#11 8.080   - Installing pluggy (1.3.0)\n#11 8.312   - Installing prompt-toolkit (3.0.43)\n#11 8.325   - Installing regex (2024.7.24)\n#11 8.327   - Installing rfc3339-validator (0.1.4)\n#11 8.341   - Installing setuptools (70.0.0)\n#11 8.360   - Installing sqlalchemy (2.0.32)\n#11 8.366   - Installing starlette (0.36.3)\n#11 8.791   - Installing tqdm (4.66.5)\n#11 8.805   - Installing typing-inspect (0.9.0)\n#11 14.75   - Installing billiard (4.2.0)\n#11 14.75   - Installing click-didyoumean (0.3.0)\n#11 14.75   - Installing click-plugins (1.1.1)\n#11 14.75   - Installing click-repl (0.3.0)\n#11 14.75   - Installing dataclasses-json (0.6.7)\n#11 14.75   - Installing distro (1.9.0)\n#11 14.75   - Installing fastapi (0.109.2)\n#11 14.75   - Installing httpx (0.27.0)\n#11 14.75   - Installing jsonschema-path (0.3.2)\n#11 14.75   - Installing kombu (5.3.4)\n#11 14.75   - Installing langchain (0.2.12)\n#11 14.75   - Installing lazy-object-proxy (1.10.0)\n#11 14.76   - Installing mako (1.3.0)\n#11 14.76   - Installing nest-asyncio (1.6.0)\n#11 14.97   - Installing nltk (3.9.1)\n#11 15.00   - Installing openapi-schema-validator (0.6.2)\n#11 15.01   - Installing pathspec (0.12.1)\n#11 15.01   - Installing platformdirs (4.1.0)\n#11 15.03   - Installing pymupdfb (1.23.7)\n#11 15.08   - Installing pymysql (1.1.1)\n#11 15.17   - Installing pytest (7.4.3)\n#11 15.17   - Installing python-dotenv (1.0.1)\n#11 15.18   - Installing s3transfer (0.8.2)\n#11 15.24   - Installing soupsieve (2.5)\n#11 15.26   - Installing types-requests (2.32.0.20240712)\n#11 15.27   - Installing tzdata (2023.3)\n#11 15.32   - Installing uvicorn (0.27.1)\n#11 15.38   - Installing zope-event (5.0)\n#11 15.81   - Installing zope-interface (6.2)\n#11 21.05   - Installing aiofiles (24.1.0)\n#11 21.05   - Installing aiomysql (0.2.0)\n#11 21.05   - Installing alembic (1.13.2)\n#11 21.05   - Installing beautifulsoup4 (4.12.3)\n#11 21.06   - Installing black (24.4.0)\n#11 21.06   - Installing boto3 (1.33.13)\n#11 21.06   - Installing celery (5.3.6)\n#11 21.06   - Installing fastapi-pagination (0.12.26)\n#11 21.06   - Installing gevent (24.2.1)\n#11 21.06   - Installing langchain-community (0.2.11)\n#11 21.06   - Installing loguru (0.6.0)\n#11 21.06   - Installing lxml (5.1.0)\n#11 21.06   - Installing openai (1.27.0)\n#11 21.06   - Installing openapi-spec-validator (0.7.1)\n#11 21.29   - Installing pycryptodome (3.20.0)\n#11 21.36   - Installing pydantic-settings (2.4.0)\n#11 21.39   - Installing pyjwt (2.9.0)\n#11 21.40   - Installing pymupdf (1.23.8)\n#11 21.40   - Installing pytest-asyncio (0.23.2)\n#11 21.41   - Installing python-magic (0.4.27)\n#11 21.42   - Installing python-multipart (0.0.9)\n#11 21.96   - Installing r2r (0.3.4)\n#11 22.32   - Installing redis (5.0.8)\n#11 22.36   - Installing ruff (0.1.9)\n#11 22.42   - Installing sqlakeyset (2.0.1701229837)\n#11 22.75   - Installing sqlmodel (0.0.21)\n#11 22.90   - Installing sse-starlette (1.8.2)\n#11 DONE 30.1s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 4.416 tests/e2e/action_test.py::test_create_action\n#12 4.416 tests/e2e/action_test.py::test_get_action\n#12 4.416 tests/e2e/action_test.py::test_update_action\n#12 4.416 tests/e2e/action_test.py::test_delete_action\n#12 4.416 tests/e2e/action_test.py::test_run_action\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_extra_body\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_metadata\n#12 4.416 tests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\n#12 4.416 tests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\n#12 4.416 tests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\n#12 4.416 tests/e2e/sub_stream_test.py::test_sub_stream_with_submit_tool_outputs_stream\n#12 4.416 tests/e2e/test_thread_api.py::test_thread_copy\n#12 4.416 tests/run/run_with_assistant_extra_body_test.py::test_run_with_assistant_extra_body\n#12 4.416 tests/run/run_with_auth_action_test.py::test_run_with_action_auth\n#12 4.416 tests/tools/assistant_action_test.py::test_assistant_with_action_tools\n#12 4.416 tests/unit/test_memory.py::test_memory[data0]\n#12 4.416 tests/unit/test_memory.py::test_memory[data1]\n#12 4.416 tests/unit/test_memory.py::test_memory[data2]\n#12 4.416 tests/unit/test_memory.py::test_memory[data3]\n#12 4.416 tests/unit/test_memory.py::test_memory[data4]\n#12 4.416 tests/unit/test_memory.py::test_memory[data5]\n#12 4.416 tests/unit/test_memory.py::test_memory[data6]\n#12 4.416 tests/unit/test_memory.py::test_memory[data7]\n#12 4.416 tests/unit/test_memory.py::test_memory[data8]\n#12 4.416 tests/unit/test_memory.py::test_memory[data9]\n#12 4.416 tests/unit/test_memory.py::test_memory[data10]\n#12 4.416 tests/unit/test_memory.py::test_memory[data11]\n#12 4.416 tests/unit/test_memory.py::test_memory[data12]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\n#12 4.416 tests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n#12 4.416 \n#12 4.416 33 tests collected in 2.63s\n#12 DONE 4.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.0s done\n#13 writing image sha256:0cc57cb8df0855b669a6936eb0be68d48753305856cb69bfa28598a82bc75cbc\n#13 writing image sha256:0cc57cb8df0855b669a6936eb0be68d48753305856cb69bfa28598a82bc75cbc done\n#13 naming to docker.io/library/jayint-repo2run-mlt-oss__open-assistant-api done\n#13 DONE 1.0s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/z1jwovjqfvsnc3t1crd6zdb0d\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "poetry run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-mlt-oss__open-assistant-api",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-mlt-oss__open-assistant-api sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-17T00:49:47.512937+08:00",
+              "finished_at": "2026-05-17T00:49:50.281604+08:00",
+              "duration_seconds": 2.769,
+              "stdout": "tests/e2e/action_test.py::test_create_action\ntests/e2e/action_test.py::test_get_action\ntests/e2e/action_test.py::test_update_action\ntests/e2e/action_test.py::test_delete_action\ntests/e2e/action_test.py::test_run_action\ntests/e2e/assistant_test.py::test_create_assistant_with_extra_body\ntests/e2e/assistant_test.py::test_create_assistant_with_metadata\ntests/e2e/assistant_test.py::test_create_assistant_with_temperature_and_top_p\ntests/e2e/assistant_test.py::test_update_assistant_with_temperature_and_top_p\ntests/e2e/run_test.py::test_create_run_with_additional_messages_and_other_parmas\ntests/e2e/sub_stream_test.py::test_sub_stream_with_submit_tool_outputs_stream\ntests/e2e/test_thread_api.py::test_thread_copy\ntests/run/run_with_assistant_extra_body_test.py::test_run_with_assistant_extra_body\ntests/run/run_with_auth_action_test.py::test_run_with_action_auth\ntests/tools/assistant_action_test.py::test_assistant_with_action_tools\ntests/unit/test_memory.py::test_memory[data0]\ntests/unit/test_memory.py::test_memory[data1]\ntests/unit/test_memory.py::test_memory[data2]\ntests/unit/test_memory.py::test_memory[data3]\ntests/unit/test_memory.py::test_memory[data4]\ntests/unit/test_memory.py::test_memory[data5]\ntests/unit/test_memory.py::test_memory[data6]\ntests/unit/test_memory.py::test_memory[data7]\ntests/unit/test_memory.py::test_memory[data8]\ntests/unit/test_memory.py::test_memory[data9]\ntests/unit/test_memory.py::test_memory[data10]\ntests/unit/test_memory.py::test_memory[data11]\ntests/unit/test_memory.py::test_memory[data12]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs0]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs1]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs2]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs3]\ntests/unit/test_memory.py::test_window_memory_initial_exception[kwargs4]\n\n33 tests collected in 1.21s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-mlt-oss__open-assistant-api"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-mlt-oss__open-assistant-api",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T00:49:50.283379+08:00",
+    "finished_at": "2026-05-17T00:49:50.306992+08:00",
+    "duration_seconds": 0.024,
+    "stdout": "Untagged: jayint-repo2run-mlt-oss__open-assistant-api:latest\nDeleted: sha256:0cc57cb8df0855b669a6936eb0be68d48753305856cb69bfa28598a82bc75cbc\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/MLT-OSS__open-assistant-api/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

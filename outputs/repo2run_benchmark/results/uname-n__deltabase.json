@@ -1,0 +1,772 @@
+{
+  "dataset_entry": {
+    "instance_id": "uname-n__deltabase",
+    "full_name": "uname-n/deltabase",
+    "repo_url": "https://github.com/uname-n/deltabase.git",
+    "sha": "5eafb9",
+    "base_commit": "5eafb9",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/uname-n/deltabase.git",
+      "--base-commit",
+      "5eafb9",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/uname-n/deltabase.git --base-commit 5eafb9 --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-20T20:21:34.728487+08:00",
+    "finished_at": "2026-05-20T20:27:26.058314+08:00",
+    "duration_seconds": 351.33,
+    "stdout": "Cloning https://github.com/uname-n/deltabase.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 5eafb9\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 8 potentially relevant files\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✓ .devcontainer/devcontainer.json\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ poetry.lock\n[ImageSelector]   ✓ .devcontainer/dockerfile\n[ImageSelector]   ✗ docs/index.md\n[ImageSelector]   ✓ .python-version\n[ImageSelector] 6 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture-specific concerns detected. The project uses common data science libraries (polars, pandas, deltalake) which have good cross-platform support. No embedded databases or native extensions with known ARM64 issues were found in the dependencies.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.11\n[DockerAgent] Selected base image: python:3.11\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/logs/image_selector_logs\nInitializing container from python:3.11...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.11 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:ce7b0\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/logs/compression_logs\nStarting agent for repository: https://github.com/uname-n/deltabase.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2186, Output: 66, Total: 2252\n\n[Thought]\nI'll start by examining the repository's configuration files to understand the dependencies and project structure.\n\n[Action]\ncat pyproject.toml\n[Container ID: 42839ef5a774]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[tool.poetry]\nname = \"deltabase\"\nversion = \"1.0.0\"\ndescription = \"\"\nauthors = [\"uname-n <git@defend.sh>\"]\nreadme = \"README.md\"\npackages = [{include = \"deltabase\"}]\n\n[tool.poetry.dependencies]\npython = \"^3.11\"\npolars = \"^1.6.0\"\ndeltalake = \"^0.19.0\"\nipython = {version=\"^8.26.0\", optional=true}\nopenai = {version=\"^1.43.0\", optional=true}\npandas = {version=\"^2.2.2\", optional=true}\nsimple-salesforce = {version=\"^1.12.6\", optional=true}\ngoogle-cloud-bigquery = {version=\"^3.26.0\", optional=true}\n\n[tool.poetry.group.dev.dependencies]\npytest = \"^8.3.2\"\nmkdocs = \"^1.6.0\"\nmkdocs-material = \"^9.5.31\"\nipykernel = \"^6.29.5\"\npandas = \"^2.2.2\"\n\n[tool.poetry.extras]\nmagic = [\"ipython\"]\nai = [\"ipython\", \"openai\"]\nsalesforce = [\"pandas\", \"simple-salesforce\"]\nbigquery = [\"google-cloud-bigquery\"]\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2520, Output: 87, Total: 2607\n\n[Thought]\nThis is a Poetry-based project. Let me check the test configuration and requirements files to understand the full setup.\n\n[Action]\ncat requirements.txt\n[Container ID: 42839ef5a774]\nExecuting: cat requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ndeltalake==0.19.0 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:0783ce640ee97842280953bd6923200262d29d980b53530f4d796a6e4919d9ee \\\n    --hash=sha256:12fc8ef76294515324de2bc7b44c92f0491a35d33de362e9352f3a2512102ca4 \\\n    --hash=sha256:21789d9a2c3979f12acb2deac11a47fb28e140af4be137f4dffee99eefb70239\nnumpy==2.0.1 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:08458fbf403bff5e2b45f08eda195d4b0c9b35682311da5a5a0a0925b11b9bd8 \\\n    --hash=sha256:0fbb536eac80e27a2793ffd787895242b7f18ef792563d742c2d673bfcb75134 \\\n    --hash=sha256:12f5d865d60fb9734e60a60f1d5afa6d962d8d4467c120a1c0cda6eb2964437d \\\n    --hash=sha256:15eb4eca47d36ec3f78cde0a3a2ee24cf05ca7396ef808dda2c0ddad7c2bde67 \\\n    --hash=sha256:173a00b9995f73b79eb0191129f2455f1e34c203f559dd118636858cc452a1bf \\\n    --hash=sha256:1b902ce0e0a5bb7704556a217c4f63a7974f8f43e090aff03fcf262e0b135e02 \\\n    --hash=sha256:1f682ea61a88479d9498bf2091fdcd722b090724b08b31d63e022adc063bad59 \\\n    --hash=sha256:1f87fec1f9bc1efd23f4227becff04bd0e979e23ca50cc92ec88b38489db3b55 \\\n    --hash=sha256:24a0e1befbfa14615b49ba9659d3d8818a0f4d8a1c5822af8696706fbda7310c \\\n    --hash=sha256:2c3a346ae20cfd80b6cfd3e60dc179963ef2ea58da5ec074fd3d9e7a1e7ba97f \\\n    --hash=sha256:36d3a9405fd7c511804dc56fc32974fa5533bdeb3cd1604d6b8ff1d292b819c4 \\\n    --hash=sha256:3fdabe3e2a52bc4eff8dc7a5044342f8bd9f11ef0934fcd3289a788c0eb10018 \\\n    --hash=sha256:4127d4303b9ac9f94ca0441138acead39928938660ca58329fe156f84b9f3015 \\\n    --hash=sha256:4658c398d65d1b25e1760de3157011a80375da861709abd7cef3bad65d6543f9 \\\n    --hash=sha256:485b87235796410c3519a699cfe1faab097e509e90ebb05dcd098db2ae87e7b3 \\\n    --hash=sha256:529af13c5f4b7a932fb0e1911d3a75da204eff023ee5e0e79c1751564221a5c8 \\\n    --hash=sha256:5a3d94942c331dd4e0e1147f7a8699a4aa47dffc11bf8a1523c12af8b2e91bbe \\\n    --hash=sha256:5daab361be6ddeb299a918a7c0864fa8618af66019138263247af405018b04e1 \\\n    --hash=sha256:61728fba1e464f789b11deb78a57805c70b2ed02343560456190d0501ba37b0f \\\n    --hash=sha256:6790654cb13eab303d8402354fabd47472b24635700f631f041bd0b65e37298a \\\n    --hash=sha256:69ff563d43c69b1baba77af455dd0a839df8d25e8590e79c90fcbe1499ebde42 \\\n    --hash=sha256:6bf4e6f4a2a2e26655717a1983ef6324f2664d7011f6ef7482e8c0b3d51e82ac \\\n    --hash=sha256:6e4eeb6eb2fced786e32e6d8df9e755ce5be920d17f7ce00bc38fcde8ccdbf9e \\\n    --hash=sha256:72dc22e9ec8f6eaa206deb1b1355eb2e253899d7347f5e2fae5f0af613741d06 \\\n    --hash=sha256:75b4e316c5902d8163ef9d423b1c3f2f6252226d1aa5cd8a0a03a7d01ffc6268 \\\n    --hash=sha256:7b9853803278db3bdcc6cd5beca37815b133e9e77ff3d4733c247414e78eb8d1 \\\n    --hash=sha256:7d6fddc5fe258d3328cd8e3d7d3e02234c5d70e01ebe377a6ab92adb14039cb4 \\\n    --hash=sha256:81b0893a39bc5b865b8bf89e9ad7807e16717f19868e9d234bdaf9b1f1393868 \\\n    --hash=sha256:8efc84f01c1cd7e34b3fb310183e72fcdf55293ee736d679b6d35b35d80bba26 \\\n    --hash=sha256:8fae4ebbf95a179c1156fab0b142b74e4ba4204c87bde8d3d8b6f9c34c5825ef \\\n    --hash=sha256:99d0d92a5e3613c33a5f01db206a33f8fdf3d71f2912b0de1739894668b7a93b \\\n    --hash=sha256:9adbd9bb520c866e1bfd7e10e1880a1f7749f1f6e5017686a5fbb9b72cf69f82 \\\n    --hash=sha256:a1e01dcaab205fbece13c1410253a9eea1b1c9b61d237b6fa59bcc46e8e89343 \\\n    --hash=sha256:a8fc2de81ad835d999113ddf87d1ea2b0f4704cbd947c948d2f5513deafe5a7b \\\n    --hash=sha256:b83e16a5511d1b1f8a88cbabb1a6f6a499f82c062a4251892d9ad5d609863fb7 \\\n    --hash=sha256:bb2124fdc6e62baae159ebcfa368708867eb56806804d005860b6007388df171 \\\n    --hash=sha256:bfc085b28d62ff4009364e7ca34b80a9a080cbd97c2c0630bb5f7f770dae9414 \\\n    --hash=sha256:cbab9fc9c391700e3e1287666dfd82d8666d10e69a6c4a09ab97574c0b7ee0a7 \\\n    --hash=sha256:e5eeca8067ad04bc8a2a8731183d51d7cbaac66d86085d5f4766ee6bf19c7f87 \\\n    --hash=sha256:e9e81fa9017eaa416c056e5d9e71be93d05e2c3c2ab308d23307a8bc4443c368 \\\n    --hash=sha256:ea2326a4dca88e4a274ba3a4405eb6c6467d3ffbd8c7d38632502eaae3820587 \\\n    --hash=sha256:eacf3291e263d5a67d8c1a581a8ebbcfd6447204ef58828caf69a5e3e8c75990 \\\n    --hash=sha256:ec87f5f8aca726117a1c9b7083e7656a9d0d606eec7299cc067bb83d26f16e0c \\\n    --hash=sha256:f1659887361a7151f89e79b276ed8dff3d75877df906328f14d8bb40bb4f5101 \\\n    --hash=sha256:f9cf5ea551aec449206954b075db819f52adc1638d46a6738253a712d553c7b4\npolars==1.6.0 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:1c811b772c9476f7f0bb4445a8387d2ab6d86f5e79140b1bfba914a32788d261 \\\n    --hash=sha256:6d1665c23e3574ebd47a26a5d7b619e6e73e53718c3b0bfd7d08b6a0a4ae7daa \\\n    --hash=sha256:a166adb429f8ee099c9d803e7470a80c76368437a8b272c67cef9eef6d5e9da1 \\\n    --hash=sha256:d7e8d5e577883a9755bc3be92ecbf6f20bced68267bdb8bdb440120e905cc19c \\\n    --hash=sha256:d7f3abf085adf034720b358119c4c8e144bcc2d96010b7e7d0afa11b80da383c \\\n    --hash=sha256:ffae15ffa80fda5cc3af44a340b565bcf7f2ab6d7854d3f967baf505710c78e2\npyarrow==17.0.0 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:0071ce35788c6f9077ff9ecba4858108eebe2ea5a3f7cf2cf55ebc1dbc6ee24a \\\n    --hash=sha256:02dae06ce212d8b3244dd3e7d12d9c4d3046945a5933d28026598e9dbbda1fca \\\n    --hash=sha256:0b72e87fe3e1db343995562f7fff8aee354b55ee83d13afba65400c178ab2597 \\\n    --hash=sha256:0cdb0e627c86c373205a2f94a510ac4376fdc523f8bb36beab2e7f204416163c \\\n    --hash=sha256:13d7a460b412f31e4c0efa1148e1d29bdf18ad1411eb6757d38f8fbdcc8645fb \\\n    --hash=sha256:1c8856e2ef09eb87ecf937104aacfa0708f22dfeb039c363ec99735190ffb977 \\\n    --hash=sha256:2e19f569567efcbbd42084e87f948778eb371d308e137a0f97afe19bb860ccb3 \\\n    --hash=sha256:32503827abbc5aadedfa235f5ece8c4f8f8b0a3cf01066bc8d29de7539532687 \\\n    --hash=sha256:392bc9feabc647338e6c89267635e111d71edad5fcffba204425a7c8d13610d7 \\\n    --hash=sha256:42bf93249a083aca230ba7e2786c5f673507fa97bbd9725a1e2754715151a204 \\\n    --hash=sha256:4beca9521ed2c0921c1023e68d097d0299b62c362639ea315572a58f3f50fd28 \\\n    --hash=sha256:5984f416552eea15fd9cee03da53542bf4cddaef5afecefb9aa8d1010c335087 \\\n    --hash=sha256:6b244dc8e08a23b3e352899a006a26ae7b4d0da7bb636872fa8f5884e70acf15 \\\n    --hash=sha256:757074882f844411fcca735e39aae74248a1531367a7c80799b4266390ae51cc \\\n    --hash=sha256:75c06d4624c0ad6674364bb46ef38c3132768139ddec1c56582dbac54f2663e2 \\\n    --hash=sha256:7c7916bff914ac5d4a8fe25b7a25e432ff921e72f6f2b7547d1e325c1ad9d155 \\\n    --hash=sha256:9b564a51fbccfab5a04a80453e5ac6c9954a9c5ef2890d1bcf63741909c3f8df \\\n    --hash=sha256:9b8a823cea605221e61f34859dcc03207e52e409ccf6354634143e23af7c8d22 \\\n    --hash=sha256:9ba11c4f16976e89146781a83833df7f82077cdab7dc6232c897789343f7891a \\\n    --hash=sha256:a155acc7f154b9ffcc85497509bcd0d43efb80d6f733b0dc3bb14e281f131c8b \\\n    --hash=sha256:a27532c38f3de9eb3e90ecab63dfda948a8ca859a66e3a47f5f42d1e403c4d03 \\\n    --hash=sha256:a48ddf5c3c6a6c505904545c25a4ae13646ae1f8ba703c4df4a1bfe4f4006bda \\\n    --hash=sha256:a5c8b238d47e48812ee577ee20c9a2779e6a5904f1708ae240f53ecbee7c9f07 \\\n    --hash=sha256:af5ff82a04b2171415f1410cff7ebb79861afc5dae50be73ce06d6e870615204 \\\n    --hash=sha256:b0c6ac301093b42d34410b187bba560b17c0330f64907bfa4f7f7f2444b0cf9b \\\n    --hash=sha256:d7d192305d9d8bc9082d10f361fc70a73590a4c65cf31c3e6926cd72b76bc35c \\\n    --hash=sha256:da1e060b3876faa11cee287839f9cc7cdc00649f475714b8680a05fd9071d545 \\\n    --hash=sha256:db023dc4c6cae1015de9e198d41250688383c3f9af8f565370ab2b4cb5f62655 \\\n    --hash=sha256:dc5c31c37409dfbc5d014047817cb4ccd8c1ea25d19576acf1a001fe07f5b420 \\\n    --hash=sha256:dec8d129254d0188a49f8a1fc99e0560dc1b85f60af729f47de4046015f9b0a5 \\\n    --hash=sha256:e3343cb1e88bc2ea605986d4b94948716edc7a8d14afd4e2c097232f729758b4 \\\n    --hash=sha256:edca18eaca89cd6382dfbcff3dd2d87633433043650c07375d095cd3517561d8 \\\n    --hash=sha256:f1e70de6cb5790a50b01d2b686d54aaf73da01266850b05e3af2a1bc89e16053 \\\n    --hash=sha256:f553ca691b9e94b202ff741bdd40f6ccb70cdd5fbf65c187af132f1317de6145 \\\n    --hash=sha256:f7ae2de664e0b158d1607699a16a488de3d008ba99b3a7aa5de1cbc13574d047 \\\n    --hash=sha256:fa3c246cc58cb5a4a5cb407a18f193354ea47dd0648194e6265bd24177982fe8\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 6735, Output: 94, Total: 6829\n\n[Thought]\nLet me check the test files and devcontainer configuration to understand the test setup better.\n\n[Action]\ncat tests/conftest.py\n[Container ID: 42839ef5a774]\nExecuting: cat tests/conftest.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nfrom shutil import rmtree\nfrom os.path import exists\n\ndef pytest_sessionfinish(session, exitstatus):\n    if exists(\"test.delta\"): rmtree(\"test.delta\")\n\n==================== Step 4 ====================\n\n[Tokens] Input: 6809, Output: 51, Total: 6860\n\n[Thought]\nLet me check the devcontainer.json to see what configuration is used for development.\n\n[Action]\ncat .devcontainer/devcontainer.json\n[Container ID: 42839ef5a774]\nExecuting: cat .devcontainer/devcontainer.json\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n{\n\t\"name\": \"deltabase\",\n\t\"build\":{\n\t\t\"dockerfile\": \"dockerfile\",\n\t\t\"context\": \".\",\n\t\t\"args\": {\n\t\t\t\"VARIANT\": \"3.11-bullseye\"\n\t\t}\n\t},\n\n\t\"features\": {\n\t\t\"github-cli\": \"latest\"\n\t},\n\n\t\"postCreateCommand\": \"bash ./.devcontainer/post-install.sh\",\n\n\t\"customizations\": {\n\t\t\"vscode\": {\n\t\t\t\"extensions\": [\n\t\t\t\t\"ms-vscode.cpptools-themes\",\n\t\t\t\t\"ms-toolsai.jupyter\",\n\t\t\t\t\"ms-python.python\"\n\t\t\t],\n\t\t\t\"settings\": {\n\t\t\t\t\"workbench.colorTheme\": \"Visual Studio 2017 Dark - C++\"\n\t\t\t}\n\t\t}\n\t},\n\n\t\"remoteUser\": \"vscode\"\n}\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 2974, Output: 56, Total: 3030\n\n[Thought]\nLet me check the post-install script to understand the setup steps.\n\n[Action]\ncat .devcontainer/post-install.sh 2>/dev/null || echo \"File not found\"\n[Container ID: 42839ef5a774]\nExecuting: cat .devcontainer/post-install.sh 2>/dev/null || echo \"File not found\"\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nFile not found\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3025, Output: 54, Total: 3079\n\n[Thought]\nLet me check the test files to understand what tests are available.\n\n[Action]\ncat tests/test_deltabase.py\n[Container ID: 42839ef5a774]\nExecuting: cat tests/test_deltabase.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport pytest\n\nfrom deltabase import delta\nfrom polars import DataFrame, LazyFrame\nfrom pandas import DataFrame as PandasDataFrame\n\nfrom os.path import exists\nfrom shutil import rmtree\n\n@pytest.fixture\ndef db():\n    _ = delta.connect(path=\"test.delta\")\n    yield _\n    for table in _.tables:\n        _._delta__delta_sql_context.unregister(table)\n    if exists(\"test.delta\"): rmtree(\"test.delta\")\n\ndef test_connect(db):\n    assert isinstance(db, delta)\n    assert db.tables == []\n\ndef test_add_record_dict(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=1, name=\"a\"))\n    assert not err, err\n\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=[\n        dict(id=2, name=\"b\"),\n        dict(id=3, name=\"c\"),\n    ])\n    assert not err, err\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (3, 2)\n    assert set(result[\"id\"].to_list()) == set([1,2,3])\n    assert set(result[\"name\"].to_list()) == set([\"a\",\"b\",\"c\"])\n\ndef test_add_record_dataframe(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=DataFrame([\n        dict(id=2, name=\"b\"),\n        dict(id=3, name=\"c\"),\n    ]))\n    assert not err, err\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 2)\n    assert set(result[\"id\"].to_list()) == set([2,3])\n    assert set(result[\"name\"].to_list()) == set([\"b\",\"c\"])\n\ndef test_add_record_lazyframe(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=DataFrame([\n        dict(id=2, name=\"b\"),\n        dict(id=3, name=\"c\"),\n    ]).lazy())\n    assert not err, err\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 2)\n    assert set(result[\"id\"].to_list()) == set([2,3])\n    assert set(result[\"name\"].to_list()) == set([\"b\",\"c\"])\n\ndef test_add_mismatch_schema(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=[\n        dict(id=2, name=\"b\", job=\"j\"),\n        dict(id=3, name=\"c\"),\n    ])\n    assert not err, err\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 3)\n    assert set(result[\"id\"].to_list()) == set([2,3])\n    assert set(result[\"name\"].to_list()) == set([\"b\",\"c\"])\n    assert set(result[\"job\"].to_list()) == set([\"j\", None])\n\ndef test_update_record(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=2, name=\"a\"))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=2, name=\"b\"))\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (1, 2)\n    assert set(result[\"id\"].to_list()) == set([2])\n    assert set(result[\"name\"].to_list()) == set([\"b\"])\n\ndef test_update_mismatch_schema_record(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=2, name=\"a\"))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=[dict(id=2, name=\"b\"), dict(id=3, name=\"c\", job=\"j\")])\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 3)\n    assert set(result[\"id\"].to_list()) == set([2, 3])\n    assert set(result[\"name\"].to_list()) == set([\"b\", \"c\"])\n    assert set(result[\"job\"].to_list()) == set([None, \"j\"])\n\ndef test_delete_record_sql(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=6, name=\"b\"))\n    \n    err = db.delete(table=\"test_table\", filter=\"name='a'\")\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (1, 2)\n    assert set(result[\"name\"].to_list()) == set([\"b\"])\n\ndef test_delete_record_lambda(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=6, name=\"b\"))\n    \n    err = db.delete(table=\"test_table\", filter=lambda row: row[\"name\"] == \"a\")\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (1, 2)\n    assert set(result[\"name\"].to_list()) == set([\"b\"])\n\ndef test_delete_record_wrong_type(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=6, name=\"b\"))\n    \n    err = db.delete(table=\"test_table\", filter=[\"wrong\"])\n    assert isinstance(err, Exception)\n\ndef test_schema_override(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"edward\"))\n    db.commit(\"test_table\")\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=6, name=\"james\", job=\"chef\"))\n    db.commit(\"test_table\", force=True)\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    assert result.shape == (2, 3)\n\ndef test_commit_and_versioning(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=2, name=\"b\"))\n    assert not err, err\n\n    err = db.commit(\"test_table\")\n    assert not err, err\n\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=3, name=\"c\"))\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 2)\n    assert set(result[\"id\"].to_list()) == set([2,3])\n    assert set(result[\"name\"].to_list()) == set([\"b\",\"c\"])\n\n    err = db.checkout(table=\"test_table\", version=0)\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    \n    assert isinstance(result, DataFrame)\n    assert result.shape == (1, 2)\n    assert set(result[\"id\"].to_list()) == set([2])\n    assert set(result[\"name\"].to_list()) == set([\"b\"])\n\ndef test_commit_with_partitions(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=LazyFrame([dict(id=1, name=\"alice\", job=\"teacher\")]))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=LazyFrame([dict(id=2, name=\"john\", job=\"chef\")]))\n    db.commit(\"test_table\", partition_by=[\"job\"])\n\n    db.register(table=\"test_table\", pyarrow_options={\"partitions\": [(\"job\", \"=\", \"chef\")]})\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (1, 3)\n    assert result[\"id\"].to_list() == [2]\n    assert result[\"name\"].to_list() == [\"john\"]\n\ndef test_register_with_alias(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=LazyFrame([dict(id=1, name=\"alice\", job=\"teacher\")]))\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=LazyFrame([dict(id=2, name=\"john\", job=\"chef\")]))\n    db.commit(\"test_table\")\n\n    db.register(table=\"test_table\", alias=\"other_table\")\n\n    result = db.sql(\"select * from other_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (2, 3)\n    assert set(result[\"id\"].to_list()) == set([1,2])\n    assert set(result[\"name\"].to_list()) == set([\"alice\",\"john\"])\n\ndef test_json_output(db):\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    result = db.sql(\"select * from test_table\", dtype=\"json\")\n    assert isinstance(result, list)\n    assert isinstance(result[0], dict)\n    assert result[0] == dict(id=5, name=\"a\")\n\ndef test_override_dtype(db):\n    db.config.dtype = \"polars\"\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    result = db.sql(\"select * from test_table\")\n    assert isinstance(result, DataFrame)\n\ndef test_collect_schema(db):\n    db.config.dtype = \"polars\"\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    schema = db.schema(table=\"test_table\")\n    assert schema == {'id': int, 'name': str}\n\n==================== Step 7 ====================\n\n[Tokens] Input: 5291, Output: 125, Total: 5416\n\n[Thought]\nLet me check the other test files to understand the full test suite.\n\n[Action]\ncat tests/test_deltabase_workflow.py\n[Container ID: 42839ef5a774]\nExecuting: cat tests/test_deltabase_workflow.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport pytest\n\nfrom deltabase import delta\n\nfrom polars import DataFrame\nfrom os.path import exists\nfrom os import listdir\nfrom time import time\n\nTIMEOUT = 20\nW = 1_000\nH = 1_000\n\ndata = lambda w, h: [{\"name\":f\"name_{_}\", **{f\"field_{n}\":n+_ for n in range(w)}} for _ in range(h)]\ntesting_data = data(W, H)\n\n@pytest.fixture\ndef db():\n    return delta.connect(path=\"test.delta\")\n\ndef test_connect(db):\n    assert isinstance(db, delta)\n    assert db.tables == []\n\ndef test_add_data(db):\n    s = time()\n    err = db.upsert(table=\"test_table\", primary_key=\"name\", data=testing_data)\n    assert not err, err\n    e = time()\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (W, H+1)\n    assert (e-s) < TIMEOUT\n\ndef test_first_commit(db):\n    err = db.commit(\"test_table\")\n    assert not err, err\n\n    assert exists(\"test.delta/default/test_table\")\n    assert len(listdir(\"test.delta/default/test_table\")) == 2\n    assert len(listdir(\"test.delta/default/test_table/_delta_log\")) == 1\n\ndef test_delete_records(db):\n    err = db.delete(\"test_table\", filter=\"field_6 % 2 == 0\")\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n    assert 0 < result.shape[0] < W\n    assert result.shape[1] == H+1\n\ndef test_second_commit(db):\n    err = db.commit(\"test_table\")\n    assert not err, err\n\n    assert len(listdir(\"test.delta/default/test_table\")) == 3\n    assert len(listdir(\"test.delta/default/test_table/_delta_log\")) == 2\n\ndef test_checkout_original_commit(db):\n    err = db.checkout(\"test_table\", version=1)\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (W, H+1)\n\n==================== Step 8 ====================\n\n[Tokens] Input: 5822, Output: 136, Total: 5958\n\n[Thought]\nNow I understand the project. It's a Poetry-based Python project. Let me install Poetry and then use it to install the dependencies and set up the project.\n\n[Action]\npip install poetry\n[Container ID: 42839ef5a774]\nExecuting: pip install poetry\nCommand succeeded.\n[Snapshot Created] sha256:5a790\n\n[Observation]\nCollecting poetry\n  Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n  Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\nCollecting findpython<0.9.0,>=0.6.2 (from poetry)\n  Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\nCollecting installer<2.0.0,>=0.7.0 (from poetry)\n  Downloading installer-1.0.1-py3-none-any.whl.metadata (1.2 kB)\nCollecting keyring<26.0.0,>=25.1.0 (from poetry)\n  Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\nCollecting packaging>=24.2 (from poetry)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading pbs_installer-2026.5.10-py3-none-any.whl.metadata (1.0 kB)\nCollecting pkginfo<2.0,>=1.12 (from poetry)\n  Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\nCollecting platformdirs<5,>=3.0.0 (from poetry)\n  Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\nCollecting poetry-core==2.4.0 (from poetry)\n  Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\nCollecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\nCollecting requests<3.0,>=2.26 (from poetry)\n  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)\nCollecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\nCollecting shellingham<2.0,>=1.5 (from poetry)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n  Downloading tomlkit-0.15.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting trove-classifiers>=2022.5.19 (from poetry)\n  Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl.metadata (2.3 kB)\nCollecting virtualenv>=20.26.6 (from poetry)\n  Downloading virtualenv-21.3.3-py3-none-any.whl.metadata (3.5 kB)\nCollecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\nCollecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\nCollecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nCollecting typing_extensions>=4.6.0 (from dulwich<2,>=0.25.0->poetry)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\nCollecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting importlib_metadata>=4.11.4 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\nCollecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_functools-4.5.0-py3-none-any.whl.metadata (2.9 kB)\nCollecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\nCollecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting backports.zstd>=1.0.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.8 kB)\nCollecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n  Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 664.8 kB/s eta 0:00:00\nCollecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n  Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\nCollecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n  Downloading certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)\nCollecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n  Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\nCollecting python-discovery>=1.3.1 (from virtualenv>=20.26.6->poetry)\n  Downloading python_discovery-1.3.1-py3-none-any.whl.metadata (5.6 kB)\nCollecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)\nCollecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)\nCollecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 955.8 kB/s eta 0:00:00\nCollecting backports.tarfile (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\nCollecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\nDownloading poetry-2.4.1-py3-none-any.whl (292 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 292.3/292.3 kB 1.6 MB/s eta 0:00:00\nDownloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 374.8/374.8 kB 4.4 MB/s eta 0:00:00\nDownloading build-1.5.0-py3-none-any.whl (26 kB)\nDownloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\nDownloading cleo-2.1.0-py3-none-any.whl (78 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 8.9 MB/s eta 0:00:00\nDownloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl (1.4 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 10.9 MB/s eta 0:00:00\nDownloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\nDownloading findpython-0.8.0-py3-none-any.whl (21 kB)\nDownloading installer-1.0.1-py3-none-any.whl (464 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 464.5/464.5 kB 3.4 MB/s eta 0:00:00\nDownloading keyring-25.7.0-py3-none-any.whl (39 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 9.3 MB/s eta 0:00:00\nDownloading pbs_installer-2026.5.10-py3-none-any.whl (74 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.4/74.4 kB 8.4 MB/s eta 0:00:00\nDownloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\nDownloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nDownloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nDownloading requests-2.34.2-py3-none-any.whl (73 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.1/73.1 kB 8.0 MB/s eta 0:00:00\nDownloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 3.5 MB/s eta 0:00:00\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading tomlkit-0.15.0-py3-none-any.whl (41 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.3/41.3 kB 4.3 MB/s eta 0:00:00\nDownloading trove_classifiers-2026.5.7.17-py3-none-any.whl (14 kB)\nDownloading virtualenv-21.3.3-py3-none-any.whl (7.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.9 MB/s eta 0:00:00\nDownloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (492 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 492.3/492.3 kB 11.0 MB/s eta 0:00:00\nDownloading certifi-2026.5.20-py3-none-any.whl (134 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 5.6 MB/s eta 0:00:00\nDownloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 10.8 MB/s eta 0:00:00\nDownloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\nDownloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 11.4 MB/s eta 0:00:00\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 9.0 MB/s eta 0:00:00\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 9.1 MB/s eta 0:00:00\nDownloading idna-3.15-py3-none-any.whl (72 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.3/72.3 kB 9.7 MB/s eta 0:00:00\nDownloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\nDownloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 7.2 MB/s eta 0:00:00\nDownloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (426 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 426.2/426.2 kB 9.8 MB/s eta 0:00:00\nDownloading python_discovery-1.3.1-py3-none-any.whl (33 kB)\nDownloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 8.5 MB/s eta 0:00:00\nDownloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 4.4 MB/s eta 0:00:00\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 15.4 MB/s eta 0:00:00\nDownloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\nDownloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\nDownloading jaraco_functools-4.5.0-py3-none-any.whl (10 kB)\nDownloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 7.4 MB/s eta 0:00:00\nDownloading zipp-4.1.0-py3-none-any.whl (10 kB)\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 12.5 MB/s eta 0:00:00\nDownloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\nDownloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 6.5 MB/s eta 0:00:00\nDownloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 kB 10.5 MB/s eta 0:00:00\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading pycparser-3.0-py3-none-any.whl (48 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 5.0 MB/s eta 0:00:00\nInstalling collected packages: trove-classifiers, fastjsonschema, distlib, zipp, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pycparser, poetry-core, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, idna, h11, filelock, crashtest, charset_normalizer, certifi, backports.zstd, backports.tarfile, requests, python-discovery, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\nSuccessfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 backports.zstd-1.5.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.5.20 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-48.0.0 distlib-0.4.0 dulwich-1.2.1 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.15 importlib_metadata-9.0.0 installer-1.0.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.5.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.5.10 pkginfo-1.12.1.2 platformdirs-4.9.6 poetry-2.4.1 poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.3.1 rapidfuzz-3.14.5 requests-2.34.2 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3 zipp-4.1.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 11458, Output: 53, Total: 11511\n\n[Thought]\nPoetry is installed. Now I'll install the project dependencies using Poetry's install command.\n\n[Action]\npoetry install --with dev\n[Container ID: 42839ef5a774]\nExecuting: poetry install --with dev\nCommand succeeded.\n[Snapshot Created] sha256:45f99\n\n[Observation]\nCreating virtualenv deltabase-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 63 installs, 0 updates, 0 removals\n\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.3.2)\n  - Installing idna (3.10)\n  - Installing six (1.16.0)\n  - Installing urllib3 (2.2.3)\n  - Installing asttokens (2.4.1)\n  - Installing executing (2.1.0)\n  - Installing markupsafe (2.1.5)\n  - Installing mergedeep (1.3.4)\n  - Installing parso (0.8.4)\n  - Installing platformdirs (4.3.6)\n  - Installing ptyprocess (0.7.0)\n  - Installing pure-eval (0.2.3)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing pyyaml (6.0.2)\n  - Installing requests (2.32.3)\n  - Installing traitlets (5.14.3)\n  - Installing typing-extensions (4.12.2)\n  - Installing wcwidth (0.2.13)\n  - Installing click (8.1.7)\n  - Installing decorator (5.1.1)\n  - Installing ghp-import (2.1.0)\n  - Installing jedi (0.19.1)\n  - Installing jinja2 (3.1.4)\n  - Installing jupyter-core (5.7.2)\n  - Installing markdown (3.7)\n  - Installing matplotlib-inline (0.1.7)\n  - Installing mkdocs-get-deps (0.2.0)\n  - Installing numpy (2.1.1)\n  - Installing packaging (24.1)\n  - Installing pathspec (0.12.1)\n  - Installing pexpect (4.9.0)\n  - Installing prompt-toolkit (3.0.48)\n  - Installing pygments (2.18.0)\n  - Installing pytz (2024.2)\n  - Installing pyyaml-env-tag (0.1)\n  - Installing pyzmq (26.2.0)\n  - Installing stack-data (0.6.3)\n  - Installing tornado (6.4.1)\n  - Installing watchdog (5.0.3)\n/usr/local/lib/python3.11/site-packages/poetry/installation/wheel_installer.py:129: RuntimeWarning: Skip installing numpy/distutils/__pycache__/conv_template.cpython-311.pyc from numpy. Installing files in a __pycache__ directory poses a security risk. __pycache__ directories should not be included in wheels. This is probably an issue in the build process of 'numpy'.\n  install(\n  - Installing babel (2.16.0)\n  - Installing colorama (0.4.6)\n  - Installing comm (0.2.2)\n  - Installing debugpy (1.8.6)\n  - Installing iniconfig (2.0.0)\n  - Installing ipython (8.27.0)\n  - Installing jupyter-client (8.6.3)\n  - Installing mkdocs (1.6.1)\n  - Installing mkdocs-material-extensions (1.3.1)\n  - Installing nest-asyncio (1.6.0)\n  - Installing paginate (0.5.7)\n  - Installing pluggy (1.5.0)\n  - Installing psutil (6.0.0)\n  - Installing pyarrow (17.0.0)\n  - Installing pymdown-extensions (10.11)\n  - Installing regex (2024.9.11)\n  - Installing tzdata (2024.2)\n  - Installing deltalake (0.19.2)\n  - Installing ipykernel (6.29.5)\n  - Installing mkdocs-material (9.5.38)\n  - Installing pandas (2.2.3)\n  - Installing polars (1.8.2)\n  - Installing pytest (8.3.3)\n\nInstalling the current project: deltabase (1.0.0)\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 12415, Output: 69, Total: 12484\n\n[Thought]\nDependencies installed successfully. Now I'll verify pytest can collect the tests using Poetry.\n\n[Action]\npoetry run pytest --collect-only -q --disable-warnings\n[Container ID: 42839ef5a774]\nExecuting: poetry run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:93fed\n\n[Observation]\ntests/test_deltabase.py::test_connect\ntests/test_deltabase.py::test_add_record_dict\ntests/test_deltabase.py::test_add_record_dataframe\ntests/test_deltabase.py::test_add_record_lazyframe\ntests/test_deltabase.py::test_add_mismatch_schema\ntests/test_deltabase.py::test_update_record\ntests/test_deltabase.py::test_update_mismatch_schema_record\ntests/test_deltabase.py::test_delete_record_sql\ntests/test_deltabase.py::test_delete_record_lambda\ntests/test_deltabase.py::test_delete_record_wrong_type\ntests/test_deltabase.py::test_schema_override\ntests/test_deltabase.py::test_commit_and_versioning\ntests/test_deltabase.py::test_commit_with_partitions\ntests/test_deltabase.py::test_register_with_alias\ntests/test_deltabase.py::test_json_output\ntests/test_deltabase.py::test_override_dtype\ntests/test_deltabase.py::test_collect_schema\ntests/test_deltabase_workflow.py::test_connect\ntests/test_deltabase_workflow.py::test_add_data\ntests/test_deltabase_workflow.py::test_first_commit\ntests/test_deltabase_workflow.py::test_delete_records\ntests/test_deltabase_workflow.py::test_second_commit\ntests/test_deltabase_workflow.py::test_checkout_original_commit\n\n23 tests collected in 1.51s\n\n\n==================== Step 11 ====================\n\n[Tokens] Input: 7941, Output: 160, Total: 8101\n\n[Finished] Agent has reached a conclusion.\n<think>\nExcellent! All tests are collected successfully. The setup is complete. Let me provide the final verification bundle.\n\nSummary:\n- Poetry was installed\n- Dependencies were installed with `poetry install --with dev`\n- Tests were successfully collected using `poetry run pytest --collect-only -q --disable-warnings`\n\nNo runtime preparation commands are needed since the environment is fully set up by Poetry.\n</think>\n\nThought: All tests are collected successfully. The repository is configured and tests can be discovered by pytest. The Poetry-based setup is complete with all dependencies installed including polars, deltalake, pandas, and test dependencies.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"poetry run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 3 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/uname-n__deltabase.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/uname-n/deltabase.git",
+    "configuration_success": true,
+    "base_image": "python:3.11",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[tool.poetry]\nname = \"deltabase\"\nversion = \"1.0.0\"\ndescription = \"\"\nauthors = [\"uname-n <git@defend.sh>\"]\nreadme = \"README.md\"\npackages = [{include = \"deltabase\"}]\n\n[tool.poetry.dependencies]\npython = \"^3.11\"\npolars = \"^1.6.0\"\ndeltalake = \"^0.19.0\"\nipython = {version=\"^8.26.0\", optional=true}\nopenai = {version=\"^1.43.0\", optional=true}\npandas = {version=\"^2.2.2\", optional=true}\nsimple-salesforce = {version=\"^1.12.6\", optional=true}\ngoogle-cloud-bigquery = {version=\"^3.26.0\", optional=true}\n\n[tool.poetry.group.dev.dependencies]\npytest = \"^8.3.2\"\nmkdocs = \"^1.6.0\"\nmkdocs-material = \"^9.5.31\"\nipykernel = \"^6.29.5\"\npandas = \"^2.2.2\"\n\n[tool.poetry.extras]\nmagic = [\"ipython\"]\nai = [\"ipython\", \"openai\"]\nsalesforce = [\"pandas\", \"simple-salesforce\"]\nbigquery = [\"google-cloud-bigquery\"]\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "deltalake==0.19.0 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:0783ce640ee97842280953bd6923200262d29d980b53530f4d796a6e4919d9ee \\\n    --hash=sha256:12fc8ef76294515324de2bc7b44c92f0491a35d33de362e9352f3a2512102ca4 \\\n    --hash=sha256:21789d9a2c3979f12acb2deac11a47fb28e140af4be137f4dffee99eefb70239\nnumpy==2.0.1 ; python_version >= \"3.12\" and python_version < \"4.0\" \\\n    --hash=sha256:08458fbf403bff5e2b45f08eda195d4b0c9b35682311da5a5a0a0925b11b9bd8 \\\n    --hash=sha256:0fbb536eac80e27a2793ffd787895242b7f18ef792563d742c2d673bfcb75134 \\\n    --hash=sha256:12f5d865d60fb973\n... (6727 chars omitted for recipe synthesis) ...\nb420 \\\n    --hash=sha256:dec8d129254d0188a49f8a1fc99e0560dc1b85f60af729f47de4046015f9b0a5 \\\n    --hash=sha256:e3343cb1e88bc2ea605986d4b94948716edc7a8d14afd4e2c097232f729758b4 \\\n    --hash=sha256:edca18eaca89cd6382dfbcff3dd2d87633433043650c07375d095cd3517561d8 \\\n    --hash=sha256:f1e70de6cb5790a50b01d2b686d54aaf73da01266850b05e3af2a1bc89e16053 \\\n    --hash=sha256:f553ca691b9e94b202ff741bdd40f6ccb70cdd5fbf65c187af132f1317de6145 \\\n    --hash=sha256:f7ae2de664e0b158d1607699a16a488de3d008ba99b3a7aa5de1cbc13574d047 \\\n    --hash=sha256:fa3c246cc58cb5a4a5cb407a18f193354ea47dd0648194e6265bd24177982fe8\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat tests/conftest.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "from shutil import rmtree\nfrom os.path import exists\n\ndef pytest_sessionfinish(session, exitstatus):\n    if exists(\"test.delta\"): rmtree(\"test.delta\")"
+      },
+      {
+        "step_index": 4,
+        "command": "cat .devcontainer/devcontainer.json",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "{\n\t\"name\": \"deltabase\",\n\t\"build\":{\n\t\t\"dockerfile\": \"dockerfile\",\n\t\t\"context\": \".\",\n\t\t\"args\": {\n\t\t\t\"VARIANT\": \"3.11-bullseye\"\n\t\t}\n\t},\n\n\t\"features\": {\n\t\t\"github-cli\": \"latest\"\n\t},\n\n\t\"postCreateCommand\": \"bash ./.devcontainer/post-install.sh\",\n\n\t\"customizations\": {\n\t\t\"vscode\": {\n\t\t\t\"extensions\": [\n\t\t\t\t\"ms-vscode.cpptools-themes\",\n\t\t\t\t\"ms-toolsai.jupyter\",\n\t\t\t\t\"ms-python.python\"\n\t\t\t],\n\t\t\t\"settings\": {\n\t\t\t\t\"workbench.colorTheme\": \"Visual Studio 2017 Dark - C++\"\n\t\t\t}\n\t\t}\n\t},\n\n\t\"remoteUser\": \"vscode\"\n}\n"
+      },
+      {
+        "step_index": 5,
+        "command": "cat .devcontainer/post-install.sh 2>/dev/null || echo \"File not found\"",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "File not found\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cat tests/test_deltabase.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import pytest\n\nfrom deltabase import delta\nfrom polars import DataFrame, LazyFrame\nfrom pandas import DataFrame as PandasDataFrame\n\nfrom os.path import exists\nfrom shutil import rmtree\n\n@pytest.fixture\ndef db():\n    _ = delta.connect(path=\"test.delta\")\n    yield _\n    for table in _.tables:\n        _._delta__delta_sql_context.unregister(table)\n    if exists(\"test.delta\"): rmtree(\"test.delta\")\n\ndef test_connect(db):\n    assert isinstance(db, delta)\n    assert db.tables == []\n\ndef test_add_record_dict(db):\n    err = db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=1, name=\"a\"))\n    a\n... (6786 chars omitted for recipe synthesis) ...\n_table\", dtype=\"json\")\n    assert isinstance(result, list)\n    assert isinstance(result[0], dict)\n    assert result[0] == dict(id=5, name=\"a\")\n\ndef test_override_dtype(db):\n    db.config.dtype = \"polars\"\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    result = db.sql(\"select * from test_table\")\n    assert isinstance(result, DataFrame)\n\ndef test_collect_schema(db):\n    db.config.dtype = \"polars\"\n    db.upsert(table=\"test_table\", primary_key=\"id\", data=dict(id=5, name=\"a\"))\n    schema = db.schema(table=\"test_table\")\n    assert schema == {'id': int, 'name': str}"
+      },
+      {
+        "step_index": 7,
+        "command": "cat tests/test_deltabase_workflow.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import pytest\n\nfrom deltabase import delta\n\nfrom polars import DataFrame\nfrom os.path import exists\nfrom os import listdir\nfrom time import time\n\nTIMEOUT = 20\nW = 1_000\nH = 1_000\n\ndata = lambda w, h: [{\"name\":f\"name_{_}\", **{f\"field_{n}\":n+_ for n in range(w)}} for _ in range(h)]\ntesting_data = data(W, H)\n\n@pytest.fixture\ndef db():\n    return delta.connect(path=\"test.delta\")\n\ndef test_connect(db):\n    assert isinstance(db, delta)\n    assert db.tables == []\n\ndef test_add_data(db):\n    s = time()\n    err = db.upsert(table=\"test_table\", primary_key=\"name\", data=testing_data)\n    assert not err, e\n... (585 chars omitted for recipe synthesis) ...\nt = db.sql(\"select * from test_table\", dtype=\"polars\")\n    assert 0 < result.shape[0] < W\n    assert result.shape[1] == H+1\n\ndef test_second_commit(db):\n    err = db.commit(\"test_table\")\n    assert not err, err\n\n    assert len(listdir(\"test.delta/default/test_table\")) == 3\n    assert len(listdir(\"test.delta/default/test_table/_delta_log\")) == 2\n\ndef test_checkout_original_commit(db):\n    err = db.checkout(\"test_table\", version=1)\n    assert not err, err\n\n    result = db.sql(\"select * from test_table\", dtype=\"polars\")\n\n    assert isinstance(result, DataFrame)\n    assert result.shape == (W, H+1)"
+      },
+      {
+        "step_index": 8,
+        "command": "pip install poetry",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry\n  Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjson\n... (12950 chars omitted for recipe synthesis) ...\n1 poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.3.1 rapidfuzz-3.14.5 requests-2.34.2 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3 zipp-4.1.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 9,
+        "command": "poetry install --with dev",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Creating virtualenv deltabase-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 63 installs, 0 updates, 0 removals\n\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.3.2)\n  - Installing idna (3.10)\n  - Installing six (1.16.0)\n  - Installing urllib3 (2.2.3)\n  - Installing asttokens (2.4.1)\n  - Installing executing (2.1.0)\n  - Installing markupsafe (2.1.5)\n  - Installing mergedeep (1.3.4)\n  - Installing parso (0.8.4)\n  - Installing platformdirs (4.3.6)\n  - Installing ptyprocess (0.7.0)\n  - Installing pure-eval (\n... (1513 chars omitted for recipe synthesis) ...\n6.3)\n  - Installing mkdocs (1.6.1)\n  - Installing mkdocs-material-extensions (1.3.1)\n  - Installing nest-asyncio (1.6.0)\n  - Installing paginate (0.5.7)\n  - Installing pluggy (1.5.0)\n  - Installing psutil (6.0.0)\n  - Installing pyarrow (17.0.0)\n  - Installing pymdown-extensions (10.11)\n  - Installing regex (2024.9.11)\n  - Installing tzdata (2024.2)\n  - Installing deltalake (0.19.2)\n  - Installing ipykernel (6.29.5)\n  - Installing mkdocs-material (9.5.38)\n  - Installing pandas (2.2.3)\n  - Installing polars (1.8.2)\n  - Installing pytest (8.3.3)\n\nInstalling the current project: deltabase (1.0.0)\n"
+      },
+      {
+        "step_index": 10,
+        "command": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_deltabase.py::test_connect\ntests/test_deltabase.py::test_add_record_dict\ntests/test_deltabase.py::test_add_record_dataframe\ntests/test_deltabase.py::test_add_record_lazyframe\ntests/test_deltabase.py::test_add_mismatch_schema\ntests/test_deltabase.py::test_update_record\ntests/test_deltabase.py::test_update_mismatch_schema_record\ntests/test_deltabase.py::test_delete_record_sql\ntests/test_deltabase.py::test_delete_record_lambda\ntests/test_deltabase.py::test_delete_record_wrong_type\ntests/test_deltabase.py::test_schema_override\ntests/test_deltabase.py::test_commit_and_versioning\ntests/test_deltabase.py::test_commit_with_partitions\ntests/test_deltabase.py::test_register_with_alias\ntests/test_deltabase.py::test_json_output\ntests/test_deltabase.py::test_override_dtype\ntests/test_deltabase.py::test_collect_schema\ntests/test_deltabase_workflow.py::test_connect\ntests/test_deltabase_workflow.py::test_add_data\ntests/test_deltabase_workflow.py::test_first_commit\ntests/test_deltabase_workflow.py::test_delete_records\ntests/test_deltabase_workflow.py::test_second_commit\ntests/test_deltabase_workflow.py::test_checkout_original_commit\n\n23 tests collected in 1.51s\n"
+      }
+    ],
+    "failed_actions": [],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install poetry",
+        "poetry install --with dev",
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat pyproject.toml (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat requirements.txt (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/conftest.py (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat .devcontainer/devcontainer.json (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat .devcontainer/post-install.sh (read-only file inspection, file does not exist)",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_deltabase.py (read-only file inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_deltabase_workflow.py (read-only file inspection)",
+          "reason": ""
+        }
+      ],
+      "rationale": "The setup trajectory shows a clean two-step installation: (1) Poetry was installed via pip to manage the project, and (2) project dependencies including dev dependencies were installed using Poetry. Steps 1-7 were read-only exploration to understand the codebase structure, test configuration, and verify the missing post-install script. Step 10 was a final verification test that confirmed 23 tests could be collected successfully, which belongs in test_commands rather than build_commands. No ephemeral runtime preparation commands were needed; Poetry persists its virtualenv. The base image python:3.11 matches the project's Python ^3.11 requirement from pyproject.toml.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 4,
+      "compressed_steps": 2,
+      "saved_tokens_est": 4901
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 873,
+        "raw_tokens_est": 218,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "cat requirements.txt",
+        "success": true,
+        "raw_chars": 7927,
+        "raw_tokens_est": 1981,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1901,
+        "reflect_input_tokens": 5339,
+        "reflect_output_tokens": 299
+      },
+      {
+        "step_id": 3,
+        "action": "cat tests/conftest.py",
+        "success": true,
+        "raw_chars": 150,
+        "raw_tokens_est": 37,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat .devcontainer/devcontainer.json",
+        "success": true,
+        "raw_chars": 501,
+        "raw_tokens_est": 125,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "cat .devcontainer/post-install.sh 2>/dev/null || echo \"File not found\"",
+        "success": true,
+        "raw_chars": 15,
+        "raw_tokens_est": 3,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "cat tests/test_deltabase.py",
+        "success": true,
+        "raw_chars": 7986,
+        "raw_tokens_est": 1996,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 16,
+        "reflect_input_tokens": 8973,
+        "reflect_output_tokens": 2732
+      },
+      {
+        "step_id": 7,
+        "action": "cat tests/test_deltabase_workflow.py",
+        "success": true,
+        "raw_chars": 1785,
+        "raw_tokens_est": 446,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 9878,
+        "reflect_output_tokens": 870
+      },
+      {
+        "step_id": 8,
+        "action": "pip install poetry",
+        "success": true,
+        "raw_chars": 14150,
+        "raw_tokens_est": 3537,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 3000,
+        "reflect_input_tokens": 7967,
+        "reflect_output_tokens": 880
+      },
+      {
+        "step_id": 9,
+        "action": "poetry install --with dev",
+        "success": true,
+        "raw_chars": 2713,
+        "raw_tokens_est": 678,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 1174,
+        "raw_tokens_est": 293,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 129537,
+        "output_tokens": 5187,
+        "total_tokens": 134724
+      },
+      "planner": {
+        "input_tokens": 67176,
+        "output_tokens": 951,
+        "total_tokens": 68127
+      },
+      "reflection": {
+        "input_tokens": 32157,
+        "output_tokens": 4781,
+        "total_tokens": 36938
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 11695,
+        "output_tokens": 1402,
+        "total_tokens": 13097
+      },
+      "total": {
+        "input_tokens": 240565,
+        "output_tokens": 12321,
+        "total_tokens": 252886
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+    "base_commit": "5eafb9",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/uname-n__deltabase /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-20T20:27:26.061030+08:00",
+      "finished_at": "2026-05-20T20:27:26.093763+08:00",
+      "duration_seconds": 0.033,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context'...\n完成。\n注意：正在切换到 '5eafb9d05316d005e2888cd1a1c71bf01e5f4e0f'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "5eafb9"
+      ],
+      "command_shell": "git checkout --force 5eafb9",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-20T20:27:26.093822+08:00",
+      "finished_at": "2026-05-20T20:27:26.102436+08:00",
+      "duration_seconds": 0.009,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 5eafb9d v1.0.0\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-20T20:27:26.102495+08:00",
+      "finished_at": "2026-05-20T20:27:26.107595+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_poetry_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "poetry run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-uname-n__deltabase",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval -t jayint-repo2run-uname-n__deltabase /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-20T20:27:26.110389+08:00",
+    "finished_at": "2026-05-20T20:29:14.923451+08:00",
+    "duration_seconds": 108.813,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.16kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 1.22MB 0.0s done\n#5 DONE 0.1s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 2.198 Collecting pytest\n#6 2.912   Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\n#6 3.114 Collecting pytest-xdist\n#6 3.263   Downloading pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)\n#6 3.541 Collecting poetry\n#6 3.684   Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\n#6 3.881 Collecting iniconfig>=1.0.1 (from pytest)\n#6 4.309   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\n#6 4.499 Collecting packaging>=22 (from pytest)\n#6 4.643   Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\n#6 4.817 Collecting pluggy<2,>=1.5 (from pytest)\n#6 4.964   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\n#6 5.165 Collecting pygments>=2.7.2 (from pytest)\n#6 5.306   Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\n#6 5.482 Collecting execnet>=2.1 (from pytest-xdist)\n#6 5.628   Downloading execnet-2.1.2-py3-none-any.whl.metadata (2.9 kB)\n#6 5.835 Collecting build<2.0.0,>=1.2.1 (from poetry)\n#6 5.977   Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\n#6 6.160 Collecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 6.302   Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\n#6 6.746 Collecting cleo<3.0.0,>=2.1.0 (from poetry)\n#6 6.887   Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\n#6 7.428 Collecting dulwich<2,>=0.25.0 (from poetry)\n#6 7.573   Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\n#6 7.872 Collecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n#6 8.015   Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\n#6 8.305 Collecting findpython<0.9.0,>=0.6.2 (from poetry)\n#6 8.450   Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\n#6 8.632 Collecting installer<2.0.0,>=0.7.0 (from poetry)\n#6 9.052   Downloading installer-1.0.1-py3-none-any.whl.metadata (1.2 kB)\n#6 9.286 Collecting keyring<26.0.0,>=25.1.0 (from poetry)\n#6 9.432   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\n#6 10.33 Collecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 11.04   Downloading pbs_installer-2026.5.10-py3-none-any.whl.metadata (1.0 kB)\n#6 11.21 Collecting pkginfo<2.0,>=1.12 (from poetry)\n#6 11.36   Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\n#6 11.58 Collecting platformdirs<5,>=3.0.0 (from poetry)\n#6 11.73   Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\n#6 12.21 Collecting poetry-core==2.4.0 (from poetry)\n#6 12.35   Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\n#6 12.52 Collecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n#6 12.67   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\n#6 12.88 Collecting requests<3.0,>=2.26 (from poetry)\n#6 13.03   Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)\n#6 13.21 Collecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n#6 13.36   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\n#6 13.56 Collecting shellingham<2.0,>=1.5 (from poetry)\n#6 13.71   Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\n#6 13.91 Collecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n#6 14.05   Downloading tomlkit-0.15.0-py3-none-any.whl.metadata (2.8 kB)\n#6 14.27 Collecting trove-classifiers>=2022.5.19 (from poetry)\n#6 14.41   Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl.metadata (2.3 kB)\n#6 14.68 Collecting virtualenv>=20.26.6 (from poetry)\n#6 14.83   Downloading virtualenv-21.3.3-py3-none-any.whl.metadata (3.5 kB)\n#6 15.22 Collecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 15.37   Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#6 15.63 Collecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 15.78   Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\n#6 15.96 Collecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n#6 16.38   Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\n#6 18.76 Collecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n#6 18.90   Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\n#6 19.18 Collecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n#6 19.32   Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\n#6 19.53 Collecting typing_extensions>=4.6.0 (from dulwich<2,>=0.25.0->poetry)\n#6 19.68   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\n#6 19.91 Collecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 20.64   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\n#6 20.83 Collecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 21.25   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\n#6 21.51 Collecting importlib_metadata>=4.11.4 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 21.65   Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\n#6 22.11 Collecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n#6 22.53   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\n#6 22.73 Collecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n#6 23.86   Downloading jaraco_functools-4.5.0-py3-none-any.whl.metadata (2.9 kB)\n#6 24.05 Collecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n#6 24.20   Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\n#6 24.72 Collecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 24.86   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\n#6 25.64 Collecting backports.zstd>=1.0.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 25.78   Downloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.8 kB)\n#6 26.33 Collecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n#6 26.47   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n#6 26.55      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 631.3 kB/s eta 0:00:00\n#6 26.73 Collecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n#6 26.87   Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\n#6 27.13 Collecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n#6 27.28   Downloading certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)\n#6 28.10 Collecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n#6 28.24   Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\n#6 28.72 Collecting python-discovery>=1.3.1 (from virtualenv>=20.26.6->poetry)\n#6 28.87   Downloading python_discovery-1.3.1-py3-none-any.whl.metadata (5.6 kB)\n#6 29.13 Collecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 29.27   Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\n#6 29.57 Collecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 29.72   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\n#6 29.93 Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 30.08   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\n#6 30.30 Collecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry)\n#6 31.04   Downloading zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)\n#6 31.83 Collecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 32.27   Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)\n#6 32.51 Collecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n#6 32.93   Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\n#6 32.98      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 1.1 MB/s eta 0:00:00\n#6 33.18 Collecting backports.tarfile (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry)\n#6 33.61   Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)\n#6 34.06 Collecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 34.20   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\n#6 34.87 Collecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 35.02   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\n#6 35.21 Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n#6 35.45    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 1.6 MB/s eta 0:00:00\n#6 35.60 Downloading pytest_xdist-3.8.0-py3-none-any.whl (46 kB)\n#6 35.61    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.4/46.4 kB 5.7 MB/s eta 0:00:00\n#6 36.03 Downloading poetry-2.4.1-py3-none-any.whl (292 kB)\n#6 36.08    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 292.3/292.3 kB 6.7 MB/s eta 0:00:00\n#6 36.22 Downloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\n#6 36.27    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 374.8/374.8 kB 7.2 MB/s eta 0:00:00\n#6 36.41 Downloading build-1.5.0-py3-none-any.whl (26 kB)\n#6 36.56 Downloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\n#6 36.83 Downloading cleo-2.1.0-py3-none-any.whl (78 kB)\n#6 36.85    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 4.7 MB/s eta 0:00:00\n#6 37.00 Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl (1.4 MB)\n#6 37.18    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 8.1 MB/s eta 0:00:00\n#6 37.32 Downloading execnet-2.1.2-py3-none-any.whl (40 kB)\n#6 37.33    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 kB 4.3 MB/s eta 0:00:00\n#6 37.47 Downloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\n#6 37.61 Downloading findpython-0.8.0-py3-none-any.whl (21 kB)\n#6 37.76 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\n#6 38.49 Downloading installer-1.0.1-py3-none-any.whl (464 kB)\n#6 38.51    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 464.5/464.5 kB 26.6 MB/s eta 0:00:00\n#6 38.64 Downloading keyring-25.7.0-py3-none-any.whl (39 kB)\n#6 39.37 Downloading packaging-26.2-py3-none-any.whl (100 kB)\n#6 39.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 10.2 MB/s eta 0:00:00\n#6 40.50 Downloading pbs_installer-2026.5.10-py3-none-any.whl (74 kB)\n#6 40.51    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.4/74.4 kB 8.7 MB/s eta 0:00:00\n#6 40.65 Downloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\n#6 41.78 Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\n#6 42.20 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\n#6 42.63 Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n#6 42.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 68.1 MB/s eta 0:00:00\n#6 43.08 Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\n#6 43.22 Downloading requests-2.34.2-py3-none-any.whl (73 kB)\n#6 43.23    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.1/73.1 kB 10.0 MB/s eta 0:00:00\n#6 43.37 Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n#6 43.50    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 373.4 kB/s eta 0:00:00\n#6 43.93 Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\n#6 44.36 Downloading tomlkit-0.15.0-py3-none-any.whl (41 kB)\n#6 44.37    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.3/41.3 kB 4.2 MB/s eta 0:00:00\n#6 44.78 Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl (14 kB)\n#6 44.93 Downloading virtualenv-21.3.3-py3-none-any.whl (7.6 MB)\n#6 46.67    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 4.4 MB/s eta 0:00:00\n#6 46.81 Downloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (492 kB)\n#6 46.83    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 492.3/492.3 kB 24.6 MB/s eta 0:00:00\n#6 47.25 Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)\n#6 47.26    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 16.7 MB/s eta 0:00:00\n#6 47.40 Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)\n#6 47.41    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 21.1 MB/s eta 0:00:00\n#6 47.56 Downloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\n#6 47.70 Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n#6 47.73    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 24.4 MB/s eta 0:00:00\n#6 47.86 Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\n#6 48.28 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n#6 48.30    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 7.0 MB/s eta 0:00:00\n#6 48.43 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n#6 48.45    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 7.3 MB/s eta 0:00:00\n#6 49.15 Downloading idna-3.15-py3-none-any.whl (72 kB)\n#6 49.17    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.3/72.3 kB 6.7 MB/s eta 0:00:00\n#6 49.31 Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\n#6 49.73 Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n#6 49.74    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 4.4 MB/s eta 0:00:00\n#6 49.88 Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (426 kB)\n#6 49.90    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 426.2/426.2 kB 22.2 MB/s eta 0:00:00\n#6 50.04 Downloading python_discovery-1.3.1-py3-none-any.whl (33 kB)\n#6 50.19 Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n#6 50.62    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 7.3 MB/s eta 0:00:00\n#6 50.76 Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\n#6 50.90 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n#6 50.92    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 5.3 MB/s eta 0:00:00\n#6 51.05 Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n#6 51.08    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 7.3 MB/s eta 0:00:00\n#6 51.22 Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\n#6 51.38 Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\n#6 51.53 Downloading jaraco_functools-4.5.0-py3-none-any.whl (10 kB)\n#6 51.67 Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n#6 52.35    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 7.0 MB/s eta 0:00:00\n#6 52.77 Downloading zipp-4.1.0-py3-none-any.whl (10 kB)\n#6 52.91 Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n#6 52.92    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 15.8 MB/s eta 0:00:00\n#6 53.33 Downloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\n#6 53.48 Downloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n#6 53.49    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 8.1 MB/s eta 0:00:00\n#6 53.62 Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)\n#6 53.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 kB 10.1 MB/s eta 0:00:00\n#6 53.79 Downloading h11-0.16.0-py3-none-any.whl (37 kB)\n#6 54.21 Downloading pycparser-3.0-py3-none-any.whl (48 kB)\n#6 54.22    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 6.5 MB/s eta 0:00:00\n#6 54.48 Installing collected packages: trove-classifiers, fastjsonschema, distlib, zipp, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pygments, pycparser, poetry-core, pluggy, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, iniconfig, idna, h11, filelock, execnet, crashtest, charset_normalizer, certifi, backports.zstd, backports.tarfile, requests, python-discovery, pytest, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, pytest-xdist, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\n#6 56.54 Successfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 backports.zstd-1.5.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.5.20 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-48.0.0 distlib-0.4.0 dulwich-1.2.1 execnet-2.1.2 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.15 importlib_metadata-9.0.0 iniconfig-2.3.0 installer-1.0.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.5.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.5.10 pkginfo-1.12.1.2 platformdirs-4.9.6 pluggy-1.6.0 poetry-2.4.1 poetry-core-2.4.0 pycparser-3.0 pygments-2.20.0 pyproject-hooks-1.2.0 pytest-9.0.3 pytest-xdist-3.8.0 python-discovery-1.3.1 rapidfuzz-3.14.5 requests-2.34.2 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3 zipp-4.1.0\n#6 56.54 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#6 60.10 \n#6 60.10 [notice] A new release of pip is available: 24.0 -> 26.1.1\n#6 60.10 [notice] To update, run: pip install --upgrade pip\n#6 DONE 60.4s\n\n#7 [3/8] WORKDIR /app\n#7 DONE 0.0s\n\n#8 [4/8] COPY . /app\n#8 DONE 0.0s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.408 Requirement already satisfied: poetry in /usr/local/lib/python3.11/site-packages (2.4.1)\n#10 0.418 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.0)\n#10 0.420 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.421 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.1.0)\n#10 0.422 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.1)\n#10 0.423 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.21.2)\n#10 0.423 Requirement already satisfied: findpython<0.9.0,>=0.6.2 in /usr/local/lib/python3.11/site-packages (from poetry) (0.8.0)\n#10 0.424 Requirement already satisfied: installer<2.0.0,>=0.7.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.1)\n#10 0.425 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (25.7.0)\n#10 0.426 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.11/site-packages (from poetry) (26.2)\n#10 0.427 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.5.10)\n#10 0.428 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.11/site-packages (from poetry) (1.12.1.2)\n#10 0.428 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (4.9.6)\n#10 0.429 Requirement already satisfied: poetry-core==2.4.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.4.0)\n#10 0.430 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.430 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.11/site-packages (from poetry) (2.34.2)\n#10 0.431 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.0)\n#10 0.432 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.4)\n#10 0.433 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.11/site-packages (from poetry) (0.15.0)\n#10 0.433 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.11/site-packages (from poetry) (2026.5.7.17)\n#10 0.434 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.11/site-packages (from poetry) (21.3.3)\n#10 0.445 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.11/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.452 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.454 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.455 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.462 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (2.7.0)\n#10 0.463 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.478 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.479 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.480 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.481 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.482 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.5.0)\n#10 0.482 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.490 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.491 Requirement already satisfied: backports.zstd>=1.0.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (1.5.0)\n#10 0.500 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.500 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.15)\n#10 0.501 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (2026.5.20)\n#10 0.512 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.513 Requirement already satisfied: python-discovery>=1.3.1 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (1.3.1)\n#10 0.529 Requirement already satisfied: anyio in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.530 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.535 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.11/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.546 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.11/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (4.1.0)\n#10 0.564 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.11/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (48.0.0)\n#10 0.578 Requirement already satisfied: more-itertools in /usr/local/lib/python3.11/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.586 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.11/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 0.597 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.11/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.621 Requirement already satisfied: pycparser in /usr/local/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.756 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 0.8s\n\n#11 [7/8] RUN poetry install --with dev\n#11 0.679 Creating virtualenv deltabase-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\n#11 1.413 Installing dependencies from lock file\n#11 1.584 \n#11 1.584 Package operations: 63 installs, 0 updates, 0 removals\n#11 1.584 \n#11 1.584   - Installing certifi (2024.8.30)\n#11 1.585   - Installing charset-normalizer (3.3.2)\n#11 1.585   - Installing idna (3.10)\n#11 1.589   - Installing six (1.16.0)\n#11 1.589   - Installing urllib3 (2.2.3)\n#11 3.847   - Installing asttokens (2.4.1)\n#11 3.849   - Installing executing (2.1.0)\n#11 3.852   - Installing markupsafe (2.1.5)\n#11 3.852   - Installing mergedeep (1.3.4)\n#11 3.853   - Installing parso (0.8.4)\n#11 3.856   - Installing platformdirs (4.3.6)\n#11 3.857   - Installing ptyprocess (0.7.0)\n#11 3.885   - Installing pure-eval (0.2.3)\n#11 3.889   - Installing python-dateutil (2.9.0.post0)\n#11 3.889   - Installing pyyaml (6.0.2)\n#11 3.890   - Installing requests (2.32.3)\n#11 3.891   - Installing traitlets (5.14.3)\n#11 3.891   - Installing typing-extensions (4.12.2)\n#11 3.892   - Installing wcwidth (0.2.13)\n#11 7.110   - Installing click (8.1.7)\n#11 7.112   - Installing decorator (5.1.1)\n#11 7.114   - Installing ghp-import (2.1.0)\n#11 7.116   - Installing jedi (0.19.1)\n#11 7.117   - Installing jinja2 (3.1.4)\n#11 7.118   - Installing jupyter-core (5.7.2)\n#11 7.119   - Installing markdown (3.7)\n#11 7.120   - Installing matplotlib-inline (0.1.7)\n#11 7.122   - Installing mkdocs-get-deps (0.2.0)\n#11 7.124   - Installing numpy (2.1.1)\n#11 7.125   - Installing packaging (24.1)\n#11 7.125   - Installing pathspec (0.12.1)\n#11 7.127   - Installing pexpect (4.9.0)\n#11 7.128   - Installing prompt-toolkit (3.0.48)\n#11 7.434   - Installing pygments (2.18.0)\n#11 7.445   - Installing pytz (2024.2)\n#11 7.470   - Installing pyyaml-env-tag (0.1)\n#11 7.539   - Installing pyzmq (26.2.0)\n#11 7.696   - Installing stack-data (0.6.3)\n#11 7.786   - Installing tornado (6.4.1)\n#11 7.816   - Installing watchdog (5.0.3)\n#11 11.39 /usr/local/lib/python3.11/site-packages/poetry/installation/wheel_installer.py:129: RuntimeWarning: Skip installing numpy/distutils/__pycache__/conv_template.cpython-311.pyc from numpy. Installing files in a __pycache__ directory poses a security risk. __pycache__ directories should not be included in wheels. This is probably an issue in the build process of 'numpy'.\n#11 11.39   install(\n#11 11.53   - Installing babel (2.16.0)\n#11 11.54   - Installing colorama (0.4.6)\n#11 11.54   - Installing comm (0.2.2)\n#11 11.54   - Installing debugpy (1.8.6)\n#11 11.54   - Installing iniconfig (2.0.0)\n#11 11.54   - Installing ipython (8.27.0)\n#11 11.54   - Installing jupyter-client (8.6.3)\n#11 11.54   - Installing mkdocs (1.6.1)\n#11 11.54   - Installing mkdocs-material-extensions (1.3.1)\n#11 11.54   - Installing nest-asyncio (1.6.0)\n#11 11.54   - Installing paginate (0.5.7)\n#11 11.54   - Installing pluggy (1.5.0)\n#11 11.54   - Installing psutil (6.0.0)\n#11 11.54   - Installing pyarrow (17.0.0)\n#11 11.83   - Installing pymdown-extensions (10.11)\n#11 11.83   - Installing regex (2024.9.11)\n#11 11.85   - Installing tzdata (2024.2)\n#11 22.75   - Installing deltalake (0.19.2)\n#11 22.75   - Installing ipykernel (6.29.5)\n#11 22.75   - Installing mkdocs-material (9.5.38)\n#11 22.75   - Installing pandas (2.2.3)\n#11 22.75   - Installing polars (1.8.2)\n#11 22.76   - Installing pytest (8.3.3)\n#11 42.30 \n#11 42.30 Installing the current project: deltabase (1.0.0)\n#11 DONE 42.8s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 2.543 tests/test_deltabase.py::test_connect\n#12 2.543 tests/test_deltabase.py::test_add_record_dict\n#12 2.543 tests/test_deltabase.py::test_add_record_dataframe\n#12 2.543 tests/test_deltabase.py::test_add_record_lazyframe\n#12 2.543 tests/test_deltabase.py::test_add_mismatch_schema\n#12 2.543 tests/test_deltabase.py::test_update_record\n#12 2.543 tests/test_deltabase.py::test_update_mismatch_schema_record\n#12 2.543 tests/test_deltabase.py::test_delete_record_sql\n#12 2.543 tests/test_deltabase.py::test_delete_record_lambda\n#12 2.543 tests/test_deltabase.py::test_delete_record_wrong_type\n#12 2.543 tests/test_deltabase.py::test_schema_override\n#12 2.543 tests/test_deltabase.py::test_commit_and_versioning\n#12 2.543 tests/test_deltabase.py::test_commit_with_partitions\n#12 2.543 tests/test_deltabase.py::test_register_with_alias\n#12 2.543 tests/test_deltabase.py::test_json_output\n#12 2.543 tests/test_deltabase.py::test_override_dtype\n#12 2.543 tests/test_deltabase.py::test_collect_schema\n#12 2.543 tests/test_deltabase_workflow.py::test_connect\n#12 2.543 tests/test_deltabase_workflow.py::test_add_data\n#12 2.543 tests/test_deltabase_workflow.py::test_first_commit\n#12 2.543 tests/test_deltabase_workflow.py::test_delete_records\n#12 2.543 tests/test_deltabase_workflow.py::test_second_commit\n#12 2.543 tests/test_deltabase_workflow.py::test_checkout_original_commit\n#12 2.543 \n#12 2.543 23 tests collected in 1.55s\n#12 DONE 2.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.5s done\n#13 writing image sha256:481717a06b5819ee6b0716c484d0698aed6ebd6f2aa9a7392858a83f5a2879d9\n#13 writing image sha256:481717a06b5819ee6b0716c484d0698aed6ebd6f2aa9a7392858a83f5a2879d9 done\n#13 naming to docker.io/library/jayint-repo2run-uname-n__deltabase done\n#13 DONE 1.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/i2awn1q7ae66m8szakl30g7lm\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-uname-n__deltabase",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-uname-n__deltabase sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-20T20:29:14.926858+08:00",
+          "finished_at": "2026-05-20T20:29:16.719167+08:00",
+          "duration_seconds": 1.792,
+          "stdout": "tests/test_deltabase.py::test_connect\ntests/test_deltabase.py::test_add_record_dict\ntests/test_deltabase.py::test_add_record_dataframe\ntests/test_deltabase.py::test_add_record_lazyframe\ntests/test_deltabase.py::test_add_mismatch_schema\ntests/test_deltabase.py::test_update_record\ntests/test_deltabase.py::test_update_mismatch_schema_record\ntests/test_deltabase.py::test_delete_record_sql\ntests/test_deltabase.py::test_delete_record_lambda\ntests/test_deltabase.py::test_delete_record_wrong_type\ntests/test_deltabase.py::test_schema_override\ntests/test_deltabase.py::test_commit_and_versioning\ntests/test_deltabase.py::test_commit_with_partitions\ntests/test_deltabase.py::test_register_with_alias\ntests/test_deltabase.py::test_json_output\ntests/test_deltabase.py::test_override_dtype\ntests/test_deltabase.py::test_collect_schema\ntests/test_deltabase_workflow.py::test_connect\ntests/test_deltabase_workflow.py::test_add_data\ntests/test_deltabase_workflow.py::test_first_commit\ntests/test_deltabase_workflow.py::test_delete_records\ntests/test_deltabase_workflow.py::test_second_commit\ntests/test_deltabase_workflow.py::test_checkout_original_commit\n\n23 tests collected in 0.76s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-uname-n__deltabase",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/Dockerfile.eval -t jayint-repo2run-uname-n__deltabase /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-20T20:27:26.110389+08:00",
+        "finished_at": "2026-05-20T20:29:14.923451+08:00",
+        "duration_seconds": 108.813,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.16kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 1.22MB 0.0s done\n#5 DONE 0.1s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 2.198 Collecting pytest\n#6 2.912   Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\n#6 3.114 Collecting pytest-xdist\n#6 3.263   Downloading pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)\n#6 3.541 Collecting poetry\n#6 3.684   Downloading poetry-2.4.1-py3-none-any.whl.metadata (7.5 kB)\n#6 3.881 Collecting iniconfig>=1.0.1 (from pytest)\n#6 4.309   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\n#6 4.499 Collecting packaging>=22 (from pytest)\n#6 4.643   Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\n#6 4.817 Collecting pluggy<2,>=1.5 (from pytest)\n#6 4.964   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\n#6 5.165 Collecting pygments>=2.7.2 (from pytest)\n#6 5.306   Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\n#6 5.482 Collecting execnet>=2.1 (from pytest-xdist)\n#6 5.628   Downloading execnet-2.1.2-py3-none-any.whl.metadata (2.9 kB)\n#6 5.835 Collecting build<2.0.0,>=1.2.1 (from poetry)\n#6 5.977   Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\n#6 6.160 Collecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 6.302   Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\n#6 6.746 Collecting cleo<3.0.0,>=2.1.0 (from poetry)\n#6 6.887   Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\n#6 7.428 Collecting dulwich<2,>=0.25.0 (from poetry)\n#6 7.573   Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\n#6 7.872 Collecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n#6 8.015   Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\n#6 8.305 Collecting findpython<0.9.0,>=0.6.2 (from poetry)\n#6 8.450   Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\n#6 8.632 Collecting installer<2.0.0,>=0.7.0 (from poetry)\n#6 9.052   Downloading installer-1.0.1-py3-none-any.whl.metadata (1.2 kB)\n#6 9.286 Collecting keyring<26.0.0,>=25.1.0 (from poetry)\n#6 9.432   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\n#6 10.33 Collecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 11.04   Downloading pbs_installer-2026.5.10-py3-none-any.whl.metadata (1.0 kB)\n#6 11.21 Collecting pkginfo<2.0,>=1.12 (from poetry)\n#6 11.36   Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\n#6 11.58 Collecting platformdirs<5,>=3.0.0 (from poetry)\n#6 11.73   Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\n#6 12.21 Collecting poetry-core==2.4.0 (from poetry)\n#6 12.35   Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\n#6 12.52 Collecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n#6 12.67   Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\n#6 12.88 Collecting requests<3.0,>=2.26 (from poetry)\n#6 13.03   Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)\n#6 13.21 Collecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n#6 13.36   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\n#6 13.56 Collecting shellingham<2.0,>=1.5 (from poetry)\n#6 13.71   Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\n#6 13.91 Collecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n#6 14.05   Downloading tomlkit-0.15.0-py3-none-any.whl.metadata (2.8 kB)\n#6 14.27 Collecting trove-classifiers>=2022.5.19 (from poetry)\n#6 14.41   Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl.metadata (2.3 kB)\n#6 14.68 Collecting virtualenv>=20.26.6 (from poetry)\n#6 14.83   Downloading virtualenv-21.3.3-py3-none-any.whl.metadata (3.5 kB)\n#6 15.22 Collecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 15.37   Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#6 15.63 Collecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n#6 15.78   Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\n#6 15.96 Collecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n#6 16.38   Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\n#6 18.76 Collecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n#6 18.90   Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\n#6 19.18 Collecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n#6 19.32   Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\n#6 19.53 Collecting typing_extensions>=4.6.0 (from dulwich<2,>=0.25.0->poetry)\n#6 19.68   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\n#6 19.91 Collecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 20.64   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\n#6 20.83 Collecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 21.25   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\n#6 21.51 Collecting importlib_metadata>=4.11.4 (from keyring<26.0.0,>=25.1.0->poetry)\n#6 21.65   Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\n#6 22.11 Collecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n#6 22.53   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\n#6 22.73 Collecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n#6 23.86   Downloading jaraco_functools-4.5.0-py3-none-any.whl.metadata (2.9 kB)\n#6 24.05 Collecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n#6 24.20   Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\n#6 24.72 Collecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 24.86   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\n#6 25.64 Collecting backports.zstd>=1.0.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n#6 25.78   Downloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.8 kB)\n#6 26.33 Collecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n#6 26.47   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n#6 26.55      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 631.3 kB/s eta 0:00:00\n#6 26.73 Collecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n#6 26.87   Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\n#6 27.13 Collecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n#6 27.28   Downloading certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)\n#6 28.10 Collecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n#6 28.24   Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\n#6 28.72 Collecting python-discovery>=1.3.1 (from virtualenv>=20.26.6->poetry)\n#6 28.87   Downloading python_discovery-1.3.1-py3-none-any.whl.metadata (5.6 kB)\n#6 29.13 Collecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 29.27   Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\n#6 29.57 Collecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 29.72   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\n#6 29.93 Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n#6 30.08   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\n#6 30.30 Collecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry)\n#6 31.04   Downloading zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)\n#6 31.83 Collecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 32.27   Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)\n#6 32.51 Collecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n#6 32.93   Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\n#6 32.98      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 1.1 MB/s eta 0:00:00\n#6 33.18 Collecting backports.tarfile (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry)\n#6 33.61   Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)\n#6 34.06 Collecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 34.20   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\n#6 34.87 Collecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n#6 35.02   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\n#6 35.21 Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n#6 35.45    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 1.6 MB/s eta 0:00:00\n#6 35.60 Downloading pytest_xdist-3.8.0-py3-none-any.whl (46 kB)\n#6 35.61    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.4/46.4 kB 5.7 MB/s eta 0:00:00\n#6 36.03 Downloading poetry-2.4.1-py3-none-any.whl (292 kB)\n#6 36.08    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 292.3/292.3 kB 6.7 MB/s eta 0:00:00\n#6 36.22 Downloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\n#6 36.27    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 374.8/374.8 kB 7.2 MB/s eta 0:00:00\n#6 36.41 Downloading build-1.5.0-py3-none-any.whl (26 kB)\n#6 36.56 Downloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\n#6 36.83 Downloading cleo-2.1.0-py3-none-any.whl (78 kB)\n#6 36.85    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 4.7 MB/s eta 0:00:00\n#6 37.00 Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl (1.4 MB)\n#6 37.18    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 8.1 MB/s eta 0:00:00\n#6 37.32 Downloading execnet-2.1.2-py3-none-any.whl (40 kB)\n#6 37.33    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 kB 4.3 MB/s eta 0:00:00\n#6 37.47 Downloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\n#6 37.61 Downloading findpython-0.8.0-py3-none-any.whl (21 kB)\n#6 37.76 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\n#6 38.49 Downloading installer-1.0.1-py3-none-any.whl (464 kB)\n#6 38.51    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 464.5/464.5 kB 26.6 MB/s eta 0:00:00\n#6 38.64 Downloading keyring-25.7.0-py3-none-any.whl (39 kB)\n#6 39.37 Downloading packaging-26.2-py3-none-any.whl (100 kB)\n#6 39.38    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 10.2 MB/s eta 0:00:00\n#6 40.50 Downloading pbs_installer-2026.5.10-py3-none-any.whl (74 kB)\n#6 40.51    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.4/74.4 kB 8.7 MB/s eta 0:00:00\n#6 40.65 Downloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\n#6 41.78 Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\n#6 42.20 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\n#6 42.63 Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n#6 42.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 68.1 MB/s eta 0:00:00\n#6 43.08 Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\n#6 43.22 Downloading requests-2.34.2-py3-none-any.whl (73 kB)\n#6 43.23    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.1/73.1 kB 10.0 MB/s eta 0:00:00\n#6 43.37 Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n#6 43.50    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 373.4 kB/s eta 0:00:00\n#6 43.93 Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\n#6 44.36 Downloading tomlkit-0.15.0-py3-none-any.whl (41 kB)\n#6 44.37    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.3/41.3 kB 4.2 MB/s eta 0:00:00\n#6 44.78 Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl (14 kB)\n#6 44.93 Downloading virtualenv-21.3.3-py3-none-any.whl (7.6 MB)\n#6 46.67    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 4.4 MB/s eta 0:00:00\n#6 46.81 Downloading backports_zstd-1.5.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (492 kB)\n#6 46.83    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 492.3/492.3 kB 24.6 MB/s eta 0:00:00\n#6 47.25 Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)\n#6 47.26    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 16.7 MB/s eta 0:00:00\n#6 47.40 Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)\n#6 47.41    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 21.1 MB/s eta 0:00:00\n#6 47.56 Downloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\n#6 47.70 Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n#6 47.73    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 24.4 MB/s eta 0:00:00\n#6 47.86 Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\n#6 48.28 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n#6 48.30    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 7.0 MB/s eta 0:00:00\n#6 48.43 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n#6 48.45    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 7.3 MB/s eta 0:00:00\n#6 49.15 Downloading idna-3.15-py3-none-any.whl (72 kB)\n#6 49.17    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.3/72.3 kB 6.7 MB/s eta 0:00:00\n#6 49.31 Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\n#6 49.73 Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n#6 49.74    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 4.4 MB/s eta 0:00:00\n#6 49.88 Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (426 kB)\n#6 49.90    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 426.2/426.2 kB 22.2 MB/s eta 0:00:00\n#6 50.04 Downloading python_discovery-1.3.1-py3-none-any.whl (33 kB)\n#6 50.19 Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n#6 50.62    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 7.3 MB/s eta 0:00:00\n#6 50.76 Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\n#6 50.90 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n#6 50.92    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 5.3 MB/s eta 0:00:00\n#6 51.05 Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n#6 51.08    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 7.3 MB/s eta 0:00:00\n#6 51.22 Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\n#6 51.38 Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\n#6 51.53 Downloading jaraco_functools-4.5.0-py3-none-any.whl (10 kB)\n#6 51.67 Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n#6 52.35    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 7.0 MB/s eta 0:00:00\n#6 52.77 Downloading zipp-4.1.0-py3-none-any.whl (10 kB)\n#6 52.91 Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n#6 52.92    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 15.8 MB/s eta 0:00:00\n#6 53.33 Downloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\n#6 53.48 Downloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n#6 53.49    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 8.1 MB/s eta 0:00:00\n#6 53.62 Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)\n#6 53.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 kB 10.1 MB/s eta 0:00:00\n#6 53.79 Downloading h11-0.16.0-py3-none-any.whl (37 kB)\n#6 54.21 Downloading pycparser-3.0-py3-none-any.whl (48 kB)\n#6 54.22    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 6.5 MB/s eta 0:00:00\n#6 54.48 Installing collected packages: trove-classifiers, fastjsonschema, distlib, zipp, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pygments, pycparser, poetry-core, pluggy, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, iniconfig, idna, h11, filelock, execnet, crashtest, charset_normalizer, certifi, backports.zstd, backports.tarfile, requests, python-discovery, pytest, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, pytest-xdist, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\n#6 56.54 Successfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 backports.zstd-1.5.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.5.20 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-48.0.0 distlib-0.4.0 dulwich-1.2.1 execnet-2.1.2 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.15 importlib_metadata-9.0.0 iniconfig-2.3.0 installer-1.0.1 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.5.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.5.10 pkginfo-1.12.1.2 platformdirs-4.9.6 pluggy-1.6.0 poetry-2.4.1 poetry-core-2.4.0 pycparser-3.0 pygments-2.20.0 pyproject-hooks-1.2.0 pytest-9.0.3 pytest-xdist-3.8.0 python-discovery-1.3.1 rapidfuzz-3.14.5 requests-2.34.2 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.15.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.3 zipp-4.1.0\n#6 56.54 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#6 60.10 \n#6 60.10 [notice] A new release of pip is available: 24.0 -> 26.1.1\n#6 60.10 [notice] To update, run: pip install --upgrade pip\n#6 DONE 60.4s\n\n#7 [3/8] WORKDIR /app\n#7 DONE 0.0s\n\n#8 [4/8] COPY . /app\n#8 DONE 0.0s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.408 Requirement already satisfied: poetry in /usr/local/lib/python3.11/site-packages (2.4.1)\n#10 0.418 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.0)\n#10 0.420 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.421 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.1.0)\n#10 0.422 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.1)\n#10 0.423 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.21.2)\n#10 0.423 Requirement already satisfied: findpython<0.9.0,>=0.6.2 in /usr/local/lib/python3.11/site-packages (from poetry) (0.8.0)\n#10 0.424 Requirement already satisfied: installer<2.0.0,>=0.7.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.1)\n#10 0.425 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (25.7.0)\n#10 0.426 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.11/site-packages (from poetry) (26.2)\n#10 0.427 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.5.10)\n#10 0.428 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.11/site-packages (from poetry) (1.12.1.2)\n#10 0.428 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (4.9.6)\n#10 0.429 Requirement already satisfied: poetry-core==2.4.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.4.0)\n#10 0.430 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.430 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.11/site-packages (from poetry) (2.34.2)\n#10 0.431 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.0)\n#10 0.432 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.4)\n#10 0.433 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.11/site-packages (from poetry) (0.15.0)\n#10 0.433 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.11/site-packages (from poetry) (2026.5.7.17)\n#10 0.434 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.11/site-packages (from poetry) (21.3.3)\n#10 0.445 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.11/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.452 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.454 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.455 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.462 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (2.7.0)\n#10 0.463 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.478 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.479 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.480 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.481 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.482 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.5.0)\n#10 0.482 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.490 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.491 Requirement already satisfied: backports.zstd>=1.0.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (1.5.0)\n#10 0.500 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.500 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.15)\n#10 0.501 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (2026.5.20)\n#10 0.512 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.513 Requirement already satisfied: python-discovery>=1.3.1 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (1.3.1)\n#10 0.529 Requirement already satisfied: anyio in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.530 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.535 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.11/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.546 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.11/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (4.1.0)\n#10 0.564 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.11/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (48.0.0)\n#10 0.578 Requirement already satisfied: more-itertools in /usr/local/lib/python3.11/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.586 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.11/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 0.597 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.11/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.621 Requirement already satisfied: pycparser in /usr/local/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.756 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 0.8s\n\n#11 [7/8] RUN poetry install --with dev\n#11 0.679 Creating virtualenv deltabase-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\n#11 1.413 Installing dependencies from lock file\n#11 1.584 \n#11 1.584 Package operations: 63 installs, 0 updates, 0 removals\n#11 1.584 \n#11 1.584   - Installing certifi (2024.8.30)\n#11 1.585   - Installing charset-normalizer (3.3.2)\n#11 1.585   - Installing idna (3.10)\n#11 1.589   - Installing six (1.16.0)\n#11 1.589   - Installing urllib3 (2.2.3)\n#11 3.847   - Installing asttokens (2.4.1)\n#11 3.849   - Installing executing (2.1.0)\n#11 3.852   - Installing markupsafe (2.1.5)\n#11 3.852   - Installing mergedeep (1.3.4)\n#11 3.853   - Installing parso (0.8.4)\n#11 3.856   - Installing platformdirs (4.3.6)\n#11 3.857   - Installing ptyprocess (0.7.0)\n#11 3.885   - Installing pure-eval (0.2.3)\n#11 3.889   - Installing python-dateutil (2.9.0.post0)\n#11 3.889   - Installing pyyaml (6.0.2)\n#11 3.890   - Installing requests (2.32.3)\n#11 3.891   - Installing traitlets (5.14.3)\n#11 3.891   - Installing typing-extensions (4.12.2)\n#11 3.892   - Installing wcwidth (0.2.13)\n#11 7.110   - Installing click (8.1.7)\n#11 7.112   - Installing decorator (5.1.1)\n#11 7.114   - Installing ghp-import (2.1.0)\n#11 7.116   - Installing jedi (0.19.1)\n#11 7.117   - Installing jinja2 (3.1.4)\n#11 7.118   - Installing jupyter-core (5.7.2)\n#11 7.119   - Installing markdown (3.7)\n#11 7.120   - Installing matplotlib-inline (0.1.7)\n#11 7.122   - Installing mkdocs-get-deps (0.2.0)\n#11 7.124   - Installing numpy (2.1.1)\n#11 7.125   - Installing packaging (24.1)\n#11 7.125   - Installing pathspec (0.12.1)\n#11 7.127   - Installing pexpect (4.9.0)\n#11 7.128   - Installing prompt-toolkit (3.0.48)\n#11 7.434   - Installing pygments (2.18.0)\n#11 7.445   - Installing pytz (2024.2)\n#11 7.470   - Installing pyyaml-env-tag (0.1)\n#11 7.539   - Installing pyzmq (26.2.0)\n#11 7.696   - Installing stack-data (0.6.3)\n#11 7.786   - Installing tornado (6.4.1)\n#11 7.816   - Installing watchdog (5.0.3)\n#11 11.39 /usr/local/lib/python3.11/site-packages/poetry/installation/wheel_installer.py:129: RuntimeWarning: Skip installing numpy/distutils/__pycache__/conv_template.cpython-311.pyc from numpy. Installing files in a __pycache__ directory poses a security risk. __pycache__ directories should not be included in wheels. This is probably an issue in the build process of 'numpy'.\n#11 11.39   install(\n#11 11.53   - Installing babel (2.16.0)\n#11 11.54   - Installing colorama (0.4.6)\n#11 11.54   - Installing comm (0.2.2)\n#11 11.54   - Installing debugpy (1.8.6)\n#11 11.54   - Installing iniconfig (2.0.0)\n#11 11.54   - Installing ipython (8.27.0)\n#11 11.54   - Installing jupyter-client (8.6.3)\n#11 11.54   - Installing mkdocs (1.6.1)\n#11 11.54   - Installing mkdocs-material-extensions (1.3.1)\n#11 11.54   - Installing nest-asyncio (1.6.0)\n#11 11.54   - Installing paginate (0.5.7)\n#11 11.54   - Installing pluggy (1.5.0)\n#11 11.54   - Installing psutil (6.0.0)\n#11 11.54   - Installing pyarrow (17.0.0)\n#11 11.83   - Installing pymdown-extensions (10.11)\n#11 11.83   - Installing regex (2024.9.11)\n#11 11.85   - Installing tzdata (2024.2)\n#11 22.75   - Installing deltalake (0.19.2)\n#11 22.75   - Installing ipykernel (6.29.5)\n#11 22.75   - Installing mkdocs-material (9.5.38)\n#11 22.75   - Installing pandas (2.2.3)\n#11 22.75   - Installing polars (1.8.2)\n#11 22.76   - Installing pytest (8.3.3)\n#11 42.30 \n#11 42.30 Installing the current project: deltabase (1.0.0)\n#11 DONE 42.8s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 2.543 tests/test_deltabase.py::test_connect\n#12 2.543 tests/test_deltabase.py::test_add_record_dict\n#12 2.543 tests/test_deltabase.py::test_add_record_dataframe\n#12 2.543 tests/test_deltabase.py::test_add_record_lazyframe\n#12 2.543 tests/test_deltabase.py::test_add_mismatch_schema\n#12 2.543 tests/test_deltabase.py::test_update_record\n#12 2.543 tests/test_deltabase.py::test_update_mismatch_schema_record\n#12 2.543 tests/test_deltabase.py::test_delete_record_sql\n#12 2.543 tests/test_deltabase.py::test_delete_record_lambda\n#12 2.543 tests/test_deltabase.py::test_delete_record_wrong_type\n#12 2.543 tests/test_deltabase.py::test_schema_override\n#12 2.543 tests/test_deltabase.py::test_commit_and_versioning\n#12 2.543 tests/test_deltabase.py::test_commit_with_partitions\n#12 2.543 tests/test_deltabase.py::test_register_with_alias\n#12 2.543 tests/test_deltabase.py::test_json_output\n#12 2.543 tests/test_deltabase.py::test_override_dtype\n#12 2.543 tests/test_deltabase.py::test_collect_schema\n#12 2.543 tests/test_deltabase_workflow.py::test_connect\n#12 2.543 tests/test_deltabase_workflow.py::test_add_data\n#12 2.543 tests/test_deltabase_workflow.py::test_first_commit\n#12 2.543 tests/test_deltabase_workflow.py::test_delete_records\n#12 2.543 tests/test_deltabase_workflow.py::test_second_commit\n#12 2.543 tests/test_deltabase_workflow.py::test_checkout_original_commit\n#12 2.543 \n#12 2.543 23 tests collected in 1.55s\n#12 DONE 2.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.5s done\n#13 writing image sha256:481717a06b5819ee6b0716c484d0698aed6ebd6f2aa9a7392858a83f5a2879d9\n#13 writing image sha256:481717a06b5819ee6b0716c484d0698aed6ebd6f2aa9a7392858a83f5a2879d9 done\n#13 naming to docker.io/library/jayint-repo2run-uname-n__deltabase done\n#13 DONE 1.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/i2awn1q7ae66m8szakl30g7lm\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "poetry run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-uname-n__deltabase",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-uname-n__deltabase sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-20T20:29:14.926858+08:00",
+              "finished_at": "2026-05-20T20:29:16.719167+08:00",
+              "duration_seconds": 1.792,
+              "stdout": "tests/test_deltabase.py::test_connect\ntests/test_deltabase.py::test_add_record_dict\ntests/test_deltabase.py::test_add_record_dataframe\ntests/test_deltabase.py::test_add_record_lazyframe\ntests/test_deltabase.py::test_add_mismatch_schema\ntests/test_deltabase.py::test_update_record\ntests/test_deltabase.py::test_update_mismatch_schema_record\ntests/test_deltabase.py::test_delete_record_sql\ntests/test_deltabase.py::test_delete_record_lambda\ntests/test_deltabase.py::test_delete_record_wrong_type\ntests/test_deltabase.py::test_schema_override\ntests/test_deltabase.py::test_commit_and_versioning\ntests/test_deltabase.py::test_commit_with_partitions\ntests/test_deltabase.py::test_register_with_alias\ntests/test_deltabase.py::test_json_output\ntests/test_deltabase.py::test_override_dtype\ntests/test_deltabase.py::test_collect_schema\ntests/test_deltabase_workflow.py::test_connect\ntests/test_deltabase_workflow.py::test_add_data\ntests/test_deltabase_workflow.py::test_first_commit\ntests/test_deltabase_workflow.py::test_delete_records\ntests/test_deltabase_workflow.py::test_second_commit\ntests/test_deltabase_workflow.py::test_checkout_original_commit\n\n23 tests collected in 0.76s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-uname-n__deltabase"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-uname-n__deltabase",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-20T20:29:16.720595+08:00",
+    "finished_at": "2026-05-20T20:29:16.747971+08:00",
+    "duration_seconds": 0.027,
+    "stdout": "Untagged: jayint-repo2run-uname-n__deltabase:latest\nDeleted: sha256:481717a06b5819ee6b0716c484d0698aed6ebd6f2aa9a7392858a83f5a2879d9\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/uname-n__deltabase/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

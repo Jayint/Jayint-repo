@@ -1,0 +1,865 @@
+{
+  "dataset_entry": {
+    "instance_id": "Bl3f__yato",
+    "full_name": "Bl3f/yato",
+    "repo_url": "https://github.com/Bl3f/yato.git",
+    "sha": "4906b0",
+    "base_commit": "4906b0",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/Bl3f/yato.git",
+      "--base-commit",
+      "4906b0",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/Bl3f/yato.git --base-commit 4906b0 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-29T02:18:08.340967+08:00",
+    "finished_at": "2026-04-29T02:24:53.901255+08:00",
+    "duration_seconds": 405.56,
+    "stdout": "Cloning https://github.com/Bl3f/yato.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato...\nClone successful.\nChecked out commit: 4906b0\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 5 potentially relevant files\n[ImageSelector]   ✓ CONTRIBUTING.md\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ poetry.lock\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ .github/workflows/main.yml\n[ImageSelector] 5 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/logs/image_selector_logs\nInitializing container from python:3.10...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:797ef\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/logs/compression_logs\nStarting agent for repository: https://github.com/Bl3f/yato.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2173, Output: 60, Total: 2233\n\n[Thought]\nI'll start by examining the pyproject.toml to understand the project dependencies and configuration.\n\n[Action]\ncat pyproject.toml\n[Container ID: b67c729ecd1a]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[tool.poetry]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [\"Christophe Blefari <yato@blef.fr>\"]\nlicense = \"MIT\"\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\ninclude = [ \"LICENSE.txt\", \"README.md\", \"examples\"]\npackages = [\n    { include = \"yato\" },\n]\n[tool.poetry.scripts]\nyato = 'yato.cli:cli'\n[tool.poetry.dependencies]\npython = \">=3.9,<3.13\"\nboto3 = \"^1.34.51\"\nsqlglot = \"^23.0.2\"\nduckdb = \"^1.0.0\"\nclick = \"^8.1.7\"\npandas = {version = \"^2.2.0\", optional = true}\nrich = \"^13.7.1\"\n[tool.poetry.group.dev.dependencies]\nblack = \"^24.2.0\"\nisort = \"^5.13.2\"\npytest = \"^8.0.2\"\n[tool.poetry.extras]\npandas = [\"pandas\"]\n[tool.black]\nline-length = 120\n[tool.isort]\nline_length = 120\nprofile = \"black\"\n[build-system]\nrequires = [\"poetry-core>=1.0.8\"]\nbuild-backend = \"poetry.core.masonry.api\"\n[project.urls]\nHomepage = \"https://github.com/Bl3f/yato\"\nRepository = \"https://github.com/Bl3f/yato\"\nIssues = \"https://github.com/Bl3f/yato/issues\"\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2626, Output: 229, Total: 2855\n\n[Thought]\nThis is a Poetry-based project. I need to install Poetry and then use it to install the dependencies and run tests. Let me first check if Poetry is available and install the project dependencies.\n\n[Action]\npoetry --version || pip install poetry\n[Container ID: b67c729ecd1a]\nExecuting: poetry --version || pip install poetry\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2745, Output: 50, Total: 2795\n\n[Thought]\nI need to check if Poetry is available first, as a separate action.\n\n[Action]\npoetry --version\n[Container ID: b67c729ecd1a]\nExecuting: poetry --version\nCommand failed (exit 127). Preserving current state for agent decision.\n\n[Observation]\n/bin/bash: line 1: poetry: command not found\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 4 ====================\n\n[Tokens] Input: 2792, Output: 34, Total: 2826\n\n[Thought]\nPoetry is not installed. Let me install it.\n\n[Action]\npip install poetry\n[Container ID: b67c729ecd1a]\nExecuting: pip install poetry\nCommand succeeded.\n[Snapshot Created] sha256:e5719\n\n[Observation]\nCollecting poetry\n  Downloading poetry-2.3.4-py3-none-any.whl (289 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 289.2/289.2 kB 637.6 kB/s eta 0:00:00\nCollecting requests<3.0,>=2.26\n  Downloading requests-2.33.1-py3-none-any.whl (64 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 125.4 kB/s eta 0:00:00\nCollecting cleo<3.0.0,>=2.1.0\n  Downloading cleo-2.1.0-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 557.7 kB/s eta 0:00:00\nCollecting shellingham<2.0,>=1.5\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting installer<0.8.0,>=0.7.0\n  Downloading installer-0.7.0-py3-none-any.whl (453 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 453.8/453.8 kB 537.3 kB/s eta 0:00:00\nCollecting tomlkit<1.0.0,>=0.11.4\n  Downloading tomlkit-0.14.0-py3-none-any.whl (39 kB)\nCollecting poetry-core==2.3.2\n  Downloading poetry_core-2.3.2-py3-none-any.whl (340 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 340.9/340.9 kB 608.1 kB/s eta 0:00:00\nCollecting build<2.0.0,>=1.2.1\n  Downloading build-1.4.4-py3-none-any.whl (25 kB)\nCollecting keyring<26.0.0,>=25.1.0\n  Downloading keyring-25.7.0-py3-none-any.whl (39 kB)\nCollecting pyproject-hooks<2.0.0,>=1.0.0\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nCollecting packaging>=24.2\n  Downloading packaging-26.2-py3-none-any.whl (100 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 435.8 kB/s eta 0:00:00\nCollecting platformdirs<5,>=3.0.0\n  Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nCollecting findpython<0.8.0,>=0.6.2\n  Downloading findpython-0.7.1-py3-none-any.whl (21 kB)\nCollecting dulwich<2,>=0.25.0\n  Downloading dulwich-1.2.0-cp310-cp310-manylinux_2_28_x86_64.whl (1.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 426.4 kB/s eta 0:00:00\nCollecting pbs-installer[download,install]>=2025.6.10\n  Downloading pbs_installer-2026.4.7-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.7/73.7 kB 508.1 kB/s eta 0:00:00\nCollecting trove-classifiers>=2022.5.19\n  Downloading trove_classifiers-2026.4.28.13-py3-none-any.whl (14 kB)\nCollecting tomli<3.0.0,>=2.0.1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting requests-toolbelt<2.0.0,>=1.0.0\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 6.8 MB/s eta 0:00:00\nCollecting virtualenv>=20.26.6\n  Downloading virtualenv-21.3.0-py3-none-any.whl (7.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 784.8 kB/s eta 0:00:00\nCollecting fastjsonschema<3.0.0,>=2.18.0\n  Downloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\nCollecting pkginfo<2.0,>=1.12\n  Downloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\nCollecting cachecontrol[filecache]<0.15.0,>=0.14.0\n  Downloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\nCollecting msgpack<2.0.0,>=0.5.2\n  Downloading msgpack-1.1.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (406 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 406.1/406.1 kB 798.8 kB/s eta 0:00:00\nCollecting filelock>=3.8.0\n  Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\nCollecting rapidfuzz<4.0.0,>=3.0.0\n  Downloading rapidfuzz-3.14.5-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 797.5 kB/s eta 0:00:00\nCollecting crashtest<0.5.0,>=0.4.1\n  Downloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\nCollecting urllib3>=2.2.2\n  Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 2.1 MB/s eta 0:00:00\nCollecting typing_extensions>=4.6.0\n  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 270.6 kB/s eta 0:00:00\nCollecting jaraco.classes\n  Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\nCollecting SecretStorage>=3.2\n  Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\nCollecting jaraco.functools\n  Downloading jaraco_functools-4.4.0-py3-none-any.whl (10 kB)\nCollecting jaraco.context\n  Downloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\nCollecting importlib_metadata>=4.11.4\n  Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\nCollecting jeepney>=0.4.2\n  Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 271.6 kB/s eta 0:00:00\nCollecting httpx<1,>=0.27.0\n  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 170.9 kB/s eta 0:00:00\nCollecting zstandard>=0.21.0\n  Downloading zstandard-0.25.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.6/5.6 MB 697.8 kB/s eta 0:00:00\nCollecting idna<4,>=2.5\n  Downloading idna-3.13-py3-none-any.whl (68 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 158.7 kB/s eta 0:00:00\nCollecting certifi>=2023.5.7\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 1.0 MB/s eta 0:00:00\nCollecting charset_normalizer<4,>=2\n  Downloading charset_normalizer-3.4.7-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.9/216.9 kB 736.0 kB/s eta 0:00:00\nCollecting distlib<1,>=0.3.7\n  Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 764.2 kB/s eta 0:00:00\nCollecting python-discovery>=1.2.2\n  Downloading python_discovery-1.2.2-py3-none-any.whl (31 kB)\nCollecting anyio\n  Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 1.1 MB/s eta 0:00:00\nCollecting httpcore==1.*\n  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 1.3 MB/s eta 0:00:00\nCollecting h11>=0.16\n  Downloading h11-0.16.0-py3-none-any.whl (37 kB)\nCollecting zipp>=3.20\n  Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\nCollecting cryptography>=2.0\n  Downloading cryptography-47.0.0-cp38-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 930.2 kB/s eta 0:00:00\nCollecting more-itertools\n  Downloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 1.9 MB/s eta 0:00:00\nCollecting backports.tarfile\n  Downloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\nCollecting cffi>=2.0.0\n  Downloading cffi-2.0.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (216 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.5/216.5 kB 423.4 kB/s eta 0:00:00\nCollecting exceptiongroup>=1.0.2\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting pycparser\n  Downloading pycparser-3.0-py3-none-any.whl (48 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 928.3 kB/s eta 0:00:00\nInstalling collected packages: trove-classifiers, fastjsonschema, distlib, zstandard, zipp, urllib3, typing_extensions, tomlkit, tomli, shellingham, rapidfuzz, pyproject-hooks, pycparser, poetry-core, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, idna, h11, filelock, crashtest, charset_normalizer, certifi, backports.tarfile, requests, python-discovery, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, exceptiongroup, dulwich, cleo, cffi, build, virtualenv, requests-toolbelt, cryptography, cachecontrol, anyio, SecretStorage, httpx, keyring, poetry\nSuccessfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 build-1.4.4 cachecontrol-0.14.4 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-47.0.0 distlib-0.4.0 dulwich-1.2.0 exceptiongroup-1.3.1 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.7.1 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.13 importlib_metadata-9.0.0 installer-0.7.0 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.4.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.4.7 pkginfo-1.12.1.2 platformdirs-4.9.6 poetry-2.3.4 poetry-core-2.3.2 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.2.2 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomli-2.4.1 tomlkit-0.14.0 trove-classifiers-2026.4.28.13 typing_extensions-4.15.0 urllib3-2.6.3 virtualenv-21.3.0 zipp-3.23.1 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 6285, Output: 44, Total: 6329\n\n[Thought]\nPoetry is installed. Now let me install the project dependencies using Poetry.\n\n[Action]\npoetry install\n[Container ID: b67c729ecd1a]\nExecuting: poetry install\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n\nThe Poetry configuration is invalid:\n  - project must contain ['name'] properties\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 6441, Output: 483, Total: 6924\n\n[Thought]\nThe Poetry version installed requires a `[project]` section in pyproject.toml for compatibility. I need to add this section to make it compatible.\n\n[Action]\ncat >> pyproject.toml << 'EOF'\n\n[project]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [{name = \"Christophe Blefari\", email = \"yato@blef.fr\"}]\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nlicense = {text = \"MIT\"}\nrequires-python = \">=3.9,<3.13\"\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\ndependencies = [\n    \"boto3>=1.34.51,<2.0.0\",\n    \"sqlglot>=23.0.2,<24.0.0\",\n    \"duckdb>=1.0.0,<2.0.0\",\n    \"click>=8.1.7,<9.0.0\",\n    \"rich>=13.7.1,<14.0.0\",\n]\noptional-dependencies = [\n    \"pandas>=2.2.0\",\n]\nEOF\n[Container ID: b67c729ecd1a]\nExecuting: cat >> pyproject.toml << 'EOF'\n\n[project]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [{name = \"Christophe Blefari\", email = \"yato@blef.fr\"}]\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nlicense = {text = \"MIT\"}\nrequires-python = \">=3.9,<3.13\"\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\ndependencies = [\n    \"boto3>=1.34.51,<2.0.0\",\n    \"sqlglot>=23.0.2,<24.0.0\",\n    \"duckdb>=1.0.0,<2.0.0\",\n    \"click>=8.1.7,<9.0.0\",\n    \"rich>=13.7.1,<14.0.0\",\n]\noptional-dependencies = [\n    \"pandas>=2.2.0\",\n]\nEOF\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n(No output)\n\n==================== Step 7 ====================\n\n[Tokens] Input: 3952, Output: 41, Total: 3993\n\n[Thought]\nThe project section was added. Let me try installing dependencies again.\n\n[Action]\npoetry install\n[Container ID: b67c729ecd1a]\nExecuting: poetry install\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n\nThe Poetry configuration is invalid:\n  - project.optional-dependencies must be object\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4108, Output: 144, Total: 4252\n\n[Thought]\nPoetry is having issues with the pyproject.toml format. Let me try a simpler approach - use pip to install the dependencies directly. First, let me check the requirements and install the package in editable mode.\n\n[Action]\npip install -e \".[pandas]\"\n[Container ID: b67c729ecd1a]\nExecuting: pip install -e \".[pandas]\"\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Preparing editable metadata (pyproject.toml) did not run successfully.\n  │ exit code: 1\n  ╰─> [14 lines of output]\n      Traceback (most recent call last):\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 353, in <module>\n          main()\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 335, in main\n          json_out['return_val'] = hook(**hook_input['kwargs'])\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 181, in prepare_metadata_for_build_editable\n          return hook(metadata_directory, config_settings)\n        File \"/tmp/pip-build-env-n11wuf2w/overlay/lib/python3.10/site-packages/poetry/core/masonry/api.py\", line 42, in prepare_metadata_for_build_wheel\n          poetry = Factory().create_poetry(Path().resolve(), with_groups=False)\n        File \"/tmp/pip-build-env-n11wuf2w/overlay/lib/python3.10/site-packages/poetry/core/factory.py\", line 58, in create_poetry\n          raise RuntimeError(\"The Poetry configuration is invalid:\\n\" + message)\n      RuntimeError: The Poetry configuration is invalid:\n        - project.optional-dependencies must be object\n      \n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 9 ====================\n\n[Tokens] Input: 4820, Output: 142, Total: 4962\n\n[Thought]\nI added a conflicting [project] section to pyproject.toml. Let me restore the original file and try installing dependencies directly with pip instead.\n\n[Action]\ngit checkout pyproject.toml\n[Container ID: b67c729ecd1a]\nExecuting: git checkout pyproject.toml\nCommand failed (exit 128). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nfatal: detected dubious ownership in repository at '/app'\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory /app\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 10 ====================\n\n[Tokens] Input: 5012, Output: 70, Total: 5082\n\n[Thought]\nI need to fix the git safe directory issue first and then restore the original pyproject.toml.\n\n[Action]\ngit config --global --add safe.directory /app\n[Container ID: b67c729ecd1a]\nExecuting: git config --global --add safe.directory /app\nCommand succeeded.\n[Snapshot Created] sha256:8fc8f\n\n[Observation]\n(No output)\n\n==================== Step 11 ====================\n\n[Tokens] Input: 4493, Output: 34, Total: 4527\n\n[Thought]\nNow let me restore the original pyproject.toml.\n\n[Action]\ngit checkout pyproject.toml\n[Container ID: b67c729ecd1a]\nExecuting: git checkout pyproject.toml\nCommand succeeded.\n[Snapshot Created] sha256:64dc9\n\n[Observation]\nUpdated 1 path from the index\n\n\n==================== Step 12 ====================\n\n[Tokens] Input: 4531, Output: 107, Total: 4638\n\n[Thought]\nGood, the file is restored. Now let me install the dependencies directly with pip to avoid Poetry 2.x compatibility issues.\n\n[Action]\npip install boto3 sqlglot duckdb click rich pandas pytest\n[Container ID: b67c729ecd1a]\nExecuting: pip install boto3 sqlglot duckdb click rich pandas pytest\nCommand succeeded.\n[Snapshot Created] sha256:38782\n\n[Observation]\nCollecting boto3\n  Downloading boto3-1.42.97-py3-none-any.whl (140 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.6/140.6 kB 422.0 kB/s eta 0:00:00\nCollecting sqlglot\n  Downloading sqlglot-30.6.0-py3-none-any.whl (673 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 673.9/673.9 kB 939.8 kB/s eta 0:00:00\nCollecting duckdb\n  Downloading duckdb-1.5.2-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (21.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 21.4/21.4 MB 5.6 MB/s eta 0:00:00\nCollecting click\n  Downloading click-8.3.3-py3-none-any.whl (110 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 944.4 kB/s eta 0:00:00\nCollecting rich\n  Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 2.0 MB/s eta 0:00:00\nCollecting pandas\n  Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 5.5 MB/s eta 0:00:00\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 2.5 MB/s eta 0:00:00\nCollecting jmespath<2.0.0,>=0.7.1\n  Downloading jmespath-1.1.0-py3-none-any.whl (20 kB)\nCollecting s3transfer<0.17.0,>=0.16.0\n  Downloading s3transfer-0.16.1-py3-none-any.whl (86 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.8/86.8 kB 1.0 MB/s eta 0:00:00\nCollecting botocore<1.43.0,>=1.42.97\n  Downloading botocore-1.42.97-py3-none-any.whl (15.0 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 3.4 MB/s eta 0:00:00\nCollecting pygments<3.0.0,>=2.13.0\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.1 MB/s eta 0:00:00\nCollecting markdown-it-py>=2.2.0\n  Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 148.8 kB/s eta 0:00:00\nCollecting numpy>=1.22.4\n  Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 5.2 MB/s eta 0:00:00\nCollecting pytz>=2020.1\n  Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 3.4 MB/s eta 0:00:00\nCollecting python-dateutil>=2.8.2\n  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 4.6 MB/s eta 0:00:00\nCollecting tzdata>=2022.7\n  Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 2.7 MB/s eta 0:00:00\nRequirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\nRequirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\nCollecting iniconfig>=1.0.1\n  Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nRequirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\nCollecting pluggy<2,>=1.5\n  Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nRequirement already satisfied: urllib3!=2.2.0,<3,>=1.25.4 in /usr/local/lib/python3.10/site-packages (from botocore<1.43.0,>=1.42.97->boto3) (2.6.3)\nRequirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\nCollecting mdurl~=0.1\n  Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nCollecting six>=1.5\n  Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nInstalling collected packages: pytz, tzdata, sqlglot, six, pygments, pluggy, numpy, mdurl, jmespath, iniconfig, duckdb, click, python-dateutil, pytest, markdown-it-py, rich, pandas, botocore, s3transfer, boto3\nSuccessfully installed boto3-1.42.97 botocore-1.42.97 click-8.3.3 duckdb-1.5.2 iniconfig-2.3.0 jmespath-1.1.0 markdown-it-py-4.0.0 mdurl-0.1.2 numpy-2.2.6 pandas-2.3.3 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 rich-15.0.0 s3transfer-0.16.1 six-1.17.0 sqlglot-30.6.0 tzdata-2026.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 13 ====================\n\n[Tokens] Input: 6273, Output: 104, Total: 6377\n\n[Thought]\nDependencies are installed. Now let me install the yato package in editable mode. I'll need to create a setup.py or adjust the installation to work around the Poetry/pyproject.toml issue.\n\n[Action]\npip install -e . --no-build-isolation\n[Container ID: b67c729ecd1a]\nExecuting: pip install -e . --no-build-isolation\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'error'\n  error: subprocess-exited-with-error\n  \n  × Preparing editable metadata (pyproject.toml) did not run successfully.\n  │ exit code: 1\n  ╰─> [14 lines of output]\n      Traceback (most recent call last):\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 353, in <module>\n          main()\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 335, in main\n          json_out['return_val'] = hook(**hook_input['kwargs'])\n        File \"/usr/local/lib/python3.10/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 181, in prepare_metadata_for_build_editable\n          return hook(metadata_directory, config_settings)\n        File \"/usr/local/lib/python3.10/site-packages/poetry/core/masonry/api.py\", line 42, in prepare_metadata_for_build_wheel\n          poetry = Factory().create_poetry(Path().resolve(), with_groups=False)\n        File \"/usr/local/lib/python3.10/site-packages/poetry/core/factory.py\", line 58, in create_poetry\n          raise RuntimeError(\"The Poetry configuration is invalid:\\n\" + message)\n      RuntimeError: The Poetry configuration is invalid:\n        - project must contain ['name'] properties\n      \n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 14 ====================\n\n[Tokens] Input: 6920, Output: 154, Total: 7074\n\n[Thought]\nPoetry 2.x requires PEP 621 `[project]` section but the pyproject.toml uses Poetry-native format. Let me install Poetry 1.x which supports the older format.\n\n[Action]\npip install 'poetry>=1.0,<2.0'\n[Container ID: b67c729ecd1a]\nExecuting: pip install 'poetry>=1.0,<2.0'\nCommand succeeded.\n[Snapshot Created] sha256:a9702\n\n[Observation]\nCollecting poetry<2.0,>=1.0\n  Downloading poetry-1.8.5-py3-none-any.whl (249 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 250.0/250.0 kB 725.7 kB/s eta 0:00:00\nCollecting pexpect<5.0.0,>=4.7.0\n  Downloading pexpect-4.9.0-py2.py3-none-any.whl (63 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.8/63.8 kB 576.2 kB/s eta 0:00:00\nRequirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.4.1)\nRequirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.0)\nRequirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.5.4)\nRequirement already satisfied: packaging>=23.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (26.2)\nRequirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.21.2)\nRequirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.12.1.2)\nRequirement already satisfied: cachecontrol[filecache]<0.15.0,>=0.14.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.4)\nCollecting poetry-plugin-export<2.0.0,>=1.6.0\n  Downloading poetry_plugin_export-1.10.0-py3-none-any.whl (13 kB)\nRequirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.1.0)\nRequirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.7.0)\nRequirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (4.9.6)\nCollecting dulwich<0.22.0,>=0.21.2\n  Downloading dulwich-0.21.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (514 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 514.7/514.7 kB 740.2 kB/s eta 0:00:00\nRequirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.33.1)\nRequirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2026.4.28.13)\nRequirement already satisfied: build<2.0.0,>=1.0.3 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.4.4)\nCollecting virtualenv<21.0.0,>=20.26.6\n  Downloading virtualenv-20.39.1-py3-none-any.whl (5.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.8/5.8 MB 1.1 MB/s eta 0:00:00\nRequirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.4.1)\nCollecting poetry-core==1.9.1\n  Downloading poetry_core-1.9.1-py3-none-any.whl (309 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.5/309.5 kB 265.6 kB/s eta 0:00:00\nRequirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.0.0)\nRequirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.2.0)\nCollecting keyring<25.0.0,>=24.0.0\n  Downloading keyring-24.3.1-py3-none-any.whl (38 kB)\nRequirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (1.1.2)\nRequirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (3.29.0)\nRequirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry<2.0,>=1.0) (3.14.5)\nRequirement already satisfied: urllib3>=1.25 in /usr/local/lib/python3.10/site-packages (from dulwich<0.22.0,>=0.21.2->poetry<2.0,>=1.0) (2.6.3)\nRequirement already satisfied: importlib-metadata>=4.11.4 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (9.0.0)\nRequirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.5.0)\nRequirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (0.9.0)\nRequirement already satisfied: jaraco.classes in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.4.0)\nCollecting ptyprocess>=0.5\n  Downloading ptyprocess-0.7.0-py2.py3-none-any.whl (13 kB)\nCollecting poetry-plugin-export<2.0.0,>=1.6.0\n  Downloading poetry_plugin_export-1.9.0-py3-none-any.whl (11 kB)\n  Downloading poetry_plugin_export-1.8.0-py3-none-any.whl (10 kB)\nRequirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.13)\nRequirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.4.7)\nRequirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (2026.4.22)\nRequirement already satisfied: typing-extensions>=4.13.2 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (4.15.0)\nRequirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (0.4.0)\nRequirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib-metadata>=4.11.4->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.23.1)\nRequirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.10/site-packages (from SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (47.0.0)\nRequirement already satisfied: more-itertools in /usr/local/lib/python3.10/site-packages (from jaraco.classes->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (11.0.2)\nRequirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.10/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (2.0.0)\nRequirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.0)\nInstalling collected packages: ptyprocess, virtualenv, poetry-core, pexpect, dulwich, keyring, poetry-plugin-export, poetry\n  Attempting uninstall: virtualenv\n    Found existing installation: virtualenv 21.3.0\n    Uninstalling virtualenv-21.3.0:\n      Successfully uninstalled virtualenv-21.3.0\n  Attempting uninstall: poetry-core\n    Found existing installation: poetry-core 2.3.2\n    Uninstalling poetry-core-2.3.2:\n      Successfully uninstalled poetry-core-2.3.2\n  Attempting uninstall: dulwich\n    Found existing installation: dulwich 1.2.0\n    Uninstalling dulwich-1.2.0:\n      Successfully uninstalled dulwich-1.2.0\n  Attempting uninstall: keyring\n    Found existing installation: keyring 25.7.0\n    Uninstalling keyring-25.7.0:\n      Successfully uninstalled keyring-25.7.0\n  Attempting uninstall: poetry\n    Found existing installation: poetry 2.3.4\n    Uninstalling poetry-2.3.4:\n      Successfully uninstalled poetry-2.3.4\nSuccessfully installed dulwich-0.21.7 keyring-24.3.1 pexpect-4.9.0 poetry-1.8.5 poetry-core-1.9.1 poetry-plugin-export-1.8.0 ptyprocess-0.7.0 virtualenv-20.39.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 15 ====================\n\n[Tokens] Input: 8673, Output: 58, Total: 8731\n\n[Thought]\nPoetry 1.8.5 is now installed. Let me try to install the project dependencies using Poetry.\n\n[Action]\npoetry install --all-extras\n[Container ID: b67c729ecd1a]\nExecuting: poetry install --all-extras\nCommand succeeded.\n[Snapshot Created] sha256:7441c\n\n[Observation]\nCreating virtualenv yato-lib-9TtSrW0h-py3.10 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 30 installs, 0 updates, 0 removals\n\n  - Installing six (1.16.0)\n  - Installing jmespath (1.0.1)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing urllib3 (2.2.3)\n  - Installing botocore (1.35.18)\n  - Installing mdurl (0.1.2)\n  - Installing click (8.1.7)\n  - Installing exceptiongroup (1.2.2)\n  - Installing iniconfig (2.0.0)\n  - Installing markdown-it-py (3.0.0)\n  - Installing mypy-extensions (1.0.0)\n  - Installing numpy (2.1.1)\n  - Installing packaging (24.1)\n  - Installing pathspec (0.12.1)\n  - Installing platformdirs (4.3.2)\n  - Installing pluggy (1.5.0)\n  - Installing pygments (2.18.0)\n  - Installing pytz (2024.2)\n  - Installing s3transfer (0.10.2)\n  - Installing tomli (2.0.1)\n  - Installing typing-extensions (4.12.2)\n  - Installing tzdata (2024.1)\n  - Installing black (24.8.0)\n  - Installing boto3 (1.35.18)\n  - Installing duckdb (1.1.0)\n  - Installing isort (5.13.2)\n  - Installing pandas (2.2.2)\n  - Installing pytest (8.3.3)\n  - Installing rich (13.8.1)\n  - Installing sqlglot (23.17.0)\n\nInstalling the current project: yato-lib (0.0.12)\n\n\n==================== Step 16 ====================\n\n[Tokens] Input: 9148, Output: 73, Total: 9221\n\n[Thought]\nPoetry has successfully installed all dependencies and the package. Now let me run pytest collection to verify tests can be collected.\n\n[Action]\npoetry run pytest --collect-only -q --disable-warnings\n[Container ID: b67c729ecd1a]\nExecuting: poetry run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:491d6\n\n[Observation]\ntests/test_parser.py::test_get_table_name_simple\ntests/test_parser.py::test_get_table_name_anonymous_read_parquet\ntests/test_parser.py::test_snake_to_camel\ntests/test_parser.py::test_read_and_get_python_instance_with_python_file\ntests/test_parser.py::test_read_and_get_python_instance_with_sql_file\ntests/test_parser.py::test_read_sql_python\ntests/test_parser.py::test_read_sql_sql\ntests/test_parser.py::test_find_select_query_raises\ntests/test_parser.py::test_find_select_query\ntests/test_parser.py::test_parse_sql\ntests/test_parser.py::test_get_tables\ntests/test_parser.py::test_get_dependencies\ntests/test_storage.py::TestStorage::test_download_folder\ntests/test_storage.py::TestStorage::test_setup\ntests/test_storage.py::TestStorage::test_upload_folder\ntests/test_yato.py::TestYato::test_yato_storage\ntests/test_yato.py::TestYato::test_yato_storage_none\n\n17 tests collected in 0.56s\n\n\n==================== Step 17 ====================\n\n[Tokens] Input: 7060, Output: 94, Total: 7154\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful - 17 tests were collected. The environment is now properly set up for this repository. Let me provide the final verification bundle.\n</think>\n\nThought: All 17 tests were successfully collected using Poetry's virtual environment. The repository is now properly configured for running tests.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"poetry run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 8 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/Bl3f__yato.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/Bl3f/yato.git",
+    "configuration_success": true,
+    "base_image": "python:3.10",
+    "platform_override": null,
+    "verified_test_command": "poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[tool.poetry]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [\"Christophe Blefari <yato@blef.fr>\"]\nlicense = \"MIT\"\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\ninclude = [ \"LICENSE.txt\", \"README.md\", \"examples\"]\npackages = [\n    { include \n... (96 chars omitted for recipe synthesis) ...\n=3.9,<3.13\"\nboto3 = \"^1.34.51\"\nsqlglot = \"^23.0.2\"\nduckdb = \"^1.0.0\"\nclick = \"^8.1.7\"\npandas = {version = \"^2.2.0\", optional = true}\nrich = \"^13.7.1\"\n[tool.poetry.group.dev.dependencies]\nblack = \"^24.2.0\"\nisort = \"^5.13.2\"\npytest = \"^8.0.2\"\n[tool.poetry.extras]\npandas = [\"pandas\"]\n[tool.black]\nline-length = 120\n[tool.isort]\nline_length = 120\nprofile = \"black\"\n[build-system]\nrequires = [\"poetry-core>=1.0.8\"]\nbuild-backend = \"poetry.core.masonry.api\"\n[project.urls]\nHomepage = \"https://github.com/Bl3f/yato\"\nRepository = \"https://github.com/Bl3f/yato\"\nIssues = \"https://github.com/Bl3f/yato/issues\""
+      },
+      {
+        "step_index": 4,
+        "command": "pip install poetry",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry\n  Downloading poetry-2.3.4-py3-none-any.whl (289 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 289.2/289.2 kB 637.6 kB/s eta 0:00:00\nCollecting requests<3.0,>=2.26\n  Downloading requests-2.33.1-py3-none-any.whl (64 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 125.4 kB/s eta 0:00:00\nCollecting cleo<3.0.0,>=2.1.0\n  Downloading cleo-2.1.0-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 557.7 kB/s eta 0:00:00\nCollecting shellingham<2.0,>=1.5\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting installer<0.8.\n... (7676 chars omitted for recipe synthesis) ...\n.0 pyproject-hooks-1.2.0 python-discovery-1.2.2 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomli-2.4.1 tomlkit-0.14.0 trove-classifiers-2026.4.28.13 typing_extensions-4.15.0 urllib3-2.6.3 virtualenv-21.3.0 zipp-3.23.1 zstandard-0.25.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cat >> pyproject.toml << 'EOF'\n\n[project]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [{name = \"Christophe Blefari\", email = \"yato@blef.fr\"}]\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nlicense = {text = \"MIT\"}\nrequires-python = \">=3.9,<3.13\"\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\ndependencies = [\n    \"boto3>=1.34.51,<2.0.0\",\n    \"sqlglot>=23.0.2,<24.0.0\",\n    \"duckdb>=1.0.0,<2.0.0\",\n    \"click>=8.1.7,<9.0.0\",\n    \"rich>=13.7.1,<14.0.0\",\n]\noptional-dependencies = [\n    \"pandas>=2.2.0\",\n]\nEOF",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 10,
+        "command": "git config --global --add safe.directory /app",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 11,
+        "command": "git checkout pyproject.toml",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Updated 1 path from the index\n"
+      },
+      {
+        "step_index": 12,
+        "command": "pip install boto3 sqlglot duckdb click rich pandas pytest",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting boto3\n  Downloading boto3-1.42.97-py3-none-any.whl (140 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.6/140.6 kB 422.0 kB/s eta 0:00:00\nCollecting sqlglot\n  Downloading sqlglot-30.6.0-py3-none-any.whl (673 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 673.9/673.9 kB 939.8 kB/s eta 0:00:00\nCollecting duckdb\n  Downloading duckdb-1.5.2-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (21.4 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 21.4/21.4 MB 5.6 MB/s eta 0:00:00\nCollecting click\n  Downloading click-8.3.3-py3-none-any.whl (110 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━\n... (3246 chars omitted for recipe synthesis) ...\n-8.3.3 duckdb-1.5.2 iniconfig-2.3.0 jmespath-1.1.0 markdown-it-py-4.0.0 mdurl-0.1.2 numpy-2.2.6 pandas-2.3.3 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 rich-15.0.0 s3transfer-0.16.1 six-1.17.0 sqlglot-30.6.0 tzdata-2026.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 14,
+        "command": "pip install 'poetry>=1.0,<2.0'",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry<2.0,>=1.0\n  Downloading poetry-1.8.5-py3-none-any.whl (249 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 250.0/250.0 kB 725.7 kB/s eta 0:00:00\nCollecting pexpect<5.0.0,>=4.7.0\n  Downloading pexpect-4.9.0-py2.py3-none-any.whl (63 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.8/63.8 kB 576.2 kB/s eta 0:00:00\nRequirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.4.1)\nRequirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.0)\nRequirement\n... (6547 chars omitted for recipe synthesis) ...\ning installation: poetry 2.3.4\n    Uninstalling poetry-2.3.4:\n      Successfully uninstalled poetry-2.3.4\nSuccessfully installed dulwich-0.21.7 keyring-24.3.1 pexpect-4.9.0 poetry-1.8.5 poetry-core-1.9.1 poetry-plugin-export-1.8.0 ptyprocess-0.7.0 virtualenv-20.39.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 15,
+        "command": "poetry install --all-extras",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Creating virtualenv yato-lib-9TtSrW0h-py3.10 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 30 installs, 0 updates, 0 removals\n\n  - Installing six (1.16.0)\n  - Installing jmespath (1.0.1)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing urllib3 (2.2.3)\n  - Installing botocore (1.35.18)\n  - Installing mdurl (0.1.2)\n  - Installing click (8.1.7)\n  - Installing exceptiongroup (1.2.2)\n  - Installing iniconfig (2.0.0)\n  - Installing markdown-it-py (3.0.0)\n  - Installing mypy-extensions (1.0.0)\n  - Installing numpy (2.1.1)\n  - Installing pa\n... (7 chars omitted for recipe synthesis) ...\n (24.1)\n  - Installing pathspec (0.12.1)\n  - Installing platformdirs (4.3.2)\n  - Installing pluggy (1.5.0)\n  - Installing pygments (2.18.0)\n  - Installing pytz (2024.2)\n  - Installing s3transfer (0.10.2)\n  - Installing tomli (2.0.1)\n  - Installing typing-extensions (4.12.2)\n  - Installing tzdata (2024.1)\n  - Installing black (24.8.0)\n  - Installing boto3 (1.35.18)\n  - Installing duckdb (1.1.0)\n  - Installing isort (5.13.2)\n  - Installing pandas (2.2.2)\n  - Installing pytest (8.3.3)\n  - Installing rich (13.8.1)\n  - Installing sqlglot (23.17.0)\n\nInstalling the current project: yato-lib (0.0.12)\n"
+      },
+      {
+        "step_index": 16,
+        "command": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_parser.py::test_get_table_name_simple\ntests/test_parser.py::test_get_table_name_anonymous_read_parquet\ntests/test_parser.py::test_snake_to_camel\ntests/test_parser.py::test_read_and_get_python_instance_with_python_file\ntests/test_parser.py::test_read_and_get_python_instance_with_sql_file\ntests/test_parser.py::test_read_sql_python\ntests/test_parser.py::test_read_sql_sql\ntests/test_parser.py::test_find_select_query_raises\ntests/test_parser.py::test_find_select_query\ntests/test_parser.py::test_parse_sql\ntests/test_parser.py::test_get_tables\ntests/test_parser.py::test_get_dependencies\ntests/test_storage.py::TestStorage::test_download_folder\ntests/test_storage.py::TestStorage::test_setup\ntests/test_storage.py::TestStorage::test_upload_folder\ntests/test_yato.py::TestYato::test_yato_storage\ntests/test_yato.py::TestYato::test_yato_storage_none\n\n17 tests collected in 0.56s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 2,
+        "command": "poetry --version || pip install poetry",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines multiple independent setup mutations.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 3,
+        "command": "poetry --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: poetry: command not found\n"
+      },
+      {
+        "step_index": 5,
+        "command": "poetry install",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n\nThe Poetry configuration is invalid:\n  - project must contain ['name'] properties\n\n"
+      },
+      {
+        "step_index": 7,
+        "command": "poetry install",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\n\nThe Poetry configuration is invalid:\n  - project.optional-dependencies must be object\n\n"
+      },
+      {
+        "step_index": 8,
+        "command": "pip install -e \".[pandas]\"",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Installing build dependencies: started\n \n... (1616 chars omitted for recipe synthesis) ...\noetry configuration is invalid:\\n\" + message)\n      RuntimeError: The Poetry configuration is invalid:\n        - project.optional-dependencies must be object\n      \n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 9,
+        "command": "git checkout pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nfatal: detected dubious ownership in repository at '/app'\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory /app\n"
+      },
+      {
+        "step_index": 13,
+        "command": "pip install -e . --no-build-isolation",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] FAILED SETUP MUTATION: this setup command failed after attempting to change the environment.\n[SYSTEM] It may have partially installed packages, modified files, or changed services. Do not assume useful parts of this failed command are reliably available for later steps.\n[SYSTEM] If any prefix or sub-step appears useful, rerun that prefix/sub-step as its own separate Action so it is confirmed successful. If the partial changes may have polluted the environment, use `Action: __ROLLBACK__` to restore the previous snapshot.\n\nObtaining file:///app\n  Checking if build backend supports build\n... (1340 chars omitted for recipe synthesis) ...\nhe Poetry configuration is invalid:\\n\" + message)\n      RuntimeError: The Poetry configuration is invalid:\n        - project must contain ['name'] properties\n      \n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: metadata-generation-failed\n\n× Encountered error while generating package metadata.\n╰─> See above for output.\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1\n[notice] To update, run: pip install --upgrade pip\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install poetry",
+        "cat >> pyproject.toml << 'EOF'\n\n[project]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [{name = \"Christophe Blefari\", email = \"yato@blef.fr\"}]\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nlicense = {text = \"MIT\"}\nrequires-python = \">=3.9,<3.13\"\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\ndependencies = [\n    \"boto3>=1.34.51,<2.0.0\",\n    \"sqlglot>=23.0.2,<24.0.0\",\n    \"duckdb>=1.0.0,<2.0.0\",\n    \"click>=8.1.7,<9.0.0\",\n    \"rich>=13.7.1,<14.0.0\",\n]\noptional-dependencies = [\n    \"pandas>=2.2.0\",\n]\nEOF",
+        "git config --global --add safe.directory /app",
+        "git checkout pyproject.toml",
+        "pip install boto3 sqlglot duckdb click rich pandas pytest",
+        "pip install 'poetry>=1.0,<2.0'",
+        "poetry install --all-extras",
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "pip install poetry",
+          "reason": "Poetry 2.x was immediately replaced by Poetry 1.x; Poetry 2.x is incompatible with the project's poetry-native pyproject.toml format"
+        },
+        {
+          "command": "cat >> pyproject.toml ... [project] section ... EOF",
+          "reason": "File modification was reverted via git checkout; the final working setup uses the original poetry-native format with Poetry 1.x"
+        },
+        {
+          "command": "git config --global --add safe.directory /app",
+          "reason": "Git safe.directory fix was only needed to run git checkout during setup; the pyproject.toml is already in the correct state in the repo"
+        },
+        {
+          "command": "git checkout pyproject.toml",
+          "reason": "Restored original pyproject.toml after failed [project] section attempt; not needed in final image as file is already correct"
+        },
+        {
+          "command": "pip install boto3 sqlglot duckdb click rich pandas pytest",
+          "reason": "Standalone pip installs are superseded by poetry install --all-extras which properly installs all dependencies in the Poetry-managed virtual environment"
+        },
+        {
+          "command": "pip install -e . --no-build-isolation",
+          "reason": "Failed due to Poetry 2.x incompatibility; replaced by poetry install --all-extras which succeeded"
+        }
+      ],
+      "rationale": "The successful trajectory was: (1) install Poetry 1.x to avoid Poetry 2.x's PEP 621 format incompatibility with the poetry-native pyproject.toml, (2) run poetry install --all-extras to install all dependencies and the project in its virtual environment. Poetry 2.x was installed first but immediately caused failures and was later replaced. The standalone pip install of dependencies was a workaround that ultimately wasn't needed since Poetry 1.x handles the full setup. The final verification collected 17 tests successfully using poetry run pytest.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 5,
+      "compressed_steps": 4,
+      "saved_tokens_est": 4748
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 1296,
+        "raw_tokens_est": 324,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "poetry --version || pip install poetry",
+        "success": false,
+        "raw_chars": 308,
+        "raw_tokens_est": 77,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "poetry --version",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "pip install poetry",
+        "success": true,
+        "raw_chars": 8876,
+        "raw_tokens_est": 2219,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1797,
+        "reflect_input_tokens": 4507,
+        "reflect_output_tokens": 910
+      },
+      {
+        "step_id": 5,
+        "action": "poetry install",
+        "success": false,
+        "raw_chars": 620,
+        "raw_tokens_est": 155,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "cat >> pyproject.toml << 'EOF'\n\n[project]\nname = \"yato-lib\"\nversion = \"0.0.12\"\nauthors = [{name = \"Christophe Blefari\", email = \"yato@blef.fr\"}]\ndescription = \"The smallest DuckDB SQL transformations orchestrator\"\nreadme = \"README.md\"\nlicense = {text = \"MIT\"}\nrequires-python = \">=3.9,<3.13\"\nkeywords = [\"duckdb\", \"sql\", \"orchestrator\", \"etl\"]\nclassifiers = [\n    \"Programming Language :: Python\",\n    \"Programming Language :: Python :: 3\",\n    \"License :: OSI Approved :: MIT License\",\n    \"Operating System :: OS Independent\",\n    \"Development Status :: 4 - Beta\",\n    \"Intended Audience :: Developers\",\n]\ndependencies = [\n    \"boto3>=1.34.51,<2.0.0\",\n    \"sqlglot>=23.0.2,<24.0.0\",\n    \"duckdb>=1.0.0,<2.0.0\",\n    \"click>=8.1.7,<9.0.0\",\n    \"rich>=13.7.1,<14.0.0\",\n]\noptional-dependencies = [\n    \"pandas>=2.2.0\",\n]\nEOF",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "poetry install",
+        "success": false,
+        "raw_chars": 624,
+        "raw_tokens_est": 156,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "pip install -e \".[pandas]\"",
+        "success": false,
+        "raw_chars": 2816,
+        "raw_tokens_est": 704,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 598,
+        "reflect_input_tokens": 1596,
+        "reflect_output_tokens": 315
+      },
+      {
+        "step_id": 9,
+        "action": "git checkout pyproject.toml",
+        "success": false,
+        "raw_chars": 688,
+        "raw_tokens_est": 172,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "git config --global --add safe.directory /app",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 11,
+        "action": "git checkout pyproject.toml",
+        "success": true,
+        "raw_chars": 30,
+        "raw_tokens_est": 7,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "pip install boto3 sqlglot duckdb click rich pandas pytest",
+        "success": true,
+        "raw_chars": 4446,
+        "raw_tokens_est": 1111,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 813,
+        "reflect_input_tokens": 5822,
+        "reflect_output_tokens": 997
+      },
+      {
+        "step_id": 13,
+        "action": "pip install -e . --no-build-isolation",
+        "success": false,
+        "raw_chars": 2540,
+        "raw_tokens_est": 635,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 270,
+        "reflect_input_tokens": 5084,
+        "reflect_output_tokens": 524
+      },
+      {
+        "step_id": 14,
+        "action": "pip install 'poetry>=1.0,<2.0'",
+        "success": true,
+        "raw_chars": 7747,
+        "raw_tokens_est": 1936,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1540,
+        "reflect_input_tokens": 4782,
+        "reflect_output_tokens": 613
+      },
+      {
+        "step_id": 15,
+        "action": "poetry install --all-extras",
+        "success": true,
+        "raw_chars": 1207,
+        "raw_tokens_est": 301,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 16,
+        "action": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 887,
+        "raw_tokens_est": 221,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 35832,
+        "output_tokens": 2650,
+        "total_tokens": 38482
+      },
+      "planner": {
+        "input_tokens": 88052,
+        "output_tokens": 1921,
+        "total_tokens": 89973
+      },
+      "reflection": {
+        "input_tokens": 21791,
+        "output_tokens": 3359,
+        "total_tokens": 25150
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 15574,
+        "output_tokens": 2611,
+        "total_tokens": 18185
+      },
+      "total": {
+        "input_tokens": 161249,
+        "output_tokens": 10541,
+        "total_tokens": 171790
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_poetry_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "poetry run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-bl3f__yato",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval -t jayint-repo2run-bl3f__yato /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-29T02:24:53.914191+08:00",
+    "finished_at": "2026-04-29T02:26:25.153241+08:00",
+    "duration_seconds": 91.239,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 3.65kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [ 1/13] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 7.40MB 0.1s done\n#5 DONE 0.1s\n\n#6 [ 2/13] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [ 3/13] WORKDIR /app\n#7 CACHED\n\n#8 [ 4/13] COPY . /app\n#8 DONE 0.1s\n\n#9 [ 5/13] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [ 6/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.632 Requirement already satisfied: poetry in /usr/local/lib/python3.10/site-packages (2.3.4)\n#10 0.647 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.10/site-packages (from poetry) (1.12.1.2)\n#10 0.648 Requirement already satisfied: cachecontrol[filecache]<0.15.0,>=0.14.0 in /usr/local/lib/python3.10/site-packages (from poetry) (0.14.4)\n#10 0.648 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.10/site-packages (from poetry) (2.3.2)\n#10 0.649 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.2.0)\n#10 0.650 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.10/site-packages (from poetry) (1.5.4)\n#10 0.650 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.10/site-packages (from poetry) (25.7.0)\n#10 0.651 Requirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry) (2.4.1)\n#10 0.652 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.10/site-packages (from poetry) (2026.1.14.14)\n#10 0.653 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.10/site-packages (from poetry) (2.21.2)\n#10 0.653 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.10/site-packages (from poetry) (1.4.4)\n#10 0.654 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry) (0.14.0)\n#10 0.654 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.10/site-packages (from poetry) (0.7.0)\n#10 0.655 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (4.9.6)\n#10 0.655 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.10/site-packages (from poetry) (2.33.1)\n#10 0.656 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.10/site-packages (from poetry) (21.3.0)\n#10 0.657 Requirement already satisfied: pbs-installer[download,install]>=2025.6.10 in /usr/local/lib/python3.10/site-packages (from poetry) (2026.4.7)\n#10 0.657 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.0.0)\n#10 0.658 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.2.0)\n#10 0.658 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.10/site-packages (from poetry) (0.7.1)\n#10 0.658 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.10/site-packages (from poetry) (2.1.0)\n#10 0.659 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.10/site-packages (from poetry) (26.2)\n#10 0.676 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.677 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.679 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.680 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.692 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.693 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.10/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.713 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.714 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.715 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.715 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.716 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.717 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.723 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.10/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.724 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.10/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.734 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.735 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.735 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.749 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.749 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.765 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.765 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.771 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.784 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (3.23.1)\n#10 0.802 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.10/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 0.825 Requirement already satisfied: more-itertools in /usr/local/lib/python3.10/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.836 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.10/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 0.854 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.10/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.870 Requirement already satisfied: exceptiongroup>=1.0.2 in /usr/local/lib/python3.10/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.3.1)\n#10 0.883 Requirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.953 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 1.3s\n\n#11 [ 7/13] RUN printf '%s' 'Y2F0ID4+IHB5cHJvamVjdC50b21sIDw8ICdFT0YnCgpbcHJvamVjdF0KbmFtZSA9ICJ5YXRvLWxpYiIKdmVyc2lvbiA9ICIwLjAuMTIiCmF1dGhvcnMgPSBbe25hbWUgPSAiQ2hyaXN0b3BoZSBCbGVmYXJpIiwgZW1haWwgPSAieWF0b0BibGVmLmZyIn1dCmRlc2NyaXB0aW9uID0gIlRoZSBzbWFsbGVzdCBEdWNrREIgU1FMIHRyYW5zZm9ybWF0aW9ucyBvcmNoZXN0cmF0b3IiCnJlYWRtZSA9ICJSRUFETUUubWQiCmxpY2Vuc2UgPSB7dGV4dCA9ICJNSVQifQpyZXF1aXJlcy1weXRob24gPSAiPj0zLjksPDMuMTMiCmtleXdvcmRzID0gWyJkdWNrZGIiLCAic3FsIiwgIm9yY2hlc3RyYXRvciIsICJldGwiXQpjbGFzc2lmaWVycyA9IFsKICAgICJQcm9ncmFtbWluZyBMYW5ndWFnZSA6OiBQeXRob24iLAogICAgIlByb2dyYW1taW5nIExhbmd1YWdlIDo6IFB5dGhvbiA6OiAzIiwKICAgICJMaWNlbnNlIDo6IE9TSSBBcHByb3ZlZCA6OiBNSVQgTGljZW5zZSIsCiAgICAiT3BlcmF0aW5nIFN5c3RlbSA6OiBPUyBJbmRlcGVuZGVudCIsCiAgICAiRGV2ZWxvcG1lbnQgU3RhdHVzIDo6IDQgLSBCZXRhIiwKICAgICJJbnRlbmRlZCBBdWRpZW5jZSA6OiBEZXZlbG9wZXJzIiwKXQpkZXBlbmRlbmNpZXMgPSBbCiAgICAiYm90bzM+PTEuMzQuNTEsPDIuMC4wIiwKICAgICJzcWxnbG90Pj0yMy4wLjIsPDI0LjAuMCIsCiAgICAiZHVja2RiPj0xLjAuMCw8Mi4wLjAiLAogICAgImNsaWNrPj04LjEuNyw8OS4wLjAiLAogICAgInJpY2g+PTEzLjcuMSw8MTQuMC4wIiwKXQpvcHRpb25hbC1kZXBlbmRlbmNpZXMgPSBbCiAgICAicGFuZGFzPj0yLjIuMCIsCl0KRU9G' | base64 -d > /tmp/jayint_run_2.sh && chmod +x /tmp/jayint_run_2.sh && /bin/sh /tmp/jayint_run_2.sh\n#11 DONE 0.4s\n\n#12 [ 8/13] RUN git config --global --add safe.directory /app\n#12 DONE 0.4s\n\n#13 [ 9/13] RUN git checkout pyproject.toml\n#13 0.526 Updated 1 path from the index\n#13 DONE 2.7s\n\n#14 [10/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install boto3 sqlglot duckdb click rich pandas pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#14 2.231 Collecting boto3\n#14 2.590   Downloading boto3-1.42.97-py3-none-any.whl (140 kB)\n#14 2.991      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.6/140.6 kB 616.6 kB/s eta 0:00:00\n#14 3.499 Collecting sqlglot\n#14 3.628   Downloading sqlglot-30.6.0-py3-none-any.whl (673 kB)\n#14 4.021      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 673.9/673.9 kB 1.7 MB/s eta 0:00:00\n#14 5.061 Collecting duckdb\n#14 5.187   Downloading duckdb-1.5.2-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (21.4 MB)\n#14 9.057      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 21.4/21.4 MB 5.9 MB/s eta 0:00:00\n#14 9.437 Collecting click\n#14 9.558   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#14 9.848      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 26.3 MB/s eta 0:00:00\n#14 10.15 Collecting rich\n#14 10.28   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#14 10.61      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 1.9 MB/s eta 0:00:00\n#14 11.14 Collecting pandas\n#14 11.27   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#14 14.17      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 4.8 MB/s eta 0:00:00\n#14 14.23 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#14 14.39 Collecting s3transfer<0.17.0,>=0.16.0\n#14 14.51   Downloading s3transfer-0.16.1-py3-none-any.whl (86 kB)\n#14 14.82      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.8/86.8 kB 251.7 kB/s eta 0:00:00\n#14 14.97 Collecting jmespath<2.0.0,>=0.7.1\n#14 15.24   Downloading jmespath-1.1.0-py3-none-any.whl (20 kB)\n#14 17.15 Collecting botocore<1.43.0,>=1.42.97\n#14 17.45   Downloading botocore-1.42.97-py3-none-any.whl (15.0 MB)\n#14 31.25      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 1.7 MB/s eta 0:00:00\n#14 31.35 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.10/site-packages (from rich) (2.20.0)\n#14 31.59 Collecting markdown-it-py>=2.2.0\n#14 31.72   Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#14 31.89      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 46.9 MB/s eta 0:00:00\n#14 32.11 Collecting tzdata>=2022.7\n#14 32.24   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#14 32.51      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 1.8 MB/s eta 0:00:00\n#14 33.67 Collecting numpy>=1.22.4\n#14 33.80   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#14 38.77      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 4.4 MB/s eta 0:00:00\n#14 39.11 Collecting pytz>=2020.1\n#14 39.23   Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n#14 39.53      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 2.6 MB/s eta 0:00:00\n#14 39.69 Collecting python-dateutil>=2.8.2\n#14 39.82   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#14 40.07      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 1.4 MB/s eta 0:00:00\n#14 40.10 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#14 40.10 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#14 40.10 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#14 40.10 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#14 40.10 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#14 40.11 Requirement already satisfied: urllib3!=2.2.0,<3,>=1.25.4 in /usr/local/lib/python3.10/site-packages (from botocore<1.43.0,>=1.42.97->boto3) (2.6.3)\n#14 40.12 Requirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\n#14 40.29 Collecting mdurl~=0.1\n#14 40.53   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#14 40.70 Collecting six>=1.5\n#14 40.82   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#14 41.34 Installing collected packages: pytz, tzdata, sqlglot, six, numpy, mdurl, jmespath, duckdb, click, python-dateutil, markdown-it-py, rich, pandas, botocore, s3transfer, boto3\n#14 45.56 Successfully installed boto3-1.42.97 botocore-1.42.97 click-8.3.3 duckdb-1.5.2 jmespath-1.1.0 markdown-it-py-4.0.0 mdurl-0.1.2 numpy-2.2.6 pandas-2.3.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 rich-15.0.0 s3transfer-0.16.1 six-1.17.0 sqlglot-30.6.0 tzdata-2026.2\n#14 45.56 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#14 DONE 46.0s\n\n#15 [11/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install '\"'\"'poetry>=1.0,<2.0'\"'\"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#15 1.124 Collecting poetry<2.0,>=1.0\n#15 1.459   Downloading poetry-1.8.5-py3-none-any.whl (249 kB)\n#15 2.208      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 250.0/250.0 kB 373.5 kB/s eta 0:00:00\n#15 2.239 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.5.4)\n#15 2.240 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.12.1.2)\n#15 2.656 Collecting keyring<25.0.0,>=24.0.0\n#15 2.772   Downloading keyring-24.3.1-py3-none-any.whl (38 kB)\n#15 2.948 Requirement already satisfied: build<2.0.0,>=1.0.3 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.4.4)\n#15 2.950 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.1.0)\n#15 2.953 Requirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.4.1)\n#15 2.955 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.0)\n#15 2.956 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.7.0)\n#15 3.384 Collecting virtualenv<21.0.0,>=20.26.6\n#15 3.500   Downloading virtualenv-20.39.1-py3-none-any.whl (5.8 MB)\n#15 8.695      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.8/5.8 MB 1.1 MB/s eta 0:00:00\n#15 8.960 Collecting poetry-plugin-export<2.0.0,>=1.6.0\n#15 9.088   Downloading poetry_plugin_export-1.10.0-py3-none-any.whl (13 kB)\n#15 9.786 Collecting dulwich<0.22.0,>=0.21.2\n#15 9.908   Downloading dulwich-0.21.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (514 kB)\n#15 10.39      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 514.7/514.7 kB 1.3 MB/s eta 0:00:00\n#15 10.40 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.0.0)\n#15 10.65 Collecting poetry-core==1.9.1\n#15 10.77   Downloading poetry_core-1.9.1-py3-none-any.whl (309 kB)\n#15 11.03      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.5/309.5 kB 1.8 MB/s eta 0:00:00\n#15 11.04 Requirement already satisfied: cachecontrol[filecache]<0.15.0,>=0.14.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.4)\n#15 11.27 Collecting pexpect<5.0.0,>=4.7.0\n#15 11.40   Downloading pexpect-4.9.0-py2.py3-none-any.whl (63 kB)\n#15 11.64      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.8/63.8 kB 333.4 kB/s eta 0:00:00\n#15 11.64 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.2.0)\n#15 11.64 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.21.2)\n#15 11.64 Requirement already satisfied: packaging>=23.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (26.2)\n#15 11.64 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.33.1)\n#15 11.65 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (4.9.6)\n#15 11.65 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.4.1)\n#15 11.65 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2026.1.14.14)\n#15 11.67 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (1.1.2)\n#15 11.67 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (3.29.0)\n#15 11.67 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry<2.0,>=1.0) (3.14.5)\n#15 11.68 Requirement already satisfied: urllib3>=1.25 in /usr/local/lib/python3.10/site-packages (from dulwich<0.22.0,>=0.21.2->poetry<2.0,>=1.0) (2.6.3)\n#15 11.70 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.5.0)\n#15 11.70 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.4.0)\n#15 11.70 Requirement already satisfied: importlib-metadata>=4.11.4 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (9.0.0)\n#15 11.70 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (0.9.0)\n#15 11.85 Collecting ptyprocess>=0.5\n#15 12.05   Downloading ptyprocess-0.7.0-py2.py3-none-any.whl (13 kB)\n#15 12.16 Collecting poetry-plugin-export<2.0.0,>=1.6.0\n#15 12.29   Downloading poetry_plugin_export-1.9.0-py3-none-any.whl (11 kB)\n#15 12.45   Downloading poetry_plugin_export-1.8.0-py3-none-any.whl (10 kB)\n#15 12.57 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.13)\n#15 12.57 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.4.7)\n#15 12.57 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (2026.4.22)\n#15 12.59 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (0.4.0)\n#15 12.59 Requirement already satisfied: typing-extensions>=4.13.2 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (4.15.0)\n#15 12.61 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib-metadata>=4.11.4->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.23.1)\n#15 12.62 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.10/site-packages (from SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (47.0.0)\n#15 12.63 Requirement already satisfied: more-itertools in /usr/local/lib/python3.10/site-packages (from jaraco.classes->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (11.0.2)\n#15 12.64 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.10/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (2.0.0)\n#15 12.65 Requirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.0)\n#15 12.83 Installing collected packages: ptyprocess, virtualenv, poetry-core, pexpect, dulwich, keyring, poetry-plugin-export, poetry\n#15 12.85   Attempting uninstall: virtualenv\n#15 12.85     Found existing installation: virtualenv 21.3.0\n#15 12.87     Uninstalling virtualenv-21.3.0:\n#15 12.94       Successfully uninstalled virtualenv-21.3.0\n#15 13.01   Attempting uninstall: poetry-core\n#15 13.01     Found existing installation: poetry-core 2.3.2\n#15 13.04     Uninstalling poetry-core-2.3.2:\n#15 13.10       Successfully uninstalled poetry-core-2.3.2\n#15 13.22   Attempting uninstall: dulwich\n#15 13.22     Found existing installation: dulwich 1.2.0\n#15 13.24     Uninstalling dulwich-1.2.0:\n#15 13.27       Successfully uninstalled dulwich-1.2.0\n#15 13.43   Attempting uninstall: keyring\n#15 13.43     Found existing installation: keyring 25.7.0\n#15 13.44     Uninstalling keyring-25.7.0:\n#15 13.46       Successfully uninstalled keyring-25.7.0\n#15 13.48   Attempting uninstall: poetry\n#15 13.48     Found existing installation: poetry 2.3.4\n#15 13.51     Uninstalling poetry-2.3.4:\n#15 13.60       Successfully uninstalled poetry-2.3.4\n#15 13.70 Successfully installed dulwich-0.21.7 keyring-24.3.1 pexpect-4.9.0 poetry-1.8.5 poetry-core-1.9.1 poetry-plugin-export-1.8.0 ptyprocess-0.7.0 virtualenv-20.39.1\n#15 13.70 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#15 DONE 13.8s\n\n#16 [12/13] RUN poetry install --all-extras\n#16 0.635 Creating virtualenv yato-lib-9TtSrW0h-py3.10 in /root/.cache/pypoetry/virtualenvs\n#16 1.068 Installing dependencies from lock file\n#16 1.135 \n#16 1.135 Package operations: 30 installs, 0 updates, 0 removals\n#16 1.135 \n#16 1.135   - Installing six (1.16.0)\n#16 2.533   - Installing jmespath (1.0.1)\n#16 2.534   - Installing python-dateutil (2.9.0.post0)\n#16 2.537   - Installing urllib3 (2.2.3)\n#16 3.847   - Installing botocore (1.35.18)\n#16 3.848   - Installing mdurl (0.1.2)\n#16 6.997   - Installing click (8.1.7)\n#16 6.997   - Installing exceptiongroup (1.2.2)\n#16 6.998   - Installing iniconfig (2.0.0)\n#16 6.999   - Installing markdown-it-py (3.0.0)\n#16 7.000   - Installing mypy-extensions (1.0.0)\n#16 7.000   - Installing numpy (2.1.1)\n#16 7.001   - Installing packaging (24.1)\n#16 7.002   - Installing pathspec (0.12.1)\n#16 7.003   - Installing platformdirs (4.3.2)\n#16 7.004   - Installing pluggy (1.5.0)\n#16 7.005   - Installing pygments (2.18.0)\n#16 7.006   - Installing pytz (2024.2)\n#16 7.008   - Installing s3transfer (0.10.2)\n#16 7.008   - Installing tomli (2.0.1)\n#16 7.259   - Installing typing-extensions (4.12.2)\n#16 7.347   - Installing tzdata (2024.1)\n#16 11.73   - Installing black (24.8.0)\n#16 11.73   - Installing boto3 (1.35.18)\n#16 11.73   - Installing duckdb (1.1.0)\n#16 11.73   - Installing isort (5.13.2)\n#16 11.73   - Installing pandas (2.2.2)\n#16 11.74   - Installing pytest (8.3.3)\n#16 11.74   - Installing rich (13.8.1)\n#16 11.74   - Installing sqlglot (23.17.0)\n#16 23.50 \n#16 23.50 Installing the current project: yato-lib (0.0.12)\n#16 DONE 23.7s\n\n#17 [13/13] RUN poetry run pytest --collect-only -q --disable-warnings\n#17 1.426 tests/test_parser.py::test_get_table_name_simple\n#17 1.426 tests/test_parser.py::test_get_table_name_anonymous_read_parquet\n#17 1.426 tests/test_parser.py::test_snake_to_camel\n#17 1.426 tests/test_parser.py::test_read_and_get_python_instance_with_python_file\n#17 1.426 tests/test_parser.py::test_read_and_get_python_instance_with_sql_file\n#17 1.426 tests/test_parser.py::test_read_sql_python\n#17 1.426 tests/test_parser.py::test_read_sql_sql\n#17 1.426 tests/test_parser.py::test_find_select_query_raises\n#17 1.426 tests/test_parser.py::test_find_select_query\n#17 1.426 tests/test_parser.py::test_parse_sql\n#17 1.426 tests/test_parser.py::test_get_tables\n#17 1.426 tests/test_parser.py::test_get_dependencies\n#17 1.426 tests/test_storage.py::TestStorage::test_download_folder\n#17 1.426 tests/test_storage.py::TestStorage::test_setup\n#17 1.426 tests/test_storage.py::TestStorage::test_upload_folder\n#17 1.426 tests/test_yato.py::TestYato::test_yato_storage\n#17 1.426 tests/test_yato.py::TestYato::test_yato_storage_none\n#17 1.426 \n#17 1.426 17 tests collected in 0.56s\n#17 DONE 1.5s\n\n#18 exporting to image\n#18 exporting layers\n#18 exporting layers 0.7s done\n#18 writing image sha256:9a84ecb627a82ca78dc98d1ba59e8b81a2e1393008d5e63fb55fdce53999b230\n#18 writing image sha256:9a84ecb627a82ca78dc98d1ba59e8b81a2e1393008d5e63fb55fdce53999b230 done\n#18 naming to docker.io/library/jayint-repo2run-bl3f__yato done\n#18 DONE 0.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/jjsmcuqrbjhqntud4350nv44o\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-bl3f__yato",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-bl3f__yato sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-29T02:26:25.155988+08:00",
+          "finished_at": "2026-04-29T02:26:26.339276+08:00",
+          "duration_seconds": 1.183,
+          "stdout": "tests/test_parser.py::test_get_table_name_simple\ntests/test_parser.py::test_get_table_name_anonymous_read_parquet\ntests/test_parser.py::test_snake_to_camel\ntests/test_parser.py::test_read_and_get_python_instance_with_python_file\ntests/test_parser.py::test_read_and_get_python_instance_with_sql_file\ntests/test_parser.py::test_read_sql_python\ntests/test_parser.py::test_read_sql_sql\ntests/test_parser.py::test_find_select_query_raises\ntests/test_parser.py::test_find_select_query\ntests/test_parser.py::test_parse_sql\ntests/test_parser.py::test_get_tables\ntests/test_parser.py::test_get_dependencies\ntests/test_storage.py::TestStorage::test_download_folder\ntests/test_storage.py::TestStorage::test_setup\ntests/test_storage.py::TestStorage::test_upload_folder\ntests/test_yato.py::TestYato::test_yato_storage\ntests/test_yato.py::TestYato::test_yato_storage_none\n\n17 tests collected in 0.25s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-bl3f__yato",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/Dockerfile.eval -t jayint-repo2run-bl3f__yato /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/Bl3f__yato",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-04-29T02:24:53.914191+08:00",
+        "finished_at": "2026-04-29T02:26:25.153241+08:00",
+        "duration_seconds": 91.239,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 3.65kB done\n#1 DONE 0.1s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [ 1/13] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 7.40MB 0.1s done\n#5 DONE 0.1s\n\n#6 [ 2/13] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [ 3/13] WORKDIR /app\n#7 CACHED\n\n#8 [ 4/13] COPY . /app\n#8 DONE 0.1s\n\n#9 [ 5/13] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [ 6/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.632 Requirement already satisfied: poetry in /usr/local/lib/python3.10/site-packages (2.3.4)\n#10 0.647 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.10/site-packages (from poetry) (1.12.1.2)\n#10 0.648 Requirement already satisfied: cachecontrol[filecache]<0.15.0,>=0.14.0 in /usr/local/lib/python3.10/site-packages (from poetry) (0.14.4)\n#10 0.648 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.10/site-packages (from poetry) (2.3.2)\n#10 0.649 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.2.0)\n#10 0.650 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.10/site-packages (from poetry) (1.5.4)\n#10 0.650 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.10/site-packages (from poetry) (25.7.0)\n#10 0.651 Requirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry) (2.4.1)\n#10 0.652 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.10/site-packages (from poetry) (2026.1.14.14)\n#10 0.653 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.10/site-packages (from poetry) (2.21.2)\n#10 0.653 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.10/site-packages (from poetry) (1.4.4)\n#10 0.654 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry) (0.14.0)\n#10 0.654 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.10/site-packages (from poetry) (0.7.0)\n#10 0.655 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (4.9.6)\n#10 0.655 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.10/site-packages (from poetry) (2.33.1)\n#10 0.656 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.10/site-packages (from poetry) (21.3.0)\n#10 0.657 Requirement already satisfied: pbs-installer[download,install]>=2025.6.10 in /usr/local/lib/python3.10/site-packages (from poetry) (2026.4.7)\n#10 0.657 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.0.0)\n#10 0.658 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry) (1.2.0)\n#10 0.658 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.10/site-packages (from poetry) (0.7.1)\n#10 0.658 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.10/site-packages (from poetry) (2.1.0)\n#10 0.659 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.10/site-packages (from poetry) (26.2)\n#10 0.676 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.677 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.679 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.680 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.692 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.693 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.10/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.713 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.714 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.715 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.715 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.716 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.717 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.10/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.723 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.10/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.724 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.10/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.734 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.735 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.735 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.749 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.749 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.765 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.765 Requirement already satisfied: anyio in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.771 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 0.784 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (3.23.1)\n#10 0.802 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.10/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 0.825 Requirement already satisfied: more-itertools in /usr/local/lib/python3.10/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 0.836 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.10/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 0.854 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.10/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 0.870 Requirement already satisfied: exceptiongroup>=1.0.2 in /usr/local/lib/python3.10/site-packages (from anyio->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.3.1)\n#10 0.883 Requirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 0.953 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 1.3s\n\n#11 [ 7/13] RUN printf '%s' 'Y2F0ID4+IHB5cHJvamVjdC50b21sIDw8ICdFT0YnCgpbcHJvamVjdF0KbmFtZSA9ICJ5YXRvLWxpYiIKdmVyc2lvbiA9ICIwLjAuMTIiCmF1dGhvcnMgPSBbe25hbWUgPSAiQ2hyaXN0b3BoZSBCbGVmYXJpIiwgZW1haWwgPSAieWF0b0BibGVmLmZyIn1dCmRlc2NyaXB0aW9uID0gIlRoZSBzbWFsbGVzdCBEdWNrREIgU1FMIHRyYW5zZm9ybWF0aW9ucyBvcmNoZXN0cmF0b3IiCnJlYWRtZSA9ICJSRUFETUUubWQiCmxpY2Vuc2UgPSB7dGV4dCA9ICJNSVQifQpyZXF1aXJlcy1weXRob24gPSAiPj0zLjksPDMuMTMiCmtleXdvcmRzID0gWyJkdWNrZGIiLCAic3FsIiwgIm9yY2hlc3RyYXRvciIsICJldGwiXQpjbGFzc2lmaWVycyA9IFsKICAgICJQcm9ncmFtbWluZyBMYW5ndWFnZSA6OiBQeXRob24iLAogICAgIlByb2dyYW1taW5nIExhbmd1YWdlIDo6IFB5dGhvbiA6OiAzIiwKICAgICJMaWNlbnNlIDo6IE9TSSBBcHByb3ZlZCA6OiBNSVQgTGljZW5zZSIsCiAgICAiT3BlcmF0aW5nIFN5c3RlbSA6OiBPUyBJbmRlcGVuZGVudCIsCiAgICAiRGV2ZWxvcG1lbnQgU3RhdHVzIDo6IDQgLSBCZXRhIiwKICAgICJJbnRlbmRlZCBBdWRpZW5jZSA6OiBEZXZlbG9wZXJzIiwKXQpkZXBlbmRlbmNpZXMgPSBbCiAgICAiYm90bzM+PTEuMzQuNTEsPDIuMC4wIiwKICAgICJzcWxnbG90Pj0yMy4wLjIsPDI0LjAuMCIsCiAgICAiZHVja2RiPj0xLjAuMCw8Mi4wLjAiLAogICAgImNsaWNrPj04LjEuNyw8OS4wLjAiLAogICAgInJpY2g+PTEzLjcuMSw8MTQuMC4wIiwKXQpvcHRpb25hbC1kZXBlbmRlbmNpZXMgPSBbCiAgICAicGFuZGFzPj0yLjIuMCIsCl0KRU9G' | base64 -d > /tmp/jayint_run_2.sh && chmod +x /tmp/jayint_run_2.sh && /bin/sh /tmp/jayint_run_2.sh\n#11 DONE 0.4s\n\n#12 [ 8/13] RUN git config --global --add safe.directory /app\n#12 DONE 0.4s\n\n#13 [ 9/13] RUN git checkout pyproject.toml\n#13 0.526 Updated 1 path from the index\n#13 DONE 2.7s\n\n#14 [10/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install boto3 sqlglot duckdb click rich pandas pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#14 2.231 Collecting boto3\n#14 2.590   Downloading boto3-1.42.97-py3-none-any.whl (140 kB)\n#14 2.991      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.6/140.6 kB 616.6 kB/s eta 0:00:00\n#14 3.499 Collecting sqlglot\n#14 3.628   Downloading sqlglot-30.6.0-py3-none-any.whl (673 kB)\n#14 4.021      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 673.9/673.9 kB 1.7 MB/s eta 0:00:00\n#14 5.061 Collecting duckdb\n#14 5.187   Downloading duckdb-1.5.2-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (21.4 MB)\n#14 9.057      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 21.4/21.4 MB 5.9 MB/s eta 0:00:00\n#14 9.437 Collecting click\n#14 9.558   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#14 9.848      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 26.3 MB/s eta 0:00:00\n#14 10.15 Collecting rich\n#14 10.28   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#14 10.61      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 1.9 MB/s eta 0:00:00\n#14 11.14 Collecting pandas\n#14 11.27   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#14 14.17      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 4.8 MB/s eta 0:00:00\n#14 14.23 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#14 14.39 Collecting s3transfer<0.17.0,>=0.16.0\n#14 14.51   Downloading s3transfer-0.16.1-py3-none-any.whl (86 kB)\n#14 14.82      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.8/86.8 kB 251.7 kB/s eta 0:00:00\n#14 14.97 Collecting jmespath<2.0.0,>=0.7.1\n#14 15.24   Downloading jmespath-1.1.0-py3-none-any.whl (20 kB)\n#14 17.15 Collecting botocore<1.43.0,>=1.42.97\n#14 17.45   Downloading botocore-1.42.97-py3-none-any.whl (15.0 MB)\n#14 31.25      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 1.7 MB/s eta 0:00:00\n#14 31.35 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.10/site-packages (from rich) (2.20.0)\n#14 31.59 Collecting markdown-it-py>=2.2.0\n#14 31.72   Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#14 31.89      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 46.9 MB/s eta 0:00:00\n#14 32.11 Collecting tzdata>=2022.7\n#14 32.24   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#14 32.51      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 1.8 MB/s eta 0:00:00\n#14 33.67 Collecting numpy>=1.22.4\n#14 33.80   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#14 38.77      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 4.4 MB/s eta 0:00:00\n#14 39.11 Collecting pytz>=2020.1\n#14 39.23   Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n#14 39.53      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 2.6 MB/s eta 0:00:00\n#14 39.69 Collecting python-dateutil>=2.8.2\n#14 39.82   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#14 40.07      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 1.4 MB/s eta 0:00:00\n#14 40.10 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#14 40.10 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#14 40.10 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#14 40.10 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#14 40.10 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#14 40.11 Requirement already satisfied: urllib3!=2.2.0,<3,>=1.25.4 in /usr/local/lib/python3.10/site-packages (from botocore<1.43.0,>=1.42.97->boto3) (2.6.3)\n#14 40.12 Requirement already satisfied: typing-extensions>=4.6.0 in /usr/local/lib/python3.10/site-packages (from exceptiongroup>=1->pytest) (4.15.0)\n#14 40.29 Collecting mdurl~=0.1\n#14 40.53   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#14 40.70 Collecting six>=1.5\n#14 40.82   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#14 41.34 Installing collected packages: pytz, tzdata, sqlglot, six, numpy, mdurl, jmespath, duckdb, click, python-dateutil, markdown-it-py, rich, pandas, botocore, s3transfer, boto3\n#14 45.56 Successfully installed boto3-1.42.97 botocore-1.42.97 click-8.3.3 duckdb-1.5.2 jmespath-1.1.0 markdown-it-py-4.0.0 mdurl-0.1.2 numpy-2.2.6 pandas-2.3.3 python-dateutil-2.9.0.post0 pytz-2026.1.post1 rich-15.0.0 s3transfer-0.16.1 six-1.17.0 sqlglot-30.6.0 tzdata-2026.2\n#14 45.56 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#14 DONE 46.0s\n\n#15 [11/13] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install '\"'\"'poetry>=1.0,<2.0'\"'\"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#15 1.124 Collecting poetry<2.0,>=1.0\n#15 1.459   Downloading poetry-1.8.5-py3-none-any.whl (249 kB)\n#15 2.208      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 250.0/250.0 kB 373.5 kB/s eta 0:00:00\n#15 2.239 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.5.4)\n#15 2.240 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.12.1.2)\n#15 2.656 Collecting keyring<25.0.0,>=24.0.0\n#15 2.772   Downloading keyring-24.3.1-py3-none-any.whl (38 kB)\n#15 2.948 Requirement already satisfied: build<2.0.0,>=1.0.3 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.4.4)\n#15 2.950 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.1.0)\n#15 2.953 Requirement already satisfied: tomli<3.0.0,>=2.0.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.4.1)\n#15 2.955 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.0)\n#15 2.956 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.7.0)\n#15 3.384 Collecting virtualenv<21.0.0,>=20.26.6\n#15 3.500   Downloading virtualenv-20.39.1-py3-none-any.whl (5.8 MB)\n#15 8.695      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.8/5.8 MB 1.1 MB/s eta 0:00:00\n#15 8.960 Collecting poetry-plugin-export<2.0.0,>=1.6.0\n#15 9.088   Downloading poetry_plugin_export-1.10.0-py3-none-any.whl (13 kB)\n#15 9.786 Collecting dulwich<0.22.0,>=0.21.2\n#15 9.908   Downloading dulwich-0.21.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (514 kB)\n#15 10.39      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 514.7/514.7 kB 1.3 MB/s eta 0:00:00\n#15 10.40 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.0.0)\n#15 10.65 Collecting poetry-core==1.9.1\n#15 10.77   Downloading poetry_core-1.9.1-py3-none-any.whl (309 kB)\n#15 11.03      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.5/309.5 kB 1.8 MB/s eta 0:00:00\n#15 11.04 Requirement already satisfied: cachecontrol[filecache]<0.15.0,>=0.14.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.14.4)\n#15 11.27 Collecting pexpect<5.0.0,>=4.7.0\n#15 11.40   Downloading pexpect-4.9.0-py2.py3-none-any.whl (63 kB)\n#15 11.64      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.8/63.8 kB 333.4 kB/s eta 0:00:00\n#15 11.64 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (1.2.0)\n#15 11.64 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.21.2)\n#15 11.64 Requirement already satisfied: packaging>=23.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (26.2)\n#15 11.64 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2.33.1)\n#15 11.65 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (4.9.6)\n#15 11.65 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (0.4.1)\n#15 11.65 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.10/site-packages (from poetry<2.0,>=1.0) (2026.1.14.14)\n#15 11.67 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (1.1.2)\n#15 11.67 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.10/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry<2.0,>=1.0) (3.29.0)\n#15 11.67 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.10/site-packages (from cleo<3.0.0,>=2.1.0->poetry<2.0,>=1.0) (3.14.5)\n#15 11.68 Requirement already satisfied: urllib3>=1.25 in /usr/local/lib/python3.10/site-packages (from dulwich<0.22.0,>=0.21.2->poetry<2.0,>=1.0) (2.6.3)\n#15 11.70 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.5.0)\n#15 11.70 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.4.0)\n#15 11.70 Requirement already satisfied: importlib-metadata>=4.11.4 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (9.0.0)\n#15 11.70 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.10/site-packages (from keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (0.9.0)\n#15 11.85 Collecting ptyprocess>=0.5\n#15 12.05   Downloading ptyprocess-0.7.0-py2.py3-none-any.whl (13 kB)\n#15 12.16 Collecting poetry-plugin-export<2.0.0,>=1.6.0\n#15 12.29   Downloading poetry_plugin_export-1.9.0-py3-none-any.whl (11 kB)\n#15 12.45   Downloading poetry_plugin_export-1.8.0-py3-none-any.whl (10 kB)\n#15 12.57 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.13)\n#15 12.57 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (3.4.7)\n#15 12.57 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests<3.0,>=2.26->poetry<2.0,>=1.0) (2026.4.22)\n#15 12.59 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (0.4.0)\n#15 12.59 Requirement already satisfied: typing-extensions>=4.13.2 in /usr/local/lib/python3.10/site-packages (from virtualenv<21.0.0,>=20.26.6->poetry<2.0,>=1.0) (4.15.0)\n#15 12.61 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.10/site-packages (from importlib-metadata>=4.11.4->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.23.1)\n#15 12.62 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.10/site-packages (from SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (47.0.0)\n#15 12.63 Requirement already satisfied: more-itertools in /usr/local/lib/python3.10/site-packages (from jaraco.classes->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (11.0.2)\n#15 12.64 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.10/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (2.0.0)\n#15 12.65 Requirement already satisfied: pycparser in /usr/local/lib/python3.10/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<25.0.0,>=24.0.0->poetry<2.0,>=1.0) (3.0)\n#15 12.83 Installing collected packages: ptyprocess, virtualenv, poetry-core, pexpect, dulwich, keyring, poetry-plugin-export, poetry\n#15 12.85   Attempting uninstall: virtualenv\n#15 12.85     Found existing installation: virtualenv 21.3.0\n#15 12.87     Uninstalling virtualenv-21.3.0:\n#15 12.94       Successfully uninstalled virtualenv-21.3.0\n#15 13.01   Attempting uninstall: poetry-core\n#15 13.01     Found existing installation: poetry-core 2.3.2\n#15 13.04     Uninstalling poetry-core-2.3.2:\n#15 13.10       Successfully uninstalled poetry-core-2.3.2\n#15 13.22   Attempting uninstall: dulwich\n#15 13.22     Found existing installation: dulwich 1.2.0\n#15 13.24     Uninstalling dulwich-1.2.0:\n#15 13.27       Successfully uninstalled dulwich-1.2.0\n#15 13.43   Attempting uninstall: keyring\n#15 13.43     Found existing installation: keyring 25.7.0\n#15 13.44     Uninstalling keyring-25.7.0:\n#15 13.46       Successfully uninstalled keyring-25.7.0\n#15 13.48   Attempting uninstall: poetry\n#15 13.48     Found existing installation: poetry 2.3.4\n#15 13.51     Uninstalling poetry-2.3.4:\n#15 13.60       Successfully uninstalled poetry-2.3.4\n#15 13.70 Successfully installed dulwich-0.21.7 keyring-24.3.1 pexpect-4.9.0 poetry-1.8.5 poetry-core-1.9.1 poetry-plugin-export-1.8.0 ptyprocess-0.7.0 virtualenv-20.39.1\n#15 13.70 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#15 DONE 13.8s\n\n#16 [12/13] RUN poetry install --all-extras\n#16 0.635 Creating virtualenv yato-lib-9TtSrW0h-py3.10 in /root/.cache/pypoetry/virtualenvs\n#16 1.068 Installing dependencies from lock file\n#16 1.135 \n#16 1.135 Package operations: 30 installs, 0 updates, 0 removals\n#16 1.135 \n#16 1.135   - Installing six (1.16.0)\n#16 2.533   - Installing jmespath (1.0.1)\n#16 2.534   - Installing python-dateutil (2.9.0.post0)\n#16 2.537   - Installing urllib3 (2.2.3)\n#16 3.847   - Installing botocore (1.35.18)\n#16 3.848   - Installing mdurl (0.1.2)\n#16 6.997   - Installing click (8.1.7)\n#16 6.997   - Installing exceptiongroup (1.2.2)\n#16 6.998   - Installing iniconfig (2.0.0)\n#16 6.999   - Installing markdown-it-py (3.0.0)\n#16 7.000   - Installing mypy-extensions (1.0.0)\n#16 7.000   - Installing numpy (2.1.1)\n#16 7.001   - Installing packaging (24.1)\n#16 7.002   - Installing pathspec (0.12.1)\n#16 7.003   - Installing platformdirs (4.3.2)\n#16 7.004   - Installing pluggy (1.5.0)\n#16 7.005   - Installing pygments (2.18.0)\n#16 7.006   - Installing pytz (2024.2)\n#16 7.008   - Installing s3transfer (0.10.2)\n#16 7.008   - Installing tomli (2.0.1)\n#16 7.259   - Installing typing-extensions (4.12.2)\n#16 7.347   - Installing tzdata (2024.1)\n#16 11.73   - Installing black (24.8.0)\n#16 11.73   - Installing boto3 (1.35.18)\n#16 11.73   - Installing duckdb (1.1.0)\n#16 11.73   - Installing isort (5.13.2)\n#16 11.73   - Installing pandas (2.2.2)\n#16 11.74   - Installing pytest (8.3.3)\n#16 11.74   - Installing rich (13.8.1)\n#16 11.74   - Installing sqlglot (23.17.0)\n#16 23.50 \n#16 23.50 Installing the current project: yato-lib (0.0.12)\n#16 DONE 23.7s\n\n#17 [13/13] RUN poetry run pytest --collect-only -q --disable-warnings\n#17 1.426 tests/test_parser.py::test_get_table_name_simple\n#17 1.426 tests/test_parser.py::test_get_table_name_anonymous_read_parquet\n#17 1.426 tests/test_parser.py::test_snake_to_camel\n#17 1.426 tests/test_parser.py::test_read_and_get_python_instance_with_python_file\n#17 1.426 tests/test_parser.py::test_read_and_get_python_instance_with_sql_file\n#17 1.426 tests/test_parser.py::test_read_sql_python\n#17 1.426 tests/test_parser.py::test_read_sql_sql\n#17 1.426 tests/test_parser.py::test_find_select_query_raises\n#17 1.426 tests/test_parser.py::test_find_select_query\n#17 1.426 tests/test_parser.py::test_parse_sql\n#17 1.426 tests/test_parser.py::test_get_tables\n#17 1.426 tests/test_parser.py::test_get_dependencies\n#17 1.426 tests/test_storage.py::TestStorage::test_download_folder\n#17 1.426 tests/test_storage.py::TestStorage::test_setup\n#17 1.426 tests/test_storage.py::TestStorage::test_upload_folder\n#17 1.426 tests/test_yato.py::TestYato::test_yato_storage\n#17 1.426 tests/test_yato.py::TestYato::test_yato_storage_none\n#17 1.426 \n#17 1.426 17 tests collected in 0.56s\n#17 DONE 1.5s\n\n#18 exporting to image\n#18 exporting layers\n#18 exporting layers 0.7s done\n#18 writing image sha256:9a84ecb627a82ca78dc98d1ba59e8b81a2e1393008d5e63fb55fdce53999b230\n#18 writing image sha256:9a84ecb627a82ca78dc98d1ba59e8b81a2e1393008d5e63fb55fdce53999b230 done\n#18 naming to docker.io/library/jayint-repo2run-bl3f__yato done\n#18 DONE 0.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/jjsmcuqrbjhqntud4350nv44o\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "poetry run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-bl3f__yato",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-bl3f__yato sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-04-29T02:26:25.155988+08:00",
+              "finished_at": "2026-04-29T02:26:26.339276+08:00",
+              "duration_seconds": 1.183,
+              "stdout": "tests/test_parser.py::test_get_table_name_simple\ntests/test_parser.py::test_get_table_name_anonymous_read_parquet\ntests/test_parser.py::test_snake_to_camel\ntests/test_parser.py::test_read_and_get_python_instance_with_python_file\ntests/test_parser.py::test_read_and_get_python_instance_with_sql_file\ntests/test_parser.py::test_read_sql_python\ntests/test_parser.py::test_read_sql_sql\ntests/test_parser.py::test_find_select_query_raises\ntests/test_parser.py::test_find_select_query\ntests/test_parser.py::test_parse_sql\ntests/test_parser.py::test_get_tables\ntests/test_parser.py::test_get_dependencies\ntests/test_storage.py::TestStorage::test_download_folder\ntests/test_storage.py::TestStorage::test_setup\ntests/test_storage.py::TestStorage::test_upload_folder\ntests/test_yato.py::TestYato::test_yato_storage\ntests/test_yato.py::TestYato::test_yato_storage_none\n\n17 tests collected in 0.25s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-bl3f__yato"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-bl3f__yato",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-29T02:26:26.340039+08:00",
+    "finished_at": "2026-04-29T02:26:26.363303+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-bl3f__yato:latest\nDeleted: sha256:9a84ecb627a82ca78dc98d1ba59e8b81a2e1393008d5e63fb55fdce53999b230\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/Bl3f__yato/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

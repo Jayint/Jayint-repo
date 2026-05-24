@@ -1,0 +1,751 @@
+{
+  "dataset_entry": {
+    "instance_id": "WongKinYiu__YOLO",
+    "full_name": "WongKinYiu/YOLO",
+    "repo_url": "https://github.com/WongKinYiu/YOLO.git",
+    "sha": "b96c8e",
+    "base_commit": "b96c8e",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/WongKinYiu/YOLO.git",
+      "--base-commit",
+      "b96c8e",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/WongKinYiu/YOLO.git --base-commit b96c8e --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-21T03:26:57.295564+08:00",
+    "finished_at": "2026-05-21T03:43:07.051888+08:00",
+    "duration_seconds": 969.756,
+    "stdout": "Cloning https://github.com/WongKinYiu/YOLO.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: b96c8e\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 11 potentially relevant files\n[ImageSelector]   ✓ .github/workflows/deploy.yaml\n[ImageSelector]   ✓ docker/Dockerfile\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✗ .github/workflows/docker.yaml\n[ImageSelector]   ✗ docs/Makefile\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ docker/requirements-locked.txt\n[ImageSelector]   ✓ requirements-dev.txt\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ docs/requirements.txt\n[ImageSelector]   ✓ .github/workflows/develop.yaml\n[ImageSelector] 9 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses PyTorch with CUDA support (torch, torchvision, opencv-python). For GPU acceleration and optimal performance, ensure the base image includes CUDA support or use a CUDA-enabled variant like `nvidia/cuda:12.x.x-cudnn8-runtime-ubuntu22.04` combined with the Python 3.10 image, or consider using `nvidia/cuda` base images with Python 3.10 pre-installed.\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/logs/image_selector_logs\nInitializing container from python:3.10...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:21dc1\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/logs/compression_logs\nStarting agent for repository: https://github.com/WongKinYiu/YOLO.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2720, Output: 54, Total: 2774\n\n[Thought]\nLet me start by examining the repository structure and key configuration files to understand the dependencies and project setup.\n\n[Action]\ncat pyproject.toml\n[Container ID: 81591df8268c]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[project]\nname = \"yolo\"\nversion = \"0.1.0\"\ndynamic = [\"dependencies\"]\ndescription = \"Official Implementation of YOLO\"\nauthors = [\n    { name = \"Hao-Tang, Tsui\", email = \"henrytsui000@gmail.com\" },\n]\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\nrequires-python = \">=3.6\"\nkeywords = [\"yolo\", \"object detection\", \"computer vision\"]\n\n\n[tool.setuptools.dynamic]\ndependencies = {file = [\"requirements.txt\"]}\n\n[tool.setuptools.packages.find]\nwhere = [\".\"]\ninclude = [\"yolo*\"]\n\n[tool.setuptools]\npackage-data = {\"yolo\" = [\"**/*.yaml\"]}\ninclude-package-data = true\n\n\n[build-system]\nbuild-backend = \"setuptools.build_meta\"\nrequires = [\n    \"setuptools\",\n]\n\n[project.scripts]\nyolo = \"yolo.lazy:main\"\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2957, Output: 36, Total: 2993\n\n[Thought]\nLet me examine the requirements.txt to understand the runtime dependencies.\n\n[Action]\ncat requirements.txt\n[Container ID: 81591df8268c]\nExecuting: cat requirements.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\neinops\ngraphviz\nhydra-core\nlightning\nloguru\nnumpy\nopencv-python\nPillow\npycocotools\nrequests\nrich\ntorch\ntorchvision\nwandb\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3030, Output: 35, Total: 3065\n\n[Thought]\nLet me check the requirements-dev.txt for test dependencies.\n\n[Action]\ncat requirements-dev.txt\n[Container ID: 81591df8268c]\nExecuting: cat requirements-dev.txt\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n-r requirements.txt\ngradio\npytest\npytest-cov\npre-commit\npycocotools\ntensorboard\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3086, Output: 47, Total: 3133\n\n[Thought]\nLet me examine the conftest.py to understand the test configuration.\n\n[Action]\ncat tests/conftest.py\n[Container ID: 81591df8268c]\nExecuting: cat tests/conftest.py\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nimport sys\nfrom pathlib import Path\n\nimport pytest\nimport torch\nfrom hydra import compose, initialize\nfrom lightning import Trainer\n\nproject_root = Path(__file__).resolve().parent.parent\nsys.path.append(str(project_root))\n\nfrom yolo import Anc2Box, Config, Vec2Box, create_converter, create_model\nfrom yolo.model.yolo import YOLO\nfrom yolo.tools.data_loader import StreamDataLoader, create_dataloader\nfrom yolo.tools.dataset_preparation import prepare_dataset\nfrom yolo.utils.logging_utils import set_seed, setup\n\n\ndef pytest_configure(config):\n    config.addinivalue_line(\"markers\", \"requires_cuda: mark test to run only if CUDA is available\")\n\n\ndef get_cfg(overrides=[]) -> Config:\n    config_path = \"../yolo/config\"\n    with initialize(config_path=config_path, version_base=None):\n        cfg: Config = compose(config_name=\"config\", overrides=overrides)\n        set_seed(cfg.lucky_number)\n        return cfg\n\n\n@pytest.fixture(scope=\"session\")\ndef train_cfg() -> Config:\n    return get_cfg(overrides=[\"task=train\", \"dataset=mock\"])\n\n\n@pytest.fixture(scope=\"session\")\ndef validation_cfg():\n    return get_cfg(overrides=[\"task=validation\", \"dataset=mock\"])\n\n\n@pytest.fixture(scope=\"session\")\ndef inference_cfg():\n    return get_cfg(overrides=[\"task=inference\"])\n\n\n@pytest.fixture(scope=\"session\")\ndef inference_v7_cfg():\n    return get_cfg(overrides=[\"task=inference\", \"model=v7\"])\n\n\n@pytest.fixture(scope=\"session\")\ndef device():\n    return torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n\n\n@pytest.fixture(scope=\"session\")\ndef model(train_cfg: Config, device) -> YOLO:\n    model = create_model(train_cfg.model)\n    return model.to(device)\n\n\n@pytest.fixture(scope=\"session\")\ndef model_v7(inference_v7_cfg: Config, device) -> YOLO:\n    model = create_model(inference_v7_cfg.model)\n    return model.to(device)\n\n\n@pytest.fixture(scope=\"session\")\ndef solver(train_cfg: Config) -> Trainer:\n    train_cfg.use_wandb = False\n    callbacks, loggers, save_path = setup(train_cfg)\n    trainer = Trainer(\n        accelerator=\"auto\",\n        max_epochs=getattr(train_cfg.task, \"epoch\", None),\n        precision=\"16-mixed\",\n        callbacks=callbacks,\n        logger=loggers,\n        log_every_n_steps=1,\n        gradient_clip_val=10,\n        deterministic=True,\n        default_root_dir=save_path,\n    )\n    return trainer\n\n\n@pytest.fixture(scope=\"session\")\ndef vec2box(train_cfg: Config, model: YOLO, device) -> Vec2Box:\n    vec2box = create_converter(train_cfg.model.name, model, train_cfg.model.anchor, train_cfg.image_size, device)\n    return vec2box\n\n\n@pytest.fixture(scope=\"session\")\ndef anc2box(inference_v7_cfg: Config, model: YOLO, device) -> Anc2Box:\n    anc2box = create_converter(\n        inference_v7_cfg.model.name, model, inference_v7_cfg.model.anchor, inference_v7_cfg.image_size, device\n    )\n    return anc2box\n\n\n@pytest.fixture(scope=\"session\")\ndef train_dataloader(train_cfg: Config):\n    prepare_dataset(train_cfg.dataset, task=\"train\")\n    return create_dataloader(train_cfg.task.data, train_cfg.dataset, train_cfg.task.task)\n\n\n@pytest.fixture(scope=\"session\")\ndef validation_dataloader(validation_cfg: Config):\n    prepare_dataset(validation_cfg.dataset, task=\"val\")\n    return create_dataloader(validation_cfg.task.data, validation_cfg.dataset, validation_cfg.task.task)\n\n\n@pytest.fixture(scope=\"session\")\ndef file_stream_data_loader(inference_cfg: Config):\n    return StreamDataLoader(inference_cfg.task.data)\n\n\n@pytest.fixture(scope=\"session\")\ndef file_stream_data_loader_v7(inference_v7_cfg: Config):\n    return StreamDataLoader(inference_v7_cfg.task.data)\n\n\n@pytest.fixture(scope=\"session\")\ndef directory_stream_data_loader(inference_cfg: Config):\n    inference_cfg.task.data.source = \"tests/data/images/train\"\n    return StreamDataLoader(inference_cfg.task.data)\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3991, Output: 57, Total: 4048\n\n[Thought]\nLet me check the test files to understand what tests are available and their requirements.\n\n[Action]\nfind tests -name \"*.py\" -type f | head -20\n[Container ID: 81591df8268c]\nExecuting: find tests -name \"*.py\" -type f | head -20\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntests/test_model/test_module.py\ntests/test_model/test_yolo.py\ntests/test_utils/test_module_utils.py\ntests/test_utils/test_bounding_box_utils.py\ntests/conftest.py\ntests/test_tools/test_drawer.py\ntests/test_tools/test_solver.py\ntests/test_tools/test_dataset_preparation.py\ntests/test_tools/test_loss_functions.py\ntests/test_tools/test_data_augmentation.py\ntests/test_tools/test_data_loader.py\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4124, Output: 73, Total: 4197\n\n[Thought]\nNow I understand the project structure. Let me install the package with its dependencies using pip in editable mode.\n\n[Action]\npip install -e . -q\n[Container ID: 81591df8268c]\nExecuting: pip install -e . -q\nCommand succeeded.\n[Snapshot Created] sha256:7112d\n\n[Observation]\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 4252, Output: 55, Total: 4307\n\n[Thought]\nNow let me install the dev dependencies which include pytest and other testing tools.\n\n[Action]\npip install -r requirements-dev.txt -q\n[Container ID: 81591df8268c]\nExecuting: pip install -r requirements-dev.txt -q\nCommand succeeded.\n[Snapshot Created] sha256:75682\n\n[Observation]\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 4376, Output: 74, Total: 4450\n\n[Thought]\nGood, dependencies are installed. Now let me verify pytest can collect the tests by running pytest --collect-only from the repository root.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1 | head -50\n[Container ID: 81591df8268c]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1 | head -50\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 9 ====================\n\n[Tokens] Input: 4514, Output: 47, Total: 4561\n\n[Thought]\nLet me run the pytest collection without any output filters.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 81591df8268c]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:376d3\n\n[Observation]\ntests/test_model/test_module.py::test_conv\ntests/test_model/test_module.py::test_pool_max\ntests/test_model/test_module.py::test_pool_avg\ntests/test_model/test_module.py::test_adown\ntests/test_model/test_module.py::test_cblinear\ntests/test_model/test_module.py::test_sppelan\ntests/test_model/test_yolo.py::test_build_model_v9c\ntests/test_model/test_yolo.py::test_build_model_v9m\ntests/test_model/test_yolo.py::test_build_model_v7\ntests/test_model/test_yolo.py::test_model_basic_status\ntests/test_model/test_yolo.py::test_yolo_forward_output_shape\ntests/test_tools/test_data_augmentation.py::test_horizontal_flip\ntests/test_tools/test_data_augmentation.py::test_compose\ntests/test_tools/test_data_augmentation.py::test_mosaic\ntests/test_tools/test_data_loader.py::test_create_dataloader_cache\ntests/test_tools/test_data_loader.py::test_training_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_validation_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_file_stream_data_loader_frame\ntests/test_tools/test_data_loader.py::test_directory_stream_data_loader_frame\ntests/test_tools/test_dataset_preparation.py::test_prepare_dataset\ntests/test_tools/test_dataset_preparation.py::test_prepare_weight\ntests/test_tools/test_drawer.py::test_draw_model_by_config\ntests/test_tools/test_drawer.py::test_draw_model_by_model\ntests/test_tools/test_drawer.py::test_draw_bboxes\ntests/test_tools/test_loss_functions.py::test_yolo_loss\ntests/test_tools/test_solver.py::test_model_validator_initialization\ntests/test_tools/test_solver.py::test_model_validator_solve_mock_dataset\ntests/test_tools/test_solver.py::test_model_tester_initialization\ntests/test_tools/test_solver.py::test_model_tester_solve_single_image\ntests/test_tools/test_solver.py::test_modelv7_tester_solve_single_image\ntests/test_tools/test_solver.py::test_model_trainer_initialization\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_2d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_3d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_diou\ntests/test_utils/test_bounding_box_utils.py::test_calculate_ciou\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xywh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xycwh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xyxy_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_invalid_format\ntests/test_utils/test_bounding_box_utils.py::test_generate_anchors\ntests/test_utils/test_bounding_box_utils.py::test_vec2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_anc2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_bbox_nms\ntests/test_utils/test_bounding_box_utils.py::test_calculate_map\ntests/test_utils/test_module_utils.py::test_auto_pad[3-1-expected0]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size1-dilation1-expected1]\ntests/test_utils/test_module_utils.py::test_auto_pad[3-dilation2-expected2]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size3-1-expected3]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size4-dilation4-expected4]\ntests/test_utils/test_module_utils.py::test_get_activation[ReLU-ReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[leakyrelu-LeakyReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[none-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[None-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[False-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation_invalid\ntests/test_utils/test_module_utils.py::test_divide_into_chunks\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_non_divisible_length\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_single_chunk\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_equal_chunks\n\n59 tests collected in 0.07s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 10 ====================\n\n[Tokens] Input: 5481, Output: 90, Total: 5571\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded - 59 tests were collected. The environment is properly set up. Let me now provide the final verification bundle.\n</think>\n\nThought: The pytest collection succeeded with 59 tests collected. The repository is properly set up with all dependencies installed and tests are collectable.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 2 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/WongKinYiu__YOLO.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/WongKinYiu/YOLO.git",
+    "configuration_success": true,
+    "base_image": "python:3.10",
+    "platform_override": null,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 9,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 2,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[project]\nname = \"yolo\"\nversion = \"0.1.0\"\ndynamic = [\"dependencies\"]\ndescription = \"Official Implementation of YOLO\"\nauthors = [\n    { name = \"Hao-Tang, Tsui\", email = \"henrytsui000@gmail.com\" },\n]\nreadme = \"README.md\"\nlicense = { file = \"LICENSE\" }\nrequires-python = \">=3.6\"\nkeywords = [\"yolo\", \"object detection\", \"computer vision\"]\n\n\n[tool.setuptools.dynamic]\ndependencies = {file = [\"requirements.txt\"]}\n\n[tool.setuptools.packages.find]\nwhere = [\".\"]\ninclude = [\"yolo*\"]\n\n[tool.setuptools]\npackage-data = {\"yolo\" = [\"**/*.yaml\"]}\ninclude-package-data = true\n\n\n[build-system]\nbuild-backend = \"setuptools.build_meta\"\nrequires = [\n    \"setuptools\",\n]\n\n[project.scripts]\nyolo = \"yolo.lazy:main\"\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat requirements.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "einops\ngraphviz\nhydra-core\nlightning\nloguru\nnumpy\nopencv-python\nPillow\npycocotools\nrequests\nrich\ntorch\ntorchvision\nwandb\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat requirements-dev.txt",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "-r requirements.txt\ngradio\npytest\npytest-cov\npre-commit\npycocotools\ntensorboard\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat tests/conftest.py",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "import sys\nfrom pathlib import Path\n\nimport pytest\nimport torch\nfrom hydra import compose, initialize\nfrom lightning import Trainer\n\nproject_root = Path(__file__).resolve().parent.parent\nsys.path.append(str(project_root))\n\nfrom yolo import Anc2Box, Config, Vec2Box, create_converter, create_model\nfrom yolo.model.yolo import YOLO\nfrom yolo.tools.data_loader import StreamDataLoader, create_dataloader\nfrom yolo.tools.dataset_preparation import prepare_dataset\nfrom yolo.utils.logging_utils import set_seed, setup\n\n\ndef pytest_configure(config):\n    config.addinivalue_line(\"markers\", \"requires_cuda: \n... (2594 chars omitted for recipe synthesis) ...\n  return create_dataloader(validation_cfg.task.data, validation_cfg.dataset, validation_cfg.task.task)\n\n\n@pytest.fixture(scope=\"session\")\ndef file_stream_data_loader(inference_cfg: Config):\n    return StreamDataLoader(inference_cfg.task.data)\n\n\n@pytest.fixture(scope=\"session\")\ndef file_stream_data_loader_v7(inference_v7_cfg: Config):\n    return StreamDataLoader(inference_v7_cfg.task.data)\n\n\n@pytest.fixture(scope=\"session\")\ndef directory_stream_data_loader(inference_cfg: Config):\n    inference_cfg.task.data.source = \"tests/data/images/train\"\n    return StreamDataLoader(inference_cfg.task.data)\n"
+      },
+      {
+        "step_index": 5,
+        "command": "find tests -name \"*.py\" -type f | head -20",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_model/test_module.py\ntests/test_model/test_yolo.py\ntests/test_utils/test_module_utils.py\ntests/test_utils/test_bounding_box_utils.py\ntests/conftest.py\ntests/test_tools/test_drawer.py\ntests/test_tools/test_solver.py\ntests/test_tools/test_dataset_preparation.py\ntests/test_tools/test_loss_functions.py\ntests/test_tools/test_data_augmentation.py\ntests/test_tools/test_data_loader.py\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install -e . -q",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 7,
+        "command": "pip install -r requirements-dev.txt -q",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 9,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_model/test_module.py::test_conv\ntests/test_model/test_module.py::test_pool_max\ntests/test_model/test_module.py::test_pool_avg\ntests/test_model/test_module.py::test_adown\ntests/test_model/test_module.py::test_cblinear\ntests/test_model/test_module.py::test_sppelan\ntests/test_model/test_yolo.py::test_build_model_v9c\ntests/test_model/test_yolo.py::test_build_model_v9m\ntests/test_model/test_yolo.py::test_build_model_v7\ntests/test_model/test_yolo.py::test_model_basic_status\ntests/test_model/test_yolo.py::test_yolo_forward_output_shape\ntests/test_tools/test_data_augmentation.py::test_horiz\n... (2738 chars omitted for recipe synthesis) ...\nest_module_utils.py::test_get_activation[none-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[None-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[False-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation_invalid\ntests/test_utils/test_module_utils.py::test_divide_into_chunks\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_non_divisible_length\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_single_chunk\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_equal_chunks\n\n59 tests collected in 0.07s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 8,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1 | head -50",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "truncated_test_output"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup or test commands must not pipe output through `head`, `tail`, or `grep` because those filters can hide failures and mask the real exit status.\n[SYSTEM] The command was NOT executed and the environment was not changed. Rerun the full command without output filtering. Long output will be handled by observation compression.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e . -q",
+        "pip install -r requirements-dev.txt -q"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat pyproject.toml - read-only file read for context",
+          "reason": ""
+        },
+        {
+          "command": "cat requirements.txt - read-only file read for context",
+          "reason": ""
+        },
+        {
+          "command": "cat requirements-dev.txt - read-only file read for context",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/conftest.py - read-only file read for context",
+          "reason": ""
+        },
+        {
+          "command": "find tests -name \"*.py\" -type f | head -20 - read-only file discovery",
+          "reason": ""
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings 2>&1 | head -50 - failed attempt due to output piping restriction; not replayed",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state-changing commands are: (1) pip install -e . which installs the YOLO package in editable mode with its entry point script registered, and (2) pip install -r requirements-dev.txt which installs pytest and other test dependencies. Both commands completed successfully and are necessary for the package to be importable and for tests to run. The failed attempt (Step 8) was correctly rejected due to output piping restrictions; the corrected test command (Step 9) ran without filtering and successfully collected 59 tests, confirming the environment is correctly set up.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 1,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 695,
+        "raw_tokens_est": 173,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "cat requirements.txt",
+        "success": true,
+        "raw_chars": 121,
+        "raw_tokens_est": 30,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat requirements-dev.txt",
+        "success": true,
+        "raw_chars": 80,
+        "raw_tokens_est": 20,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat tests/conftest.py",
+        "success": true,
+        "raw_chars": 3794,
+        "raw_tokens_est": 948,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 1721,
+        "reflect_output_tokens": 1119
+      },
+      {
+        "step_id": 5,
+        "action": "find tests -name \"*.py\" -type f | head -20",
+        "success": true,
+        "raw_chars": 391,
+        "raw_tokens_est": 97,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install -e . -q",
+        "success": true,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "pip install -r requirements-dev.txt -q",
+        "success": true,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1 | head -50",
+        "success": false,
+        "raw_chars": 374,
+        "raw_tokens_est": 93,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 3938,
+        "raw_tokens_est": 984,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 12820,
+        "output_tokens": 4723,
+        "total_tokens": 17543
+      },
+      "planner": {
+        "input_tokens": 38531,
+        "output_tokens": 568,
+        "total_tokens": 39099
+      },
+      "reflection": {
+        "input_tokens": 1721,
+        "output_tokens": 1119,
+        "total_tokens": 2840
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 8193,
+        "output_tokens": 1619,
+        "total_tokens": 9812
+      },
+      "total": {
+        "input_tokens": 61265,
+        "output_tokens": 8029,
+        "total_tokens": 69294
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+    "base_commit": "b96c8e",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/WongKinYiu__YOLO /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-21T03:43:07.091324+08:00",
+      "finished_at": "2026-05-21T03:43:07.154081+08:00",
+      "duration_seconds": 0.063,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context'...\n完成。\n注意：正在切换到 'b96c8eaec16cfcabbf79947d98d2c575f0a114ad'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "b96c8e"
+      ],
+      "command_shell": "git checkout --force b96c8e",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-21T03:43:07.154439+08:00",
+      "finished_at": "2026-05-21T03:43:07.173061+08:00",
+      "duration_seconds": 0.019,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 b96c8ea :twisted_rightwards_arrows: [Merge] branch 'MODEL' into TEST\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-21T03:43:07.173513+08:00",
+      "finished_at": "2026-05-21T03:43:07.184526+08:00",
+      "duration_seconds": 0.011,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-wongkinyiu__yolo",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval -t jayint-repo2run-wongkinyiu__yolo /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-21T03:43:07.217486+08:00",
+    "finished_at": "2026-05-21T03:53:38.395019+08:00",
+    "duration_seconds": 631.178,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.66kB 0.0s done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/7] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 3.28MB 0.4s done\n#5 DONE 0.4s\n\n#6 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/7] WORKDIR /app\n#7 CACHED\n\n#8 [4/7] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.6s\n\n#10 [6/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e . -q' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 589.0 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 591.2s\n\n#11 [7/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -r requirements-dev.txt -q' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 30.19 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#11 DONE 30.7s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 7.2s done\n#12 writing image sha256:5b443cd72a3962db9fc020d199cb98cefa7958350b661091fb3387ee529e309a\n#12 writing image sha256:5b443cd72a3962db9fc020d199cb98cefa7958350b661091fb3387ee529e309a done\n#12 naming to docker.io/library/jayint-repo2run-wongkinyiu__yolo done\n#12 DONE 7.3s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/um1979744kfszbaicorq7chef\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-wongkinyiu__yolo",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-wongkinyiu__yolo sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-21T03:53:38.410354+08:00",
+          "finished_at": "2026-05-21T03:53:46.170327+08:00",
+          "duration_seconds": 7.76,
+          "stdout": "tests/test_model/test_module.py::test_conv\ntests/test_model/test_module.py::test_pool_max\ntests/test_model/test_module.py::test_pool_avg\ntests/test_model/test_module.py::test_adown\ntests/test_model/test_module.py::test_cblinear\ntests/test_model/test_module.py::test_sppelan\ntests/test_model/test_yolo.py::test_build_model_v9c\ntests/test_model/test_yolo.py::test_build_model_v9m\ntests/test_model/test_yolo.py::test_build_model_v7\ntests/test_model/test_yolo.py::test_model_basic_status\ntests/test_model/test_yolo.py::test_yolo_forward_output_shape\ntests/test_tools/test_data_augmentation.py::test_horizontal_flip\ntests/test_tools/test_data_augmentation.py::test_compose\ntests/test_tools/test_data_augmentation.py::test_mosaic\ntests/test_tools/test_data_loader.py::test_create_dataloader_cache\ntests/test_tools/test_data_loader.py::test_training_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_validation_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_file_stream_data_loader_frame\ntests/test_tools/test_data_loader.py::test_directory_stream_data_loader_frame\ntests/test_tools/test_dataset_preparation.py::test_prepare_dataset\ntests/test_tools/test_dataset_preparation.py::test_prepare_weight\ntests/test_tools/test_drawer.py::test_draw_model_by_config\ntests/test_tools/test_drawer.py::test_draw_model_by_model\ntests/test_tools/test_drawer.py::test_draw_bboxes\ntests/test_tools/test_loss_functions.py::test_yolo_loss\ntests/test_tools/test_solver.py::test_model_validator_initialization\ntests/test_tools/test_solver.py::test_model_validator_solve_mock_dataset\ntests/test_tools/test_solver.py::test_model_tester_initialization\ntests/test_tools/test_solver.py::test_model_tester_solve_single_image\ntests/test_tools/test_solver.py::test_modelv7_tester_solve_single_image\ntests/test_tools/test_solver.py::test_model_trainer_initialization\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_2d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_3d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_diou\ntests/test_utils/test_bounding_box_utils.py::test_calculate_ciou\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xywh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xycwh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xyxy_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_invalid_format\ntests/test_utils/test_bounding_box_utils.py::test_generate_anchors\ntests/test_utils/test_bounding_box_utils.py::test_vec2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_anc2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_bbox_nms\ntests/test_utils/test_bounding_box_utils.py::test_calculate_map\ntests/test_utils/test_module_utils.py::test_auto_pad[3-1-expected0]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size1-dilation1-expected1]\ntests/test_utils/test_module_utils.py::test_auto_pad[3-dilation2-expected2]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size3-1-expected3]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size4-dilation4-expected4]\ntests/test_utils/test_module_utils.py::test_get_activation[ReLU-ReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[leakyrelu-LeakyReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[none-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[None-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[False-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation_invalid\ntests/test_utils/test_module_utils.py::test_divide_into_chunks\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_non_divisible_length\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_single_chunk\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_equal_chunks\n\n59 tests collected in 0.07s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-wongkinyiu__yolo",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/Dockerfile.eval -t jayint-repo2run-wongkinyiu__yolo /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-21T03:43:07.217486+08:00",
+        "finished_at": "2026-05-21T03:53:38.395019+08:00",
+        "duration_seconds": 631.178,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.66kB 0.0s done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/7] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 3.28MB 0.4s done\n#5 DONE 0.4s\n\n#6 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/7] WORKDIR /app\n#7 CACHED\n\n#8 [4/7] COPY . /app\n#8 DONE 0.2s\n\n#9 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.6s\n\n#10 [6/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e . -q' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 589.0 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 591.2s\n\n#11 [7/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -r requirements-dev.txt -q' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 30.19 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#11 DONE 30.7s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 7.2s done\n#12 writing image sha256:5b443cd72a3962db9fc020d199cb98cefa7958350b661091fb3387ee529e309a\n#12 writing image sha256:5b443cd72a3962db9fc020d199cb98cefa7958350b661091fb3387ee529e309a done\n#12 naming to docker.io/library/jayint-repo2run-wongkinyiu__yolo done\n#12 DONE 7.3s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/um1979744kfszbaicorq7chef\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-wongkinyiu__yolo",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-wongkinyiu__yolo sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-21T03:53:38.410354+08:00",
+              "finished_at": "2026-05-21T03:53:46.170327+08:00",
+              "duration_seconds": 7.76,
+              "stdout": "tests/test_model/test_module.py::test_conv\ntests/test_model/test_module.py::test_pool_max\ntests/test_model/test_module.py::test_pool_avg\ntests/test_model/test_module.py::test_adown\ntests/test_model/test_module.py::test_cblinear\ntests/test_model/test_module.py::test_sppelan\ntests/test_model/test_yolo.py::test_build_model_v9c\ntests/test_model/test_yolo.py::test_build_model_v9m\ntests/test_model/test_yolo.py::test_build_model_v7\ntests/test_model/test_yolo.py::test_model_basic_status\ntests/test_model/test_yolo.py::test_yolo_forward_output_shape\ntests/test_tools/test_data_augmentation.py::test_horizontal_flip\ntests/test_tools/test_data_augmentation.py::test_compose\ntests/test_tools/test_data_augmentation.py::test_mosaic\ntests/test_tools/test_data_loader.py::test_create_dataloader_cache\ntests/test_tools/test_data_loader.py::test_training_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_validation_data_loader_correctness\ntests/test_tools/test_data_loader.py::test_file_stream_data_loader_frame\ntests/test_tools/test_data_loader.py::test_directory_stream_data_loader_frame\ntests/test_tools/test_dataset_preparation.py::test_prepare_dataset\ntests/test_tools/test_dataset_preparation.py::test_prepare_weight\ntests/test_tools/test_drawer.py::test_draw_model_by_config\ntests/test_tools/test_drawer.py::test_draw_model_by_model\ntests/test_tools/test_drawer.py::test_draw_bboxes\ntests/test_tools/test_loss_functions.py::test_yolo_loss\ntests/test_tools/test_solver.py::test_model_validator_initialization\ntests/test_tools/test_solver.py::test_model_validator_solve_mock_dataset\ntests/test_tools/test_solver.py::test_model_tester_initialization\ntests/test_tools/test_solver.py::test_model_tester_solve_single_image\ntests/test_tools/test_solver.py::test_modelv7_tester_solve_single_image\ntests/test_tools/test_solver.py::test_model_trainer_initialization\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_2d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_iou_3d\ntests/test_utils/test_bounding_box_utils.py::test_calculate_diou\ntests/test_utils/test_bounding_box_utils.py::test_calculate_ciou\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xywh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xycwh_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_xyxy_to_Any\ntests/test_utils/test_bounding_box_utils.py::test_transform_bbox_invalid_format\ntests/test_utils/test_bounding_box_utils.py::test_generate_anchors\ntests/test_utils/test_bounding_box_utils.py::test_vec2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_anc2box_autoanchor\ntests/test_utils/test_bounding_box_utils.py::test_bbox_nms\ntests/test_utils/test_bounding_box_utils.py::test_calculate_map\ntests/test_utils/test_module_utils.py::test_auto_pad[3-1-expected0]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size1-dilation1-expected1]\ntests/test_utils/test_module_utils.py::test_auto_pad[3-dilation2-expected2]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size3-1-expected3]\ntests/test_utils/test_module_utils.py::test_auto_pad[kernel_size4-dilation4-expected4]\ntests/test_utils/test_module_utils.py::test_get_activation[ReLU-ReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[leakyrelu-LeakyReLU]\ntests/test_utils/test_module_utils.py::test_get_activation[none-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[None-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation[False-Identity]\ntests/test_utils/test_module_utils.py::test_get_activation_invalid\ntests/test_utils/test_module_utils.py::test_divide_into_chunks\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_non_divisible_length\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_single_chunk\ntests/test_utils/test_module_utils.py::test_divide_into_chunks_equal_chunks\n\n59 tests collected in 0.07s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-wongkinyiu__yolo"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-wongkinyiu__yolo",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-21T03:53:46.176987+08:00",
+    "finished_at": "2026-05-21T03:53:46.206009+08:00",
+    "duration_seconds": 0.029,
+    "stdout": "Untagged: jayint-repo2run-wongkinyiu__yolo:latest\nDeleted: sha256:5b443cd72a3962db9fc020d199cb98cefa7958350b661091fb3387ee529e309a\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/WongKinYiu__YOLO/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

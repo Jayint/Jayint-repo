@@ -1,0 +1,305 @@
+FROM python:3.11
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+ENV PYTHONPATH=/app
+
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+
+WORKDIR /app
+COPY . /app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install huggingface-hub transformers accelerate outlines' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install mlx-lm' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+RUN mkdir -p /usr/local/lib/python3.11/site-packages/mlx && cat > /usr/local/lib/python3.11/site-packages/mlx/__init__.py << 'EOFMLX'
+# Stub for mlx (Apple MLX) - only available on macOS with Apple Silicon
+import sys
+from types import ModuleType
+
+def create_mock_module(name):
+    """Create a mock module with proper __spec__ attribute"""
+    mock = ModuleType(name)
+    mock.__path__ = []
+    mock.__file__ = f"<mock {name}>"
+    mock.__package__ = name.rsplit('.', 1)[0] if '.' in name else None
+    class MockSpec:
+        def __init__(self, name):
+            self.name = name
+            self.parent = name.rsplit('.', 1)[0] if '.' in name else None
+    mock.__spec__ = MockSpec(name)
+    return mock
+
+# Create mock outlines module
+mock_outlines = create_mock_module('outlines')
+mock_outlines_processor = create_mock_module('outlines.processors')
+mock_outlines_structured = create_mock_module('outlines.processors.structured')
+
+class MockJSONLogitsProcessor:
+    def __init__(self, *args, **kwargs):
+        pass
+    def __call__(self, *args, **kwargs):
+        return args[1] if len(args) > 1 else None
+
+mock_outlines_structured.JSONLogitsProcessor = MockJSONLogitsProcessor
+
+mock_outlines_models = create_mock_module('outlines.models')
+mock_outlines_models.transformers = create_mock_module('outlines.models.transformers')
+
+class MockTransformerTokenizer:
+    def __init__(self, *args, **kwargs):
+        pass
+
+mock_outlines_models.transformers.TransformerTokenizer = MockTransformerTokenizer
+
+mock_outlines.processors = mock_outlines_processor
+mock_outlines.processors.structured = mock_outlines_structured
+mock_outlines.models = mock_outlines_models
+
+# Create mock mlx module with all needed submodules
+mock_mlx = create_mock_module('mlx')
+
+mock_core = create_mock_module('mlx.core')
+class MockArray:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_core.array = MockArray
+mock_mlx.core = mock_core
+
+mock_nn = create_mock_module('mlx.nn')
+class MockModule:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_nn.Module = MockModule
+mock_mlx.nn = mock_nn
+
+mock_utils = create_mock_module('mlx.utils')
+mock_utils.tree_map_with_path = lambda *args: None
+mock_utils.tree_map = lambda *args: None
+mock_utils.tree_flatten = lambda *args: None
+mock_utils.tree_unflatten = lambda *args: None
+mock_utils.tree_reduce = lambda *args: None
+mock_mlx.utils = mock_utils
+
+mock_nn_utils = create_mock_module('mlx.nn.utils')
+mock_nn_utils.average_gradients = lambda *args: None
+mock_mlx.nn.utils = mock_nn_utils
+
+mock_optimizers = create_mock_module('mlx.optimizers')
+mock_mlx.optimizers = mock_optimizers
+
+mock_mlx_lm = create_mock_module('mlx_lm')
+mock_mlx_lm.utils = create_mock_module('mlx_lm.utils')
+mock_mlx_lm.utils.generation_stream = lambda *args, **kwargs: iter([])
+
+mock_models = create_mock_module('mlx_lm.models')
+
+mock_cache = create_mock_module('mlx_lm.models.cache')
+mock_cache.make_prompt_cache = lambda *args, **kwargs: None
+mock_cache.trim_prompt_cache = lambda *args, **kwargs: None
+mock_cache.can_trim_prompt_cache = lambda *args, **kwargs: False
+mock_models.cache = mock_cache
+mock_mlx_lm.models = mock_models
+
+mock_generate = create_mock_module('mlx_lm.generate')
+mock_mlx_lm.generate = mock_generate
+
+mock_tokenizer_utils = create_mock_module('mlx_lm.tokenizer_utils')
+mock_tokenizer_utils.load_tokenizer = lambda *args, **kwargs: ModuleType('mock_tokenizer')
+
+class TokenizerWrapper:
+    def __init__(self, *args, **kwargs):
+        pass
+class StreamingDetokenizer:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_tokenizer_utils.TokenizerWrapper = TokenizerWrapper
+mock_tokenizer_utils.StreamingDetokenizer = StreamingDetokenizer
+mock_mlx_lm.tokenizer_utils = mock_tokenizer_utils
+
+mock_mlx_vlm = create_mock_module('mlx_vlm')
+mock_vlm_base = create_mock_module('mlx_vlm.models.base')
+mock_vlm_base.KVCache = type('KVCache', (), {'__init__': lambda self: None})
+mock_vlm_base.SimpleKVCache = type('SimpleKVCache', (), {'__init__': lambda self: None})
+mock_mlx_vlm.models = create_mock_module('mlx_vlm.models')
+mock_mlx_vlm.models.base = mock_vlm_base
+
+sys.modules['outlines'] = mock_outlines
+sys.modules['outlines.processors'] = mock_outlines_processor
+sys.modules['outlines.processors.structured'] = mock_outlines_structured
+sys.modules['outlines.models'] = mock_outlines_models
+sys.modules['outlines.models.transformers'] = mock_outlines_models.transformers
+sys.modules['mlx'] = mock_mlx
+sys.modules['mlx.core'] = mock_core
+sys.modules['mlx.nn'] = mock_nn
+sys.modules['mlx.utils'] = mock_utils
+sys.modules['mlx.nn.utils'] = mock_nn_utils
+sys.modules['mlx.optimizers'] = mock_optimizers
+sys.modules['mlx_lm'] = mock_mlx_lm
+sys.modules['mlx_lm.models'] = mock_models
+sys.modules['mlx_lm.models.cache'] = mock_cache
+sys.modules['mlx_lm.utils'] = mock_mlx_lm.utils
+sys.modules['mlx_lm.generate'] = mock_generate
+sys.modules['mlx_lm.tokenizer_utils'] = mock_tokenizer_utils
+sys.modules['mlx_vlm'] = mock_mlx_vlm
+sys.modules['mlx_vlm.models'] = mock_mlx_vlm.models
+sys.modules['mlx_vlm.models.base'] = mock_vlm_base
+EOFMLX
+
+RUN rm -rf /usr/local/lib/python3.11/site-packages/mlx/
+
+RUN pip uninstall mlx-lm -y
+
+RUN cat > /app/tests/conftest.py << 'EOFCONFTEST'
+# conftest.py - Mock mlx and other platform-specific imports before test collection
+import sys
+from types import ModuleType
+
+def create_mock_module(name):
+    """Create a mock module with proper __spec__ attribute"""
+    mock = ModuleType(name)
+    mock.__path__ = []
+    mock.__file__ = f"<mock {name}>"
+    mock.__package__ = name.rsplit('.', 1)[0] if '.' in name else None
+    # Create a mock spec
+    class MockSpec:
+        def __init__(self, name):
+            self.name = name
+            self.parent = name.rsplit('.', 1)[0] if '.' in name else None
+    mock.__spec__ = MockSpec(name)
+    return mock
+
+# Create mock outlines module
+mock_outlines = create_mock_module('outlines')
+mock_outlines_processor = create_mock_module('outlines.processors')
+mock_outlines_structured = create_mock_module('outlines.processors.structured')
+
+class MockJSONLogitsProcessor:
+    def __init__(self, *args, **kwargs):
+        pass
+    def __call__(self, *args, **kwargs):
+        return args[1] if len(args) > 1 else None
+
+mock_outlines_structured.JSONLogitsProcessor = MockJSONLogitsProcessor
+
+mock_outlines_models = create_mock_module('outlines.models')
+mock_outlines_models.transformers = create_mock_module('outlines.models.transformers')
+
+class MockTransformerTokenizer:
+    def __init__(self, *args, **kwargs):
+        pass
+
+mock_outlines_models.transformers.TransformerTokenizer = MockTransformerTokenizer
+
+# Wire up outlines
+mock_outlines.processors = mock_outlines_processor
+mock_outlines.processors.structured = mock_outlines_structured
+mock_outlines.models = mock_outlines_models
+
+# Create mock mlx module with all needed submodules
+mock_mlx = create_mock_module('mlx')
+
+# Mock core submodule
+mock_core = create_mock_module('mlx.core')
+class MockArray:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_core.array = MockArray
+mock_mlx.core = mock_core
+
+# Mock nn submodule
+mock_nn = create_mock_module('mlx.nn')
+class MockModule:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_nn.Module = MockModule
+mock_mlx.nn = mock_nn
+
+# Mock utils submodule
+mock_utils = create_mock_module('mlx.utils')
+mock_utils.tree_map_with_path = lambda *args: None
+mock_utils.tree_map = lambda *args: None
+mock_utils.tree_flatten = lambda *args: None
+mock_utils.tree_unflatten = lambda *args: None
+mock_utils.tree_reduce = lambda *args: None
+mock_mlx.utils = mock_utils
+
+# Mock nn.utils submodule
+mock_nn_utils = create_mock_module('mlx.nn.utils')
+mock_nn_utils.average_gradients = lambda *args: None
+mock_mlx.nn.utils = mock_nn_utils
+
+# Mock optimizers submodule
+mock_optimizers = create_mock_module('mlx.optimizers')
+mock_mlx.optimizers = mock_optimizers
+
+# Create proper mlx_lm module
+mock_mlx_lm = create_mock_module('mlx_lm')
+mock_mlx_lm.utils = create_mock_module('mlx_lm.utils')
+mock_mlx_lm.utils.generation_stream = lambda *args, **kwargs: iter([])
+
+mock_models = create_mock_module('mlx_lm.models')
+
+# Mock cache submodule with required functions
+mock_cache = create_mock_module('mlx_lm.models.cache')
+mock_cache.make_prompt_cache = lambda *args, **kwargs: None
+mock_cache.trim_prompt_cache = lambda *args, **kwargs: None
+mock_cache.can_trim_prompt_cache = lambda *args, **kwargs: False
+mock_models.cache = mock_cache
+mock_mlx_lm.models = mock_models
+
+mock_generate = create_mock_module('mlx_lm.generate')
+mock_mlx_lm.generate = mock_generate
+
+mock_tokenizer_utils = create_mock_module('mlx_lm.tokenizer_utils')
+mock_tokenizer_utils.load_tokenizer = lambda *args, **kwargs: ModuleType('mock_tokenizer')
+
+# Mock tokenizer wrapper classes
+class TokenizerWrapper:
+    def __init__(self, *args, **kwargs):
+        pass
+class StreamingDetokenizer:
+    def __init__(self, *args, **kwargs):
+        pass
+mock_tokenizer_utils.TokenizerWrapper = TokenizerWrapper
+mock_tokenizer_utils.StreamingDetokenizer = StreamingDetokenizer
+mock_mlx_lm.tokenizer_utils = mock_tokenizer_utils
+
+# Create mlx_vlm module
+mock_mlx_vlm = create_mock_module('mlx_vlm')
+mock_vlm_base = create_mock_module('mlx_vlm.models.base')
+mock_vlm_base.KVCache = type('KVCache', (), {'__init__': lambda self: None})
+mock_vlm_base.SimpleKVCache = type('SimpleKVCache', (), {'__init__': lambda self: None})
+mock_mlx_vlm.models = create_mock_module('mlx_vlm.models')
+mock_mlx_vlm.models.base = mock_vlm_base
+
+# Register the mocks
+sys.modules['outlines'] = mock_outlines
+sys.modules['outlines.processors'] = mock_outlines_processor
+sys.modules['outlines.processors.structured'] = mock_outlines_structured
+sys.modules['outlines.models'] = mock_outlines_models
+sys.modules['outlines.models.transformers'] = mock_outlines_models.transformers
+sys.modules['mlx'] = mock_mlx
+sys.modules['mlx.core'] = mock_core
+sys.modules['mlx.nn'] = mock_nn
+sys.modules['mlx.utils'] = mock_utils
+sys.modules['mlx.nn.utils'] = mock_nn_utils
+sys.modules['mlx.optimizers'] = mock_optimizers
+sys.modules['mlx_lm'] = mock_mlx_lm
+sys.modules['mlx_lm.models'] = mock_models
+sys.modules['mlx_lm.models.cache'] = mock_cache
+sys.modules['mlx_lm.utils'] = mock_mlx_lm.utils
+sys.modules['mlx_lm.generate'] = mock_generate
+sys.modules['mlx_lm.tokenizer_utils'] = mock_tokenizer_utils
+sys.modules['mlx_vlm'] = mock_mlx_vlm
+sys.modules['mlx_vlm.models'] = mock_mlx_vlm.models
+sys.modules['mlx_vlm.models.base'] = mock_vlm_base
+EOFCONFTEST
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install outlines==0.0.29' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"

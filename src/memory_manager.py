@@ -17,9 +17,49 @@ DEFAULT_LINK_TOP_K = 3
 DEFAULT_LINK_MIN_SCORE = 0.72
 
 
+MEMORY_RELATION_JUDGE_SYSTEM_PROMPT = """You are a memory relation judge for an environment-setup agent.
+
+You will receive one NEW memory candidate and one EXISTING memory recalled by embedding similarity.
+
+Classify their relationship as exactly one of:
+- "duplicate": They describe the same reusable problem pattern with substantially the same root cause and fix. The new memory should NOT be written as a separate node.
+- "link": They are genuinely related but distinct lessons. They should remain separate memories connected by a bidirectional link.
+- "unrelated": The embedding match is a false positive or too weak semantically. They should not be connected.
+
+Use "duplicate" only when a future agent would not benefit from seeing both as separate memories.
+Use "link" when the lessons share an ecosystem, failure mode, tool, dependency, or service pattern but differ in cause, fix, scope, or useful retrieval context.
+
+Return only a strict JSON object:
+{
+  "decision": "duplicate | link | unrelated",
+  "confidence": 0.0,
+  "rationale": "one short sentence"
+}
+Do NOT output Markdown.
+"""
+
+
+MEMORY_RELATION_JUDGE_USER_PROMPT = """Embedding similarity: {similarity}
+
+NEW MEMORY:
+{new_memory}
+
+EXISTING MEMORY:
+{existing_memory}
+
+Return only the JSON decision object.
+"""
+
+
 MEMORY_EXTRACTION_SYSTEM_PROMPT = """You are a long-term memory extractor for an environment-setup agent.
 
 Your task is NOT to summarize the whole setup process. Your task is to extract reusable difficult-problem solving lessons from a setup trajectory that has already completed successfully.
+
+A single setup trajectory may contain zero, one, or many independent memories.
+Do NOT force the whole trajectory into one memory. Split the trajectory into separate memory objects when it contains distinct failure chains with different root causes or different final fixes.
+For example, if one run first solved a git safe.directory failure, then solved a missing service startup failure, then solved a pytest/plugin version conflict, those are three candidate memories, not one combined memory.
+Each memory must describe exactly one primary problem pattern, one root cause, and the effective fix for that problem.
+Only merge multiple failures into one memory when they are symptoms of the same root cause and were solved by the same final strategy.
 
 Only record a long-term memory when the problem satisfies all of these conditions:
 - The problem went through repeated failures, or multiple ineffective/misleading attempts.
@@ -52,6 +92,13 @@ Do NOT output explanatory text.
 
 
 MEMORY_EXTRACTION_USER_PROMPT = """Extract long-term memory candidates from the following environment-setup run.
+
+Important extraction rule:
+- The input is a full setup trajectory, but your output is a list of independent solved problem lessons.
+- Do not summarize the entire run as one memory by default.
+- If the trajectory contains multiple independent solved failures, output multiple JSON objects.
+- Each JSON object should cover one failure chain only: its symptoms, root cause, ineffective attempts, final fix, and verification.
+- If a failure was fixed immediately from an obvious error message, omit it rather than merging it into a broader memory.
 
 Repository:
 {repo_name}
@@ -125,6 +172,12 @@ class MemoryWriteResult:
     written: int = 0
     skipped_duplicates: int = 0
     skipped_invalid: int = 0
+    relation_judged_pairs: int = 0
+    relation_links_accepted: int = 0
+    relation_links_rejected: int = 0
+    relation_duplicates_rejected: int = 0
+    relation_judge_errors: list[str] = field(default_factory=list)
+    usage: MemoryUsage = field(default_factory=MemoryUsage)
     memories: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -134,6 +187,11 @@ class MemoryGenerationResult:
     written: int = 0
     skipped_duplicates: int = 0
     skipped_invalid: int = 0
+    relation_judged_pairs: int = 0
+    relation_links_accepted: int = 0
+    relation_links_rejected: int = 0
+    relation_duplicates_rejected: int = 0
+    relation_judge_errors: list[str] = field(default_factory=list)
     usage: MemoryUsage = field(default_factory=MemoryUsage)
     memories: list[dict[str, Any]] = field(default_factory=list)
     error: Optional[str] = None
@@ -183,6 +241,8 @@ class LongTermMemoryManager:
         embedding_model: str = DEFAULT_MEMORY_EMBEDDING_MODEL,
         embedder=None,
         clock=None,
+        log_dir: Optional[str | Path] = None,
+        relation_log_dir: Optional[str | Path] = None,
     ):
         self.client = client
         self.llm_model = llm_model
@@ -190,6 +250,148 @@ class LongTermMemoryManager:
         self.embedding_model = embedding_model
         self.embedder = embedder or SentenceTransformerEmbedder(model_name=embedding_model)
         self.clock = clock
+        self.log_dir = Path(log_dir) if log_dir else None
+        self.relation_log_dir = Path(relation_log_dir) if relation_log_dir else None
+        self._relation_log_counter = 0
+
+    def _log_memory_generation(self, call_type: str, data: Any):
+        if not self.log_dir:
+            return
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self.log_dir / "memory_generation.md"
+
+        if call_type == "input":
+            with open(log_file, "w", encoding="utf-8") as file_obj:
+                file_obj.write("##### LLM INPUT (long-term memory generation) #####\n")
+                file_obj.write("================================ Human Message =================================\n\n")
+                for message in data:
+                    role = message.get("role", "unknown")
+                    content = message.get("content", "")
+                    if role == "system":
+                        file_obj.write(f"[{role.upper()}]\n{content}\n\n")
+                    elif role == "user":
+                        file_obj.write(f"{content}\n\n")
+                    else:
+                        file_obj.write(f"[{role.upper()}]\n{content}\n\n")
+            return
+
+        result = data.get("result")
+        usage = result.usage if result else MemoryUsage()
+        with open(log_file, "a", encoding="utf-8") as file_obj:
+            file_obj.write("================================ AI Message =================================\n\n")
+            file_obj.write(f"{data.get('content') or ''}\n\n")
+            file_obj.write("================================ Parsed Memory Candidates =================================\n\n")
+            file_obj.write("```json\n")
+            file_obj.write(json.dumps(data.get("candidates"), ensure_ascii=False, indent=2))
+            file_obj.write("\n```\n\n")
+            file_obj.write("================================ Write Result =================================\n\n")
+            file_obj.write("```json\n")
+            file_obj.write(json.dumps(self._memory_generation_result_to_dict(result), ensure_ascii=False, indent=2))
+            file_obj.write("\n```\n\n")
+            file_obj.write("================================ Metadata =================================\n\n")
+            file_obj.write(f"- Model: {self.llm_model}\n")
+            file_obj.write(f"- Prompt Tokens: {usage.input_tokens}\n")
+            file_obj.write(f"- Completion Tokens: {usage.output_tokens}\n")
+            file_obj.write(f"- Total Tokens: {usage.total_tokens}\n")
+
+    def _next_memory_relation_log_file(self) -> Optional[Path]:
+        if not self.relation_log_dir:
+            return None
+        self.relation_log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self.relation_log_dir / f"{self._relation_log_counter}.md"
+        self._relation_log_counter += 1
+        return log_file
+
+    def _log_memory_relation_input(
+        self,
+        messages: list[dict[str, Any]],
+        new_memory: dict[str, Any],
+        existing_memory: dict[str, Any],
+        similarity: float,
+    ) -> Optional[Path]:
+        log_file = self._next_memory_relation_log_file()
+        if not log_file:
+            return None
+
+        with open(log_file, "w", encoding="utf-8") as file_obj:
+            file_obj.write("##### LLM INPUT (long-term memory relation judge) #####\n\n")
+            file_obj.write("================================ Candidate Pair =================================\n\n")
+            file_obj.write("```json\n")
+            file_obj.write(
+                json.dumps(
+                    {
+                        "similarity": round(similarity, 4),
+                        "new_memory": memory_for_relation_judge(new_memory),
+                        "existing_memory": memory_for_relation_judge(existing_memory),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            file_obj.write("\n```\n\n")
+            file_obj.write("================================ Messages =================================\n\n")
+            for message in messages:
+                role = str(message.get("role") or "unknown").upper()
+                file_obj.write(f"[{role}]\n")
+                file_obj.write(f"{message.get('content') or ''}\n\n")
+        return log_file
+
+    def _log_memory_relation_output(
+        self,
+        log_file: Optional[Path],
+        content: str,
+        parsed: Optional[dict[str, Any]],
+        decision: str,
+        usage: MemoryUsage,
+        error: Optional[str] = None,
+    ):
+        if not log_file:
+            return
+
+        with open(log_file, "a", encoding="utf-8") as file_obj:
+            file_obj.write("================================ AI Message =================================\n\n")
+            file_obj.write(f"{content or ''}\n\n")
+            file_obj.write("================================ Parsed Relation Decision =================================\n\n")
+            file_obj.write("```json\n")
+            file_obj.write(json.dumps(parsed or {}, ensure_ascii=False, indent=2))
+            file_obj.write("\n```\n\n")
+            file_obj.write("================================ Metadata =================================\n\n")
+            file_obj.write(f"- Model: {self.llm_model}\n")
+            file_obj.write(f"- Decision: {decision or 'unknown'}\n")
+            file_obj.write(f"- Prompt Tokens: {usage.input_tokens}\n")
+            file_obj.write(f"- Completion Tokens: {usage.output_tokens}\n")
+            file_obj.write(f"- Total Tokens: {usage.total_tokens}\n")
+            if error:
+                file_obj.write(f"- Error: {error}\n")
+
+    def _memory_generation_result_to_dict(self, result: Optional[MemoryGenerationResult]) -> dict[str, Any]:
+        if result is None:
+            return {}
+
+        return {
+            "candidate_count": result.candidate_count,
+            "written": result.written,
+            "skipped_duplicates": result.skipped_duplicates,
+            "skipped_invalid": result.skipped_invalid,
+            "relation_judged_pairs": result.relation_judged_pairs,
+            "relation_links_accepted": result.relation_links_accepted,
+            "relation_links_rejected": result.relation_links_rejected,
+            "relation_duplicates_rejected": result.relation_duplicates_rejected,
+            "relation_judge_errors": result.relation_judge_errors,
+            "error": result.error,
+            "written_memories": [
+                self._redact_memory_for_log(memory)
+                for memory in result.memories
+            ],
+        }
+
+    def _redact_memory_for_log(self, memory: dict[str, Any]) -> dict[str, Any]:
+        redacted = dict(memory or {})
+        if "embedding" in redacted:
+            embedding = redacted.pop("embedding") or []
+            redacted["embedding_omitted"] = f"{len(embedding)} dimensions"
+        return redacted
 
     def retrieve(
         self,
@@ -278,6 +480,7 @@ class LongTermMemoryManager:
         existing_keys = {_dedupe_key(memory) for memory in existing}
         result = MemoryWriteResult()
         to_write = []
+        needs_rewrite = False
 
         for candidate in candidate_memories:
             memory = normalize_memory(candidate, repo_url=repo_url, created_at=self._now_iso())
@@ -293,17 +496,35 @@ class LongTermMemoryManager:
             embedding = self.embedder.embed(memory_to_embedding_text(memory), is_query=False)
             memory["embedding"] = embedding
             memory["embedding_model"] = self.embedding_model
-            memory["linked_memories"] = self._build_links(memory, existing)
+            link_matches = self._find_link_matches(memory, existing)
+            link_matches, is_duplicate = self._evaluate_relation_matches(
+                memory,
+                link_matches,
+                result,
+            )
+            if is_duplicate:
+                result.skipped_duplicates += 1
+                continue
+
+            memory["linked_memories"] = [
+                self._make_link(target, score)
+                for target, score in link_matches
+            ]
+            for target, score in link_matches:
+                needs_rewrite = self._upsert_link(target, memory, score) or needs_rewrite
             to_write.append(memory)
             existing.append(memory)
             existing_keys.add(key)
 
         if to_write:
             self.memory_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.memory_path, "a", encoding="utf-8") as file_obj:
-                for memory in to_write:
-                    file_obj.write(json.dumps(memory, ensure_ascii=False))
-                    file_obj.write("\n")
+            if needs_rewrite:
+                self._write_all_memories(existing)
+            else:
+                with open(self.memory_path, "a", encoding="utf-8") as file_obj:
+                    for memory in to_write:
+                        file_obj.write(json.dumps(memory, ensure_ascii=False))
+                        file_obj.write("\n")
 
         result.written = len(to_write)
         result.memories = to_write
@@ -322,30 +543,32 @@ class LongTermMemoryManager:
         summary_text = json.dumps(_compact_run_summary(run_summary), indent=2, ensure_ascii=False)
         setup_log_text = truncate_middle(setup_log_text or "", max_setup_log_chars)
         created_at = self._now_iso()
+        messages = [
+            {"role": "system", "content": MEMORY_EXTRACTION_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": MEMORY_EXTRACTION_USER_PROMPT.format(
+                    repo_name=repo_url,
+                    configuration_success=run_summary.get("configuration_success"),
+                    verified_test_commands=json.dumps(
+                        run_summary.get("verified_test_commands") or [],
+                        ensure_ascii=False,
+                    ),
+                    required_local_services=json.dumps(
+                        run_summary.get("required_local_services") or [],
+                        ensure_ascii=False,
+                    ),
+                    agent_run_summary_json=summary_text,
+                    final_setup_log_md=setup_log_text,
+                    created_at=created_at,
+                ),
+            },
+        ]
+        self._log_memory_generation("input", messages)
 
         response = self.client.chat.completions.create(
             model=self.llm_model,
-            messages=[
-                {"role": "system", "content": MEMORY_EXTRACTION_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": MEMORY_EXTRACTION_USER_PROMPT.format(
-                        repo_name=repo_url,
-                        configuration_success=run_summary.get("configuration_success"),
-                        verified_test_commands=json.dumps(
-                            run_summary.get("verified_test_commands") or [],
-                            ensure_ascii=False,
-                        ),
-                        required_local_services=json.dumps(
-                            run_summary.get("required_local_services") or [],
-                            ensure_ascii=False,
-                        ),
-                        agent_run_summary_json=summary_text,
-                        final_setup_log_md=setup_log_text,
-                        created_at=created_at,
-                    ),
-                },
-            ],
+            messages=messages,
             temperature=0,
         )
 
@@ -358,7 +581,16 @@ class LongTermMemoryManager:
         try:
             candidates = extract_json_array(content)
         except MemoryManagerError as exc:
-            return MemoryGenerationResult(usage=usage, error=str(exc))
+            result = MemoryGenerationResult(usage=usage, error=str(exc))
+            self._log_memory_generation(
+                "output",
+                {
+                    "content": content,
+                    "candidates": None,
+                    "result": result,
+                },
+            )
+            return result
 
         for memory in candidates:
             if isinstance(memory, dict):
@@ -367,21 +599,50 @@ class LongTermMemoryManager:
         try:
             write_result = self.write_memories(candidates, repo_url=repo_url)
         except Exception as exc:
-            return MemoryGenerationResult(
+            result = MemoryGenerationResult(
                 candidate_count=len(candidates),
                 skipped_invalid=len(candidates),
                 usage=usage,
                 error=f"Failed to write generated memories: {exc}",
             )
+            self._log_memory_generation(
+                "output",
+                {
+                    "content": content,
+                    "candidates": candidates,
+                    "result": result,
+                },
+            )
+            return result
 
-        return MemoryGenerationResult(
+        combined_usage = MemoryUsage(
+            input_tokens=usage.input_tokens + write_result.usage.input_tokens,
+            output_tokens=usage.output_tokens + write_result.usage.output_tokens,
+            total_tokens=usage.total_tokens + write_result.usage.total_tokens,
+        )
+
+        result = MemoryGenerationResult(
             candidate_count=len(candidates),
             written=write_result.written,
             skipped_duplicates=write_result.skipped_duplicates,
             skipped_invalid=write_result.skipped_invalid,
-            usage=usage,
+            relation_judged_pairs=write_result.relation_judged_pairs,
+            relation_links_accepted=write_result.relation_links_accepted,
+            relation_links_rejected=write_result.relation_links_rejected,
+            relation_duplicates_rejected=write_result.relation_duplicates_rejected,
+            relation_judge_errors=write_result.relation_judge_errors,
+            usage=combined_usage,
             memories=write_result.memories,
         )
+        self._log_memory_generation(
+            "output",
+            {
+                "content": content,
+                "candidates": candidates,
+                "result": result,
+            },
+        )
+        return result
 
     def _build_links(
         self,
@@ -390,11 +651,28 @@ class LongTermMemoryManager:
         top_k: int = DEFAULT_LINK_TOP_K,
         min_score: float = DEFAULT_LINK_MIN_SCORE,
     ) -> list[dict[str, Any]]:
+        return [
+            self._make_link(memory, score)
+            for memory, score in self._find_link_matches(
+                new_memory,
+                existing_memories,
+                top_k=top_k,
+                min_score=min_score,
+            )
+        ]
+
+    def _find_link_matches(
+        self,
+        new_memory: dict[str, Any],
+        existing_memories: list[dict[str, Any]],
+        top_k: int = DEFAULT_LINK_TOP_K,
+        min_score: float = DEFAULT_LINK_MIN_SCORE,
+    ) -> list[tuple[dict[str, Any], float]]:
         new_embedding = new_memory.get("embedding") or []
         if not new_embedding or not existing_memories:
             return []
 
-        links = []
+        matches = []
         for existing in existing_memories:
             existing_embedding = existing.get("embedding")
             if not existing_embedding:
@@ -402,17 +680,169 @@ class LongTermMemoryManager:
             score = cosine_similarity(new_embedding, existing_embedding)
             if score < min_score:
                 continue
-            links.append(
-                {
-                    "problem_signature": existing.get("problem_signature", ""),
-                    "scope": existing.get("scope", ""),
-                    "repo": existing.get("repo", ""),
-                    "similarity": round(score, 4),
-                }
-            )
+            matches.append((existing, score))
 
-        links.sort(key=lambda item: item["similarity"], reverse=True)
-        return links[:top_k]
+        matches.sort(key=lambda item: item[1], reverse=True)
+        return matches[:top_k]
+
+    def _evaluate_relation_matches(
+        self,
+        new_memory: dict[str, Any],
+        link_matches: list[tuple[dict[str, Any], float]],
+        result: MemoryWriteResult,
+    ) -> tuple[list[tuple[dict[str, Any], float]], bool]:
+        if not link_matches:
+            return [], False
+
+        # Offline/manual memory writes should still work. In that case the
+        # embedding threshold remains the relation decision fallback.
+        if not self.client or not self.llm_model:
+            return link_matches, False
+
+        accepted_links: list[tuple[dict[str, Any], float]] = []
+        for existing_memory, score in link_matches:
+            try:
+                decision, usage = self._judge_memory_relation(
+                    new_memory,
+                    existing_memory,
+                    score,
+                )
+                result.relation_judged_pairs += 1
+                add_usage(result.usage, usage)
+            except Exception as exc:
+                result.relation_judge_errors.append(str(exc))
+                accepted_links.append((existing_memory, score))
+                result.relation_links_accepted += 1
+                continue
+
+            if decision == "duplicate":
+                result.relation_duplicates_rejected += 1
+                return [], True
+            if decision == "link":
+                accepted_links.append((existing_memory, score))
+                result.relation_links_accepted += 1
+            else:
+                result.relation_links_rejected += 1
+
+        return accepted_links, False
+
+    def _judge_memory_relation(
+        self,
+        new_memory: dict[str, Any],
+        existing_memory: dict[str, Any],
+        similarity: float,
+    ) -> tuple[str, MemoryUsage]:
+        messages = [
+            {"role": "system", "content": MEMORY_RELATION_JUDGE_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": MEMORY_RELATION_JUDGE_USER_PROMPT.format(
+                    similarity=f"{similarity:.4f}",
+                    new_memory=json.dumps(
+                        memory_for_relation_judge(new_memory),
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    existing_memory=json.dumps(
+                        memory_for_relation_judge(existing_memory),
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                ),
+            },
+        ]
+        log_file = self._log_memory_relation_input(
+            messages,
+            new_memory,
+            existing_memory,
+            similarity,
+        )
+        usage = MemoryUsage()
+        content = ""
+        parsed: Optional[dict[str, Any]] = None
+        decision = ""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.llm_model,
+                messages=messages,
+                temperature=0,
+            )
+            usage = MemoryUsage(
+                input_tokens=getattr(response.usage, "prompt_tokens", 0),
+                output_tokens=getattr(response.usage, "completion_tokens", 0),
+                total_tokens=getattr(response.usage, "total_tokens", 0),
+            )
+            content = response.choices[0].message.content or ""
+            parsed = extract_json_object(content)
+            decision = str(parsed.get("decision") or "").strip().lower()
+            if decision not in {"duplicate", "link", "unrelated"}:
+                raise MemoryManagerError(f"Invalid memory relation decision: {decision!r}")
+        except Exception as exc:
+            self._log_memory_relation_output(
+                log_file,
+                content,
+                parsed,
+                decision,
+                usage,
+                error=str(exc),
+            )
+            raise
+
+        self._log_memory_relation_output(
+            log_file,
+            content,
+            parsed,
+            decision,
+            usage,
+        )
+        return decision, usage
+
+    def _make_link(self, target: dict[str, Any], score: float) -> dict[str, Any]:
+        return {
+            "problem_signature": target.get("problem_signature", ""),
+            "scope": target.get("scope", ""),
+            "repo": target.get("repo", ""),
+            "similarity": round(score, 4),
+        }
+
+    def _upsert_link(
+        self,
+        source: dict[str, Any],
+        target: dict[str, Any],
+        score: float,
+        top_k: int = DEFAULT_LINK_TOP_K,
+    ) -> bool:
+        link = self._make_link(target, score)
+        link_key = _link_key(link)
+        links = _as_link_list(source.get("linked_memories"))
+        changed = False
+
+        for index, existing_link in enumerate(links):
+            if _link_key(existing_link) == link_key:
+                if existing_link.get("similarity") != link["similarity"]:
+                    links[index] = link
+                    changed = True
+                break
+        else:
+            links.append(link)
+            changed = True
+
+        links.sort(key=lambda item: float(item.get("similarity") or 0), reverse=True)
+        pruned_links = links[:top_k]
+        if len(pruned_links) != len(links):
+            changed = True
+
+        if changed:
+            source["linked_memories"] = pruned_links
+        return changed
+
+    def _write_all_memories(self, memories: list[dict[str, Any]]):
+        temp_path = self.memory_path.with_suffix(self.memory_path.suffix + ".tmp")
+        with open(temp_path, "w", encoding="utf-8") as file_obj:
+            for memory in memories:
+                file_obj.write(json.dumps(memory, ensure_ascii=False))
+                file_obj.write("\n")
+        temp_path.replace(self.memory_path)
 
     def _now_iso(self) -> str:
         if self.clock:
@@ -537,6 +967,27 @@ def memory_to_embedding_text(memory: dict[str, Any]) -> str:
     return " ".join(part for part in parts if part.strip()).strip()
 
 
+def memory_for_relation_judge(memory: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "scope": memory.get("scope", ""),
+        "repo": memory.get("repo", ""),
+        "problem_signature": memory.get("problem_signature", ""),
+        "symptoms": _as_string_list(memory.get("symptoms"))[:6],
+        "root_cause": memory.get("root_cause", ""),
+        "successful_fix": _as_string_list(memory.get("successful_fix"))[:6],
+        "verification": _as_string_list(memory.get("verification"))[:3],
+        "anti_patterns": _as_string_list(memory.get("anti_patterns"))[:6],
+        "embedding_text": truncate_middle(str(memory.get("embedding_text") or ""), 1200),
+        "source": memory.get("source", ""),
+    }
+
+
+def add_usage(total: MemoryUsage, increment: MemoryUsage):
+    total.input_tokens += increment.input_tokens
+    total.output_tokens += increment.output_tokens
+    total.total_tokens += increment.total_tokens
+
+
 def cosine_similarity(left: list[float], right: list[float]) -> float:
     if not left or not right or len(left) != len(right):
         return -1.0
@@ -560,6 +1011,20 @@ def extract_json_array(text: str) -> list[dict[str, Any]]:
     if not isinstance(parsed, list):
         raise MemoryManagerError("Memory extraction response was not a JSON array.")
     return [item for item in parsed if isinstance(item, dict)]
+
+
+def extract_json_object(text: str) -> dict[str, Any]:
+    candidate = _strip_fenced_block(text or "")
+    json_blob = _extract_first_json_object(candidate)
+    if not json_blob:
+        raise MemoryManagerError("Memory relation response did not contain a JSON object.")
+    try:
+        parsed = json.loads(json_blob)
+    except json.JSONDecodeError as exc:
+        raise MemoryManagerError(f"Failed to parse memory relation JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise MemoryManagerError("Memory relation response was not a JSON object.")
+    return parsed
 
 
 def _extract_first_json_array(text: str) -> Optional[str]:
@@ -586,6 +1051,36 @@ def _extract_first_json_array(text: str) -> Optional[str]:
         elif char == "[":
             depth += 1
         elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+    return None
+
+
+def _extract_first_json_object(text: str) -> Optional[str]:
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
             depth -= 1
             if depth == 0:
                 return text[start:index + 1]
@@ -621,6 +1116,14 @@ def _dedupe_key(memory: dict[str, Any]) -> tuple[str, str, str]:
         str(memory.get("scope") or "").lower(),
         str(memory.get("repo") or "").lower(),
         str(memory.get("problem_signature") or "").strip().lower(),
+    )
+
+
+def _link_key(link: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(link.get("scope") or "").lower(),
+        str(link.get("repo") or "").lower(),
+        str(link.get("problem_signature") or "").strip().lower(),
     )
 
 

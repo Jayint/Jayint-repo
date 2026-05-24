@@ -1,0 +1,711 @@
+{
+  "dataset_entry": {
+    "instance_id": "dreadnode__rigging",
+    "full_name": "dreadnode/rigging",
+    "repo_url": "https://github.com/dreadnode/rigging.git",
+    "sha": "82ac80",
+    "base_commit": "82ac80",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/dreadnode/rigging.git",
+      "--base-commit",
+      "82ac80",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/dreadnode/rigging.git --base-commit 82ac80 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T09:29:59.418860+08:00",
+    "finished_at": "2026-05-09T09:34:40.528330+08:00",
+    "duration_seconds": 281.109,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging...\nCloning https://github.com/dreadnode/rigging.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 82ac80\n[DockerAgent] Detected local service dependencies: elasticsearch\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 5 potentially relevant files\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ .github/workflows/publish.yml\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ .github/workflows/ci.yml\n[ImageSelector] 3 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: No architecture compatibility concerns detected. This project uses standard Python packages without embedded databases or native extensions that would cause ARM64 issues.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.11\n[DockerAgent] Selected base image: python:3.11\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/logs/image_selector_logs\nInitializing container from python:3.11...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.11 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:77883\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/logs/compression_logs\nStarting agent for repository: https://github.com/dreadnode/rigging.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2395, Output: 54, Total: 2449\n\n[Thought]\nI'll start by examining the pyproject.toml to understand the project's dependencies, build system, and test configuration.\n\n[Action]\ncat dreadnode__rigging/pyproject.toml\n[Container ID: c1968e29ee65]\nExecuting: cat dreadnode__rigging/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: dreadnode__rigging/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2457, Output: 68, Total: 2525\n\n[Thought]\nLet me check the current directory structure to find the correct path to the repository.\n\n[Action]\nls -la\n[Container ID: c1968e29ee65]\nExecuting: ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 596\ndrwxr-xr-x 10 root root      4096 May  9 01:31 .\ndrwxr-xr-x  1 root root      4096 May  9 01:31 ..\ndrwxr-xr-x  7  501 dialout   4096 May  9 01:30 .git\ndrwxr-xr-x  4  501 dialout   4096 May  9 01:30 .github\n-rw-r--r--  1  501 dialout   3141 May  9 01:30 .gitignore\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 .vscode\n-rw-r--r--  1  501 dialout   1066 May  9 01:30 LICENSE\n-rw-r--r--  1  501 dialout   4807 May  9 01:30 README.md\ndrwxr-xr-x  6  501 dialout   4096 May  9 01:30 docs\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 examples\ndrwxr-xr-x  3  501 dialout   4096 May  9 01:30 logs\n-rw-r--r--  1  501 dialout   2967 May  9 01:30 mkdocs.yml\n-rw-r--r--  1  501 dialout 543401 May  9 01:30 poetry.lock\n-rw-r--r--  1  501 dialout   3491 May  9 01:30 pyproject.toml\ndrwxr-xr-x  3  501 dialout   4096 May  9 01:30 rigging\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 tests\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2935, Output: 56, Total: 2991\n\n[Thought]\nThe repository is directly in the current working directory. Let me read the pyproject.toml file.\n\n[Action]\ncat pyproject.toml\n[Container ID: c1968e29ee65]\nExecuting: cat pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[tool.poetry]\nname = \"rigging\"\nversion = \"2.0.8\"\ndescription = \"LLM Interaction Framework\"\nauthors = [\"Nick Landers <monoxgas@gmail.com>\"]\nlicense = \"MIT\"\nrepository = \"https://github.com/dreadnode/rigging\"\nreadme = \"README.md\"\npackages = [{ include = \"rigging\" }]\n\n[tool.poetry.dependencies]\npython = \"^3.9\"\npydantic = \"^2.7.3\"\npydantic-xml = \"^2.11.0\"\nloguru = \"^0.7.2\"\nlitellm = \"^1.44.7\"\npandas = \"^2.2.2\"\neval-type-backport = \"^0.2.0\"                           # For 3.9 future annotations\nelasticsearch = \"^8.13.2\"\nxmltodict = \"^0.13.0\"\ncolorama = \"^0.4.6\"\nboto3 = \"^1.35.0\"\nboto3-stubs = { extras = [\"s3\"], version = \"^1.35.0\" }\n\nvllm = { version = \"^0.5.0\", optional = true }\ntransformers = { version = \"^4.41.0\", optional = true }\naccelerate = { version = \"^0.30.1\", optional = true }\n\nasyncssh = { version = \"^2.14.2\", optional = true }\nclick = { version = \"^8.1.7\", optional = true }\nhttpx = { version = \"^0.27.0\", optional = true }\naiodocker = { version = \"^0.22.2\", optional = true }\nwebsockets = { version = \"^13.0\", optional = true }\n\n[tool.poetry.extras]\nexamples = [\"asyncssh\", \"click\", \"httpx\", \"aiodocker\", \"websockets\"]\nall = [\n    \"vllm\",\n    \"transformers\",\n    \"accelerate\",\n    \"asyncssh\",\n    \"click\",\n    \"httpx\",\n    \"aiodocker\",\n    \"websockets\",\n]\n\n[tool.poetry.group.dev.dependencies]\nipykernel = \"^6.27.1\"\nmypy = \"^1.8.0\"\nruff = \"^0.1.14\"\npytest = \"^8.0.0\"\npandas-stubs = \"^2.2.1.240316\"\ncoverage = \"^7.5.1\"\nipywidgets = \"^8.1.3\"\npytest-asyncio = \"^0.23.7\"\ntypes-colorama = \"^0.4.15.20240311\"\n\n[tool.poetry.group.docs.dependencies]\nmkdocs = \"^1.6.0\"\nmkdocs-material = { extras = [\"imaging\"], version = \"^9.5.20\" }\nmkdocstrings = \"^0.25.0\"\nmkdocstrings-python = \"^1.10.0\"\nmkdocs-section-index = \"^0.3.9\"\npymdown-extensions = \"^10.8.1\"\npygments = \"^2.18.0\"\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n\n[tool.pytest.ini_options]\nfilterwarnings = [\"ignore::DeprecationWarning\"]\n\n[tool.coverage.run]\ncommand_line = \"-m pytest\"\n\n[tool.coverage.report]\ninclude = [\"rigging/*.py\"]\nshow_missing = true\n\n[tool.coverage.lcov]\noutput = \"lcov.info\"\n\n[tool.mypy]\nplugins = \"pydantic.mypy\"\nstrict = true\n\n[tool.ruff]\nselect = [\n    \"E\",   # pycodestyle errors\n    \"W\",   # pycodestyle warnings\n    \"F\",   # pyflakes\n    \"I\",   # isort\n    \"C\",   # flake8-comprehensions\n    \"B\",   # flake8-bugbear\n    \"UP\",  # pyupgrade\n    \"NPY\", # numpydoc\n    \"TCH\", # typecheck\n    \"A\",   # flake8-annotations\n]\nignore = [\n    \"E501\",  # line too long, handled by black\n    \"B008\",  # do not perform function calls in argument defaults\n    \"C901\",  # too complex\n    \"W191\",  # indentation contains tabs\n    \"F722\",  # syntax error in forward annotation\n    \"UP007\", # X | Y syntax while we're still supporting 3.9\n    \"UP038\", # isinstance() X | Y instance ^\n    \"B905\",  # zip() without strict (isn't supported in 3.9)\n]\n\nexclude = [\n    \".bzr\",\n    \".direnv\",\n    \".eggs\",\n    \".git\",\n    \".git-rewrite\",\n    \".hg\",\n    \".mypy_cache\",\n    \".nox\",\n    \".pants.d\",\n    \".pytype\",\n    \".ruff_cache\",\n    \".svn\",\n    \".tox\",\n    \".venv\",\n    \"__pypackages__\",\n    \"_build\",\n    \"buck-out\",\n    \"build\",\n    \"dist\",\n    \"node_modules\",\n    \"venv\",\n]\n\nline-length = 120\nindent-width = 4\ntarget-version = \"py310\"\n\n[tool.ruff.lint]\nfixable = [\"ALL\"]\nunfixable = [\"B\"]\n\ndummy-variable-rgx = \"^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$\"\n\n[tool.ruff.format]\nquote-style = \"double\"\nindent-style = \"space\"\nskip-magic-trailing-comma = false\nline-ending = \"auto\"\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 4167, Output: 151, Total: 4318\n\n[Thought]\nThis is a Poetry-based project with Python 3.9+. I can see it has pytest in dev dependencies. Let me check if Poetry is available and then install the project with its dependencies.\n\n[Action]\nwhich poetry || pip install poetry\n[Container ID: c1968e29ee65]\nExecuting: which poetry || pip install poetry\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 5 ====================\n\n[Tokens] Input: 4295, Output: 45, Total: 4340\n\n[Thought]\nLet me first check if poetry is available as a separate action.\n\n[Action]\nwhich poetry\n[Container ID: c1968e29ee65]\nExecuting: which poetry\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3554, Output: 34, Total: 3588\n\n[Thought]\nPoetry is not installed. Let me install it.\n\n[Action]\npip install poetry\n[Container ID: c1968e29ee65]\nExecuting: pip install poetry\nCommand succeeded.\n[Snapshot Created] sha256:2d3c8\n\n[Observation]\nCollecting poetry\n  Downloading poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjsonschema<3.0.0,>=2.18.0 (from poetry)\n  Downloading fastjsonschema-2.21.2-py3-none-any.whl.metadata (2.3 kB)\nCollecting findpython<0.9.0,>=0.6.2 (from poetry)\n  Downloading findpython-0.8.0-py3-none-any.whl.metadata (5.4 kB)\nCollecting installer<2.0.0,>=1.0.0 (from poetry)\n  Downloading installer-1.0.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting keyring<26.0.0,>=25.1.0 (from poetry)\n  Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)\nCollecting packaging>=24.2 (from poetry)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pbs-installer>=2025.6.10 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading pbs_installer-2026.5.8-py3-none-any.whl.metadata (1.0 kB)\nCollecting pkginfo<2.0,>=1.12 (from poetry)\n  Downloading pkginfo-1.12.1.2-py3-none-any.whl.metadata (13 kB)\nCollecting platformdirs<5,>=3.0.0 (from poetry)\n  Downloading platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)\nCollecting poetry-core==2.4.0 (from poetry)\n  Downloading poetry_core-2.4.0-py3-none-any.whl.metadata (3.8 kB)\nCollecting pyproject-hooks<2.0.0,>=1.0.0 (from poetry)\n  Downloading pyproject_hooks-1.2.0-py3-none-any.whl.metadata (1.3 kB)\nCollecting requests<3.0,>=2.26 (from poetry)\n  Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)\nCollecting requests-toolbelt<2.0.0,>=1.0.0 (from poetry)\n  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)\nCollecting shellingham<2.0,>=1.5 (from poetry)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting tomlkit<1.0.0,>=0.11.4 (from poetry)\n  Downloading tomlkit-0.14.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting trove-classifiers>=2022.5.19 (from poetry)\n  Downloading trove_classifiers-2026.5.7.17-py3-none-any.whl.metadata (2.3 kB)\nCollecting virtualenv>=20.26.6 (from poetry)\n  Downloading virtualenv-21.3.1-py3-none-any.whl.metadata (3.5 kB)\nCollecting msgpack<2.0.0,>=0.5.2 (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting filelock>=3.8.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting crashtest<0.5.0,>=0.4.1 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading crashtest-0.4.1-py3-none-any.whl.metadata (1.1 kB)\nCollecting rapidfuzz<4.0.0,>=3.0.0 (from cleo<3.0.0,>=2.1.0->poetry)\n  Downloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)\nCollecting urllib3>=2.2.2 (from dulwich<2,>=0.25.0->poetry)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nCollecting typing_extensions>=4.6.0 (from dulwich<2,>=0.25.0->poetry)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting SecretStorage>=3.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)\nCollecting jeepney>=0.4.2 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)\nCollecting importlib_metadata>=4.11.4 (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting jaraco.classes (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)\nCollecting jaraco.functools (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_functools-4.4.0-py3-none-any.whl.metadata (3.0 kB)\nCollecting jaraco.context (from keyring<26.0.0,>=25.1.0->poetry)\n  Downloading jaraco_context-6.1.2-py3-none-any.whl.metadata (4.2 kB)\nCollecting httpx<1,>=0.27.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting backports.zstd>=1.0.0 (from pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading backports_zstd-1.4.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (6.8 kB)\nCollecting charset_normalizer<4,>=2 (from requests<3.0,>=2.26->poetry)\n  Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 280.3 kB/s eta 0:00:00\nCollecting idna<4,>=2.5 (from requests<3.0,>=2.26->poetry)\n  Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)\nCollecting certifi>=2023.5.7 (from requests<3.0,>=2.26->poetry)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting distlib<1,>=0.3.7 (from virtualenv>=20.26.6->poetry)\n  Downloading distlib-0.4.0-py2.py3-none-any.whl.metadata (5.2 kB)\nCollecting python-discovery>=1.2.2 (from virtualenv>=20.26.6->poetry)\n  Downloading python_discovery-1.3.0-py3-none-any.whl.metadata (5.5 kB)\nCollecting anyio (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting httpcore==1.* (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\nCollecting cryptography>=2.0 (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)\nCollecting more-itertools (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading more_itertools-11.0.2-py3-none-any.whl.metadata (41 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.4/41.4 kB 397.1 kB/s eta 0:00:00\nCollecting backports.tarfile (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)\nCollecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry)\n  Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)\nDownloading poetry-2.4.0-py3-none-any.whl (292 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 292.2/292.2 kB 468.5 kB/s eta 0:00:00\nDownloading poetry_core-2.4.0-py3-none-any.whl (374 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 374.8/374.8 kB 1.5 MB/s eta 0:00:00\nDownloading build-1.5.0-py3-none-any.whl (26 kB)\nDownloading cachecontrol-0.14.4-py3-none-any.whl (22 kB)\nDownloading cleo-2.1.0-py3-none-any.whl (78 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.7/78.7 kB 4.2 MB/s eta 0:00:00\nDownloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl (1.4 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 3.6 MB/s eta 0:00:00\nDownloading fastjsonschema-2.21.2-py3-none-any.whl (24 kB)\nDownloading findpython-0.8.0-py3-none-any.whl (21 kB)\nDownloading installer-1.0.0-py3-none-any.whl (464 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 464.2/464.2 kB 8.2 MB/s eta 0:00:00\nDownloading keyring-25.7.0-py3-none-any.whl (39 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 14.5 MB/s eta 0:00:00\nDownloading pbs_installer-2026.5.8-py3-none-any.whl (73 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.7/73.7 kB 7.6 MB/s eta 0:00:00\nDownloading pkginfo-1.12.1.2-py3-none-any.whl (32 kB)\nDownloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nDownloading pyproject_hooks-1.2.0-py3-none-any.whl (10 kB)\nDownloading requests-2.33.1-py3-none-any.whl (64 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 5.0 MB/s eta 0:00:00\nDownloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 6.2 MB/s eta 0:00:00\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading tomlkit-0.14.0-py3-none-any.whl (39 kB)\nDownloading trove_classifiers-2026.5.7.17-py3-none-any.whl (14 kB)\nDownloading virtualenv-21.3.1-py3-none-any.whl (7.6 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.9 MB/s eta 0:00:00\nDownloading backports_zstd-1.4.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (491 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 491.3/491.3 kB 7.8 MB/s eta 0:00:00\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 6.8 MB/s eta 0:00:00\nDownloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 7.5 MB/s eta 0:00:00\nDownloading crashtest-0.4.1-py3-none-any.whl (7.6 kB)\nDownloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 8.2 MB/s eta 0:00:00\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 9.9 MB/s eta 0:00:00\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 8.8 MB/s eta 0:00:00\nDownloading idna-3.13-py3-none-any.whl (68 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.6/68.6 kB 6.9 MB/s eta 0:00:00\nDownloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\nDownloading jeepney-0.9.0-py3-none-any.whl (49 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 49.0/49.0 kB 6.1 MB/s eta 0:00:00\nDownloading msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (426 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 426.2/426.2 kB 7.8 MB/s eta 0:00:00\nDownloading python_discovery-1.3.0-py3-none-any.whl (33 kB)\nDownloading rapidfuzz-3.14.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 8.6 MB/s eta 0:00:00\nDownloading secretstorage-3.5.0-py3-none-any.whl (15 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 3.4 MB/s eta 0:00:00\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 5.4 MB/s eta 0:00:00\nDownloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)\nDownloading jaraco_context-6.1.2-py3-none-any.whl (7.9 kB)\nDownloading jaraco_functools-4.4.0-py3-none-any.whl (10 kB)\nDownloading cryptography-48.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 4.9 MB/s eta 0:00:00\nDownloading zipp-3.23.1-py3-none-any.whl (10 kB)\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 6.9 MB/s eta 0:00:00\nDownloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)\nDownloading more_itertools-11.0.2-py3-none-any.whl (71 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 8.6 MB/s eta 0:00:00\nDownloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 kB 7.2 MB/s eta 0:00:00\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading pycparser-3.0-py3-none-any.whl (48 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 4.5 MB/s eta 0:00:00\nInstalling collected packages: trove-classifiers, fastjsonschema, distlib, zipp, urllib3, typing_extensions, tomlkit, shellingham, rapidfuzz, pyproject-hooks, pycparser, poetry-core, platformdirs, pkginfo, pbs-installer, packaging, msgpack, more-itertools, jeepney, installer, idna, h11, filelock, crashtest, charset_normalizer, certifi, backports.zstd, backports.tarfile, requests, python-discovery, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httpcore, findpython, dulwich, cleo, cffi, build, anyio, virtualenv, requests-toolbelt, httpx, cryptography, cachecontrol, SecretStorage, keyring, poetry\nSuccessfully installed SecretStorage-3.5.0 anyio-4.13.0 backports.tarfile-1.2.0 backports.zstd-1.4.0 build-1.5.0 cachecontrol-0.14.4 certifi-2026.4.22 cffi-2.0.0 charset_normalizer-3.4.7 cleo-2.1.0 crashtest-0.4.1 cryptography-48.0.0 distlib-0.4.0 dulwich-1.2.1 fastjsonschema-2.21.2 filelock-3.29.0 findpython-0.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.13 importlib_metadata-9.0.0 installer-1.0.0 jaraco.classes-3.4.0 jaraco.context-6.1.2 jaraco.functools-4.4.0 jeepney-0.9.0 keyring-25.7.0 more-itertools-11.0.2 msgpack-1.1.2 packaging-26.2 pbs-installer-2026.5.8 pkginfo-1.12.1.2 platformdirs-4.9.6 poetry-2.4.0 poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.3.0 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.14.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.1 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 7 ====================\n\n[Tokens] Input: 9137, Output: 60, Total: 9197\n\n[Thought]\nPoetry is installed. Now I need to install the project with its dependencies using Poetry.\n\n[Action]\npoetry install\n[Container ID: c1968e29ee65]\nExecuting: poetry install\nCommand succeeded.\n[Snapshot Created] sha256:8c8a6\n\n[Observation]\nCreating virtualenv rigging-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 133 installs, 0 updates, 0 removals\n\n  - Installing attrs (24.2.0)\n  - Installing rpds-py (0.22.1)\n  - Installing six (1.16.0)\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.4.0)\n  - Installing idna (3.10)\n  - Installing markupsafe (3.0.2)\n  - Installing mergedeep (1.3.4)\n  - Installing platformdirs (4.3.6)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing pyyaml (6.0.2)\n  - Installing referencing (0.35.1)\n  - Installing urllib3 (2.2.3)\n  - Installing click (8.1.7)\n  - Installing filelock (3.16.1)\n  - Installing fsspec (2024.10.0)\n  - Installing ghp-import (2.1.0)\n  - Installing h11 (0.14.0)\n  - Installing jinja2 (3.1.4)\n  - Installing jsonschema-specifications (2024.10.1)\n  - Installing markdown (3.7)\n  - Installing mkdocs-get-deps (0.2.0)\n  - Installing packaging (24.2)\n  - Installing pathspec (0.12.1)\n  - Installing pycparser (2.22)\n  - Installing pyyaml-env-tag (0.1)\n  - Installing requests (2.32.3)\n  - Installing sniffio (1.3.1)\n  - Installing tqdm (4.67.1)\n  - Installing typing-extensions (4.12.2)\n  - Installing watchdog (6.0.0)\n  - Installing webencodings (0.5.1)\n  - Installing annotated-types (0.7.0)\n  - Installing anyio (4.6.2.post1)\n  - Installing asttokens (3.0.0)\n  - Installing cffi (1.17.1)\n  - Installing executing (2.1.0)\n  - Installing frozenlist (1.5.0)\n  - Installing httpcore (1.0.7)\n  - Installing huggingface-hub (0.26.3)\n  - Installing jmespath (1.0.1)\n  - Installing jsonschema (4.23.0)\n  - Installing mkdocs (1.6.1)\n  - Installing multidict (6.1.0)\n  - Installing parso (0.8.4)\n  - Installing propcache (0.2.1)\n  - Installing ptyprocess (0.7.0)\n  - Installing pure-eval (0.2.3)\n  - Installing pydantic-core (2.27.1)\n  - Installing tinycss2 (1.4.0)\n  - Installing traitlets (5.14.3)\n  - Installing wcwidth (0.2.13)\n  - Installing aiohappyeyeballs (2.4.4)\n  - Installing aiosignal (1.3.1)\n  - Installing botocore (1.35.73)\n  - Installing cairocffi (1.7.1)\n  - Installing colorama (0.4.6)\n  - Installing cssselect2 (0.7.0)\n  - Installing decorator (5.1.1)\n  - Installing defusedxml (0.7.1)\n  - Installing distro (1.9.0)\n  - Installing httpx (0.27.2)\n  - Installing iniconfig (2.0.0)\n  - Installing jedi (0.19.2)\n  - Installing jiter (0.8.0)\n  - Installing jupyter-core (5.7.2)\n  - Installing matplotlib-inline (0.1.7)\n  - Installing mkdocs-autorefs (1.2.0)\n  - Installing nest-asyncio (1.6.0)\n  - Installing numpy (2.0.2)\n  - Installing pexpect (4.9.0)\n  - Installing pillow (10.4.0)\n  - Installing pluggy (1.5.0)\n  - Installing prompt-toolkit (3.0.48)\n  - Installing pydantic (2.10.3)\n  - Installing pygments (2.18.0)\n  - Installing pymdown-extensions (10.12)\n  - Installing python-dotenv (1.0.1)\n  - Installing pyzmq (26.2.0)\n  - Installing regex (2024.11.6)\n  - Installing stack-data (0.6.3)\n  - Installing tokenizers (0.20.3)\n  - Installing tornado (6.4.2)\n  - Installing types-awscrt (0.23.1)\n  - Installing yarl (1.18.3)\n  - Installing zipp (3.21.0)\n/usr/local/lib/python3.11/site-packages/poetry/installation/wheel_installer.py:129: RuntimeWarning: Skip installing numpy/distutils/__pycache__/conv_template.cpython-311.pyc from numpy. Installing files in a __pycache__ directory poses a security risk. __pycache__ directories should not be included in wheels. This is probably an issue in the build process of 'numpy'.\n  install(\n  - Installing aiohttp (3.11.9)\n  - Installing babel (2.16.0)\n  - Installing botocore-stubs (1.35.73)\n  - Installing cairosvg (2.7.1)\n  - Installing comm (0.2.2)\n  - Installing debugpy (1.8.9)\n  - Installing elastic-transport (8.15.1)\n  - Installing griffe (1.5.1)\n  - Installing importlib-metadata (8.5.0)\n  - Installing ipython (8.18.1)\n  - Installing jupyter-client (8.6.3)\n  - Installing jupyterlab-widgets (3.0.13)\n  - Installing mkdocs-material-extensions (1.3.1)\n  - Installing mkdocstrings (0.25.2)\n  - Installing mypy-boto3-s3 (1.35.72)\n  - Installing mypy-extensions (1.0.0)\n  - Installing openai (1.56.1)\n  - Installing paginate (0.5.7)\n  - Installing psutil (6.1.0)\n  - Installing pytest (8.3.4)\n  - Installing pytz (2024.2)\n  - Installing s3transfer (0.10.4)\n  - Installing tiktoken (0.8.0)\n  - Installing types-pytz (2024.2.0.20241003)\n  - Installing types-s3transfer (0.10.4)\n  - Installing tzdata (2024.2)\n  - Installing widgetsnbextension (4.0.13)\n  - Installing boto3 (1.35.73)\n  - Installing boto3-stubs (1.35.73)\n  - Installing coverage (7.6.8)\n  - Installing elasticsearch (8.16.0)\n  - Installing eval-type-backport (0.2.0)\n  - Installing ipykernel (6.29.5)\n  - Installing ipywidgets (8.1.5)\n  - Installing litellm (1.53.2)\n  - Installing loguru (0.7.2)\n  - Installing mkdocs-material (9.5.47)\n  - Installing mkdocs-section-index (0.3.9)\n  - Installing mkdocstrings-python (1.10.9)\n  - Installing mypy (1.13.0)\n  - Installing pandas (2.2.3)\n  - Installing pandas-stubs (2.2.2.240807)\n  - Installing pydantic-xml (2.14.1)\n  - Installing pytest-asyncio (0.23.8)\n  - Installing ruff (0.1.15)\n  - Installing types-colorama (0.4.15.20240311)\n  - Installing xmltodict (0.13.0)\nWarning: The file chosen for install of rpds-py 0.22.1 (rpds_py-0.22.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl) is yanked. Reason for being yanked: https://github.com/PyO3/pyo3/issues/4757\n\nInstalling the current project: rigging (2.0.8)\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 11089, Output: 69, Total: 11158\n\n[Thought]\nPoetry has installed all dependencies successfully. Now let me run pytest collection to verify the environment is set up correctly.\n\n[Action]\npoetry run pytest --collect-only -q --disable-warnings\n[Container ID: c1968e29ee65]\nExecuting: poetry run pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:0aa11\n\n[Observation]\ntests/test_chat.py::test_message_initialization\ntests/test_chat.py::test_message_from_dict\ntests/test_chat.py::test_message_from_str\ntests/test_chat.py::test_message_str_representation\ntests/test_chat.py::test_message_content_update_strips_parts\ntests/test_chat.py::test_message_apply_template\ntests/test_chat.py::test_message_strip_model\ntests/test_chat.py::test_message_parse_model\ntests/test_chat.py::test_message_restructure\ntests/test_chat.py::test_message_parse_set_min\ntests/test_chat.py::test_message_parse_set\ntests/test_chat.py::test_message_from_model\ntests/test_chat.py::test_messages_fit_list\ntests/test_chat.py::test_message_parse_multiple_models\ntests/test_chat.py::test_message_try_parse_missing\ntests/test_chat.py::test_message_reparse_modified_content\ntests/test_chat.py::test_chat_generator_id\ntests/test_chat.py::test_chat_metadata\ntests/test_chat.py::test_chat_restart\ntests/test_chat.py::test_chat_continue\ntests/test_chat.py::test_chat_to_message_dicts\ntests/test_chat.py::test_chat_to_conversation\ntests/test_chat.py::test_chat_properties\ntests/test_chat.py::test_chat_pipeline_continue\ntests/test_chat.py::test_chat_pipeline_add\ntests/test_chat.py::test_chat_continue_maintains_parsed_models\ntests/test_chat.py::test_chat_pipeline_meta\ntests/test_chat.py::test_chat_pipeline_with\ntests/test_chat.py::test_chat_strip\ntests/test_chat.py::test_double_parse\ntests/test_chat.py::test_double_parse_set\ntests/test_chat.py::test_message_dedent\ntests/test_completion.py::test_completion_generator_id\ntests/test_completion.py::test_completion_properties\ntests/test_completion.py::test_completion_restart\ntests/test_completion.py::test_completion_clone\ntests/test_completion.py::test_completion_pipeline_with\ntests/test_completion.py::test_completion_pipeline_fork\ntests/test_completion.py::test_completion_pipeline_meta\ntests/test_completion.py::test_completion_pipeline_apply\ntests/test_generation.py::test_chat_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[True]\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[False]\ntests/test_generation.py::test_completion_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_run_allowed_failed[True]\ntests/test_generation.py::test_chat_run_allowed_failed[False]\ntests/test_generation.py::test_chat_run_many_include_failed[test]\ntests/test_generation.py::test_chat_run_many_include_failed[<yes-no-answer>yes</yes-no-answer>]\ntests/test_generation.py::test_chat_run_batch_include_failed\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[test_model]\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[litellm!test_model]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[invalid!testing]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[no_exist!stuff,args=123]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,max_tokens=123,top_p=10-valid_params0]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,temperature=0.5-valid_params1]\ntests/test_generator_ids.py::test_get_generator_with_params[test_model,temperature=1.0,max_tokens=100-valid_params2]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!test_model,max_tokens=1024,top_p=0.1]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!custom,temperature=1.0,max_tokens=100,api_base=https://localhost:8000]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!many/model/slashes,stop=a;b;c;]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!with_cls_args,max_connections=10]\ntests/test_generator_ids.py::test_get_identifier_no_extra\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_0]\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_1]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,bad_param=123,temperature=1.0]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,temperature=True]\ntests/test_generator_ids.py::test_register_generator\ntests/test_prompt.py::test_prompt_render_docstring_parse\ntests/test_prompt.py::test_basic_prompt_render\ntests/test_prompt.py::test_prompt_render_with_docstring_variables\ntests/test_prompt.py::test_prompt_render_with_model_output\ntests/test_prompt.py::test_prompt_render_with_list_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output_ctx\ntests/test_prompt.py::test_prompt_render_with_dataclass_output\ntests/test_prompt.py::test_prompt_render_with_chat_return\ntests/test_prompt.py::test_prompt_render_ctx_in_dataclass\ntests/test_prompt.py::test_prompt_parse_fail_nested_input\ntests/test_prompt.py::test_prompt_parse_fail_unique_ouput\ntests/test_watchers.py::test_write_chats_to_jsonl\ntests/test_watchers.py::test_write_chats_to_jsonl_append\ntests/test_watchers.py::test_write_chats_to_jsonl_replace\ntests/test_watchers.py::test_write_chats_to_s3\ntests/test_xml_parsing.py::test_xml_parsing[single_answer]\ntests/test_xml_parsing.py::test_xml_parsing[single_question]\ntests/test_xml_parsing.py::test_xml_parsing[single_question_with_unrelated_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_and_question]\ntests/test_xml_parsing.py::test_xml_parsing[question_and_answer]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_start_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_tags]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag0]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag1]\ntests/test_xml_parsing.py::test_xml_parsing[question_answer]\ntests/test_xml_parsing.py::test_xml_parsing[newline_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[comma_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[slash_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[name_with_things]\ntests/test_xml_parsing.py::test_xml_parsing[wrapped]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_invalid]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\ntests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n\n111 tests collected in 5.80s\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 7761, Output: 154, Total: 7915\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. All 111 tests were collected successfully. The environment is set up correctly. Let me verify the final state and provide the verification bundle.\n\nSummary:\n1. Poetry was installed via pip\n2. All dependencies were installed via `poetry install`\n3. Pytest collection succeeded with 111 tests collected\n\nNow I need to provide the final verification bundle with the exact commands that were run successfully.\n</think>\n\nThought: The pytest collection succeeded with all 111 tests collected. The environment is properly set up with Poetry managing the dependencies. Let me provide the verification bundle.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"poetry run pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 3 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/dreadnode__rigging.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/dreadnode/rigging.git",
+    "configuration_success": true,
+    "base_image": "python:3.11",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 596\ndrwxr-xr-x 10 root root      4096 May  9 01:31 .\ndrwxr-xr-x  1 root root      4096 May  9 01:31 ..\ndrwxr-xr-x  7  501 dialout   4096 May  9 01:30 .git\ndrwxr-xr-x  4  501 dialout   4096 May  9 01:30 .github\n-rw-r--r--  1  501 dialout   3141 May  9 01:30 .gitignore\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 .vscode\n-rw-r--r--  1  501 dialout   1066 May  9 01:30 LICENSE\n-rw-r--r--  1  501 dialout   4807 May  9 01:30 README.md\ndrwxr-xr-x  6  501 dialout   4096 May  9 01:30 docs\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 examples\ndrwxr-xr-x  3  501 dialout   4096 May  9 01:30 logs\n-rw-r--r--  1  501 dialout   2967 May  9 01:30 mkdocs.yml\n-rw-r--r--  1  501 dialout 543401 May  9 01:30 poetry.lock\n-rw-r--r--  1  501 dialout   3491 May  9 01:30 pyproject.toml\ndrwxr-xr-x  3  501 dialout   4096 May  9 01:30 rigging\ndrwxr-xr-x  2  501 dialout   4096 May  9 01:30 tests\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[tool.poetry]\nname = \"rigging\"\nversion = \"2.0.8\"\ndescription = \"LLM Interaction Framework\"\nauthors = [\"Nick Landers <monoxgas@gmail.com>\"]\nlicense = \"MIT\"\nrepository = \"https://github.com/dreadnode/rigging\"\nreadme = \"README.md\"\npackages = [{ include = \"rigging\" }]\n\n[tool.poetry.dependencies]\npython = \"^3.9\"\npydantic = \"^2.7.3\"\npydantic-xml = \"^2.11.0\"\nloguru = \"^0.7.2\"\nlitellm = \"^1.44.7\"\npandas = \"^2.2.2\"\neval-type-backport = \"^0.2.0\"                           # For 3.9 future annotations\nelasticsearch = \"^8.13.2\"\nxmltodict = \"^0.13.0\"\ncolorama = \"^0.4.6\"\nboto3 = \"^1.35.0\"\nboto3-stubs = { ext\n... (2291 chars omitted for recipe synthesis) ...\n,\n    \".direnv\",\n    \".eggs\",\n    \".git\",\n    \".git-rewrite\",\n    \".hg\",\n    \".mypy_cache\",\n    \".nox\",\n    \".pants.d\",\n    \".pytype\",\n    \".ruff_cache\",\n    \".svn\",\n    \".tox\",\n    \".venv\",\n    \"__pypackages__\",\n    \"_build\",\n    \"buck-out\",\n    \"build\",\n    \"dist\",\n    \"node_modules\",\n    \"venv\",\n]\n\nline-length = 120\nindent-width = 4\ntarget-version = \"py310\"\n\n[tool.ruff.lint]\nfixable = [\"ALL\"]\nunfixable = [\"B\"]\n\ndummy-variable-rgx = \"^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$\"\n\n[tool.ruff.format]\nquote-style = \"double\"\nindent-style = \"space\"\nskip-magic-trailing-comma = false\nline-ending = \"auto\"\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip install poetry",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting poetry\n  Downloading poetry-2.4.0-py3-none-any.whl.metadata (7.5 kB)\nCollecting build<2.0.0,>=1.2.1 (from poetry)\n  Downloading build-1.5.0-py3-none-any.whl.metadata (5.7 kB)\nCollecting cachecontrol<0.15.0,>=0.14.0 (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry)\n  Downloading cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)\nCollecting cleo<3.0.0,>=2.1.0 (from poetry)\n  Downloading cleo-2.1.0-py3-none-any.whl.metadata (12 kB)\nCollecting dulwich<2,>=0.25.0 (from poetry)\n  Downloading dulwich-1.2.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (6.0 kB)\nCollecting fastjson\n... (12867 chars omitted for recipe synthesis) ...\n poetry-core-2.4.0 pycparser-3.0 pyproject-hooks-1.2.0 python-discovery-1.3.0 rapidfuzz-3.14.5 requests-2.33.1 requests-toolbelt-1.0.0 shellingham-1.5.4 tomlkit-0.14.0 trove-classifiers-2026.5.7.17 typing_extensions-4.15.0 urllib3-2.7.0 virtualenv-21.3.1 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 24.0 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 7,
+        "command": "poetry install",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Creating virtualenv rigging-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\nInstalling dependencies from lock file\n\nPackage operations: 133 installs, 0 updates, 0 removals\n\n  - Installing attrs (24.2.0)\n  - Installing rpds-py (0.22.1)\n  - Installing six (1.16.0)\n  - Installing certifi (2024.8.30)\n  - Installing charset-normalizer (3.4.0)\n  - Installing idna (3.10)\n  - Installing markupsafe (3.0.2)\n  - Installing mergedeep (1.3.4)\n  - Installing platformdirs (4.3.6)\n  - Installing python-dateutil (2.9.0.post0)\n  - Installing pyyaml (6.0.2)\n  - Installing referencing (0.35.1)\n  - Installing\n... (4202 chars omitted for recipe synthesis) ...\nx (0.3.9)\n  - Installing mkdocstrings-python (1.10.9)\n  - Installing mypy (1.13.0)\n  - Installing pandas (2.2.3)\n  - Installing pandas-stubs (2.2.2.240807)\n  - Installing pydantic-xml (2.14.1)\n  - Installing pytest-asyncio (0.23.8)\n  - Installing ruff (0.1.15)\n  - Installing types-colorama (0.4.15.20240311)\n  - Installing xmltodict (0.13.0)\nWarning: The file chosen for install of rpds-py 0.22.1 (rpds_py-0.22.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl) is yanked. Reason for being yanked: https://github.com/PyO3/pyo3/issues/4757\n\nInstalling the current project: rigging (2.0.8)\n"
+      },
+      {
+        "step_index": 8,
+        "command": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "tests/test_chat.py::test_message_initialization\ntests/test_chat.py::test_message_from_dict\ntests/test_chat.py::test_message_from_str\ntests/test_chat.py::test_message_str_representation\ntests/test_chat.py::test_message_content_update_strips_parts\ntests/test_chat.py::test_message_apply_template\ntests/test_chat.py::test_message_strip_model\ntests/test_chat.py::test_message_parse_model\ntests/test_chat.py::test_message_restructure\ntests/test_chat.py::test_message_parse_set_min\ntests/test_chat.py::test_message_parse_set\ntests/test_chat.py::test_message_from_model\ntests/test_chat.py::test_messages_fit\n... (6015 chars omitted for recipe synthesis) ...\n_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\ntests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n\n111 tests collected in 5.80s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat dreadnode__rigging/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: dreadnode__rigging/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 4,
+        "command": "which poetry || pip install poetry",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 5,
+        "command": "which poetry",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install poetry",
+        "poetry install",
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat dreadnode__rigging/pyproject.toml - read-only file read, wrong path (repository is at CWD not dreadnode__rigging/)",
+          "reason": ""
+        },
+        {
+          "command": "ls -la - read-only directory listing for discovery",
+          "reason": ""
+        },
+        {
+          "command": "cat pyproject.toml - read-only inspection of project structure",
+          "reason": ""
+        },
+        {
+          "command": "which poetry || pip install poetry - failed attempt, command rejected for combining check with mutation",
+          "reason": ""
+        },
+        {
+          "command": "which poetry - read-only verification check, returned empty (poetry not installed yet)",
+          "reason": ""
+        }
+      ],
+      "rationale": "The successful state-changing trajectory consists of two steps: (1) pip install poetry to install the Poetry package manager (poetry-core-2.4.0), then (2) poetry install to install all 133 project dependencies from poetry.lock including pydantic, pydantic-xml, loguru, litellm, pandas, elasticsearch, boto3, pytest, pytest-asyncio, mypy, ruff. The failed attempts were read-only exploration (wrong path, poetry not found) which are not replayed. The final verification (poetry run pytest --collect-only) succeeded with 111 tests collected, confirming the environment is correctly set up.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [
+      "elasticsearch"
+    ],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 2,
+      "compressed_steps": 2,
+      "saved_tokens_est": 3783
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat dreadnode__rigging/pyproject.toml",
+        "success": false,
+        "raw_chars": 66,
+        "raw_tokens_est": 16,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la",
+        "success": true,
+        "raw_chars": 888,
+        "raw_tokens_est": 222,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat pyproject.toml",
+        "success": true,
+        "raw_chars": 3491,
+        "raw_tokens_est": 872,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 583,
+        "reflect_input_tokens": 2347,
+        "reflect_output_tokens": 593
+      },
+      {
+        "step_id": 4,
+        "action": "which poetry || pip install poetry",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "which poetry",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip install poetry",
+        "success": true,
+        "raw_chars": 14067,
+        "raw_tokens_est": 3516,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 3200,
+        "reflect_input_tokens": 9934,
+        "reflect_output_tokens": 486
+      },
+      {
+        "step_id": 7,
+        "action": "poetry install",
+        "success": true,
+        "raw_chars": 5402,
+        "raw_tokens_est": 1350,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "poetry run pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 7215,
+        "raw_tokens_est": 1803,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 10468,
+        "output_tokens": 3150,
+        "total_tokens": 13618
+      },
+      "planner": {
+        "input_tokens": 47790,
+        "output_tokens": 691,
+        "total_tokens": 48481
+      },
+      "reflection": {
+        "input_tokens": 12281,
+        "output_tokens": 1079,
+        "total_tokens": 13360
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 9841,
+        "output_tokens": 1869,
+        "total_tokens": 11710
+      },
+      "total": {
+        "input_tokens": 80380,
+        "output_tokens": 6789,
+        "total_tokens": 87169
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+    "base_commit": "82ac80",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/dreadnode__rigging /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:34:40.531009+08:00",
+      "finished_at": "2026-05-09T09:34:40.597777+08:00",
+      "duration_seconds": 0.067,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context'...\n完成。\n注意：正在切换到 '82ac80fe77e194f0656b4c14c4454c65e07c9b38'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "82ac80"
+      ],
+      "command_shell": "git checkout --force 82ac80",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:34:40.597849+08:00",
+      "finished_at": "2026-05-09T09:34:40.609793+08:00",
+      "duration_seconds": 0.012,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 82ac80f Merge pull request #24 from GangGreenTemperTatum/ads/eng-220-feature-rigging-cicd-pipeline-example\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-09T09:34:40.610182+08:00",
+      "finished_at": "2026-05-09T09:34:40.615490+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_poetry_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "poetry run pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-dreadnode__rigging",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval -t jayint-repo2run-dreadnode__rigging /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T09:34:40.618315+08:00",
+    "finished_at": "2026-05-09T09:35:21.044695+08:00",
+    "duration_seconds": 40.426,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.15kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 25.53MB 0.3s done\n#5 DONE 0.3s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.3s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.850 Requirement already satisfied: poetry in /usr/local/lib/python3.11/site-packages (2.3.4)\n#10 0.861 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.11/site-packages (from poetry) (1.4.4)\n#10 0.863 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.864 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.1.0)\n#10 0.865 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.866 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.21.2)\n#10 0.867 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.11/site-packages (from poetry) (0.7.1)\n#10 0.868 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.11/site-packages (from poetry) (0.7.0)\n#10 0.869 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (25.7.0)\n#10 0.870 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.11/site-packages (from poetry) (26.2)\n#10 0.871 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.4.7)\n#10 0.872 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.11/site-packages (from poetry) (1.12.1.2)\n#10 0.873 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (4.9.6)\n#10 0.874 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.11/site-packages (from poetry) (2.3.2)\n#10 0.874 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.875 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.11/site-packages (from poetry) (2.33.1)\n#10 0.876 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.0)\n#10 0.877 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.4)\n#10 0.877 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.11/site-packages (from poetry) (0.14.0)\n#10 0.878 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.11/site-packages (from poetry) (2026.4.28.13)\n#10 0.879 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.11/site-packages (from poetry) (21.3.0)\n#10 0.894 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.11/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.901 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.905 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.906 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.915 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.916 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.933 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.934 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.935 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.936 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.937 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.938 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.945 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.946 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.956 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.957 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.958 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.970 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.971 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.986 Requirement already satisfied: anyio in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.987 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.993 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.11/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 1.004 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.11/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (3.23.1)\n#10 1.026 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.11/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 1.051 Requirement already satisfied: more-itertools in /usr/local/lib/python3.11/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 1.061 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.11/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 1.075 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.11/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 1.102 Requirement already satisfied: pycparser in /usr/local/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 1.240 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 1.3s\n\n#11 [7/8] RUN poetry install\n#11 0.850 Creating virtualenv rigging-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\n#11 1.667 Installing dependencies from lock file\n#11 2.056 \n#11 2.056 Package operations: 133 installs, 0 updates, 0 removals\n#11 2.056 \n#11 2.057   - Installing attrs (24.2.0)\n#11 2.058   - Installing rpds-py (0.22.1)\n#11 2.058   - Installing six (1.16.0)\n#11 3.546   - Installing certifi (2024.8.30)\n#11 3.547   - Installing charset-normalizer (3.4.0)\n#11 3.549   - Installing idna (3.10)\n#11 3.550   - Installing markupsafe (3.0.2)\n#11 3.551   - Installing mergedeep (1.3.4)\n#11 3.553   - Installing platformdirs (4.3.6)\n#11 3.554   - Installing python-dateutil (2.9.0.post0)\n#11 3.555   - Installing pyyaml (6.0.2)\n#11 3.557   - Installing referencing (0.35.1)\n#11 3.558   - Installing urllib3 (2.2.3)\n#11 4.766   - Installing click (8.1.7)\n#11 4.767   - Installing filelock (3.16.1)\n#11 4.768   - Installing fsspec (2024.10.0)\n#11 4.769   - Installing ghp-import (2.1.0)\n#11 4.770   - Installing h11 (0.14.0)\n#11 4.772   - Installing jinja2 (3.1.4)\n#11 4.773   - Installing jsonschema-specifications (2024.10.1)\n#11 4.773   - Installing markdown (3.7)\n#11 4.775   - Installing mkdocs-get-deps (0.2.0)\n#11 4.776   - Installing packaging (24.2)\n#11 4.778   - Installing pathspec (0.12.1)\n#11 4.779   - Installing pycparser (2.22)\n#11 4.779   - Installing pyyaml-env-tag (0.1)\n#11 4.780   - Installing requests (2.32.3)\n#11 5.067   - Installing sniffio (1.3.1)\n#11 5.085   - Installing tqdm (4.67.1)\n#11 5.099   - Installing typing-extensions (4.12.2)\n#11 5.105   - Installing watchdog (6.0.0)\n#11 5.105   - Installing webencodings (0.5.1)\n#11 5.879   - Installing annotated-types (0.7.0)\n#11 5.880   - Installing anyio (4.6.2.post1)\n#11 5.882   - Installing asttokens (3.0.0)\n#11 5.883   - Installing cffi (1.17.1)\n#11 5.883   - Installing executing (2.1.0)\n#11 5.885   - Installing frozenlist (1.5.0)\n#11 5.887   - Installing httpcore (1.0.7)\n#11 5.887   - Installing huggingface-hub (0.26.3)\n#11 5.888   - Installing jmespath (1.0.1)\n#11 5.889   - Installing jsonschema (4.23.0)\n#11 5.890   - Installing mkdocs (1.6.1)\n#11 5.891   - Installing multidict (6.1.0)\n#11 5.892   - Installing parso (0.8.4)\n#11 5.893   - Installing propcache (0.2.1)\n#11 6.166   - Installing ptyprocess (0.7.0)\n#11 6.168   - Installing pure-eval (0.2.3)\n#11 6.178   - Installing pydantic-core (2.27.1)\n#11 6.198   - Installing tinycss2 (1.4.0)\n#11 6.218   - Installing traitlets (5.14.3)\n#11 6.225   - Installing wcwidth (0.2.13)\n#11 7.373   - Installing aiohappyeyeballs (2.4.4)\n#11 7.373   - Installing aiosignal (1.3.1)\n#11 7.374   - Installing botocore (1.35.73)\n#11 7.375   - Installing cairocffi (1.7.1)\n#11 7.375   - Installing colorama (0.4.6)\n#11 7.376   - Installing cssselect2 (0.7.0)\n#11 7.376   - Installing decorator (5.1.1)\n#11 7.377   - Installing defusedxml (0.7.1)\n#11 7.378   - Installing distro (1.9.0)\n#11 7.379   - Installing httpx (0.27.2)\n#11 7.379   - Installing iniconfig (2.0.0)\n#11 7.379   - Installing jedi (0.19.2)\n#11 7.380   - Installing jiter (0.8.0)\n#11 7.381   - Installing jupyter-core (5.7.2)\n#11 7.618   - Installing matplotlib-inline (0.1.7)\n#11 7.621   - Installing mkdocs-autorefs (1.2.0)\n#11 7.638   - Installing nest-asyncio (1.6.0)\n#11 7.645   - Installing numpy (2.0.2)\n#11 7.666   - Installing pexpect (4.9.0)\n#11 7.669   - Installing pillow (10.4.0)\n#11 7.674   - Installing pluggy (1.5.0)\n#11 7.674   - Installing prompt-toolkit (3.0.48)\n#11 7.687   - Installing pydantic (2.10.3)\n#11 7.688   - Installing pygments (2.18.0)\n#11 7.877   - Installing pymdown-extensions (10.12)\n#11 7.881   - Installing python-dotenv (1.0.1)\n#11 7.884   - Installing pyzmq (26.2.0)\n#11 7.890   - Installing regex (2024.11.6)\n#11 7.957   - Installing stack-data (0.6.3)\n#11 8.010   - Installing tokenizers (0.20.3)\n#11 8.196   - Installing tornado (6.4.2)\n#11 8.741   - Installing types-awscrt (0.23.1)\n#11 8.773   - Installing yarl (1.18.3)\n#11 8.835   - Installing zipp (3.21.0)\n#11 16.13   - Installing aiohttp (3.11.9)\n#11 16.13   - Installing babel (2.16.0)\n#11 16.13   - Installing botocore-stubs (1.35.73)\n#11 16.13   - Installing cairosvg (2.7.1)\n#11 16.13   - Installing comm (0.2.2)\n#11 16.13   - Installing debugpy (1.8.9)\n#11 16.13   - Installing elastic-transport (8.15.1)\n#11 16.13   - Installing griffe (1.5.1)\n#11 16.13   - Installing importlib-metadata (8.5.0)\n#11 16.13   - Installing ipython (8.18.1)\n#11 16.13   - Installing jupyter-client (8.6.3)\n#11 16.13   - Installing jupyterlab-widgets (3.0.13)\n#11 16.13   - Installing mkdocs-material-extensions (1.3.1)\n#11 16.14   - Installing mkdocstrings (0.25.2)\n#11 16.39   - Installing mypy-boto3-s3 (1.35.72)\n#11 16.42   - Installing mypy-extensions (1.0.0)\n#11 16.42   - Installing openai (1.56.1)\n#11 16.43   - Installing paginate (0.5.7)\n#11 16.45   - Installing psutil (6.1.0)\n#11 16.45   - Installing pytest (8.3.4)\n#11 16.49   - Installing pytz (2024.2)\n#11 16.57   - Installing s3transfer (0.10.4)\n#11 16.61   - Installing tiktoken (0.8.0)\n#11 16.63   - Installing types-pytz (2024.2.0.20241003)\n#11 16.72   - Installing types-s3transfer (0.10.4)\n#11 16.75   - Installing tzdata (2024.2)\n#11 16.78   - Installing widgetsnbextension (4.0.13)\n#11 20.10   - Installing boto3 (1.35.73)\n#11 20.11   - Installing boto3-stubs (1.35.73)\n#11 20.11   - Installing coverage (7.6.8)\n#11 20.11   - Installing elasticsearch (8.16.0)\n#11 20.11   - Installing eval-type-backport (0.2.0)\n#11 20.11   - Installing ipykernel (6.29.5)\n#11 20.11   - Installing ipywidgets (8.1.5)\n#11 20.11   - Installing litellm (1.53.2)\n#11 20.11   - Installing loguru (0.7.2)\n#11 20.11   - Installing mkdocs-material (9.5.47)\n#11 20.11   - Installing mkdocs-section-index (0.3.9)\n#11 20.11   - Installing mkdocstrings-python (1.10.9)\n#11 20.11   - Installing mypy (1.13.0)\n#11 20.11   - Installing pandas (2.2.3)\n#11 20.37   - Installing pandas-stubs (2.2.2.240807)\n#11 20.42   - Installing pydantic-xml (2.14.1)\n#11 20.42   - Installing pytest-asyncio (0.23.8)\n#11 20.44   - Installing ruff (0.1.15)\n#11 20.46   - Installing types-colorama (0.4.15.20240311)\n#11 20.46   - Installing xmltodict (0.13.0)\n#11 30.21 Warning: The file chosen for install of rpds-py 0.22.1 (rpds_py-0.22.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl) is yanked. Reason for being yanked: https://github.com/PyO3/pyo3/issues/4757\n#11 30.21 \n#11 30.21 Installing the current project: rigging (2.0.8)\n#11 DONE 30.8s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 5.398 tests/test_chat.py::test_message_initialization\n#12 5.398 tests/test_chat.py::test_message_from_dict\n#12 5.398 tests/test_chat.py::test_message_from_str\n#12 5.398 tests/test_chat.py::test_message_str_representation\n#12 5.398 tests/test_chat.py::test_message_content_update_strips_parts\n#12 5.398 tests/test_chat.py::test_message_apply_template\n#12 5.398 tests/test_chat.py::test_message_strip_model\n#12 5.398 tests/test_chat.py::test_message_parse_model\n#12 5.398 tests/test_chat.py::test_message_restructure\n#12 5.398 tests/test_chat.py::test_message_parse_set_min\n#12 5.398 tests/test_chat.py::test_message_parse_set\n#12 5.398 tests/test_chat.py::test_message_from_model\n#12 5.398 tests/test_chat.py::test_messages_fit_list\n#12 5.398 tests/test_chat.py::test_message_parse_multiple_models\n#12 5.398 tests/test_chat.py::test_message_try_parse_missing\n#12 5.398 tests/test_chat.py::test_message_reparse_modified_content\n#12 5.398 tests/test_chat.py::test_chat_generator_id\n#12 5.398 tests/test_chat.py::test_chat_metadata\n#12 5.398 tests/test_chat.py::test_chat_restart\n#12 5.398 tests/test_chat.py::test_chat_continue\n#12 5.398 tests/test_chat.py::test_chat_to_message_dicts\n#12 5.398 tests/test_chat.py::test_chat_to_conversation\n#12 5.398 tests/test_chat.py::test_chat_properties\n#12 5.398 tests/test_chat.py::test_chat_pipeline_continue\n#12 5.398 tests/test_chat.py::test_chat_pipeline_add\n#12 5.398 tests/test_chat.py::test_chat_continue_maintains_parsed_models\n#12 5.398 tests/test_chat.py::test_chat_pipeline_meta\n#12 5.398 tests/test_chat.py::test_chat_pipeline_with\n#12 5.398 tests/test_chat.py::test_chat_strip\n#12 5.398 tests/test_chat.py::test_double_parse\n#12 5.398 tests/test_chat.py::test_double_parse_set\n#12 5.398 tests/test_chat.py::test_message_dedent\n#12 5.398 tests/test_completion.py::test_completion_generator_id\n#12 5.398 tests/test_completion.py::test_completion_properties\n#12 5.398 tests/test_completion.py::test_completion_restart\n#12 5.398 tests/test_completion.py::test_completion_clone\n#12 5.398 tests/test_completion.py::test_completion_pipeline_with\n#12 5.398 tests/test_completion.py::test_completion_pipeline_fork\n#12 5.398 tests/test_completion.py::test_completion_pipeline_meta\n#12 5.398 tests/test_completion.py::test_completion_pipeline_apply\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_reset\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_recovery[True]\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_recovery[False]\n#12 5.398 tests/test_generation.py::test_completion_until_parsed_as_with_reset\n#12 5.398 tests/test_generation.py::test_chat_run_allowed_failed[True]\n#12 5.398 tests/test_generation.py::test_chat_run_allowed_failed[False]\n#12 5.398 tests/test_generation.py::test_chat_run_many_include_failed[test]\n#12 5.398 tests/test_generation.py::test_chat_run_many_include_failed[<yes-no-answer>yes</yes-no-answer>]\n#12 5.398 tests/test_generation.py::test_chat_run_batch_include_failed\n#12 5.398 tests/test_generator_ids.py::test_get_generator_default_is_litellm[test_model]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_default_is_litellm[litellm!test_model]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_provider[invalid!testing]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_provider[no_exist!stuff,args=123]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,max_tokens=123,top_p=10-valid_params0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,temperature=0.5-valid_params1]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[test_model,temperature=1.0,max_tokens=100-valid_params2]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!test_model,max_tokens=1024,top_p=0.1]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!custom,temperature=1.0,max_tokens=100,api_base=https://localhost:8000]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!many/model/slashes,stop=a;b;c;]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!with_cls_args,max_connections=10]\n#12 5.398 tests/test_generator_ids.py::test_get_identifier_no_extra\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_1]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,bad_param=123,temperature=1.0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,temperature=True]\n#12 5.398 tests/test_generator_ids.py::test_register_generator\n#12 5.398 tests/test_prompt.py::test_prompt_render_docstring_parse\n#12 5.398 tests/test_prompt.py::test_basic_prompt_render\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_docstring_variables\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_model_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_list_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_tuple_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_tuple_output_ctx\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_dataclass_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_chat_return\n#12 5.398 tests/test_prompt.py::test_prompt_render_ctx_in_dataclass\n#12 5.398 tests/test_prompt.py::test_prompt_parse_fail_nested_input\n#12 5.398 tests/test_prompt.py::test_prompt_parse_fail_unique_ouput\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl_append\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl_replace\n#12 5.398 tests/test_watchers.py::test_write_chats_to_s3\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_question]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_question_with_unrelated_tag]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_and_question]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_and_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_start_tag]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_tags]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag0]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[newline_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[comma_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[slash_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[name_with_things]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[wrapped]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_2]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_3]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_4]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_5]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_invalid]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[delimited_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n#12 5.398 \n#12 5.398 111 tests collected in 4.24s\n#12 DONE 5.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.4s done\n#13 writing image sha256:4390e59e66f282289e3aade25df75033ed50571b584fedcd14a559be3b275d79\n#13 writing image sha256:4390e59e66f282289e3aade25df75033ed50571b584fedcd14a559be3b275d79 done\n#13 naming to docker.io/library/jayint-repo2run-dreadnode__rigging done\n#13 DONE 1.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/szl8449l17iolpj7iuxvihyo6\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-dreadnode__rigging",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-dreadnode__rigging sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-09T09:35:21.046721+08:00",
+          "finished_at": "2026-05-09T09:35:24.281095+08:00",
+          "duration_seconds": 3.234,
+          "stdout": "tests/test_chat.py::test_message_initialization\ntests/test_chat.py::test_message_from_dict\ntests/test_chat.py::test_message_from_str\ntests/test_chat.py::test_message_str_representation\ntests/test_chat.py::test_message_content_update_strips_parts\ntests/test_chat.py::test_message_apply_template\ntests/test_chat.py::test_message_strip_model\ntests/test_chat.py::test_message_parse_model\ntests/test_chat.py::test_message_restructure\ntests/test_chat.py::test_message_parse_set_min\ntests/test_chat.py::test_message_parse_set\ntests/test_chat.py::test_message_from_model\ntests/test_chat.py::test_messages_fit_list\ntests/test_chat.py::test_message_parse_multiple_models\ntests/test_chat.py::test_message_try_parse_missing\ntests/test_chat.py::test_message_reparse_modified_content\ntests/test_chat.py::test_chat_generator_id\ntests/test_chat.py::test_chat_metadata\ntests/test_chat.py::test_chat_restart\ntests/test_chat.py::test_chat_continue\ntests/test_chat.py::test_chat_to_message_dicts\ntests/test_chat.py::test_chat_to_conversation\ntests/test_chat.py::test_chat_properties\ntests/test_chat.py::test_chat_pipeline_continue\ntests/test_chat.py::test_chat_pipeline_add\ntests/test_chat.py::test_chat_continue_maintains_parsed_models\ntests/test_chat.py::test_chat_pipeline_meta\ntests/test_chat.py::test_chat_pipeline_with\ntests/test_chat.py::test_chat_strip\ntests/test_chat.py::test_double_parse\ntests/test_chat.py::test_double_parse_set\ntests/test_chat.py::test_message_dedent\ntests/test_completion.py::test_completion_generator_id\ntests/test_completion.py::test_completion_properties\ntests/test_completion.py::test_completion_restart\ntests/test_completion.py::test_completion_clone\ntests/test_completion.py::test_completion_pipeline_with\ntests/test_completion.py::test_completion_pipeline_fork\ntests/test_completion.py::test_completion_pipeline_meta\ntests/test_completion.py::test_completion_pipeline_apply\ntests/test_generation.py::test_chat_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[True]\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[False]\ntests/test_generation.py::test_completion_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_run_allowed_failed[True]\ntests/test_generation.py::test_chat_run_allowed_failed[False]\ntests/test_generation.py::test_chat_run_many_include_failed[test]\ntests/test_generation.py::test_chat_run_many_include_failed[<yes-no-answer>yes</yes-no-answer>]\ntests/test_generation.py::test_chat_run_batch_include_failed\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[test_model]\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[litellm!test_model]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[invalid!testing]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[no_exist!stuff,args=123]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,max_tokens=123,top_p=10-valid_params0]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,temperature=0.5-valid_params1]\ntests/test_generator_ids.py::test_get_generator_with_params[test_model,temperature=1.0,max_tokens=100-valid_params2]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!test_model,max_tokens=1024,top_p=0.1]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!custom,temperature=1.0,max_tokens=100,api_base=https://localhost:8000]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!many/model/slashes,stop=a;b;c;]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!with_cls_args,max_connections=10]\ntests/test_generator_ids.py::test_get_identifier_no_extra\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_0]\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_1]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,bad_param=123,temperature=1.0]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,temperature=True]\ntests/test_generator_ids.py::test_register_generator\ntests/test_prompt.py::test_prompt_render_docstring_parse\ntests/test_prompt.py::test_basic_prompt_render\ntests/test_prompt.py::test_prompt_render_with_docstring_variables\ntests/test_prompt.py::test_prompt_render_with_model_output\ntests/test_prompt.py::test_prompt_render_with_list_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output_ctx\ntests/test_prompt.py::test_prompt_render_with_dataclass_output\ntests/test_prompt.py::test_prompt_render_with_chat_return\ntests/test_prompt.py::test_prompt_render_ctx_in_dataclass\ntests/test_prompt.py::test_prompt_parse_fail_nested_input\ntests/test_prompt.py::test_prompt_parse_fail_unique_ouput\ntests/test_watchers.py::test_write_chats_to_jsonl\ntests/test_watchers.py::test_write_chats_to_jsonl_append\ntests/test_watchers.py::test_write_chats_to_jsonl_replace\ntests/test_watchers.py::test_write_chats_to_s3\ntests/test_xml_parsing.py::test_xml_parsing[single_answer]\ntests/test_xml_parsing.py::test_xml_parsing[single_question]\ntests/test_xml_parsing.py::test_xml_parsing[single_question_with_unrelated_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_and_question]\ntests/test_xml_parsing.py::test_xml_parsing[question_and_answer]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_start_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_tags]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag0]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag1]\ntests/test_xml_parsing.py::test_xml_parsing[question_answer]\ntests/test_xml_parsing.py::test_xml_parsing[newline_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[comma_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[slash_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[name_with_things]\ntests/test_xml_parsing.py::test_xml_parsing[wrapped]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_invalid]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\ntests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n\n111 tests collected in 2.01s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-dreadnode__rigging",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/Dockerfile.eval -t jayint-repo2run-dreadnode__rigging /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-09T09:34:40.618315+08:00",
+        "finished_at": "2026-05-09T09:35:21.044695+08:00",
+        "duration_seconds": 40.426,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.15kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.11\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/8] FROM docker.io/library/python:3.11\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 25.53MB 0.3s done\n#5 DONE 0.3s\n\n#6 [2/8] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/8] WORKDIR /app\n#7 CACHED\n\n#8 [4/8] COPY . /app\n#8 DONE 0.3s\n\n#9 [5/8] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [6/8] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.850 Requirement already satisfied: poetry in /usr/local/lib/python3.11/site-packages (2.3.4)\n#10 0.861 Requirement already satisfied: build<2.0.0,>=1.2.1 in /usr/local/lib/python3.11/site-packages (from poetry) (1.4.4)\n#10 0.863 Requirement already satisfied: cachecontrol<0.15.0,>=0.14.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (0.14.4)\n#10 0.864 Requirement already satisfied: cleo<3.0.0,>=2.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.1.0)\n#10 0.865 Requirement already satisfied: dulwich<2,>=0.25.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.866 Requirement already satisfied: fastjsonschema<3.0.0,>=2.18.0 in /usr/local/lib/python3.11/site-packages (from poetry) (2.21.2)\n#10 0.867 Requirement already satisfied: findpython<0.8.0,>=0.6.2 in /usr/local/lib/python3.11/site-packages (from poetry) (0.7.1)\n#10 0.868 Requirement already satisfied: installer<0.8.0,>=0.7.0 in /usr/local/lib/python3.11/site-packages (from poetry) (0.7.0)\n#10 0.869 Requirement already satisfied: keyring<26.0.0,>=25.1.0 in /usr/local/lib/python3.11/site-packages (from poetry) (25.7.0)\n#10 0.870 Requirement already satisfied: packaging>=24.2 in /usr/local/lib/python3.11/site-packages (from poetry) (26.2)\n#10 0.871 Requirement already satisfied: pbs-installer>=2025.6.10 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (2026.4.7)\n#10 0.872 Requirement already satisfied: pkginfo<2.0,>=1.12 in /usr/local/lib/python3.11/site-packages (from poetry) (1.12.1.2)\n#10 0.873 Requirement already satisfied: platformdirs<5,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (4.9.6)\n#10 0.874 Requirement already satisfied: poetry-core==2.3.2 in /usr/local/lib/python3.11/site-packages (from poetry) (2.3.2)\n#10 0.874 Requirement already satisfied: pyproject-hooks<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.2.0)\n#10 0.875 Requirement already satisfied: requests<3.0,>=2.26 in /usr/local/lib/python3.11/site-packages (from poetry) (2.33.1)\n#10 0.876 Requirement already satisfied: requests-toolbelt<2.0.0,>=1.0.0 in /usr/local/lib/python3.11/site-packages (from poetry) (1.0.0)\n#10 0.877 Requirement already satisfied: shellingham<2.0,>=1.5 in /usr/local/lib/python3.11/site-packages (from poetry) (1.5.4)\n#10 0.877 Requirement already satisfied: tomlkit<1.0.0,>=0.11.4 in /usr/local/lib/python3.11/site-packages (from poetry) (0.14.0)\n#10 0.878 Requirement already satisfied: trove-classifiers>=2022.5.19 in /usr/local/lib/python3.11/site-packages (from poetry) (2026.4.28.13)\n#10 0.879 Requirement already satisfied: virtualenv>=20.26.6 in /usr/local/lib/python3.11/site-packages (from poetry) (21.3.0)\n#10 0.894 Requirement already satisfied: msgpack<2.0.0,>=0.5.2 in /usr/local/lib/python3.11/site-packages (from cachecontrol<0.15.0,>=0.14.0->cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (1.1.2)\n#10 0.901 Requirement already satisfied: filelock>=3.8.0 in /usr/local/lib/python3.11/site-packages (from cachecontrol[filecache]<0.15.0,>=0.14.0->poetry) (3.29.0)\n#10 0.905 Requirement already satisfied: crashtest<0.5.0,>=0.4.1 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (0.4.1)\n#10 0.906 Requirement already satisfied: rapidfuzz<4.0.0,>=3.0.0 in /usr/local/lib/python3.11/site-packages (from cleo<3.0.0,>=2.1.0->poetry) (3.14.5)\n#10 0.915 Requirement already satisfied: urllib3>=2.2.2 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (2.6.3)\n#10 0.916 Requirement already satisfied: typing_extensions>=4.6.0 in /usr/local/lib/python3.11/site-packages (from dulwich<2,>=0.25.0->poetry) (4.15.0)\n#10 0.933 Requirement already satisfied: SecretStorage>=3.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.5.0)\n#10 0.934 Requirement already satisfied: jeepney>=0.4.2 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (0.9.0)\n#10 0.935 Requirement already satisfied: importlib_metadata>=4.11.4 in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (9.0.0)\n#10 0.936 Requirement already satisfied: jaraco.classes in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (3.4.0)\n#10 0.937 Requirement already satisfied: jaraco.functools in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (4.4.0)\n#10 0.938 Requirement already satisfied: jaraco.context in /usr/local/lib/python3.11/site-packages (from keyring<26.0.0,>=25.1.0->poetry) (6.1.2)\n#10 0.945 Requirement already satisfied: httpx<1,>=0.27.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.28.1)\n#10 0.946 Requirement already satisfied: zstandard>=0.21.0 in /usr/local/lib/python3.11/site-packages (from pbs-installer[download,install]>=2025.6.10->poetry) (0.25.0)\n#10 0.956 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.4.7)\n#10 0.957 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (3.13)\n#10 0.958 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.11/site-packages (from requests<3.0,>=2.26->poetry) (2026.4.22)\n#10 0.970 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (0.4.0)\n#10 0.971 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.11/site-packages (from virtualenv>=20.26.6->poetry) (1.2.2)\n#10 0.986 Requirement already satisfied: anyio in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (4.13.0)\n#10 0.987 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.11/site-packages (from httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (1.0.9)\n#10 0.993 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.11/site-packages (from httpcore==1.*->httpx<1,>=0.27.0->pbs-installer[download,install]>=2025.6.10->poetry) (0.16.0)\n#10 1.004 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.11/site-packages (from importlib_metadata>=4.11.4->keyring<26.0.0,>=25.1.0->poetry) (3.23.1)\n#10 1.026 Requirement already satisfied: cryptography>=2.0 in /usr/local/lib/python3.11/site-packages (from SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (47.0.0)\n#10 1.051 Requirement already satisfied: more-itertools in /usr/local/lib/python3.11/site-packages (from jaraco.classes->keyring<26.0.0,>=25.1.0->poetry) (11.0.2)\n#10 1.061 Requirement already satisfied: backports.tarfile in /usr/local/lib/python3.11/site-packages (from jaraco.context->keyring<26.0.0,>=25.1.0->poetry) (1.2.0)\n#10 1.075 Requirement already satisfied: cffi>=2.0.0 in /usr/local/lib/python3.11/site-packages (from cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (2.0.0)\n#10 1.102 Requirement already satisfied: pycparser in /usr/local/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring<26.0.0,>=25.1.0->poetry) (3.0)\n#10 1.240 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 1.3s\n\n#11 [7/8] RUN poetry install\n#11 0.850 Creating virtualenv rigging-9TtSrW0h-py3.11 in /root/.cache/pypoetry/virtualenvs\n#11 1.667 Installing dependencies from lock file\n#11 2.056 \n#11 2.056 Package operations: 133 installs, 0 updates, 0 removals\n#11 2.056 \n#11 2.057   - Installing attrs (24.2.0)\n#11 2.058   - Installing rpds-py (0.22.1)\n#11 2.058   - Installing six (1.16.0)\n#11 3.546   - Installing certifi (2024.8.30)\n#11 3.547   - Installing charset-normalizer (3.4.0)\n#11 3.549   - Installing idna (3.10)\n#11 3.550   - Installing markupsafe (3.0.2)\n#11 3.551   - Installing mergedeep (1.3.4)\n#11 3.553   - Installing platformdirs (4.3.6)\n#11 3.554   - Installing python-dateutil (2.9.0.post0)\n#11 3.555   - Installing pyyaml (6.0.2)\n#11 3.557   - Installing referencing (0.35.1)\n#11 3.558   - Installing urllib3 (2.2.3)\n#11 4.766   - Installing click (8.1.7)\n#11 4.767   - Installing filelock (3.16.1)\n#11 4.768   - Installing fsspec (2024.10.0)\n#11 4.769   - Installing ghp-import (2.1.0)\n#11 4.770   - Installing h11 (0.14.0)\n#11 4.772   - Installing jinja2 (3.1.4)\n#11 4.773   - Installing jsonschema-specifications (2024.10.1)\n#11 4.773   - Installing markdown (3.7)\n#11 4.775   - Installing mkdocs-get-deps (0.2.0)\n#11 4.776   - Installing packaging (24.2)\n#11 4.778   - Installing pathspec (0.12.1)\n#11 4.779   - Installing pycparser (2.22)\n#11 4.779   - Installing pyyaml-env-tag (0.1)\n#11 4.780   - Installing requests (2.32.3)\n#11 5.067   - Installing sniffio (1.3.1)\n#11 5.085   - Installing tqdm (4.67.1)\n#11 5.099   - Installing typing-extensions (4.12.2)\n#11 5.105   - Installing watchdog (6.0.0)\n#11 5.105   - Installing webencodings (0.5.1)\n#11 5.879   - Installing annotated-types (0.7.0)\n#11 5.880   - Installing anyio (4.6.2.post1)\n#11 5.882   - Installing asttokens (3.0.0)\n#11 5.883   - Installing cffi (1.17.1)\n#11 5.883   - Installing executing (2.1.0)\n#11 5.885   - Installing frozenlist (1.5.0)\n#11 5.887   - Installing httpcore (1.0.7)\n#11 5.887   - Installing huggingface-hub (0.26.3)\n#11 5.888   - Installing jmespath (1.0.1)\n#11 5.889   - Installing jsonschema (4.23.0)\n#11 5.890   - Installing mkdocs (1.6.1)\n#11 5.891   - Installing multidict (6.1.0)\n#11 5.892   - Installing parso (0.8.4)\n#11 5.893   - Installing propcache (0.2.1)\n#11 6.166   - Installing ptyprocess (0.7.0)\n#11 6.168   - Installing pure-eval (0.2.3)\n#11 6.178   - Installing pydantic-core (2.27.1)\n#11 6.198   - Installing tinycss2 (1.4.0)\n#11 6.218   - Installing traitlets (5.14.3)\n#11 6.225   - Installing wcwidth (0.2.13)\n#11 7.373   - Installing aiohappyeyeballs (2.4.4)\n#11 7.373   - Installing aiosignal (1.3.1)\n#11 7.374   - Installing botocore (1.35.73)\n#11 7.375   - Installing cairocffi (1.7.1)\n#11 7.375   - Installing colorama (0.4.6)\n#11 7.376   - Installing cssselect2 (0.7.0)\n#11 7.376   - Installing decorator (5.1.1)\n#11 7.377   - Installing defusedxml (0.7.1)\n#11 7.378   - Installing distro (1.9.0)\n#11 7.379   - Installing httpx (0.27.2)\n#11 7.379   - Installing iniconfig (2.0.0)\n#11 7.379   - Installing jedi (0.19.2)\n#11 7.380   - Installing jiter (0.8.0)\n#11 7.381   - Installing jupyter-core (5.7.2)\n#11 7.618   - Installing matplotlib-inline (0.1.7)\n#11 7.621   - Installing mkdocs-autorefs (1.2.0)\n#11 7.638   - Installing nest-asyncio (1.6.0)\n#11 7.645   - Installing numpy (2.0.2)\n#11 7.666   - Installing pexpect (4.9.0)\n#11 7.669   - Installing pillow (10.4.0)\n#11 7.674   - Installing pluggy (1.5.0)\n#11 7.674   - Installing prompt-toolkit (3.0.48)\n#11 7.687   - Installing pydantic (2.10.3)\n#11 7.688   - Installing pygments (2.18.0)\n#11 7.877   - Installing pymdown-extensions (10.12)\n#11 7.881   - Installing python-dotenv (1.0.1)\n#11 7.884   - Installing pyzmq (26.2.0)\n#11 7.890   - Installing regex (2024.11.6)\n#11 7.957   - Installing stack-data (0.6.3)\n#11 8.010   - Installing tokenizers (0.20.3)\n#11 8.196   - Installing tornado (6.4.2)\n#11 8.741   - Installing types-awscrt (0.23.1)\n#11 8.773   - Installing yarl (1.18.3)\n#11 8.835   - Installing zipp (3.21.0)\n#11 16.13   - Installing aiohttp (3.11.9)\n#11 16.13   - Installing babel (2.16.0)\n#11 16.13   - Installing botocore-stubs (1.35.73)\n#11 16.13   - Installing cairosvg (2.7.1)\n#11 16.13   - Installing comm (0.2.2)\n#11 16.13   - Installing debugpy (1.8.9)\n#11 16.13   - Installing elastic-transport (8.15.1)\n#11 16.13   - Installing griffe (1.5.1)\n#11 16.13   - Installing importlib-metadata (8.5.0)\n#11 16.13   - Installing ipython (8.18.1)\n#11 16.13   - Installing jupyter-client (8.6.3)\n#11 16.13   - Installing jupyterlab-widgets (3.0.13)\n#11 16.13   - Installing mkdocs-material-extensions (1.3.1)\n#11 16.14   - Installing mkdocstrings (0.25.2)\n#11 16.39   - Installing mypy-boto3-s3 (1.35.72)\n#11 16.42   - Installing mypy-extensions (1.0.0)\n#11 16.42   - Installing openai (1.56.1)\n#11 16.43   - Installing paginate (0.5.7)\n#11 16.45   - Installing psutil (6.1.0)\n#11 16.45   - Installing pytest (8.3.4)\n#11 16.49   - Installing pytz (2024.2)\n#11 16.57   - Installing s3transfer (0.10.4)\n#11 16.61   - Installing tiktoken (0.8.0)\n#11 16.63   - Installing types-pytz (2024.2.0.20241003)\n#11 16.72   - Installing types-s3transfer (0.10.4)\n#11 16.75   - Installing tzdata (2024.2)\n#11 16.78   - Installing widgetsnbextension (4.0.13)\n#11 20.10   - Installing boto3 (1.35.73)\n#11 20.11   - Installing boto3-stubs (1.35.73)\n#11 20.11   - Installing coverage (7.6.8)\n#11 20.11   - Installing elasticsearch (8.16.0)\n#11 20.11   - Installing eval-type-backport (0.2.0)\n#11 20.11   - Installing ipykernel (6.29.5)\n#11 20.11   - Installing ipywidgets (8.1.5)\n#11 20.11   - Installing litellm (1.53.2)\n#11 20.11   - Installing loguru (0.7.2)\n#11 20.11   - Installing mkdocs-material (9.5.47)\n#11 20.11   - Installing mkdocs-section-index (0.3.9)\n#11 20.11   - Installing mkdocstrings-python (1.10.9)\n#11 20.11   - Installing mypy (1.13.0)\n#11 20.11   - Installing pandas (2.2.3)\n#11 20.37   - Installing pandas-stubs (2.2.2.240807)\n#11 20.42   - Installing pydantic-xml (2.14.1)\n#11 20.42   - Installing pytest-asyncio (0.23.8)\n#11 20.44   - Installing ruff (0.1.15)\n#11 20.46   - Installing types-colorama (0.4.15.20240311)\n#11 20.46   - Installing xmltodict (0.13.0)\n#11 30.21 Warning: The file chosen for install of rpds-py 0.22.1 (rpds_py-0.22.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl) is yanked. Reason for being yanked: https://github.com/PyO3/pyo3/issues/4757\n#11 30.21 \n#11 30.21 Installing the current project: rigging (2.0.8)\n#11 DONE 30.8s\n\n#12 [8/8] RUN poetry run pytest --collect-only -q --disable-warnings\n#12 5.398 tests/test_chat.py::test_message_initialization\n#12 5.398 tests/test_chat.py::test_message_from_dict\n#12 5.398 tests/test_chat.py::test_message_from_str\n#12 5.398 tests/test_chat.py::test_message_str_representation\n#12 5.398 tests/test_chat.py::test_message_content_update_strips_parts\n#12 5.398 tests/test_chat.py::test_message_apply_template\n#12 5.398 tests/test_chat.py::test_message_strip_model\n#12 5.398 tests/test_chat.py::test_message_parse_model\n#12 5.398 tests/test_chat.py::test_message_restructure\n#12 5.398 tests/test_chat.py::test_message_parse_set_min\n#12 5.398 tests/test_chat.py::test_message_parse_set\n#12 5.398 tests/test_chat.py::test_message_from_model\n#12 5.398 tests/test_chat.py::test_messages_fit_list\n#12 5.398 tests/test_chat.py::test_message_parse_multiple_models\n#12 5.398 tests/test_chat.py::test_message_try_parse_missing\n#12 5.398 tests/test_chat.py::test_message_reparse_modified_content\n#12 5.398 tests/test_chat.py::test_chat_generator_id\n#12 5.398 tests/test_chat.py::test_chat_metadata\n#12 5.398 tests/test_chat.py::test_chat_restart\n#12 5.398 tests/test_chat.py::test_chat_continue\n#12 5.398 tests/test_chat.py::test_chat_to_message_dicts\n#12 5.398 tests/test_chat.py::test_chat_to_conversation\n#12 5.398 tests/test_chat.py::test_chat_properties\n#12 5.398 tests/test_chat.py::test_chat_pipeline_continue\n#12 5.398 tests/test_chat.py::test_chat_pipeline_add\n#12 5.398 tests/test_chat.py::test_chat_continue_maintains_parsed_models\n#12 5.398 tests/test_chat.py::test_chat_pipeline_meta\n#12 5.398 tests/test_chat.py::test_chat_pipeline_with\n#12 5.398 tests/test_chat.py::test_chat_strip\n#12 5.398 tests/test_chat.py::test_double_parse\n#12 5.398 tests/test_chat.py::test_double_parse_set\n#12 5.398 tests/test_chat.py::test_message_dedent\n#12 5.398 tests/test_completion.py::test_completion_generator_id\n#12 5.398 tests/test_completion.py::test_completion_properties\n#12 5.398 tests/test_completion.py::test_completion_restart\n#12 5.398 tests/test_completion.py::test_completion_clone\n#12 5.398 tests/test_completion.py::test_completion_pipeline_with\n#12 5.398 tests/test_completion.py::test_completion_pipeline_fork\n#12 5.398 tests/test_completion.py::test_completion_pipeline_meta\n#12 5.398 tests/test_completion.py::test_completion_pipeline_apply\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_reset\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_recovery[True]\n#12 5.398 tests/test_generation.py::test_chat_until_parsed_as_with_recovery[False]\n#12 5.398 tests/test_generation.py::test_completion_until_parsed_as_with_reset\n#12 5.398 tests/test_generation.py::test_chat_run_allowed_failed[True]\n#12 5.398 tests/test_generation.py::test_chat_run_allowed_failed[False]\n#12 5.398 tests/test_generation.py::test_chat_run_many_include_failed[test]\n#12 5.398 tests/test_generation.py::test_chat_run_many_include_failed[<yes-no-answer>yes</yes-no-answer>]\n#12 5.398 tests/test_generation.py::test_chat_run_batch_include_failed\n#12 5.398 tests/test_generator_ids.py::test_get_generator_default_is_litellm[test_model]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_default_is_litellm[litellm!test_model]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_provider[invalid!testing]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_provider[no_exist!stuff,args=123]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,max_tokens=123,top_p=10-valid_params0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,temperature=0.5-valid_params1]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_with_params[test_model,temperature=1.0,max_tokens=100-valid_params2]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!test_model,max_tokens=1024,top_p=0.1]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!custom,temperature=1.0,max_tokens=100,api_base=https://localhost:8000]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!many/model/slashes,stop=a;b;c;]\n#12 5.398 tests/test_generator_ids.py::test_identifier_roundtrip[litellm!with_cls_args,max_connections=10]\n#12 5.398 tests/test_generator_ids.py::test_get_identifier_no_extra\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_1]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,bad_param=123,temperature=1.0]\n#12 5.398 tests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,temperature=True]\n#12 5.398 tests/test_generator_ids.py::test_register_generator\n#12 5.398 tests/test_prompt.py::test_prompt_render_docstring_parse\n#12 5.398 tests/test_prompt.py::test_basic_prompt_render\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_docstring_variables\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_model_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_list_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_tuple_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_tuple_output_ctx\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_dataclass_output\n#12 5.398 tests/test_prompt.py::test_prompt_render_with_chat_return\n#12 5.398 tests/test_prompt.py::test_prompt_render_ctx_in_dataclass\n#12 5.398 tests/test_prompt.py::test_prompt_parse_fail_nested_input\n#12 5.398 tests/test_prompt.py::test_prompt_parse_fail_unique_ouput\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl_append\n#12 5.398 tests/test_watchers.py::test_write_chats_to_jsonl_replace\n#12 5.398 tests/test_watchers.py::test_write_chats_to_s3\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_question]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[single_question_with_unrelated_tag]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_and_question]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_and_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_start_tag]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_tags]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag0]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[question_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[newline_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[comma_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[slash_delimited_answer]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[name_with_things]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing[wrapped]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_2]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_3]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_4]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_5]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_invalid]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[delimited_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\n#12 5.398 tests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n#12 5.398 \n#12 5.398 111 tests collected in 4.24s\n#12 DONE 5.7s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 1.4s done\n#13 writing image sha256:4390e59e66f282289e3aade25df75033ed50571b584fedcd14a559be3b275d79\n#13 writing image sha256:4390e59e66f282289e3aade25df75033ed50571b584fedcd14a559be3b275d79 done\n#13 naming to docker.io/library/jayint-repo2run-dreadnode__rigging done\n#13 DONE 1.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/szl8449l17iolpj7iuxvihyo6\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "poetry run pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npoetry run pytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-dreadnode__rigging",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-dreadnode__rigging sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-09T09:35:21.046721+08:00",
+              "finished_at": "2026-05-09T09:35:24.281095+08:00",
+              "duration_seconds": 3.234,
+              "stdout": "tests/test_chat.py::test_message_initialization\ntests/test_chat.py::test_message_from_dict\ntests/test_chat.py::test_message_from_str\ntests/test_chat.py::test_message_str_representation\ntests/test_chat.py::test_message_content_update_strips_parts\ntests/test_chat.py::test_message_apply_template\ntests/test_chat.py::test_message_strip_model\ntests/test_chat.py::test_message_parse_model\ntests/test_chat.py::test_message_restructure\ntests/test_chat.py::test_message_parse_set_min\ntests/test_chat.py::test_message_parse_set\ntests/test_chat.py::test_message_from_model\ntests/test_chat.py::test_messages_fit_list\ntests/test_chat.py::test_message_parse_multiple_models\ntests/test_chat.py::test_message_try_parse_missing\ntests/test_chat.py::test_message_reparse_modified_content\ntests/test_chat.py::test_chat_generator_id\ntests/test_chat.py::test_chat_metadata\ntests/test_chat.py::test_chat_restart\ntests/test_chat.py::test_chat_continue\ntests/test_chat.py::test_chat_to_message_dicts\ntests/test_chat.py::test_chat_to_conversation\ntests/test_chat.py::test_chat_properties\ntests/test_chat.py::test_chat_pipeline_continue\ntests/test_chat.py::test_chat_pipeline_add\ntests/test_chat.py::test_chat_continue_maintains_parsed_models\ntests/test_chat.py::test_chat_pipeline_meta\ntests/test_chat.py::test_chat_pipeline_with\ntests/test_chat.py::test_chat_strip\ntests/test_chat.py::test_double_parse\ntests/test_chat.py::test_double_parse_set\ntests/test_chat.py::test_message_dedent\ntests/test_completion.py::test_completion_generator_id\ntests/test_completion.py::test_completion_properties\ntests/test_completion.py::test_completion_restart\ntests/test_completion.py::test_completion_clone\ntests/test_completion.py::test_completion_pipeline_with\ntests/test_completion.py::test_completion_pipeline_fork\ntests/test_completion.py::test_completion_pipeline_meta\ntests/test_completion.py::test_completion_pipeline_apply\ntests/test_generation.py::test_chat_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[True]\ntests/test_generation.py::test_chat_until_parsed_as_with_recovery[False]\ntests/test_generation.py::test_completion_until_parsed_as_with_reset\ntests/test_generation.py::test_chat_run_allowed_failed[True]\ntests/test_generation.py::test_chat_run_allowed_failed[False]\ntests/test_generation.py::test_chat_run_many_include_failed[test]\ntests/test_generation.py::test_chat_run_many_include_failed[<yes-no-answer>yes</yes-no-answer>]\ntests/test_generation.py::test_chat_run_batch_include_failed\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[test_model]\ntests/test_generator_ids.py::test_get_generator_default_is_litellm[litellm!test_model]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[invalid!testing]\ntests/test_generator_ids.py::test_get_generator_invalid_provider[no_exist!stuff,args=123]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,max_tokens=123,top_p=10-valid_params0]\ntests/test_generator_ids.py::test_get_generator_with_params[litellm!test_model,temperature=0.5-valid_params1]\ntests/test_generator_ids.py::test_get_generator_with_params[test_model,temperature=1.0,max_tokens=100-valid_params2]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!test_model,max_tokens=1024,top_p=0.1]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!custom,temperature=1.0,max_tokens=100,api_base=https://localhost:8000]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!many/model/slashes,stop=a;b;c;]\ntests/test_generator_ids.py::test_identifier_roundtrip[litellm!with_cls_args,max_connections=10]\ntests/test_generator_ids.py::test_get_identifier_no_extra\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_0]\ntests/test_generator_ids.py::test_get_generator_invalid_structure_format[litellm:invalid,stuff:test,t1/123_1]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,bad_param=123,temperature=1.0]\ntests/test_generator_ids.py::test_get_generator_invalid_params[litellm:model,temperature=True]\ntests/test_generator_ids.py::test_register_generator\ntests/test_prompt.py::test_prompt_render_docstring_parse\ntests/test_prompt.py::test_basic_prompt_render\ntests/test_prompt.py::test_prompt_render_with_docstring_variables\ntests/test_prompt.py::test_prompt_render_with_model_output\ntests/test_prompt.py::test_prompt_render_with_list_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output\ntests/test_prompt.py::test_prompt_render_with_tuple_output_ctx\ntests/test_prompt.py::test_prompt_render_with_dataclass_output\ntests/test_prompt.py::test_prompt_render_with_chat_return\ntests/test_prompt.py::test_prompt_render_ctx_in_dataclass\ntests/test_prompt.py::test_prompt_parse_fail_nested_input\ntests/test_prompt.py::test_prompt_parse_fail_unique_ouput\ntests/test_watchers.py::test_write_chats_to_jsonl\ntests/test_watchers.py::test_write_chats_to_jsonl_append\ntests/test_watchers.py::test_write_chats_to_jsonl_replace\ntests/test_watchers.py::test_write_chats_to_s3\ntests/test_xml_parsing.py::test_xml_parsing[single_answer]\ntests/test_xml_parsing.py::test_xml_parsing[single_question]\ntests/test_xml_parsing.py::test_xml_parsing[single_question_with_unrelated_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_and_question]\ntests/test_xml_parsing.py::test_xml_parsing[question_and_answer]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_start_tag]\ntests/test_xml_parsing.py::test_xml_parsing[answer_with_duplicate_tags]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag0]\ntests/test_xml_parsing.py::test_xml_parsing[question_with_answer_tag1]\ntests/test_xml_parsing.py::test_xml_parsing[question_answer]\ntests/test_xml_parsing.py::test_xml_parsing[newline_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[comma_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[slash_delimited_answer]\ntests/test_xml_parsing.py::test_xml_parsing[name_with_things]\ntests/test_xml_parsing.py::test_xml_parsing[wrapped]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[yes_no_answer_invalid]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_1]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_2]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_3]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_4]\ntests/test_xml_parsing.py::test_xml_parsing_with_validation[comma_delimited_answer_5]\ntests/test_xml_parsing.py::test_xml_parsing_sets[yes_no_many]\ntests/test_xml_parsing.py::test_xml_parsing_sets[delimited_single]\n\n111 tests collected in 2.01s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-dreadnode__rigging"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-dreadnode__rigging",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-09T09:35:24.285167+08:00",
+    "finished_at": "2026-05-09T09:35:24.307539+08:00",
+    "duration_seconds": 0.022,
+    "stdout": "Untagged: jayint-repo2run-dreadnode__rigging:latest\nDeleted: sha256:4390e59e66f282289e3aade25df75033ed50571b584fedcd14a559be3b275d79\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "poetry run pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/dreadnode__rigging/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

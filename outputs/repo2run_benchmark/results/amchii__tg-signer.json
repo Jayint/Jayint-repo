@@ -1,0 +1,484 @@
+{
+  "dataset_entry": {
+    "instance_id": "amchii__tg-signer",
+    "full_name": "amchii/tg-signer",
+    "repo_url": "https://github.com/amchii/tg-signer.git",
+    "sha": "926dbb",
+    "base_commit": "926dbb",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/amchii/tg-signer.git",
+      "--base-commit",
+      "926dbb",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "200",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/amchii/tg-signer.git --base-commit 926dbb --image auto --model MiniMax-M2.7-highspeed --steps 200 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-26T08:23:23.982889+08:00",
+    "finished_at": "2026-04-26T08:26:40.788984+08:00",
+    "duration_seconds": 196.806,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer...\nCloning https://github.com/amchii/tg-signer.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer...\nClone successful.\nChecked out commit: 926dbb\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 12 potentially relevant files\n[ImageSelector]   ✓ setup.cfg\n[ImageSelector]   ✗ setup.py\n[ImageSelector]   ✗ README_EN.md\n[ImageSelector]   ✓ tox.ini\n[ImageSelector]   ✓ .github/workflows/publish.yml\n[ImageSelector]   ✓ dev-requirements.txt\n[ImageSelector]   ✗ docker/README.md\n[ImageSelector]   ✓ docker/Dockerfile\n[ImageSelector]   ✗ README.md\n[ImageSelector]   ✓ .github/workflows/test.yml\n[ImageSelector]   ✓ requirements.txt\n[ImageSelector]   ✓ docker/CN.Dockerfile\n[ImageSelector] 8 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project includes C extensions (tgcrypto, pyaes via kurirogram). While the official Python image includes pre-compiled wheels for most architectures, if you encounter issues on ARM64 (Apple Silicon), you may need to install build tools (gcc) and compile from source, or use the `linux/amd64` platform for testing.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:81962\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/logs/compression_logs\nStarting agent for repository: https://github.com/amchii/tg-signer.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 1920, Output: 134, Total: 2054\n\n[Thought]\nLet me first examine the dependency and setup files to understand what this project needs.\n\n[Action]\ncat requirements.txt dev-requirements.txt setup.py setup.cfg 2>/dev/null | head -100\n[Container ID: 294de9fb3608]\nExecuting: cat requirements.txt dev-requirements.txt setup.py setup.cfg 2>/dev/null | head -100\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n#\n# This file is autogenerated by pip-compile with Python 3.10\n# by the following command:\n#\n#    pip-compile\n#\n--index-url https://mirrors.aliyun.com/pypi/simple/\n\nannotated-types==0.7.0\n    # via pydantic\nclick==8.1.7\n    # via tg-signer (setup.py)\nkurirogram==2.1.32\n    # via tg-signer (setup.py)\npyaes==1.6.1\n    # via kurirogram\npydantic==2.9.2\n    # via tg-signer (setup.py)\npydantic-core==2.23.4\n    # via pydantic\npysocks==1.7.1\n    # via kurirogram\ntyping-extensions==4.12.2\n    # via\n    #   pydantic\n    #   pydantic-core\npytest\nfrom setuptools import setup\n\nsetup()\n[metadata]\nname = tg-signer\nurl = https://github.com/amchii/tg-signer\nversion = attr: tg_signer.__version__\nproject_urls =\n    Source = https://github.com/amchii/tg-signer\nauthor = Amchii\nauthor_email = finethankuandyou@gmail.com\nlicense = BSD 3-Clause License\ndescription = Telegram signer\nlong_description = file: README.md\nlong_description_content_type = text/markdown\nclassifiers =\n    Intended Audience :: Developers\n    License :: OSI Approved :: BSD License\n    Programming Language :: Python :: 3 :: Only\n\n[options]\npython_requires = >=3.8\ninclude_package_data = True\npackages = find:\ninstall_requires =\n    kurirogram\n    click\n    pydantic\n\n[options.extras_require]\ntgcrypto =\n    tgcrypto\nspeedup =\n    tgcrypto\n\n[options.entry_points]\nconsole_scripts =\n    tg-signer = tg_signer.__main__:signer\n\n[flake8]\nignore = E203, E266, E402, E501, W503, W504, B950, F405, F403, C901\nmax-complexity = 50\nselect = B,C,E,F,W\n\n[isort]\nprofile = black\nskip = migrations\ncombine_as_imports = True\ninclude_trailing_comma = True\nmulti_line_output = 3\n\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2478, Output: 73, Total: 2551\n\n[Thought]\nLet me check the test files and the project's README to understand the testing setup and any special requirements.\n\n[Action]\ncat tests/test_config.py tg_signer/__init__.py 2>/dev/null | head -60\n[Container ID: 294de9fb3608]\nExecuting: cat tests/test_config.py tg_signer/__init__.py 2>/dev/null | head -60\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\nfrom unittest.mock import MagicMock\n\nimport pytest\n\nfrom tg_signer.config import MatchConfig\n\n\nclass TestMatchConfig:\n\n    @pytest.mark.parametrize(\n        \"chat_id, rule, rule_value, from_user_ids, message_from_user, expected\",\n        [\n            (123, \"exact\", \"test\", [456], {\"id\": 456}, True),\n            (123, \"exact\", \"test\", [\"@username\"], {\"username\": \"username\"}, True),\n            (123, \"exact\", \"test\", None, {\"id\": 789}, True),\n            (123, \"exact\", \"test\", [456], {\"id\": 789}, False),\n            (123, \"exact\", \"test\", [\"@Username\"], {\"username\": \"username\"}, True),\n            (123, \"exact\", \"test\", [\"@username\"], {\"username\": \"wrongusername\"}, False),\n            (123, \"exact\", \"test\", [\"me\"], {\"is_self\": True}, True),\n        ],\n    )\n    def test_match_user(\n        self, chat_id, rule, rule_value, from_user_ids, message_from_user, expected\n    ):\n        config = MatchConfig(\n            chat_id=chat_id,\n            rule=rule,\n            rule_value=rule_value,\n            from_user_ids=from_user_ids,\n        )\n        message = MagicMock()\n        message.from_user = MagicMock(**message_from_user)\n        assert config.match_user(message) == expected\n\n    # 测试用例集\n    @pytest.mark.parametrize(\n        \"rule, rule_value, text, ignore_case, expected\",\n        [\n            # Exact matching\n            (\"exact\", \"hello\", \"hello\", False, True),\n            (\"exact\", \"hello\", \"hello\", True, True),\n            (\"exact\", \"hello\", \"world\", False, False),\n            # Contains matching\n            (\"contains\", \"hello\", \"hello world\", False, True),\n            (\"contains\", \"hello\", \"world hello\", False, True),\n            (\"contains\", \"hello\", \"world\", False, False),\n            # Regex matching\n            (\"regex\", r\"\\bhello\\b\", \"hello world\", False, True),\n            (\"regex\", r\"\\bhello\\b\", \"world hello\", False, True),\n            (\"regex\", r\"\\bhello\\b\", \"world\", False, False),\n            # Case insensitivity\n            (\"exact\", \"hello\", \"HELLO\", True, True),\n            (\"contains\", \"hello\", \"HELLO WORLD\", True, True),\n            (\"regex\", r\"\\bhello\\b\", \"HELLO WORLD\", True, True),\n        ],\n    )\n    def test_match_text(self, rule, rule_value, text, ignore_case, expected):\n        # 构建 MatchConfig 实例\n        config = MatchConfig(rule=rule, rule_value=rule_value, ignore_case=ignore_case)\n        # 进行匹配测试\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 3128, Output: 140, Total: 3268\n\n[Thought]\nLet me check the main package to understand its structure and dependencies better.\n\n[Action]\ncat tg_signer/__init__.py tg_signer/config.py 2>/dev/null | head -80\n[Container ID: 294de9fb3608]\nExecuting: cat tg_signer/__init__.py tg_signer/config.py 2>/dev/null | head -80\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n__version__ = \"0.4.3\"\nimport re\nfrom datetime import time\nfrom functools import cached_property\nfrom typing import ClassVar, List, Literal, Optional, Tuple, Type, Union\n\nfrom pydantic import BaseModel, ValidationError\nfrom pyrogram.types import Message\nfrom typing_extensions import Self, TypeAlias\n\n\nclass BaseJSONConfig(BaseModel):\n    version: ClassVar[str] = 0\n    olds: ClassVar[Optional[List[Type[\"BaseJSONConfig\"]]]] = None\n    is_current: ClassVar[bool] = False\n\n    @classmethod\n    def valid(cls, d):\n        try:\n            instance = cls.model_validate(d)\n        except (ValidationError, TypeError):\n            return\n        return instance\n\n    def to_jsonable(self):\n        return self.model_dump(mode=\"json\")\n\n    @classmethod\n    def to_current(cls, obj: Self):\n        return obj\n\n    @classmethod\n    def load(cls, d: dict) -> Tuple[Self, bool]:\n        if instance := cls.valid(d):\n            return instance, False\n        for old in cls.olds or []:\n            if old_inst := old.valid(d):\n                return old.to_current(old_inst), True\n\n\nclass SignConfigV1(BaseJSONConfig):\n    version = 1\n\n    chat_id: int\n    sign_text: str\n    sign_at: time\n    random_seconds: int\n\n    @classmethod\n    def to_current(cls, obj):\n        return SignConfig(\n            chats=[\n                SignChat(\n                    chat_id=obj.chat_id,\n                    sign_text=obj.sign_text,\n                    delete_after=None,\n                )\n            ],\n            sign_at=obj.sign_at,\n            random_seconds=obj.random_seconds,\n        )\n\n\nclass SignChat(BaseJSONConfig):\n    chat_id: int\n    sign_text: str\n    delete_after: Optional[int] = None\n\n\nclass SignConfigV2(BaseJSONConfig):\n    version: ClassVar = 2\n    olds: ClassVar = [SignConfigV1]\n    is_current: ClassVar = True\n\n    chats: List[SignChat]\n    sign_at: time\n    random_seconds: int\n\n\nSignConfig = SignConfigV2\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 3634, Output: 109, Total: 3743\n\n[Thought]\nThe project uses `pyrogram` (seen in the Message type hint). Let me check if there are any additional dependencies or if pyrogram is installed as part of kurirogram.\n\n[Action]\npip show kurirogram 2>/dev/null | head -20 || echo \"kurirogram not installed yet\"\n[Container ID: 294de9fb3608]\nExecuting: pip show kurirogram 2>/dev/null | head -20 || echo \"kurirogram not installed yet\"\nCommand succeeded.\n[Snapshot Created] sha256:498b8\n\n[Observation]\n(No output)\n\n==================== Step 5 ====================\n\n[Tokens] Input: 3712, Output: 66, Total: 3778\n\n[Thought]\nLet me install the project dependencies from the requirements file and dev requirements to set up the environment.\n\n[Action]\npip install -e . pytest 2>&1 | tail -20\n[Container ID: 294de9fb3608]\nExecuting: pip install -e . pytest 2>&1 | tail -20\nCommand succeeded.\n[Snapshot Created] sha256:f23e7\n\n[Observation]\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 5.6 MB/s eta 0:00:00\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nBuilding wheels for collected packages: tg-signer, pyaes\n  Building editable for tg-signer (pyproject.toml): started\n  Building editable for tg-signer (pyproject.toml): finished with status 'done'\n  Created wheel for tg-signer: filename=tg_signer-0.4.3-0.editable-py3-none-any.whl size=7724 sha256=e7eddea34e2096dc1b06fbd10fb7050ccc0996d50bac687b3dde851f3c4dc54c\n  Stored in directory: /tmp/pip-ephem-wheel-cache-s20s09hq/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n  Building wheel for pyaes (pyproject.toml): started\n  Building wheel for pyaes (pyproject.toml): finished with status 'done'\n  Created wheel for pyaes: filename=pyaes-1.6.1-py3-none-any.whl size=26422 sha256=621cbddef486e593d060d290042cb916d9080247ec6b78568a296593293d2a12\n  Stored in directory: /root/.cache/pip/wheels/d9/43/32/ec313dd557e88e419489b9df40c04dad7b99576bde162496f8\nSuccessfully built tg-signer pyaes\nInstalling collected packages: pyaes, typing-extensions, pysocks, pygments, pluggy, packaging, iniconfig, click, annotated-types, typing-inspection, pytest, pydantic-core, kurirogram, pydantic, tg-signer\nSuccessfully installed annotated-types-0.7.0 click-8.3.3 iniconfig-2.3.0 kurirogram-2.2.1 packaging-26.2 pluggy-1.6.0 pyaes-1.6.1 pydantic-2.13.3 pydantic-core-2.46.3 pygments-2.20.0 pysocks-1.7.1 pytest-9.0.3 tg-signer-0.4.3 typing-extensions-4.15.0 typing-inspection-0.4.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 4481, Output: 60, Total: 4541\n\n[Thought]\nDependencies installed successfully. Now let me run pytest collection to verify the tests can be collected.\n\n[Action]\npytest --collect-only -q --disable-warnings 2>&1\n[Container ID: 294de9fb3608]\nExecuting: pytest --collect-only -q --disable-warnings 2>&1\nCommand succeeded.\n[Snapshot Created] sha256:12db5\n\n[Observation]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids0-message_from_user0-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids1-message_from_user1-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-None-message_from_user2-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids3-message_from_user3-False]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids4-message_from_user4-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids5-message_from_user5-False]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids6-message_from_user6-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-hello-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-hello world-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-world hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-hello world-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-world hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-HELLO-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-HELLO WORLD-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-HELLO WORLD-True-True]\ntests/test_config.py::TestMatchConfig::test_get_send_text_default\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello world-world]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello-default text]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello 123-123]\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_match\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_capture_group\n\n25 tests collected in 0.54s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings 2>&1\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 5157, Output: 89, Total: 5246\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. All 25 tests were collected successfully. The environment is properly configured.\n\nLet me provide the final answer with the verification bundle.\n</think>\n\nThought: The pytest collection succeeded with all 25 tests collected. The environment is properly set up with all dependencies installed.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/amchii__tg-signer.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/amchii/tg-signer.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings 2>&1"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat requirements.txt dev-requirements.txt setup.py setup.cfg 2>/dev/null | head -100",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "#\n# This file is autogenerated by pip-compile with Python 3.10\n# by the following command:\n#\n#    pip-compile\n#\n--index-url https://mirrors.aliyun.com/pypi/simple/\n\nannotated-types==0.7.0\n    # via pydantic\nclick==8.1.7\n    # via tg-signer (setup.py)\nkurirogram==2.1.32\n    # via tg-signer (setup.py)\npyaes==1.6.1\n    # via kurirogram\npydantic==2.9.2\n    # via tg-signer (setup.py)\npydantic-core==2.23.4\n    # via pydantic\npysocks==1.7.1\n    # via kurirogram\ntyping-extensions==4.12.2\n    # via\n    #   pydantic\n    #   pydantic-core\npytest\nfrom setuptools import setup\n\nsetup()\n[metadata]\nname = tg-\n... (424 chars omitted for recipe synthesis) ...\noved :: BSD License\n    Programming Language :: Python :: 3 :: Only\n\n[options]\npython_requires = >=3.8\ninclude_package_data = True\npackages = find:\ninstall_requires =\n    kurirogram\n    click\n    pydantic\n\n[options.extras_require]\ntgcrypto =\n    tgcrypto\nspeedup =\n    tgcrypto\n\n[options.entry_points]\nconsole_scripts =\n    tg-signer = tg_signer.__main__:signer\n\n[flake8]\nignore = E203, E266, E402, E501, W503, W504, B950, F405, F403, C901\nmax-complexity = 50\nselect = B,C,E,F,W\n\n[isort]\nprofile = black\nskip = migrations\ncombine_as_imports = True\ninclude_trailing_comma = True\nmulti_line_output = 3\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat tests/test_config.py tg_signer/__init__.py 2>/dev/null | head -60",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "from unittest.mock import MagicMock\n\nimport pytest\n\nfrom tg_signer.config import MatchConfig\n\n\nclass TestMatchConfig:\n\n    @pytest.mark.parametrize(\n        \"chat_id, rule, rule_value, from_user_ids, message_from_user, expected\",\n        [\n            (123, \"exact\", \"test\", [456], {\"id\": 456}, True),\n            (123, \"exact\", \"test\", [\"@username\"], {\"username\": \"username\"}, True),\n            (123, \"exact\", \"test\", None, {\"id\": 789}, True),\n            (123, \"exact\", \"test\", [456], {\"id\": 789}, False),\n            (123, \"exact\", \"test\", [\"@Username\"], {\"username\": \"username\"}, True),\n        \n... (1170 chars omitted for recipe synthesis) ...\no\\b\", \"hello world\", False, True),\n            (\"regex\", r\"\\bhello\\b\", \"world hello\", False, True),\n            (\"regex\", r\"\\bhello\\b\", \"world\", False, False),\n            # Case insensitivity\n            (\"exact\", \"hello\", \"HELLO\", True, True),\n            (\"contains\", \"hello\", \"HELLO WORLD\", True, True),\n            (\"regex\", r\"\\bhello\\b\", \"HELLO WORLD\", True, True),\n        ],\n    )\n    def test_match_text(self, rule, rule_value, text, ignore_case, expected):\n        # 构建 MatchConfig 实例\n        config = MatchConfig(rule=rule, rule_value=rule_value, ignore_case=ignore_case)\n        # 进行匹配测试\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat tg_signer/__init__.py tg_signer/config.py 2>/dev/null | head -80",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "__version__ = \"0.4.3\"\nimport re\nfrom datetime import time\nfrom functools import cached_property\nfrom typing import ClassVar, List, Literal, Optional, Tuple, Type, Union\n\nfrom pydantic import BaseModel, ValidationError\nfrom pyrogram.types import Message\nfrom typing_extensions import Self, TypeAlias\n\n\nclass BaseJSONConfig(BaseModel):\n    version: ClassVar[str] = 0\n    olds: ClassVar[Optional[List[Type[\"BaseJSONConfig\"]]]] = None\n    is_current: ClassVar[bool] = False\n\n    @classmethod\n    def valid(cls, d):\n        try:\n            instance = cls.model_validate(d)\n        except (ValidationError\n... (711 chars omitted for recipe synthesis) ...\n    SignChat(\n                    chat_id=obj.chat_id,\n                    sign_text=obj.sign_text,\n                    delete_after=None,\n                )\n            ],\n            sign_at=obj.sign_at,\n            random_seconds=obj.random_seconds,\n        )\n\n\nclass SignChat(BaseJSONConfig):\n    chat_id: int\n    sign_text: str\n    delete_after: Optional[int] = None\n\n\nclass SignConfigV2(BaseJSONConfig):\n    version: ClassVar = 2\n    olds: ClassVar = [SignConfigV1]\n    is_current: ClassVar = True\n\n    chats: List[SignChat]\n    sign_at: time\n    random_seconds: int\n\n\nSignConfig = SignConfigV2\n"
+      },
+      {
+        "step_index": 4,
+        "command": "pip show kurirogram 2>/dev/null | head -20 || echo \"kurirogram not installed yet\"",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e . pytest 2>&1 | tail -20",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 5.6 MB/s eta 0:00:00\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nBuilding wheels for collected packages: tg-signer, pyaes\n  Building editable for tg-signer (pyproject.toml): started\n  Building editable for tg-signer (pyproject.toml): finished with status 'done'\n  Created wheel for tg-signer: filename=tg_signer-0.4.3-0.editable-py3-none-any.whl size=7724 sha256=e7eddea34e2096dc1b06fbd10fb7050ccc0996d50bac\n... (919 chars omitted for recipe synthesis) ...\nic-core-2.46.3 pygments-2.20.0 pysocks-1.7.1 pytest-9.0.3 tg-signer-0.4.3 typing-extensions-4.15.0 typing-inspection-0.4.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids0-message_from_user0-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids1-message_from_user1-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-None-message_from_user2-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids3-message_from_user3-False]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids4-message_from_user4-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-\n... (1190 chars omitted for recipe synthesis) ...\nnfig::test_match_text[regex-\\\\bhello\\\\b-HELLO WORLD-True-True]\ntests/test_config.py::TestMatchConfig::test_get_send_text_default\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello world-world]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello-default text]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello 123-123]\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_match\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_capture_group\n\n25 tests collected in 0.54s\n"
+      }
+    ],
+    "failed_actions": [],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e . pytest"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat requirements.txt dev-requirements.txt setup.py setup.cfg 2>/dev/null | head -100 - read-only file inspection, not needed for Docker build",
+          "reason": ""
+        },
+        {
+          "command": "cat tests/test_config.py tg_signer/__init__.py 2>/dev/null | head -60 - read-only file inspection, not needed for Docker build",
+          "reason": ""
+        },
+        {
+          "command": "cat tg_signer/__init__.py tg_signer/config.py 2>/dev/null | head -80 - read-only file inspection, not needed for Docker build",
+          "reason": ""
+        },
+        {
+          "command": "pip show kurirogram 2>/dev/null | head -20 || echo \"kurirogram not installed yet\" - read-only dependency check, not needed for Docker build",
+          "reason": ""
+        },
+        {
+          "command": "2>&1 | tail -20 - output truncation helper, not needed for Dockerfile RUN instructions",
+          "reason": ""
+        }
+      ],
+      "rationale": "Step 5 (pip install -e . pytest) is the only state-changing command that installs all required dependencies: the tg-signer package (v0.4.3) with its runtime dependencies (kurirogram, click, pydantic) plus pytest for test execution. The editable install (-e) ensures the package is importable while allowing development. Step 6 verified 25 tests collected successfully, confirming the environment is complete. All read-only inspection steps (1-4) were exploratory diagnostics that don't contribute persistent state to the image.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 3,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat requirements.txt dev-requirements.txt setup.py setup.cfg 2>/dev/null | head -100",
+        "success": true,
+        "raw_chars": 1624,
+        "raw_tokens_est": 406,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 259,
+        "reflect_input_tokens": 2233,
+        "reflect_output_tokens": 484
+      },
+      {
+        "step_id": 2,
+        "action": "cat tests/test_config.py tg_signer/__init__.py 2>/dev/null | head -60",
+        "success": true,
+        "raw_chars": 2370,
+        "raw_tokens_est": 592,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 35,
+        "reflect_input_tokens": 2271,
+        "reflect_output_tokens": 865
+      },
+      {
+        "step_id": 3,
+        "action": "cat tg_signer/__init__.py tg_signer/config.py 2>/dev/null | head -80",
+        "success": true,
+        "raw_chars": 1911,
+        "raw_tokens_est": 477,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 273,
+        "reflect_input_tokens": 2473,
+        "reflect_output_tokens": 496
+      },
+      {
+        "step_id": 4,
+        "action": "pip show kurirogram 2>/dev/null | head -20 || echo \"kurirogram not installed yet\"",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e . pytest 2>&1 | tail -20",
+        "success": true,
+        "raw_chars": 2119,
+        "raw_tokens_est": 529,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 2390,
+        "raw_tokens_est": 597,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 12559,
+        "output_tokens": 4776,
+        "total_tokens": 17335
+      },
+      "planner": {
+        "input_tokens": 24510,
+        "output_tokens": 671,
+        "total_tokens": 25181
+      },
+      "reflection": {
+        "input_tokens": 6977,
+        "output_tokens": 1845,
+        "total_tokens": 8822
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 8493,
+        "output_tokens": 1274,
+        "total_tokens": 9767
+      },
+      "total": {
+        "input_tokens": 52539,
+        "output_tokens": 8566,
+        "total_tokens": 61105
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-amchii__tg-signer",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/Dockerfile.eval -t jayint-repo2run-amchii__tg-signer /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/amchii__tg-signer",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-26T08:26:40.790934+08:00",
+    "finished_at": "2026-04-26T08:26:54.784520+08:00",
+    "duration_seconds": 13.994,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 863.35kB 0.0s done\n#5 DONE 0.0s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.0s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e . pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.507 Obtaining file:///app\n#10 0.510   Installing build dependencies: started\n#10 2.853   Installing build dependencies: finished with status 'done'\n#10 2.854   Checking if build backend supports build_editable: started\n#10 3.034   Checking if build backend supports build_editable: finished with status 'done'\n#10 3.036   Getting requirements to build editable: started\n#10 3.216   Getting requirements to build editable: finished with status 'done'\n#10 3.217   Preparing editable metadata (pyproject.toml): started\n#10 3.400   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 3.405 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#10 3.407 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#10 3.407 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.1)\n#10 3.407 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#10 3.407 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#10 3.870 Collecting kurirogram (from tg-signer==0.4.3)\n#10 4.246   Downloading kurirogram-2.2.1-py3-none-any.whl.metadata (5.0 kB)\n#10 4.421 Collecting click (from tg-signer==0.4.3)\n#10 4.541   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 4.909 Collecting pydantic (from tg-signer==0.4.3)\n#10 5.023   Downloading pydantic-2.13.3-py3-none-any.whl.metadata (108 kB)\n#10 5.316 Collecting pyaes==1.6.1 (from kurirogram->tg-signer==0.4.3)\n#10 5.432   Downloading pyaes-1.6.1.tar.gz (28 kB)\n#10 5.451   Installing build dependencies: started\n#10 7.663   Installing build dependencies: finished with status 'done'\n#10 7.664   Getting requirements to build wheel: started\n#10 7.843   Getting requirements to build wheel: finished with status 'done'\n#10 7.844   Preparing metadata (pyproject.toml): started\n#10 8.020   Preparing metadata (pyproject.toml): finished with status 'done'\n#10 8.147 Collecting pysocks==1.7.1 (from kurirogram->tg-signer==0.4.3)\n#10 8.269   Downloading PySocks-1.7.1-py3-none-any.whl.metadata (13 kB)\n#10 8.405 Collecting annotated-types>=0.6.0 (from pydantic->tg-signer==0.4.3)\n#10 8.522   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#10 9.148 Collecting pydantic-core==2.46.3 (from pydantic->tg-signer==0.4.3)\n#10 9.261   Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#10 9.263 Requirement already satisfied: typing-extensions>=4.14.1 in /usr/local/lib/python3.12/site-packages (from pydantic->tg-signer==0.4.3) (4.15.0)\n#10 9.387 Collecting typing-inspection>=0.4.2 (from pydantic->tg-signer==0.4.3)\n#10 9.508   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#10 9.621 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 9.773 Downloading kurirogram-2.2.1-py3-none-any.whl (4.8 MB)\n#10 10.44    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 7.8 MB/s eta 0:00:00\n#10 10.56 Downloading PySocks-1.7.1-py3-none-any.whl (16 kB)\n#10 10.68 Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#10 10.79 Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 11.09    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.3 MB/s eta 0:00:00\n#10 11.21 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 11.33 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 11.40 Building wheels for collected packages: tg-signer, pyaes\n#10 11.40   Building editable for tg-signer (pyproject.toml): started\n#10 11.60   Building editable for tg-signer (pyproject.toml): finished with status 'done'\n#10 11.60   Created wheel for tg-signer: filename=tg_signer-0.4.3-0.editable-py3-none-any.whl size=7724 sha256=e03b71be032f6453fe0c3e5173c4c3ad437da481d36b0b1e569455356f39ad41\n#10 11.60   Stored in directory: /tmp/pip-ephem-wheel-cache-tv_qc00e/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#10 11.60   Building wheel for pyaes (pyproject.toml): started\n#10 11.80   Building wheel for pyaes (pyproject.toml): finished with status 'done'\n#10 11.80   Created wheel for pyaes: filename=pyaes-1.6.1-py3-none-any.whl size=26422 sha256=cad2730bab40042ed656f031a7960124264b3f8106e89a5a7945733fae557bd6\n#10 11.80   Stored in directory: /tmp/pip-ephem-wheel-cache-tv_qc00e/wheels/d9/43/32/ec313dd557e88e419489b9df40c04dad7b99576bde162496f8\n#10 11.80 Successfully built tg-signer pyaes\n#10 11.85 Installing collected packages: pyaes, typing-inspection, pysocks, pydantic-core, click, annotated-types, pydantic, kurirogram, tg-signer\n#10 13.12 Successfully installed annotated-types-0.7.0 click-8.3.3 kurirogram-2.2.1 pyaes-1.6.1 pydantic-2.13.3 pydantic-core-2.46.3 pysocks-1.7.1 tg-signer-0.4.3 typing-inspection-0.4.2\n#10 13.12 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 13.3s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.2s done\n#11 writing image sha256:e683d1c1bb8908abaf5a98702becda623a4b0cae67e979df239aaa59ed8e287c done\n#11 naming to docker.io/library/jayint-repo2run-amchii__tg-signer\n#11 naming to docker.io/library/jayint-repo2run-amchii__tg-signer done\n#11 DONE 0.2s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/5yaf4pjywd6anezl0st758495\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-amchii__tg-signer",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-amchii__tg-signer sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-26T08:26:54.791999+08:00",
+          "finished_at": "2026-04-26T08:26:56.115591+08:00",
+          "duration_seconds": 1.324,
+          "stdout": "tests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids0-message_from_user0-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids1-message_from_user1-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-None-message_from_user2-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids3-message_from_user3-False]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids4-message_from_user4-True]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids5-message_from_user5-False]\ntests/test_config.py::TestMatchConfig::test_match_user[123-exact-test-from_user_ids6-message_from_user6-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-hello-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-hello world-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-world hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-hello world-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-world hello-False-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-world-False-False]\ntests/test_config.py::TestMatchConfig::test_match_text[exact-hello-HELLO-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[contains-hello-HELLO WORLD-True-True]\ntests/test_config.py::TestMatchConfig::test_match_text[regex-\\\\bhello\\\\b-HELLO WORLD-True-True]\ntests/test_config.py::TestMatchConfig::test_get_send_text_default\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello world-world]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello-default text]\ntests/test_config.py::TestMatchConfig::test_get_send_text_with_regex[hello (\\\\w+)-hello 123-123]\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_match\ntests/test_config.py::TestMatchConfig::test_get_send_text_no_capture_group\n\n25 tests collected in 0.50s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-amchii__tg-signer"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-amchii__tg-signer",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-26T08:26:56.117705+08:00",
+    "finished_at": "2026-04-26T08:26:56.144418+08:00",
+    "duration_seconds": 0.027,
+    "stdout": "Untagged: jayint-repo2run-amchii__tg-signer:latest\nDeleted: sha256:e683d1c1bb8908abaf5a98702becda623a4b0cae67e979df239aaa59ed8e287c\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/docker_build.stderr.log"
+    },
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/amchii__tg-signer/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

@@ -1,0 +1,660 @@
+{
+  "dataset_entry": {
+    "instance_id": "openai__swarm",
+    "full_name": "openai/swarm",
+    "repo_url": "https://github.com/openai/swarm.git",
+    "sha": "9db581",
+    "base_commit": "9db581",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/openai/swarm.git",
+      "--base-commit",
+      "9db581",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/openai/swarm.git --base-commit 9db581 --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T22:02:14.339376+08:00",
+    "finished_at": "2026-05-17T22:06:47.563006+08:00",
+    "duration_seconds": 273.224,
+    "stdout": "Cloning https://github.com/openai/swarm.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: 9db581\n[DockerAgent] Detected local service dependencies: elasticsearch\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 13 potentially relevant files\n[ImageSelector]   ✓ README.md\n[ImageSelector]   ✓ examples/support_bot/Makefile\n[ImageSelector]   ✓ examples/personal_shopper/README.md\n[ImageSelector]   ✓ setup.cfg\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✗ examples/airline/README.md\n[ImageSelector]   ✗ examples/support_bot/README.md\n[ImageSelector]   ✓ examples/weather_agent/README.md\n[ImageSelector]   ✓ examples/support_bot/requirements.txt\n[ImageSelector]   ✗ examples/triage_agent/README.md\n[ImageSelector]   ✗ SECURITY.md\n[ImageSelector]   ✓ examples/customer_service_streaming/docker-compose.yaml\n[ImageSelector]   ✓ examples/support_bot/docker-compose.yaml\n[ImageSelector] 9 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.10\n[DockerAgent] Selected base image: python:3.10\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/logs/image_selector_logs\nInitializing container from python:3.10...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:aad15\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/logs/compression_logs\nStarting agent for repository: https://github.com/openai/swarm.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 4261, Output: 104, Total: 4365\n\n[Thought]\nLet me first inspect the dependency configuration files to understand the project structure and requirements.\n\n[Action]\ncat openai__swarm/pyproject.toml\n[Container ID: 633d1f5bc01d]\nExecuting: cat openai__swarm/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: openai__swarm/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 4318, Output: 80, Total: 4398\n\n[Thought]\nThe project doesn't have a pyproject.toml. Let me check for setup.py or setup.cfg.\n\n[Action]\ncat openai__swarm/setup.cfg 2>/dev/null || cat openai__swarm/setup.py 2>/dev/null || ls openai__swarm/\n[Container ID: 633d1f5bc01d]\nExecuting: cat openai__swarm/setup.cfg 2>/dev/null || cat openai__swarm/setup.py 2>/dev/null || ls openai__swarm/\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\nls: cannot access 'openai__swarm/': No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 3 ====================\n\n[Tokens] Input: 4405, Output: 70, Total: 4475\n\n[Thought]\nLet me check the current working directory and find the repository location.\n\n[Action]\npwd && ls -la\n[Container ID: 633d1f5bc01d]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 76\ndrwxr-xr-x  8 root root     4096 May 17 14:04 .\ndrwxr-xr-x  1 root root     4096 May 17 14:04 ..\ndrwxr-xr-x  7  501 dialout  4096 May 17 14:02 .git\n-rw-r--r--  1  501 dialout  1476 May 17 14:02 .gitignore\n-rw-r--r--  1  501 dialout   162 May 17 14:02 .pre-commit-config.yaml\n-rw-r--r--  1  501 dialout  1063 May 17 14:02 LICENSE\n-rw-r--r--  1  501 dialout 17180 May 17 14:02 README.md\n-rw-r--r--  1  501 dialout   415 May 17 14:02 SECURITY.md\ndrwxr-xr-x  2  501 dialout  4096 May 17 14:02 assets\ndrwxr-xr-x 11  501 dialout  4096 May 17 14:02 examples\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 logs\n-rw-r--r--  1  501 dialout    80 May 17 14:02 pyproject.toml\n-rw-r--r--  1  501 dialout   549 May 17 14:02 setup.cfg\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 swarm\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 tests\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 4841, Output: 64, Total: 4905\n\n[Thought]\nThe repository is directly in /app. Let me check the dependency configuration files.\n\n[Action]\ncat /app/pyproject.toml && echo \"---\" && cat /app/setup.cfg\n[Container ID: 633d1f5bc01d]\nExecuting: cat /app/pyproject.toml && echo \"---\" && cat /app/setup.cfg\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"setuptools\"]\nbuild-backend = \"setuptools.build_meta\"---\n[metadata]\nname = swarm\nversion = 0.1.0\nauthor = OpenAI Solutions\ndescription = A lightweight, stateless multi-agent orchestration framework.\nlong_description = file: README.md\nlong_description_content_type = text/markdown\nlicense = MIT\n\n[options]\npackages = find:\nzip_safe = True\ninclude_package_data = True\ninstall_requires =\n    numpy\n    openai>=1.33.0\n    pytest\n    requests\n    tqdm\n    pre-commit\n    instructor\npython_requires = >=3.10\n\n[tool.autopep8]\nmax_line_length = 120\nignore = E501,W6\nin-place = true\nrecursive = true\naggressive = 3\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 5057, Output: 122, Total: 5179\n\n[Thought]\nNow I understand the project. It's a Python project using setuptools with dependencies on numpy, openai, pytest, requests, tqdm, pre-commit, and instructor. Let me install the package in editable mode along with its dependencies.\n\n[Action]\npip install -e /app\n[Container ID: 633d1f5bc01d]\nExecuting: pip install -e /app\nCommand succeeded.\n[Snapshot Created] sha256:2189a\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting requests\n  Downloading requests-2.34.2-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.1/73.1 kB 625.1 kB/s eta 0:00:00\nCollecting instructor\n  Downloading instructor-1.15.1-py3-none-any.whl (178 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 178.2/178.2 kB 1.3 MB/s eta 0:00:00\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl (375 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 375.2/375.2 kB 3.4 MB/s eta 0:00:00\nCollecting openai>=1.33.0\n  Downloading openai-2.37.0-py3-none-any.whl (1.3 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 8.9 MB/s eta 0:00:00\nCollecting pre-commit\n  Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 27.3 MB/s eta 0:00:00\nCollecting tqdm\n  Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 9.9 MB/s eta 0:00:00\nCollecting numpy\n  Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 5.9 MB/s eta 0:00:00\nCollecting typing-extensions<5,>=4.14\n  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 5.5 MB/s eta 0:00:00\nCollecting httpx<1,>=0.23.0\n  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 3.5 MB/s eta 0:00:00\nCollecting sniffio\n  Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\nCollecting anyio<5,>=3.5.0\n  Downloading anyio-4.13.0-py3-none-any.whl (114 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 7.3 MB/s eta 0:00:00\nCollecting jiter<1,>=0.10.0\n  Downloading jiter-0.14.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 358.6/358.6 kB 5.6 MB/s eta 0:00:00\nCollecting distro<2,>=1.7.0\n  Downloading distro-1.9.0-py3-none-any.whl (20 kB)\nCollecting pydantic<3,>=1.9.0\n  Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 4.9 MB/s eta 0:00:00\nCollecting rich<15.0.0,>=13.7.0\n  Downloading rich-14.3.4-py3-none-any.whl (310 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.5/310.5 kB 6.1 MB/s eta 0:00:00\nCollecting tenacity<10.0.0,>=8.2.3\n  Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\nCollecting docstring-parser<1.0,>=0.16\n  Downloading docstring_parser-0.18.0-py3-none-any.whl (22 kB)\nCollecting aiohttp<4.0.0,>=3.9.1\n  Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 4.6 MB/s eta 0:00:00\nCollecting typer<1.0.0,>=0.9.0\n  Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 7.1 MB/s eta 0:00:00\nCollecting jinja2<4.0.0,>=3.1.4\n  Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 8.5 MB/s eta 0:00:00\nCollecting jiter<1,>=0.10.0\n  Downloading jiter-0.13.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (362 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 362.9/362.9 kB 7.0 MB/s eta 0:00:00\nCollecting pydantic-core<3.0.0,>=2.18.0\n  Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.2 MB/s eta 0:00:00\nCollecting charset_normalizer<4,>=2\n  Downloading charset_normalizer-3.4.7-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.9/216.9 kB 7.4 MB/s eta 0:00:00\nCollecting urllib3<3,>=1.26\n  Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 6.1 MB/s eta 0:00:00\nCollecting certifi>=2023.5.7\n  Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.7/135.7 kB 6.9 MB/s eta 0:00:00\nCollecting idna<4,>=2.5\n  Downloading idna-3.15-py3-none-any.whl (72 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.3/72.3 kB 11.2 MB/s eta 0:00:00\nCollecting virtualenv>=20.10.0\n  Downloading virtualenv-21.3.3-py3-none-any.whl (7.6 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 6.8 MB/s eta 0:00:00\nCollecting cfgv>=2.0.0\n  Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\nCollecting nodeenv>=0.11.1\n  Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\nCollecting identify>=1.0.0\n  Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 15.1 MB/s eta 0:00:00\nCollecting pyyaml>=5.1\n  Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 8.5 MB/s eta 0:00:00\nCollecting packaging>=22\n  Downloading packaging-26.2-py3-none-any.whl (100 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 14.2 MB/s eta 0:00:00\nCollecting iniconfig>=1.0.1\n  Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nCollecting exceptiongroup>=1\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting pygments>=2.7.2\n  Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 10.5 MB/s eta 0:00:00\nCollecting tomli>=1\n  Downloading tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting pluggy<2,>=1.5\n  Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting attrs>=17.3.0\n  Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 8.7 MB/s eta 0:00:00\nCollecting aiohappyeyeballs>=2.5.0\n  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\nCollecting frozenlist>=1.1.1\n  Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 11.4 MB/s eta 0:00:00\nCollecting yarl<2.0,>=1.17.0\n  Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 10.8 MB/s eta 0:00:00\nCollecting multidict<7.0,>=4.5\n  Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 6.7 MB/s eta 0:00:00\nCollecting async-timeout<6.0,>=4.0\n  Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\nCollecting propcache>=0.2.0\n  Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 5.4 MB/s eta 0:00:00\nCollecting aiosignal>=1.4.0\n  Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\nCollecting httpcore==1.*\n  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 7.1 MB/s eta 0:00:00\nCollecting h11>=0.16\n  Downloading h11-0.16.0-py3-none-any.whl (37 kB)\nCollecting MarkupSafe>=2.0\n  Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\nCollecting typing-inspection>=0.4.2\n  Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nCollecting annotated-types>=0.6.0\n  Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nCollecting markdown-it-py>=2.2.0\n  Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 13.1 MB/s eta 0:00:00\nCollecting shellingham>=1.3.0\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting annotated-doc>=0.0.2\n  Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nCollecting click>=8.2.1\n  Downloading click-8.4.0-py3-none-any.whl (116 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 116.1/116.1 kB 11.6 MB/s eta 0:00:00\nCollecting distlib<1,>=0.3.7\n  Downloading distlib-0.4.0-py2.py3-none-any.whl (469 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 469.0/469.0 kB 11.6 MB/s eta 0:00:00\nCollecting platformdirs<5,>=3.9.1\n  Downloading platformdirs-4.9.6-py3-none-any.whl (21 kB)\nCollecting python-discovery>=1.3.1\n  Downloading python_discovery-1.3.1-py3-none-any.whl (33 kB)\nCollecting filelock<4,>=3.24.2\n  Downloading filelock-3.29.0-py3-none-any.whl (39 kB)\nCollecting mdurl~=0.1\n  Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nBuilding wheels for collected packages: swarm\n  Building editable for swarm (pyproject.toml): started\n  Building editable for swarm (pyproject.toml): finished with status 'done'\n  Created wheel for swarm: filename=swarm-0.1.0-0.editable-py3-none-any.whl size=9340 sha256=9e98515b6d8f48a8f6772f95ac87089f566d3c5ff838040c5bd144af76047092\n  Stored in directory: /tmp/pip-ephem-wheel-cache-auklp99o/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\nSuccessfully built swarm\nInstalling collected packages: distlib, urllib3, typing-extensions, tqdm, tomli, tenacity, sniffio, shellingham, pyyaml, pygments, propcache, pluggy, platformdirs, packaging, numpy, nodeenv, mdurl, MarkupSafe, jiter, iniconfig, idna, identify, h11, frozenlist, filelock, docstring-parser, distro, click, charset_normalizer, cfgv, certifi, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, typing-inspection, requests, python-discovery, pydantic-core, multidict, markdown-it-py, jinja2, httpcore, exceptiongroup, aiosignal, yarl, virtualenv, rich, pytest, pydantic, anyio, typer, pre-commit, httpx, aiohttp, openai, instructor, swarm\nSuccessfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.13.0 async-timeout-5.0.1 attrs-26.1.0 certifi-2026.4.22 cfgv-3.5.0 charset_normalizer-3.4.7 click-8.4.0 distlib-0.4.0 distro-1.9.0 docstring-parser-0.18.0 exceptiongroup-1.3.1 filelock-3.29.0 frozenlist-1.8.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 identify-2.6.19 idna-3.15 iniconfig-2.3.0 instructor-1.15.1 jinja2-3.1.6 jiter-0.13.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 nodeenv-1.10.0 numpy-2.2.6 openai-2.37.0 packaging-26.2 platformdirs-4.9.6 pluggy-1.6.0 pre-commit-4.6.0 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 pytest-9.0.3 python-discovery-1.3.1 pyyaml-6.0.3 requests-2.34.2 rich-14.3.4 shellingham-1.5.4 sniffio-1.3.1 swarm-0.1.0 tenacity-9.1.4 tomli-2.4.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 virtualenv-21.3.3 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 9569, Output: 67, Total: 9636\n\n[Thought]\nThe package and all dependencies are installed successfully. Now let me verify by running pytest collection to ensure the tests can be collected properly.\n\n[Action]\npytest --collect-only -q --disable-warnings\n[Container ID: 633d1f5bc01d]\nExecuting: pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:0bd88\n\n[Observation]\ntests/test_core.py::test_run_with_simple_message\ntests/test_core.py::test_tool_call\ntests/test_core.py::test_execute_tools_false\ntests/test_core.py::test_handoff\ntests/test_util.py::test_basic_function\ntests/test_util.py::test_complex_function\n\n6 tests collected in 0.55s\n\n[Recorded Test Command] pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 9688, Output: 93, Total: 9781\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. All 6 tests were collected successfully. The environment is ready. Let me now provide the final verification bundle.\n</think>\n\nThought: The pytest collection succeeded with all 6 tests collected. The environment is properly configured with all dependencies installed and the swarm package is available for testing.\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/openai__swarm.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/openai/swarm.git",
+    "configuration_success": true,
+    "base_image": "python:3.10",
+    "platform_override": null,
+    "verified_test_command": "pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 3,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 76\ndrwxr-xr-x  8 root root     4096 May 17 14:04 .\ndrwxr-xr-x  1 root root     4096 May 17 14:04 ..\ndrwxr-xr-x  7  501 dialout  4096 May 17 14:02 .git\n-rw-r--r--  1  501 dialout  1476 May 17 14:02 .gitignore\n-rw-r--r--  1  501 dialout   162 May 17 14:02 .pre-commit-config.yaml\n-rw-r--r--  1  501 dialout  1063 May 17 14:02 LICENSE\n-rw-r--r--  1  501 dialout 17180 May 17 14:02 README.md\n-rw-r--r--  1  501 dialout   415 May 17 14:02 SECURITY.md\ndrwxr-xr-x  2  501 dialout  4096 May 17 14:02 assets\ndrwxr-xr-x 11  501 dialout  4096 May 17 14:02 examples\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 logs\n-rw-r--r--  1  501 dialout    80 May 17 14:02 pyproject.toml\n-rw-r--r--  1  501 dialout   549 May 17 14:02 setup.cfg\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 swarm\ndrwxr-xr-x  3  501 dialout  4096 May 17 14:02 tests\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat /app/pyproject.toml && echo \"---\" && cat /app/setup.cfg",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"setuptools\"]\nbuild-backend = \"setuptools.build_meta\"---\n[metadata]\nname = swarm\nversion = 0.1.0\nauthor = OpenAI Solutions\ndescription = A lightweight, stateless multi-agent orchestration framework.\nlong_description = file: README.md\nlong_description_content_type = text/markdown\nlicense = MIT\n\n[options]\npackages = find:\nzip_safe = True\ninclude_package_data = True\ninstall_requires =\n    numpy\n    openai>=1.33.0\n    pytest\n    requests\n    tqdm\n    pre-commit\n    instructor\npython_requires = >=3.10\n\n[tool.autopep8]\nmax_line_length = 120\nignore = E501,W6\nin-place = true\nrecursive = true\naggressive = 3\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e /app",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting requests\n  Downloading requests-2.34.2-py3-none-any.whl (73 kB)\n     ━━\n... (10301 chars omitted for recipe synthesis) ...\nytest-9.0.3 python-discovery-1.3.1 pyyaml-6.0.3 requests-2.34.2 rich-14.3.4 shellingham-1.5.4 sniffio-1.3.1 swarm-0.1.0 tenacity-9.1.4 tomli-2.4.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 virtualenv-21.3.3 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_core.py::test_run_with_simple_message\ntests/test_core.py::test_tool_call\ntests/test_core.py::test_execute_tools_false\ntests/test_core.py::test_handoff\ntests/test_util.py::test_basic_function\ntests/test_util.py::test_complex_function\n\n6 tests collected in 0.55s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat openai__swarm/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: openai__swarm/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 2,
+        "command": "cat openai__swarm/setup.cfg 2>/dev/null || cat openai__swarm/setup.py 2>/dev/null || ls openai__swarm/",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "ls: cannot access 'openai__swarm/': No such file or directory\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e /app"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat openai__swarm/pyproject.toml - failed attempt to locate project (path was wrong)",
+          "reason": ""
+        },
+        {
+          "command": "cat openai__swarm/setup.cfg 2>/dev/null || cat openai__swarm/setup.py 2>/dev/null || ls openai__swarm/ - failed attempt to locate project",
+          "reason": ""
+        },
+        {
+          "command": "pwd && ls -la - read-only diagnostic to discover project location, no environment mutation",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/pyproject.toml && echo \"---\" && cat /app/setup.cfg - read-only inspection of dependency configuration",
+          "reason": ""
+        }
+      ],
+      "rationale": "The only persistent state-changing command in the successful trajectory is `pip install -e /app` (Step 5), which installed swarm 0.1.0 and all dependencies (numpy, openai>=1.33.0, pytest, requests, tqdm, pre-commit, instructor). Steps 1-2 were failed attempts to locate the project in a non-existent subdirectory; Steps 3-4 were read-only diagnostics to discover the correct path. Per Rule 11, read-only commands must be excluded from build_commands. The verification bundle confirms pytest is a test dependency already included in setup.cfg, so no separate pytest installation is needed. The final test command is `pytest --collect-only -q --disable-warnings` which collected 6 tests successfully.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [
+      "elasticsearch"
+    ],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 0,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat openai__swarm/pyproject.toml",
+        "success": false,
+        "raw_chars": 61,
+        "raw_tokens_est": 15,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "cat openai__swarm/setup.cfg 2>/dev/null || cat openai__swarm/setup.py 2>/dev/null || ls openai__swarm/",
+        "success": false,
+        "raw_chars": 62,
+        "raw_tokens_est": 15,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 837,
+        "raw_tokens_est": 209,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat /app/pyproject.toml && echo \"---\" && cat /app/setup.cfg",
+        "success": true,
+        "raw_chars": 633,
+        "raw_tokens_est": 158,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e /app",
+        "success": true,
+        "raw_chars": 11501,
+        "raw_tokens_est": 2875,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 272,
+        "raw_tokens_est": 68,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 14728,
+        "output_tokens": 6562,
+        "total_tokens": 21290
+      },
+      "planner": {
+        "input_tokens": 42139,
+        "output_tokens": 600,
+        "total_tokens": 42739
+      },
+      "reflection": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 7145,
+        "output_tokens": 2016,
+        "total_tokens": 9161
+      },
+      "total": {
+        "input_tokens": 64012,
+        "output_tokens": 9178,
+        "total_tokens": 73190
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+    "base_commit": "9db581",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/openai__swarm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-17T22:06:47.565790+08:00",
+      "finished_at": "2026-05-17T22:06:47.621444+08:00",
+      "duration_seconds": 0.056,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context'...\n完成。\n注意：正在切换到 '9db581cecaacea0d46a933d6453c312b034dbf47'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "9db581"
+      ],
+      "command_shell": "git checkout --force 9db581",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T22:06:47.621518+08:00",
+      "finished_at": "2026-05-17T22:06:47.638972+08:00",
+      "duration_seconds": 0.017,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 9db581c fix requires openai==1.33 (#41)\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-17T22:06:47.639022+08:00",
+      "finished_at": "2026-05-17T22:06:47.644777+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-openai__swarm",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval -t jayint-repo2run-openai__swarm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T22:06:47.646612+08:00",
+    "finished_at": "2026-05-17T22:07:18.844578+08:00",
+    "duration_seconds": 31.198,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.07kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 1.64MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e /app' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.803 Obtaining file:///app\n#10 0.807   Installing build dependencies: started\n#10 3.531   Installing build dependencies: finished with status 'done'\n#10 3.532   Checking if build backend supports build_editable: started\n#10 3.724   Checking if build backend supports build_editable: finished with status 'done'\n#10 3.726   Getting requirements to build editable: started\n#10 3.919   Getting requirements to build editable: finished with status 'done'\n#10 3.921   Preparing editable metadata (pyproject.toml): started\n#10 4.116   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 4.956 Collecting instructor\n#10 5.635   Downloading instructor-1.15.1-py3-none-any.whl (178 kB)\n#10 5.964      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 178.2/178.2 kB 834.4 kB/s eta 0:00:00\n#10 6.355 Collecting openai>=1.33.0\n#10 6.702   Downloading openai-2.37.0-py3-none-any.whl (1.3 MB)\n#10 6.912      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 6.4 MB/s eta 0:00:00\n#10 7.561 Collecting numpy\n#10 7.673   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#10 10.24      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 6.2 MB/s eta 0:00:00\n#10 10.49 Collecting pre-commit\n#10 10.61   Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n#10 10.64      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 6.2 MB/s eta 0:00:00\n#10 10.65 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (from swarm==0.1.0) (9.0.3)\n#10 10.65 Requirement already satisfied: requests in /usr/local/lib/python3.10/site-packages (from swarm==0.1.0) (2.33.1)\n#10 10.86 Collecting tqdm\n#10 10.97   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 10.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 4.2 MB/s eta 0:00:00\n#10 11.01 Requirement already satisfied: anyio<5,>=3.5.0 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (4.13.0)\n#10 11.01 Requirement already satisfied: typing-extensions<5,>=4.11 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (4.15.0)\n#10 11.18 Collecting distro<2,>=1.7.0\n#10 11.29   Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#10 11.68 Collecting pydantic<3,>=1.9.0\n#10 11.80   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 11.89      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 5.8 MB/s eta 0:00:00\n#10 12.21 Collecting jiter<1,>=0.10.0\n#10 12.33   Downloading jiter-0.14.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)\n#10 12.39      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 358.6/358.6 kB 5.9 MB/s eta 0:00:00\n#10 12.55 Collecting sniffio\n#10 12.67   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 12.68 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (0.28.1)\n#10 12.75 Collecting jiter<1,>=0.10.0\n#10 13.10   Downloading jiter-0.13.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (362 kB)\n#10 13.16      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 362.9/362.9 kB 7.1 MB/s eta 0:00:00\n#10 14.65 Collecting pydantic-core<3.0.0,>=2.18.0\n#10 14.76   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 15.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.1 MB/s eta 0:00:00\n#10 15.37 Collecting rich<15.0.0,>=13.7.0\n#10 15.48   Downloading rich-14.3.4-py3-none-any.whl (310 kB)\n#10 15.53      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.5/310.5 kB 6.2 MB/s eta 0:00:00\n#10 15.93 Collecting tenacity<10.0.0,>=8.2.3\n#10 16.05   Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#10 16.24 Collecting typer<1.0.0,>=0.9.0\n#10 16.35   Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 16.36      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 18.8 MB/s eta 0:00:00\n#10 17.43 Collecting aiohttp<4.0.0,>=3.9.1\n#10 17.55   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#10 17.81      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.6 MB/s eta 0:00:00\n#10 18.01 Collecting docstring-parser<1.0,>=0.16\n#10 18.13   Downloading docstring_parser-0.18.0-py3-none-any.whl (22 kB)\n#10 18.31 Collecting jinja2<4.0.0,>=3.1.4\n#10 18.42   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 18.44      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 17.0 MB/s eta 0:00:00\n#10 18.45 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (2026.4.22)\n#10 18.45 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (2.7.0)\n#10 18.46 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (3.13)\n#10 18.46 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (3.4.7)\n#10 18.46 Requirement already satisfied: virtualenv>=20.10.0 in /usr/local/lib/python3.10/site-packages (from pre-commit->swarm==0.1.0) (21.3.1)\n#10 18.63 Collecting nodeenv>=0.11.1\n#10 19.00   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 19.21 Collecting cfgv>=2.0.0\n#10 19.37   Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\n#10 19.62 Collecting pyyaml>=5.1\n#10 19.75   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#10 19.84      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 8.7 MB/s eta 0:00:00\n#10 20.07 Collecting identify>=1.0.0\n#10 20.18   Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n#10 20.20      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 5.9 MB/s eta 0:00:00\n#10 20.22 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.20.0)\n#10 20.22 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (1.6.0)\n#10 20.22 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.4.1)\n#10 20.22 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (26.2)\n#10 20.22 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.3.0)\n#10 20.22 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (1.3.1)\n#10 20.39 Collecting async-timeout<6.0,>=4.0\n#10 20.51   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#10 20.68 Collecting attrs>=17.3.0\n#10 20.80   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 20.81      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 97.2 MB/s eta 0:00:00\n#10 21.36 Collecting multidict<7.0,>=4.5\n#10 21.47   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#10 21.50      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 8.5 MB/s eta 0:00:00\n#10 21.83 Collecting frozenlist>=1.1.1\n#10 21.95   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#10 21.97      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 31.6 MB/s eta 0:00:00\n#10 22.15 Collecting aiohappyeyeballs>=2.5.0\n#10 22.26   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#10 22.44 Collecting aiosignal>=1.4.0\n#10 22.58   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#10 23.21 Collecting yarl<2.0,>=1.17.0\n#10 23.32   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#10 23.34      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 7.3 MB/s eta 0:00:00\n#10 23.59 Collecting propcache>=0.2.0\n#10 23.70   Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n#10 23.71      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 10.9 MB/s eta 0:00:00\n#10 23.74 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->openai>=1.33.0->swarm==0.1.0) (1.0.9)\n#10 23.74 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->openai>=1.33.0->swarm==0.1.0) (0.16.0)\n#10 23.98 Collecting MarkupSafe>=2.0\n#10 24.12   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#10 24.32 Collecting typing-inspection>=0.4.2\n#10 24.69   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 24.88 Collecting annotated-types>=0.6.0\n#10 24.99   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 25.18 Collecting markdown-it-py>=2.2.0\n#10 25.31   Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 25.32      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 30.0 MB/s eta 0:00:00\n#10 25.75 Collecting annotated-doc>=0.0.2\n#10 25.88   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 25.88 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer<1.0.0,>=0.9.0->instructor->swarm==0.1.0) (1.5.4)\n#10 26.06 Collecting click>=8.2.1\n#10 26.18   Downloading click-8.4.0-py3-none-any.whl (116 kB)\n#10 26.20      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 116.1/116.1 kB 8.0 MB/s eta 0:00:00\n#10 26.23 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (4.9.6)\n#10 26.23 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (0.4.0)\n#10 26.23 Requirement already satisfied: filelock<4,>=3.24.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (3.29.0)\n#10 26.23 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (1.3.0)\n#10 26.43 Collecting mdurl~=0.1\n#10 26.55   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 26.63 Building wheels for collected packages: swarm\n#10 26.63   Building editable for swarm (pyproject.toml): started\n#10 26.83   Building editable for swarm (pyproject.toml): finished with status 'done'\n#10 26.84   Created wheel for swarm: filename=swarm-0.1.0-0.editable-py3-none-any.whl size=9340 sha256=bed11deaf913cd4694aca530b62208f973cd9d5fbcddca97684b836dec1d5ce5\n#10 26.84   Stored in directory: /tmp/pip-ephem-wheel-cache-l3q2o8ck/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#10 26.84 Successfully built swarm\n#10 27.05 Installing collected packages: typing-inspection, tqdm, tenacity, sniffio, pyyaml, pydantic-core, propcache, numpy, nodeenv, multidict, mdurl, MarkupSafe, jiter, identify, frozenlist, docstring-parser, distro, click, cfgv, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, pydantic, markdown-it-py, jinja2, aiosignal, rich, pre-commit, aiohttp, typer, openai, instructor, swarm\n#10 29.49 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 async-timeout-5.0.1 attrs-26.1.0 cfgv-3.5.0 click-8.4.0 distro-1.9.0 docstring-parser-0.18.0 frozenlist-1.8.0 identify-2.6.19 instructor-1.15.1 jinja2-3.1.6 jiter-0.13.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 nodeenv-1.10.0 numpy-2.2.6 openai-2.37.0 pre-commit-4.6.0 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 pyyaml-6.0.3 rich-14.3.4 sniffio-1.3.1 swarm-0.1.0 tenacity-9.1.4 tqdm-4.67.3 typer-0.25.1 typing-inspection-0.4.2 yarl-1.23.0\n#10 29.49 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 30.0s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.3s done\n#11 writing image sha256:d8a6b63e77c78536d2cf506c7173c3d6d5fbf9cbe86c4704f65b57eb6cc049c3 done\n#11 naming to docker.io/library/jayint-repo2run-openai__swarm\n#11 naming to docker.io/library/jayint-repo2run-openai__swarm done\n#11 DONE 0.3s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/6ki6ipz7hrvqww09hozf1pnsa\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-openai__swarm",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-openai__swarm sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-17T22:07:18.846345+08:00",
+          "finished_at": "2026-05-17T22:07:19.934284+08:00",
+          "duration_seconds": 1.088,
+          "stdout": "tests/test_core.py::test_run_with_simple_message\ntests/test_core.py::test_tool_call\ntests/test_core.py::test_execute_tools_false\ntests/test_core.py::test_handoff\ntests/test_util.py::test_basic_function\ntests/test_util.py::test_complex_function\n\n6 tests collected in 0.33s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-openai__swarm",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/Dockerfile.eval -t jayint-repo2run-openai__swarm /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-17T22:06:47.646612+08:00",
+        "finished_at": "2026-05-17T22:07:18.844578+08:00",
+        "duration_seconds": 31.198,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.07kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.10\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.10\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 1.64MB 0.1s done\n#5 DONE 0.1s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.4s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e /app' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.803 Obtaining file:///app\n#10 0.807   Installing build dependencies: started\n#10 3.531   Installing build dependencies: finished with status 'done'\n#10 3.532   Checking if build backend supports build_editable: started\n#10 3.724   Checking if build backend supports build_editable: finished with status 'done'\n#10 3.726   Getting requirements to build editable: started\n#10 3.919   Getting requirements to build editable: finished with status 'done'\n#10 3.921   Preparing editable metadata (pyproject.toml): started\n#10 4.116   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 4.956 Collecting instructor\n#10 5.635   Downloading instructor-1.15.1-py3-none-any.whl (178 kB)\n#10 5.964      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 178.2/178.2 kB 834.4 kB/s eta 0:00:00\n#10 6.355 Collecting openai>=1.33.0\n#10 6.702   Downloading openai-2.37.0-py3-none-any.whl (1.3 MB)\n#10 6.912      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 6.4 MB/s eta 0:00:00\n#10 7.561 Collecting numpy\n#10 7.673   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)\n#10 10.24      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 6.2 MB/s eta 0:00:00\n#10 10.49 Collecting pre-commit\n#10 10.61   Downloading pre_commit-4.6.0-py2.py3-none-any.whl (226 kB)\n#10 10.64      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 226.5/226.5 kB 6.2 MB/s eta 0:00:00\n#10 10.65 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (from swarm==0.1.0) (9.0.3)\n#10 10.65 Requirement already satisfied: requests in /usr/local/lib/python3.10/site-packages (from swarm==0.1.0) (2.33.1)\n#10 10.86 Collecting tqdm\n#10 10.97   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 10.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 4.2 MB/s eta 0:00:00\n#10 11.01 Requirement already satisfied: anyio<5,>=3.5.0 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (4.13.0)\n#10 11.01 Requirement already satisfied: typing-extensions<5,>=4.11 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (4.15.0)\n#10 11.18 Collecting distro<2,>=1.7.0\n#10 11.29   Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#10 11.68 Collecting pydantic<3,>=1.9.0\n#10 11.80   Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 11.89      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.3/472.3 kB 5.8 MB/s eta 0:00:00\n#10 12.21 Collecting jiter<1,>=0.10.0\n#10 12.33   Downloading jiter-0.14.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)\n#10 12.39      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 358.6/358.6 kB 5.9 MB/s eta 0:00:00\n#10 12.55 Collecting sniffio\n#10 12.67   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 12.68 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from openai>=1.33.0->swarm==0.1.0) (0.28.1)\n#10 12.75 Collecting jiter<1,>=0.10.0\n#10 13.10   Downloading jiter-0.13.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (362 kB)\n#10 13.16      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 362.9/362.9 kB 7.1 MB/s eta 0:00:00\n#10 14.65 Collecting pydantic-core<3.0.0,>=2.18.0\n#10 14.76   Downloading pydantic_core-2.46.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 15.11      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 6.1 MB/s eta 0:00:00\n#10 15.37 Collecting rich<15.0.0,>=13.7.0\n#10 15.48   Downloading rich-14.3.4-py3-none-any.whl (310 kB)\n#10 15.53      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.5/310.5 kB 6.2 MB/s eta 0:00:00\n#10 15.93 Collecting tenacity<10.0.0,>=8.2.3\n#10 16.05   Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#10 16.24 Collecting typer<1.0.0,>=0.9.0\n#10 16.35   Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 16.36      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 18.8 MB/s eta 0:00:00\n#10 17.43 Collecting aiohttp<4.0.0,>=3.9.1\n#10 17.55   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#10 17.81      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.6 MB/s eta 0:00:00\n#10 18.01 Collecting docstring-parser<1.0,>=0.16\n#10 18.13   Downloading docstring_parser-0.18.0-py3-none-any.whl (22 kB)\n#10 18.31 Collecting jinja2<4.0.0,>=3.1.4\n#10 18.42   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 18.44      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 17.0 MB/s eta 0:00:00\n#10 18.45 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (2026.4.22)\n#10 18.45 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (2.7.0)\n#10 18.46 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (3.13)\n#10 18.46 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests->swarm==0.1.0) (3.4.7)\n#10 18.46 Requirement already satisfied: virtualenv>=20.10.0 in /usr/local/lib/python3.10/site-packages (from pre-commit->swarm==0.1.0) (21.3.1)\n#10 18.63 Collecting nodeenv>=0.11.1\n#10 19.00   Downloading nodeenv-1.10.0-py2.py3-none-any.whl (23 kB)\n#10 19.21 Collecting cfgv>=2.0.0\n#10 19.37   Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)\n#10 19.62 Collecting pyyaml>=5.1\n#10 19.75   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#10 19.84      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 8.7 MB/s eta 0:00:00\n#10 20.07 Collecting identify>=1.0.0\n#10 20.18   Downloading identify-2.6.19-py2.py3-none-any.whl (99 kB)\n#10 20.20      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.4/99.4 kB 5.9 MB/s eta 0:00:00\n#10 20.22 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.20.0)\n#10 20.22 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (1.6.0)\n#10 20.22 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.4.1)\n#10 20.22 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (26.2)\n#10 20.22 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (2.3.0)\n#10 20.22 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest->swarm==0.1.0) (1.3.1)\n#10 20.39 Collecting async-timeout<6.0,>=4.0\n#10 20.51   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#10 20.68 Collecting attrs>=17.3.0\n#10 20.80   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 20.81      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 97.2 MB/s eta 0:00:00\n#10 21.36 Collecting multidict<7.0,>=4.5\n#10 21.47   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#10 21.50      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 8.5 MB/s eta 0:00:00\n#10 21.83 Collecting frozenlist>=1.1.1\n#10 21.95   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#10 21.97      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 31.6 MB/s eta 0:00:00\n#10 22.15 Collecting aiohappyeyeballs>=2.5.0\n#10 22.26   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#10 22.44 Collecting aiosignal>=1.4.0\n#10 22.58   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#10 23.21 Collecting yarl<2.0,>=1.17.0\n#10 23.32   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#10 23.34      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 7.3 MB/s eta 0:00:00\n#10 23.59 Collecting propcache>=0.2.0\n#10 23.70   Downloading propcache-0.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (60 kB)\n#10 23.71      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.1/60.1 kB 10.9 MB/s eta 0:00:00\n#10 23.74 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->openai>=1.33.0->swarm==0.1.0) (1.0.9)\n#10 23.74 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.10/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->openai>=1.33.0->swarm==0.1.0) (0.16.0)\n#10 23.98 Collecting MarkupSafe>=2.0\n#10 24.12   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#10 24.32 Collecting typing-inspection>=0.4.2\n#10 24.69   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 24.88 Collecting annotated-types>=0.6.0\n#10 24.99   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 25.18 Collecting markdown-it-py>=2.2.0\n#10 25.31   Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 25.32      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 30.0 MB/s eta 0:00:00\n#10 25.75 Collecting annotated-doc>=0.0.2\n#10 25.88   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 25.88 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer<1.0.0,>=0.9.0->instructor->swarm==0.1.0) (1.5.4)\n#10 26.06 Collecting click>=8.2.1\n#10 26.18   Downloading click-8.4.0-py3-none-any.whl (116 kB)\n#10 26.20      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 116.1/116.1 kB 8.0 MB/s eta 0:00:00\n#10 26.23 Requirement already satisfied: platformdirs<5,>=3.9.1 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (4.9.6)\n#10 26.23 Requirement already satisfied: distlib<1,>=0.3.7 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (0.4.0)\n#10 26.23 Requirement already satisfied: filelock<4,>=3.24.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (3.29.0)\n#10 26.23 Requirement already satisfied: python-discovery>=1.2.2 in /usr/local/lib/python3.10/site-packages (from virtualenv>=20.10.0->pre-commit->swarm==0.1.0) (1.3.0)\n#10 26.43 Collecting mdurl~=0.1\n#10 26.55   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 26.63 Building wheels for collected packages: swarm\n#10 26.63   Building editable for swarm (pyproject.toml): started\n#10 26.83   Building editable for swarm (pyproject.toml): finished with status 'done'\n#10 26.84   Created wheel for swarm: filename=swarm-0.1.0-0.editable-py3-none-any.whl size=9340 sha256=bed11deaf913cd4694aca530b62208f973cd9d5fbcddca97684b836dec1d5ce5\n#10 26.84   Stored in directory: /tmp/pip-ephem-wheel-cache-l3q2o8ck/wheels/9b/2c/d1/15e20a2b97f37ccf65a87ba1049c73a9076d0bf0fbaf814e83\n#10 26.84 Successfully built swarm\n#10 27.05 Installing collected packages: typing-inspection, tqdm, tenacity, sniffio, pyyaml, pydantic-core, propcache, numpy, nodeenv, multidict, mdurl, MarkupSafe, jiter, identify, frozenlist, docstring-parser, distro, click, cfgv, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, pydantic, markdown-it-py, jinja2, aiosignal, rich, pre-commit, aiohttp, typer, openai, instructor, swarm\n#10 29.49 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 async-timeout-5.0.1 attrs-26.1.0 cfgv-3.5.0 click-8.4.0 distro-1.9.0 docstring-parser-0.18.0 frozenlist-1.8.0 identify-2.6.19 instructor-1.15.1 jinja2-3.1.6 jiter-0.13.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 nodeenv-1.10.0 numpy-2.2.6 openai-2.37.0 pre-commit-4.6.0 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 pyyaml-6.0.3 rich-14.3.4 sniffio-1.3.1 swarm-0.1.0 tenacity-9.1.4 tqdm-4.67.3 typer-0.25.1 typing-inspection-0.4.2 yarl-1.23.0\n#10 29.49 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#10 DONE 30.0s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.3s done\n#11 writing image sha256:d8a6b63e77c78536d2cf506c7173c3d6d5fbf9cbe86c4704f65b57eb6cc049c3 done\n#11 naming to docker.io/library/jayint-repo2run-openai__swarm\n#11 naming to docker.io/library/jayint-repo2run-openai__swarm done\n#11 DONE 0.3s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/6ki6ipz7hrvqww09hozf1pnsa\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-openai__swarm",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-openai__swarm sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-17T22:07:18.846345+08:00",
+              "finished_at": "2026-05-17T22:07:19.934284+08:00",
+              "duration_seconds": 1.088,
+              "stdout": "tests/test_core.py::test_run_with_simple_message\ntests/test_core.py::test_tool_call\ntests/test_core.py::test_execute_tools_false\ntests/test_core.py::test_handoff\ntests/test_util.py::test_basic_function\ntests/test_util.py::test_complex_function\n\n6 tests collected in 0.33s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-openai__swarm"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-openai__swarm",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-17T22:07:19.934999+08:00",
+    "finished_at": "2026-05-17T22:07:19.957723+08:00",
+    "duration_seconds": 0.023,
+    "stdout": "Untagged: jayint-repo2run-openai__swarm:latest\nDeleted: sha256:d8a6b63e77c78536d2cf506c7173c3d6d5fbf9cbe86c4704f65b57eb6cc049c3\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/openai__swarm/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

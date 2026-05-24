@@ -1,0 +1,920 @@
+{
+  "dataset_entry": {
+    "instance_id": "a-r-r-o-w__cogvideox-factory",
+    "full_name": "a-r-r-o-w/cogvideox-factory",
+    "repo_url": "https://github.com/a-r-r-o-w/cogvideox-factory.git",
+    "sha": "80d115",
+    "base_commit": "80d115",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/a-r-r-o-w/cogvideox-factory.git",
+      "--base-commit",
+      "80d115",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/a-r-r-o-w/cogvideox-factory.git --base-commit 80d115 --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": null,
+    "finished_at": null,
+    "duration_seconds": 0.0,
+    "stdout": "[reused existing workplace]",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": true,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/a-r-r-o-w__cogvideox-factory.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/a-r-r-o-w/cogvideox-factory.git",
+    "configuration_success": true,
+    "verified_test_command": "cd /app && pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [
+      {
+        "step_index": 19,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 7,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      },
+      {
+        "step_index": 20,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 7,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat /a-r-r-o-w__cogvideox-factory/requirements.txt /a-r-r-r-o-w__cogvideox-factory/pyproject.toml /a-r-r-r-o-w__cogvideox-factory/Makefile 2>/dev/null || cat /a-r-r-o-w__cogvideox-factory/requirements.txt /a-r-r-o-w__cogvideox-factory/pyproject.toml 2>/dev/null || find /a-r-r-o-w__cogvideox-factory -maxdepth 2 -name \"*.txt\" -o -name \"*.toml\" -o -name \"Makefile\" | head -20",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "find: ‘/a-r-r-o-w__cogvideox-factory’: No such file or directory\n"
+      },
+      {
+        "step_index": 2,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 160\ndrwxr-xr-x 9 root root     4096 Apr 24 01:30 .\ndrwxr-xr-x 1 root root     4096 Apr 24 01:30 ..\ndrwxr-xr-x 7  501 dialout  4096 Apr 24 01:27 .git\ndrwxr-xr-x 3  501 dialout  4096 Apr 24 01:27 .github\n-rw-r--r-- 1  501 dialout  3214 Apr 24 01:27 .gitignore\n-rw-r--r-- 1  501 dialout 11357 Apr 24 01:27 LICENSE\n-rw-r--r-- 1  501 dialout   190 Apr 24 01:27 Makefile\n-rw-r--r-- 1  501 dialout 30476 Apr 24 01:27 README.md\n-rw-r--r-- 1  501 dialout 29333 Apr 24 01:27 README_zh.md\ndrwxr-xr-x 2  501 dialout  4096 Apr 24 01:27 accelerate_configs\ndrwxr-xr-x 3  501 dialout  4096 Apr 24 01:27 as\n... (38 chars omitted for recipe synthesis) ...\npr 24 01:27 logs\n-rwxr-xr-x 1  501 dialout  1491 Apr 24 01:27 prepare_dataset.sh\n-rw-r--r-- 1  501 dialout   722 Apr 24 01:27 pyproject.toml\n-rw-r--r-- 1  501 dialout   241 Apr 24 01:27 requirements.txt\ndrwxr-xr-x 2  501 dialout  4096 Apr 24 01:27 tests\n-rwxr-xr-x 1  501 dialout  4267 Apr 24 01:27 train_image_to_video_lora.sh\n-rwxr-xr-x 1  501 dialout  4402 Apr 24 01:27 train_image_to_video_sft.sh\n-rwxr-xr-x 1  501 dialout  4317 Apr 24 01:27 train_text_to_video_lora.sh\n-rwxr-xr-x 1  501 dialout  4001 Apr 24 01:27 train_text_to_video_sft.sh\ndrwxr-xr-x 4  501 dialout  4096 Apr 24 01:27 training\n"
+      },
+      {
+        "step_index": 3,
+        "command": "cat /app/requirements.txt /app/pyproject.toml /app/Makefile",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "accelerate\nbitsandbytes\ndiffusers>=0.30.3\ntransformers>=4.45.2\nhuggingface_hub\nhf_transfer>=0.1.8\npeft>=0.12.0\ndecord>=0.6.0\nwandb\npandas\ntorch<2.5.0\ntorchvision<0.20.0\ntorchao>=0.5.0\nsentencepiece>=0.2.0\nimageio-ffmpeg>=0.5.1\nnumpy>=1.26.4\n[tool.ruff]\nline-length = 119\n\n[tool.ruff.lint]\n# Never enforce `E501` (line length violations).\nignore = [\"C901\", \"E501\", \"E741\", \"F402\", \"F823\"]\nselect = [\"C\", \"E\", \"F\", \"I\", \"W\"]\n\n# Ignore import violations in all `__init__.py` files.\n[tool.ruff.lint.per-file-ignores]\n\"__init__.py\" = [\"E402\", \"F401\", \"F403\", \"F811\"]\n\n[tool.ruff.lint.isort]\nlines-after-imports = 2\nknown-first-party = []\n\n[tool.ruff.format]\n# Like Black, use double quotes for strings.\nquote-style = \"double\"\n\n# Like Black, indent with spaces, rather than tabs.\nindent-style = \"space\"\n\n# Like Black, respect magic trailing commas.\nskip-magic-trailing-comma = false\n\n# Like Black, automatically detect the appropriate line ending.\nline-ending = \"auto\"\n.PHONY: quality style\n\ncheck_dirs := training tests\n\nquality:\n\truff check $(check_dirs)\n\truff format --check $(check_dirs)\n\nstyle:\n\truff check $(check_dirs) --fix\n\truff format $(check_dirs)\n"
+      },
+      {
+        "step_index": 4,
+        "command": "ls -la /app/tests/ && cat /app/tests/test_dataset.py /app/tests/test_lora_inference.py 2>/dev/null",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 16\ndrwxr-xr-x 2  501 dialout 4096 Apr 24 01:27 .\ndrwxr-xr-x 9 root root    4096 Apr 24 01:30 ..\n-rw-r--r-- 1  501 dialout 3069 Apr 24 01:27 test_dataset.py\n-rw-r--r-- 1  501 dialout 1791 Apr 24 01:27 test_lora_inference.py\n# Run: python3 tests/test_dataset.py\n\nimport sys\n\n\ndef test_video_dataset():\n    from dataset import VideoDataset\n\n    dataset_dirs = VideoDataset(\n        data_root=\"assets/tests/\",\n        caption_column=\"prompts.txt\",\n        video_column=\"videos.txt\",\n        max_num_frames=49,\n        id_token=None,\n        random_flip=None,\n    )\n    dataset_csv = VideoDataset(\n \n... (3889 chars omitted for recipe synthesis) ...\nBase Model path or HF ID\")\n    parser.add_argument(\"--lora_path\", type=str, required=True, help=\"Path to the LoRA weights\")\n    parser.add_argument(\"--lora_name\", type=str, default=\"lora_adapter\", help=\"Name of the LoRA adapter\")\n    parser.add_argument(\"--output_file\", type=str, default=\"output.mp4\", help=\"Output video file name\")\n    parser.add_argument(\"--fps\", type=int, default=8, help=\"Frames per second for the output video\")\n\n    args = parser.parse_args()\n\n    generate_video(args.prompt, args.lora_path, args.lora_name, args.output_file, args.fps)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+      },
+      {
+        "step_index": 5,
+        "command": "ls /app/training/ && cat /app/training/__init__.py 2>/dev/null; python3 --version; pip3 --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "__init__.py\nargs.py\ncogvideox_image_to_video_lora.py\ncogvideox_image_to_video_sft.py\ncogvideox_text_to_video_lora.py\ncogvideox_text_to_video_sft.py\ndataset.py\nmochi-1\nprepare_dataset.py\ntext_encoder\nutils.py\nPython 3.12.13\npip 25.0.1 from /usr/local/lib/python3.12/site-packages/pip (python 3.12)\n"
+      },
+      {
+        "step_index": 6,
+        "command": "pip3 list 2>/dev/null | grep -iE \"torch|diffusers|transformers|peft|decord|wandb|pandas|bitsandbytes|huggingface\" | head -20",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      },
+      {
+        "step_index": 7,
+        "command": "pip3 install -r /app/requirements.txt 2>&1 | tail -20",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nDownloading urllib3-2.6.3-py3-none-any.whl (131 kB)\nDownloading zipp-3.23.1-py3-none-any.whl (10 kB)\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.7/39.7 MB 6.2 MB/s eta 0:00:00\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading markdown_it_py-4.0.0-py3-none\n... (2549 chars omitted for recipe synthesis) ...\nrs-5.6.2 triton-3.0.0 typer-0.24.2 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 wandb-0.26.1 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 9,
+        "command": "pip3 install pytest 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Successfully installed iniconfig-2.3.0 pluggy-1.6.0 pytest-9.0.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 11,
+        "command": "pip3 install 'torchao>=0.5.0,<0.5.0' 2>&1 | tail -5; pip3 index versions torchao 2>&1 | head -10",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "ERROR: Could not find a version that satisfies the requirement torchao<0.5.0,>=0.5.0 (from versions: 0.0.1, 0.0.3, 0.1, 0.2.0, 0.3.0, 0.3.1, 0.4.0, 0.5.0, 0.6.1, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.13.0, 0.14.0, 0.14.1, 0.15.0, 0.16.0, 0.17.0)\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\nERROR: No matching distribution found for torchao<0.5.0,>=0.5.0\nWARNING: pip index is currently an experimental command. It may be removed/changed in a future release without prior warning.\ntorchao (0.17.0)\nAvailable versions: 0.17.0, 0.16.0, 0.15.0, 0.14.1, 0.14.0, 0.13.0, 0.12.0, 0.11.0, 0.10.0, 0.9.0, 0.8.0, 0.7.0, 0.6.1, 0.5.0, 0.4.0, 0.3.1, 0.3.0, 0.2.0, 0.1, 0.0.3, 0.0.1\n  INSTALLED: 0.17.0\n  LATEST:    0.17.0\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 12,
+        "command": "pip3 install torchao==0.5.0 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Successfully installed torchao-0.5.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 14,
+        "command": "pip3 install 'diffusers==0.30.3' 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Successfully installed diffusers-0.30.3\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 16,
+        "command": "pip3 install 'diffusers==0.31.0' 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Successfully installed diffusers-0.31.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 18,
+        "command": "pip3 install 'transformers==4.45.2' 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Successfully installed huggingface-hub-0.36.2 tokenizers-0.20.3 transformers-4.45.2\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 19,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n3 tests collected in 6.25s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      },
+      {
+        "step_index": 20,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n3 tests collected in 6.82s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 8,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "/bin/bash: line 1: pytest: command not found\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/test_lora_inference.py _________________\n/usr/local/lib/python3.12/site-packages/transform\n... (5010 chars omitted for recipe synthesis) ...\ns/diffusers/utils/import_utils.py:1012: in _get_module\n    raise RuntimeError(\nE   RuntimeError: Failed to import diffusers.pipelines.cogvideo.pipeline_cogvideox because of the following error (look up to see its traceback):\nE   Could not import module 'T5EncoderModel'. Are this object's requirements defined correctly?\n=========================== short test summary info ============================\nERROR tests/test_lora_inference.py - RuntimeError: Failed to import diffusers...\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n3 tests collected, 1 error in 4.93s\n"
+      },
+      {
+        "step_index": 13,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/test_lora_inference.py _________________\n/usr/local/lib/python3.12/site-packages/diffusers\n... (10406 chars omitted for recipe synthesis) ...\nv_descale: 'torch.Tensor | None' = None, attention_chunk: 'int' = 0, softcap: 'float' = 0.0, num_splits: 'int' = 1, pack_gqa: 'bool | None' = None, deterministic: 'bool' = False, sm_margin: 'int' = 0) -> 'tuple[torch.Tensor, torch.Tensor]')\n=========================== short test summary info ============================\nERROR tests/test_lora_inference.py - RuntimeError: Failed to import diffusers...\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n3 tests collected, 1 error in 8.44s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      },
+      {
+        "step_index": 15,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/test_lora_inference.py _________________\n/usr/local/lib/python3.12/site-packages/diffusers\n... (2335 chars omitted for recipe synthesis) ...\npelines.cogvideo.pipeline_cogvideox because of the following error (look up to see its traceback):\nE   cannot import name 'FLAX_WEIGHTS_NAME' from 'transformers.utils' (/usr/local/lib/python3.12/site-packages/transformers/utils/__init__.py)\n=========================== short test summary info ============================\nERROR tests/test_lora_inference.py - RuntimeError: Failed to import diffusers...\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n3 tests collected, 1 error in 6.43s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      },
+      {
+        "step_index": 17,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "test_failure_signal"
+        },
+        "observation_summary": "[SYSTEM] ⚠️  TEST FAILURE DETECTED: 1 test error(s) reported.\n[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' until Repo2Run-style pytest collection succeeds without collection/import/config errors.\n\ntests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n==================================== ERRORS ====================================\n________________ ERROR collecting tests/test_lora_inference.py _________________\n/usr/local/lib/python3.12/site-packages/diffusers\n... (2335 chars omitted for recipe synthesis) ...\npelines.cogvideo.pipeline_cogvideox because of the following error (look up to see its traceback):\nE   cannot import name 'FLAX_WEIGHTS_NAME' from 'transformers.utils' (/usr/local/lib/python3.12/site-packages/transformers/utils/__init__.py)\n=========================== short test summary info ============================\nERROR tests/test_lora_inference.py - RuntimeError: Failed to import diffusers...\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n3 tests collected, 1 error in 7.96s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip3 install -r /app/requirements.txt",
+        "pip3 install torchao==0.5.0",
+        "pip3 install diffusers==0.31.0",
+        "pip3 install transformers==4.45.2",
+        "pip3 install pytest"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "pip3 install 'torchao>=0.5.0,<0.5.0'",
+          "reason": "Invalid constraint range - immediately recognized and corrected in next step"
+        },
+        {
+          "command": "pip3 install 'diffusers==0.30.3'",
+          "reason": "Intermediate version that still failed - superseded by diffusers==0.31.0 which is the version that actually worked"
+        },
+        {
+          "command": "cat /a-r-r-o-w__cogvideox-factory/requirements.txt ...",
+          "reason": "Non-existent path attempt - read-only exploration, repository was already at /app"
+        },
+        {
+          "command": "pwd && ls -la",
+          "reason": "Read-only directory listing for context"
+        },
+        {
+          "command": "cat /app/requirements.txt /app/pyproject.toml /app/Makefile",
+          "reason": "Read-only file inspection for dependency discovery"
+        },
+        {
+          "command": "ls -la /app/tests/ && cat /app/tests/test_dataset.py ...",
+          "reason": "Read-only test file inspection"
+        },
+        {
+          "command": "ls /app/training/ && cat /app/training/__init__.py ...",
+          "reason": "Read-only training directory inspection"
+        },
+        {
+          "command": "pip3 list ... | grep -iE ...",
+          "reason": "Diagnostic package list check"
+        },
+        {
+          "command": "cd /app && pytest --collect-only -q --disable-warnings (failed attempts)",
+          "reason": "Test commands that failed - only the final successful verification is retained as test_commands"
+        }
+      ],
+      "rationale": "The successful environment setup required multiple dependency resolution steps. The initial requirements.txt installation brought torch-2.4.1, transformers-5.6.2, and torchao-0.17.0 which are incompatible with the CogVideoXPipeline in diffusers. The fix involved: (1) downgrading torchao from 0.17.0 to 0.5.0 to resolve torch compatibility, (2) upgrading diffusers to 0.31.0 as 0.30.3 still had import errors, and (3) downgrading transformers from 5.6.2 to 4.45.2 to resolve the FLAX_WEIGHTS_NAME import error. The final working configuration is: torch-2.4.1, transformers-4.45.2, diffusers-0.31.0, torchao-0.5.0, pytest-9.0.3.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 6,
+      "compressed_steps": 5,
+      "saved_tokens_est": 6035
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat /a-r-r-o-w__cogvideox-factory/requirements.txt /a-r-r-r-o-w__cogvideox-factory/pyproject.toml /a-r-r-r-o-w__cogvideox-factory/Makefile 2>/dev/null || cat /a-r-r-o-w__cogvideox-factory/requirements.txt /a-r-r-o-w__cogvideox-factory/pyproject.toml 2>/dev/null || find /a-r-r-o-w__cogvideox-factory -maxdepth 2 -name \"*.txt\" -o -name \"*.toml\" -o -name \"Makefile\" | head -20",
+        "success": true,
+        "raw_chars": 65,
+        "raw_tokens_est": 16,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 1238,
+        "raw_tokens_est": 309,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "cat /app/requirements.txt /app/pyproject.toml /app/Makefile",
+        "success": true,
+        "raw_chars": 1153,
+        "raw_tokens_est": 288,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "ls -la /app/tests/ && cat /app/tests/test_dataset.py /app/tests/test_lora_inference.py 2>/dev/null",
+        "success": true,
+        "raw_chars": 5089,
+        "raw_tokens_est": 1272,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1169,
+        "reflect_input_tokens": 2550,
+        "reflect_output_tokens": 261
+      },
+      {
+        "step_id": 5,
+        "action": "ls /app/training/ && cat /app/training/__init__.py 2>/dev/null; python3 --version; pip3 --version",
+        "success": true,
+        "raw_chars": 297,
+        "raw_tokens_est": 74,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "pip3 list 2>/dev/null | grep -iE \"torch|diffusers|transformers|peft|decord|wandb|pandas|bitsandbytes|huggingface\" | head -20",
+        "success": true,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "pip3 install -r /app/requirements.txt 2>&1 | tail -20",
+        "success": true,
+        "raw_chars": 3749,
+        "raw_tokens_est": 937,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 276,
+        "reflect_input_tokens": 2380,
+        "reflect_output_tokens": 1201
+      },
+      {
+        "step_id": 8,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 45,
+        "raw_tokens_est": 11,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 9,
+        "action": "pip3 install pytest 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 542,
+        "raw_tokens_est": 135,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 6210,
+        "raw_tokens_est": 1552,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1217,
+        "reflect_input_tokens": 3002,
+        "reflect_output_tokens": 522
+      },
+      {
+        "step_id": 11,
+        "action": "pip3 install 'torchao>=0.5.0,<0.5.0' 2>&1 | tail -5; pip3 index versions torchao 2>&1 | head -10",
+        "success": true,
+        "raw_chars": 901,
+        "raw_tokens_est": 225,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 12,
+        "action": "pip3 install torchao==0.5.0 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 514,
+        "raw_tokens_est": 128,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 13,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 11606,
+        "raw_tokens_est": 2901,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 2341,
+        "reflect_input_tokens": 4697,
+        "reflect_output_tokens": 757
+      },
+      {
+        "step_id": 14,
+        "action": "pip3 install 'diffusers==0.30.3' 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 517,
+        "raw_tokens_est": 129,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 15,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 3535,
+        "raw_tokens_est": 883,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 622,
+        "reflect_input_tokens": 2620,
+        "reflect_output_tokens": 435
+      },
+      {
+        "step_id": 16,
+        "action": "pip3 install 'diffusers==0.31.0' 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 517,
+        "raw_tokens_est": 129,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 17,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": false,
+        "raw_chars": 3535,
+        "raw_tokens_est": 883,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 686,
+        "reflect_input_tokens": 1863,
+        "reflect_output_tokens": 401
+      },
+      {
+        "step_id": 18,
+        "action": "pip3 install 'transformers==4.45.2' 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 561,
+        "raw_tokens_est": 140,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 19,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 268,
+        "raw_tokens_est": 67,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 20,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 268,
+        "raw_tokens_est": 67,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 33778,
+        "output_tokens": 8150,
+        "total_tokens": 41928
+      },
+      "planner": {
+        "input_tokens": 132503,
+        "output_tokens": 2402,
+        "total_tokens": 134905
+      },
+      "reflection": {
+        "input_tokens": 17112,
+        "output_tokens": 3577,
+        "total_tokens": 20689
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 18031,
+        "output_tokens": 2922,
+        "total_tokens": 20953
+      },
+      "total": {
+        "input_tokens": 201424,
+        "output_tokens": 17051,
+        "total_tokens": 218475
+      }
+    },
+    "error": null,
+    "resynthesis": {
+      "reused_existing_workplace": true,
+      "model": "MiniMax-M2.7-highspeed",
+      "base_image": "python:3.12",
+      "workdir": "/app",
+      "setup_log_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory/logs/setup_logs/setup_log_summary.md",
+      "recipe_synthesis_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory/logs/setup_logs/recipe_synthesis.md",
+      "summary_token_usage": {
+        "input_tokens": 5955,
+        "output_tokens": 753,
+        "total_tokens": 6708
+      },
+      "recipe_token_usage": {
+        "input_tokens": 8786,
+        "output_tokens": 1139,
+        "total_tokens": 9925
+      },
+      "dockerfile_generated": true
+    }
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-a-r-r-o-w__cogvideox-factory",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/Dockerfile.eval -t jayint-repo2run-a-r-r-o-w__cogvideox-factory /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/a-r-r-o-w__cogvideox-factory",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T17:59:52.257888+08:00",
+    "finished_at": "2026-04-24T18:13:15.634974+08:00",
+    "duration_seconds": 803.377,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [ 1/10] FROM docker.io/library/python:3.12\n#1 DONE 0.0s\n\n#2 [ 2/10] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#2 CACHED\n\n#3 [ 3/10] WORKDIR /app\n#3 CACHED\n\n#4 [internal] load build definition from Dockerfile.eval\n#4 transferring dockerfile: 592B done\n#4 DONE 0.0s\n\n#5 [internal] load metadata for docker.io/library/python:3.12\n#5 DONE 0.0s\n\n#6 [internal] load .dockerignore\n#6 transferring context: 2B done\n#6 DONE 0.0s\n\n#7 [internal] load build context\n#7 transferring context: 61.01MB 0.4s done\n#7 DONE 0.4s\n\n#8 [ 4/10] COPY . /app\n#8 DONE 0.5s\n\n#9 [ 5/10] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.2s\n\n#10 [ 6/10] RUN pip3 install -r /app/requirements.txt\n#10 1.164 Collecting accelerate (from -r /app/requirements.txt (line 1))\n#10 1.630   Downloading accelerate-1.13.0-py3-none-any.whl.metadata (19 kB)\n#10 2.003 Collecting bitsandbytes (from -r /app/requirements.txt (line 2))\n#10 2.171   Downloading bitsandbytes-0.49.2-py3-none-manylinux_2_24_x86_64.whl.metadata (10 kB)\n#10 2.471 Collecting diffusers>=0.30.3 (from -r /app/requirements.txt (line 3))\n#10 2.636   Downloading diffusers-0.37.1-py3-none-any.whl.metadata (20 kB)\n#10 3.043 Collecting transformers>=4.45.2 (from -r /app/requirements.txt (line 4))\n#10 3.210   Downloading transformers-5.6.2-py3-none-any.whl.metadata (33 kB)\n#10 3.636 Collecting huggingface_hub (from -r /app/requirements.txt (line 5))\n#10 3.825   Downloading huggingface_hub-1.11.0-py3-none-any.whl.metadata (14 kB)\n#10 4.112 Collecting hf_transfer>=0.1.8 (from -r /app/requirements.txt (line 6))\n#10 4.284   Downloading hf_transfer-0.1.9-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.7 kB)\n#10 4.494 Collecting peft>=0.12.0 (from -r /app/requirements.txt (line 7))\n#10 4.667   Downloading peft-0.19.1-py3-none-any.whl.metadata (15 kB)\n#10 4.892 Collecting decord>=0.6.0 (from -r /app/requirements.txt (line 8))\n#10 5.049   Downloading decord-0.6.0-py3-none-manylinux2010_x86_64.whl.metadata (422 bytes)\n#10 5.431 Collecting wandb (from -r /app/requirements.txt (line 9))\n#10 5.594   Downloading wandb-0.26.1-py3-none-manylinux_2_28_x86_64.whl.metadata (11 kB)\n#10 6.033 Collecting pandas (from -r /app/requirements.txt (line 10))\n#10 6.195   Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#10 6.645 Collecting torch<2.5.0 (from -r /app/requirements.txt (line 11))\n#10 6.815   Downloading torch-2.4.1-cp312-cp312-manylinux1_x86_64.whl.metadata (26 kB)\n#10 7.087 Collecting torchvision<0.20.0 (from -r /app/requirements.txt (line 12))\n#10 7.250   Downloading torchvision-0.19.1-cp312-cp312-manylinux1_x86_64.whl.metadata (6.0 kB)\n#10 7.429 Collecting torchao>=0.5.0 (from -r /app/requirements.txt (line 13))\n#10 7.546   Downloading torchao-0.17.0-cp310-abi3-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (20 kB)\n#10 7.752 Collecting sentencepiece>=0.2.0 (from -r /app/requirements.txt (line 14))\n#10 7.858   Downloading sentencepiece-0.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (10 kB)\n#10 8.008 Collecting imageio-ffmpeg>=0.5.1 (from -r /app/requirements.txt (line 15))\n#10 8.117   Downloading imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl.metadata (1.5 kB)\n#10 8.449 Collecting numpy>=1.26.4 (from -r /app/requirements.txt (line 16))\n#10 8.594   Downloading numpy-2.4.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)\n#10 8.610 Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.12/site-packages (from accelerate->-r /app/requirements.txt (line 1)) (26.1)\n#10 8.908 Collecting psutil (from accelerate->-r /app/requirements.txt (line 1))\n#10 9.112   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl.metadata (22 kB)\n#10 9.394 Collecting pyyaml (from accelerate->-r /app/requirements.txt (line 1))\n#10 9.604   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#10 10.25 Collecting safetensors>=0.4.3 (from accelerate->-r /app/requirements.txt (line 1))\n#10 10.42   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)\n#10 10.65 Collecting importlib-metadata (from diffusers>=0.30.3->-r /app/requirements.txt (line 3))\n#10 10.81   Downloading importlib_metadata-9.0.0-py3-none-any.whl.metadata (4.5 kB)\n#10 10.83 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (3.29.0)\n#10 10.83 Requirement already satisfied: httpx<1.0.0 in /usr/local/lib/python3.12/site-packages (from diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (0.28.1)\n#10 11.73 Collecting regex!=2019.12.17 (from diffusers>=0.30.3->-r /app/requirements.txt (line 3))\n#10 11.89   Downloading regex-2026.4.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n#10 11.93 Requirement already satisfied: requests in /usr/local/lib/python3.12/site-packages (from diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (2.33.1)\n#10 12.40 Collecting Pillow (from diffusers>=0.30.3->-r /app/requirements.txt (line 3))\n#10 12.56   Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)\n#10 13.00 Collecting tokenizers<=0.23.0,>=0.22.0 (from transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 13.16   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)\n#10 13.35 Collecting typer (from transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 13.52   Downloading typer-0.24.2-py3-none-any.whl.metadata (15 kB)\n#10 13.76 Collecting tqdm>=4.27 (from transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 13.93   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#10 14.21 Collecting fsspec>=2023.5.0 (from huggingface_hub->-r /app/requirements.txt (line 5))\n#10 14.39   Downloading fsspec-2026.3.0-py3-none-any.whl.metadata (10 kB)\n#10 14.68 Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface_hub->-r /app/requirements.txt (line 5))\n#10 14.85   Downloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)\n#10 14.88 Requirement already satisfied: typing-extensions>=4.1.0 in /usr/local/lib/python3.12/site-packages (from huggingface_hub->-r /app/requirements.txt (line 5)) (4.15.0)\n#10 15.10 Collecting click>=8.0.1 (from wandb->-r /app/requirements.txt (line 9))\n#10 15.26   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 15.47 Collecting gitpython!=3.1.29,>=1.0.0 (from wandb->-r /app/requirements.txt (line 9))\n#10 15.66   Downloading gitpython-3.1.47-py3-none-any.whl.metadata (14 kB)\n#10 15.68 Requirement already satisfied: platformdirs in /usr/local/lib/python3.12/site-packages (from wandb->-r /app/requirements.txt (line 9)) (4.9.6)\n#10 16.09 Collecting protobuf!=5.28.0,!=5.29.0,<8,>4.21.0 (from wandb->-r /app/requirements.txt (line 9))\n#10 16.25   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)\n#10 16.59 Collecting pydantic<3 (from wandb->-r /app/requirements.txt (line 9))\n#10 16.75   Downloading pydantic-2.13.3-py3-none-any.whl.metadata (108 kB)\n#10 17.11 Collecting sentry-sdk>=2.0.0 (from wandb->-r /app/requirements.txt (line 9))\n#10 17.29   Downloading sentry_sdk-2.58.0-py2.py3-none-any.whl.metadata (10 kB)\n#10 17.51 Collecting python-dateutil>=2.8.2 (from pandas->-r /app/requirements.txt (line 10))\n#10 17.68   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)\n#10 17.88 Collecting sympy (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 18.05   Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)\n#10 18.21 Collecting networkx (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 18.32   Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)\n#10 18.47 Collecting jinja2 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 18.58   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#10 18.84 Collecting setuptools (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 18.95   Downloading setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)\n#10 19.07 Collecting nvidia-cuda-nvrtc-cu12==12.1.105 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 19.18   Downloading nvidia_cuda_nvrtc_cu12-12.1.105-py3-none-manylinux1_x86_64.whl.metadata (1.5 kB)\n#10 19.36 Collecting nvidia-cuda-runtime-cu12==12.1.105 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 19.58   Downloading nvidia_cuda_runtime_cu12-12.1.105-py3-none-manylinux1_x86_64.whl.metadata (1.5 kB)\n#10 19.83 Collecting nvidia-cuda-cupti-cu12==12.1.105 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 20.06   Downloading nvidia_cuda_cupti_cu12-12.1.105-py3-none-manylinux1_x86_64.whl.metadata (1.6 kB)\n#10 20.32 Collecting nvidia-cudnn-cu12==9.1.0.70 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 20.54   Downloading nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl.metadata (1.6 kB)\n#10 20.79 Collecting nvidia-cublas-cu12==12.1.3.1 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 20.95   Downloading nvidia_cublas_cu12-12.1.3.1-py3-none-manylinux1_x86_64.whl.metadata (1.5 kB)\n#10 21.14 Collecting nvidia-cufft-cu12==11.0.2.54 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 21.30   Downloading nvidia_cufft_cu12-11.0.2.54-py3-none-manylinux1_x86_64.whl.metadata (1.5 kB)\n#10 21.49 Collecting nvidia-curand-cu12==10.3.2.106 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 21.66   Downloading nvidia_curand_cu12-10.3.2.106-py3-none-manylinux1_x86_64.whl.metadata (1.5 kB)\n#10 21.85 Collecting nvidia-cusolver-cu12==11.4.5.107 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 22.01   Downloading nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl.metadata (1.6 kB)\n#10 22.19 Collecting nvidia-cusparse-cu12==12.1.0.106 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 22.36   Downloading nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl.metadata (1.6 kB)\n#10 22.54 Collecting nvidia-nccl-cu12==2.20.5 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 22.70   Downloading nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_x86_64.whl.metadata (1.8 kB)\n#10 22.90 Collecting nvidia-nvtx-cu12==12.1.105 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 23.06   Downloading nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl.metadata (1.7 kB)\n#10 23.27 Collecting triton==3.0.0 (from torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 23.44   Downloading triton-3.0.0-1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.3 kB)\n#10 23.65 Collecting nvidia-nvjitlink-cu12 (from nvidia-cusolver-cu12==11.4.5.107->torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 23.82   Downloading nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)\n#10 24.05 Collecting gitdb<5,>=4.0.1 (from gitpython!=3.1.29,>=1.0.0->wandb->-r /app/requirements.txt (line 9))\n#10 24.21   Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)\n#10 24.23 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1.0.0->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (4.13.0)\n#10 24.23 Requirement already satisfied: certifi in /usr/local/lib/python3.12/site-packages (from httpx<1.0.0->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (2026.4.22)\n#10 24.23 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1.0.0->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (1.0.9)\n#10 24.23 Requirement already satisfied: idna in /usr/local/lib/python3.12/site-packages (from httpx<1.0.0->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (3.13)\n#10 24.24 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1.0.0->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (0.16.0)\n#10 24.41 Collecting annotated-types>=0.6.0 (from pydantic<3->wandb->-r /app/requirements.txt (line 9))\n#10 24.59   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#10 25.99 Collecting pydantic-core==2.46.3 (from pydantic<3->wandb->-r /app/requirements.txt (line 9))\n#10 26.14   Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#10 26.33 Collecting typing-inspection>=0.4.2 (from pydantic<3->wandb->-r /app/requirements.txt (line 9))\n#10 26.49   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#10 26.69 Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas->-r /app/requirements.txt (line 10))\n#10 26.85   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\n#10 26.87 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (3.4.7)\n#10 26.87 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests->diffusers>=0.30.3->-r /app/requirements.txt (line 3)) (2.6.3)\n#10 27.09 Collecting zipp>=3.20 (from importlib-metadata->diffusers>=0.30.3->-r /app/requirements.txt (line 3))\n#10 27.25   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#10 27.53 Collecting MarkupSafe>=2.0 (from jinja2->torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 27.70   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\n#10 27.90 Collecting mpmath<1.4,>=1.1.0 (from sympy->torch<2.5.0->-r /app/requirements.txt (line 11))\n#10 28.06   Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)\n#10 28.09 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/site-packages (from typer->transformers>=4.45.2->-r /app/requirements.txt (line 4)) (1.5.4)\n#10 28.33 Collecting rich>=12.3.0 (from typer->transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 28.50   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#10 28.70 Collecting annotated-doc>=0.0.2 (from typer->transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 28.87   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#10 29.04 Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->gitpython!=3.1.29,>=1.0.0->wandb->-r /app/requirements.txt (line 9))\n#10 29.16   Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)\n#10 29.32 Collecting markdown-it-py>=2.2.0 (from rich>=12.3.0->typer->transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 29.43   Downloading markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)\n#10 29.45 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.12/site-packages (from rich>=12.3.0->typer->transformers>=4.45.2->-r /app/requirements.txt (line 4)) (2.20.0)\n#10 29.58 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=12.3.0->typer->transformers>=4.45.2->-r /app/requirements.txt (line 4))\n#10 29.69   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#10 29.83 Downloading accelerate-1.13.0-py3-none-any.whl (383 kB)\n#10 30.19 Downloading bitsandbytes-0.49.2-py3-none-manylinux_2_24_x86_64.whl (60.7 MB)\n#10 56.12    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.7/60.7 MB 2.4 MB/s eta 0:00:00\n#10 56.23 Downloading diffusers-0.37.1-py3-none-any.whl (5.0 MB)\n#10 58.34    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.0/5.0 MB 2.4 MB/s eta 0:00:00\n#10 58.46 Downloading transformers-5.6.2-py3-none-any.whl (10.4 MB)\n#10 63.13    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 2.2 MB/s eta 0:00:00\n#10 63.24 Downloading huggingface_hub-1.11.0-py3-none-any.whl (645 kB)\n#10 63.49    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 645.5/645.5 kB 2.3 MB/s eta 0:00:00\n#10 63.65 Downloading hf_transfer-0.1.9-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.6 MB)\n#10 65.28    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.6/3.6 MB 2.2 MB/s eta 0:00:00\n#10 65.44 Downloading peft-0.19.1-py3-none-any.whl (680 kB)\n#10 65.79    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 680.7/680.7 kB 1.9 MB/s eta 0:00:00\n#10 65.96 Downloading decord-0.6.0-py3-none-manylinux2010_x86_64.whl (13.6 MB)\n#10 71.63    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.6/13.6 MB 2.4 MB/s eta 0:00:00\n#10 71.74 Downloading wandb-0.26.1-py3-none-manylinux_2_28_x86_64.whl (27.2 MB)\n#10 80.30    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 27.2/27.2 MB 3.2 MB/s eta 0:00:00\n#10 80.40 Downloading pandas-3.0.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (10.9 MB)\n#10 83.66    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.9/10.9 MB 3.4 MB/s eta 0:00:00\n#10 83.77 Downloading torch-2.4.1-cp312-cp312-manylinux1_x86_64.whl (797.0 MB)\n#10 352.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 797.0/797.0 MB 2.5 MB/s eta 0:00:00\n#10 352.5 Downloading nvidia_cublas_cu12-12.1.3.1-py3-none-manylinux1_x86_64.whl (410.6 MB)\n#10 496.5    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 2.9 MB/s eta 0:00:00\n#10 496.6 Downloading nvidia_cuda_cupti_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (14.1 MB)\n#10 502.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 2.3 MB/s eta 0:00:00\n#10 502.9 Downloading nvidia_cuda_nvrtc_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (23.7 MB)\n#10 511.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 2.8 MB/s eta 0:00:00\n#10 511.5 Downloading nvidia_cuda_runtime_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (823 kB)\n#10 511.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 2.8 MB/s eta 0:00:00\n#10 511.9 Downloading nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl (664.8 MB)\n#10 740.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 664.8/664.8 MB 2.4 MB/s eta 0:00:00\n#10 740.5 Downloading nvidia_cufft_cu12-11.0.2.54-py3-none-manylinux1_x86_64.whl (121.6 MB)\n#10 776.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 3.7 MB/s eta 0:00:00\n#10 776.6 Downloading nvidia_curand_cu12-10.3.2.106-py3-none-manylinux1_x86_64.whl (56.5 MB)\n#10 788.0    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 4.9 MB/s eta 0:00:00\n#10 788.1 Downloading nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl (124.2 MB)\n#10 815.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 4.6 MB/s eta 0:00:00\n#10 815.5 Downloading nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl (196.0 MB)\n#10 847.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 6.1 MB/s eta 0:00:00\n#10 847.8 Downloading nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_x86_64.whl (176.2 MB)\n#10 877.5    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.2/176.2 MB 5.9 MB/s eta 0:00:00\n#10 877.6 Downloading nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (99 kB)\n#10 877.7 Downloading triton-3.0.0-1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (209.5 MB)\n#10 916.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 209.5/209.5 MB 5.4 MB/s eta 0:00:00\n#10 916.3 Downloading torchvision-0.19.1-cp312-cp312-manylinux1_x86_64.whl (7.0 MB)\n#10 917.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.0/7.0 MB 5.2 MB/s eta 0:00:00\n#10 917.8 Downloading torchao-0.17.0-cp310-abi3-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)\n#10 918.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 8.4 MB/s eta 0:00:00\n#10 918.3 Downloading sentencepiece-0.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n#10 918.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 9.6 MB/s eta 0:00:00\n#10 918.5 Downloading imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl (29.5 MB)\n#10 923.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 29.5/29.5 MB 6.0 MB/s eta 0:00:00\n#10 923.5 Downloading numpy-2.4.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.6 MB)\n#10 926.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.6/16.6 MB 6.2 MB/s eta 0:00:00\n#10 926.3 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 926.5 Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#10 926.6 Downloading gitpython-3.1.47-py3-none-any.whl (209 kB)\n#10 926.8 Downloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)\n#10 927.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 6.6 MB/s eta 0:00:00\n#10 927.5 Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n#10 928.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 6.1 MB/s eta 0:00:00\n#10 928.8 Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl (324 kB)\n#10 928.9 Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#10 929.1 Downloading pydantic_core-2.46.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 929.3    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.5 MB/s eta 0:00:00\n#10 929.4 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#10 929.5 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)\n#10 929.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 8.8 MB/s eta 0:00:00\n#10 929.8 Downloading regex-2026.4.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n#10 929.8    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.1/801.1 kB 7.1 MB/s eta 0:00:00\n#10 930.0 Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#10 930.1 Downloading sentry_sdk-2.58.0-py2.py3-none-any.whl (460 kB)\n#10 930.3 Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#10 930.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 6.6 MB/s eta 0:00:00\n#10 930.8 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 931.0 Downloading importlib_metadata-9.0.0-py3-none-any.whl (27 kB)\n#10 931.1 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 931.2 Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)\n#10 931.4    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 9.8 MB/s eta 0:00:00\n#10 931.5 Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#10 931.7 Downloading setuptools-82.0.1-py3-none-any.whl (1.0 MB)\n#10 931.7    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 12.0 MB/s eta 0:00:00\n#10 931.8 Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#10 932.9    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 6.1 MB/s eta 0:00:00\n#10 933.0 Downloading typer-0.24.2-py3-none-any.whl (55 kB)\n#10 933.1 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 933.2 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 933.3 Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#10 933.5 Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\n#10 933.6 Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#10 933.6    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 6.2 MB/s eta 0:00:00\n#10 933.8 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 933.9 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#10 934.0 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 934.2 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#10 934.3 Downloading nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.7 MB)\n#10 941.0    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.7/39.7 MB 6.0 MB/s eta 0:00:00\n#10 941.1 Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#10 941.2 Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#10 941.3 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 959.9 Installing collected packages: torchao, mpmath, zipp, typing-inspection, triton, tqdm, sympy, smmap, six, setuptools, sentry-sdk, sentencepiece, safetensors, regex, pyyaml, pydantic-core, psutil, protobuf, Pillow, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufft-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, networkx, mdurl, MarkupSafe, imageio-ffmpeg, hf-xet, hf_transfer, fsspec, click, annotated-types, annotated-doc, python-dateutil, pydantic, nvidia-cusparse-cu12, nvidia-cudnn-cu12, markdown-it-py, jinja2, importlib-metadata, gitdb, decord, rich, pandas, nvidia-cusolver-cu12, gitpython, wandb, typer, torch, torchvision, huggingface_hub, bitsandbytes, tokenizers, diffusers, accelerate, transformers, peft\n#10 1016.9 Successfully installed MarkupSafe-3.0.3 Pillow-12.2.0 accelerate-1.13.0 annotated-doc-0.0.4 annotated-types-0.7.0 bitsandbytes-0.49.2 click-8.3.3 decord-0.6.0 diffusers-0.37.1 fsspec-2026.3.0 gitdb-4.0.12 gitpython-3.1.47 hf-xet-1.4.3 hf_transfer-0.1.9 huggingface_hub-1.11.0 imageio-ffmpeg-0.6.0 importlib-metadata-9.0.0 jinja2-3.1.6 markdown-it-py-4.0.0 mdurl-0.1.2 mpmath-1.3.0 networkx-3.6.1 numpy-2.4.4 nvidia-cublas-cu12-12.1.3.1 nvidia-cuda-cupti-cu12-12.1.105 nvidia-cuda-nvrtc-cu12-12.1.105 nvidia-cuda-runtime-cu12-12.1.105 nvidia-cudnn-cu12-9.1.0.70 nvidia-cufft-cu12-11.0.2.54 nvidia-curand-cu12-10.3.2.106 nvidia-cusolver-cu12-11.4.5.107 nvidia-cusparse-cu12-12.1.0.106 nvidia-nccl-cu12-2.20.5 nvidia-nvjitlink-cu12-12.9.86 nvidia-nvtx-cu12-12.1.105 pandas-3.0.2 peft-0.19.1 protobuf-7.34.1 psutil-7.2.2 pydantic-2.13.3 pydantic-core-2.46.3 python-dateutil-2.9.0.post0 pyyaml-6.0.3 regex-2026.4.4 rich-15.0.0 safetensors-0.7.0 sentencepiece-0.2.1 sentry-sdk-2.58.0 setuptools-82.0.1 six-1.17.0 smmap-5.0.3 sympy-1.14.0 tokenizers-0.22.2 torch-2.4.1 torchao-0.17.0 torchvision-0.19.1 tqdm-4.67.3 transformers-5.6.2 triton-3.0.0 typer-0.24.2 typing-inspection-0.4.2 wandb-0.26.1 zipp-3.23.1\n#10 1016.9 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 1016.9 \n#10 1016.9 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#10 1016.9 [notice] To update, run: pip install --upgrade pip\n#10 DONE 1018.3s\n\n#11 [ 7/10] RUN pip3 install torchao==0.5.0\n#11 1.178 Collecting torchao==0.5.0\n#11 1.731   Downloading torchao-0.5.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (12 kB)\n#11 1.921 Downloading torchao-0.5.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.6 MB)\n#11 2.855    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 2.6 MB/s eta 0:00:00\n#11 3.018 Installing collected packages: torchao\n#11 3.018   Attempting uninstall: torchao\n#11 3.020     Found existing installation: torchao 0.17.0\n#11 3.050     Uninstalling torchao-0.17.0:\n#11 3.380       Successfully uninstalled torchao-0.17.0\n#11 3.592 Successfully installed torchao-0.5.0\n#11 3.593 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 3.602 \n#11 3.602 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#11 3.602 [notice] To update, run: pip install --upgrade pip\n#11 DONE 3.7s\n\n#12 [ 8/10] RUN pip3 install diffusers==0.31.0\n#12 1.267 Collecting diffusers==0.31.0\n#12 1.689   Downloading diffusers-0.31.0-py3-none-any.whl.metadata (18 kB)\n#12 1.819 Requirement already satisfied: importlib-metadata in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (9.0.0)\n#12 1.820 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (3.29.0)\n#12 1.821 Requirement already satisfied: huggingface-hub>=0.23.2 in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (1.11.0)\n#12 1.821 Requirement already satisfied: numpy in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (2.4.4)\n#12 1.822 Requirement already satisfied: regex!=2019.12.17 in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (2026.4.4)\n#12 1.823 Requirement already satisfied: requests in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (2.33.1)\n#12 1.824 Requirement already satisfied: safetensors>=0.3.1 in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (0.7.0)\n#12 1.824 Requirement already satisfied: Pillow in /usr/local/lib/python3.12/site-packages (from diffusers==0.31.0) (12.2.0)\n#12 1.835 Requirement already satisfied: fsspec>=2023.5.0 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (2026.3.0)\n#12 1.835 Requirement already satisfied: hf-xet<2.0.0,>=1.4.3 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (1.4.3)\n#12 1.836 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (0.28.1)\n#12 1.837 Requirement already satisfied: packaging>=20.9 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (26.1)\n#12 1.837 Requirement already satisfied: pyyaml>=5.1 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (6.0.3)\n#12 1.838 Requirement already satisfied: tqdm>=4.42.1 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (4.67.3)\n#12 1.838 Requirement already satisfied: typer in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (0.24.2)\n#12 1.839 Requirement already satisfied: typing-extensions>=4.1.0 in /usr/local/lib/python3.12/site-packages (from huggingface-hub>=0.23.2->diffusers==0.31.0) (4.15.0)\n#12 1.846 Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.12/site-packages (from importlib-metadata->diffusers==0.31.0) (3.23.1)\n#12 1.850 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests->diffusers==0.31.0) (3.4.7)\n#12 1.850 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests->diffusers==0.31.0) (3.13)\n#12 1.851 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests->diffusers==0.31.0) (2.6.3)\n#12 1.851 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests->diffusers==0.31.0) (2026.4.22)\n#12 1.862 Requirement already satisfied: anyio in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.23.0->huggingface-hub>=0.23.2->diffusers==0.31.0) (4.13.0)\n#12 1.862 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.12/site-packages (from httpx<1,>=0.23.0->huggingface-hub>=0.23.2->diffusers==0.31.0) (1.0.9)\n#12 1.864 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.12/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub>=0.23.2->diffusers==0.31.0) (0.16.0)\n#12 1.872 Requirement already satisfied: click>=8.2.1 in /usr/local/lib/python3.12/site-packages (from typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (8.3.3)\n#12 1.872 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/site-packages (from typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (1.5.4)\n#12 1.872 Requirement already satisfied: rich>=12.3.0 in /usr/local/lib/python3.12/site-packages (from typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (15.0.0)\n#12 1.873 Requirement already satisfied: annotated-doc>=0.0.2 in /usr/local/lib/python3.12/site-packages (from typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (0.0.4)\n#12 1.875 Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/local/lib/python3.12/site-packages (from rich>=12.3.0->typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (4.0.0)\n#12 1.876 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.12/site-packages (from rich>=12.3.0->typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (2.20.0)\n#12 1.880 Requirement already satisfied: mdurl~=0.1 in /usr/local/lib/python3.12/site-packages (from markdown-it-py>=2.2.0->rich>=12.3.0->typer->huggingface-hub>=0.23.2->diffusers==0.31.0) (0.1.2)\n#12 2.040 Downloading diffusers-0.31.0-py3-none-any.whl (2.9 MB)\n#12 3.071    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 3.9 MB/s eta 0:00:00\n#12 3.202 Installing collected packages: diffusers\n#12 3.202   Attempting uninstall: diffusers\n#12 3.205     Found existing installation: diffusers 0.37.1\n#12 3.254     Uninstalling diffusers-0.37.1:\n#12 3.504       Successfully uninstalled diffusers-0.37.1\n#12 4.454 Successfully installed diffusers-0.31.0\n#12 4.454 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#12 4.464 \n#12 4.464 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#12 4.464 [notice] To update, run: pip install --upgrade pip\n#12 DONE 4.6s\n\n#13 [ 9/10] RUN pip3 install transformers==4.45.2\n#13 1.006 Collecting transformers==4.45.2\n#13 1.445   Downloading transformers-4.45.2-py3-none-any.whl.metadata (44 kB)\n#13 1.695 Requirement already satisfied: filelock in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (3.29.0)\n#13 1.918 Collecting huggingface-hub<1.0,>=0.23.2 (from transformers==4.45.2)\n#13 2.076   Downloading huggingface_hub-0.36.2-py3-none-any.whl.metadata (15 kB)\n#13 2.134 Requirement already satisfied: numpy>=1.17 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (2.4.4)\n#13 2.135 Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (26.1)\n#13 2.136 Requirement already satisfied: pyyaml>=5.1 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (6.0.3)\n#13 2.136 Requirement already satisfied: regex!=2019.12.17 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (2026.4.4)\n#13 2.137 Requirement already satisfied: requests in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (2.33.1)\n#13 2.138 Requirement already satisfied: safetensors>=0.4.1 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (0.7.0)\n#13 2.397 Collecting tokenizers<0.21,>=0.20 (from transformers==4.45.2)\n#13 2.558   Downloading tokenizers-0.20.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.7 kB)\n#13 2.569 Requirement already satisfied: tqdm>=4.27 in /usr/local/lib/python3.12/site-packages (from transformers==4.45.2) (4.67.3)\n#13 2.573 Requirement already satisfied: fsspec>=2023.5.0 in /usr/local/lib/python3.12/site-packages (from huggingface-hub<1.0,>=0.23.2->transformers==4.45.2) (2026.3.0)\n#13 2.574 Requirement already satisfied: hf-xet<2.0.0,>=1.1.3 in /usr/local/lib/python3.12/site-packages (from huggingface-hub<1.0,>=0.23.2->transformers==4.45.2) (1.4.3)\n#13 2.575 Requirement already satisfied: typing-extensions>=3.7.4.3 in /usr/local/lib/python3.12/site-packages (from huggingface-hub<1.0,>=0.23.2->transformers==4.45.2) (4.15.0)\n#13 2.605 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests->transformers==4.45.2) (3.4.7)\n#13 2.605 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests->transformers==4.45.2) (3.13)\n#13 2.606 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests->transformers==4.45.2) (2.6.3)\n#13 2.606 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests->transformers==4.45.2) (2026.4.22)\n#13 2.740 Downloading transformers-4.45.2-py3-none-any.whl (9.9 MB)\n#13 4.549    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.9/9.9 MB 6.0 MB/s eta 0:00:00\n#13 4.664 Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)\n#13 4.695    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 14.8 MB/s eta 0:00:00\n#13 4.812 Downloading tokenizers-0.20.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.0 MB)\n#13 5.176    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 7.7 MB/s eta 0:00:00\n#13 5.343 Installing collected packages: huggingface-hub, tokenizers, transformers\n#13 5.343   Attempting uninstall: huggingface-hub\n#13 5.346     Found existing installation: huggingface_hub 1.11.0\n#13 5.358     Uninstalling huggingface_hub-1.11.0:\n#13 5.396       Successfully uninstalled huggingface_hub-1.11.0\n#13 5.580   Attempting uninstall: tokenizers\n#13 5.582     Found existing installation: tokenizers 0.22.2\n#13 5.584     Uninstalling tokenizers-0.22.2:\n#13 5.602       Successfully uninstalled tokenizers-0.22.2\n#13 5.641   Attempting uninstall: transformers\n#13 5.645     Found existing installation: transformers 5.6.2\n#13 5.769     Uninstalling transformers-5.6.2:\n#13 6.562       Successfully uninstalled transformers-5.6.2\n#13 10.22 Successfully installed huggingface-hub-0.36.2 tokenizers-0.20.3 transformers-4.45.2\n#13 10.22 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#13 10.23 \n#13 10.23 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#13 10.23 [notice] To update, run: pip install --upgrade pip\n#13 DONE 10.4s\n\n#14 [10/10] RUN pip3 install pytest\n#14 0.426 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (9.0.3)\n#14 0.429 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest) (2.3.0)\n#14 0.429 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest) (26.1)\n#14 0.430 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest) (1.6.0)\n#14 0.431 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest) (2.20.0)\n#14 0.558 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#14 0.569 \n#14 0.569 [notice] A new release of pip is available: 25.0.1 -> 26.0.1\n#14 0.569 [notice] To update, run: pip install --upgrade pip\n#14 DONE 0.6s\n\n#15 exporting to image\n#15 exporting layers\n#15 exporting layers 32.3s done\n#15 writing image sha256:f2656d9e412114072188156719970aef63d44954c567c7373383dffc7de8f85c 0.0s done\n#15 naming to docker.io/library/jayint-repo2run-a-r-r-o-w__cogvideox-factory 0.0s done\n#15 DONE 32.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/dd0yog0yb9xyxozll1kc91p78\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-a-r-r-o-w__cogvideox-factory",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-a-r-r-o-w__cogvideox-factory sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-24T18:13:15.658579+08:00",
+          "finished_at": "2026-04-24T18:13:25.921311+08:00",
+          "duration_seconds": 10.263,
+          "stdout": "tests/test_dataset.py::test_video_dataset\ntests/test_dataset.py::test_video_dataset_with_resizing\ntests/test_dataset.py::test_video_dataset_with_bucket_sampler\n\n3 tests collected in 7.10s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": false,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-a-r-r-o-w__cogvideox-factory"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-a-r-r-o-w__cogvideox-factory",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-24T18:13:25.958815+08:00",
+    "finished_at": "2026-04-24T18:13:26.007828+08:00",
+    "duration_seconds": 0.049,
+    "stdout": "Untagged: jayint-repo2run-a-r-r-o-w__cogvideox-factory:latest\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/docker_build.stderr.log"
+    },
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/a-r-r-o-w__cogvideox-factory/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

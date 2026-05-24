@@ -1,0 +1,19 @@
+FROM python:3.10
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN printf '%s' 'Y2F0ID4+IHB5cHJvamVjdC50b21sIDw8ICdFT0YnCgpbcHJvamVjdF0KbmFtZSA9ICJ5YXRvLWxpYiIKdmVyc2lvbiA9ICIwLjAuMTIiCmF1dGhvcnMgPSBbe25hbWUgPSAiQ2hyaXN0b3BoZSBCbGVmYXJpIiwgZW1haWwgPSAieWF0b0BibGVmLmZyIn1dCmRlc2NyaXB0aW9uID0gIlRoZSBzbWFsbGVzdCBEdWNrREIgU1FMIHRyYW5zZm9ybWF0aW9ucyBvcmNoZXN0cmF0b3IiCnJlYWRtZSA9ICJSRUFETUUubWQiCmxpY2Vuc2UgPSB7dGV4dCA9ICJNSVQifQpyZXF1aXJlcy1weXRob24gPSAiPj0zLjksPDMuMTMiCmtleXdvcmRzID0gWyJkdWNrZGIiLCAic3FsIiwgIm9yY2hlc3RyYXRvciIsICJldGwiXQpjbGFzc2lmaWVycyA9IFsKICAgICJQcm9ncmFtbWluZyBMYW5ndWFnZSA6OiBQeXRob24iLAogICAgIlByb2dyYW1taW5nIExhbmd1YWdlIDo6IFB5dGhvbiA6OiAzIiwKICAgICJMaWNlbnNlIDo6IE9TSSBBcHByb3ZlZCA6OiBNSVQgTGljZW5zZSIsCiAgICAiT3BlcmF0aW5nIFN5c3RlbSA6OiBPUyBJbmRlcGVuZGVudCIsCiAgICAiRGV2ZWxvcG1lbnQgU3RhdHVzIDo6IDQgLSBCZXRhIiwKICAgICJJbnRlbmRlZCBBdWRpZW5jZSA6OiBEZXZlbG9wZXJzIiwKXQpkZXBlbmRlbmNpZXMgPSBbCiAgICAiYm90bzM+PTEuMzQuNTEsPDIuMC4wIiwKICAgICJzcWxnbG90Pj0yMy4wLjIsPDI0LjAuMCIsCiAgICAiZHVja2RiPj0xLjAuMCw8Mi4wLjAiLAogICAgImNsaWNrPj04LjEuNyw8OS4wLjAiLAogICAgInJpY2g+PTEzLjcuMSw8MTQuMC4wIiwKXQpvcHRpb25hbC1kZXBlbmRlbmNpZXMgPSBbCiAgICAicGFuZGFzPj0yLjIuMCIsCl0KRU9G' | base64 -d > /tmp/jayint_run_2.sh && chmod +x /tmp/jayint_run_2.sh && /bin/sh /tmp/jayint_run_2.sh
+RUN git config --global --add safe.directory /app
+RUN git checkout pyproject.toml
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install boto3 sqlglot duckdb click rich pandas pytest' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install '"'"'poetry>=1.0,<2.0'"'"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+RUN poetry install --all-extras
+RUN poetry run pytest --collect-only -q --disable-warnings

@@ -1,0 +1,43 @@
+# Build stage
+FROM python:3.12-slim as builder
+
+WORKDIR /app
+COPY . /app
+
+# Install system dependencies
+RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+
+# Install Poetry
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install --no-cache-dir poetry' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+# Copy only the files needed for installation
+COPY ./pyproject.toml ./poetry.lock* ./README.md /app/
+COPY ./graphiti_core /app/graphiti_core
+COPY ./server/pyproject.toml ./server/poetry.lock* /app/server/
+
+RUN poetry config virtualenvs.create false 
+
+# Install the local package
+RUN poetry build && pip install dist/*.whl
+
+# Install server dependencies
+WORKDIR /app/server
+RUN poetry install --no-interaction --no-ansi --without dev
+
+FROM python:3.12-slim
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+
+# Copy only the necessary files from the builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Create the app directory and copy server files
+WORKDIR /app
+COPY ./server /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+# Command to run the application
+
+CMD uvicorn graph_service.main:app --host 0.0.0.0 --port $PORT

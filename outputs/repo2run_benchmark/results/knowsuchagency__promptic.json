@@ -1,0 +1,783 @@
+{
+  "dataset_entry": {
+    "instance_id": "knowsuchagency__promptic",
+    "full_name": "knowsuchagency/promptic",
+    "repo_url": "https://github.com/knowsuchagency/promptic.git",
+    "sha": "a1930c",
+    "base_commit": "a1930c",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/knowsuchagency/promptic.git",
+      "--base-commit",
+      "a1930c",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "100",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/knowsuchagency/promptic.git --base-commit a1930c --image auto --model MiniMax-M2.7-highspeed --steps 100 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T14:38:33.906390+08:00",
+    "finished_at": "2026-05-14T14:42:32.792362+08:00",
+    "duration_seconds": 238.886,
+    "stdout": "Cleaning up existing workplace at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic...\nCloning https://github.com/knowsuchagency/promptic.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: a1930c\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 8 potentially relevant files\n[ImageSelector]   ✓ .github/workflows/publish-to-pypi.yml\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✗ justfile\n[ImageSelector]   ✓ .github/workflows/tests.yml\n[ImageSelector]   ✗ .github/workflows/create-release.yml\n[ImageSelector]   ✓ uv.lock\n[ImageSelector]   ✗ README.md\n[ImageSelector] 4 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Selected base image: python:3.13\n[DockerAgent] Selected base image: python:3.13\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/logs/image_selector_logs\nInitializing container from python:3.13...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:531c6\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/logs/compression_logs\nStarting agent for repository: https://github.com/knowsuchagency/promptic.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 2051, Output: 75, Total: 2126\n\n[Thought]\nLet me start by examining the pyproject.toml to understand the project configuration, dependencies, and test setup.\n\n[Action]\ncat /knowsuchagency__promptic/pyproject.toml\n[Container ID: 9803cdf206a5]\nExecuting: cat /knowsuchagency__promptic/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: /knowsuchagency__promptic/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 2117, Output: 76, Total: 2193\n\n[Thought]\nThe repository might be in a different location. Let me check the current working directory and find the repository files.\n\n[Action]\npwd && find / -type d -name \"promptic\" 2>/dev/null | head -20\n[Container ID: 9803cdf206a5]\nExecuting: pwd && find / -type d -name \"promptic\" 2>/dev/null | head -20\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\n\n\n==================== Step 3 ====================\n\n[Tokens] Input: 2180, Output: 44, Total: 2224\n\n[Thought]\nLet me check the current directory structure and find where the repository was copied.\n\n[Action]\nls -la /app\n[Container ID: 9803cdf206a5]\nExecuting: ls -la /app\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\ntotal 284\ndrwxr-xr-x 6 root root      4096 May 14 06:39 .\ndrwxr-xr-x 1 root root      4096 May 14 06:39 ..\ndrwxr-xr-x 7  501 dialout   4096 May 14 06:38 .git\ndrwxr-xr-x 3  501 dialout   4096 May 14 06:38 .github\n-rw-r--r-- 1  501 dialout   3156 May 14 06:38 .gitignore\n-rw-r--r-- 1  501 dialout   9161 May 14 06:38 LICENSE\n-rw-r--r-- 1  501 dialout  13068 May 14 06:38 README.md\n-rw-r--r-- 1  501 dialout    297 May 14 06:38 justfile\ndrwxr-xr-x 3  501 dialout   4096 May 14 06:38 logs\n-rw-r--r-- 1  501 dialout  19035 May 14 06:38 promptic.py\n-rw-r--r-- 1  501 dialout    985 May 14 06:38 pyproject.toml\ndrwxr-xr-x 2  501 dialout   4096 May 14 06:38 tests\n-rw-r--r-- 1  501 dialout 202206 May 14 06:38 uv.lock\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 2551, Output: 58, Total: 2609\n\n[Thought]\nThe repository is in /app. Let me examine the pyproject.toml to understand the dependencies and test setup.\n\n[Action]\ncat /app/pyproject.toml\n[Container ID: 9803cdf206a5]\nExecuting: cat /app/pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nbuild-backend = \"flit_core.buildapi\"\nrequires = [\"flit_core >=3.2,<4\"]\n\n[project]\nauthors = [{name = \"Stephan Fitzpatrick\", email = \"stephan@knowsuchagency.com\"}]\nclassifiers = [\n    \"License :: OSI Approved :: Apache Software License\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\"\n]\ndescription = \"90% of what you need for LLM app development. Nothing you don't.\"\nlicense = {file = \"LICENSE\"}\nname = \"promptic\"\ndependencies = [\n  \"jsonschema>=4.23.0\",\n  \"litellm~=1.38\",\n  \"pydantic~=2.7\",\n]\nversion = \"2.1.6\"\nreadme = \"README.md\"\nrequires-python = \">=3.11\"\n\n[project.urls]\nHome = \"https://github.com/knowsuchagency/promptic\"\n\n[tool.uv]\ndev-dependencies = [\n    \"pytest-cov>=6.0.0\",\n    \"pytest>=8.3.3\",\n    \"pytest-xdist>=3.6.1\",\n    \"tenacity~=9.0.0\",\n]\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\npython_files = [\"test_*.py\"]\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 2903, Output: 119, Total: 3022\n\n[Thought]\nThe project uses `uv` for package management. Let me check if uv is available and install the project dependencies.\n\n[Action]\nwhich uv && uv --version\n[Container ID: 9803cdf206a5]\nExecuting: which uv && uv --version\nCommand rejected before execution by sandbox preflight.\n\n[Observation]\n[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 6 ====================\n\n[Tokens] Input: 3015, Output: 39, Total: 3054\n\n[Thought]\nLet me first check if uv is available.\n\n[Action]\nwhich uv\n[Container ID: 9803cdf206a5]\nExecuting: which uv\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\n(No output)\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 3043, Output: 45, Total: 3088\n\n[Thought]\nuv is not available. Let me check for pip and Python installation.\n\n[Action]\nwhich python3 && python3 --version\n[Container ID: 9803cdf206a5]\nExecuting: which python3 && python3 --version\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/usr/local/bin/python3\nPython 3.13.13\n\n\n==================== Step 8 ====================\n\n[Tokens] Input: 3095, Output: 82, Total: 3177\n\n[Thought]\nPython 3.13 is available. Let me install the project in editable mode along with the test dependencies using pip.\n\n[Action]\npip install -e /app\n[Container ID: 9803cdf206a5]\nExecuting: pip install -e /app\nCommand succeeded.\n[Snapshot Created] sha256:9eccd\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting jsonschema>=4.23.0 (from promptic==2.1.6)\n  Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)\nCollecting litellm~=1.38 (from promptic==2.1.6)\n  Downloading litellm-1.84.0-py3-none-any.whl.metadata (33 kB)\nCollecting pydantic~=2.7 (from promptic==2.1.6)\n  Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\nCollecting fastuuid<1.0,>=0.14.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.1 kB)\nCollecting httpx<1.0,>=0.28.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)\nCollecting openai<3.0.0,>=2.20.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading openai-2.36.0-py3-none-any.whl.metadata (31 kB)\nCollecting python-dotenv<2.0,>=1.0.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)\nCollecting tiktoken<1.0,>=0.8.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl.metadata (6.7 kB)\nCollecting importlib-metadata<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading importlib_metadata-8.9.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting tokenizers<1.0,>=0.21.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.8 kB)\nCollecting click<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n  Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\nCollecting jinja2<4.0,>=3.1.6 (from litellm~=1.38->promptic==2.1.6)\n  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\nCollecting aiohttp<4.0,>=3.10 (from litellm~=1.38->promptic==2.1.6)\n  Downloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\nCollecting aiohappyeyeballs>=2.5.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\nCollecting aiosignal>=1.4.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\nCollecting attrs>=17.3.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\nCollecting frozenlist>=1.1.1 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\nCollecting multidict<7.0,>=4.5 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\nCollecting propcache>=0.2.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (16 kB)\nCollecting yarl<2.0,>=1.17.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n  Downloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\nCollecting anyio (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6)\n  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)\nCollecting certifi (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting httpcore==1.* (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6)\n  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)\nCollecting idna (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6)\n  Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\nCollecting h11>=0.16 (from httpcore==1.*->httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6)\n  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)\nCollecting zipp>=3.20 (from importlib-metadata<9.0,>=8.0.0->litellm~=1.38->promptic==2.1.6)\n  Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\nCollecting MarkupSafe>=2.0 (from jinja2<4.0,>=3.1.6->litellm~=1.38->promptic==2.1.6)\n  Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\nCollecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.23.0->promptic==2.1.6)\n  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)\nCollecting referencing>=0.28.4 (from jsonschema>=4.23.0->promptic==2.1.6)\n  Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting rpds-py>=0.25.0 (from jsonschema>=4.23.0->promptic==2.1.6)\n  Downloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)\nCollecting distro<2,>=1.7.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n  Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)\nCollecting jiter<1,>=0.10.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n  Downloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)\nCollecting sniffio (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)\nCollecting tqdm>4 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n  Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\nCollecting typing-extensions<5,>=4.11 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting annotated-types>=0.6.0 (from pydantic~=2.7->promptic==2.1.6)\n  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\nCollecting pydantic-core==2.46.4 (from pydantic~=2.7->promptic==2.1.6)\n  Downloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\nCollecting typing-inspection>=0.4.2 (from pydantic~=2.7->promptic==2.1.6)\n  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\nCollecting regex>=2022.1.18 (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n  Downloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting requests>=2.26.0 (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n  Downloading requests-2.34.1-py3-none-any.whl.metadata (4.8 kB)\nCollecting huggingface-hub<2.0,>=0.16.4 (from tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading huggingface_hub-1.14.0-py3-none-any.whl.metadata (14 kB)\nCollecting filelock>=3.10.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)\nCollecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\nCollecting hf-xet<2.0.0,>=1.4.3 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)\nCollecting packaging>=20.9 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pyyaml>=5.1 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\nCollecting typer>=0.20.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\nCollecting charset_normalizer<4,>=2 (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n  Downloading charset_normalizer-3.4.7-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting urllib3<3,>=1.26 (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nCollecting shellingham>=1.3.0 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting rich>=13.8.0 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\nCollecting annotated-doc>=0.0.2 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\nCollecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\nCollecting pygments<3.0.0,>=2.13.0 (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\nDownloading litellm-1.84.0-py3-none-any.whl (16.7 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 6.3 MB/s  0:00:02\nDownloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 3.7 MB/s  0:00:00\nDownloading click-8.3.3-py3-none-any.whl (110 kB)\nDownloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (278 kB)\nDownloading httpx-0.28.1-py3-none-any.whl (73 kB)\nDownloading httpcore-1.0.9-py3-none-any.whl (78 kB)\nDownloading importlib_metadata-8.9.0-py3-none-any.whl (27 kB)\nDownloading jinja2-3.1.6-py3-none-any.whl (134 kB)\nDownloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\nDownloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (254 kB)\nDownloading openai-2.36.0-py3-none-any.whl (1.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 3.6 MB/s  0:00:00\nDownloading anyio-4.13.0-py3-none-any.whl (114 kB)\nDownloading distro-1.9.0-py3-none-any.whl (20 kB)\nDownloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (353 kB)\nDownloading pydantic-2.13.4-py3-none-any.whl (472 kB)\nDownloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 5.9 MB/s  0:00:00\nDownloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)\nDownloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.6 MB/s  0:00:00\nDownloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 4.2 MB/s  0:00:00\nDownloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 1.6 MB/s  0:00:00\nDownloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 8.1 MB/s  0:00:00\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (101 kB)\nDownloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\nDownloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\nDownloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\nDownloading attrs-26.1.0-py3-none-any.whl (67 kB)\nDownloading filelock-3.29.0-py3-none-any.whl (39 kB)\nDownloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (234 kB)\nDownloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\nDownloading h11-0.16.0-py3-none-any.whl (37 kB)\nDownloading idna-3.15-py3-none-any.whl (72 kB)\nDownloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\nDownloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (61 kB)\nDownloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.6/801.6 kB 6.3 MB/s  0:00:00\nDownloading referencing-0.37.0-py3-none-any.whl (26 kB)\nDownloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.3/801.3 kB 7.0 MB/s  0:00:00\nDownloading requests-2.34.1-py3-none-any.whl (73 kB)\nDownloading charset_normalizer-3.4.7-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (215 kB)\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\nDownloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (394 kB)\nDownloading tqdm-4.67.3-py3-none-any.whl (78 kB)\nDownloading typer-0.25.1-py3-none-any.whl (58 kB)\nDownloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nDownloading rich-15.0.0-py3-none-any.whl (310 kB)\nDownloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.0 MB/s  0:00:00\nDownloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\nDownloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\nDownloading zipp-3.23.1-py3-none-any.whl (10 kB)\nDownloading sniffio-1.3.1-py3-none-any.whl (10 kB)\nBuilding wheels for collected packages: promptic\n  Building editable for promptic (pyproject.toml): started\n  Building editable for promptic (pyproject.toml): finished with status 'done'\n  Created wheel for promptic: filename=promptic-2.1.6-py3-none-any.whl size=9782 sha256=68c7717db150b6db20d1439824bf0a3b939e427a612b8e0611cc76d671029d71\n  Stored in directory: /tmp/pip-ephem-wheel-cache-gl8vw64l/wheels/19/62/e5/caf0138816cbbc0c92b8fb19626cf9ac282f22194a65231821\nSuccessfully built promptic\nInstalling collected packages: zipp, urllib3, typing-extensions, tqdm, sniffio, shellingham, rpds-py, regex, pyyaml, python-dotenv, pygments, propcache, packaging, multidict, mdurl, MarkupSafe, jiter, idna, hf-xet, h11, fsspec, frozenlist, filelock, fastuuid, distro, click, charset_normalizer, certifi, attrs, annotated-types, annotated-doc, aiohappyeyeballs, yarl, typing-inspection, requests, referencing, pydantic-core, markdown-it-py, jinja2, importlib-metadata, httpcore, anyio, aiosignal, tiktoken, rich, pydantic, jsonschema-specifications, httpx, aiohttp, typer, openai, jsonschema, huggingface-hub, tokenizers, litellm, promptic\n\nSuccessfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.13.0 attrs-26.1.0 certifi-2026.4.22 charset_normalizer-3.4.7 click-8.3.3 distro-1.9.0 fastuuid-0.14.0 filelock-3.29.0 frozenlist-1.8.0 fsspec-2026.4.0 h11-0.16.0 hf-xet-1.5.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.14.0 idna-3.15 importlib-metadata-8.9.0 jinja2-3.1.6 jiter-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 litellm-1.84.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 openai-2.36.0 packaging-26.2 promptic-2.1.6 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 python-dotenv-1.2.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.5.9 requests-2.34.1 rich-15.0.0 rpds-py-0.30.0 shellingham-1.5.4 sniffio-1.3.1 tiktoken-0.12.0 tokenizers-0.23.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 yarl-1.23.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 26.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 9 ====================\n\n[Tokens] Input: 10379, Output: 125, Total: 10504\n\n[Thought]\nThe main package and dependencies are installed. Now I need to install the test dependencies as specified in the pyproject.toml dev-dependencies.\n\n[Action]\npip install pytest pytest-cov pytest-xdist tenacity\n[Container ID: 9803cdf206a5]\nExecuting: pip install pytest pytest-cov pytest-xdist tenacity\nCommand succeeded.\n[Snapshot Created] sha256:78d30\n\n[Observation]\nCollecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting pytest-cov\n  Downloading pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)\nCollecting pytest-xdist\n  Downloading pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)\nCollecting tenacity\n  Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nRequirement already satisfied: packaging>=22 in /usr/local/lib/python3.13/site-packages (from pytest) (26.2)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nRequirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.13/site-packages (from pytest) (2.20.0)\nCollecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov)\n  Downloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\nCollecting execnet>=2.1 (from pytest-xdist)\n  Downloading execnet-2.1.2-py3-none-any.whl.metadata (2.9 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nDownloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\nDownloading pytest_xdist-3.8.0-py3-none-any.whl (46 kB)\nDownloading tenacity-9.1.4-py3-none-any.whl (28 kB)\nDownloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (253 kB)\nDownloading execnet-2.1.2-py3-none-any.whl (40 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nInstalling collected packages: tenacity, pluggy, iniconfig, execnet, coverage, pytest, pytest-xdist, pytest-cov\n\nSuccessfully installed coverage-7.14.0 execnet-2.1.2 iniconfig-2.3.0 pluggy-1.6.0 pytest-9.0.3 pytest-cov-7.1.0 pytest-xdist-3.8.0 tenacity-9.1.4\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 26.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 10 ====================\n\n[Tokens] Input: 11208, Output: 70, Total: 11278\n\n[Thought]\nAll dependencies are installed. Now let me run pytest collection to verify the tests can be collected properly.\n\n[Action]\ncd /app && pytest --collect-only -q --disable-warnings\n[Container ID: 9803cdf206a5]\nExecuting: cd /app && pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:a635f\n\n[Observation]\ntests/test_promptic.py::test_basic[gpt-4o-mini]\ntests/test_promptic.py::test_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_parens[gpt-4o-mini]\ntests/test_promptic.py::test_parens[claude-3-haiku-20240307]\ntests/test_promptic.py::test_parens[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_system_prompt[gpt-4o-mini]\ntests/test_promptic.py::test_system_prompt[claude-3-haiku-20240307]\ntests/test_promptic.py::test_system_prompt[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_agents[gpt-4o-mini]\ntests/test_promptic.py::test_agents[claude-3-haiku-20240307]\ntests/test_promptic.py::test_agents[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_streaming_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_json_schema_validation[gpt-4o-mini]\ntests/test_promptic.py::test_json_schema_validation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_json_schema_validation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_dry_run_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_dry_run_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_dry_run_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_debug_logging[gpt-4o-mini]\ntests/test_promptic.py::test_debug_logging[claude-3-haiku-20240307]\ntests/test_promptic.py::test_debug_logging[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_multiple_tool_calls[gpt-4o-mini]\ntests/test_promptic.py::test_multiple_tool_calls[claude-3-haiku-20240307]\ntests/test_promptic.py::test_multiple_tool_calls[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_basic[gpt-4o-mini]\ntests/test_promptic.py::test_state_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_limit[gpt-4o-mini]\ntests/test_promptic.py::test_state_limit[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_limit[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_conversation[gpt-4o-mini]\ntests/test_promptic.py::test_memory_conversation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_conversation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_custom_state[gpt-4o-mini]\ntests/test_promptic.py::test_custom_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_custom_state[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_disabled[gpt-4o-mini]\ntests/test_promptic.py::test_memory_disabled[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_disabled[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_with_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_memory_with_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_with_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gpt-4o]\ntests/test_promptic.py::test_pydantic_tools_with_memory[claude-3.5]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gemini/gemini-1.5-pro]\ntests/test_promptic.py::test_anthropic_tool_calling\ntests/test_promptic.py::test_anthropic_multiple_tools_error\ntests/test_promptic.py::test_gemini_streaming_with_tools_error\ntests/test_promptic.py::test_mutually_exclusive_schemas[gpt-4o-mini]\ntests/test_promptic.py::test_mutually_exclusive_schemas[claude-3-haiku-20240307]\ntests/test_promptic.py::test_mutually_exclusive_schemas[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_wrapper_attributes[gpt-4o-mini]\ntests/test_promptic.py::test_wrapper_attributes[claude-3-haiku-20240307]\ntests/test_promptic.py::test_wrapper_attributes[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_clear_state[gpt-4o-mini]\ntests/test_promptic.py::test_clear_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_clear_state[gemini/gemini-1.5-flash]\n\n69 tests collected in 1.67s\n\n[Recorded Test Command] cd /app && pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 11 ====================\n\n[Tokens] Input: 6710, Output: 165, Total: 6875\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection succeeded. 69 tests were collected successfully. The environment is set up correctly:\n- The project was installed in editable mode with all dependencies\n- Test dependencies (pytest, pytest-cov, pytest-xdist, tenacity) were installed\n- Pytest can successfully collect all 69 tests from the tests directory\n\nNow I need to provide the final verification bundle and success response.\n</think>\n\nThought: The pytest collection succeeded with 69 tests collected. The repository is properly configured with all dependencies installed and tests are collectable. No runtime preparation commands are needed as the package is installed in editable mode and the test collection works directly.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"cd /app && pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 2 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/knowsuchagency__promptic.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/knowsuchagency/promptic.git",
+    "configuration_success": true,
+    "base_image": "python:3.13",
+    "platform_override": null,
+    "verified_test_command": "cd /app && pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 10,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings",
+        "environment_revision": 2,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 2,
+        "command": "pwd && find / -type d -name \"promptic\" 2>/dev/null | head -20",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\n"
+      },
+      {
+        "step_index": 3,
+        "command": "ls -la /app",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 284\ndrwxr-xr-x 6 root root      4096 May 14 06:39 .\ndrwxr-xr-x 1 root root      4096 May 14 06:39 ..\ndrwxr-xr-x 7  501 dialout   4096 May 14 06:38 .git\ndrwxr-xr-x 3  501 dialout   4096 May 14 06:38 .github\n-rw-r--r-- 1  501 dialout   3156 May 14 06:38 .gitignore\n-rw-r--r-- 1  501 dialout   9161 May 14 06:38 LICENSE\n-rw-r--r-- 1  501 dialout  13068 May 14 06:38 README.md\n-rw-r--r-- 1  501 dialout    297 May 14 06:38 justfile\ndrwxr-xr-x 3  501 dialout   4096 May 14 06:38 logs\n-rw-r--r-- 1  501 dialout  19035 May 14 06:38 promptic.py\n-rw-r--r-- 1  501 dialout    985 May 14 06:38 pyproject.toml\ndrwxr-xr-x 2  501 dialout   4096 May 14 06:38 tests\n-rw-r--r-- 1  501 dialout 202206 May 14 06:38 uv.lock\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat /app/pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nbuild-backend = \"flit_core.buildapi\"\nrequires = [\"flit_core >=3.2,<4\"]\n\n[project]\nauthors = [{name = \"Stephan Fitzpatrick\", email = \"stephan@knowsuchagency.com\"}]\nclassifiers = [\n    \"License :: OSI Approved :: Apache Software License\",\n    \"Programming Language :: Python :: 3\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Programming Language :: Python :: 3.13\"\n]\ndescription = \"90% of what you need for LLM app development. Nothing you don't.\"\nlicense = {file = \"LICENSE\"}\nname = \"promptic\"\ndependencies = [\n  \"jsonschema>=4.23.0\",\n  \"litellm~=1.38\",\n  \"pydantic~=2.7\",\n]\nversion = \"2.1.6\"\nreadme = \"README.md\"\nrequires-python = \">=3.11\"\n\n[project.urls]\nHome = \"https://github.com/knowsuchagency/promptic\"\n\n[tool.uv]\ndev-dependencies = [\n    \"pytest-cov>=6.0.0\",\n    \"pytest>=8.3.3\",\n    \"pytest-xdist>=3.6.1\",\n    \"tenacity~=9.0.0\",\n]\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\npython_files = [\"test_*.py\"]\n"
+      },
+      {
+        "step_index": 7,
+        "command": "which python3 && python3 --version",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/usr/local/bin/python3\nPython 3.13.13\n"
+      },
+      {
+        "step_index": 8,
+        "command": "pip install -e /app",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting jsonschema>=4.23.0 (from promptic==2.1.6)\n  Downloading jsonschema-4.26\n... (16005 chars omitted for recipe synthesis) ...\ners-0.23.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 yarl-1.23.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 26.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 9,
+        "command": "pip install pytest pytest-cov pytest-xdist tenacity",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Collecting pytest\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting pytest-cov\n  Downloading pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)\nCollecting pytest-xdist\n  Downloading pytest_xdist-3.8.0-py3-none-any.whl.metadata (3.0 kB)\nCollecting tenacity\n  Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\nCollecting iniconfig>=1.0.1 (from pytest)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nRequirement already satisfied: packaging>=22 in /usr/local/lib/python3.13/site-packages (from pytest) (26.2)\nCollecting pluggy<2,>=1.5 (from pytest)\n \n... (1094 chars omitted for recipe synthesis) ...\ncoverage-7.14.0 execnet-2.1.2 iniconfig-2.3.0 pluggy-1.6.0 pytest-9.0.3 pytest-cov-7.1.0 pytest-xdist-3.8.0 tenacity-9.1.4\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 26.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_promptic.py::test_basic[gpt-4o-mini]\ntests/test_promptic.py::test_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_parens[gpt-4o-mini]\ntests/test_promptic.py::test_parens[claude-3-haiku-20240307]\ntests/test_promptic.py::test_parens[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_str\n... (3334 chars omitted for recipe synthesis) ...\nas[gpt-4o-mini]\ntests/test_promptic.py::test_mutually_exclusive_schemas[claude-3-haiku-20240307]\ntests/test_promptic.py::test_mutually_exclusive_schemas[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_wrapper_attributes[gpt-4o-mini]\ntests/test_promptic.py::test_wrapper_attributes[claude-3-haiku-20240307]\ntests/test_promptic.py::test_wrapper_attributes[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_clear_state[gpt-4o-mini]\ntests/test_promptic.py::test_clear_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_clear_state[gemini/gemini-1.5-flash]\n\n69 tests collected in 1.67s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat /knowsuchagency__promptic/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: /knowsuchagency__promptic/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 5,
+        "command": "which uv && uv --version",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action combines a setup mutation with a verification, probe, or read-only check.\n[SYSTEM] The command was NOT executed and the environment was not changed. Run each setup mutation, verification, or probe as a separate Action so each state-changing step can be confirmed independently.\n\n"
+      },
+      {
+        "step_index": 6,
+        "command": "which uv",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": ""
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e /app",
+        "pip install pytest pytest-cov pytest-xdist tenacity"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat /knowsuchagency__promptic/pyproject.toml - read-only probe, wrong path, repository found at /app via find",
+          "reason": ""
+        },
+        {
+          "command": "pwd && find / -type d -name \"promptic\" 2>/dev/null | head -20 - read-only exploration",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /app - read-only directory listing",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/pyproject.toml - read-only dependency inspection",
+          "reason": ""
+        },
+        {
+          "command": "which uv && uv --version - command rejected before execution",
+          "reason": ""
+        },
+        {
+          "command": "which uv - read-only probe showing uv not available",
+          "reason": ""
+        },
+        {
+          "command": "which python3 && python3 --version - read-only version check",
+          "reason": ""
+        }
+      ],
+      "rationale": "The agent successfully set up the environment by installing the main package in editable mode (pip install -e /app) which installed promptic and its runtime dependencies (jsonschema, litellm, pydantic). Then test dependencies were installed separately (pytest pytest-cov pytest-xdist tenacity). The final verification (pytest --collect-only) collected 69 tests, confirming the environment is correctly configured. All read-only exploration steps (steps 1-7) and the verification command are excluded from build_commands; only the two persistent state-changing pip install commands should be replayed in the Dockerfile.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 1,
+      "compressed_steps": 1,
+      "saved_tokens_est": 3460
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat /knowsuchagency__promptic/pyproject.toml",
+        "success": false,
+        "raw_chars": 73,
+        "raw_tokens_est": 18,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "pwd && find / -type d -name \"promptic\" 2>/dev/null | head -20",
+        "success": true,
+        "raw_chars": 5,
+        "raw_tokens_est": 1,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "ls -la /app",
+        "success": true,
+        "raw_chars": 710,
+        "raw_tokens_est": 177,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat /app/pyproject.toml",
+        "success": true,
+        "raw_chars": 985,
+        "raw_tokens_est": 246,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "which uv && uv --version",
+        "success": false,
+        "raw_chars": 335,
+        "raw_tokens_est": 83,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "which uv",
+        "success": false,
+        "raw_chars": 0,
+        "raw_tokens_est": 0,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "which python3 && python3 --version",
+        "success": true,
+        "raw_chars": 38,
+        "raw_tokens_est": 9,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 8,
+        "action": "pip install -e /app",
+        "success": true,
+        "raw_chars": 17205,
+        "raw_tokens_est": 4301,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 3460,
+        "reflect_input_tokens": 10212,
+        "reflect_output_tokens": 1295
+      },
+      {
+        "step_id": 9,
+        "action": "pip install pytest pytest-cov pytest-xdist tenacity",
+        "success": true,
+        "raw_chars": 2294,
+        "raw_tokens_est": 573,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 4534,
+        "raw_tokens_est": 1133,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 107378,
+        "output_tokens": 3825,
+        "total_tokens": 111203
+      },
+      "planner": {
+        "input_tokens": 49252,
+        "output_tokens": 898,
+        "total_tokens": 50150
+      },
+      "reflection": {
+        "input_tokens": 10212,
+        "output_tokens": 1295,
+        "total_tokens": 11507
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 10284,
+        "output_tokens": 1824,
+        "total_tokens": 12108
+      },
+      "total": {
+        "input_tokens": 177126,
+        "output_tokens": 7842,
+        "total_tokens": 184968
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+    "base_commit": "a1930c",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/knowsuchagency__promptic /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-14T14:42:32.795704+08:00",
+      "finished_at": "2026-05-14T14:42:32.826837+08:00",
+      "duration_seconds": 0.031,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context'...\n完成。\n注意：正在切换到 'a1930cdb8e8d1a595a7f554ec16867f8ea1324da'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "a1930c"
+      ],
+      "command_shell": "git checkout --force a1930c",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-14T14:42:32.826887+08:00",
+      "finished_at": "2026-05-14T14:42:32.833845+08:00",
+      "duration_seconds": 0.007,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 a1930cd run tests in parallel\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-14T14:42:32.833897+08:00",
+      "finished_at": "2026-05-14T14:42:32.838497+08:00",
+      "duration_seconds": 0.005,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-knowsuchagency__promptic",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval -t jayint-repo2run-knowsuchagency__promptic /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T14:42:32.842361+08:00",
+    "finished_at": "2026-05-14T14:43:20.260988+08:00",
+    "duration_seconds": 47.419,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.67kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.13\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/7] FROM docker.io/library/python:3.13\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 5.20MB 0.0s done\n#5 DONE 0.0s\n\n#6 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/7] WORKDIR /app\n#7 CACHED\n\n#8 [4/7] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e /app' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.590 Obtaining file:///app\n#10 0.593   Installing build dependencies: started\n#10 2.701   Installing build dependencies: finished with status 'done'\n#10 2.702   Checking if build backend supports build_editable: started\n#10 2.853   Checking if build backend supports build_editable: finished with status 'done'\n#10 2.855   Getting requirements to build editable: started\n#10 2.979   Getting requirements to build editable: finished with status 'done'\n#10 2.980   Preparing editable metadata (pyproject.toml): started\n#10 3.099   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 3.620 Collecting jsonschema>=4.23.0 (from promptic==2.1.6)\n#10 4.039   Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)\n#10 4.429 Collecting litellm~=1.38 (from promptic==2.1.6)\n#10 4.553   Downloading litellm-1.84.0-py3-none-any.whl.metadata (33 kB)\n#10 4.815 Collecting pydantic~=2.7 (from promptic==2.1.6)\n#10 4.988   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\n#10 5.567 Collecting fastuuid<1.0,>=0.14.0 (from litellm~=1.38->promptic==2.1.6)\n#10 5.671   Downloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.1 kB)\n#10 5.677 Requirement already satisfied: httpx<1.0,>=0.28.0 in /usr/local/lib/python3.13/site-packages (from litellm~=1.38->promptic==2.1.6) (0.28.1)\n#10 5.824 Collecting openai<3.0.0,>=2.20.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.039   Downloading openai-2.36.0-py3-none-any.whl.metadata (31 kB)\n#10 6.177 Collecting python-dotenv<2.0,>=1.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.283   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)\n#10 6.443 Collecting tiktoken<1.0,>=0.8.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.654   Downloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl.metadata (6.7 kB)\n#10 6.794 Collecting importlib-metadata<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 7.445   Downloading importlib_metadata-8.9.0-py3-none-any.whl.metadata (4.5 kB)\n#10 7.698 Collecting tokenizers<1.0,>=0.21.0 (from litellm~=1.38->promptic==2.1.6)\n#10 8.304   Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.8 kB)\n#10 8.935 Collecting click<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 9.372   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 9.913 Collecting jinja2<4.0,>=3.1.6 (from litellm~=1.38->promptic==2.1.6)\n#10 10.38   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#10 11.15 Collecting aiohttp<4.0,>=3.10 (from litellm~=1.38->promptic==2.1.6)\n#10 11.46   Downloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#10 11.82 Collecting aiohappyeyeballs>=2.5.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 11.94   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\n#10 12.07 Collecting aiosignal>=1.4.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 12.36   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\n#10 12.49 Collecting attrs>=17.3.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 12.67   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\n#10 12.97 Collecting frozenlist>=1.1.1 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 13.38   Downloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\n#10 13.93 Collecting multidict<7.0,>=4.5 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 14.02   Downloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\n#10 14.51 Collecting propcache>=0.2.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 14.61   Downloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (16 kB)\n#10 15.76 Collecting yarl<2.0,>=1.17.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 15.94   Downloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#10 16.10 Requirement already satisfied: anyio in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (4.13.0)\n#10 16.10 Requirement already satisfied: certifi in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (2026.4.22)\n#10 16.10 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (1.0.9)\n#10 16.10 Requirement already satisfied: idna in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (3.13)\n#10 16.10 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.13/site-packages (from httpcore==1.*->httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (0.16.0)\n#10 16.82 Collecting zipp>=3.20 (from importlib-metadata<9.0,>=8.0.0->litellm~=1.38->promptic==2.1.6)\n#10 17.34   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#10 17.62 Collecting MarkupSafe>=2.0 (from jinja2<4.0,>=3.1.6->litellm~=1.38->promptic==2.1.6)\n#10 17.74   Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\n#10 17.85 Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 18.10   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)\n#10 18.30 Collecting referencing>=0.28.4 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 18.43   Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)\n#10 19.36 Collecting rpds-py>=0.25.0 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 19.46   Downloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)\n#10 19.58 Collecting distro<2,>=1.7.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 19.76   Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)\n#10 20.07 Collecting jiter<1,>=0.10.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.19   Downloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)\n#10 20.30 Collecting sniffio (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.41   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)\n#10 20.58 Collecting tqdm>4 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.72   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#10 20.88 Collecting typing-extensions<5,>=4.11 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.98   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\n#10 21.11 Collecting annotated-types>=0.6.0 (from pydantic~=2.7->promptic==2.1.6)\n#10 21.25   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#10 22.45 Collecting pydantic-core==2.46.4 (from pydantic~=2.7->promptic==2.1.6)\n#10 22.56   Downloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#10 22.66 Collecting typing-inspection>=0.4.2 (from pydantic~=2.7->promptic==2.1.6)\n#10 22.81   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#10 23.47 Collecting regex>=2022.1.18 (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n#10 23.60   Downloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n#10 23.62 Requirement already satisfied: requests>=2.26.0 in /usr/local/lib/python3.13/site-packages (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (2.33.1)\n#10 23.79 Collecting huggingface-hub<2.0,>=0.16.4 (from tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 23.99   Downloading huggingface_hub-1.14.0-py3-none-any.whl.metadata (14 kB)\n#10 24.01 Requirement already satisfied: filelock>=3.10.0 in /usr/local/lib/python3.13/site-packages (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (3.29.0)\n#10 24.15 Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.27   Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\n#10 24.53 Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.63   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)\n#10 24.63 Requirement already satisfied: packaging>=20.9 in /usr/local/lib/python3.13/site-packages (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (26.2)\n#10 24.80 Collecting pyyaml>=5.1 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.91   Downloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#10 25.07 Collecting typer>=0.20.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.18   Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\n#10 25.22 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.13/site-packages (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (3.4.7)\n#10 25.22 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.13/site-packages (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (2.7.0)\n#10 25.22 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.13/site-packages (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (1.5.4)\n#10 25.37 Collecting rich>=13.8.0 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.54   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#10 25.66 Collecting annotated-doc>=0.0.2 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.76   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#10 25.97 Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 26.09   Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\n#10 26.11 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.13/site-packages (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (2.20.0)\n#10 26.21 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 26.32   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#10 26.44 Downloading litellm-1.84.0-py3-none-any.whl (16.7 MB)\n#10 29.70    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 5.3 MB/s  0:00:03\n#10 30.35 Downloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n#10 30.68    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 4.6 MB/s  0:00:00\n#10 31.21 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 31.73 Downloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (278 kB)\n#10 32.01 Downloading importlib_metadata-8.9.0-py3-none-any.whl (27 kB)\n#10 32.25 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 32.45 Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#10 32.66 Downloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (254 kB)\n#10 32.82 Downloading openai-2.36.0-py3-none-any.whl (1.3 MB)\n#10 32.88    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 34.8 MB/s  0:00:00\n#10 33.03 Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#10 33.19 Downloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (353 kB)\n#10 33.34 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 33.50 Downloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 33.69    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.6 MB/s  0:00:00\n#10 33.83 Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)\n#10 33.96 Downloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl (1.2 MB)\n#10 34.00    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 28.8 MB/s  0:00:00\n#10 34.12 Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#10 34.54    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.6 MB/s  0:00:00\n#10 34.66 Downloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n#10 34.69    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 21.4 MB/s  0:00:00\n#10 34.88 Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#10 35.41    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 8.0 MB/s  0:00:00\n#10 35.52 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n#10 35.64 Downloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (101 kB)\n#10 35.75 Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#10 35.92 Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#10 36.07 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 36.17 Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 36.28 Downloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (234 kB)\n#10 36.45 Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#10 36.59 Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#10 36.70 Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\n#10 36.81 Downloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (61 kB)\n#10 36.97 Downloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n#10 36.99    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.6/801.6 kB 52.3 MB/s  0:00:00\n#10 37.10 Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#10 37.20 Downloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n#10 37.23    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.3/801.3 kB 29.5 MB/s  0:00:00\n#10 37.33 Downloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (394 kB)\n#10 37.49 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 37.61 Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 37.71 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 37.82 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 38.02 Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 38.12 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 38.24 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 38.36 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#10 38.54 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 38.67 Building wheels for collected packages: promptic\n#10 38.67   Building editable for promptic (pyproject.toml): started\n#10 38.79   Building editable for promptic (pyproject.toml): finished with status 'done'\n#10 38.80   Created wheel for promptic: filename=promptic-2.1.6-py3-none-any.whl size=9782 sha256=79dd1e4f5a8871b05b2dab1fbdb58ce50ffa6ee65a351352667347beb083ca40\n#10 38.80   Stored in directory: /tmp/pip-ephem-wheel-cache-6cmlw84v/wheels/19/62/e5/caf0138816cbbc0c92b8fb19626cf9ac282f22194a65231821\n#10 38.80 Successfully built promptic\n#10 38.87 Installing collected packages: zipp, typing-extensions, tqdm, sniffio, rpds-py, regex, pyyaml, python-dotenv, propcache, multidict, mdurl, MarkupSafe, jiter, hf-xet, fsspec, frozenlist, fastuuid, distro, click, attrs, annotated-types, annotated-doc, aiohappyeyeballs, yarl, typing-inspection, tiktoken, referencing, pydantic-core, markdown-it-py, jinja2, importlib-metadata, aiosignal, rich, pydantic, jsonschema-specifications, aiohttp, typer, openai, jsonschema, huggingface-hub, tokenizers, litellm, promptic\n#10 42.69 \n#10 42.70 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 attrs-26.1.0 click-8.3.3 distro-1.9.0 fastuuid-0.14.0 frozenlist-1.8.0 fsspec-2026.4.0 hf-xet-1.5.0 huggingface-hub-1.14.0 importlib-metadata-8.9.0 jinja2-3.1.6 jiter-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 litellm-1.84.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 openai-2.36.0 promptic-2.1.6 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 python-dotenv-1.2.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.5.9 rich-15.0.0 rpds-py-0.30.0 sniffio-1.3.1 tiktoken-0.12.0 tokenizers-0.23.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 yarl-1.23.0 zipp-3.23.1\n#10 42.70 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 43.2s\n\n#11 [7/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest pytest-cov pytest-xdist tenacity' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.430 Requirement already satisfied: pytest in /usr/local/lib/python3.13/site-packages (9.0.3)\n#11 0.972 Collecting pytest-cov\n#11 1.396   Downloading pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)\n#11 1.446 Requirement already satisfied: pytest-xdist in /usr/local/lib/python3.13/site-packages (3.8.0)\n#11 1.622 Collecting tenacity\n#11 1.724   Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\n#11 1.731 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.13/site-packages (from pytest) (2.3.0)\n#11 1.733 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.13/site-packages (from pytest) (26.2)\n#11 1.734 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.13/site-packages (from pytest) (1.6.0)\n#11 1.736 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.13/site-packages (from pytest) (2.20.0)\n#11 2.407 Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov)\n#11 2.499   Downloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\n#11 2.506 Requirement already satisfied: execnet>=2.1 in /usr/local/lib/python3.13/site-packages (from pytest-xdist) (2.1.2)\n#11 2.660 Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\n#11 2.759 Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#11 2.885 Downloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (253 kB)\n#11 3.068 Installing collected packages: tenacity, coverage, pytest-cov\n#11 3.160 \n#11 3.166 Successfully installed coverage-7.14.0 pytest-cov-7.1.0 tenacity-9.1.4\n#11 3.166 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 3.2s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 0.4s done\n#12 writing image sha256:b05e555dedba0491ca23a9e6177fabfa67dee59d61a11d98b6aaac06c7978d6f done\n#12 naming to docker.io/library/jayint-repo2run-knowsuchagency__promptic done\n#12 DONE 0.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/wjlfkcr6rv8zu0hp60mny5aef\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-knowsuchagency__promptic",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-knowsuchagency__promptic sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-14T14:43:20.262131+08:00",
+          "finished_at": "2026-05-14T14:43:23.700394+08:00",
+          "duration_seconds": 3.438,
+          "stdout": "tests/test_promptic.py::test_basic[gpt-4o-mini]\ntests/test_promptic.py::test_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_parens[gpt-4o-mini]\ntests/test_promptic.py::test_parens[claude-3-haiku-20240307]\ntests/test_promptic.py::test_parens[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_system_prompt[gpt-4o-mini]\ntests/test_promptic.py::test_system_prompt[claude-3-haiku-20240307]\ntests/test_promptic.py::test_system_prompt[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_agents[gpt-4o-mini]\ntests/test_promptic.py::test_agents[claude-3-haiku-20240307]\ntests/test_promptic.py::test_agents[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_streaming_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_json_schema_validation[gpt-4o-mini]\ntests/test_promptic.py::test_json_schema_validation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_json_schema_validation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_dry_run_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_dry_run_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_dry_run_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_debug_logging[gpt-4o-mini]\ntests/test_promptic.py::test_debug_logging[claude-3-haiku-20240307]\ntests/test_promptic.py::test_debug_logging[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_multiple_tool_calls[gpt-4o-mini]\ntests/test_promptic.py::test_multiple_tool_calls[claude-3-haiku-20240307]\ntests/test_promptic.py::test_multiple_tool_calls[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_basic[gpt-4o-mini]\ntests/test_promptic.py::test_state_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_limit[gpt-4o-mini]\ntests/test_promptic.py::test_state_limit[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_limit[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_conversation[gpt-4o-mini]\ntests/test_promptic.py::test_memory_conversation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_conversation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_custom_state[gpt-4o-mini]\ntests/test_promptic.py::test_custom_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_custom_state[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_disabled[gpt-4o-mini]\ntests/test_promptic.py::test_memory_disabled[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_disabled[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_with_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_memory_with_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_with_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gpt-4o]\ntests/test_promptic.py::test_pydantic_tools_with_memory[claude-3.5]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gemini/gemini-1.5-pro]\ntests/test_promptic.py::test_anthropic_tool_calling\ntests/test_promptic.py::test_anthropic_multiple_tools_error\ntests/test_promptic.py::test_gemini_streaming_with_tools_error\ntests/test_promptic.py::test_mutually_exclusive_schemas[gpt-4o-mini]\ntests/test_promptic.py::test_mutually_exclusive_schemas[claude-3-haiku-20240307]\ntests/test_promptic.py::test_mutually_exclusive_schemas[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_wrapper_attributes[gpt-4o-mini]\ntests/test_promptic.py::test_wrapper_attributes[claude-3-haiku-20240307]\ntests/test_promptic.py::test_wrapper_attributes[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_clear_state[gpt-4o-mini]\ntests/test_promptic.py::test_clear_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_clear_state[gemini/gemini-1.5-flash]\n\n69 tests collected in 2.39s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-knowsuchagency__promptic",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/Dockerfile.eval -t jayint-repo2run-knowsuchagency__promptic /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-14T14:42:32.842361+08:00",
+        "finished_at": "2026-05-14T14:43:20.260988+08:00",
+        "duration_seconds": 47.419,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.67kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.13\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/7] FROM docker.io/library/python:3.13\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 5.20MB 0.0s done\n#5 DONE 0.0s\n\n#6 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/7] WORKDIR /app\n#7 CACHED\n\n#8 [4/7] COPY . /app\n#8 DONE 0.1s\n\n#9 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e /app' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.590 Obtaining file:///app\n#10 0.593   Installing build dependencies: started\n#10 2.701   Installing build dependencies: finished with status 'done'\n#10 2.702   Checking if build backend supports build_editable: started\n#10 2.853   Checking if build backend supports build_editable: finished with status 'done'\n#10 2.855   Getting requirements to build editable: started\n#10 2.979   Getting requirements to build editable: finished with status 'done'\n#10 2.980   Preparing editable metadata (pyproject.toml): started\n#10 3.099   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 3.620 Collecting jsonschema>=4.23.0 (from promptic==2.1.6)\n#10 4.039   Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)\n#10 4.429 Collecting litellm~=1.38 (from promptic==2.1.6)\n#10 4.553   Downloading litellm-1.84.0-py3-none-any.whl.metadata (33 kB)\n#10 4.815 Collecting pydantic~=2.7 (from promptic==2.1.6)\n#10 4.988   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)\n#10 5.567 Collecting fastuuid<1.0,>=0.14.0 (from litellm~=1.38->promptic==2.1.6)\n#10 5.671   Downloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.1 kB)\n#10 5.677 Requirement already satisfied: httpx<1.0,>=0.28.0 in /usr/local/lib/python3.13/site-packages (from litellm~=1.38->promptic==2.1.6) (0.28.1)\n#10 5.824 Collecting openai<3.0.0,>=2.20.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.039   Downloading openai-2.36.0-py3-none-any.whl.metadata (31 kB)\n#10 6.177 Collecting python-dotenv<2.0,>=1.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.283   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)\n#10 6.443 Collecting tiktoken<1.0,>=0.8.0 (from litellm~=1.38->promptic==2.1.6)\n#10 6.654   Downloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl.metadata (6.7 kB)\n#10 6.794 Collecting importlib-metadata<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 7.445   Downloading importlib_metadata-8.9.0-py3-none-any.whl.metadata (4.5 kB)\n#10 7.698 Collecting tokenizers<1.0,>=0.21.0 (from litellm~=1.38->promptic==2.1.6)\n#10 8.304   Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.8 kB)\n#10 8.935 Collecting click<9.0,>=8.0.0 (from litellm~=1.38->promptic==2.1.6)\n#10 9.372   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 9.913 Collecting jinja2<4.0,>=3.1.6 (from litellm~=1.38->promptic==2.1.6)\n#10 10.38   Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\n#10 11.15 Collecting aiohttp<4.0,>=3.10 (from litellm~=1.38->promptic==2.1.6)\n#10 11.46   Downloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)\n#10 11.82 Collecting aiohappyeyeballs>=2.5.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 11.94   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)\n#10 12.07 Collecting aiosignal>=1.4.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 12.36   Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)\n#10 12.49 Collecting attrs>=17.3.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 12.67   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\n#10 12.97 Collecting frozenlist>=1.1.1 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 13.38   Downloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)\n#10 13.93 Collecting multidict<7.0,>=4.5 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 14.02   Downloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)\n#10 14.51 Collecting propcache>=0.2.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 14.61   Downloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (16 kB)\n#10 15.76 Collecting yarl<2.0,>=1.17.0 (from aiohttp<4.0,>=3.10->litellm~=1.38->promptic==2.1.6)\n#10 15.94   Downloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)\n#10 16.10 Requirement already satisfied: anyio in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (4.13.0)\n#10 16.10 Requirement already satisfied: certifi in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (2026.4.22)\n#10 16.10 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (1.0.9)\n#10 16.10 Requirement already satisfied: idna in /usr/local/lib/python3.13/site-packages (from httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (3.13)\n#10 16.10 Requirement already satisfied: h11>=0.16 in /usr/local/lib/python3.13/site-packages (from httpcore==1.*->httpx<1.0,>=0.28.0->litellm~=1.38->promptic==2.1.6) (0.16.0)\n#10 16.82 Collecting zipp>=3.20 (from importlib-metadata<9.0,>=8.0.0->litellm~=1.38->promptic==2.1.6)\n#10 17.34   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#10 17.62 Collecting MarkupSafe>=2.0 (from jinja2<4.0,>=3.1.6->litellm~=1.38->promptic==2.1.6)\n#10 17.74   Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\n#10 17.85 Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 18.10   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)\n#10 18.30 Collecting referencing>=0.28.4 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 18.43   Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)\n#10 19.36 Collecting rpds-py>=0.25.0 (from jsonschema>=4.23.0->promptic==2.1.6)\n#10 19.46   Downloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)\n#10 19.58 Collecting distro<2,>=1.7.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 19.76   Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)\n#10 20.07 Collecting jiter<1,>=0.10.0 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.19   Downloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)\n#10 20.30 Collecting sniffio (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.41   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)\n#10 20.58 Collecting tqdm>4 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.72   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#10 20.88 Collecting typing-extensions<5,>=4.11 (from openai<3.0.0,>=2.20.0->litellm~=1.38->promptic==2.1.6)\n#10 20.98   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\n#10 21.11 Collecting annotated-types>=0.6.0 (from pydantic~=2.7->promptic==2.1.6)\n#10 21.25   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)\n#10 22.45 Collecting pydantic-core==2.46.4 (from pydantic~=2.7->promptic==2.1.6)\n#10 22.56   Downloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)\n#10 22.66 Collecting typing-inspection>=0.4.2 (from pydantic~=2.7->promptic==2.1.6)\n#10 22.81   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)\n#10 23.47 Collecting regex>=2022.1.18 (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6)\n#10 23.60   Downloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\n#10 23.62 Requirement already satisfied: requests>=2.26.0 in /usr/local/lib/python3.13/site-packages (from tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (2.33.1)\n#10 23.79 Collecting huggingface-hub<2.0,>=0.16.4 (from tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 23.99   Downloading huggingface_hub-1.14.0-py3-none-any.whl.metadata (14 kB)\n#10 24.01 Requirement already satisfied: filelock>=3.10.0 in /usr/local/lib/python3.13/site-packages (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (3.29.0)\n#10 24.15 Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.27   Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\n#10 24.53 Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.63   Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)\n#10 24.63 Requirement already satisfied: packaging>=20.9 in /usr/local/lib/python3.13/site-packages (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (26.2)\n#10 24.80 Collecting pyyaml>=5.1 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 24.91   Downloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\n#10 25.07 Collecting typer>=0.20.0 (from huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.18   Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\n#10 25.22 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.13/site-packages (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (3.4.7)\n#10 25.22 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.13/site-packages (from requests>=2.26.0->tiktoken<1.0,>=0.8.0->litellm~=1.38->promptic==2.1.6) (2.7.0)\n#10 25.22 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.13/site-packages (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (1.5.4)\n#10 25.37 Collecting rich>=13.8.0 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.54   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#10 25.66 Collecting annotated-doc>=0.0.2 (from typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 25.76   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#10 25.97 Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 26.09   Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\n#10 26.11 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.13/site-packages (from rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6) (2.20.0)\n#10 26.21 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer>=0.20.0->huggingface-hub<2.0,>=0.16.4->tokenizers<1.0,>=0.21.0->litellm~=1.38->promptic==2.1.6)\n#10 26.32   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#10 26.44 Downloading litellm-1.84.0-py3-none-any.whl (16.7 MB)\n#10 29.70    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 5.3 MB/s  0:00:03\n#10 30.35 Downloading aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)\n#10 30.68    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 4.6 MB/s  0:00:00\n#10 31.21 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 31.73 Downloading fastuuid-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (278 kB)\n#10 32.01 Downloading importlib_metadata-8.9.0-py3-none-any.whl (27 kB)\n#10 32.25 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#10 32.45 Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#10 32.66 Downloading multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (254 kB)\n#10 32.82 Downloading openai-2.36.0-py3-none-any.whl (1.3 MB)\n#10 32.88    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 34.8 MB/s  0:00:00\n#10 33.03 Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#10 33.19 Downloading jiter-0.14.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (353 kB)\n#10 33.34 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)\n#10 33.50 Downloading pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#10 33.69    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.6 MB/s  0:00:00\n#10 33.83 Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)\n#10 33.96 Downloading tiktoken-0.12.0-cp313-cp313-manylinux_2_28_x86_64.whl (1.2 MB)\n#10 34.00    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 28.8 MB/s  0:00:00\n#10 34.12 Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#10 34.54    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.6 MB/s  0:00:00\n#10 34.66 Downloading huggingface_hub-1.14.0-py3-none-any.whl (661 kB)\n#10 34.69    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 661.5/661.5 kB 21.4 MB/s  0:00:00\n#10 34.88 Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)\n#10 35.41    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 8.0 MB/s  0:00:00\n#10 35.52 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\n#10 35.64 Downloading yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (101 kB)\n#10 35.75 Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#10 35.92 Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#10 36.07 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#10 36.17 Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#10 36.28 Downloading frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (234 kB)\n#10 36.45 Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#10 36.59 Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#10 36.70 Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)\n#10 36.81 Downloading propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (61 kB)\n#10 36.97 Downloading pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n#10 36.99    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.6/801.6 kB 52.3 MB/s  0:00:00\n#10 37.10 Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#10 37.20 Downloading regex-2026.5.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)\n#10 37.23    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 801.3/801.3 kB 29.5 MB/s  0:00:00\n#10 37.33 Downloading rpds_py-0.30.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (394 kB)\n#10 37.49 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 37.61 Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 37.71 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 37.82 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 38.02 Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 38.12 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 38.24 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#10 38.36 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#10 38.54 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#10 38.67 Building wheels for collected packages: promptic\n#10 38.67   Building editable for promptic (pyproject.toml): started\n#10 38.79   Building editable for promptic (pyproject.toml): finished with status 'done'\n#10 38.80   Created wheel for promptic: filename=promptic-2.1.6-py3-none-any.whl size=9782 sha256=79dd1e4f5a8871b05b2dab1fbdb58ce50ffa6ee65a351352667347beb083ca40\n#10 38.80   Stored in directory: /tmp/pip-ephem-wheel-cache-6cmlw84v/wheels/19/62/e5/caf0138816cbbc0c92b8fb19626cf9ac282f22194a65231821\n#10 38.80 Successfully built promptic\n#10 38.87 Installing collected packages: zipp, typing-extensions, tqdm, sniffio, rpds-py, regex, pyyaml, python-dotenv, propcache, multidict, mdurl, MarkupSafe, jiter, hf-xet, fsspec, frozenlist, fastuuid, distro, click, attrs, annotated-types, annotated-doc, aiohappyeyeballs, yarl, typing-inspection, tiktoken, referencing, pydantic-core, markdown-it-py, jinja2, importlib-metadata, aiosignal, rich, pydantic, jsonschema-specifications, aiohttp, typer, openai, jsonschema, huggingface-hub, tokenizers, litellm, promptic\n#10 42.69 \n#10 42.70 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 attrs-26.1.0 click-8.3.3 distro-1.9.0 fastuuid-0.14.0 frozenlist-1.8.0 fsspec-2026.4.0 hf-xet-1.5.0 huggingface-hub-1.14.0 importlib-metadata-8.9.0 jinja2-3.1.6 jiter-0.14.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 litellm-1.84.0 markdown-it-py-4.2.0 mdurl-0.1.2 multidict-6.7.1 openai-2.36.0 promptic-2.1.6 propcache-0.5.2 pydantic-2.13.4 pydantic-core-2.46.4 python-dotenv-1.2.2 pyyaml-6.0.3 referencing-0.37.0 regex-2026.5.9 rich-15.0.0 rpds-py-0.30.0 sniffio-1.3.1 tiktoken-0.12.0 tokenizers-0.23.1 tqdm-4.67.3 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 yarl-1.23.0 zipp-3.23.1\n#10 42.70 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 43.2s\n\n#11 [7/7] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install pytest pytest-cov pytest-xdist tenacity' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#11 0.430 Requirement already satisfied: pytest in /usr/local/lib/python3.13/site-packages (9.0.3)\n#11 0.972 Collecting pytest-cov\n#11 1.396   Downloading pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)\n#11 1.446 Requirement already satisfied: pytest-xdist in /usr/local/lib/python3.13/site-packages (3.8.0)\n#11 1.622 Collecting tenacity\n#11 1.724   Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)\n#11 1.731 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.13/site-packages (from pytest) (2.3.0)\n#11 1.733 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.13/site-packages (from pytest) (26.2)\n#11 1.734 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.13/site-packages (from pytest) (1.6.0)\n#11 1.736 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.13/site-packages (from pytest) (2.20.0)\n#11 2.407 Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov)\n#11 2.499   Downloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\n#11 2.506 Requirement already satisfied: execnet>=2.1 in /usr/local/lib/python3.13/site-packages (from pytest-xdist) (2.1.2)\n#11 2.660 Downloading pytest_cov-7.1.0-py3-none-any.whl (22 kB)\n#11 2.759 Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)\n#11 2.885 Downloading coverage-7.14.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (253 kB)\n#11 3.068 Installing collected packages: tenacity, coverage, pytest-cov\n#11 3.160 \n#11 3.166 Successfully installed coverage-7.14.0 pytest-cov-7.1.0 tenacity-9.1.4\n#11 3.166 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#11 DONE 3.2s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 0.4s done\n#12 writing image sha256:b05e555dedba0491ca23a9e6177fabfa67dee59d61a11d98b6aaac06c7978d6f done\n#12 naming to docker.io/library/jayint-repo2run-knowsuchagency__promptic done\n#12 DONE 0.4s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/wjlfkcr6rv8zu0hp60mny5aef\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-knowsuchagency__promptic",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-knowsuchagency__promptic sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-14T14:43:20.262131+08:00",
+              "finished_at": "2026-05-14T14:43:23.700394+08:00",
+              "duration_seconds": 3.438,
+              "stdout": "tests/test_promptic.py::test_basic[gpt-4o-mini]\ntests/test_promptic.py::test_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_parens[gpt-4o-mini]\ntests/test_promptic.py::test_parens[claude-3-haiku-20240307]\ntests/test_promptic.py::test_parens[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_system_prompt[gpt-4o-mini]\ntests/test_promptic.py::test_system_prompt[claude-3-haiku-20240307]\ntests/test_promptic.py::test_system_prompt[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_agents[gpt-4o-mini]\ntests/test_promptic.py::test_agents[claude-3-haiku-20240307]\ntests/test_promptic.py::test_agents[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_streaming_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_streaming_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_streaming_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_json_schema_validation[gpt-4o-mini]\ntests/test_promptic.py::test_json_schema_validation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_json_schema_validation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_dry_run_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_dry_run_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_dry_run_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_debug_logging[gpt-4o-mini]\ntests/test_promptic.py::test_debug_logging[claude-3-haiku-20240307]\ntests/test_promptic.py::test_debug_logging[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_multiple_tool_calls[gpt-4o-mini]\ntests/test_promptic.py::test_multiple_tool_calls[claude-3-haiku-20240307]\ntests/test_promptic.py::test_multiple_tool_calls[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_basic[gpt-4o-mini]\ntests/test_promptic.py::test_state_basic[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_basic[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_state_limit[gpt-4o-mini]\ntests/test_promptic.py::test_state_limit[claude-3-haiku-20240307]\ntests/test_promptic.py::test_state_limit[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_conversation[gpt-4o-mini]\ntests/test_promptic.py::test_memory_conversation[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_conversation[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_custom_state[gpt-4o-mini]\ntests/test_promptic.py::test_custom_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_custom_state[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_disabled[gpt-4o-mini]\ntests/test_promptic.py::test_memory_disabled[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_disabled[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_memory_with_streaming[gpt-4o-mini]\ntests/test_promptic.py::test_memory_with_streaming[claude-3-haiku-20240307]\ntests/test_promptic.py::test_memory_with_streaming[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_with_tools[gpt-4o-mini]\ntests/test_promptic.py::test_pydantic_with_tools[claude-3-haiku-20240307]\ntests/test_promptic.py::test_pydantic_with_tools[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gpt-4o]\ntests/test_promptic.py::test_pydantic_tools_with_memory[claude-3.5]\ntests/test_promptic.py::test_pydantic_tools_with_memory[gemini/gemini-1.5-pro]\ntests/test_promptic.py::test_anthropic_tool_calling\ntests/test_promptic.py::test_anthropic_multiple_tools_error\ntests/test_promptic.py::test_gemini_streaming_with_tools_error\ntests/test_promptic.py::test_mutually_exclusive_schemas[gpt-4o-mini]\ntests/test_promptic.py::test_mutually_exclusive_schemas[claude-3-haiku-20240307]\ntests/test_promptic.py::test_mutually_exclusive_schemas[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_wrapper_attributes[gpt-4o-mini]\ntests/test_promptic.py::test_wrapper_attributes[claude-3-haiku-20240307]\ntests/test_promptic.py::test_wrapper_attributes[gemini/gemini-1.5-flash]\ntests/test_promptic.py::test_clear_state[gpt-4o-mini]\ntests/test_promptic.py::test_clear_state[claude-3-haiku-20240307]\ntests/test_promptic.py::test_clear_state[gemini/gemini-1.5-flash]\n\n69 tests collected in 2.39s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-knowsuchagency__promptic"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-knowsuchagency__promptic",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T14:43:23.704025+08:00",
+    "finished_at": "2026-05-14T14:43:23.725724+08:00",
+    "duration_seconds": 0.022,
+    "stdout": "Untagged: jayint-repo2run-knowsuchagency__promptic:latest\nDeleted: sha256:b05e555dedba0491ca23a9e6177fabfa67dee59d61a11d98b6aaac06c7978d6f\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/knowsuchagency__promptic/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

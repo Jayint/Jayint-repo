@@ -1,0 +1,20 @@
+FROM python:3.11-slim as base
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y curl git ffmpeg pkg-config libcairo2-dev portaudio19-dev libsndfile1 libgomp1 libjpeg-dev libpng-dev cmake && apt-get clean && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir poetry && poetry --version
+
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+COPY . /app
+
+RUN poetry config virtualenvs.create false && poetry install -vvv && rm -rf /root/.cache/pypoetry /root/.cache/pip
+
+RUN echo '#!/bin/sh\n if [ -z "$CONFIG_FILE" ]; then\n poetry run owl serve --host 0.0.0.0\n else\n poetry run owl serve --host 0.0.0.0 --config "$CONFIG_FILE"\n fi' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

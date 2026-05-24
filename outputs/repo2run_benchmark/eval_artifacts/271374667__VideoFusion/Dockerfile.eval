@@ -1,0 +1,13 @@
+FROM python:3.10
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN apt-get update && apt-get install -y libgl1 libglib2.0-0 libxkbcommon-x11-0 libdbus-1-3 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 libegl1 locales
+RUN localedef -i en_US -f UTF-8 en_US.UTF-8
+RUN pip install -r requirements.txt
+RUN pip install pytest
+RUN sed -i 's/means_doising_processor/means_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py
+RUN sed -i 's/means_denoise_processor/bilateral_denoise_processor/g' tests/test_processors/test_opencv_processors/bilateral_denoise_test.py

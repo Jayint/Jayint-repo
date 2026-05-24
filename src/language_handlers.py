@@ -87,14 +87,9 @@ class PythonHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### Python-Specific Instructions:
-- Make sure the package is installed from source in editable mode before running tests (e.g., `pip install -e .`)
-- Avoid using tox to run tests if possible as it's designed for CI. Read tox.ini to understand setup
-- Check requirements.txt, setup.py, or pyproject.toml for dependencies
-- For requirements.txt: use `pip install -r requirements.txt`
-- For pyproject.toml with poetry: use `poetry install`
-- For Pipfile: use `pipenv install`
-- For environment.yml: use `conda env create -f environment.yml`
-- Always install the package in editable mode if setup.py or pyproject.toml exists: `pip install -e .`
+- Inspect pyproject.toml, setup.py/setup.cfg, requirements files, tox.ini, or lockfiles for runtime and test dependencies.
+- Install the local package and test dependencies in the way the project declares; editable installs are common but not universally sufficient.
+- Run pytest or the project-native test command after dependencies are installed.
 """
 
 
@@ -133,11 +128,9 @@ class JavaScriptHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### JavaScript/Node.js-Specific Instructions:
-- Use npm, yarn, or pnpm to install dependencies (check package.json and lockfiles)
-- Run `npm install` or `yarn install` to install dependencies
-- Check package.json for test scripts and build commands
-- Consider using `npm ci` for faster, reproducible builds if package-lock.json exists
-- Install global dependencies if needed (e.g., `npm install -g typescript`)
+- Inspect package.json and lockfiles to choose npm, yarn, or pnpm.
+- Install dependencies with the project-appropriate package manager.
+- Use package.json scripts for build and test commands.
 """
 
 
@@ -482,10 +475,6 @@ class PHPHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### PHP-Specific Instructions:
-- **PRE-REQUISITE**: Before running `composer install`, ensure the following system tools are available:
-  - `git` - required by composer for source downloads
-  - `zip`/`unzip` - required for extracting packages
-  - If using php-cli image, install with: `apt-get update && apt-get install -y git zip unzip`
 - Check composer.json for PHP version requirement (e.g., `"php": "^8.1"`) and ensure compatibility
 - Use `composer install` to install dependencies from composer.json
 - Use `./vendor/bin/phpunit` to run PHPUnit tests

@@ -1,0 +1,658 @@
+{
+  "dataset_entry": {
+    "instance_id": "kevinzakka__mink",
+    "full_name": "kevinzakka/mink",
+    "repo_url": "https://github.com/kevinzakka/mink.git",
+    "sha": "cf1a30",
+    "base_commit": "cf1a30",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/kevinzakka/mink.git",
+      "--base-commit",
+      "cf1a30",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/kevinzakka/mink.git --base-commit cf1a30 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T09:11:45.830895+08:00",
+    "finished_at": "2026-05-14T09:15:36.734400+08:00",
+    "duration_seconds": 230.904,
+    "stdout": "Cloning https://github.com/kevinzakka/mink.git into /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink...\n[Clone Strategy] plain clone.\nClone successful.\nChecked out commit: cf1a30\n[DockerAgent] Analyzing repository to select optimal base image...\n[ImageSelector] Analyzing repository structure...\n[ImageSelector] Found 5 potentially relevant files\n[ImageSelector]   ✗ docs/requirements.txt\n[ImageSelector]   ✓ pyproject.toml\n[ImageSelector]   ✓ .github/workflows/docs.yml\n[ImageSelector]   ✓ .github/workflows/ci.yml\n[ImageSelector]   ✗ README.md\n[ImageSelector] 3 files confirmed relevant\n[ImageSelector] Detected language: python (via llm)\n[ImageSelector] Architecture note: This project uses mujoco and numpy which include native C/C++ extensions. While these packages generally support ARM64, some mujoco binary distributions may have compatibility issues on ARM64 hosts (Apple Silicon). If tests fail on ARM64, consider using the linux/amd64 platform for the development container.\n[ImageSelector] Suggesting platform override: linux/amd64\n[ImageSelector] Selected base image: python:3.12\n[DockerAgent] Selected base image: python:3.12\n[DockerAgent] Platform override: linux/amd64 (for ARM64 compatibility)\n[DockerAgent] Image selection logs saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/logs/image_selector_logs\nInitializing container from python:3.12...\n[Platform] Using platform: linux/amd64\n[Platform] Pulling python:3.12 for platform linux/amd64...\n[Apt Bootstrap] Configured apt retries/timeouts.\n[Baseline Snapshot] sha256:f4bea\n[DockerAgent] Loaded repository structure from: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/logs/image_selector_logs/structure.txt\n[DockerAgent] Setup logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/logs/setup_logs\n[DockerAgent] Compression logs will be saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/logs/compression_logs\nStarting agent for repository: https://github.com/kevinzakka/mink.git\n\n==================== Step 1 ====================\n\n[Tokens] Input: 6183, Output: 80, Total: 6263\n\n[Thought]\nI need to examine the project configuration files to understand the dependencies and test setup. Let me start by looking at pyproject.toml.\n\n[Action]\ncat /workdir/kevinzakka__mink/pyproject.toml\n[Container ID: 880df1722030]\nExecuting: cat /workdir/kevinzakka__mink/pyproject.toml\nCommand failed (exit 1). Preserving current state for agent decision.\n\n[Observation]\ncat: /workdir/kevinzakka__mink/pyproject.toml: No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 2 ====================\n\n[Tokens] Input: 6260, Output: 59, Total: 6319\n\n[Thought]\nThe pyproject.toml doesn't exist at that path. Let me check the working directory structure to find where the repository was copied.\n\n[Action]\nls -la /workdir/\n[Container ID: 880df1722030]\nExecuting: ls -la /workdir/\nCommand failed (exit 2). Preserving current state for agent decision.\n\n[Observation]\nls: cannot access '/workdir/': No such file or directory\n\n\n[System] Command failed. Current container state was preserved unless the sandbox had to recover from an unhealthy container.\n\n==================== Step 3 ====================\n\n[Tokens] Input: 6322, Output: 51, Total: 6373\n\n[Thought]\nLet me check the current working directory and find where the repository is located.\n\n[Action]\npwd && ls -la\n[Container ID: 880df1722030]\nExecuting: pwd && ls -la\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n/app\ntotal 72\ndrwxr-xr-x  9 root root     4096 May 14 01:13 .\ndrwxr-xr-x  1 root root     4096 May 14 01:13 ..\ndrwxr-xr-x  7  501 dialout  4096 May 14 01:12 .git\ndrwxr-xr-x  3  501 dialout  4096 May 14 01:12 .github\n-rw-r--r--  1  501 dialout    54 May 14 01:12 .gitignore\n-rw-r--r--  1  501 dialout  2229 May 14 01:12 CHANGELOG.md\n-rw-r--r--  1  501 dialout   304 May 14 01:12 CITATION.cff\n-rw-r--r--  1  501 dialout   519 May 14 01:12 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout 11357 May 14 01:12 LICENSE\n-rw-r--r--  1  501 dialout  3620 May 14 01:12 README.md\ndrwxr-xr-x  2  501 dialout  4096 May 14 01:12 docs\ndrwxr-xr-x 15  501 dialout  4096 May 14 01:12 examples\ndrwxr-xr-x  3  501 dialout  4096 May 14 01:12 logs\ndrwxr-xr-x  5  501 dialout  4096 May 14 01:12 mink\n-rw-r--r--  1  501 dialout  2833 May 14 01:12 pyproject.toml\ndrwxr-xr-x  2  501 dialout  4096 May 14 01:12 tests\n\n\n==================== Step 4 ====================\n\n[Tokens] Input: 6792, Output: 58, Total: 6850\n\n[Thought]\nThe repository is in /app. Let me read the pyproject.toml to understand the dependencies and test setup.\n\n[Action]\ncat /app/pyproject.toml\n[Container ID: 880df1722030]\nExecuting: cat /app/pyproject.toml\nCommand succeeded.\n[Skip Snapshot] Command is read-only or informational.\n\n[Observation]\n[build-system]\nrequires = [\"flit_core >=2,<4\"]\nbuild-backend = \"flit_core.buildapi\"\n\n[project]\nname = \"mink\"\nversion = \"0.0.5\"\nreadme = \"README.md\"\nauthors = [\n    {name = \"Kevin Zakka\", email = \"zakka@berkeley.edu\"},\n]\nrequires-python = \">=3.9\"\ndynamic = [\"description\"]\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Framework :: Robot Framework :: Library\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Science/Research\",\n    \"License :: OSI Approved :: Apache Software License\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :: Python :: 3.10\",\n    \"Programming Language :: Python :: 3.11\",\n    \"Programming Language :: Python :: 3.12\",\n    \"Topic :: Scientific/Engineering\",\n]\ndependencies = [\n    # 3.1.6 for mj_geomDistance.\n    \"mujoco >= 3.1.6\",\n    \"qpsolvers[quadprog] >= 4.3.1\",\n    \"typing_extensions\",\n    \"numpy < 2.0.0\",\n]\nkeywords = [\"inverse\", \"kinematics\", \"mujoco\"]\n\n[project.optional-dependencies]\nexamples = [\n    \"dm_control >= 1.0.20\",\n    \"loop-rate-limiters >= 0.1.0\",\n    \"qpsolvers[quadprog,osqp] >= 4.3.1\",\n]\ntest = [\n    \"absl-py\",\n    \"coveralls\",\n    \"pytest\",\n    \"robot_descriptions >= 1.9.0\",\n]\ndev = [\n    \"black\",\n    \"mink[test]\",\n    \"mypy\",\n    \"ruff\",\n]\nall = [\n    \"mink[examples,dev]\",\n]\n\n[project.urls]\nSource = \"https://github.com/kevinzakka/mink\"\nTracker = \"https://github.com/kevinzakka/mink/issues\"\nChangelog = \"https://github.com/kevinzakka/mink/blob/main/CHANGELOG.md\"\nHomepage = \"https://kevinzakka.github.io/mink/\"\nDocumentation = \"https://kevinzakka.github.io/mink/\"\n\n[tool.flit.module]\nname = \"mink\"\n\n[tool.ruff]\nlint.select = [\n    \"E\",  # pycodestyle errors.\n    \"F\",  # Pyflakes rules.\n    \"PLC\",  # Pylint convention warnings.\n    \"PLE\",  # Pylint errors.\n    \"PLR\",  # Pylint refactor recommendations.\n    \"PLW\",  # Pylint warnings.\n    \"I\"  # Import sorting.\n]\nlint.ignore = [\n    \"E741\", # Ambiguous variable name. (l, O, or I)\n    \"E501\",  # Line too long.\n    \"PLR2004\",  # Magic value used in comparison.\n    \"PLR0915\",  # Too many statements.\n    \"PLR0913\",  # Too many arguments.\n    \"PLC0414\",  # Import alias does not rename variable. (this is used for exporting names)\n    \"PLC1901\",  # Use falsey strings.\n    \"PLR5501\",  # Use `elif` instead of `else if`.\n    \"PLR0911\",  # Too many return statements.\n    \"PLR0912\",  # Too many branches.\n    \"PLW0603\",  # Global statement updates are discouraged.\n    \"PLW2901\"  # For loop variable overwritten.\n]\n\n[tool.mypy]\npython_version = \"3.12\"\nignore_missing_imports = true\nwarn_unused_configs = true\nexclude = [\"scripts/\"]\n\n[tool.coverage.report]\nexclude_also = [\n    \"raise NotImplementedError\",\n    \"if __name__ == .__main__.:\",\n    \"class .*\\\\bProtocol\\\\):\",\n    \"@(abc\\\\.)?abstractmethod\",\n    \"def __repr__\",\n]\nomit = [\n    \"*exceptions.py\",\n]\n\n\n==================== Step 5 ====================\n\n[Tokens] Input: 7716, Output: 194, Total: 7910\n\n[Thought]\nI can see the project uses flit as the build system with dependencies including mujoco and qpsolvers. The test dependencies include pytest and robot_descriptions. Let me install the package with test dependencies.\n\n[Action]\npip install -e \"/app[test]\"\n[Container ID: 880df1722030]\nExecuting: pip install -e \"/app[test]\"\nCommand succeeded.\n[Snapshot Created] sha256:1240e\n\n[Observation]\nObtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting mujoco>=3.1.6 (from mink==0.0.5)\n  Downloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (42 kB)\nCollecting qpsolvers>=4.3.1 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n  Downloading qpsolvers-4.12.0-py3-none-any.whl.metadata (14 kB)\nCollecting typing_extensions (from mink==0.0.5)\n  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting numpy<2.0.0 (from mink==0.0.5)\n  Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\nCollecting absl-py (from mink==0.0.5)\n  Downloading absl_py-2.4.0-py3-none-any.whl.metadata (3.3 kB)\nCollecting coveralls (from mink==0.0.5)\n  Downloading coveralls-4.1.0-py3-none-any.whl.metadata (5.3 kB)\nCollecting pytest (from mink==0.0.5)\n  Downloading pytest-9.0.3-py3-none-any.whl.metadata (7.6 kB)\nCollecting robot_descriptions>=1.9.0 (from mink==0.0.5)\n  Downloading robot_descriptions-2.0.0-py3-none-any.whl.metadata (61 kB)\nCollecting etils[epath] (from mujoco>=3.1.6->mink==0.0.5)\n  Downloading etils-1.14.0-py3-none-any.whl.metadata (6.5 kB)\nCollecting glfw (from mujoco>=3.1.6->mink==0.0.5)\n  Downloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl.metadata (5.4 kB)\nCollecting pyopengl (from mujoco>=3.1.6->mink==0.0.5)\n  Downloading pyopengl-3.1.10-py3-none-any.whl.metadata (3.3 kB)\nCollecting scipy>=1.2.0 (from qpsolvers>=4.3.1->qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n  Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\nCollecting quadprog>=0.1.11 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n  Downloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.2 kB)\nCollecting GitPython>=3.1.18 (from robot_descriptions>=1.9.0->mink==0.0.5)\n  Downloading gitpython-3.1.50-py3-none-any.whl.metadata (14 kB)\nCollecting tqdm>=4.64.0 (from robot_descriptions>=1.9.0->mink==0.0.5)\n  Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\nCollecting coverage!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0 (from coverage[toml]!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0->coveralls->mink==0.0.5)\n  Downloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\nCollecting requests<3.0.0,>=1.0.0 (from coveralls->mink==0.0.5)\n  Downloading requests-2.34.1-py3-none-any.whl.metadata (4.8 kB)\nCollecting typer<1.0.0,>=0.12.0 (from coveralls->mink==0.0.5)\n  Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\nCollecting iniconfig>=1.0.1 (from pytest->mink==0.0.5)\n  Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting packaging>=22 (from pytest->mink==0.0.5)\n  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)\nCollecting pluggy<2,>=1.5 (from pytest->mink==0.0.5)\n  Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting pygments>=2.7.2 (from pytest->mink==0.0.5)\n  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting gitdb<5,>=4.0.1 (from GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n  Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)\nCollecting charset_normalizer<4,>=2 (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5)\n  Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)\nCollecting idna<4,>=2.5 (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5)\n  Downloading idna-3.15-py3-none-any.whl.metadata (7.7 kB)\nCollecting urllib3<3,>=1.26 (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5)\n  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)\nCollecting certifi>=2023.5.7 (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5)\n  Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)\nCollecting click>=8.2.1 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\nCollecting shellingham>=1.3.0 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)\nCollecting rich>=13.8.0 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\nCollecting annotated-doc>=0.0.2 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\nCollecting fsspec (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n  Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\nCollecting zipp (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n  Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\nCollecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n  Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)\nCollecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\nCollecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\nDownloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.3 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 6.9 MB/s eta 0:00:00\nDownloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 6.3 MB/s eta 0:00:00\nDownloading qpsolvers-4.12.0-py3-none-any.whl (106 kB)\nDownloading robot_descriptions-2.0.0-py3-none-any.whl (137 kB)\nDownloading absl_py-2.4.0-py3-none-any.whl (135 kB)\nDownloading coveralls-4.1.0-py3-none-any.whl (14 kB)\nDownloading pytest-9.0.3-py3-none-any.whl (375 kB)\nDownloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nDownloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (254 kB)\nDownloading gitpython-3.1.50-py3-none-any.whl (212 kB)\nDownloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nDownloading packaging-26.2-py3-none-any.whl (100 kB)\nDownloading pluggy-1.6.0-py3-none-any.whl (20 kB)\nDownloading pygments-2.20.0-py3-none-any.whl (1.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 5.3 MB/s eta 0:00:00\nDownloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (534 kB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 534.6/534.6 kB 6.4 MB/s eta 0:00:00\nDownloading requests-2.34.1-py3-none-any.whl (73 kB)\nDownloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 6.3 MB/s eta 0:00:00\nDownloading tqdm-4.67.3-py3-none-any.whl (78 kB)\nDownloading typer-0.25.1-py3-none-any.whl (58 kB)\nDownloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl (243 kB)\nDownloading pyopengl-3.1.10-py3-none-any.whl (3.2 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 7.5 MB/s eta 0:00:00\nDownloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\nDownloading certifi-2026.4.22-py3-none-any.whl (135 kB)\nDownloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)\nDownloading click-8.3.3-py3-none-any.whl (110 kB)\nDownloading gitdb-4.0.12-py3-none-any.whl (62 kB)\nDownloading idna-3.15-py3-none-any.whl (72 kB)\nDownloading rich-15.0.0-py3-none-any.whl (310 kB)\nDownloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nDownloading urllib3-2.7.0-py3-none-any.whl (131 kB)\nDownloading etils-1.14.0-py3-none-any.whl (172 kB)\nDownloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\nDownloading zipp-3.23.1-py3-none-any.whl (10 kB)\nDownloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\nDownloading smmap-5.0.3-py3-none-any.whl (24 kB)\nDownloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\nBuilding wheels for collected packages: mink\n  Building editable for mink (pyproject.toml): started\n  Building editable for mink (pyproject.toml): finished with status 'done'\n  Created wheel for mink: filename=mink-0.0.5-py3-none-any.whl size=7032 sha256=12ad970976401cab995bf34df15adca2a74ad089375a6cefc211c830e3e2d7f6\n  Stored in directory: /tmp/pip-ephem-wheel-cache-gsifk20h/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\nSuccessfully built mink\nInstalling collected packages: pyopengl, glfw, zipp, urllib3, typing_extensions, tqdm, smmap, shellingham, pygments, pluggy, packaging, numpy, mdurl, iniconfig, idna, fsspec, etils, coverage, click, charset_normalizer, certifi, annotated-doc, absl-py, scipy, requests, quadprog, pytest, markdown-it-py, gitdb, rich, qpsolvers, GitPython, typer, robot_descriptions, mujoco, mink, coveralls\nSuccessfully installed GitPython-3.1.50 absl-py-2.4.0 annotated-doc-0.0.4 certifi-2026.4.22 charset_normalizer-3.4.7 click-8.3.3 coverage-7.14.0 coveralls-4.1.0 etils-1.14.0 fsspec-2026.4.0 gitdb-4.0.12 glfw-2.10.0 idna-3.15 iniconfig-2.3.0 markdown-it-py-4.2.0 mdurl-0.1.2 mink-0.0.5 mujoco-3.8.1 numpy-1.26.4 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pyopengl-3.1.10 pytest-9.0.3 qpsolvers-4.12.0 quadprog-0.1.13 requests-2.34.1 rich-15.0.0 robot_descriptions-2.0.0 scipy-1.17.1 shellingham-1.5.4 smmap-5.0.3 tqdm-4.67.3 typer-0.25.1 typing_extensions-4.15.0 urllib3-2.7.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n\n\n==================== Step 6 ====================\n\n[Tokens] Input: 11948, Output: 80, Total: 12028\n\n[Thought]\nThe package is installed successfully with all dependencies. Now let me run pytest collection to verify that the tests can be collected properly.\n\n[Action]\ncd /app && pytest --collect-only -q --disable-warnings\n[Container ID: 880df1722030]\nExecuting: cd /app && pytest --collect-only -q --disable-warnings\nCommand succeeded.\n[Snapshot Created] sha256:cb741\n\n[Observation]\ntests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_contact_normal_jac_matches_mujoco\ntests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_dimensions\ntests/test_com_task.py::TestComTask::test_cost_correctly_broadcast\ntests/test_com_task.py::TestComTask::test_error_without_target\ntests/test_com_task.py::TestComTask::test_jacobian_without_target\ntests/test_com_task.py::TestComTask::test_set_target_from_configuration\ntests/test_com_task.py::TestComTask::test_target_is_a_copy\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_negative\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_target_is_invalid\ntests/test_com_task.py::TestComTask::test_zero_cost_same_as_disabling_task\ntests/test_com_task.py::TestComTask::test_zero_error_when_target_at_body\ntests/test_configuration.py::TestConfiguration::test_check_limits\ntests/test_configuration.py::TestConfiguration::test_check_limits_freejoint\ntests/test_configuration.py::TestConfiguration::test_initialize_from_keyframe\ntests/test_configuration.py::TestConfiguration::test_initialize_from_q\ntests/test_configuration.py::TestConfiguration::test_inplace_integration\ntests/test_configuration.py::TestConfiguration::test_nq_nv\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_world_frame\ntests/test_configuration.py::TestConfiguration::test_update_raises_error_if_keyframe_is_invalid\ntests/test_configuration_limit.py::TestConfigurationLimit::test_configuration_limit_repulsion\ntests/test_configuration_limit.py::TestConfigurationLimit::test_dimensions\ntests/test_configuration_limit.py::TestConfigurationLimit::test_far_from_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_freejoint_ignored\ntests/test_configuration_limit.py::TestConfigurationLimit::test_indices\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_no_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_subset_of_velocities_limited\ntests/test_configuration_limit.py::TestConfigurationLimit::test_throws_error_if_gain_invalid\ntests/test_damping_task.py::TestDampingTask::test_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_cost_correctly_broadcast\ntests/test_frame_task.py::TestFrameTask::test_error_without_target\ntests/test_frame_task.py::TestFrameTask::test_jacobian_without_target\ntests/test_frame_task.py::TestFrameTask::test_lm_damping_has_no_effect_at_target\ntests/test_frame_task.py::TestFrameTask::test_set_target_from_configuration\ntests/test_frame_task.py::TestFrameTask::test_target_is_a_copy\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_negative\ntests/test_frame_task.py::TestFrameTask::test_unit_cost_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_zero_error_when_target_at_body\ntests/test_jacobians.py::TestJacobians::test_com_task\ntests/test_jacobians.py::TestJacobians::test_damping_task\ntests/test_jacobians.py::TestJacobians::test_frame_task\ntests/test_jacobians.py::TestJacobians::test_posture_task\ntests/test_jacobians.py::TestJacobians::test_relative_frame_task\ntests/test_lie_axioms.py::TestAxioms::test_associative_SE3\ntests/test_lie_axioms.py::TestAxioms::test_associative_SO3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SE3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SO3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SE3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SO3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SE3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SO3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SE3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SO3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_jlog_SE3\ntests/test_lie_operations.py::TestOperations::test_jlog_SO3\ntests/test_lie_operations.py::TestOperations::test_lminus_SE3\ntests/test_lie_operations.py::TestOperations::test_lminus_SO3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_lplus_SE3\ntests/test_lie_operations.py::TestOperations::test_lplus_SO3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_rminus_SE3\ntests/test_lie_operations.py::TestOperations::test_rminus_SO3\ntests/test_lie_operations.py::TestOperations::test_rplus_SE3\ntests/test_lie_operations.py::TestOperations::test_rplus_SO3\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_apply\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_id\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name_raises_error_if_body_not_mocap\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_copy\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_raises_error_if_invalid_shape\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_rpy_bijective\ntests/test_lie_utils.py::TestUtils::test_skew_throws_assertion_error_if_shape_invalid\ntests/test_lie_utils.py::TestUtils::test_skew_transpose_equals_negative\ntests/test_posture_task.py::TestPostureTask::test_cost_correctly_broadcast\ntests/test_posture_task.py::TestPostureTask::test_cost_invalid_shape\ntests/test_posture_task.py::TestPostureTask::test_error_without_target\ntests/test_posture_task.py::TestPostureTask::test_jacobian_without_target\ntests/test_posture_task.py::TestPostureTask::test_set_target_from_configuration\ntests/test_posture_task.py::TestPostureTask::test_target_is_a_copy\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_cost_negative\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_target_is_invalid\ntests/test_posture_task.py::TestPostureTask::test_unit_cost_qp_objective\ntests/test_posture_task.py::TestPostureTask::test_zero_cost_same_as_disabling_task\ntests/test_posture_task.py::TestPostureTask::test_zero_error_when_target_is_current_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_cost_correctly_broadcast\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_error_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_jacobian_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_matches_frame_task\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_set_target_from_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_negative\ntests/test_solve_ik.py::TestSolveIK::test_checks_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_default_limits\ntests/test_solve_ik.py::TestSolveIK::test_ignores_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_model_with_no_limits\ntests/test_solve_ik.py::TestSolveIK::test_single_task_convergence\ntests/test_solve_ik.py::TestSolveIK::test_single_task_fulfilled\ntests/test_solve_ik.py::TestSolveIK::test_trivial_solution\ntests/test_task.py::TestTask::test_task_throws_error_if_gain_negative\ntests/test_task.py::TestTask::test_task_throws_error_if_lm_damping_negative\ntests/test_utils.py::TestUtils::test_custom_configuration_vector\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_from_keyframe\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_raises_error_if_jnt_shape_invalid\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_throws_error_if_keyframe_invalid\ntests/test_utils.py::TestUtils::test_get_freejoint_dims\ntests/test_utils.py::TestUtils::test_get_subtree_body_ids\ntests/test_utils.py::TestUtils::test_get_subtree_geom_ids\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame_throws_error_if_body_not_mocap\ntests/test_velocity_limit.py::TestVelocityLimit::test_ball_joint_invalid_limit_shape\ntests/test_velocity_limit.py::TestVelocityLimit::test_dimensions\ntests/test_velocity_limit.py::TestVelocityLimit::test_indices\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_ball_joint\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_no_limit\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_subset_of_velocities_limited\ntests/test_velocity_limit.py::TestVelocityLimit::test_that_freejoint_raises_error\n\n126 tests collected in 0.75s\n\n[Recorded Test Command] cd /app && pytest --collect-only -q --disable-warnings\n[Verification Block] 1 command(s) in final candidate block.\n\n==================== Step 7 ====================\n\n[Tokens] Input: 14303, Output: 109, Total: 14412\n\n[Finished] Agent has reached a conclusion.\n<think>\nThe pytest collection was successful. All 126 tests were collected without any errors. The environment is set up correctly. Let me provide the final answer with the verification bundle.\n</think>\n\nThought: The pytest collection succeeded with 126 tests collected. The mink package with test dependencies has been installed successfully and all tests are collectable. The environment is properly configured.\n\nVerification Bundle:\n{\"runtime_preparation_commands\": [], \"test_commands\": [\"cd /app && pytest --collect-only -q --disable-warnings\"]}\nFinal Answer: Success\n[Verification Bundle] Accepted 0 runtime preparation command(s) and 1 test command(s) from the agent report.\n\n==================== Environment Configuration Complete ====================\n[Build Recipe] Synthesized 1 build command(s), 0 post-test-patch command(s).\nDockerfile successfully generated at /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/Dockerfile\n[DockerAgent] Run summary saved to: /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/agent_run_summary.json\n\n[Container Cleaned Up]\n[Snapshot Image Cleaned]\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": false,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/kevinzakka__mink.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/kevinzakka/mink.git",
+    "configuration_success": true,
+    "base_image": "python:3.12",
+    "platform_override": "linux/amd64",
+    "verified_test_command": "cd /app && pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "test_run_attempts": [
+      {
+        "step_index": 6,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings",
+        "environment_revision": 1,
+        "effective": true,
+        "confidence": "high",
+        "reason": "observed_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 3,
+        "command": "pwd && ls -la",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app\ntotal 72\ndrwxr-xr-x  9 root root     4096 May 14 01:13 .\ndrwxr-xr-x  1 root root     4096 May 14 01:13 ..\ndrwxr-xr-x  7  501 dialout  4096 May 14 01:12 .git\ndrwxr-xr-x  3  501 dialout  4096 May 14 01:12 .github\n-rw-r--r--  1  501 dialout    54 May 14 01:12 .gitignore\n-rw-r--r--  1  501 dialout  2229 May 14 01:12 CHANGELOG.md\n-rw-r--r--  1  501 dialout   304 May 14 01:12 CITATION.cff\n-rw-r--r--  1  501 dialout   519 May 14 01:12 CONTRIBUTING.md\n-rw-r--r--  1  501 dialout 11357 May 14 01:12 LICENSE\n-rw-r--r--  1  501 dialout  3620 May 14 01:12 README.md\ndrwxr-xr-x  2  501 dialout  4096 May 14 01:12 docs\ndrwxr-xr-x 15  501 dialout  4096 May 14 01:12 examples\ndrwxr-xr-x  3  501 dialout  4096 May 14 01:12 logs\ndrwxr-xr-x  5  501 dialout  4096 May 14 01:12 mink\n-rw-r--r--  1  501 dialout  2833 May 14 01:12 pyproject.toml\ndrwxr-xr-x  2  501 dialout  4096 May 14 01:12 tests\n"
+      },
+      {
+        "step_index": 4,
+        "command": "cat /app/pyproject.toml",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "[build-system]\nrequires = [\"flit_core >=2,<4\"]\nbuild-backend = \"flit_core.buildapi\"\n\n[project]\nname = \"mink\"\nversion = \"0.0.5\"\nreadme = \"README.md\"\nauthors = [\n    {name = \"Kevin Zakka\", email = \"zakka@berkeley.edu\"},\n]\nrequires-python = \">=3.9\"\ndynamic = [\"description\"]\nclassifiers = [\n    \"Development Status :: 5 - Production/Stable\",\n    \"Framework :: Robot Framework :: Library\",\n    \"Intended Audience :: Developers\",\n    \"Intended Audience :: Science/Research\",\n    \"License :: OSI Approved :: Apache Software License\",\n    \"Programming Language :: Python :: 3.9\",\n    \"Programming Language :\n... (1633 chars omitted for recipe synthesis) ...\nsey strings.\n    \"PLR5501\",  # Use `elif` instead of `else if`.\n    \"PLR0911\",  # Too many return statements.\n    \"PLR0912\",  # Too many branches.\n    \"PLW0603\",  # Global statement updates are discouraged.\n    \"PLW2901\"  # For loop variable overwritten.\n]\n\n[tool.mypy]\npython_version = \"3.12\"\nignore_missing_imports = true\nwarn_unused_configs = true\nexclude = [\"scripts/\"]\n\n[tool.coverage.report]\nexclude_also = [\n    \"raise NotImplementedError\",\n    \"if __name__ == .__main__.:\",\n    \"class .*\\\\bProtocol\\\\):\",\n    \"@(abc\\\\.)?abstractmethod\",\n    \"def __repr__\",\n]\nomit = [\n    \"*exceptions.py\",\n]\n"
+      },
+      {
+        "step_index": 5,
+        "command": "pip install -e \"/app[test]\"",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting mujoco>=3.1.6 (from mink==0.0.5)\n  Downloading mujoco-3.8.1-cp312-cp312\n... (9253 chars omitted for recipe synthesis) ...\n0.0 scipy-1.17.1 shellingham-1.5.4 smmap-5.0.3 tqdm-4.67.3 typer-0.25.1 typing_extensions-4.15.0 urllib3-2.7.0 zipp-3.23.1\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n\n[notice] A new release of pip is available: 25.0.1 -> 26.1.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": true,
+          "confidence": "high",
+          "reason": "observed_test_execution_signal"
+        },
+        "observation_summary": "tests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_contact_normal_jac_matches_mujoco\ntests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_dimensions\ntests/test_com_task.py::TestComTask::test_cost_correctly_broadcast\ntests/test_com_task.py::TestComTask::test_error_without_target\ntests/test_com_task.py::TestComTask::test_jacobian_without_target\ntests/test_com_task.py::TestComTask::test_set_target_from_configuration\ntests/test_com_task.py::TestComTask::test_target_is_a_copy\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_dim_invali\n... (8214 chars omitted for recipe synthesis) ...\n_throws_error_if_body_not_mocap\ntests/test_velocity_limit.py::TestVelocityLimit::test_ball_joint_invalid_limit_shape\ntests/test_velocity_limit.py::TestVelocityLimit::test_dimensions\ntests/test_velocity_limit.py::TestVelocityLimit::test_indices\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_ball_joint\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_no_limit\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_subset_of_velocities_limited\ntests/test_velocity_limit.py::TestVelocityLimit::test_that_freejoint_raises_error\n\n126 tests collected in 0.75s\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 1,
+        "command": "cat /workdir/kevinzakka__mink/pyproject.toml",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "cat: /workdir/kevinzakka__mink/pyproject.toml: No such file or directory\n"
+      },
+      {
+        "step_index": 2,
+        "command": "ls -la /workdir/",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "ls: cannot access '/workdir/': No such file or directory\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install -e \"/app[test]\""
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "pwd && ls -la",
+          "reason": "read-only directory inspection that only confirms repo location, not a state-changing setup action"
+        },
+        {
+          "command": "cat /app/pyproject.toml",
+          "reason": "read-only file inspection providing context about dependencies, not a persistent environment modification"
+        },
+        {
+          "command": "cat /workdir/kevinzakka__mink/pyproject.toml",
+          "reason": "failed attempt at wrong path - read-only and unsuccessful"
+        },
+        {
+          "command": "ls -la /workdir/",
+          "reason": "failed directory listing at non-existent path - read-only and unsuccessful"
+        }
+      ],
+      "rationale": "The successful trajectory consists of exactly one persistent environment modification: installing the package in editable mode with test dependencies. The failed attempts (steps 1-2) were wrong-path exploration that should not be replayed. The read-only inspection steps (3-4) provided context for discovering the correct path (/app) and dependencies but are not themselves state-changing build commands. The test command (step 6) verifies tests but is a test command, not a build command. The pip install command installs all required packages (mujoco>=3.1.6, qpsolvers>=4.3.1, pytest, robot_descriptions) and is the minimal set of persistent commands needed for a fresh image to support the test verification.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 1,
+      "compressed_steps": 0,
+      "saved_tokens_est": 0
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat /workdir/kevinzakka__mink/pyproject.toml",
+        "success": false,
+        "raw_chars": 73,
+        "raw_tokens_est": 18,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 2,
+        "action": "ls -la /workdir/",
+        "success": false,
+        "raw_chars": 57,
+        "raw_tokens_est": 14,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "pwd && ls -la",
+        "success": true,
+        "raw_chars": 884,
+        "raw_tokens_est": 221,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cat /app/pyproject.toml",
+        "success": true,
+        "raw_chars": 2833,
+        "raw_tokens_est": 708,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 188,
+        "reflect_input_tokens": 8446,
+        "reflect_output_tokens": 1118
+      },
+      {
+        "step_id": 5,
+        "action": "pip install -e \"/app[test]\"",
+        "success": true,
+        "raw_chars": 10453,
+        "raw_tokens_est": 2613,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings",
+        "success": true,
+        "raw_chars": 9414,
+        "raw_tokens_est": 2353,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 12473,
+        "output_tokens": 2987,
+        "total_tokens": 15460
+      },
+      "planner": {
+        "input_tokens": 59524,
+        "output_tokens": 631,
+        "total_tokens": 60155
+      },
+      "reflection": {
+        "input_tokens": 8446,
+        "output_tokens": 1118,
+        "total_tokens": 9564
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 7902,
+        "output_tokens": 1319,
+        "total_tokens": 9221
+      },
+      "total": {
+        "input_tokens": 88345,
+        "output_tokens": 6055,
+        "total_tokens": 94400
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink/Dockerfile",
+  "agent_dockerfile_present": true,
+  "agent_dockerfile_usable": true,
+  "agent_dockerfile_ignored_reason": null,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval",
+  "eval_build_context_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+  "eval_context_preparation": {
+    "method": "local_git_clone",
+    "source": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink",
+    "destination": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+    "base_commit": "cf1a30",
+    "success": true,
+    "clone": {
+      "command": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink",
+        "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context"
+      ],
+      "command_shell": "git clone --no-hardlinks /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/kevinzakka__mink /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+      "returncode": 0,
+      "started_at": "2026-05-14T09:15:36.735400+08:00",
+      "finished_at": "2026-05-14T09:15:37.299389+08:00",
+      "duration_seconds": 0.564,
+      "stdout": "",
+      "stderr": "正克隆到 '/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context'...\n完成。\n注意：正在切换到 'cf1a302ff31b1f620abecdcbdebfd2c42d125a54'。\n\n您正处于分离头指针状态。您可以查看、做试验性的修改及提交，并且您可以在切换\n回一个分支时，丢弃在此状态下所做的提交而不对分支造成影响。\n\n如果您想要通过创建分支来保留在此状态下所做的提交，您可以通过在 switch 命令\n中添加参数 -c 来实现（现在或稍后）。例如：\n\n  git switch -c <新分支名>\n\n或者撤销此操作：\n\n  git switch -\n\n通过将配置变量 advice.detachedHead 设置为 false 来关闭此建议\n\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "checkout": {
+      "command": [
+        "git",
+        "checkout",
+        "--force",
+        "cf1a30"
+      ],
+      "command_shell": "git checkout --force cf1a30",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-14T09:15:37.299455+08:00",
+      "finished_at": "2026-05-14T09:15:37.912196+08:00",
+      "duration_seconds": 0.613,
+      "stdout": "",
+      "stderr": "HEAD 目前位于 cf1a302 Turn off rate limiter warning in all examples.\n",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "clean": {
+      "command": [
+        "git",
+        "clean",
+        "-fdx"
+      ],
+      "command_shell": "git clean -fdx",
+      "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+      "returncode": 0,
+      "started_at": "2026-05-14T09:15:37.912253+08:00",
+      "finished_at": "2026-05-14T09:15:37.918236+08:00",
+      "duration_seconds": 0.006,
+      "stdout": "",
+      "stderr": "",
+      "timed_out": false,
+      "timeout_seconds": null
+    },
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context"
+  },
+  "eval_dockerignore_test_artifacts": {
+    "path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context/.dockerignore",
+    "test_artifact_paths": [
+      "tests"
+    ],
+    "changed": false,
+    "removed_patterns": [],
+    "appended_exceptions": [],
+    "reason": "no_dockerignore"
+  },
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-kevinzakka__mink",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval -t jayint-repo2run-kevinzakka__mink /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T09:15:37.920154+08:00",
+    "finished_at": "2026-05-14T09:16:10.584289+08:00",
+    "duration_seconds": 32.664,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 468.88MB 2.9s done\n#5 DONE 2.9s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.9s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \"/app[test]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.487 Obtaining file:///app\n#10 0.490   Installing build dependencies: started\n#10 1.982   Installing build dependencies: finished with status 'done'\n#10 1.983   Checking if build backend supports build_editable: started\n#10 2.132   Checking if build backend supports build_editable: finished with status 'done'\n#10 2.133   Getting requirements to build editable: started\n#10 2.261   Getting requirements to build editable: finished with status 'done'\n#10 2.262   Preparing editable metadata (pyproject.toml): started\n#10 2.393   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 2.930 Collecting mujoco>=3.1.6 (from mink==0.0.5)\n#10 3.235   Downloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (42 kB)\n#10 3.417 Collecting qpsolvers>=4.3.1 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 3.510   Downloading qpsolvers-4.12.0-py3-none-any.whl.metadata (14 kB)\n#10 3.528 Requirement already satisfied: typing_extensions in /usr/local/lib/python3.12/site-packages (from mink==0.0.5) (4.15.0)\n#10 3.828 Collecting numpy<2.0.0 (from mink==0.0.5)\n#10 3.916   Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\n#10 4.079 Collecting absl-py (from mink==0.0.5)\n#10 4.179   Downloading absl_py-2.4.0-py3-none-any.whl.metadata (3.3 kB)\n#10 4.298 Collecting coveralls (from mink==0.0.5)\n#10 4.393   Downloading coveralls-4.1.0-py3-none-any.whl.metadata (5.3 kB)\n#10 4.395 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (from mink==0.0.5) (9.0.3)\n#10 4.491 Collecting robot_descriptions>=1.9.0 (from mink==0.0.5)\n#10 4.579   Downloading robot_descriptions-2.0.0-py3-none-any.whl.metadata (61 kB)\n#10 4.709 Collecting etils[epath] (from mujoco>=3.1.6->mink==0.0.5)\n#10 4.798   Downloading etils-1.14.0-py3-none-any.whl.metadata (6.5 kB)\n#10 4.937 Collecting glfw (from mujoco>=3.1.6->mink==0.0.5)\n#10 5.036   Downloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl.metadata (5.4 kB)\n#10 5.146 Collecting pyopengl (from mujoco>=3.1.6->mink==0.0.5)\n#10 5.369   Downloading pyopengl-3.1.10-py3-none-any.whl.metadata (3.3 kB)\n#10 5.583 Collecting scipy>=1.2.0 (from qpsolvers>=4.3.1->qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 5.756   Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\n#10 5.908 Collecting quadprog>=0.1.11 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 6.056   Downloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.2 kB)\n#10 6.187 Collecting GitPython>=3.1.18 (from robot_descriptions>=1.9.0->mink==0.0.5)\n#10 6.303   Downloading gitpython-3.1.50-py3-none-any.whl.metadata (14 kB)\n#10 6.447 Collecting tqdm>=4.64.0 (from robot_descriptions>=1.9.0->mink==0.0.5)\n#10 6.541   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#10 6.940 Collecting coverage!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0 (from coverage[toml]!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0->coveralls->mink==0.0.5)\n#10 7.035   Downloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\n#10 7.038 Requirement already satisfied: requests<3.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from coveralls->mink==0.0.5) (2.34.0)\n#10 7.143 Collecting typer<1.0.0,>=0.12.0 (from coveralls->mink==0.0.5)\n#10 7.231   Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\n#10 7.246 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (2.3.0)\n#10 7.247 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (26.2)\n#10 7.247 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (1.6.0)\n#10 7.248 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (2.20.0)\n#10 7.360 Collecting gitdb<5,>=4.0.1 (from GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n#10 7.459   Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)\n#10 7.477 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (3.4.7)\n#10 7.477 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (3.14)\n#10 7.478 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (2.7.0)\n#10 7.478 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (2026.4.22)\n#10 7.605 Collecting click>=8.2.1 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 7.705   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 7.712 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/site-packages (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5) (1.5.4)\n#10 7.851 Collecting rich>=13.8.0 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 7.941   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#10 8.051 Collecting annotated-doc>=0.0.2 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 8.145   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#10 8.278 Collecting fsspec (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n#10 8.368   Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\n#10 8.717 Collecting zipp (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n#10 8.814   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#10 8.941 Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n#10 9.042   Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)\n#10 9.171 Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 9.260   Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\n#10 9.387 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 9.486   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#10 9.591 Downloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.3 MB)\n#10 10.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 7.2 MB/s eta 0:00:00\n#10 10.74 Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n#10 13.55    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 6.3 MB/s eta 0:00:00\n#10 13.65 Downloading qpsolvers-4.12.0-py3-none-any.whl (106 kB)\n#10 13.75 Downloading robot_descriptions-2.0.0-py3-none-any.whl (137 kB)\n#10 13.87 Downloading absl_py-2.4.0-py3-none-any.whl (135 kB)\n#10 14.00 Downloading coveralls-4.1.0-py3-none-any.whl (14 kB)\n#10 14.09 Downloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (254 kB)\n#10 14.22 Downloading gitpython-3.1.50-py3-none-any.whl (212 kB)\n#10 14.36 Downloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (534 kB)\n#10 14.44    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 534.6/534.6 kB 6.9 MB/s eta 0:00:00\n#10 14.55 Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n#10 20.11    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 6.3 MB/s eta 0:00:00\n#10 20.20 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 20.30 Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 20.41 Downloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl (243 kB)\n#10 20.54 Downloading pyopengl-3.1.10-py3-none-any.whl (3.2 MB)\n#10 20.95    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 7.9 MB/s eta 0:00:00\n#10 21.05 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 21.14 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 21.24 Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#10 21.33 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 21.46 Downloading etils-1.14.0-py3-none-any.whl (172 kB)\n#10 21.57 Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#10 21.69 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#10 21.78 Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 21.87 Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#10 21.97 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 22.13 Building wheels for collected packages: mink\n#10 22.13   Building editable for mink (pyproject.toml): started\n#10 22.26   Building editable for mink (pyproject.toml): finished with status 'done'\n#10 22.26   Created wheel for mink: filename=mink-0.0.5-py3-none-any.whl size=7032 sha256=dc49d305661ffeb08bfdded439a5074527178cc95b977fcd09625d312f201a12\n#10 22.26   Stored in directory: /tmp/pip-ephem-wheel-cache-lya_d555/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#10 22.26 Successfully built mink\n#10 22.34 Installing collected packages: pyopengl, glfw, zipp, tqdm, smmap, numpy, mdurl, fsspec, etils, coverage, click, annotated-doc, absl-py, scipy, quadprog, markdown-it-py, gitdb, rich, qpsolvers, GitPython, typer, robot_descriptions, mujoco, mink, coveralls\n#10 27.48 Successfully installed GitPython-3.1.50 absl-py-2.4.0 annotated-doc-0.0.4 click-8.3.3 coverage-7.14.0 coveralls-4.1.0 etils-1.14.0 fsspec-2026.4.0 gitdb-4.0.12 glfw-2.10.0 markdown-it-py-4.2.0 mdurl-0.1.2 mink-0.0.5 mujoco-3.8.1 numpy-1.26.4 pyopengl-3.1.10 qpsolvers-4.12.0 quadprog-0.1.13 rich-15.0.0 robot_descriptions-2.0.0 scipy-1.17.1 smmap-5.0.3 tqdm-4.67.3 typer-0.25.1 zipp-3.23.1\n#10 27.48 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 27.8s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.5s done\n#11 writing image sha256:12d04a9316d1072ff2d64c055a2fc2a1f129a3a4d83595b3f738e7cd2a94aed4\n#11 writing image sha256:12d04a9316d1072ff2d64c055a2fc2a1f129a3a4d83595b3f738e7cd2a94aed4 done\n#11 naming to docker.io/library/jayint-repo2run-kevinzakka__mink done\n#11 DONE 0.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/x18aso6pjvrhh14uw7jnp85q6\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-kevinzakka__mink",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-kevinzakka__mink sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-05-14T09:16:10.585661+08:00",
+          "finished_at": "2026-05-14T09:16:12.147036+08:00",
+          "duration_seconds": 1.561,
+          "stdout": "tests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_contact_normal_jac_matches_mujoco\ntests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_dimensions\ntests/test_com_task.py::TestComTask::test_cost_correctly_broadcast\ntests/test_com_task.py::TestComTask::test_error_without_target\ntests/test_com_task.py::TestComTask::test_jacobian_without_target\ntests/test_com_task.py::TestComTask::test_set_target_from_configuration\ntests/test_com_task.py::TestComTask::test_target_is_a_copy\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_negative\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_target_is_invalid\ntests/test_com_task.py::TestComTask::test_zero_cost_same_as_disabling_task\ntests/test_com_task.py::TestComTask::test_zero_error_when_target_at_body\ntests/test_configuration.py::TestConfiguration::test_check_limits\ntests/test_configuration.py::TestConfiguration::test_check_limits_freejoint\ntests/test_configuration.py::TestConfiguration::test_initialize_from_keyframe\ntests/test_configuration.py::TestConfiguration::test_initialize_from_q\ntests/test_configuration.py::TestConfiguration::test_inplace_integration\ntests/test_configuration.py::TestConfiguration::test_nq_nv\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_world_frame\ntests/test_configuration.py::TestConfiguration::test_update_raises_error_if_keyframe_is_invalid\ntests/test_configuration_limit.py::TestConfigurationLimit::test_configuration_limit_repulsion\ntests/test_configuration_limit.py::TestConfigurationLimit::test_dimensions\ntests/test_configuration_limit.py::TestConfigurationLimit::test_far_from_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_freejoint_ignored\ntests/test_configuration_limit.py::TestConfigurationLimit::test_indices\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_no_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_subset_of_velocities_limited\ntests/test_configuration_limit.py::TestConfigurationLimit::test_throws_error_if_gain_invalid\ntests/test_damping_task.py::TestDampingTask::test_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_cost_correctly_broadcast\ntests/test_frame_task.py::TestFrameTask::test_error_without_target\ntests/test_frame_task.py::TestFrameTask::test_jacobian_without_target\ntests/test_frame_task.py::TestFrameTask::test_lm_damping_has_no_effect_at_target\ntests/test_frame_task.py::TestFrameTask::test_set_target_from_configuration\ntests/test_frame_task.py::TestFrameTask::test_target_is_a_copy\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_negative\ntests/test_frame_task.py::TestFrameTask::test_unit_cost_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_zero_error_when_target_at_body\ntests/test_jacobians.py::TestJacobians::test_com_task\ntests/test_jacobians.py::TestJacobians::test_damping_task\ntests/test_jacobians.py::TestJacobians::test_frame_task\ntests/test_jacobians.py::TestJacobians::test_posture_task\ntests/test_jacobians.py::TestJacobians::test_relative_frame_task\ntests/test_lie_axioms.py::TestAxioms::test_associative_SE3\ntests/test_lie_axioms.py::TestAxioms::test_associative_SO3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SE3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SO3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SE3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SO3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SE3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SO3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SE3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SO3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_jlog_SE3\ntests/test_lie_operations.py::TestOperations::test_jlog_SO3\ntests/test_lie_operations.py::TestOperations::test_lminus_SE3\ntests/test_lie_operations.py::TestOperations::test_lminus_SO3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_lplus_SE3\ntests/test_lie_operations.py::TestOperations::test_lplus_SO3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_rminus_SE3\ntests/test_lie_operations.py::TestOperations::test_rminus_SO3\ntests/test_lie_operations.py::TestOperations::test_rplus_SE3\ntests/test_lie_operations.py::TestOperations::test_rplus_SO3\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_apply\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_id\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name_raises_error_if_body_not_mocap\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_copy\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_raises_error_if_invalid_shape\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_rpy_bijective\ntests/test_lie_utils.py::TestUtils::test_skew_throws_assertion_error_if_shape_invalid\ntests/test_lie_utils.py::TestUtils::test_skew_transpose_equals_negative\ntests/test_posture_task.py::TestPostureTask::test_cost_correctly_broadcast\ntests/test_posture_task.py::TestPostureTask::test_cost_invalid_shape\ntests/test_posture_task.py::TestPostureTask::test_error_without_target\ntests/test_posture_task.py::TestPostureTask::test_jacobian_without_target\ntests/test_posture_task.py::TestPostureTask::test_set_target_from_configuration\ntests/test_posture_task.py::TestPostureTask::test_target_is_a_copy\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_cost_negative\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_target_is_invalid\ntests/test_posture_task.py::TestPostureTask::test_unit_cost_qp_objective\ntests/test_posture_task.py::TestPostureTask::test_zero_cost_same_as_disabling_task\ntests/test_posture_task.py::TestPostureTask::test_zero_error_when_target_is_current_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_cost_correctly_broadcast\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_error_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_jacobian_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_matches_frame_task\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_set_target_from_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_negative\ntests/test_solve_ik.py::TestSolveIK::test_checks_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_default_limits\ntests/test_solve_ik.py::TestSolveIK::test_ignores_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_model_with_no_limits\ntests/test_solve_ik.py::TestSolveIK::test_single_task_convergence\ntests/test_solve_ik.py::TestSolveIK::test_single_task_fulfilled\ntests/test_solve_ik.py::TestSolveIK::test_trivial_solution\ntests/test_task.py::TestTask::test_task_throws_error_if_gain_negative\ntests/test_task.py::TestTask::test_task_throws_error_if_lm_damping_negative\ntests/test_utils.py::TestUtils::test_custom_configuration_vector\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_from_keyframe\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_raises_error_if_jnt_shape_invalid\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_throws_error_if_keyframe_invalid\ntests/test_utils.py::TestUtils::test_get_freejoint_dims\ntests/test_utils.py::TestUtils::test_get_subtree_body_ids\ntests/test_utils.py::TestUtils::test_get_subtree_geom_ids\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame_throws_error_if_body_not_mocap\ntests/test_velocity_limit.py::TestVelocityLimit::test_ball_joint_invalid_limit_shape\ntests/test_velocity_limit.py::TestVelocityLimit::test_dimensions\ntests/test_velocity_limit.py::TestVelocityLimit::test_indices\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_ball_joint\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_no_limit\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_subset_of_velocities_limited\ntests/test_velocity_limit.py::TestVelocityLimit::test_that_freejoint_raises_error\n\n126 tests collected in 0.67s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-kevinzakka__mink",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/Dockerfile.eval -t jayint-repo2run-kevinzakka__mink /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/build_context",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-05-14T09:15:37.920154+08:00",
+        "finished_at": "2026-05-14T09:16:10.584289+08:00",
+        "duration_seconds": 32.664,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 1.08kB done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/python:3.12\n#2 DONE 0.0s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 2B done\n#3 DONE 0.0s\n\n#4 [1/6] FROM docker.io/library/python:3.12\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 468.88MB 2.9s done\n#5 DONE 2.9s\n\n#6 [2/6] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#6 CACHED\n\n#7 [3/6] WORKDIR /app\n#7 CACHED\n\n#8 [4/6] COPY . /app\n#8 DONE 0.9s\n\n#9 [5/6] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#9 DONE 0.1s\n\n#10 [6/6] RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install -e \"/app[test]\"' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n#10 0.487 Obtaining file:///app\n#10 0.490   Installing build dependencies: started\n#10 1.982   Installing build dependencies: finished with status 'done'\n#10 1.983   Checking if build backend supports build_editable: started\n#10 2.132   Checking if build backend supports build_editable: finished with status 'done'\n#10 2.133   Getting requirements to build editable: started\n#10 2.261   Getting requirements to build editable: finished with status 'done'\n#10 2.262   Preparing editable metadata (pyproject.toml): started\n#10 2.393   Preparing editable metadata (pyproject.toml): finished with status 'done'\n#10 2.930 Collecting mujoco>=3.1.6 (from mink==0.0.5)\n#10 3.235   Downloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (42 kB)\n#10 3.417 Collecting qpsolvers>=4.3.1 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 3.510   Downloading qpsolvers-4.12.0-py3-none-any.whl.metadata (14 kB)\n#10 3.528 Requirement already satisfied: typing_extensions in /usr/local/lib/python3.12/site-packages (from mink==0.0.5) (4.15.0)\n#10 3.828 Collecting numpy<2.0.0 (from mink==0.0.5)\n#10 3.916   Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)\n#10 4.079 Collecting absl-py (from mink==0.0.5)\n#10 4.179   Downloading absl_py-2.4.0-py3-none-any.whl.metadata (3.3 kB)\n#10 4.298 Collecting coveralls (from mink==0.0.5)\n#10 4.393   Downloading coveralls-4.1.0-py3-none-any.whl.metadata (5.3 kB)\n#10 4.395 Requirement already satisfied: pytest in /usr/local/lib/python3.12/site-packages (from mink==0.0.5) (9.0.3)\n#10 4.491 Collecting robot_descriptions>=1.9.0 (from mink==0.0.5)\n#10 4.579   Downloading robot_descriptions-2.0.0-py3-none-any.whl.metadata (61 kB)\n#10 4.709 Collecting etils[epath] (from mujoco>=3.1.6->mink==0.0.5)\n#10 4.798   Downloading etils-1.14.0-py3-none-any.whl.metadata (6.5 kB)\n#10 4.937 Collecting glfw (from mujoco>=3.1.6->mink==0.0.5)\n#10 5.036   Downloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl.metadata (5.4 kB)\n#10 5.146 Collecting pyopengl (from mujoco>=3.1.6->mink==0.0.5)\n#10 5.369   Downloading pyopengl-3.1.10-py3-none-any.whl.metadata (3.3 kB)\n#10 5.583 Collecting scipy>=1.2.0 (from qpsolvers>=4.3.1->qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 5.756   Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (62 kB)\n#10 5.908 Collecting quadprog>=0.1.11 (from qpsolvers[quadprog]>=4.3.1->mink==0.0.5)\n#10 6.056   Downloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.2 kB)\n#10 6.187 Collecting GitPython>=3.1.18 (from robot_descriptions>=1.9.0->mink==0.0.5)\n#10 6.303   Downloading gitpython-3.1.50-py3-none-any.whl.metadata (14 kB)\n#10 6.447 Collecting tqdm>=4.64.0 (from robot_descriptions>=1.9.0->mink==0.0.5)\n#10 6.541   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)\n#10 6.940 Collecting coverage!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0 (from coverage[toml]!=6.0.*,!=6.1,!=6.1.1,<8.0,>=5.0->coveralls->mink==0.0.5)\n#10 7.035   Downloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)\n#10 7.038 Requirement already satisfied: requests<3.0.0,>=1.0.0 in /usr/local/lib/python3.12/site-packages (from coveralls->mink==0.0.5) (2.34.0)\n#10 7.143 Collecting typer<1.0.0,>=0.12.0 (from coveralls->mink==0.0.5)\n#10 7.231   Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)\n#10 7.246 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (2.3.0)\n#10 7.247 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (26.2)\n#10 7.247 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (1.6.0)\n#10 7.248 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.12/site-packages (from pytest->mink==0.0.5) (2.20.0)\n#10 7.360 Collecting gitdb<5,>=4.0.1 (from GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n#10 7.459   Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)\n#10 7.477 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (3.4.7)\n#10 7.477 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (3.14)\n#10 7.478 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (2.7.0)\n#10 7.478 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests<3.0.0,>=1.0.0->coveralls->mink==0.0.5) (2026.4.22)\n#10 7.605 Collecting click>=8.2.1 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 7.705   Downloading click-8.3.3-py3-none-any.whl.metadata (2.6 kB)\n#10 7.712 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/site-packages (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5) (1.5.4)\n#10 7.851 Collecting rich>=13.8.0 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 7.941   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)\n#10 8.051 Collecting annotated-doc>=0.0.2 (from typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 8.145   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)\n#10 8.278 Collecting fsspec (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n#10 8.368   Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)\n#10 8.717 Collecting zipp (from etils[epath]->mujoco>=3.1.6->mink==0.0.5)\n#10 8.814   Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)\n#10 8.941 Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->GitPython>=3.1.18->robot_descriptions>=1.9.0->mink==0.0.5)\n#10 9.042   Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)\n#10 9.171 Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 9.260   Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)\n#10 9.387 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer<1.0.0,>=0.12.0->coveralls->mink==0.0.5)\n#10 9.486   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)\n#10 9.591 Downloading mujoco-3.8.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.3 MB)\n#10 10.65    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 7.2 MB/s eta 0:00:00\n#10 10.74 Downloading numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.0 MB)\n#10 13.55    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.0/18.0 MB 6.3 MB/s eta 0:00:00\n#10 13.65 Downloading qpsolvers-4.12.0-py3-none-any.whl (106 kB)\n#10 13.75 Downloading robot_descriptions-2.0.0-py3-none-any.whl (137 kB)\n#10 13.87 Downloading absl_py-2.4.0-py3-none-any.whl (135 kB)\n#10 14.00 Downloading coveralls-4.1.0-py3-none-any.whl (14 kB)\n#10 14.09 Downloading coverage-7.14.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (254 kB)\n#10 14.22 Downloading gitpython-3.1.50-py3-none-any.whl (212 kB)\n#10 14.36 Downloading quadprog-0.1.13-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (534 kB)\n#10 14.44    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 534.6/534.6 kB 6.9 MB/s eta 0:00:00\n#10 14.55 Downloading scipy-1.17.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (35.2 MB)\n#10 20.11    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.2/35.2 MB 6.3 MB/s eta 0:00:00\n#10 20.20 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#10 20.30 Downloading typer-0.25.1-py3-none-any.whl (58 kB)\n#10 20.41 Downloading glfw-2.10.0-py2.py27.py3.py30.py31.py32.py33.py34.py35.py36.py37.py38.py39.py310.py311.py312.py313.py314-none-manylinux_2_28_x86_64.whl (243 kB)\n#10 20.54 Downloading pyopengl-3.1.10-py3-none-any.whl (3.2 MB)\n#10 20.95    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 7.9 MB/s eta 0:00:00\n#10 21.05 Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#10 21.14 Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#10 21.24 Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)\n#10 21.33 Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#10 21.46 Downloading etils-1.14.0-py3-none-any.whl (172 kB)\n#10 21.57 Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)\n#10 21.69 Downloading zipp-3.23.1-py3-none-any.whl (10 kB)\n#10 21.78 Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)\n#10 21.87 Downloading smmap-5.0.3-py3-none-any.whl (24 kB)\n#10 21.97 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#10 22.13 Building wheels for collected packages: mink\n#10 22.13   Building editable for mink (pyproject.toml): started\n#10 22.26   Building editable for mink (pyproject.toml): finished with status 'done'\n#10 22.26   Created wheel for mink: filename=mink-0.0.5-py3-none-any.whl size=7032 sha256=dc49d305661ffeb08bfdded439a5074527178cc95b977fcd09625d312f201a12\n#10 22.26   Stored in directory: /tmp/pip-ephem-wheel-cache-lya_d555/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600\n#10 22.26 Successfully built mink\n#10 22.34 Installing collected packages: pyopengl, glfw, zipp, tqdm, smmap, numpy, mdurl, fsspec, etils, coverage, click, annotated-doc, absl-py, scipy, quadprog, markdown-it-py, gitdb, rich, qpsolvers, GitPython, typer, robot_descriptions, mujoco, mink, coveralls\n#10 27.48 Successfully installed GitPython-3.1.50 absl-py-2.4.0 annotated-doc-0.0.4 click-8.3.3 coverage-7.14.0 coveralls-4.1.0 etils-1.14.0 fsspec-2026.4.0 gitdb-4.0.12 glfw-2.10.0 markdown-it-py-4.2.0 mdurl-0.1.2 mink-0.0.5 mujoco-3.8.1 numpy-1.26.4 pyopengl-3.1.10 qpsolvers-4.12.0 quadprog-0.1.13 rich-15.0.0 robot_descriptions-2.0.0 scipy-1.17.1 smmap-5.0.3 tqdm-4.67.3 typer-0.25.1 zipp-3.23.1\n#10 27.48 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n#10 DONE 27.8s\n\n#11 exporting to image\n#11 exporting layers\n#11 exporting layers 0.5s done\n#11 writing image sha256:12d04a9316d1072ff2d64c055a2fc2a1f129a3a4d83595b3f738e7cd2a94aed4\n#11 writing image sha256:12d04a9316d1072ff2d64c055a2fc2a1f129a3a4d83595b3f738e7cd2a94aed4 done\n#11 naming to docker.io/library/jayint-repo2run-kevinzakka__mink done\n#11 DONE 0.5s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/x18aso6pjvrhh14uw7jnp85q6\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-kevinzakka__mink",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-kevinzakka__mink sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-05-14T09:16:10.585661+08:00",
+              "finished_at": "2026-05-14T09:16:12.147036+08:00",
+              "duration_seconds": 1.561,
+              "stdout": "tests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_contact_normal_jac_matches_mujoco\ntests/test_collision_avoidance_limit.py::TestCollisionAvoidanceLimit::test_dimensions\ntests/test_com_task.py::TestComTask::test_cost_correctly_broadcast\ntests/test_com_task.py::TestComTask::test_error_without_target\ntests/test_com_task.py::TestComTask::test_jacobian_without_target\ntests/test_com_task.py::TestComTask::test_set_target_from_configuration\ntests/test_com_task.py::TestComTask::test_target_is_a_copy\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_cost_negative\ntests/test_com_task.py::TestComTask::test_task_raises_error_if_target_is_invalid\ntests/test_com_task.py::TestComTask::test_zero_cost_same_as_disabling_task\ntests/test_com_task.py::TestComTask::test_zero_error_when_target_at_body\ntests/test_configuration.py::TestConfiguration::test_check_limits\ntests/test_configuration.py::TestConfiguration::test_check_limits_freejoint\ntests/test_configuration.py::TestConfiguration::test_initialize_from_keyframe\ntests/test_configuration.py::TestConfiguration::test_initialize_from_q\ntests/test_configuration.py::TestConfiguration::test_inplace_integration\ntests/test_configuration.py::TestConfiguration::test_nq_nv\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_jacobian_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_name_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_raises_error_if_frame_type_is_invalid\ntests/test_configuration.py::TestConfiguration::test_site_transform_world_frame\ntests/test_configuration.py::TestConfiguration::test_update_raises_error_if_keyframe_is_invalid\ntests/test_configuration_limit.py::TestConfigurationLimit::test_configuration_limit_repulsion\ntests/test_configuration_limit.py::TestConfigurationLimit::test_dimensions\ntests/test_configuration_limit.py::TestConfigurationLimit::test_far_from_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_freejoint_ignored\ntests/test_configuration_limit.py::TestConfigurationLimit::test_indices\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_no_limit\ntests/test_configuration_limit.py::TestConfigurationLimit::test_model_with_subset_of_velocities_limited\ntests/test_configuration_limit.py::TestConfigurationLimit::test_throws_error_if_gain_invalid\ntests/test_damping_task.py::TestDampingTask::test_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_cost_correctly_broadcast\ntests/test_frame_task.py::TestFrameTask::test_error_without_target\ntests/test_frame_task.py::TestFrameTask::test_jacobian_without_target\ntests/test_frame_task.py::TestFrameTask::test_lm_damping_has_no_effect_at_target\ntests/test_frame_task.py::TestFrameTask::test_set_target_from_configuration\ntests/test_frame_task.py::TestFrameTask::test_target_is_a_copy\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_frame_task.py::TestFrameTask::test_task_raises_error_if_cost_negative\ntests/test_frame_task.py::TestFrameTask::test_unit_cost_qp_objective\ntests/test_frame_task.py::TestFrameTask::test_zero_error_when_target_at_body\ntests/test_jacobians.py::TestJacobians::test_com_task\ntests/test_jacobians.py::TestJacobians::test_damping_task\ntests/test_jacobians.py::TestJacobians::test_frame_task\ntests/test_jacobians.py::TestJacobians::test_posture_task\ntests/test_jacobians.py::TestJacobians::test_relative_frame_task\ntests/test_lie_axioms.py::TestAxioms::test_associative_SE3\ntests/test_lie_axioms.py::TestAxioms::test_associative_SO3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SE3\ntests/test_lie_axioms.py::TestAxioms::test_closure_SO3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SE3\ntests/test_lie_axioms.py::TestAxioms::test_identity_SO3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SE3\ntests/test_lie_axioms.py::TestAxioms::test_inverse_SO3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SE3\ntests/test_lie_operations.py::TestOperations::test_adjoint_SO3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_inverse_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_jlog_SE3\ntests/test_lie_operations.py::TestOperations::test_jlog_SO3\ntests/test_lie_operations.py::TestOperations::test_lminus_SE3\ntests/test_lie_operations.py::TestOperations::test_lminus_SO3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_log_exp_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_lplus_SE3\ntests/test_lie_operations.py::TestOperations::test_lplus_SO3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SE3\ntests/test_lie_operations.py::TestOperations::test_matrix_bijective_SO3\ntests/test_lie_operations.py::TestOperations::test_rminus_SE3\ntests/test_lie_operations.py::TestOperations::test_rminus_SO3\ntests/test_lie_operations.py::TestOperations::test_rplus_SE3\ntests/test_lie_operations.py::TestOperations::test_rplus_SO3\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_apply\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_id\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_se3_from_mocap_name_raises_error_if_body_not_mocap\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_copy\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_raises_error_if_invalid_shape\ntests/test_lie_operations.py::TestGroupSpecificOperations::test_so3_rpy_bijective\ntests/test_lie_utils.py::TestUtils::test_skew_throws_assertion_error_if_shape_invalid\ntests/test_lie_utils.py::TestUtils::test_skew_transpose_equals_negative\ntests/test_posture_task.py::TestPostureTask::test_cost_correctly_broadcast\ntests/test_posture_task.py::TestPostureTask::test_cost_invalid_shape\ntests/test_posture_task.py::TestPostureTask::test_error_without_target\ntests/test_posture_task.py::TestPostureTask::test_jacobian_without_target\ntests/test_posture_task.py::TestPostureTask::test_set_target_from_configuration\ntests/test_posture_task.py::TestPostureTask::test_target_is_a_copy\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_cost_negative\ntests/test_posture_task.py::TestPostureTask::test_task_raises_error_if_target_is_invalid\ntests/test_posture_task.py::TestPostureTask::test_unit_cost_qp_objective\ntests/test_posture_task.py::TestPostureTask::test_zero_cost_same_as_disabling_task\ntests/test_posture_task.py::TestPostureTask::test_zero_error_when_target_is_current_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_cost_correctly_broadcast\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_error_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_jacobian_without_target\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_matches_frame_task\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_set_target_from_configuration\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_dim_invalid\ntests/test_relative_frame_task.py::TestRelativeFrameTask::test_task_raises_error_if_cost_negative\ntests/test_solve_ik.py::TestSolveIK::test_checks_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_default_limits\ntests/test_solve_ik.py::TestSolveIK::test_ignores_configuration_limits\ntests/test_solve_ik.py::TestSolveIK::test_model_with_no_limits\ntests/test_solve_ik.py::TestSolveIK::test_single_task_convergence\ntests/test_solve_ik.py::TestSolveIK::test_single_task_fulfilled\ntests/test_solve_ik.py::TestSolveIK::test_trivial_solution\ntests/test_task.py::TestTask::test_task_throws_error_if_gain_negative\ntests/test_task.py::TestTask::test_task_throws_error_if_lm_damping_negative\ntests/test_utils.py::TestUtils::test_custom_configuration_vector\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_from_keyframe\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_raises_error_if_jnt_shape_invalid\ntests/test_utils.py::TestUtils::test_custom_configuration_vector_throws_error_if_keyframe_invalid\ntests/test_utils.py::TestUtils::test_get_freejoint_dims\ntests/test_utils.py::TestUtils::test_get_subtree_body_ids\ntests/test_utils.py::TestUtils::test_get_subtree_geom_ids\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame\ntests/test_utils.py::TestUtils::test_move_mocap_to_frame_throws_error_if_body_not_mocap\ntests/test_velocity_limit.py::TestVelocityLimit::test_ball_joint_invalid_limit_shape\ntests/test_velocity_limit.py::TestVelocityLimit::test_dimensions\ntests/test_velocity_limit.py::TestVelocityLimit::test_indices\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_ball_joint\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_no_limit\ntests/test_velocity_limit.py::TestVelocityLimit::test_model_with_subset_of_velocities_limited\ntests/test_velocity_limit.py::TestVelocityLimit::test_that_freejoint_raises_error\n\n126 tests collected in 0.67s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-kevinzakka__mink"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-kevinzakka__mink",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-05-14T09:16:12.150892+08:00",
+    "finished_at": "2026-05-14T09:16:12.172297+08:00",
+    "duration_seconds": 0.021,
+    "stdout": "Untagged: jayint-repo2run-kevinzakka__mink:latest\nDeleted: sha256:12d04a9316d1072ff2d64c055a2fc2a1f129a3a4d83595b3f738e7cd2a94aed4\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "goal_status": "success",
+  "needs_repair": false,
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/kevinzakka__mink/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}

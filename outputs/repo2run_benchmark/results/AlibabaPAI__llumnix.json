@@ -1,0 +1,702 @@
+{
+  "dataset_entry": {
+    "instance_id": "AlibabaPAI__llumnix",
+    "full_name": "AlibabaPAI/llumnix",
+    "repo_url": "https://github.com/AlibabaPAI/llumnix.git",
+    "sha": "b319b2",
+    "base_commit": "b319b2",
+    "paper_build_success": true,
+    "paper_build_success_label": "Yes",
+    "language": "python",
+    "source": {
+      "paper": "Repo2Run: Automated Building Executable Environment for Code Repository at Scale",
+      "table": 15,
+      "pdf_path": "/Users/panjianying/Desktop/Jayint-repo/docs/repo2run.pdf"
+    }
+  },
+  "agent_run": {
+    "command": [
+      "/opt/anaconda3/bin/python3.12",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py",
+      "https://github.com/AlibabaPAI/llumnix.git",
+      "--base-commit",
+      "b319b2",
+      "--image",
+      "auto",
+      "--model",
+      "MiniMax-M2.7-highspeed",
+      "--steps",
+      "300",
+      "--workplace",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix",
+      "--command-timeout",
+      "1800",
+      "--enable-observation-compression"
+    ],
+    "command_shell": "/opt/anaconda3/bin/python3.12 /Users/panjianying/Desktop/Jayint-repo_repo2run/agent.py https://github.com/AlibabaPAI/llumnix.git --base-commit b319b2 --image auto --model MiniMax-M2.7-highspeed --steps 300 --workplace /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix --command-timeout 1800 --enable-observation-compression",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": null,
+    "finished_at": null,
+    "duration_seconds": 0.0,
+    "stdout": "[reused existing workplace]",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "reused_existing_workplace": true,
+  "resynthesis": null,
+  "result_json_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/results/AlibabaPAI__llumnix.json",
+  "run_summary_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix/agent_run_summary.json",
+  "run_summary": {
+    "repo_url": "https://github.com/AlibabaPAI/llumnix.git",
+    "configuration_success": true,
+    "verified_test_command": "cd /app && pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "successful_test_commands": [],
+    "test_run_attempts": [
+      {
+        "step_index": 10,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "environment_revision": 4,
+        "effective": false,
+        "confidence": "none",
+        "reason": "no_reliable_test_execution_signal"
+      }
+    ],
+    "successful_actions": [
+      {
+        "step_index": 1,
+        "command": "cat requirements.txt setup.py pytest.ini Makefile 2>/dev/null || cat requirements.txt setup.py pytest.ini 2>/dev/null",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "vllm == 0.4.2\nray >= 2.9.0\npyarrow  # Required for Ray data.\naiohttp\nscipy\npandas\nmatplotlib\nfunc_timeout\npyyaml\nyacs\nnumpy < 1.24.0 # for gloo migration backend's compatibility with numpy.float\npyzmq\n# Copyright (c) 2024, Alibaba Group;\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n\n# http://www.apache.org/licenses/LICENSE-2.0\n\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# \n... (4469 chars omitted for recipe synthesis) ...\nlled:\n\t@python3 -m pip show pytest > /dev/null 2>&1 || { \\\n\t\techo \"pytest is not installed. Installing pytest ...\"; \\\n\t\tpython3 -m pip install pytest; }\n\n\t@python3 -m pip show pytest-asyncio > /dev/null 2>&1 || { \\\n\t\techo \"pytest-asyncio is not installed. Installing pytest-asyncio ...\"; \\\n\t\tpython3 -m pip install pytest-asyncio; }\n\n\t@python3 -m pip show pylint-pytest > /dev/null 2>&1 || { \\\n\t\techo \"pylint-pytest is not installed. Installing pylint-pytest ...\"; \\\n\t\tpython3 -m pip install pylint-pytest; }\n\n###################################### pytest end #######################################\n"
+      },
+      {
+        "step_index": 2,
+        "command": "python3 --version && pip install pytest pytest-asyncio pylint-pytest 2>&1 | tail -5",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Python 3.10.20\nSuccessfully installed astroid-4.0.4 backports-asyncio-runner-1.2.0 dill-0.4.1 exceptiongroup-1.3.1 iniconfig-2.3.0 isort-8.0.1 mccabe-0.7.0 packaging-26.1 platformdirs-4.9.6 pluggy-1.6.0 pylint-4.0.5 pylint-pytest-1.1.8 pytest-8.2.0 pytest-asyncio-1.3.0 tomli-2.4.1 tomlkit-0.14.0 typing-extensions-4.15.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 3,
+        "command": "pip install -e /AlibabaPAI__llumnix 2>&1 | tail -20",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "ERROR: /AlibabaPAI__llumnix is not a valid editable requirement. It should either be a path to a local project or a VCS URL (beginning with bzr+http, bzr+https, bzr+ssh, bzr+sftp, bzr+ftp, bzr+lp, bzr+file, git+http, git+https, git+ssh, git+git, git+file, hg+file, hg+http, hg+https, hg+ssh, hg+static-http, svn+ssh, svn+http, svn+https, svn+svn, svn+file).\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 5,
+        "command": "find / -type d -name \"llumnix\" 2>/dev/null | head -10",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/app/llumnix\n"
+      },
+      {
+        "step_index": 6,
+        "command": "cd /app/llumnix && pip install -e . 2>&1 | tail -30",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "Obtaining file:///app/llumnix\nERROR: file:///app/llumnix does not appear to be a Python project: neither 'setup.py' nor 'pyproject.toml' found.\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 7,
+        "command": "ls -la /app/ && ls -la /app/llumnix/ 2>/dev/null | head -30",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": true,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "total 108\ndrwxr-xr-x 13 root root     4096 Apr 23 21:58 .\ndrwxr-xr-x  1 root root     4096 Apr 23 21:58 ..\ndrwxr-xr-x  7  501 dialout  4096 Apr 23 21:57 .git\ndrwxr-xr-x  3  501 dialout  4096 Apr 23 21:57 .github\n-rw-r--r--  1  501 dialout  3273 Apr 23 21:57 .gitignore\n-rw-r--r--  1  501 dialout   122 Apr 23 21:57 .gitmodules\n-rw-r--r--  1  501 dialout 11247 Apr 23 21:57 .pylintrc\n-rw-r--r--  1  501 dialout 11356 Apr 23 21:57 LICENSE\n-rw-r--r--  1  501 dialout  3509 Apr 23 21:57 Makefile\n-rw-r--r--  1  501 dialout  4204 Apr 23 21:57 README.md\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 21:57 benchm\n... (990 chars omitted for recipe synthesis) ...\noints\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 21:57 global_scheduler\n-rw-r--r--  1  501 dialout  7470 Apr 23 21:57 instance_info.py\n-rw-r--r--  1  501 dialout  2631 Apr 23 21:57 internal_config.py\n-rw-r--r--  1  501 dialout 28322 Apr 23 21:57 llm_engine_manager.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 21:57 llumlet\n-rw-r--r--  1  501 dialout  2310 Apr 23 21:57 logger.py\ndrwxr-xr-x  2  501 dialout  4096 Apr 23 21:57 queue\n-rw-r--r--  1  501 dialout  3635 Apr 23 21:57 server_info.py\n-rw-r--r--  1  501 dialout  1324 Apr 23 21:57 utils.py\n-rw-r--r--  1  501 dialout   598 Apr 23 21:57 version.py\n"
+      },
+      {
+        "step_index": 8,
+        "command": "cd /app && pip install -e . 2>&1 | tail -30",
+        "success": true,
+        "mutates_environment": true,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 6.0 MB/s eta 0:00:00\nCollecting shellingham>=1.3.0\n  Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)\nCollecting rich>=12.3.0\n  Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 6.8 MB/s eta 0:00:00\nCollecting markdown-it-py>=2.2.0\n  Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 8.4 MB/s eta 0:00:00\nCollecting pygments<3.0.0,>=2.13.0\n  Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)\nColle\n... (4330 chars omitted for recipe synthesis) ...\nrch-2.3.0 tqdm-4.67.3 transformers-5.6.2 triton-2.3.0 typer-0.24.2 typing-inspection-0.4.2 tzdata-2026.1 urllib3-2.6.3 uvicorn-0.46.0 uvloop-0.22.1 vllm-0.4.2 vllm-nccl-cu12-2.18.1.0.4.0 watchfiles-1.1.1 websockets-16.0 xformers-0.0.26.post1 yacs-0.1.8 yarl-1.23.0\nWARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n\n[notice] A new release of pip is available: 23.0.1 -> 26.0.1\n[notice] To update, run: pip install --upgrade pip\n"
+      },
+      {
+        "step_index": 10,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "no_reliable_test_execution_signal"
+        },
+        "observation_summary": "tests/e2e_test/test_bench.py::test_simple_benchmark[/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-gloo-/mnt/model/Qwen-\n... (6619 chars omitted for recipe synthesis) ...\ntion\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_onestage\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_running_request\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_waiting_request\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[128.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[256.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[512.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[1024.0]\n\n94 tests collected in 1.71s\nsys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n"
+      }
+    ],
+    "failed_actions": [
+      {
+        "step_index": 4,
+        "command": "cd /AlibabaPAI__llumnix && pip install -e . 2>&1 | tail -20",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": false,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "not_test_command"
+        },
+        "observation_summary": "/bin/bash: line 1: cd: /AlibabaPAI__llumnix: No such file or directory\n"
+      },
+      {
+        "step_index": 9,
+        "command": "cd /app && pytest --collect-only -q --disable-warnings 2>&1 | tail -40",
+        "success": false,
+        "mutates_environment": false,
+        "is_readonly": false,
+        "is_runtime_service": false,
+        "is_runtime_healthcheck": false,
+        "test_analysis": {
+          "is_test_command": true,
+          "is_effective_test_run": false,
+          "confidence": "none",
+          "reason": "truncated_test_output"
+        },
+        "observation_summary": "[SYSTEM] INVALID TEST COMMAND: this test command pipes output through `head`, `tail`, or `grep`, which can hide failures and mask the test runner exit code.\n[SYSTEM] The command was NOT executed. Rerun the same test command without output-filtering pipes. Long output will be handled by observation compression.\n\n"
+      }
+    ],
+    "verification_source": "agent_report",
+    "verification_bundle": {
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ]
+    },
+    "benchmark_evaluation_target": {},
+    "build_recipe": {
+      "build_commands": [
+        "pip install pytest pytest-asyncio pylint-pytest",
+        "cd /app && pip install -e ."
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat requirements.txt setup.py pytest.ini Makefile 2>/dev/null - read-only file inspection",
+          "reason": ""
+        },
+        {
+          "command": "find / -type d -name llumnix 2>/dev/null - read-only path discovery",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /app/ && ls -la /app/llumnix/ - read-only directory inspection",
+          "reason": ""
+        },
+        {
+          "command": "pip install -e /AlibabaPAI__llumnix - failed attempt with wrong path",
+          "reason": ""
+        },
+        {
+          "command": "cd /AlibabaPAI__llumnix && pip install -e . - failed attempt with wrong path",
+          "reason": ""
+        },
+        {
+          "command": "cd /app/llumnix && pip install -e . - failed attempt from subdirectory without setup.py",
+          "reason": ""
+        },
+        {
+          "command": "pytest --collect-only -q --disable-warnings 2>&1 | tail -40 - piped output truncation (system blocked)",
+          "reason": ""
+        }
+      ],
+      "rationale": "Two successful state changes were required: (1) installing test dependencies (pytest, pytest-asyncio, pylint-pytest) and (2) installing the llumnix package from the correct repo root at /app using 'pip install -e .'. The repo structure was discovered through read-only inspection and failed attempts - the repo root is /app, not /app/llumnix. The final verification succeeded with 94 tests collected using the exact command from verification_bundle. No runtime preparation commands are needed as all dependencies are installed during the build.",
+      "confidence": "high"
+    },
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "required_local_services": [],
+    "observation_compression_enabled": true,
+    "compression_stats": {
+      "candidate_steps": 3,
+      "compressed_steps": 2,
+      "saved_tokens_est": 1676
+    },
+    "long_term_memory_enabled": false,
+    "memory_path": null,
+    "memory_embedding_model": "BAAI/bge-base-en-v1.5",
+    "command_timeout_seconds": 1800,
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "action": "cat requirements.txt setup.py pytest.ini Makefile 2>/dev/null || cat requirements.txt setup.py pytest.ini 2>/dev/null",
+        "success": true,
+        "raw_chars": 5669,
+        "raw_tokens_est": 1417,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 1293,
+        "reflect_input_tokens": 2566,
+        "reflect_output_tokens": 534
+      },
+      {
+        "step_id": 2,
+        "action": "python3 --version && pip install pytest pytest-asyncio pylint-pytest 2>&1 | tail -5",
+        "success": true,
+        "raw_chars": 657,
+        "raw_tokens_est": 164,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 3,
+        "action": "pip install -e /AlibabaPAI__llumnix 2>&1 | tail -20",
+        "success": true,
+        "raw_chars": 471,
+        "raw_tokens_est": 117,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 4,
+        "action": "cd /AlibabaPAI__llumnix && pip install -e . 2>&1 | tail -20",
+        "success": false,
+        "raw_chars": 71,
+        "raw_tokens_est": 17,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 5,
+        "action": "find / -type d -name \"llumnix\" 2>/dev/null | head -10",
+        "success": true,
+        "raw_chars": 13,
+        "raw_tokens_est": 3,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 6,
+        "action": "cd /app/llumnix && pip install -e . 2>&1 | tail -30",
+        "success": true,
+        "raw_chars": 257,
+        "raw_tokens_est": 64,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 7,
+        "action": "ls -la /app/ && ls -la /app/llumnix/ 2>/dev/null | head -30",
+        "success": true,
+        "raw_chars": 2190,
+        "raw_tokens_est": 547,
+        "compressed": false,
+        "compression_reason": "benefit_too_small",
+        "saved_tokens_est": 124,
+        "reflect_input_tokens": 4195,
+        "reflect_output_tokens": 985
+      },
+      {
+        "step_id": 8,
+        "action": "cd /app && pip install -e . 2>&1 | tail -30",
+        "success": true,
+        "raw_chars": 5530,
+        "raw_tokens_est": 1382,
+        "compressed": true,
+        "compression_reason": "applied",
+        "saved_tokens_est": 383,
+        "reflect_input_tokens": 6107,
+        "reflect_output_tokens": 1782
+      },
+      {
+        "step_id": 9,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1 | tail -40",
+        "success": false,
+        "raw_chars": 313,
+        "raw_tokens_est": 78,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      },
+      {
+        "step_id": 10,
+        "action": "cd /app && pytest --collect-only -q --disable-warnings 2>&1",
+        "success": true,
+        "raw_chars": 7819,
+        "raw_tokens_est": 1954,
+        "compressed": false,
+        "compression_reason": null,
+        "saved_tokens_est": 0,
+        "reflect_input_tokens": 0,
+        "reflect_output_tokens": 0
+      }
+    ],
+    "token_usage": {
+      "image_selector": {
+        "input_tokens": 15565,
+        "output_tokens": 4809,
+        "total_tokens": 20374
+      },
+      "planner": {
+        "input_tokens": 51315,
+        "output_tokens": 1005,
+        "total_tokens": 52320
+      },
+      "reflection": {
+        "input_tokens": 12868,
+        "output_tokens": 3301,
+        "total_tokens": 16169
+      },
+      "memory": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "recipe": {
+        "input_tokens": 11458,
+        "output_tokens": 1988,
+        "total_tokens": 13446
+      },
+      "total": {
+        "input_tokens": 91206,
+        "output_tokens": 11103,
+        "total_tokens": 102309
+      }
+    },
+    "error": null
+  },
+  "agent_claimed_success": true,
+  "agent_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix/Dockerfile",
+  "agent_dockerfile_present": true,
+  "eval_dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval",
+  "eval_workdir": "/app",
+  "docker_platform": "linux/amd64",
+  "verification_command_source": "repo2run_pytest_collect_only_agent_verified",
+  "runtime_preparation_commands": [],
+  "test_commands": [
+    "pytest --collect-only -q --disable-warnings"
+  ],
+  "docker_build": {
+    "command": [
+      "docker",
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-f",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval",
+      "-t",
+      "jayint-repo2run-alibabapai__llumnix",
+      "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix"
+    ],
+    "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval -t jayint-repo2run-alibabapai__llumnix /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-28T11:01:52.095071+08:00",
+    "finished_at": "2026-04-28T11:15:46.834084+08:00",
+    "duration_seconds": 834.739,
+    "stdout": "",
+    "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 505B done\n#1 DONE 0.0s\n\n#2 [auth] library/python:pull token for registry-1.docker.io\n#2 DONE 0.0s\n\n#3 [internal] load metadata for docker.io/library/python:3.10\n#3 DONE 2.1s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/7] FROM docker.io/library/python:3.10@sha256:1dfc716d668e86a3b75295306596baf27f5bb923069c9718295c7eca0979af27\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 7.73MB 0.1s done\n#6 DONE 0.1s\n\n#7 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#7 CACHED\n\n#8 [3/7] WORKDIR /app\n#8 CACHED\n\n#9 [4/7] COPY . /app\n#9 DONE 0.1s\n\n#10 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#10 DONE 0.1s\n\n#11 [6/7] RUN pip install pytest pytest-asyncio pylint-pytest\n#11 0.456 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#11 2.243 Collecting pytest-asyncio\n#11 2.888   Downloading pytest_asyncio-1.3.0-py3-none-any.whl (15 kB)\n#11 3.061 Collecting pylint-pytest\n#11 3.185   Downloading pylint_pytest-1.1.8-py3-none-any.whl (10 kB)\n#11 3.215 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest) (2.20.0)\n#11 3.217 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#11 3.217 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#11 3.219 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#11 3.220 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#11 3.221 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#11 3.229 Requirement already satisfied: typing-extensions>=4.12 in /usr/local/lib/python3.10/site-packages (from pytest-asyncio) (4.15.0)\n#11 3.371 Collecting backports-asyncio-runner<2,>=1.1\n#11 3.507   Downloading backports_asyncio_runner-1.2.0-py3-none-any.whl (12 kB)\n#11 3.799 Collecting pylint>=2\n#11 3.916   Downloading pylint-4.0.5-py3-none-any.whl (536 kB)\n#11 4.191      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.7/536.7 kB 2.0 MB/s eta 0:00:00\n#11 4.409 Collecting pytest\n#11 4.520   Downloading pytest-8.2.0-py3-none-any.whl (339 kB)\n#11 4.558      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 339.2/339.2 kB 9.5 MB/s eta 0:00:00\n#11 4.730 Collecting mccabe<0.8,>=0.6\n#11 4.844   Downloading mccabe-0.7.0-py2.py3-none-any.whl (7.3 kB)\n#11 4.856 Requirement already satisfied: platformdirs>=2.2 in /usr/local/lib/python3.10/site-packages (from pylint>=2->pylint-pytest) (4.9.6)\n#11 4.995 Collecting dill>=0.2\n#11 5.109   Downloading dill-0.4.1-py3-none-any.whl (120 kB)\n#11 5.122      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 16.0 MB/s eta 0:00:00\n#11 5.345 Collecting astroid<=4.1.dev0,>=4.0.2\n#11 5.453   Downloading astroid-4.0.4-py3-none-any.whl (276 kB)\n#11 5.491      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 276.4/276.4 kB 7.7 MB/s eta 0:00:00\n#11 5.779 Collecting isort!=5.13,<9,>=5\n#11 5.886   Downloading isort-8.0.1-py3-none-any.whl (89 kB)\n#11 5.900      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 89.7/89.7 kB 7.3 MB/s eta 0:00:00\n#11 5.903 Requirement already satisfied: tomlkit>=0.10.1 in /usr/local/lib/python3.10/site-packages (from pylint>=2->pylint-pytest) (0.14.0)\n#11 6.088 Installing collected packages: mccabe, isort, dill, backports-asyncio-runner, astroid, pytest, pylint, pytest-asyncio, pylint-pytest\n#11 6.272   Attempting uninstall: pytest\n#11 6.273     Found existing installation: pytest 9.0.3\n#11 6.284     Uninstalling pytest-9.0.3:\n#11 6.343       Successfully uninstalled pytest-9.0.3\n#11 6.620 Successfully installed astroid-4.0.4 backports-asyncio-runner-1.2.0 dill-0.4.1 isort-8.0.1 mccabe-0.7.0 pylint-4.0.5 pylint-pytest-1.1.8 pytest-8.2.0 pytest-asyncio-1.3.0\n#11 6.621 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#11 6.626 \n#11 6.626 [notice] A new release of pip is available: 23.0.1 -> 26.1\n#11 6.626 [notice] To update, run: pip install --upgrade pip\n#11 DONE 6.7s\n\n#12 [7/7] RUN cd /app && pip install -e .\n#12 0.377 Obtaining file:///app\n#12 0.379   Preparing metadata (setup.py): started\n#12 0.630   Preparing metadata (setup.py): finished with status 'done'\n#12 1.541 Collecting vllm==0.4.2\n#12 2.341   Downloading vllm-0.4.2-cp310-cp310-manylinux1_x86_64.whl (67.7 MB)\n#12 13.95      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.7/67.7 MB 4.6 MB/s eta 0:00:00\n#12 14.57 Collecting ray>=2.9.0\n#12 14.68   Downloading ray-2.55.1-cp310-cp310-manylinux2014_x86_64.whl (73.6 MB)\n#12 26.90      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.6/73.6 MB 5.3 MB/s eta 0:00:00\n#12 27.31 Collecting pyarrow\n#12 27.42   Downloading pyarrow-24.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (48.8 MB)\n#12 35.29      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 5.7 MB/s eta 0:00:00\n#12 36.43 Collecting aiohttp\n#12 36.54   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#12 36.83      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 5.9 MB/s eta 0:00:00\n#12 37.18 Collecting scipy\n#12 37.29   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)\n#12 43.49      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 5.3 MB/s eta 0:00:00\n#12 43.90 Collecting pandas\n#12 44.01   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#12 45.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 6.4 MB/s eta 0:00:00\n#12 46.36 Collecting matplotlib\n#12 46.47   Downloading matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (8.8 MB)\n#12 47.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.8/8.8 MB 5.8 MB/s eta 0:00:00\n#12 48.14 Collecting func_timeout\n#12 48.25   Downloading func_timeout-4.3.5.tar.gz (44 kB)\n#12 48.27      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.3/44.3 kB 3.9 MB/s eta 0:00:00\n#12 48.28   Preparing metadata (setup.py): started\n#12 48.50   Preparing metadata (setup.py): finished with status 'done'\n#12 48.69 Collecting pyyaml\n#12 48.79   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#12 48.88      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 9.9 MB/s eta 0:00:00\n#12 49.03 Collecting yacs\n#12 49.14   Downloading yacs-0.1.8-py3-none-any.whl (14 kB)\n#12 49.63 Collecting numpy<1.24.0\n#12 49.74   Downloading numpy-1.23.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.1 MB)\n#12 52.46      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.1/17.1 MB 6.0 MB/s eta 0:00:00\n#12 53.02 Collecting pyzmq\n#12 53.13   Downloading pyzmq-27.1.0-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (854 kB)\n#12 53.29      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 854.1/854.1 kB 5.6 MB/s eta 0:00:00\n#12 53.61 Collecting vllm-nccl-cu12<2.19,>=2.18\n#12 53.73   Downloading vllm_nccl_cu12-2.18.1.0.4.0.tar.gz (6.2 kB)\n#12 53.74   Preparing metadata (setup.py): started\n#12 104.6   Preparing metadata (setup.py): finished with status 'done'\n#12 104.8 Collecting fastapi\n#12 104.9   Downloading fastapi-0.136.1-py3-none-any.whl (117 kB)\n#12 104.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.7/117.7 kB 5.6 MB/s eta 0:00:00\n#12 105.1 Collecting transformers>=4.40.0\n#12 105.2   Downloading transformers-5.6.2-py3-none-any.whl (10.4 MB)\n#12 107.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 5.9 MB/s eta 0:00:00\n#12 107.0 Requirement already satisfied: typing-extensions in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (4.15.0)\n#12 107.2 Collecting ninja\n#12 107.3   Downloading ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (180 kB)\n#12 107.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 180.7/180.7 kB 5.4 MB/s eta 0:00:00\n#12 107.5 Collecting nvidia-ml-py\n#12 107.6   Downloading nvidia_ml_py-13.595.45-py3-none-any.whl (51 kB)\n#12 107.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.8/51.8 kB 7.7 MB/s eta 0:00:00\n#12 107.6 Requirement already satisfied: requests in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (2.33.1)\n#12 108.0 Collecting cmake>=3.21\n#12 108.1   Downloading cmake-4.3.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (29.5 MB)\n#12 112.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 29.5/29.5 MB 5.5 MB/s eta 0:00:00\n#12 113.4 Collecting tokenizers>=0.19.1\n#12 113.5   Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#12 114.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 6.8 MB/s eta 0:00:00\n#12 114.2 Collecting prometheus-client>=0.18.0\n#12 114.3   Downloading prometheus_client-0.25.0-py3-none-any.whl (64 kB)\n#12 114.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.2/64.2 kB 5.4 MB/s eta 0:00:00\n#12 114.6 Collecting psutil\n#12 114.7   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#12 114.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 7.8 MB/s eta 0:00:00\n#12 114.9 Collecting outlines==0.0.34\n#12 115.0   Downloading outlines-0.0.34-py3-none-any.whl (76 kB)\n#12 115.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.5/76.5 kB 4.1 MB/s eta 0:00:00\n#12 115.2 Collecting xformers==0.0.26.post1\n#12 115.3   Downloading xformers-0.0.26.post1-cp310-cp310-manylinux2014_x86_64.whl (222.7 MB)\n#12 153.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 222.7/222.7 MB 3.4 MB/s eta 0:00:00\n#12 153.6 Collecting py-cpuinfo\n#12 153.7   Downloading py_cpuinfo-9.0.0-py3-none-any.whl (22 kB)\n#12 153.9 Collecting uvicorn[standard]\n#12 154.0   Downloading uvicorn-0.46.0-py3-none-any.whl (70 kB)\n#12 154.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.9/70.9 kB 2.5 MB/s eta 0:00:00\n#12 154.2 Collecting openai\n#12 154.4   Downloading openai-2.32.0-py3-none-any.whl (1.2 MB)\n#12 154.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.3 MB/s eta 0:00:00\n#12 154.7 Collecting tiktoken==0.6.0\n#12 154.9   Downloading tiktoken-0.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.8 MB)\n#12 155.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 7.1 MB/s eta 0:00:00\n#12 155.3 Collecting prometheus-fastapi-instrumentator>=7.0.0\n#12 155.4   Downloading prometheus_fastapi_instrumentator-7.1.0-py3-none-any.whl (19 kB)\n#12 155.6 Collecting sentencepiece\n#12 155.7   Downloading sentencepiece-0.2.1-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n#12 155.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 7.8 MB/s eta 0:00:00\n#12 156.1 Collecting torch==2.3.0\n#12 156.3   Downloading torch-2.3.0-cp310-cp310-manylinux1_x86_64.whl (779.1 MB)\n#12 292.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 779.1/779.1 MB 1.0 MB/s eta 0:00:00\n#12 293.9 Requirement already satisfied: filelock>=3.10.4 in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (3.29.0)\n#12 294.1 Collecting lm-format-enforcer==0.9.8\n#12 294.2   Downloading lm_format_enforcer-0.9.8-py3-none-any.whl (40 kB)\n#12 294.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 4.0 MB/s eta 0:00:00\n#12 294.6 Collecting pydantic>=2.0\n#12 294.7   Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#12 294.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 5.6 MB/s eta 0:00:00\n#12 294.8 Requirement already satisfied: packaging in /usr/local/lib/python3.10/site-packages (from lm-format-enforcer==0.9.8->vllm==0.4.2->llumnix==0.0.2) (26.2)\n#12 294.9 Collecting interegular>=0.3.2\n#12 295.0   Downloading interegular-0.3.3-py37-none-any.whl (23 kB)\n#12 295.2 Collecting jsonschema\n#12 295.3   Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#12 295.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 4.2 MB/s eta 0:00:00\n#12 295.5 Collecting referencing\n#12 295.7   Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#12 295.8 Collecting joblib\n#12 295.9   Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#12 296.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 5.6 MB/s eta 0:00:00\n#12 296.2 Collecting diskcache\n#12 296.3   Downloading diskcache-5.6.3-py3-none-any.whl (45 kB)\n#12 296.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.5/45.5 kB 5.7 MB/s eta 0:00:00\n#12 296.4 Collecting lark\n#12 296.5   Downloading lark-1.3.1-py3-none-any.whl (113 kB)\n#12 296.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 113.2/113.2 kB 6.5 MB/s eta 0:00:00\n#12 296.9 Collecting numba\n#12 297.0   Downloading numba-0.65.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)\n#12 297.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.1 MB/s eta 0:00:00\n#12 297.7 Collecting jinja2\n#12 297.8   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#12 297.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 6.6 MB/s eta 0:00:00\n#12 298.0 Collecting nest-asyncio\n#12 298.1   Downloading nest_asyncio-1.6.0-py3-none-any.whl (5.2 kB)\n#12 298.3 Collecting cloudpickle\n#12 298.4   Downloading cloudpickle-3.1.2-py3-none-any.whl (22 kB)\n#12 299.2 Collecting regex>=2022.1.18\n#12 299.3   Downloading regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)\n#12 299.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 4.6 MB/s eta 0:00:00\n#12 299.7 Collecting nvidia-cuda-runtime-cu12==12.1.105\n#12 299.8   Downloading nvidia_cuda_runtime_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (823 kB)\n#12 299.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 9.3 MB/s eta 0:00:00\n#12 300.0 Collecting nvidia-curand-cu12==10.3.2.106\n#12 300.1   Downloading nvidia_curand_cu12-10.3.2.106-py3-none-manylinux1_x86_64.whl (56.5 MB)\n#12 309.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 5.9 MB/s eta 0:00:00\n#12 309.8 Collecting nvidia-cuda-cupti-cu12==12.1.105\n#12 309.9   Downloading nvidia_cuda_cupti_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (14.1 MB)\n#12 312.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 6.0 MB/s eta 0:00:00\n#12 312.3 Collecting fsspec\n#12 312.4   Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#12 312.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.6/202.6 kB 4.5 MB/s eta 0:00:00\n#12 312.6 Collecting nvidia-nccl-cu12==2.20.5\n#12 312.7   Downloading nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_x86_64.whl (176.2 MB)\n#12 341.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.2/176.2 MB 4.9 MB/s eta 0:00:00\n#12 342.4 Collecting networkx\n#12 342.5   Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n#12 342.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.7 MB/s eta 0:00:00\n#12 343.0 Collecting sympy\n#12 343.1   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#12 344.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.1 MB/s eta 0:00:00\n#12 344.1 Collecting nvidia-cuda-nvrtc-cu12==12.1.105\n#12 344.2   Downloading nvidia_cuda_nvrtc_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (23.7 MB)\n#12 348.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 5.9 MB/s eta 0:00:00\n#12 348.2 Collecting nvidia-cudnn-cu12==8.9.2.26\n#12 348.3   Downloading nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl (731.7 MB)\n#12 476.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 731.7/731.7 MB 1.0 MB/s eta 0:00:00\n#12 477.9 Collecting triton==2.3.0\n#12 478.1   Downloading triton-2.3.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (168.1 MB)\n#12 505.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.1/168.1 MB 5.3 MB/s eta 0:00:00\n#12 506.1 Collecting nvidia-cufft-cu12==11.0.2.54\n#12 506.2   Downloading nvidia_cufft_cu12-11.0.2.54-py3-none-manylinux1_x86_64.whl (121.6 MB)\n#12 526.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 5.1 MB/s eta 0:00:00\n#12 526.8 Collecting nvidia-cusolver-cu12==11.4.5.107\n#12 526.9   Downloading nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl (124.2 MB)\n#12 547.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 5.5 MB/s eta 0:00:00\n#12 547.6 Collecting nvidia-nvtx-cu12==12.1.105\n#12 547.8   Downloading nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (99 kB)\n#12 547.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 4.6 MB/s eta 0:00:00\n#12 547.9 Collecting nvidia-cusparse-cu12==12.1.0.106\n#12 548.1   Downloading nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl (196.0 MB)\n#12 580.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 4.4 MB/s eta 0:00:00\n#12 581.1 Collecting nvidia-cublas-cu12==12.1.3.1\n#12 581.2   Downloading nvidia_cublas_cu12-12.1.3.1-py3-none-manylinux1_x86_64.whl (410.6 MB)\n#12 655.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 1.2 MB/s eta 0:00:00\n#12 656.2 Collecting nvidia-nvjitlink-cu12\n#12 656.3   Downloading nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.7 MB)\n#12 662.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.7/39.7 MB 5.9 MB/s eta 0:00:00\n#12 663.3 Collecting protobuf>=3.20.3\n#12 663.4   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl (324 kB)\n#12 663.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 324.3/324.3 kB 5.8 MB/s eta 0:00:00\n#12 663.5 Requirement already satisfied: msgpack<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from ray>=2.9.0->llumnix==0.0.2) (1.1.2)\n#12 663.6 Collecting click>=7.0\n#12 663.7   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#12 663.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 8.0 MB/s eta 0:00:00\n#12 664.0 Collecting propcache>=0.2.0\n#12 664.1   Downloading propcache-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (196 kB)\n#12 664.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.9/196.9 kB 4.6 MB/s eta 0:00:00\n#12 664.3 Collecting attrs>=17.3.0\n#12 664.4   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#12 664.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 11.0 MB/s eta 0:00:00\n#12 665.2 Collecting yarl<2.0,>=1.17.0\n#12 665.3   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#12 665.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 5.1 MB/s eta 0:00:00\n#12 665.9 Collecting multidict<7.0,>=4.5\n#12 666.0   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#12 666.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 6.2 MB/s eta 0:00:00\n#12 666.4 Collecting frozenlist>=1.1.1\n#12 666.6   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#12 666.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 25.2 MB/s eta 0:00:00\n#12 666.7 Collecting aiohappyeyeballs>=2.5.0\n#12 666.8   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#12 667.0 Collecting async-timeout<6.0,>=4.0\n#12 667.1   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#12 667.3 Collecting aiosignal>=1.4.0\n#12 667.4   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#12 667.9 Collecting fonttools>=4.22.0\n#12 668.0   Downloading fonttools-4.62.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.9 MB)\n#12 668.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.9/4.9 MB 7.1 MB/s eta 0:00:00\n#12 669.0 Collecting contourpy>=1.0.1\n#12 669.1   Downloading contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (325 kB)\n#12 669.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 325.0/325.0 kB 7.3 MB/s eta 0:00:00\n#12 669.3 Collecting pyparsing>=3\n#12 669.4   Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)\n#12 669.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 122.8/122.8 kB 5.9 MB/s eta 0:00:00\n#12 669.9 Collecting pillow>=8\n#12 670.0   Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n#12 671.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 6.8 MB/s eta 0:00:00\n#12 671.3 Collecting python-dateutil>=2.7\n#12 671.4   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#12 671.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 15.9 MB/s eta 0:00:00\n#12 671.5 Collecting cycler>=0.10\n#12 671.7   Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)\n#12 671.9 Collecting kiwisolver>=1.3.1\n#12 672.1   Downloading kiwisolver-1.5.0-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.6 MB)\n#12 672.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 9.8 MB/s eta 0:00:00\n#12 673.5 Collecting pytz>=2020.1\n#12 673.6   Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n#12 673.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 16.3 MB/s eta 0:00:00\n#12 673.8 Collecting tzdata>=2022.7\n#12 673.9   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#12 674.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 17.5 MB/s eta 0:00:00\n#12 674.5 Collecting starlette<1.0.0,>=0.30.0\n#12 674.7   Downloading starlette-0.52.1-py3-none-any.whl (74 kB)\n#12 674.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.3/74.3 kB 7.5 MB/s eta 0:00:00\n#12 674.8 Collecting typing-inspection>=0.4.2\n#12 674.9   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#12 675.1 Collecting annotated-types>=0.6.0\n#12 675.2   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#12 678.0 Collecting pydantic-core==2.46.3\n#12 678.1   Downloading pydantic_core-2.46.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#12 678.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.9 MB/s eta 0:00:00\n#12 678.4 Collecting six>=1.5\n#12 678.6   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#12 678.6 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (3.4.7)\n#12 678.6 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (2026.4.22)\n#12 678.6 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (2.6.3)\n#12 678.6 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (3.13)\n#12 678.8 Collecting huggingface-hub<2.0,>=0.16.4\n#12 678.9   Downloading huggingface_hub-1.12.0-py3-none-any.whl (646 kB)\n#12 679.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 646.8/646.8 kB 14.8 MB/s eta 0:00:00\n#12 679.2 Collecting tokenizers>=0.19.1\n#12 679.3   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#12 679.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.6 MB/s eta 0:00:00\n#12 680.1 Collecting safetensors>=0.4.3\n#12 680.2   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#12 680.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 15.0 MB/s eta 0:00:00\n#12 680.5 Collecting typer\n#12 680.6   Downloading typer-0.25.0-py3-none-any.whl (55 kB)\n#12 680.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.0/56.0 kB 3.2 MB/s eta 0:00:00\n#12 680.9 Collecting tqdm>=4.27\n#12 681.0   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#12 681.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 8.2 MB/s eta 0:00:00\n#12 681.2 Collecting annotated-doc>=0.0.2\n#12 681.3   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#12 682.1 Collecting rpds-py>=0.25.0\n#12 682.2   Downloading rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)\n#12 682.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 390.5/390.5 kB 11.4 MB/s eta 0:00:00\n#12 682.4 Collecting jsonschema-specifications>=2023.03.6\n#12 682.6   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#12 682.7 Collecting sniffio\n#12 682.9   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#12 682.9 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from openai->vllm==0.4.2->llumnix==0.0.2) (0.28.1)\n#12 682.9 Requirement already satisfied: anyio<5,>=3.5.0 in /usr/local/lib/python3.10/site-packages (from openai->vllm==0.4.2->llumnix==0.0.2) (4.13.0)\n#12 683.2 Collecting jiter<1,>=0.10.0\n#12 683.3   Downloading jiter-0.14.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)\n#12 683.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 358.6/358.6 kB 16.9 MB/s eta 0:00:00\n#12 683.5 Collecting distro<2,>=1.7.0\n#12 683.6   Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#12 683.7 Requirement already satisfied: h11>=0.8 in /usr/local/lib/python3.10/site-packages (from uvicorn[standard]->vllm==0.4.2->llumnix==0.0.2) (0.16.0)\n#12 684.0 Collecting websockets>=10.4\n#12 684.1   Downloading websockets-16.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (183 kB)\n#12 684.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 183.8/183.8 kB 9.5 MB/s eta 0:00:00\n#12 684.3 Collecting httptools>=0.6.3\n#12 684.5   Downloading httptools-0.7.1-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (440 kB)\n#12 684.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 440.9/440.9 kB 12.4 MB/s eta 0:00:00\n#12 684.7 Collecting python-dotenv>=0.13\n#12 684.8   Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)\n#12 685.1 Collecting watchfiles>=0.20\n#12 685.2   Downloading watchfiles-1.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (455 kB)\n#12 685.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 455.6/455.6 kB 19.3 MB/s eta 0:00:00\n#12 685.4 Collecting uvloop>=0.15.1\n#12 685.5   Downloading uvloop-0.22.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.7 MB)\n#12 686.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.7 MB/s eta 0:00:00\n#12 686.1 Requirement already satisfied: exceptiongroup>=1.0.2 in /usr/local/lib/python3.10/site-packages (from anyio<5,>=3.5.0->openai->vllm==0.4.2->llumnix==0.0.2) (1.3.1)\n#12 686.1 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->openai->vllm==0.4.2->llumnix==0.0.2) (1.0.9)\n#12 686.4 Collecting hf-xet<2.0.0,>=1.4.3\n#12 686.5   Downloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)\n#12 687.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 7.7 MB/s eta 0:00:00\n#12 687.6 Collecting MarkupSafe>=2.0\n#12 687.7   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#12 688.0 Collecting llvmlite<0.48,>=0.47.0dev0\n#12 688.1   Downloading llvmlite-0.47.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (56.3 MB)\n#12 697.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 MB 6.2 MB/s eta 0:00:00\n#12 697.6 Collecting mpmath<1.4,>=1.1.0\n#12 697.7   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#12 697.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 9.3 MB/s eta 0:00:00\n#12 697.8 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer->transformers>=4.40.0->vllm==0.4.2->llumnix==0.0.2) (1.5.4)\n#12 698.0 Collecting rich>=13.8.0\n#12 698.1   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#12 698.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 7.4 MB/s eta 0:00:00\n#12 698.4 Collecting markdown-it-py>=2.2.0\n#12 698.5   Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#12 698.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 9.3 MB/s eta 0:00:00\n#12 698.5 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.10/site-packages (from rich>=13.8.0->typer->transformers>=4.40.0->vllm==0.4.2->llumnix==0.0.2) (2.20.0)\n#12 698.7 Collecting mdurl~=0.1\n#12 698.8   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#12 698.9 Building wheels for collected packages: func_timeout, vllm-nccl-cu12\n#12 698.9   Building wheel for func_timeout (setup.py): started\n#12 699.3   Building wheel for func_timeout (setup.py): finished with status 'done'\n#12 699.3   Created wheel for func_timeout: filename=func_timeout-4.3.5-py3-none-any.whl size=15163 sha256=9ea48d644d879cc0fba2ff243fb7a7bc8fcf5197ab33b68182ccb011e18ef14f\n#12 699.3   Stored in directory: /root/.cache/pip/wheels/3f/83/19/b5552bb9630e353f7c5b15be44bf10900afe1abbbfcf536afd\n#12 699.3   Building wheel for vllm-nccl-cu12 (setup.py): started\n#12 701.1   Building wheel for vllm-nccl-cu12 (setup.py): finished with status 'done'\n#12 701.1   Created wheel for vllm-nccl-cu12: filename=vllm_nccl_cu12-2.18.1.0.4.0-py3-none-any.whl size=5461 sha256=ea36401cfb74a1b66f40249ba2e630abb3cc5e73cd462fbc5bc3a1934cca62f5\n#12 701.1   Stored in directory: /root/.cache/pip/wheels/d1/28/b5/e99e6ea84b08c0bf19a218d408316e55e02ff725d3616fb79d\n#12 701.1 Successfully built func_timeout vllm-nccl-cu12\n#12 702.3 Installing collected packages: vllm-nccl-cu12, pytz, py-cpuinfo, nvidia-ml-py, mpmath, func_timeout, websockets, uvloop, tzdata, typing-inspection, triton, tqdm, sympy, sniffio, six, sentencepiece, safetensors, rpds-py, regex, pyzmq, pyyaml, python-dotenv, pyparsing, pydantic-core, pyarrow, psutil, protobuf, propcache, prometheus-client, pillow, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufft-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, ninja, networkx, nest-asyncio, multidict, mdurl, MarkupSafe, llvmlite, lark, kiwisolver, joblib, jiter, interegular, httptools, hf-xet, fsspec, frozenlist, fonttools, distro, diskcache, cycler, cmake, cloudpickle, click, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, yacs, uvicorn, tiktoken, scipy, referencing, python-dateutil, pydantic, nvidia-cusparse-cu12, nvidia-cudnn-cu12, numba, markdown-it-py, jinja2, contourpy, aiosignal, watchfiles, starlette, rich, pandas, nvidia-cusolver-cu12, matplotlib, lm-format-enforcer, jsonschema-specifications, aiohttp, typer, torch, prometheus-fastapi-instrumentator, openai, jsonschema, fastapi, xformers, ray, huggingface-hub, tokenizers, transformers, outlines, vllm, llumnix\n#12 784.2   Running setup.py develop for llumnix\n#12 785.5 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 async-timeout-5.0.1 attrs-26.1.0 click-8.3.3 cloudpickle-3.1.2 cmake-4.3.2 contourpy-1.3.2 cycler-0.12.1 diskcache-5.6.3 distro-1.9.0 fastapi-0.136.1 fonttools-4.62.1 frozenlist-1.8.0 fsspec-2026.3.0 func_timeout-4.3.5 hf-xet-1.4.3 httptools-0.7.1 huggingface-hub-1.12.0 interegular-0.3.3 jinja2-3.1.6 jiter-0.14.0 joblib-1.5.3 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 kiwisolver-1.5.0 lark-1.3.1 llumnix-0.0.2 llvmlite-0.47.0 lm-format-enforcer-0.9.8 markdown-it-py-4.0.0 matplotlib-3.10.9 mdurl-0.1.2 mpmath-1.3.0 multidict-6.7.1 nest-asyncio-1.6.0 networkx-3.4.2 ninja-1.13.0 numba-0.65.1 numpy-1.23.5 nvidia-cublas-cu12-12.1.3.1 nvidia-cuda-cupti-cu12-12.1.105 nvidia-cuda-nvrtc-cu12-12.1.105 nvidia-cuda-runtime-cu12-12.1.105 nvidia-cudnn-cu12-8.9.2.26 nvidia-cufft-cu12-11.0.2.54 nvidia-curand-cu12-10.3.2.106 nvidia-cusolver-cu12-11.4.5.107 nvidia-cusparse-cu12-12.1.0.106 nvidia-ml-py-13.595.45 nvidia-nccl-cu12-2.20.5 nvidia-nvjitlink-cu12-12.9.86 nvidia-nvtx-cu12-12.1.105 openai-2.32.0 outlines-0.0.34 pandas-2.3.3 pillow-12.2.0 prometheus-client-0.25.0 prometheus-fastapi-instrumentator-7.1.0 propcache-0.4.1 protobuf-7.34.1 psutil-7.2.2 py-cpuinfo-9.0.0 pyarrow-24.0.0 pydantic-2.13.3 pydantic-core-2.46.3 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 pytz-2026.1.post1 pyyaml-6.0.3 pyzmq-27.1.0 ray-2.55.1 referencing-0.37.0 regex-2026.4.4 rich-15.0.0 rpds-py-0.30.0 safetensors-0.7.0 scipy-1.15.3 sentencepiece-0.2.1 six-1.17.0 sniffio-1.3.1 starlette-0.52.1 sympy-1.14.0 tiktoken-0.6.0 tokenizers-0.22.2 torch-2.3.0 tqdm-4.67.3 transformers-5.6.2 triton-2.3.0 typer-0.25.0 typing-inspection-0.4.2 tzdata-2026.2 uvicorn-0.46.0 uvloop-0.22.1 vllm-0.4.2 vllm-nccl-cu12-2.18.1.0.4.0 watchfiles-1.1.1 websockets-16.0 xformers-0.0.26.post1 yacs-0.1.8 yarl-1.23.0\n#12 785.5 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#12 785.5 \n#12 785.5 [notice] A new release of pip is available: 23.0.1 -> 26.1\n#12 785.5 [notice] To update, run: pip install --upgrade pip\n#12 DONE 788.1s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 36.6s done\n#13 writing image sha256:1ef3d905544aa81971a69775a7cc85f47b13a42c8cd7b19145f12bd01dc47727 done\n#13 naming to docker.io/library/jayint-repo2run-alibabapai__llumnix 0.0s done\n#13 DONE 36.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/ghja8szwgfyh0ncts9bdbwc9q\n",
+    "timed_out": false,
+    "timeout_seconds": 1800
+  },
+  "test_execution": {
+    "workdir": "/app",
+    "runtime_preparation_commands": [],
+    "test_commands": [
+      "pytest --collect-only -q --disable-warnings"
+    ],
+    "results": [
+      {
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "runtime_preparation_commands": [],
+        "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+        "execution": {
+          "command": [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--platform",
+            "linux/amd64",
+            "jayint-repo2run-alibabapai__llumnix",
+            "sh",
+            "-lc",
+            "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+          ],
+          "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-alibabapai__llumnix sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+          "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+          "returncode": 0,
+          "started_at": "2026-04-28T11:15:46.868304+08:00",
+          "finished_at": "2026-04-28T11:16:01.587572+08:00",
+          "duration_seconds": 14.719,
+          "stdout": "tests/e2e_test/test_bench.py::test_simple_benchmark[/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[running-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[running-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[waiting-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[waiting-gloo-/mnt/model/Qwen-7B]\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_process_model_outputs\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_from_engine_args\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_add_requset\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_clear_migration_states\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[rpc]\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[gloo]\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[nccl]\ntests/unit_test/backends/vllm/test_scheduler.py::test_manager_get_free_blocks\ntests/unit_test/backends/vllm/test_scheduler.py::test_manager_add_block_table\ntests/unit_test/backends/vllm/test_scheduler.py::test_sequence_group_inference_type\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_num_killed_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_running_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_waiting_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_migrating_out_request_last_stage\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_pre_alloc\ntests/unit_test/backends/vllm/test_scheduler.py::test_schedule_running\ntests/unit_test/backends/vllm/test_scheduler.py::test_try_schedule_times\ntests/unit_test/backends/vllm/test_simulator.py::test_executor\ntests/unit_test/backends/vllm/test_simulator.py::test_backend\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[rpc]\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[gloo]\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[nccl]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[rpc]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[gloo]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[nccl]\ntests/unit_test/entrypoints/test_utils.py::test_launch_ray_cluster\ntests/unit_test/entrypoints/test_utils.py::test_init_manager\ntests/unit_test/entrypoints/test_utils.py::test_init_zmq\ntests/unit_test/entrypoints/test_utils.py::test_retry_manager_method_sync\ntests/unit_test/entrypoints/test_utils.py::test_retry_manager_method_async\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[zmq-generate]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[zmq-generate_benchmark]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[rayqueue-generate]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[rayqueue-generate_benchmark]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[1]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[2]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[3]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_balanced\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_load\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_queue\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_rr\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_scale_up_and_scale_down\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_update_instance_infos\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_dispatch\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_pair_migration\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_manager\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlet\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlets\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlets_sim\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_scale_up_and_down\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_connect_to_instances\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_generate_and_abort\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_get_request_instance\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_update_instance_info_loop_and_migrate\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_concurrent_migrate\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_add_instance_and_remove_instance\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[NO_CONSTRAINTS]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[DECODING_2_DECODING]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[PREFILL_2_DECODING]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_pair_migration[balanced]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_pair_migration[defrag_constrained]\ntests/unit_test/llumlet/test_engine_step_exception.py::test_engine_step_exception\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_scheduler_policy\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_scheduler_should_abort_migration\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_blocking_migration\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_onestage\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_running_request\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_waiting_request\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[128.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[256.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[512.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[1024.0]\n\n94 tests collected in 2.06s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+          "stderr": "sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n",
+          "timed_out": false,
+          "timeout_seconds": 1800
+        },
+        "classification": {
+          "effective": true,
+          "reason": "tests_collected_successfully",
+          "effective_signal": true,
+          "failure_signal": false,
+          "empty_signal": false,
+          "help_signal": false,
+          "invocation_error_signal": false,
+          "collection_error_signal": false,
+          "internal_repo_import_error_signal": false
+        }
+      }
+    ],
+    "effective_test_command_count": 1,
+    "all_test_commands_effective": true
+  },
+  "dockerfile_validation_attempts": [
+    {
+      "attempt": 0,
+      "dockerfile_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval",
+      "docker_build": {
+        "command": [
+          "docker",
+          "build",
+          "--platform",
+          "linux/amd64",
+          "-f",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval",
+          "-t",
+          "jayint-repo2run-alibabapai__llumnix",
+          "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix"
+        ],
+        "command_shell": "docker build --platform linux/amd64 -f /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/Dockerfile.eval -t jayint-repo2run-alibabapai__llumnix /Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/workplaces/AlibabaPAI__llumnix",
+        "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+        "returncode": 0,
+        "started_at": "2026-04-28T11:01:52.095071+08:00",
+        "finished_at": "2026-04-28T11:15:46.834084+08:00",
+        "duration_seconds": 834.739,
+        "stdout": "",
+        "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.eval\n#1 transferring dockerfile: 505B done\n#1 DONE 0.0s\n\n#2 [auth] library/python:pull token for registry-1.docker.io\n#2 DONE 0.0s\n\n#3 [internal] load metadata for docker.io/library/python:3.10\n#3 DONE 2.1s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/7] FROM docker.io/library/python:3.10@sha256:1dfc716d668e86a3b75295306596baf27f5bb923069c9718295c7eca0979af27\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 7.73MB 0.1s done\n#6 DONE 0.1s\n\n#7 [2/7] RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)\n#7 CACHED\n\n#8 [3/7] WORKDIR /app\n#8 CACHED\n\n#9 [4/7] COPY . /app\n#9 DONE 0.1s\n\n#10 [5/7] RUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n#10 DONE 0.1s\n\n#11 [6/7] RUN pip install pytest pytest-asyncio pylint-pytest\n#11 0.456 Requirement already satisfied: pytest in /usr/local/lib/python3.10/site-packages (9.0.3)\n#11 2.243 Collecting pytest-asyncio\n#11 2.888   Downloading pytest_asyncio-1.3.0-py3-none-any.whl (15 kB)\n#11 3.061 Collecting pylint-pytest\n#11 3.185   Downloading pylint_pytest-1.1.8-py3-none-any.whl (10 kB)\n#11 3.215 Requirement already satisfied: pygments>=2.7.2 in /usr/local/lib/python3.10/site-packages (from pytest) (2.20.0)\n#11 3.217 Requirement already satisfied: iniconfig>=1.0.1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.3.0)\n#11 3.217 Requirement already satisfied: pluggy<2,>=1.5 in /usr/local/lib/python3.10/site-packages (from pytest) (1.6.0)\n#11 3.219 Requirement already satisfied: exceptiongroup>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (1.3.1)\n#11 3.220 Requirement already satisfied: packaging>=22 in /usr/local/lib/python3.10/site-packages (from pytest) (26.2)\n#11 3.221 Requirement already satisfied: tomli>=1 in /usr/local/lib/python3.10/site-packages (from pytest) (2.4.1)\n#11 3.229 Requirement already satisfied: typing-extensions>=4.12 in /usr/local/lib/python3.10/site-packages (from pytest-asyncio) (4.15.0)\n#11 3.371 Collecting backports-asyncio-runner<2,>=1.1\n#11 3.507   Downloading backports_asyncio_runner-1.2.0-py3-none-any.whl (12 kB)\n#11 3.799 Collecting pylint>=2\n#11 3.916   Downloading pylint-4.0.5-py3-none-any.whl (536 kB)\n#11 4.191      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.7/536.7 kB 2.0 MB/s eta 0:00:00\n#11 4.409 Collecting pytest\n#11 4.520   Downloading pytest-8.2.0-py3-none-any.whl (339 kB)\n#11 4.558      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 339.2/339.2 kB 9.5 MB/s eta 0:00:00\n#11 4.730 Collecting mccabe<0.8,>=0.6\n#11 4.844   Downloading mccabe-0.7.0-py2.py3-none-any.whl (7.3 kB)\n#11 4.856 Requirement already satisfied: platformdirs>=2.2 in /usr/local/lib/python3.10/site-packages (from pylint>=2->pylint-pytest) (4.9.6)\n#11 4.995 Collecting dill>=0.2\n#11 5.109   Downloading dill-0.4.1-py3-none-any.whl (120 kB)\n#11 5.122      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 16.0 MB/s eta 0:00:00\n#11 5.345 Collecting astroid<=4.1.dev0,>=4.0.2\n#11 5.453   Downloading astroid-4.0.4-py3-none-any.whl (276 kB)\n#11 5.491      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 276.4/276.4 kB 7.7 MB/s eta 0:00:00\n#11 5.779 Collecting isort!=5.13,<9,>=5\n#11 5.886   Downloading isort-8.0.1-py3-none-any.whl (89 kB)\n#11 5.900      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 89.7/89.7 kB 7.3 MB/s eta 0:00:00\n#11 5.903 Requirement already satisfied: tomlkit>=0.10.1 in /usr/local/lib/python3.10/site-packages (from pylint>=2->pylint-pytest) (0.14.0)\n#11 6.088 Installing collected packages: mccabe, isort, dill, backports-asyncio-runner, astroid, pytest, pylint, pytest-asyncio, pylint-pytest\n#11 6.272   Attempting uninstall: pytest\n#11 6.273     Found existing installation: pytest 9.0.3\n#11 6.284     Uninstalling pytest-9.0.3:\n#11 6.343       Successfully uninstalled pytest-9.0.3\n#11 6.620 Successfully installed astroid-4.0.4 backports-asyncio-runner-1.2.0 dill-0.4.1 isort-8.0.1 mccabe-0.7.0 pylint-4.0.5 pylint-pytest-1.1.8 pytest-8.2.0 pytest-asyncio-1.3.0\n#11 6.621 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#11 6.626 \n#11 6.626 [notice] A new release of pip is available: 23.0.1 -> 26.1\n#11 6.626 [notice] To update, run: pip install --upgrade pip\n#11 DONE 6.7s\n\n#12 [7/7] RUN cd /app && pip install -e .\n#12 0.377 Obtaining file:///app\n#12 0.379   Preparing metadata (setup.py): started\n#12 0.630   Preparing metadata (setup.py): finished with status 'done'\n#12 1.541 Collecting vllm==0.4.2\n#12 2.341   Downloading vllm-0.4.2-cp310-cp310-manylinux1_x86_64.whl (67.7 MB)\n#12 13.95      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.7/67.7 MB 4.6 MB/s eta 0:00:00\n#12 14.57 Collecting ray>=2.9.0\n#12 14.68   Downloading ray-2.55.1-cp310-cp310-manylinux2014_x86_64.whl (73.6 MB)\n#12 26.90      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.6/73.6 MB 5.3 MB/s eta 0:00:00\n#12 27.31 Collecting pyarrow\n#12 27.42   Downloading pyarrow-24.0.0-cp310-cp310-manylinux_2_28_x86_64.whl (48.8 MB)\n#12 35.29      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.8/48.8 MB 5.7 MB/s eta 0:00:00\n#12 36.43 Collecting aiohttp\n#12 36.54   Downloading aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)\n#12 36.83      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 5.9 MB/s eta 0:00:00\n#12 37.18 Collecting scipy\n#12 37.29   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)\n#12 43.49      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 5.3 MB/s eta 0:00:00\n#12 43.90 Collecting pandas\n#12 44.01   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)\n#12 45.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 6.4 MB/s eta 0:00:00\n#12 46.36 Collecting matplotlib\n#12 46.47   Downloading matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (8.8 MB)\n#12 47.99      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.8/8.8 MB 5.8 MB/s eta 0:00:00\n#12 48.14 Collecting func_timeout\n#12 48.25   Downloading func_timeout-4.3.5.tar.gz (44 kB)\n#12 48.27      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.3/44.3 kB 3.9 MB/s eta 0:00:00\n#12 48.28   Preparing metadata (setup.py): started\n#12 48.50   Preparing metadata (setup.py): finished with status 'done'\n#12 48.69 Collecting pyyaml\n#12 48.79   Downloading pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)\n#12 48.88      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 9.9 MB/s eta 0:00:00\n#12 49.03 Collecting yacs\n#12 49.14   Downloading yacs-0.1.8-py3-none-any.whl (14 kB)\n#12 49.63 Collecting numpy<1.24.0\n#12 49.74   Downloading numpy-1.23.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.1 MB)\n#12 52.46      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.1/17.1 MB 6.0 MB/s eta 0:00:00\n#12 53.02 Collecting pyzmq\n#12 53.13   Downloading pyzmq-27.1.0-cp310-cp310-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (854 kB)\n#12 53.29      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 854.1/854.1 kB 5.6 MB/s eta 0:00:00\n#12 53.61 Collecting vllm-nccl-cu12<2.19,>=2.18\n#12 53.73   Downloading vllm_nccl_cu12-2.18.1.0.4.0.tar.gz (6.2 kB)\n#12 53.74   Preparing metadata (setup.py): started\n#12 104.6   Preparing metadata (setup.py): finished with status 'done'\n#12 104.8 Collecting fastapi\n#12 104.9   Downloading fastapi-0.136.1-py3-none-any.whl (117 kB)\n#12 104.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.7/117.7 kB 5.6 MB/s eta 0:00:00\n#12 105.1 Collecting transformers>=4.40.0\n#12 105.2   Downloading transformers-5.6.2-py3-none-any.whl (10.4 MB)\n#12 107.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.4/10.4 MB 5.9 MB/s eta 0:00:00\n#12 107.0 Requirement already satisfied: typing-extensions in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (4.15.0)\n#12 107.2 Collecting ninja\n#12 107.3   Downloading ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (180 kB)\n#12 107.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 180.7/180.7 kB 5.4 MB/s eta 0:00:00\n#12 107.5 Collecting nvidia-ml-py\n#12 107.6   Downloading nvidia_ml_py-13.595.45-py3-none-any.whl (51 kB)\n#12 107.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.8/51.8 kB 7.7 MB/s eta 0:00:00\n#12 107.6 Requirement already satisfied: requests in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (2.33.1)\n#12 108.0 Collecting cmake>=3.21\n#12 108.1   Downloading cmake-4.3.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (29.5 MB)\n#12 112.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 29.5/29.5 MB 5.5 MB/s eta 0:00:00\n#12 113.4 Collecting tokenizers>=0.19.1\n#12 113.5   Downloading tokenizers-0.23.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#12 114.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 6.8 MB/s eta 0:00:00\n#12 114.2 Collecting prometheus-client>=0.18.0\n#12 114.3   Downloading prometheus_client-0.25.0-py3-none-any.whl (64 kB)\n#12 114.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.2/64.2 kB 5.4 MB/s eta 0:00:00\n#12 114.6 Collecting psutil\n#12 114.7   Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)\n#12 114.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.6/155.6 kB 7.8 MB/s eta 0:00:00\n#12 114.9 Collecting outlines==0.0.34\n#12 115.0   Downloading outlines-0.0.34-py3-none-any.whl (76 kB)\n#12 115.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.5/76.5 kB 4.1 MB/s eta 0:00:00\n#12 115.2 Collecting xformers==0.0.26.post1\n#12 115.3   Downloading xformers-0.0.26.post1-cp310-cp310-manylinux2014_x86_64.whl (222.7 MB)\n#12 153.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 222.7/222.7 MB 3.4 MB/s eta 0:00:00\n#12 153.6 Collecting py-cpuinfo\n#12 153.7   Downloading py_cpuinfo-9.0.0-py3-none-any.whl (22 kB)\n#12 153.9 Collecting uvicorn[standard]\n#12 154.0   Downloading uvicorn-0.46.0-py3-none-any.whl (70 kB)\n#12 154.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.9/70.9 kB 2.5 MB/s eta 0:00:00\n#12 154.2 Collecting openai\n#12 154.4   Downloading openai-2.32.0-py3-none-any.whl (1.2 MB)\n#12 154.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 6.3 MB/s eta 0:00:00\n#12 154.7 Collecting tiktoken==0.6.0\n#12 154.9   Downloading tiktoken-0.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.8 MB)\n#12 155.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 7.1 MB/s eta 0:00:00\n#12 155.3 Collecting prometheus-fastapi-instrumentator>=7.0.0\n#12 155.4   Downloading prometheus_fastapi_instrumentator-7.1.0-py3-none-any.whl (19 kB)\n#12 155.6 Collecting sentencepiece\n#12 155.7   Downloading sentencepiece-0.2.1-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (1.4 MB)\n#12 155.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 7.8 MB/s eta 0:00:00\n#12 156.1 Collecting torch==2.3.0\n#12 156.3   Downloading torch-2.3.0-cp310-cp310-manylinux1_x86_64.whl (779.1 MB)\n#12 292.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 779.1/779.1 MB 1.0 MB/s eta 0:00:00\n#12 293.9 Requirement already satisfied: filelock>=3.10.4 in /usr/local/lib/python3.10/site-packages (from vllm==0.4.2->llumnix==0.0.2) (3.29.0)\n#12 294.1 Collecting lm-format-enforcer==0.9.8\n#12 294.2   Downloading lm_format_enforcer-0.9.8-py3-none-any.whl (40 kB)\n#12 294.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 4.0 MB/s eta 0:00:00\n#12 294.6 Collecting pydantic>=2.0\n#12 294.7   Downloading pydantic-2.13.3-py3-none-any.whl (471 kB)\n#12 294.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 472.0/472.0 kB 5.6 MB/s eta 0:00:00\n#12 294.8 Requirement already satisfied: packaging in /usr/local/lib/python3.10/site-packages (from lm-format-enforcer==0.9.8->vllm==0.4.2->llumnix==0.0.2) (26.2)\n#12 294.9 Collecting interegular>=0.3.2\n#12 295.0   Downloading interegular-0.3.3-py37-none-any.whl (23 kB)\n#12 295.2 Collecting jsonschema\n#12 295.3   Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)\n#12 295.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 4.2 MB/s eta 0:00:00\n#12 295.5 Collecting referencing\n#12 295.7   Downloading referencing-0.37.0-py3-none-any.whl (26 kB)\n#12 295.8 Collecting joblib\n#12 295.9   Downloading joblib-1.5.3-py3-none-any.whl (309 kB)\n#12 296.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 5.6 MB/s eta 0:00:00\n#12 296.2 Collecting diskcache\n#12 296.3   Downloading diskcache-5.6.3-py3-none-any.whl (45 kB)\n#12 296.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.5/45.5 kB 5.7 MB/s eta 0:00:00\n#12 296.4 Collecting lark\n#12 296.5   Downloading lark-1.3.1-py3-none-any.whl (113 kB)\n#12 296.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 113.2/113.2 kB 6.5 MB/s eta 0:00:00\n#12 296.9 Collecting numba\n#12 297.0   Downloading numba-0.65.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (3.7 MB)\n#12 297.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.1 MB/s eta 0:00:00\n#12 297.7 Collecting jinja2\n#12 297.8   Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)\n#12 297.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 6.6 MB/s eta 0:00:00\n#12 298.0 Collecting nest-asyncio\n#12 298.1   Downloading nest_asyncio-1.6.0-py3-none-any.whl (5.2 kB)\n#12 298.3 Collecting cloudpickle\n#12 298.4   Downloading cloudpickle-3.1.2-py3-none-any.whl (22 kB)\n#12 299.2 Collecting regex>=2022.1.18\n#12 299.3   Downloading regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)\n#12 299.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 4.6 MB/s eta 0:00:00\n#12 299.7 Collecting nvidia-cuda-runtime-cu12==12.1.105\n#12 299.8   Downloading nvidia_cuda_runtime_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (823 kB)\n#12 299.9      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 823.6/823.6 kB 9.3 MB/s eta 0:00:00\n#12 300.0 Collecting nvidia-curand-cu12==10.3.2.106\n#12 300.1   Downloading nvidia_curand_cu12-10.3.2.106-py3-none-manylinux1_x86_64.whl (56.5 MB)\n#12 309.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.5/56.5 MB 5.9 MB/s eta 0:00:00\n#12 309.8 Collecting nvidia-cuda-cupti-cu12==12.1.105\n#12 309.9   Downloading nvidia_cuda_cupti_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (14.1 MB)\n#12 312.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 6.0 MB/s eta 0:00:00\n#12 312.3 Collecting fsspec\n#12 312.4   Downloading fsspec-2026.3.0-py3-none-any.whl (202 kB)\n#12 312.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.6/202.6 kB 4.5 MB/s eta 0:00:00\n#12 312.6 Collecting nvidia-nccl-cu12==2.20.5\n#12 312.7   Downloading nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_x86_64.whl (176.2 MB)\n#12 341.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 176.2/176.2 MB 4.9 MB/s eta 0:00:00\n#12 342.4 Collecting networkx\n#12 342.5   Downloading networkx-3.4.2-py3-none-any.whl (1.7 MB)\n#12 342.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 6.7 MB/s eta 0:00:00\n#12 343.0 Collecting sympy\n#12 343.1   Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)\n#12 344.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 7.1 MB/s eta 0:00:00\n#12 344.1 Collecting nvidia-cuda-nvrtc-cu12==12.1.105\n#12 344.2   Downloading nvidia_cuda_nvrtc_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (23.7 MB)\n#12 348.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.7/23.7 MB 5.9 MB/s eta 0:00:00\n#12 348.2 Collecting nvidia-cudnn-cu12==8.9.2.26\n#12 348.3   Downloading nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl (731.7 MB)\n#12 476.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 731.7/731.7 MB 1.0 MB/s eta 0:00:00\n#12 477.9 Collecting triton==2.3.0\n#12 478.1   Downloading triton-2.3.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (168.1 MB)\n#12 505.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.1/168.1 MB 5.3 MB/s eta 0:00:00\n#12 506.1 Collecting nvidia-cufft-cu12==11.0.2.54\n#12 506.2   Downloading nvidia_cufft_cu12-11.0.2.54-py3-none-manylinux1_x86_64.whl (121.6 MB)\n#12 526.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 121.6/121.6 MB 5.1 MB/s eta 0:00:00\n#12 526.8 Collecting nvidia-cusolver-cu12==11.4.5.107\n#12 526.9   Downloading nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl (124.2 MB)\n#12 547.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 124.2/124.2 MB 5.5 MB/s eta 0:00:00\n#12 547.6 Collecting nvidia-nvtx-cu12==12.1.105\n#12 547.8   Downloading nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl (99 kB)\n#12 547.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 4.6 MB/s eta 0:00:00\n#12 547.9 Collecting nvidia-cusparse-cu12==12.1.0.106\n#12 548.1   Downloading nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl (196.0 MB)\n#12 580.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.0/196.0 MB 4.4 MB/s eta 0:00:00\n#12 581.1 Collecting nvidia-cublas-cu12==12.1.3.1\n#12 581.2   Downloading nvidia_cublas_cu12-12.1.3.1-py3-none-manylinux1_x86_64.whl (410.6 MB)\n#12 655.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 410.6/410.6 MB 1.2 MB/s eta 0:00:00\n#12 656.2 Collecting nvidia-nvjitlink-cu12\n#12 656.3   Downloading nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.7 MB)\n#12 662.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.7/39.7 MB 5.9 MB/s eta 0:00:00\n#12 663.3 Collecting protobuf>=3.20.3\n#12 663.4   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl (324 kB)\n#12 663.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 324.3/324.3 kB 5.8 MB/s eta 0:00:00\n#12 663.5 Requirement already satisfied: msgpack<2.0.0,>=1.0.0 in /usr/local/lib/python3.10/site-packages (from ray>=2.9.0->llumnix==0.0.2) (1.1.2)\n#12 663.6 Collecting click>=7.0\n#12 663.7   Downloading click-8.3.3-py3-none-any.whl (110 kB)\n#12 663.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.5/110.5 kB 8.0 MB/s eta 0:00:00\n#12 664.0 Collecting propcache>=0.2.0\n#12 664.1   Downloading propcache-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (196 kB)\n#12 664.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.9/196.9 kB 4.6 MB/s eta 0:00:00\n#12 664.3 Collecting attrs>=17.3.0\n#12 664.4   Downloading attrs-26.1.0-py3-none-any.whl (67 kB)\n#12 664.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 11.0 MB/s eta 0:00:00\n#12 665.2 Collecting yarl<2.0,>=1.17.0\n#12 665.3   Downloading yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)\n#12 665.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 5.1 MB/s eta 0:00:00\n#12 665.9 Collecting multidict<7.0,>=4.5\n#12 666.0   Downloading multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)\n#12 666.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 6.2 MB/s eta 0:00:00\n#12 666.4 Collecting frozenlist>=1.1.1\n#12 666.6   Downloading frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)\n#12 666.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 25.2 MB/s eta 0:00:00\n#12 666.7 Collecting aiohappyeyeballs>=2.5.0\n#12 666.8   Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)\n#12 667.0 Collecting async-timeout<6.0,>=4.0\n#12 667.1   Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)\n#12 667.3 Collecting aiosignal>=1.4.0\n#12 667.4   Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)\n#12 667.9 Collecting fonttools>=4.22.0\n#12 668.0   Downloading fonttools-4.62.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.9 MB)\n#12 668.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.9/4.9 MB 7.1 MB/s eta 0:00:00\n#12 669.0 Collecting contourpy>=1.0.1\n#12 669.1   Downloading contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (325 kB)\n#12 669.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 325.0/325.0 kB 7.3 MB/s eta 0:00:00\n#12 669.3 Collecting pyparsing>=3\n#12 669.4   Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)\n#12 669.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 122.8/122.8 kB 5.9 MB/s eta 0:00:00\n#12 669.9 Collecting pillow>=8\n#12 670.0   Downloading pillow-12.2.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)\n#12 671.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 6.8 MB/s eta 0:00:00\n#12 671.3 Collecting python-dateutil>=2.7\n#12 671.4   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\n#12 671.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 15.9 MB/s eta 0:00:00\n#12 671.5 Collecting cycler>=0.10\n#12 671.7   Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)\n#12 671.9 Collecting kiwisolver>=1.3.1\n#12 672.1   Downloading kiwisolver-1.5.0-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.6 MB)\n#12 672.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 9.8 MB/s eta 0:00:00\n#12 673.5 Collecting pytz>=2020.1\n#12 673.6   Downloading pytz-2026.1.post1-py2.py3-none-any.whl (510 kB)\n#12 673.6      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 510.5/510.5 kB 16.3 MB/s eta 0:00:00\n#12 673.8 Collecting tzdata>=2022.7\n#12 673.9   Downloading tzdata-2026.2-py2.py3-none-any.whl (349 kB)\n#12 674.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.3/349.3 kB 17.5 MB/s eta 0:00:00\n#12 674.5 Collecting starlette<1.0.0,>=0.30.0\n#12 674.7   Downloading starlette-0.52.1-py3-none-any.whl (74 kB)\n#12 674.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.3/74.3 kB 7.5 MB/s eta 0:00:00\n#12 674.8 Collecting typing-inspection>=0.4.2\n#12 674.9   Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)\n#12 675.1 Collecting annotated-types>=0.6.0\n#12 675.2   Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)\n#12 678.0 Collecting pydantic-core==2.46.3\n#12 678.1   Downloading pydantic_core-2.46.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)\n#12 678.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 10.9 MB/s eta 0:00:00\n#12 678.4 Collecting six>=1.5\n#12 678.6   Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)\n#12 678.6 Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (3.4.7)\n#12 678.6 Requirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (2026.4.22)\n#12 678.6 Requirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (2.6.3)\n#12 678.6 Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/site-packages (from requests->vllm==0.4.2->llumnix==0.0.2) (3.13)\n#12 678.8 Collecting huggingface-hub<2.0,>=0.16.4\n#12 678.9   Downloading huggingface_hub-1.12.0-py3-none-any.whl (646 kB)\n#12 679.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 646.8/646.8 kB 14.8 MB/s eta 0:00:00\n#12 679.2 Collecting tokenizers>=0.19.1\n#12 679.3   Downloading tokenizers-0.22.2-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.3 MB)\n#12 679.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.6 MB/s eta 0:00:00\n#12 680.1 Collecting safetensors>=0.4.3\n#12 680.2   Downloading safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)\n#12 680.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 15.0 MB/s eta 0:00:00\n#12 680.5 Collecting typer\n#12 680.6   Downloading typer-0.25.0-py3-none-any.whl (55 kB)\n#12 680.7      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.0/56.0 kB 3.2 MB/s eta 0:00:00\n#12 680.9 Collecting tqdm>=4.27\n#12 681.0   Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)\n#12 681.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 8.2 MB/s eta 0:00:00\n#12 681.2 Collecting annotated-doc>=0.0.2\n#12 681.3   Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)\n#12 682.1 Collecting rpds-py>=0.25.0\n#12 682.2   Downloading rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (390 kB)\n#12 682.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 390.5/390.5 kB 11.4 MB/s eta 0:00:00\n#12 682.4 Collecting jsonschema-specifications>=2023.03.6\n#12 682.6   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\n#12 682.7 Collecting sniffio\n#12 682.9   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)\n#12 682.9 Requirement already satisfied: httpx<1,>=0.23.0 in /usr/local/lib/python3.10/site-packages (from openai->vllm==0.4.2->llumnix==0.0.2) (0.28.1)\n#12 682.9 Requirement already satisfied: anyio<5,>=3.5.0 in /usr/local/lib/python3.10/site-packages (from openai->vllm==0.4.2->llumnix==0.0.2) (4.13.0)\n#12 683.2 Collecting jiter<1,>=0.10.0\n#12 683.3   Downloading jiter-0.14.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)\n#12 683.4      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 358.6/358.6 kB 16.9 MB/s eta 0:00:00\n#12 683.5 Collecting distro<2,>=1.7.0\n#12 683.6   Downloading distro-1.9.0-py3-none-any.whl (20 kB)\n#12 683.7 Requirement already satisfied: h11>=0.8 in /usr/local/lib/python3.10/site-packages (from uvicorn[standard]->vllm==0.4.2->llumnix==0.0.2) (0.16.0)\n#12 684.0 Collecting websockets>=10.4\n#12 684.1   Downloading websockets-16.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (183 kB)\n#12 684.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 183.8/183.8 kB 9.5 MB/s eta 0:00:00\n#12 684.3 Collecting httptools>=0.6.3\n#12 684.5   Downloading httptools-0.7.1-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (440 kB)\n#12 684.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 440.9/440.9 kB 12.4 MB/s eta 0:00:00\n#12 684.7 Collecting python-dotenv>=0.13\n#12 684.8   Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)\n#12 685.1 Collecting watchfiles>=0.20\n#12 685.2   Downloading watchfiles-1.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (455 kB)\n#12 685.2      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 455.6/455.6 kB 19.3 MB/s eta 0:00:00\n#12 685.4 Collecting uvloop>=0.15.1\n#12 685.5   Downloading uvloop-0.22.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.7 MB)\n#12 686.0      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 7.7 MB/s eta 0:00:00\n#12 686.1 Requirement already satisfied: exceptiongroup>=1.0.2 in /usr/local/lib/python3.10/site-packages (from anyio<5,>=3.5.0->openai->vllm==0.4.2->llumnix==0.0.2) (1.3.1)\n#12 686.1 Requirement already satisfied: httpcore==1.* in /usr/local/lib/python3.10/site-packages (from httpx<1,>=0.23.0->openai->vllm==0.4.2->llumnix==0.0.2) (1.0.9)\n#12 686.4 Collecting hf-xet<2.0.0,>=1.4.3\n#12 686.5   Downloading hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)\n#12 687.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 7.7 MB/s eta 0:00:00\n#12 687.6 Collecting MarkupSafe>=2.0\n#12 687.7   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)\n#12 688.0 Collecting llvmlite<0.48,>=0.47.0dev0\n#12 688.1   Downloading llvmlite-0.47.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (56.3 MB)\n#12 697.3      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 MB 6.2 MB/s eta 0:00:00\n#12 697.6 Collecting mpmath<1.4,>=1.1.0\n#12 697.7   Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)\n#12 697.8      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 9.3 MB/s eta 0:00:00\n#12 697.8 Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.10/site-packages (from typer->transformers>=4.40.0->vllm==0.4.2->llumnix==0.0.2) (1.5.4)\n#12 698.0 Collecting rich>=13.8.0\n#12 698.1   Downloading rich-15.0.0-py3-none-any.whl (310 kB)\n#12 698.1      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 7.4 MB/s eta 0:00:00\n#12 698.4 Collecting markdown-it-py>=2.2.0\n#12 698.5   Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)\n#12 698.5      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 9.3 MB/s eta 0:00:00\n#12 698.5 Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.10/site-packages (from rich>=13.8.0->typer->transformers>=4.40.0->vllm==0.4.2->llumnix==0.0.2) (2.20.0)\n#12 698.7 Collecting mdurl~=0.1\n#12 698.8   Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)\n#12 698.9 Building wheels for collected packages: func_timeout, vllm-nccl-cu12\n#12 698.9   Building wheel for func_timeout (setup.py): started\n#12 699.3   Building wheel for func_timeout (setup.py): finished with status 'done'\n#12 699.3   Created wheel for func_timeout: filename=func_timeout-4.3.5-py3-none-any.whl size=15163 sha256=9ea48d644d879cc0fba2ff243fb7a7bc8fcf5197ab33b68182ccb011e18ef14f\n#12 699.3   Stored in directory: /root/.cache/pip/wheels/3f/83/19/b5552bb9630e353f7c5b15be44bf10900afe1abbbfcf536afd\n#12 699.3   Building wheel for vllm-nccl-cu12 (setup.py): started\n#12 701.1   Building wheel for vllm-nccl-cu12 (setup.py): finished with status 'done'\n#12 701.1   Created wheel for vllm-nccl-cu12: filename=vllm_nccl_cu12-2.18.1.0.4.0-py3-none-any.whl size=5461 sha256=ea36401cfb74a1b66f40249ba2e630abb3cc5e73cd462fbc5bc3a1934cca62f5\n#12 701.1   Stored in directory: /root/.cache/pip/wheels/d1/28/b5/e99e6ea84b08c0bf19a218d408316e55e02ff725d3616fb79d\n#12 701.1 Successfully built func_timeout vllm-nccl-cu12\n#12 702.3 Installing collected packages: vllm-nccl-cu12, pytz, py-cpuinfo, nvidia-ml-py, mpmath, func_timeout, websockets, uvloop, tzdata, typing-inspection, triton, tqdm, sympy, sniffio, six, sentencepiece, safetensors, rpds-py, regex, pyzmq, pyyaml, python-dotenv, pyparsing, pydantic-core, pyarrow, psutil, protobuf, propcache, prometheus-client, pillow, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufft-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, ninja, networkx, nest-asyncio, multidict, mdurl, MarkupSafe, llvmlite, lark, kiwisolver, joblib, jiter, interegular, httptools, hf-xet, fsspec, frozenlist, fonttools, distro, diskcache, cycler, cmake, cloudpickle, click, attrs, async-timeout, annotated-types, annotated-doc, aiohappyeyeballs, yarl, yacs, uvicorn, tiktoken, scipy, referencing, python-dateutil, pydantic, nvidia-cusparse-cu12, nvidia-cudnn-cu12, numba, markdown-it-py, jinja2, contourpy, aiosignal, watchfiles, starlette, rich, pandas, nvidia-cusolver-cu12, matplotlib, lm-format-enforcer, jsonschema-specifications, aiohttp, typer, torch, prometheus-fastapi-instrumentator, openai, jsonschema, fastapi, xformers, ray, huggingface-hub, tokenizers, transformers, outlines, vllm, llumnix\n#12 784.2   Running setup.py develop for llumnix\n#12 785.5 Successfully installed MarkupSafe-3.0.3 aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 annotated-doc-0.0.4 annotated-types-0.7.0 async-timeout-5.0.1 attrs-26.1.0 click-8.3.3 cloudpickle-3.1.2 cmake-4.3.2 contourpy-1.3.2 cycler-0.12.1 diskcache-5.6.3 distro-1.9.0 fastapi-0.136.1 fonttools-4.62.1 frozenlist-1.8.0 fsspec-2026.3.0 func_timeout-4.3.5 hf-xet-1.4.3 httptools-0.7.1 huggingface-hub-1.12.0 interegular-0.3.3 jinja2-3.1.6 jiter-0.14.0 joblib-1.5.3 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 kiwisolver-1.5.0 lark-1.3.1 llumnix-0.0.2 llvmlite-0.47.0 lm-format-enforcer-0.9.8 markdown-it-py-4.0.0 matplotlib-3.10.9 mdurl-0.1.2 mpmath-1.3.0 multidict-6.7.1 nest-asyncio-1.6.0 networkx-3.4.2 ninja-1.13.0 numba-0.65.1 numpy-1.23.5 nvidia-cublas-cu12-12.1.3.1 nvidia-cuda-cupti-cu12-12.1.105 nvidia-cuda-nvrtc-cu12-12.1.105 nvidia-cuda-runtime-cu12-12.1.105 nvidia-cudnn-cu12-8.9.2.26 nvidia-cufft-cu12-11.0.2.54 nvidia-curand-cu12-10.3.2.106 nvidia-cusolver-cu12-11.4.5.107 nvidia-cusparse-cu12-12.1.0.106 nvidia-ml-py-13.595.45 nvidia-nccl-cu12-2.20.5 nvidia-nvjitlink-cu12-12.9.86 nvidia-nvtx-cu12-12.1.105 openai-2.32.0 outlines-0.0.34 pandas-2.3.3 pillow-12.2.0 prometheus-client-0.25.0 prometheus-fastapi-instrumentator-7.1.0 propcache-0.4.1 protobuf-7.34.1 psutil-7.2.2 py-cpuinfo-9.0.0 pyarrow-24.0.0 pydantic-2.13.3 pydantic-core-2.46.3 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 pytz-2026.1.post1 pyyaml-6.0.3 pyzmq-27.1.0 ray-2.55.1 referencing-0.37.0 regex-2026.4.4 rich-15.0.0 rpds-py-0.30.0 safetensors-0.7.0 scipy-1.15.3 sentencepiece-0.2.1 six-1.17.0 sniffio-1.3.1 starlette-0.52.1 sympy-1.14.0 tiktoken-0.6.0 tokenizers-0.22.2 torch-2.3.0 tqdm-4.67.3 transformers-5.6.2 triton-2.3.0 typer-0.25.0 typing-inspection-0.4.2 tzdata-2026.2 uvicorn-0.46.0 uvloop-0.22.1 vllm-0.4.2 vllm-nccl-cu12-2.18.1.0.4.0 watchfiles-1.1.1 websockets-16.0 xformers-0.0.26.post1 yacs-0.1.8 yarl-1.23.0\n#12 785.5 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#12 785.5 \n#12 785.5 [notice] A new release of pip is available: 23.0.1 -> 26.1\n#12 785.5 [notice] To update, run: pip install --upgrade pip\n#12 DONE 788.1s\n\n#13 exporting to image\n#13 exporting layers\n#13 exporting layers 36.6s done\n#13 writing image sha256:1ef3d905544aa81971a69775a7cc85f47b13a42c8cd7b19145f12bd01dc47727 done\n#13 naming to docker.io/library/jayint-repo2run-alibabapai__llumnix 0.0s done\n#13 DONE 36.7s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/ghja8szwgfyh0ncts9bdbwc9q\n",
+        "timed_out": false,
+        "timeout_seconds": 1800
+      },
+      "test_execution": {
+        "workdir": "/app",
+        "runtime_preparation_commands": [],
+        "test_commands": [
+          "pytest --collect-only -q --disable-warnings"
+        ],
+        "results": [
+          {
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "runtime_preparation_commands": [],
+            "script": "set -e\ncd /app\ncd /app\nset +e\npytest --collect-only -q --disable-warnings\nTEST_EXIT_CODE=$?\nset -e\nprintf \"\\n__REPO2RUN_TEST_EXIT_CODE__=%s\\n\" \"$TEST_EXIT_CODE\"\nexit \"$TEST_EXIT_CODE\"\n",
+            "execution": {
+              "command": [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--platform",
+                "linux/amd64",
+                "jayint-repo2run-alibabapai__llumnix",
+                "sh",
+                "-lc",
+                "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
+              ],
+              "command_shell": "docker run --rm -i --platform linux/amd64 jayint-repo2run-alibabapai__llumnix sh -lc 'if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi'",
+              "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+              "returncode": 0,
+              "started_at": "2026-04-28T11:15:46.868304+08:00",
+              "finished_at": "2026-04-28T11:16:01.587572+08:00",
+              "duration_seconds": 14.719,
+              "stdout": "tests/e2e_test/test_bench.py::test_simple_benchmark[/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[eidf-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[dief-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_e2e.py::test_e2e[didf-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[running-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[running-gloo-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[waiting-rpc-/mnt/model/Qwen-7B]\ntests/e2e_test/test_migration.py::test_migration_benchmark[waiting-gloo-/mnt/model/Qwen-7B]\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_process_model_outputs\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_from_engine_args\ntests/unit_test/backends/vllm/test_llm_engine.py::test_llm_engine_add_requset\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[waiting-nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_migration_correctness[running-nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[rpc]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[gloo]\ntests/unit_test/backends/vllm/test_migration.py::test_pd_diaggregation_correctness[nccl]\ntests/unit_test/backends/vllm/test_migration.py::test_clear_migration_states\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[rpc]\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[gloo]\ntests/unit_test/backends/vllm/test_migration_backend.py::test_migrate_cache[nccl]\ntests/unit_test/backends/vllm/test_scheduler.py::test_manager_get_free_blocks\ntests/unit_test/backends/vllm/test_scheduler.py::test_manager_add_block_table\ntests/unit_test/backends/vllm/test_scheduler.py::test_sequence_group_inference_type\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_num_killed_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_running_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_waiting_request\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_migrating_out_request_last_stage\ntests/unit_test/backends/vllm/test_scheduler.py::test_scheduler_pre_alloc\ntests/unit_test/backends/vllm/test_scheduler.py::test_schedule_running\ntests/unit_test/backends/vllm/test_scheduler.py::test_try_schedule_times\ntests/unit_test/backends/vllm/test_simulator.py::test_executor\ntests/unit_test/backends/vllm/test_simulator.py::test_backend\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[rpc]\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[gloo]\ntests/unit_test/backends/vllm/test_worker.py::test_reserve_memory_for_migration[nccl]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[rpc]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[gloo]\ntests/unit_test/backends/vllm/test_worker.py::test_rebuild_migration_backend[nccl]\ntests/unit_test/entrypoints/test_utils.py::test_launch_ray_cluster\ntests/unit_test/entrypoints/test_utils.py::test_init_manager\ntests/unit_test/entrypoints/test_utils.py::test_init_zmq\ntests/unit_test/entrypoints/test_utils.py::test_retry_manager_method_sync\ntests/unit_test/entrypoints/test_utils.py::test_retry_manager_method_async\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[zmq-generate]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[zmq-generate_benchmark]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[rayqueue-generate]\ntests/unit_test/entrypoints/vllm/test_api_server.py::test_api_server[rayqueue-generate_benchmark]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[1]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[2]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_add_instance_and_remove_instance[3]\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_balanced\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_load\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_queue\ntests/unit_test/global_scheduler/test_dispatch_scheduler.py::test_dispatch_rr\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_scale_up_and_scale_down\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_update_instance_infos\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_dispatch\ntests/unit_test/global_scheduler/test_global_scheduler.py::test_pair_migration\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_manager\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlet\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlets\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_init_llumlets_sim\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_scale_up_and_down\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_connect_to_instances\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_generate_and_abort\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_get_request_instance\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_update_instance_info_loop_and_migrate\ntests/unit_test/global_scheduler/test_llm_engine_manager.py::test_concurrent_migrate\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_add_instance_and_remove_instance\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[NO_CONSTRAINTS]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[DECODING_2_DECODING]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_migration_filter[PREFILL_2_DECODING]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_pair_migration[balanced]\ntests/unit_test/global_scheduler/test_migration_scheduler.py::test_pair_migration[defrag_constrained]\ntests/unit_test/llumlet/test_engine_step_exception.py::test_engine_step_exception\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_scheduler_policy\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_scheduler_should_abort_migration\ntests/unit_test/llumlet/test_local_migration_scheduler.py::test_blocking_migration\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_onestage\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_running_request\ntests/unit_test/llumlet/test_migration_coordinator.py::test_migrate_out_waiting_request\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[128.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[256.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[512.0]\ntests/unit_test/queue/test_zmq.py::test_queue_zmq[1024.0]\n\n94 tests collected in 2.06s\n\n__REPO2RUN_TEST_EXIT_CODE__=0\n",
+              "stderr": "sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute\n",
+              "timed_out": false,
+              "timeout_seconds": 1800
+            },
+            "classification": {
+              "effective": true,
+              "reason": "tests_collected_successfully",
+              "effective_signal": true,
+              "failure_signal": false,
+              "empty_signal": false,
+              "help_signal": false,
+              "invocation_error_signal": false,
+              "collection_error_signal": false,
+              "internal_repo_import_error_signal": false
+            }
+          }
+        ],
+        "effective_test_command_count": 1,
+        "all_test_commands_effective": true
+      },
+      "success": true
+    }
+  ],
+  "dockerfile_repair_rounds": [],
+  "docker_cleanup": {
+    "command": [
+      "docker",
+      "image",
+      "rm",
+      "-f",
+      "jayint-repo2run-alibabapai__llumnix"
+    ],
+    "command_shell": "docker image rm -f jayint-repo2run-alibabapai__llumnix",
+    "cwd": "/Users/panjianying/Desktop/Jayint-repo_repo2run",
+    "returncode": 0,
+    "started_at": "2026-04-28T11:16:01.614573+08:00",
+    "finished_at": "2026-04-28T11:16:01.646842+08:00",
+    "duration_seconds": 0.032,
+    "stdout": "Untagged: jayint-repo2run-alibabapai__llumnix:latest\nDeleted: sha256:1ef3d905544aa81971a69775a7cc85f47b13a42c8cd7b19145f12bd01dc47727\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": null
+  },
+  "dockerfile_generation_success": true,
+  "environment_build_success": true,
+  "paper_build_success": true,
+  "paper_alignment": "matched_success",
+  "execution_status": "environment_built",
+  "debug_artifacts": {
+    "benchmark_log_path": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/benchmark_run.md",
+    "terminal_logs_dir": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs",
+    "agent_run": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/agent_run.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/agent_run.stderr.log"
+    },
+    "docker_build": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_build.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_build.stderr.log"
+    },
+    "dockerfile_validation_attempts": [
+      {
+        "attempt": 0,
+        "success": true,
+        "docker_build": {
+          "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_build_attempt_0.stdout.log",
+          "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_build_attempt_0.stderr.log"
+        },
+        "test_execution": [
+          {
+            "index": 1,
+            "test_command": "pytest --collect-only -q --disable-warnings",
+            "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/test_execution_attempt_0_1.stdout.log",
+            "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/test_execution_attempt_0_1.stderr.log"
+          }
+        ]
+      }
+    ],
+    "test_execution": [
+      {
+        "index": 1,
+        "test_command": "pytest --collect-only -q --disable-warnings",
+        "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/test_execution_1.stdout.log",
+        "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/test_execution_1.stderr.log"
+      }
+    ],
+    "docker_cleanup": {
+      "stdout_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_cleanup.stdout.log",
+      "stderr_log": "/Users/panjianying/Desktop/Jayint-repo_repo2run/outputs/repo2run_benchmark/eval_artifacts/AlibabaPAI__llumnix/terminal_logs/docker_cleanup.stderr.log"
+    }
+  }
+}
