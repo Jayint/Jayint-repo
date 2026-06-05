@@ -1,7 +1,8 @@
 # Runbook: RAT benchmark on a Linux box (Vultr/DO, Singapore)
 
-Decisions (2026-06-05): memory-optimized box in **Singapore**, **amd64**, results via **git branch + bucket**,
-teammate in China **consumes results only** (one owner runs the box).
+Decisions (2026-06-05): **Hetzner Cloud, Singapore** (CCX43: 16 vCPU / 64 GB / 360 GB NVMe), **amd64**,
+results via **git branch + bucket**, teammate in China **consumes results only** (one owner runs the box).
+~$0.18/hr (~3× cheaper than DO). Runbook is provider-agnostic; only Step 1 is Hetzner-specific.
 
 Why a box: a 16 GB Mac swap-stalled at K=3 when 3 heavy repos overlapped. RAM is the wall, not CPU.
 128 GB removes it, so heavy repos stop fighting for memory and plain `xargs -P N` is enough (no scheduler needed).
@@ -10,25 +11,36 @@ Why a box: a 16 GB Mac swap-stalled at K=3 when 3 heavy repos overlapped. RAM is
 
 ## 0. What you do vs what I can drive
 
-- **You (cloud console, ~10 min):** create the instance + SSH key, create a private GitHub repo for code
-  transfer, (optional) create a bucket for logs.
-- **Me (once the box exists + I have SSH, or you paste commands with `!`):** the whole install → transfer →
-  run → publish-results pipeline below.
+- **You (Hetzner console, ~10 min):** create the server (authorize **this Mac's SSH key** on it), create a
+  private GitHub repo for code transfer, (optional) create a bucket for logs.
+- **Me:** once the box exists and the Mac key is authorized, I drive the whole install → transfer → run →
+  publish-results pipeline by running `ssh root@<IP> '<cmd>'` from this Mac's shell. (Alternatively you paste
+  my commands with the `!` prefix.)
 
-I cannot click the Vultr/DO UI or hold cloud credentials, so provisioning (Step 1) is yours. Everything after
-is scriptable.
+I cannot click the Hetzner UI or hold cloud credentials, so provisioning (Step 1) is yours. Everything after
+is scriptable from here.
 
 ---
 
-## 1. Provision (you)
+## 1. Provision (you) — Hetzner Cloud
 
-**Vultr:** Compute → "Optimized Cloud Compute" → **Memory Optimized** → **Singapore** →
-16 vCPU / 128 GB RAM / NVMe → **Ubuntu 22.04** → attach your SSH key → Deploy.
+Hetzner Cloud Console (console.hetzner.cloud) → your project → **Add Server**:
+- **Location:** Singapore (`sin`)
+- **Image:** Ubuntu 22.04
+- **Type:** Dedicated vCPU → **CCX43** (16 vCPU / 64 GB / 360 GB NVMe).
+  - cheaper smoke-only option: **CCX33** (8 vCPU / 32 GB); full-500 headroom: **CCX53** (32 / 128).
+- **SSH key:** paste this Mac's public key so I can drive the box over SSH:
+  ```
+  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICmtaciADPL2ZeK58VPJsE3D7HU4TjqooYxwubYQoElM john@John-Zhangs-MacBook-Pro.local
+  ```
+- Create. Note the public IP. Confirm from the Mac: `ssh root@<IP> 'echo ok'`.
 
-**DigitalOcean (equivalent):** Droplets → **Memory-Optimized** → region **SGP1** →
-`m-16vcpu-128gb` → **Ubuntu 22.04** → SSH key → Create.
+Cost ~$0.18/hr, billed hourly. **Hetzner bills a server as long as it EXISTS (even powered off).** To stop
+the meter: snapshot it (~€0.01/GB/mo) then **delete** the server; recreate from snapshot when needed.
 
-Note the public IP. Confirm `ssh root@<IP>` works. (cost-no-object → take the 128 GB tier.)
+_Alternatives (same runbook, only this step differs): DigitalOcean Mem-Optimized SGP1 64 GB ($0.50/hr);
+Vultr High Frequency 58 GB Singapore ($0.48/hr); AWS/GCP spot in Singapore (cheapest hourly; our resume-safe
+runner shrugs off spot reclaims)._
 
 ---
 
