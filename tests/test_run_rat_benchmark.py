@@ -1,0 +1,491 @@
+"""
+Offline tests for run_rat_benchmark.py.
+
+Techniques used:
+- monkeypatch DockerAgentModel.predict to a fake that writes per-repo JSONs
+- fake child scripts via monkeypatching subprocess.Popen in _run_child
+- tmpdir fixtures for full isolation
+- no Docker, no LLM, no network
+"""
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import textwrap
+import time
+from pathlib import Path
+from typing import Optional
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+# ── point env vars BEFORE any import of run_rat_benchmark ────────────────────
+os.environ["RAT_ROOT"] = "/tmp/runanything/src"
+os.environ["DOCKERAGENT_ROOT"] = "/Users/john/rat-bench-integration"
+
+# Ensure both roots are importable
+sys.path.insert(0, os.environ["RAT_ROOT"])
+sys.path.insert(0, os.environ["DOCKERAGENT_ROOT"])
+
+import run_rat_benchmark as rrb  # noqa: E402  (must come after env setup)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fixtures & helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+SAMPLE_REPOS = [
+    {"full_name": "org/alpha", "_tier": "smoke", "_category": "cat_a"},
+    {"full_name": "org/beta",  "_tier": "smoke", "_category": "cat_b"},
+    {"full_name": "org/gamma", "_tier": "extended", "_category": "cat_a"},
+    {"full_name": "org/delta", "_tier": "extended", "_category": "cat_b"},
+    {"full_name": "org/eps",   "_tier": "smoke", "_category": "cat_a"},
+]
+
+
+@pytest.fixture()
+def repos_json_dict(tmp_path):
+    """Write a {"repos":[...]} dict JSON and return its path."""
+    p = tmp_path / "repos_dict.json"
+    p.write_text(json.dumps({"repos": SAMPLE_REPOS}))
+    return str(p)
+
+
+@pytest.fixture()
+def repos_json_list(tmp_path):
+    """Write a bare-list JSON and return its path."""
+    p = tmp_path / "repos_list.json"
+    p.write_text(json.dumps(SAMPLE_REPOS))
+    return str(p)
+
+
+@pytest.fixture()
+def root_path(tmp_path):
+    """Return a fresh root_path for each test."""
+    rp = tmp_path / "rat_run"
+    rp.mkdir()
+    return str(rp)
+
+
+def _fake_predict(full_name: str, root_path: str, *, success: bool = True) -> dict:
+    """Simulate what a real predict() + RAT pytest tools produce on disk."""
+    out_dir = Path(root_path) / "output" / full_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if success:
+        pytest_results = {
+            "summary": {
+                "total_tests": 10,
+                "passed": 8,
+                "failed": 1,
+                "errors": 1,
+                "skipped": 0,
+            },
+            "error_breakdown": {},
+        }
+        collect_results = {"success": True, "collected": 10}
+        (out_dir / "run_pytest_results.json").write_text(json.dumps(pytest_results))
+        (out_dir / "run_pytest_collect_results.json").write_text(json.dumps(collect_results))
+        return {"status": "success", "root_path": root_path, "full_name": full_name}
+    else:
+        return {
+            "status": "error",
+            "failure_reason": "repo_error",
+            "root_path": root_path,
+            "full_name": full_name,
+        }
+
+
+def _make_fake_model(root_path: str, success: bool = True):
+    """Return a mock DockerAgentModel whose predict() writes the right disk artifacts."""
+
+    class FakeModel:
+        def __init__(self, *args, **kwargs):
+            self._root_path = root_path
+
+        def predict(self, full_name: str) -> dict:
+            return _fake_predict(full_name, self._root_path, success=success)
+
+    return FakeModel()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. load_repos: dict format
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_load_repos_dict_format(repos_json_dict):
+    repos = rrb.load_repos(repos_json_dict)
+    assert isinstance(repos, list)
+    assert len(repos) == len(SAMPLE_REPOS)
+    assert repos[0]["full_name"] == "org/alpha"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. load_repos: bare list format
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_load_repos_bare_list_format(repos_json_list):
+    repos = rrb.load_repos(repos_json_list)
+    assert isinstance(repos, list)
+    assert len(repos) == len(SAMPLE_REPOS)
+    assert repos[1]["full_name"] == "org/beta"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. selection: tier filter
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_select_repos_tier_filter(repos_json_dict):
+    repos = rrb._select_repos(repos_json_dict, tier="smoke", category=None, offset=0, limit=None)
+    assert all(r["_tier"] == "smoke" for r in repos)
+    assert len(repos) == 3  # alpha, beta, eps
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. selection: category filter
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_select_repos_category_filter(repos_json_dict):
+    repos = rrb._select_repos(repos_json_dict, tier="all", category="cat_a", offset=0, limit=None)
+    assert all(r["_category"] == "cat_a" for r in repos)
+    assert {r["full_name"] for r in repos} == {"org/alpha", "org/gamma", "org/eps"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. selection: offset+limit slice ordering
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_select_repos_offset_limit(repos_json_dict):
+    repos = rrb._select_repos(repos_json_dict, tier="all", category=None, offset=1, limit=2)
+    assert len(repos) == 2
+    # Must preserve original list order: index 1 and 2 from SAMPLE_REPOS
+    assert repos[0]["full_name"] == SAMPLE_REPOS[1]["full_name"]
+    assert repos[1]["full_name"] == SAMPLE_REPOS[2]["full_name"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. selection: empty selection returns n==0 cleanly
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_select_repos_empty_selection(repos_json_dict):
+    repos = rrb._select_repos(repos_json_dict, tier="smoke", category="nonexistent_cat",
+                               offset=0, limit=None)
+    assert repos == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. _run_one: writes _result_row.json + _meta.json, NOT rat_results.json
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_run_one_writes_per_repo_files_not_shared(root_path, monkeypatch):
+    full_name = "org/alpha"
+    model = _make_fake_model(root_path, success=True)
+
+    row = rrb._run_one(full_name, model, root_path, "cat_a")
+
+    out_dir = Path(root_path) / "output" / full_name
+    assert (out_dir / "_result_row.json").exists(), "_result_row.json must exist"
+    assert (out_dir / "_meta.json").exists(), "_meta.json must exist"
+    # rat_results.json must NOT be written by _run_one
+    assert not (Path(root_path) / "rat_results.json").exists(), (
+        "_run_one must NOT write rat_results.json"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. scorer keys present in the row
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_run_one_scorer_keys_in_row(root_path):
+    full_name = "org/alpha"
+    model = _make_fake_model(root_path, success=True)
+
+    row = rrb._run_one(full_name, model, root_path, "cat_a")
+
+    for key in ("success", "pytest_collect_success", "pytest_pass_rate",
+                "pass_rate_exclude_code_issues"):
+        assert key in row, f"Expected scorer key '{key}' in result row"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. resume-skip: pre-existing run_pytest_results.json skips the repo
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_run_one_resume_skip(root_path):
+    full_name = "org/alpha"
+    out_dir = Path(root_path) / "output" / full_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Pre-write the done marker AND a result row
+    _fake_predict(full_name, root_path, success=True)
+    row_data = {"status": "success", "root_path": root_path, "full_name": full_name,
+                "success": True, "pytest_collect_success": True,
+                "pytest_pass_rate": 0.8, "pass_rate_exclude_code_issues": 0.8,
+                "_category": "cat_a"}
+    (out_dir / "_result_row.json").write_text(json.dumps(row_data))
+
+    call_count = 0
+
+    class CountingModel:
+        def predict(self, full_name: str) -> dict:
+            nonlocal call_count
+            call_count += 1
+            return {"status": "success", "root_path": root_path, "full_name": full_name}
+
+    rrb._run_one(full_name, CountingModel(), root_path, "cat_a")
+    assert call_count == 0, "predict() must NOT be called when run_pytest_results.json exists"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. scheduler: never exceeds N concurrent children
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_scheduler_concurrency_limit(tmp_path, repos_json_list):
+    """
+    Verify the scheduler never has more than `concurrency` children in flight.
+    We do this by replacing subprocess.Popen with a fake that measures peak
+    in-flight count (holding a slot open briefly).
+    """
+    root_path = str(tmp_path / "rat_run")
+    os.makedirs(root_path, exist_ok=True)
+    concurrency = 2
+
+    # Build a small repo list
+    repos = [
+        {"full_name": f"org/repo{i}", "_category": "cat_a"}
+        for i in range(5)
+    ]
+
+    peak_concurrent = [0]
+    current_concurrent = [0]
+
+    class FakeProc:
+        def __init__(self, full_name):
+            self.full_name = full_name
+            self.returncode = 0
+            self.pid = os.getpid()
+
+        def wait(self, timeout=None):
+            # Measure peak; simulate brief work
+            current_concurrent[0] += 1
+            peak_concurrent[0] = max(peak_concurrent[0], current_concurrent[0])
+            time.sleep(0.02)
+            current_concurrent[0] -= 1
+            # Write a fake _result_row.json so _run_child doesn't synthesize an error row
+            out_dir = Path(root_path) / "output" / self.full_name
+            out_dir.mkdir(parents=True, exist_ok=True)
+            row = {
+                "status": "success",
+                "full_name": self.full_name,
+                "root_path": root_path,
+                "_category": "cat_a",
+                "success": True,
+                "pytest_collect_success": False,
+                "pytest_pass_rate": 0.0,
+                "pass_rate_exclude_code_issues": 0.0,
+            }
+            (out_dir / "_result_row.json").write_text(json.dumps(row))
+            (out_dir / "run.log").write_bytes(b"")
+
+    original_popen = subprocess.Popen
+
+    def fake_popen(cmd, stdout=None, stderr=None, start_new_session=False, **kwargs):
+        # Extract full_name from --only argument
+        try:
+            idx = cmd.index("--only")
+            full_name = cmd[idx + 1]
+        except (ValueError, IndexError):
+            full_name = "org/unknown"
+        proc = FakeProc(full_name)
+        return proc
+
+    with patch("subprocess.Popen", side_effect=fake_popen):
+        # Also patch os.killpg / os.getpgid in case scheduler tries to kill
+        with patch("os.killpg", return_value=None):
+            rrb.scheduler(
+                repos=repos,
+                root_path=root_path,
+                llm="fake-llm",
+                timeout=30,
+                num_turn=1,
+                repos_json=repos_json_list,
+                concurrency=concurrency,
+            )
+
+    assert peak_concurrent[0] <= concurrency, (
+        f"Peak concurrent={peak_concurrent[0]} exceeded concurrency={concurrency}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11. scheduler: child exit != 0 / missing row -> status:error row
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_scheduler_child_nonzero_exit_yields_error_row(tmp_path, repos_json_list):
+    """Child exits non-zero and writes no _result_row.json → synthesized error row."""
+    root_path = str(tmp_path / "rat_run")
+    os.makedirs(root_path, exist_ok=True)
+
+    repos = [{"full_name": "org/failing", "_category": "cat_x"}]
+
+    class BadProc:
+        returncode = 1
+        pid = os.getpid()
+
+        def wait(self, timeout=None):
+            # Write a log file but NO _result_row.json
+            out_dir = Path(root_path) / "output" / "org/failing"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / "run.log").write_bytes(b"child crashed")
+
+    with patch("subprocess.Popen", return_value=BadProc()):
+        with patch("os.killpg", return_value=None):
+            rrb.scheduler(
+                repos=repos,
+                root_path=root_path,
+                llm="fake-llm",
+                timeout=30,
+                num_turn=1,
+                repos_json=repos_json_list,
+                concurrency=1,
+            )
+
+    row_path = Path(root_path) / "output" / "org/failing" / "_result_row.json"
+    assert row_path.exists(), "Synthesized error row must be written"
+    row = json.loads(row_path.read_text())
+    assert row["status"] == "error"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. scheduler: child exceeds wall-clock -> killed, status:timeout + failure_reason harness_timeout
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_scheduler_child_timeout_yields_timeout_row(tmp_path, repos_json_list):
+    """Child hangs past hard_wall → killed, synthesized timeout row."""
+    root_path = str(tmp_path / "rat_run")
+    os.makedirs(root_path, exist_ok=True)
+
+    repos = [{"full_name": "org/slow", "_category": "cat_y"}]
+
+    class HangingProc:
+        pid = os.getpid()
+        returncode = -9
+
+        def wait(self, timeout=None):
+            if timeout is not None:
+                raise subprocess.TimeoutExpired(cmd="fake", timeout=timeout)
+            # second wait() after kill
+            return
+
+    with patch("subprocess.Popen", return_value=HangingProc()):
+        with patch("os.killpg", return_value=None):
+            with patch("os.getpgid", return_value=os.getpid()):
+                rrb.scheduler(
+                    repos=repos,
+                    root_path=root_path,
+                    llm="fake-llm",
+                    timeout=5,
+                    num_turn=1,
+                    repos_json=repos_json_list,
+                    concurrency=1,
+                )
+
+    row_path = Path(root_path) / "output" / "org/slow" / "_result_row.json"
+    assert row_path.exists(), "Synthesized timeout row must be written"
+    row = json.loads(row_path.read_text())
+    assert row["status"] == "timeout"
+    assert row.get("failure_reason") == "harness_timeout"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 13. parallel children do NOT clobber rat_results.json (regression test for CQ-1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_parallel_children_do_not_write_rat_results_json(tmp_path, repos_json_list):
+    """
+    _run_one (the child code path) must never write rat_results.json.
+    Simulate two concurrent _run_one calls and confirm rat_results.json is absent.
+    """
+    root_path = str(tmp_path / "rat_run")
+    os.makedirs(root_path, exist_ok=True)
+
+    repos = [
+        {"full_name": "org/p1", "_category": "cat_a"},
+        {"full_name": "org/p2", "_category": "cat_b"},
+    ]
+
+    for r in repos:
+        model = _make_fake_model(root_path, success=True)
+        rrb._run_one(r["full_name"], model, root_path, r["_category"])
+
+    # rat_results.json must NOT exist at this point
+    assert not (Path(root_path) / "rat_results.json").exists(), (
+        "CQ-1 regression: _run_one must never write rat_results.json"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 14. aggregate-from-rows == sequential aggregation (same rat_results.json shape)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_aggregate_produces_correct_rat_results_json(root_path):
+    """aggregate() should glob all _result_row.json files and write rat_results.json."""
+    repos = [
+        {"full_name": "org/a", "_category": "cat_a"},
+        {"full_name": "org/b", "_category": "cat_b"},
+    ]
+
+    # Pre-write result rows as _run_one would
+    for r in repos:
+        model = _make_fake_model(root_path, success=True)
+        rrb._run_one(r["full_name"], model, root_path, r["_category"])
+
+    rows = rrb.aggregate(root_path)
+
+    rat_results_path = Path(root_path) / "rat_results.json"
+    assert rat_results_path.exists(), "aggregate() must write rat_results.json"
+
+    written = json.loads(rat_results_path.read_text())
+    assert isinstance(written, list)
+    assert len(written) == 2
+    # All four scorer keys must be present in every row
+    for row in written:
+        for key in ("success", "pytest_collect_success", "pytest_pass_rate",
+                    "pass_rate_exclude_code_issues"):
+            assert key in row, f"Scorer key '{key}' missing from aggregated row"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 15. worker_main / --only mode: writes _result_row.json + _meta.json, NOT rat_results.json
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_worker_main_only_mode(tmp_path, repos_json_dict, monkeypatch):
+    """
+    worker_main() is the --only code path.  It must write per-repo files and
+    must NOT write rat_results.json.
+    """
+    root_path = str(tmp_path / "rat_run")
+    full_name = "org/alpha"
+
+    def fake_docker_model_cls(root_path, timeout, llm, num_turn):
+        return _make_fake_model(root_path, success=True)
+
+    monkeypatch.setattr(rrb, "DockerAgentModel", fake_docker_model_cls)
+
+    rrb.worker_main(
+        full_name=full_name,
+        root_path=root_path,
+        llm="fake-llm",
+        timeout=30,
+        num_turn=1,
+        repos_json=repos_json_dict,
+    )
+
+    out_dir = Path(root_path) / "output" / full_name
+    assert (out_dir / "_result_row.json").exists(), "_result_row.json must exist after worker_main"
+    assert (out_dir / "_meta.json").exists(), "_meta.json must exist after worker_main"
+    assert not (Path(root_path) / "rat_results.json").exists(), (
+        "worker_main (--only) must NOT write rat_results.json"
+    )
