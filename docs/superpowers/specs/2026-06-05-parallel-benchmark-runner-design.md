@@ -92,3 +92,46 @@ Only **scheduling** and **cache warming** change. The agent, the Dockerfile it p
 - Where to bump Docker VM RAM (manual Docker Desktop setting vs documented prerequisite).
 - Failure handling: a worker that crashes drops that repo to a recorded `status:error` row (not the whole batch).
 - Optional later: persistent pip wheel cache (needs care to stay result-neutral — deferred).
+
+## 9. Review outcomes (2026-06-05 `/plan-eng-review`)
+
+1. **Concurrency mechanism: subprocess fan-out, NOT `ProcessPoolExecutor`.** `run_rat_benchmark.py --concurrency N` fans out N independent subprocesses of itself (`--limit 1 --offset i` per repo), semaphore-bounded. Reason: `ProcessPoolExecutor` raises `BrokenProcessPool` if a single worker is OOM-killed, taking the whole batch down. Subprocess isolation + resume-skip survives any one repo's crash and yields per-repo logs for free. Stays in one file.
+2. **Parent supervises children.** Parent enforces a hard wall-clock per child (`--timeout` + ~600s slack); on breach it kills the process tree, records `status:timeout`, frees the slot. Also add explicit `timeout=` to the `docker build/exec/cp` calls in `predict()` (RAT-tree model file). Reason: those calls have no timeout and the in-process 7200s budget only checks between agent steps, so a wedged build would hold a slot forever.
+3. **Per-repo result rows (no shared-file clobber).** Single/child mode writes `out_dir/_result_row.json`; the scheduler parent globs all rows and writes the one `rat_results.json` + per-category report. Reason: N children all writing `rat_results.json` (`run_rat_benchmark.py:73`) would clobber each other. Preserving the child's own row also keeps its true `status` (no reconstruction).
+4. **Concurrency level: start K=3, measure, raise on margin.** Heavy smoke repos (`darts`, `LibreTranslate`, `OpenManus`, `markitdown`, `memU-server`, `Scrapling`) can exceed the 7200s budget under contention → false `status:timeout`. Measure heavy-repo wall-clock at K=3 before raising. Tiered concurrency (heavy solo / light high-K) deferred to a TODO.
+5. **Disk watermark.** Before launching each child, check free disk; pause new launches below ~15 GB and run scoped cleanup. Reason: 57 GB ceiling + heavy images × K → "no space left on device" cascades.
+6. **Validate by contention signature, not pass_rate diff.** Scan per-repo `run.log` for `Killed`/exit 137 (OOM), `no space left on device`, and `status:timeout`. Zero across the run = result-neutral. pass_rate diffing is too noisy given LLM non-determinism + unpinned HEAD.
+
+### Data flow (post-review)
+
+```
+run_rat_benchmark.py --concurrency 3 --tier smoke
+   │
+   ├─ pre-pull base images (once)
+   │
+   ├─ SCHEDULER (semaphore = 3)
+   │     ├─ child: python run_rat_benchmark.py --limit 1 --offset i   stdout → out_dir/run.log
+   │     │     └─ predict(): clone → agent → docker build → pytest tools
+   │     │            └─ writes out_dir/{run_pytest_results.json,
+   │     │                              run_pytest_collect_results.json,
+   │     │                              _result_row.json}
+   │     ├─ child i+1 ...                     (<= 3 in flight)
+   │     ├─ hard-kill any child past timeout+slack → status:timeout row
+   │     └─ child exit != 0 / no row          → synthesize status:error row
+   │
+   ├─ collect: glob out_dir/**/_result_row.json
+   ├─ aggregate: overall + per-category       → rat_run/rat_results.json
+   └─ final cleanup: docker image prune -f ; docker builder prune -f
+```
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 3 decisions resolved, 0 critical gaps, 15 test paths to add |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+
+**UNRESOLVED:** 0
+**VERDICT:** ENG CLEARED — design is buildable. Remaining work is the implementation plan (scheduler, supervision, per-repo rows, tests).
