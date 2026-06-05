@@ -203,10 +203,14 @@ class DockerAgent:
             )
         
         # 3. Initialize LLM client first (needed for image selection)
-        api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE")
+        #    Provider precedence: OpenRouter -> MiniMax -> OpenAI (all OpenAI-compatible).
+        api_key = (os.getenv("OPENROUTER_API_KEY")
+                   or os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY"))
+        base_url = (os.getenv("OPENROUTER_API_BASE")
+                    or os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE"))
         if not api_key:
-            raise ValueError("MINIMAX_API_KEY or OPENAI_API_KEY not found in environment variables.")
+            raise ValueError("No LLM API key found. Set OPENROUTER_API_KEY, MINIMAX_API_KEY, "
+                             "or OPENAI_API_KEY in environment variables (.env).")
             
         self.client = OpenAI(
             api_key=api_key,

@@ -69,10 +69,13 @@ def infer_workdir_from_dockerfile_text(dockerfile_text: str) -> str:
 
 
 def create_openai_client_from_env() -> OpenAI:
-    api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
-    base_url = os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE")
+    api_key = (os.getenv("OPENROUTER_API_KEY")
+               or os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY"))
+    base_url = (os.getenv("OPENROUTER_API_BASE")
+                or os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE"))
     if not api_key:
-        raise ValueError("MINIMAX_API_KEY or OPENAI_API_KEY not found in environment variables.")
+        raise ValueError("No LLM API key found. Set OPENROUTER_API_KEY, MINIMAX_API_KEY, "
+                         "or OPENAI_API_KEY in environment variables (.env).")
     return OpenAI(api_key=api_key, base_url=base_url if base_url else None)
 
 
