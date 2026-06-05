@@ -33,7 +33,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, FIRST_COMPLETED, wait
 from glob import glob
 from typing import Optional
 
@@ -405,6 +405,7 @@ def scheduler(
     repos_json: str,
     concurrency: int,
     disk_low_gb: float = 15.0,
+    poll_interval: float = 30.0,
     model_name: str = "dockeragent",
 ) -> None:
     """Fan-out repos as independent child subprocesses, at most `concurrency` in flight.
@@ -451,8 +452,13 @@ def scheduler(
 
         # Drain completed futures; refill slots.
         while futures_map:
-            done_futures = list(as_completed(futures_map, timeout=30))
-            # as_completed with timeout returns whatever completed so far.
+            # wait() returns (done, not_done) and does NOT raise when the window
+            # elapses with futures still in flight. as_completed(timeout=) raises
+            # concurrent.futures.TimeoutError in that case, which previously killed
+            # the whole run the moment a wave took longer than the poll window.
+            done_futures, _ = wait(
+                list(futures_map), timeout=poll_interval, return_when=FIRST_COMPLETED,
+            )
             for fut in done_futures:
                 full_name = futures_map.pop(fut)
                 try:

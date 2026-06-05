@@ -320,6 +320,69 @@ def test_scheduler_concurrency_limit(tmp_path, repos_json_list):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 10b. scheduler: a wave slower than the poll window must NOT crash the scheduler
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_scheduler_survives_wave_slower_than_poll_window(tmp_path, repos_json_list):
+    """Regression: when no future completes within the poll window, the scheduler
+    must keep waiting — not raise. The old code used
+    ``list(as_completed(futures_map, timeout=30))``, which raises
+    ``concurrent.futures.TimeoutError`` once the window elapses with futures still
+    unfinished. In production that killed the K=8 run at 8/50 the moment the first
+    slow build wave failed to finish inside 30s. Here we shrink the window to 0.05s
+    and make every child take 0.2s, so every window elapses with work in flight.
+    """
+    root_path = str(tmp_path / "rat_run")
+    os.makedirs(root_path, exist_ok=True)
+    repos = [{"full_name": f"org/slow{i}", "_category": "cat_a"} for i in range(4)]
+
+    class SlowProc:
+        def __init__(self, full_name):
+            self.full_name = full_name
+            self.returncode = 0
+            self.pid = os.getpid()
+
+        def wait(self, timeout=None):
+            time.sleep(0.2)  # longer than the 0.05s poll window
+            out_dir = Path(root_path) / "output" / self.full_name
+            out_dir.mkdir(parents=True, exist_ok=True)
+            row = {
+                "status": "success",
+                "full_name": self.full_name,
+                "root_path": root_path,
+                "_category": "cat_a",
+                "success": True,
+                "pytest_collect_success": False,
+                "pytest_pass_rate": 0.0,
+                "pass_rate_exclude_code_issues": 0.0,
+            }
+            (out_dir / "_result_row.json").write_text(json.dumps(row))
+            (out_dir / "run.log").write_bytes(b"")
+
+    def fake_popen(cmd, **kwargs):
+        idx = cmd.index("--only")
+        return SlowProc(cmd[idx + 1])
+
+    with patch("subprocess.Popen", side_effect=fake_popen):
+        with patch("os.killpg", return_value=None):
+            rrb.scheduler(
+                repos=repos,
+                root_path=root_path,
+                llm="fake-llm",
+                timeout=30,
+                num_turn=1,
+                repos_json=repos_json_list,
+                concurrency=2,
+                poll_interval=0.05,
+            )
+
+    for i in range(4):
+        assert (
+            Path(root_path) / "output" / f"org/slow{i}" / "_result_row.json"
+        ).exists(), f"org/slow{i} was never processed — scheduler aborted early"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 11. scheduler: child exit != 0 / missing row -> status:error row
 # ─────────────────────────────────────────────────────────────────────────────
 
