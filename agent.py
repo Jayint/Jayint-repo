@@ -217,6 +217,21 @@ class DockerAgent:
             base_url=base_url if base_url else None
         )
 
+        # Pin OpenRouter provider so all downstream calls carry it.
+        _is_openrouter = (
+            (base_url and "openrouter" in base_url)
+            or os.getenv("LLM_API_PROVIDER") == "openrouter"
+        )
+        if _is_openrouter:
+            _orig = self.client.chat.completions.create
+            _providers = [p.strip() for p in os.getenv("OPENROUTER_PROVIDER", "Alibaba").split(",") if p.strip()]
+            def _routed_create(*a, _orig=_orig, **k):
+                eb = dict(k.get("extra_body") or {})
+                eb.setdefault("provider", {"order": _providers, "allow_fallbacks": False})
+                k["extra_body"] = eb
+                return _orig(*a, **k)
+            self.client.chat.completions.create = _routed_create
+
         if self.enable_long_term_memory:
             self.memory_manager = LongTermMemoryManager(
                 client=self.client,

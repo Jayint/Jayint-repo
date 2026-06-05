@@ -489,3 +489,116 @@ def test_worker_main_only_mode(tmp_path, repos_json_dict, monkeypatch):
     assert not (Path(root_path) / "rat_results.json").exists(), (
         "worker_main (--only) must NOT write rat_results.json"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 16. _make_model returns the right class for each model name
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_make_model_dockeragent(monkeypatch, tmp_path):
+    """_make_model('dockeragent', ...) returns a DockerAgentModel instance."""
+    root_path = str(tmp_path / "rat_run")
+
+    # Monkeypatch DockerAgentModel at the rrb module level (same target tests already use)
+    instances = []
+
+    def fake_docker_cls(**kwargs):
+        obj = MagicMock()
+        instances.append(("dockeragent", kwargs))
+        return obj
+
+    monkeypatch.setattr(rrb, "DockerAgentModel", fake_docker_cls)
+
+    rrb._make_model("dockeragent", root_path, timeout=60, llm="test-llm", num_turn=5)
+
+    assert len(instances) == 1
+    assert instances[0][0] == "dockeragent"
+    kw = instances[0][1]
+    assert kw["root_path"] == root_path
+    assert kw["timeout"] == 60
+    assert kw["llm"] == "test-llm"
+    assert kw["num_turn"] == 5
+
+
+def test_make_model_rat(monkeypatch, tmp_path):
+    """_make_model('rat', ...) lazy-imports and returns a RATModel instance."""
+    root_path = str(tmp_path / "rat_run")
+
+    fake_rat_instance = MagicMock()
+    fake_rat_instance.predict = MagicMock(return_value={"status": "success"})
+
+    captured = []
+
+    class FakeRATModel:
+        def __init__(self, **kwargs):
+            captured.append(kwargs)
+
+        def predict(self, full_name):
+            return {"status": "success"}
+
+    # Patch the lazy import inside _make_model by injecting into sys.modules
+    import types
+    fake_module = types.ModuleType("eval.models.rat_model")
+    fake_module.RATModel = FakeRATModel
+    monkeypatch.setitem(sys.modules, "eval.models.rat_model", fake_module)
+
+    model = rrb._make_model("rat", root_path, timeout=120, llm="rat-llm", num_turn=10)
+
+    assert len(captured) == 1
+    assert captured[0]["root_path"] == root_path
+    assert captured[0]["timeout"] == 120
+    assert captured[0]["llm"] == "rat-llm"
+    assert captured[0]["num_turn"] == 10
+    assert captured[0]["save_mode"] == "none"
+    assert isinstance(model, FakeRATModel)
+
+
+def test_make_model_repo2run(monkeypatch, tmp_path):
+    """_make_model('repo2run', ...) lazy-imports and returns a Repo2RunModel instance."""
+    root_path = str(tmp_path / "rat_run")
+
+    captured = []
+
+    class FakeRepo2RunModel:
+        def __init__(self, **kwargs):
+            captured.append(kwargs)
+
+        def predict(self, full_name):
+            return {"status": "success"}
+
+    import types
+    fake_module = types.ModuleType("eval.models.repo2run_model")
+    fake_module.Repo2RunModel = FakeRepo2RunModel
+    monkeypatch.setitem(sys.modules, "eval.models.repo2run_model", fake_module)
+
+    model = rrb._make_model("repo2run", root_path, timeout=300, llm="r2r-llm", num_turn=20)
+
+    assert len(captured) == 1
+    assert captured[0]["root_path"] == root_path
+    assert captured[0]["timeout"] == 300
+    assert captured[0]["llm"] == "r2r-llm"
+    assert captured[0]["num_turn"] == 20
+    assert isinstance(model, FakeRepo2RunModel)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 17. --model is forwarded into _child_cmd
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_child_cmd_includes_model_flag():
+    """_child_cmd must append --model <value> so worker children use the same model."""
+    for model_name in ("dockeragent", "rat", "repo2run"):
+        cmd = rrb._child_cmd(
+            full_name="org/testrepo",
+            root_path="/tmp/test_root",
+            llm="test-llm",
+            timeout=60,
+            num_turn=3,
+            repos_json="/tmp/repos.json",
+            model=model_name,
+        )
+        assert "--model" in cmd, f"--model not found in _child_cmd output for {model_name}"
+        model_idx = cmd.index("--model")
+        assert cmd[model_idx + 1] == model_name, (
+            f"Expected model value {model_name!r}, got {cmd[model_idx + 1]!r}"
+        )

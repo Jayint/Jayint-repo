@@ -6,16 +6,16 @@ Usage:
     # Sequential (original behaviour):
     python run_rat_benchmark.py [--repos-json PATH] [--root-path DIR] [--limit N]
         [--offset N] [--timeout SECS] [--llm MODEL] [--num-turn N]
-        [--tier all|smoke|extended] [--category CAT]
+        [--tier all|smoke|extended] [--category CAT] [--model dockeragent|rat|repo2run]
 
     # Worker mode — run exactly one repo and exit (called by scheduler):
     python run_rat_benchmark.py --only owner/repo [--root-path DIR] [--llm MODEL]
-        [--timeout SECS] [--num-turn N]
+        [--timeout SECS] [--num-turn N] [--model dockeragent|rat|repo2run]
 
     # Parallel scheduler mode:
     python run_rat_benchmark.py --concurrency N [--repos-json PATH] [--root-path DIR]
         [--tier all|smoke|extended] [--category CAT] [--limit N] [--offset N]
-        [--timeout SECS] [--llm MODEL] [--num-turn N]
+        [--timeout SECS] [--llm MODEL] [--num-turn N] [--model dockeragent|rat|repo2run]
 
     # Aggregate-only (glob existing rows → rat_results.json + report):
     python run_rat_benchmark.py --aggregate-only [--root-path DIR]
@@ -41,11 +41,39 @@ from typing import Optional
 os.environ.setdefault("RAT_ROOT", "/tmp/runanything/src")
 os.environ.setdefault("DOCKERAGENT_ROOT", "/Users/john/rat-bench-integration")
 
+# ── Load .env so API keys are available for all model paths ──────────────────
+from dotenv import load_dotenv; load_dotenv()
+
 sys.path[:0] = [os.environ["RAT_ROOT"]]               # RAT repo: scorers + the model file
 from eval.common.scorers import success_scorer, pytest_pass_rate_scorer, pytest_collect_scorer
 from eval.models.dockeragent_model import DockerAgentModel   # reuse the SAME predict()
 
 PY = sys.executable  # same interpreter for child subprocesses
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Model factory
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_model(model_name: str, root_path: str, timeout: int, llm: str, num_turn: int):
+    """Return the correct model instance for *model_name*.
+
+    dockeragent  → DockerAgentModel (imported at module level; tests monkeypatch this)
+    rat          → RATModel         (lazy import to avoid circular deps when not needed)
+    repo2run     → Repo2RunModel    (lazy import)
+    """
+    if model_name == "dockeragent":
+        return DockerAgentModel(root_path=root_path, timeout=timeout, llm=llm, num_turn=num_turn)
+    elif model_name == "rat":
+        from eval.models.rat_model import RATModel
+        return RATModel(root_path=root_path, timeout=timeout, llm=llm, num_turn=num_turn,
+                        save_mode="none")
+    elif model_name == "repo2run":
+        from eval.models.repo2run_model import Repo2RunModel
+        return Repo2RunModel(root_path=root_path, timeout=timeout, llm=llm, num_turn=num_turn)
+    else:
+        raise ValueError(f"Unknown model name: {model_name!r}. "
+                         "Choose one of: dockeragent, rat, repo2run")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,7 +260,7 @@ def aggregate(root_path: str) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn: int,
-               repos_json: str) -> list:
+               repos_json: str, model: str = "dockeragent") -> list:
     """Build the argv for a worker child process."""
     return [
         PY, __file__,
@@ -242,6 +270,7 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
         "--timeout", str(timeout),
         "--num-turn", str(num_turn),
         "--repos-json", repos_json,   # child needs it only if it ever falls into main(); harmless
+        "--model", model,
     ]
 
 
@@ -303,6 +332,7 @@ def _run_child(
     num_turn: int,
     repos_json: str,
     hard_wall: int,
+    model_name: str = "dockeragent",
 ) -> dict:
     """Run one child subprocess; return the result row.
 
@@ -323,7 +353,7 @@ def _run_child(
         except Exception:
             pass
 
-    cmd = _child_cmd(full_name, root_path, llm, timeout, num_turn, repos_json)
+    cmd = _child_cmd(full_name, root_path, llm, timeout, num_turn, repos_json, model_name)
     print(f"[scheduler/start ] {full_name}  log={log_path}", flush=True)
 
     try:
@@ -375,6 +405,7 @@ def scheduler(
     repos_json: str,
     concurrency: int,
     disk_low_gb: float = 15.0,
+    model_name: str = "dockeragent",
 ) -> None:
     """Fan-out repos as independent child subprocesses, at most `concurrency` in flight.
 
@@ -407,7 +438,7 @@ def scheduler(
             cat = repo.get("_category", "?")
             fut = pool.submit(
                 _run_child,
-                fn, cat, root_path, llm, timeout, num_turn, repos_json, hard_wall,
+                fn, cat, root_path, llm, timeout, num_turn, repos_json, hard_wall, model_name,
             )
             futures_map[fut] = fn
             return True
@@ -481,7 +512,7 @@ def _select_repos(repos_json: str, tier: str, category: Optional[str],
 
 
 def worker_main(full_name: str, root_path: str, llm: str, timeout: int, num_turn: int,
-                repos_json: str) -> None:
+                repos_json: str, model_name: str = "dockeragent") -> None:
     """--only <full_name>: run exactly one repo and exit.  Does NOT write rat_results.json."""
     os.makedirs(root_path, exist_ok=True)
 
@@ -495,13 +526,13 @@ def worker_main(full_name: str, root_path: str, llm: str, timeout: int, num_turn
     except Exception:
         pass
 
-    model = DockerAgentModel(root_path=root_path, timeout=timeout, llm=llm, num_turn=num_turn)
+    model = _make_model(model_name, root_path, timeout, llm, num_turn)
     _run_one(full_name, model, root_path, category)
 
 
 def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offset: int,
                     timeout: int, llm: str, num_turn: int, tier: str,
-                    category: Optional[str]) -> None:
+                    category: Optional[str], model_name: str = "dockeragent") -> None:
     """Original sequential loop — backward compatible."""
     os.makedirs(root_path, exist_ok=True)
     repos = _select_repos(repos_json, tier, category, offset, limit)
@@ -513,7 +544,7 @@ def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offse
         )
         return
 
-    model = DockerAgentModel(root_path=root_path, timeout=timeout, llm=llm, num_turn=num_turn)
+    model = _make_model(model_name, root_path, timeout, llm, num_turn)
     for r in repos:
         _run_one(r["full_name"], model, root_path, r.get("_category", "?"))
 
@@ -522,7 +553,8 @@ def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offse
 
 def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset: int,
                   timeout: int, llm: str, num_turn: int, tier: str,
-                  category: Optional[str], concurrency: int) -> None:
+                  category: Optional[str], concurrency: int,
+                  model_name: str = "dockeragent") -> None:
     """Scheduler mode: fan-out to N independent child processes."""
     os.makedirs(root_path, exist_ok=True)
     repos = _select_repos(repos_json, tier, category, offset, limit)
@@ -542,6 +574,7 @@ def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset:
         num_turn=num_turn,
         repos_json=repos_json,
         concurrency=concurrency,
+        model_name=model_name,
     )
     aggregate(root_path)
 
@@ -590,6 +623,11 @@ if __name__ == "__main__":
     parser.add_argument("--prune", action="store_true",
                         help="Remove Docker images matching 'dockeragent-eval-*' and exit.")
 
+    # Model selection
+    parser.add_argument("--model", choices=["dockeragent", "rat", "repo2run"],
+                        default="dockeragent",
+                        help="Which eval model to use (default: dockeragent).")
+
     args = parser.parse_args()
 
     # ── --prune ───────────────────────────────────────────────────────────────
@@ -611,6 +649,7 @@ if __name__ == "__main__":
             timeout=args.timeout,
             num_turn=args.num_turn,
             repos_json=args.repos_json,
+            model_name=args.model,
         )
         sys.exit(0)
 
@@ -627,6 +666,7 @@ if __name__ == "__main__":
             tier=args.tier,
             category=args.category,
             concurrency=args.concurrency,
+            model_name=args.model,
         )
         sys.exit(0)
 
@@ -641,4 +681,5 @@ if __name__ == "__main__":
         num_turn=args.num_turn,
         tier=args.tier,
         category=args.category,
+        model_name=args.model,
     )
