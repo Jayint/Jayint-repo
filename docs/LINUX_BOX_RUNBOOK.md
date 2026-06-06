@@ -7,6 +7,10 @@ results via **git branch + bucket**, teammate in China **consumes results only**
 Why a box: a 16 GB Mac swap-stalled at K=3 when 3 heavy repos overlapped. RAM is the wall, not CPU.
 128 GB removes it, so heavy repos stop fighting for memory and plain `xargs -P N` is enough (no scheduler needed).
 
+> **No VPS? Run it locally instead.** A box is only a RAM/throughput convenience — nothing here
+> requires a server. To run on a laptop/desktop (sequentially or at low concurrency), see
+> [LOCAL_PC_QUICKSTART.md](./LOCAL_PC_QUICKSTART.md).
+
 ---
 
 ## 0. What you do vs what I can drive

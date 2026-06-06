@@ -38,8 +38,32 @@ from glob import glob
 from typing import Optional
 
 # ── Set RAT/agent roots BEFORE importing dockeragent_model (it reads these at import time) ──
-os.environ.setdefault("RAT_ROOT", "/tmp/runanything/src")
-os.environ.setdefault("DOCKERAGENT_ROOT", "/Users/john/rat-bench-integration")
+# Portable defaults: derive from THIS file's location so a fresh clone runs on any machine
+# (Linux / macOS / WSL2) without editing source. Override either path via env var or, for the
+# repos file, the --repos-json flag.
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _default_rat_root(repo_dir: str) -> str:
+    """Best-effort default location of the RAT harness (the unzipped 'runanything/src').
+
+    Candidates are checked in order; the first that exists wins. If none exist we
+    return the repo-local path so a fresh machine has one obvious place to unzip the
+    RAT code into. Set RAT_ROOT explicitly to point anywhere else.
+    """
+    candidates = [
+        os.path.join(repo_dir, "runanything", "src"),                   # <repo>/runanything/src
+        os.path.join(os.path.dirname(repo_dir), "runanything", "src"),  # sibling of the repo
+        "/tmp/runanything/src",                                         # legacy/dev default
+    ]
+    for cand in candidates:
+        if os.path.isdir(cand):
+            return cand
+    return candidates[0]
+
+
+os.environ.setdefault("DOCKERAGENT_ROOT", _THIS_DIR)
+os.environ.setdefault("RAT_ROOT", _default_rat_root(_THIS_DIR))
 
 # ── Load .env so API keys are available for all model paths ──────────────────
 from dotenv import load_dotenv; load_dotenv()
@@ -592,8 +616,9 @@ def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run RAT benchmark offline with DockerAgentModel.")
     parser.add_argument("--repos-json",
-                        default="/Users/john/rat-bench-integration/datasets/rat_python_hard_subset.json",
-                        help="Path to repos JSON (bare list or {\"repos\":[...]} dict).")
+                        default=os.path.join(_THIS_DIR, "datasets", "rat_python_hard_subset.json"),
+                        help="Path to repos JSON (bare list or {\"repos\":[...]} dict). "
+                             "Defaults to the dataset shipped in this repo.")
     parser.add_argument("--root-path", default="./rat_run",
                         help="Root directory for outputs and rat_results.json.")
     parser.add_argument("--limit", type=int, default=None,

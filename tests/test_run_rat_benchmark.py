@@ -665,3 +665,43 @@ def test_child_cmd_includes_model_flag():
         assert cmd[model_idx + 1] == model_name, (
             f"Expected model value {model_name!r}, got {cmd[model_idx + 1]!r}"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 18. Portable defaults: no hardcoded machine-specific paths
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_this_dir_points_at_the_repo():
+    """_THIS_DIR must resolve to the directory actually holding run_rat_benchmark.py,
+    so DOCKERAGENT_ROOT / --repos-json defaults follow a fresh clone anywhere."""
+    assert os.path.isfile(os.path.join(rrb._THIS_DIR, "run_rat_benchmark.py"))
+
+
+def test_default_rat_root_prefers_repo_local(monkeypatch):
+    """When <repo>/runanything/src exists, it wins over every other candidate."""
+    repo = os.path.join("some", "repo")
+    repo_local = os.path.join(repo, "runanything", "src")
+    monkeypatch.setattr(os.path, "isdir", lambda p: p == repo_local)
+    assert rrb._default_rat_root(repo) == repo_local
+
+
+def test_default_rat_root_prefers_sibling_when_no_repo_local(monkeypatch):
+    """A sibling 'runanything/src' next to the repo is the second choice."""
+    repo = os.path.join("some", "repo")
+    sibling = os.path.join("some", "runanything", "src")
+    monkeypatch.setattr(os.path, "isdir", lambda p: p == sibling)
+    assert rrb._default_rat_root(repo) == sibling
+
+
+def test_default_rat_root_uses_legacy_tmp_when_only_tmp_exists(monkeypatch):
+    """The legacy /tmp/runanything/src is honoured when it is the only one present."""
+    repo = os.path.join("some", "repo")
+    monkeypatch.setattr(os.path, "isdir", lambda p: p == "/tmp/runanything/src")
+    assert rrb._default_rat_root(repo) == "/tmp/runanything/src"
+
+
+def test_default_rat_root_falls_back_to_repo_local_when_none_exist(monkeypatch):
+    """With nothing on disk, fall back to the repo-local path (a clear place to unzip RAT)."""
+    repo = os.path.join("some", "repo")
+    monkeypatch.setattr(os.path, "isdir", lambda p: False)
+    assert rrb._default_rat_root(repo) == os.path.join(repo, "runanything", "src")
