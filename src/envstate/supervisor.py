@@ -47,9 +47,21 @@ def render_planning_view(
     snapshot: EnvStateSnapshot, ledger: ActionLedger, budget: dict[str, Any]
 ) -> str:
     """Compact projection of EnvState for the Supervisor (design §3 RenderedPlanningView)."""
+    _REPO_LAYOUT_CAP = 120
     lines = [f"# EnvState (revision {snapshot.revision}, container {snapshot.container_id})"]
     lines.append(f"Base: image={snapshot.base.image} python={snapshot.base.python} "
-                 f"distro={snapshot.base.distro} arch={snapshot.base.arch}")
+                 f"distro={snapshot.base.distro} arch={snapshot.base.arch} "
+                 f"workdir={snapshot.base.workdir}")
+    if snapshot.repo_structure:
+        struct_lines = snapshot.repo_structure.splitlines()
+        truncated = len(struct_lines) > _REPO_LAYOUT_CAP
+        shown = struct_lines[:_REPO_LAYOUT_CAP]
+        lines.append("")
+        header = f"## Repository Layout (workdir={snapshot.base.workdir})"
+        if truncated:
+            header += f"  [truncated to {_REPO_LAYOUT_CAP} of {len(struct_lines)} lines]"
+        lines.append(header)
+        lines.extend(shown)
     lines.append("")
     lines.append("## Requirements")
     for req in snapshot.requirements:

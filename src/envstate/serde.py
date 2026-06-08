@@ -32,10 +32,12 @@ def _requirement_from_dict(data: dict[str, Any]) -> Requirement:
 
 
 def snapshot_from_dict(data: dict[str, Any]) -> EnvStateSnapshot:
+    base_data = dict(data["base"])
+    base_data.setdefault("workdir", None)
     return EnvStateSnapshot(
         revision=data["revision"],
         container_id=data["container_id"],
-        base=BaseFacts(**data["base"]),
+        base=BaseFacts(**base_data),
         requirements=tuple(_requirement_from_dict(r) for r in data.get("requirements", ())),
         provider_facts=tuple(
             ProviderFact(
@@ -58,4 +60,5 @@ def snapshot_from_dict(data: dict[str, Any]) -> EnvStateSnapshot:
         ),
         stale_evidence=tuple(_requirement_from_dict(r) for r in data.get("stale_evidence", ())),
         plan_notes=tuple(data.get("plan_notes") or ()),
+        repo_structure=data.get("repo_structure") or "",
     )

@@ -865,8 +865,19 @@ class DockerAgent:
             or getattr(self.synthesizer, "base_image", None)
             or ""
         )
+        _workdir = getattr(self.synthesizer, "workdir", "/app") or "/app"
+        _repo_structure = ""
+        _structure_file = os.path.join(self.logs_dir, "image_selector_logs", "structure.txt")
+        if os.path.exists(_structure_file):
+            try:
+                with open(_structure_file) as _f:
+                    _repo_structure = _f.read()
+            except Exception:
+                pass
         snapshot = EnvStateSnapshot(
-            revision=0, container_id=self.env_container_id, base=BaseFacts(image=base_image),
+            revision=0, container_id=self.env_container_id,
+            base=BaseFacts(image=base_image, workdir=_workdir),
+            repo_structure=_repo_structure,
         )
         worker = Worker(
             planner=LlmWorkerPlanner(
@@ -874,6 +885,7 @@ class DockerAgent:
                 on_usage=lambda usage: self._record_supervisor_path_usage("planner", usage),
             ),
             max_actions=6,
+            workdir=_workdir,
         )
         orchestrator = EnvStateOrchestrator(
             supervisor=supervisor, worker=worker, snapshot=snapshot,

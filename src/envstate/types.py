@@ -74,6 +74,7 @@ class BaseFacts:
     distro_version: Optional[str] = None
     arch: Optional[str] = None
     python: Optional[str] = None
+    workdir: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -86,3 +87,4 @@ class EnvStateSnapshot:
     open_failures: Tuple[OpenFailure, ...] = ()
     stale_evidence: Tuple[Requirement, ...] = ()
     plan_notes: Tuple[str, ...] = ()
+    repo_structure: str = ""

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.llm_response import response_text
@@ -59,13 +59,19 @@ class Worker:
     client with a worker-scoped prompt; in tests it is a fake.
     """
 
-    def __init__(self, planner, max_actions: int = DEFAULT_MAX_ACTIONS):
+    def __init__(self, planner, max_actions: int = DEFAULT_MAX_ACTIONS, workdir: Optional[str] = None):
         self.planner = planner
         self.max_actions = max_actions
+        self.workdir = workdir
 
     def run_task(self, task_spec: dict[str, Any], executor: WorkerExecutor) -> WorkerReport:
         task_id = task_spec.get("task_id", "task")
         brief = build_task_brief(task_spec)
+        if self.workdir:
+            brief = (
+                f"Working directory: {self.workdir} — the repository is checked out here;"
+                f" cd here for repo files.\n\n" + brief
+            )
         # Reset per-task ReAct history so each task starts fresh and receives its own brief.
         # Safe for fake planners that lack reset(): the guard is a no-op for them.
         reset = getattr(self.planner, "reset", None)
