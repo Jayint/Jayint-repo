@@ -1030,6 +1030,15 @@ class TestRepairAndRescore:
     repair_dockerfile_with_llm are patched throughout.
     """
 
+    @pytest.fixture(autouse=True)
+    def _point_workplace_root_at_tmp(self, tmp_path, monkeypatch):
+        # _repair_and_rescore loads agent_run_summary.json from
+        # $DOCKERAGENT_ROOT/workplace/multi_docker_eval_{slug}/ — point it at the
+        # test's tmp_path so the summary written by _setup_repair_tmpdir is found
+        # (mirrors the real layout: the agent writes ./workplace relative to the
+        # repo root / DOCKERAGENT_ROOT, NOT under the run's root_path).
+        monkeypatch.setenv("DOCKERAGENT_ROOT", str(tmp_path))
+
     def _base_patches(self):
         """Return a stack of patches that prevent real docker calls."""
         import repo2run_repair_port as m

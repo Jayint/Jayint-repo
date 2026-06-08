@@ -2588,15 +2588,26 @@ def _repair_and_rescore(
     except Exception:
         return out  # no recipe → cannot repair
 
-    # ── GLUE: load agent_run_summary from deterministic workplace path ───────
-    # TRAJECTORY (plan property #1): load from the adapter-written path
-    # root_path/workplace/multi_docker_eval_{slug}/agent_run_summary.json
-    agent_summary_path = os.path.join(
-        root_path, "workplace", f"multi_docker_eval_{slug}", "agent_run_summary.json"
-    )
-    try:
-        run_summary = json.loads(Path(agent_summary_path).read_text())
-    except Exception:
+    # ── GLUE: load agent_run_summary from the agent-written workplace path ────
+    # TRAJECTORY (plan property #1): the adapter writes the summary to
+    #   ./workplace/multi_docker_eval_{slug}/agent_run_summary.json
+    # relative to the repo root (DOCKERAGENT_ROOT / cwd) — NOT under root_path
+    # (multi_docker_eval_adapter.py:758 uses "./workplace"; agent.py abspaths it).
+    _workplace_root = os.environ.get("DOCKERAGENT_ROOT") or os.getcwd()
+    _summary_candidates = [
+        os.path.join(_workplace_root, "workplace", f"multi_docker_eval_{slug}", "agent_run_summary.json"),
+        os.path.join("workplace", f"multi_docker_eval_{slug}", "agent_run_summary.json"),
+    ]
+    run_summary = None
+    agent_summary_path = _summary_candidates[0]
+    for _cand in _summary_candidates:
+        try:
+            run_summary = json.loads(Path(_cand).read_text())
+            agent_summary_path = _cand
+            break
+        except Exception:
+            continue
+    if run_summary is None:
         # Defensive fallback: use recipe["logs"] which has verified_test_commands / build_recipe
         run_summary = recipe.get("logs") or {}
         if not run_summary.get("successful_actions"):
@@ -2606,6 +2617,13 @@ def _repair_and_rescore(
                 " Trajectory-aware LLM repair will have reduced fidelity.",
                 flush=True,
             )
+    else:
+        _n_actions = len(run_summary.get("successful_actions") or [])
+        print(
+            f"[repair] {full_name}: loaded trajectory ({_n_actions} successful_actions)"
+            f" from {agent_summary_path}",
+            flush=True,
+        )
 
     # ── GLUE: load current Dockerfile ────────────────────────────────────────
     try:
