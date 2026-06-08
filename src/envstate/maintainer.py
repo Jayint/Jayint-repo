@@ -5,7 +5,7 @@ from typing import Any, Optional
 from src.envstate.acl import apply_llm_proposal
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.jsonutil import extract_json_object
-from src.envstate.llm_response import response_text
+from src.envstate.llm_response import complete_with_retry
 from src.envstate.ledger import ActionEvent
 from src.envstate.serde import snapshot_to_dict
 from src.envstate.types import EnvStateSnapshot
@@ -91,16 +91,17 @@ class Maintainer:
             {"role": "system", "content": MAINTAINER_SYSTEM_PROMPT},
             {"role": "user", "content": json.dumps(payload)},
         ]
-        response = self.client.chat.completions.create(
-            model=self.model, messages=messages, temperature=0
+        content, usage, response = complete_with_retry(
+            self.client,
+            self.model,
+            messages,
+            accept=None,  # retry only on empty text
+            retry_nudge=(
+                "Your previous response was empty. "
+                "Return exactly one JSON object inside a ```json fenced block."
+            ),
+            temperature=0,
         )
-        content = response_text(response)
-        usage_obj = getattr(response, "usage", None)
-        usage = {
-            "input_tokens": getattr(usage_obj, "prompt_tokens", 0) or 0,
-            "output_tokens": getattr(usage_obj, "completion_tokens", 0) or 0,
-            "total_tokens": getattr(usage_obj, "total_tokens", 0) or 0,
-        }
         proposal = parse_maintainer_proposal(content)
         updated, rejected = apply_llm_proposal(snapshot, proposal)
         parsed_summary = {"proposal_keys": list(proposal.keys()), "rejected_count": len(rejected)}

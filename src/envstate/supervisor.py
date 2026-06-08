@@ -4,7 +4,7 @@ from typing import Any, Optional
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.ledger import ActionLedger
-from src.envstate.llm_response import response_text
+from src.envstate.llm_response import complete_with_retry
 from src.envstate.types import EnvStateSnapshot, Source
 
 SETUP_PHASES = (
@@ -106,15 +106,17 @@ class Supervisor:
             {"role": "system", "content": SUPERVISOR_SYSTEM_PROMPT},
             {"role": "user", "content": view},
         ]
-        response = self.client.chat.completions.create(
-            model=self.model, messages=messages, temperature=0
+        content, usage, response = complete_with_retry(
+            self.client,
+            self.model,
+            messages,
+            accept=lambda t: parse_task_spec(t) is not None,
+            retry_nudge=(
+                "Your previous response did not contain a valid TaskSpec. "
+                "Emit exactly one fenced json TaskSpec object containing a task_id."
+            ),
+            temperature=0,
         )
-        content = response_text(response)
-        usage = {
-            "input_tokens": response.usage.prompt_tokens,
-            "output_tokens": response.usage.completion_tokens,
-            "total_tokens": response.usage.total_tokens,
-        }
         task_spec = parse_task_spec(content)
         log_llm_exchange("supervisor", response, parsed=task_spec)
         return task_spec, usage

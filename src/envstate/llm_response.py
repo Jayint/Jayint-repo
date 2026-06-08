@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Any
+from typing import Any, Callable, Optional
 
 
 def strip_reasoning_markup(text: str | None) -> str:
@@ -85,3 +85,84 @@ def response_text(response: Any) -> str:
 
     extra = getattr(message, "model_extra", None) or {}
     return extra.get("reasoning") or ""
+
+
+_DEFAULT_RETRY_NUDGE = (
+    "Your previous response was empty or invalid. "
+    "Respond now in the exact required format."
+)
+
+
+def complete_with_retry(
+    client: Any,
+    model: str,
+    messages: list[dict],
+    accept: Optional[Callable[[str], Any]] = None,
+    max_attempts: int = 3,
+    retry_nudge: Optional[str] = None,
+    **kwargs: Any,
+) -> tuple[str, dict, Any]:
+    """Call ``client.chat.completions.create`` with retry on empty/unacceptable responses.
+
+    Attempts up to *max_attempts* times.  A response is "good" iff its text
+    (via :func:`response_text`) is non-empty AND ``accept(text)`` is truthy
+    (or *accept* is ``None``).  On each failed attempt a corrective user
+    message is appended to a **copy** of *messages* (the caller's list is
+    never mutated).  Usage counters are accumulated across all attempts.
+
+    After *max_attempts* the last (text, usage, response) is returned
+    unconditionally.  Exceptions from ``create`` propagate unchanged.
+    If ``accept`` raises, that attempt is treated as not-good and retried.
+
+    :param client: OpenAI-compatible client with ``chat.completions.create``.
+    :param model: Model identifier forwarded to every ``create`` call.
+    :param messages: Initial message list.  Never mutated.
+    :param accept: Optional predicate; if provided, text must also satisfy it
+        to be considered good.  Exceptions from ``accept`` are suppressed and
+        treated as a not-good result.
+    :param max_attempts: Maximum total ``create`` calls (default 3).
+    :param retry_nudge: Content of the corrective user message appended on
+        retries.  Defaults to a generic "respond in the required format" nudge.
+    :param kwargs: Additional keyword arguments forwarded verbatim to every
+        ``create`` call (e.g. ``temperature=0``).
+    :return: ``(text, usage, response)`` where *usage* has keys
+        ``input_tokens``, ``output_tokens``, ``total_tokens`` accumulated
+        across all attempts, and *response* is the final raw completion object
+        (suitable for passing to :func:`log_llm_exchange`).
+    """
+    nudge = retry_nudge if retry_nudge is not None else _DEFAULT_RETRY_NUDGE
+    accumulated = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+    # Working copy of messages; grows with nudge entries on retries.
+    current_messages = list(messages)
+    last_text = ""
+    last_response: Any = None
+
+    for attempt in range(max_attempts):
+        response = client.chat.completions.create(
+            model=model, messages=current_messages, **kwargs
+        )
+        text = response_text(response)
+
+        # Accumulate usage (getattr-safe, mirrors maintainer.py pattern).
+        usage_obj = getattr(response, "usage", None)
+        accumulated["input_tokens"] += getattr(usage_obj, "prompt_tokens", 0) or 0
+        accumulated["output_tokens"] += getattr(usage_obj, "completion_tokens", 0) or 0
+        accumulated["total_tokens"] += getattr(usage_obj, "total_tokens", 0) or 0
+
+        last_text = text
+        last_response = response
+
+        try:
+            accept_ok = accept is None or bool(accept(text))
+        except Exception:
+            accept_ok = False
+        good = bool(text.strip()) and accept_ok
+        if good:
+            return text, accumulated, response
+
+        if attempt < max_attempts - 1:
+            # Append nudge to a copy so the caller list stays unmutated.
+            current_messages = current_messages + [{"role": "user", "content": nudge}]
+
+    return last_text, accumulated, last_response

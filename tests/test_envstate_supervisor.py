@@ -86,6 +86,78 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(usage["total_tokens"], 30)
 
 
+class SupervisorRetryTests(unittest.TestCase):
+    """Supervisor.next_task retries empty/unparseable LLM responses via complete_with_retry."""
+
+    _VALID_CONTENT = (
+        '```json\n{"task_id": "task-retry", "phase": "Repository Analysis", '
+        '"goal": "Identify dependency strategy", "relevant_state": [], "constraints": [], '
+        '"allowed_actions": ["inspect files"], "success_criteria": ["strategy known"], '
+        '"stop_conditions": ["budget"], "suggested_tactics": []}\n```'
+    )
+
+    def _make_sequential_client(self, responses):
+        """Fake client returning responses in sequence; tracks call count."""
+        call_log = []
+        resp_iter = iter(responses)
+
+        def _create(**_kw):
+            item = next(resp_iter)
+            call_log.append(item)
+            content = item if isinstance(item, str) else item[0]
+            tokens = (20, 10, 30) if isinstance(item, str) else item[1:]
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+                usage=SimpleNamespace(
+                    prompt_tokens=tokens[0],
+                    completion_tokens=tokens[1],
+                    total_tokens=tokens[2],
+                ),
+            )
+
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=_create))
+        )
+        return client, call_log
+
+    def test_empty_then_valid_returns_parsed_spec(self):
+        """Empty response on attempt 1, valid TaskSpec on attempt 2 -> parsed spec returned."""
+        client, call_log = self._make_sequential_client(["", self._VALID_CONTENT])
+        sup = Supervisor(client=client, model="test-model")
+
+        spec, usage = sup.next_task(_snapshot(), ActionLedger(), budget={"steps_remaining": 30})
+
+        self.assertIsNotNone(spec)
+        self.assertEqual(spec["task_id"], "task-retry")
+        self.assertEqual(len(call_log), 2)
+
+    def test_empty_then_valid_usage_accumulated(self):
+        """Usage is summed across both attempts."""
+        client, _ = self._make_sequential_client([
+            ("", 10, 5, 15),
+            (self._VALID_CONTENT, 20, 10, 30),
+        ])
+        sup = Supervisor(client=client, model="test-model")
+
+        _, usage = sup.next_task(_snapshot(), ActionLedger(), budget={"steps_remaining": 30})
+
+        self.assertEqual(usage["input_tokens"], 30)
+        self.assertEqual(usage["output_tokens"], 15)
+        self.assertEqual(usage["total_tokens"], 45)
+
+    def test_valid_immediately_single_call(self):
+        """When the first response is already a valid TaskSpec, exactly one call is made."""
+        client, call_log = self._make_sequential_client([self._VALID_CONTENT])
+        sup = Supervisor(client=client, model="test-model")
+
+        spec, usage = sup.next_task(_snapshot(), ActionLedger(), budget={"steps_remaining": 30})
+
+        self.assertIsNotNone(spec)
+        self.assertEqual(spec["task_id"], "task-retry")
+        self.assertEqual(len(call_log), 1)
+        self.assertEqual(usage["total_tokens"], 30)
+
+
 class SupervisorContractTests(unittest.TestCase):
     def test_prompt_forbids_certifying_presence(self):
         self.assertIn("do not certify", SUPERVISOR_SYSTEM_PROMPT.lower())
