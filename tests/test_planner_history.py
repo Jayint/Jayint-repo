@@ -388,5 +388,30 @@ class PlannerPromptTests(unittest.TestCase):
         self.assertNotIn("test/resize.t", planner.system_prompt)
 
 
+class PlannerNoneContentTests(unittest.TestCase):
+    def _make_planner(self):
+        class FakeCompletionsNone:
+            def create(self, **kwargs):
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=None))],
+                    usage=SimpleNamespace(prompt_tokens=1, completion_tokens=0, total_tokens=1),
+                )
+
+        return Planner(
+            client=SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletionsNone()))
+        )
+
+    def test_plan_tolerates_none_completion_content(self):
+        planner = self._make_planner()
+        thought, action, content, is_finished, usage = planner.plan(
+            "https://github.com/example/repo.git",
+            "previous observation",
+        )
+        self.assertIsNone(thought)
+        self.assertIsNone(action)
+        self.assertFalse(is_finished)
+        self.assertEqual(content, "")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -199,7 +199,7 @@ class Planner:
         # 4. Parse the model output before storing it. Some OpenAI-compatible
         # endpoints do not reliably honor stop sequences, so keep only the
         # executable single-step ReAct message in history.
-        content = response.choices[0].message.content
+        content = response.choices[0].message.content or ""
         thought = self._extract_thought(content)
         action = self._extract_tag(content, "Action")
         final_answer = self.extract_final_answer(content)
@@ -551,6 +551,8 @@ class Planner:
         return self._clean_extracted_content(match.group(1))
 
     def _extract_tag(self, text, tag):
+        if not text:
+            return None
         labels = r"Thought|Action|Observation|Verification\ Bundle|Final\ Answer"
         pattern = rf"^\s*{re.escape(tag)}:\s*(.*?)(?=^\s*(?:{labels}):|\Z)"
         match = re.search(pattern, text, re.DOTALL | re.MULTILINE)
