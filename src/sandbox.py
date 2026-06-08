@@ -161,6 +161,28 @@ class Sandbox:
         if not self.container.put_archive(self.workdir, archive_stream.getvalue()):
             raise RuntimeError(f"Failed to copy workspace from {self.seed_dir} into container")
 
+    def exec_readonly(self, command):
+        """Run a read-only probe/extractor command with NO side effects.
+
+        Returns (exit_code:int, output:str). Does not commit snapshots, does not
+        run preflight rejection, does not retry, does not inject SYSTEM prefixes,
+        and deliberately does NOT apply `set -o pipefail` (pipefail can flip the
+        exit code of legitimate probe chains like `cmd | grep -q`, causing silent
+        mis-certification). It wraps the command in a login shell so `&&` and `|`
+        work, and returns the raw exit code untouched.
+        Callers must only pass commands that do not mutate the environment.
+        """
+        result = self.container.exec_run(["/bin/sh", "-lc", command], workdir=self.workdir)
+        output = result.output
+        if isinstance(output, (bytes, bytearray)):
+            output = output.decode("utf-8", errors="replace")
+        exit_code = result.exit_code
+        if exit_code is None:
+            # Docker exec_run can yield None (streaming/detached); a probe that did not
+            # produce a real exit code must never be read as success (rc==0).
+            exit_code = -1
+        return exit_code, output or ""
+
     def execute(self, command):
         """
         Executes a bash command.
