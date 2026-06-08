@@ -66,6 +66,11 @@ class Worker:
     def run_task(self, task_spec: dict[str, Any], executor: WorkerExecutor) -> WorkerReport:
         task_id = task_spec.get("task_id", "task")
         brief = build_task_brief(task_spec)
+        # Reset per-task ReAct history so each task starts fresh and receives its own brief.
+        # Safe for fake planners that lack reset(): the guard is a no-op for them.
+        reset = getattr(self.planner, "reset", None)
+        if callable(reset):
+            reset()
         observations: List[Tuple[bool, str]] = []
         commands: List[str] = []
         blockers: List[str] = []
@@ -165,6 +170,15 @@ class LlmWorkerPlanner:
         self.model = model
         self.on_usage = on_usage
         self.history: List[dict] = []
+
+    def reset(self) -> None:
+        """Clear per-task ReAct history so the next task starts fresh.
+
+        Called by Worker.run_task() at the boundary between tasks.  Within a
+        single task the planner still accumulates its own action/observation
+        turns as before — only the cross-task boundary is reset here.
+        """
+        self.history = []
 
     def next_action(self, task_brief: str, recent_observations: List[Tuple[bool, str]]):
         if not self.history:
