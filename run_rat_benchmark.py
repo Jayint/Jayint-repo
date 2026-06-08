@@ -148,6 +148,8 @@ def _run_one(
     model: "DockerAgentModel",
     root_path: str,
     category: str,
+    repair_mode: str = "selfverify",
+    repair_rounds: int = 2,
 ) -> dict:
     """Run a single repo through predict(), score it, and write per-repo JSON files.
 
@@ -198,6 +200,21 @@ def _run_one(
             }
         print(f"[done  ] {full_name}  status={out.get('status')}", flush=True)
 
+    # ── Runner-side repair loop ──────────────────────────────────────────────
+    if repair_mode in ("runner", "both") and out.get("status") != "error":
+        from repo2run_repair_port import _repair_and_rescore  # lazy import; module is optional
+        try:
+            out = _repair_and_rescore(
+                out=out,
+                root_path=root_path,
+                full_name=full_name,
+                llm=model.llm if hasattr(model, "llm") else "",
+                max_rounds=repair_rounds,
+            )
+        except Exception as _repair_exc:
+            print(f"[repair] {full_name} — runner repair failed (non-fatal): {_repair_exc}",
+                  flush=True)
+
     end_ts = time.time()
 
     # ── Build merged row ─────────────────────────────────────────────────────
@@ -229,6 +246,42 @@ def _run_one(
 # §10.4  Aggregator
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _print_paper_faithful_essr(root_path: str) -> None:
+    """Deterministic, paper-faithful ESSR recompute (wraps scripts/compute_essr.py).
+
+    The official headline ``essr()`` divides by *executed* repos; the paper
+    (arXiv:2604.23190) defines ESSR = Npass/Nverified with setup-failures counted as 0.
+    This prints the paper-faithful ÷all metric + coverage alongside, and cross-checks the
+    from-raw recompute against the stored scorer rows. Never raises — degrades to a note.
+    """
+    scripts_dir = os.path.join(_THIS_DIR, "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        from compute_essr import score_agent
+    except Exception as exc:  # pragma: no cover - optional helper
+        print(f"\n[essr] paper-faithful recompute unavailable: {exc}")
+        return
+    try:
+        r = score_agent(root_path)
+    except Exception as exc:  # pragma: no cover - defensive
+        print(f"\n[essr] paper-faithful recompute failed: {exc}")
+        return
+
+    print("\nPaper-faithful ESSR (deterministic recompute; setup-failures count as 0):")
+    print(f"  coverage (exec/n)                  = {r['n_exec']}/{r['n']} = {r['coverage']}")
+    print(f"  ESSR ÷all  (PAPER, Npass/Nverified) = {r['pass_rate_over_all']}   <- report this")
+    print(f"  ESSR ÷exec (official headline)      = {r['ESSR_avg_pass_rate_official']}")
+    print(f"  micro pooled (test-weighted)        = {r['micro_pooled']}")
+    print(f"  full-pass repos (>=0.999)           = {r['full_pass_repos']}")
+    if r["mismatches"]:
+        print(f"  [warn] {len(r['mismatches'])} stored-row mismatch(es) vs from-raw recompute:")
+        for fn, s_pr, c_pr, s_ex, c_ex in r["mismatches"][:10]:
+            print(f"      {fn}: stored_pr={s_pr} raw_pr={c_pr} stored_exec={s_ex} raw_exec={c_ex}")
+    else:
+        print("  cross-check: all rows match stored scorer ✓")
+
+
 def aggregate(root_path: str) -> list:
     """Glob all _result_row.json files, compute metrics, print report, write rat_results.json."""
     pattern = os.path.join(root_path, "output", "**", "_result_row.json")
@@ -250,12 +303,26 @@ def aggregate(root_path: str) -> list:
         return []
 
     n = len(rows)
+    n_exec = sum(1 for x in rows if x.get("pytest_executed"))
 
     def mean(k: str) -> float:
+        """Coverage-penalized mean over ALL rows (not-executed repos count as 0)."""
         return round(sum(x.get(k, 0) for x in rows) / n, 4)
 
-    print(f"\nn={n}  build_success={mean('success')}  collect_success={mean('pytest_collect_success')}")
-    print(f"mean_pass_rate={mean('pytest_pass_rate')}  mean_pass_rate_excl_code={mean('pass_rate_exclude_code_issues')}")
+    def essr(k: str) -> float:
+        """Paper ESSR: macro mean over pytest_executed repos only.
+
+        Mirrors generate_latex_report.py:282-284,326 (sum of per-repo rate divided
+        by pytest_executed_count). Dividing by all rows (``mean``) is NOT the paper's
+        metric and understates the headline by counting not-executed repos as 0.
+        """
+        if not n_exec:
+            return 0.0
+        return round(sum(x.get(k, 0) for x in rows if x.get("pytest_executed")) / n_exec, 4)
+
+    print(f"\nn={n}  n_executed={n_exec}  build_success={mean('success')}  collect_success={mean('pytest_collect_success')}")
+    print(f"ESSR (paper macro, /n_executed): pass_rate={essr('pytest_pass_rate')}  excl_code={essr('pass_rate_exclude_code_issues')}")
+    print(f"coverage-penalized (/n_total)  : pass_rate={mean('pytest_pass_rate')}  excl_code={mean('pass_rate_exclude_code_issues')}")
 
     # Per-category breakdown
     cat_rows: dict = defaultdict(list)
@@ -276,6 +343,7 @@ def aggregate(root_path: str) -> list:
     out_path = os.path.join(root_path, "rat_results.json")
     json.dump(rows, open(out_path, "w"), indent=2)
     print(f"\n[aggregate] Wrote {out_path}  ({n} rows)")
+    _print_paper_faithful_essr(root_path)
     return rows
 
 
@@ -284,7 +352,8 @@ def aggregate(root_path: str) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn: int,
-               repos_json: str, model: str = "dockeragent") -> list:
+               repos_json: str, model: str = "dockeragent",
+               repair_mode: str = "selfverify", repair_rounds: int = 2) -> list:
     """Build the argv for a worker child process."""
     return [
         PY, __file__,
@@ -295,6 +364,8 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
         "--num-turn", str(num_turn),
         "--repos-json", repos_json,   # child needs it only if it ever falls into main(); harmless
         "--model", model,
+        "--repair-mode", repair_mode,
+        "--repair-rounds", str(repair_rounds),
     ]
 
 
@@ -357,6 +428,8 @@ def _run_child(
     repos_json: str,
     hard_wall: int,
     model_name: str = "dockeragent",
+    repair_mode: str = "selfverify",
+    repair_rounds: int = 2,
 ) -> dict:
     """Run one child subprocess; return the result row.
 
@@ -377,7 +450,8 @@ def _run_child(
         except Exception:
             pass
 
-    cmd = _child_cmd(full_name, root_path, llm, timeout, num_turn, repos_json, model_name)
+    cmd = _child_cmd(full_name, root_path, llm, timeout, num_turn, repos_json, model_name,
+                     repair_mode, repair_rounds)
     print(f"[scheduler/start ] {full_name}  log={log_path}", flush=True)
 
     try:
@@ -431,6 +505,8 @@ def scheduler(
     disk_low_gb: float = 15.0,
     poll_interval: float = 30.0,
     model_name: str = "dockeragent",
+    repair_mode: str = "selfverify",
+    repair_rounds: int = 2,
 ) -> None:
     """Fan-out repos as independent child subprocesses, at most `concurrency` in flight.
 
@@ -464,6 +540,7 @@ def scheduler(
             fut = pool.submit(
                 _run_child,
                 fn, cat, root_path, llm, timeout, num_turn, repos_json, hard_wall, model_name,
+                repair_mode, repair_rounds,
             )
             futures_map[fut] = fn
             return True
@@ -542,7 +619,8 @@ def _select_repos(repos_json: str, tier: str, category: Optional[str],
 
 
 def worker_main(full_name: str, root_path: str, llm: str, timeout: int, num_turn: int,
-                repos_json: str, model_name: str = "dockeragent") -> None:
+                repos_json: str, model_name: str = "dockeragent",
+                repair_mode: str = "selfverify", repair_rounds: int = 2) -> None:
     """--only <full_name>: run exactly one repo and exit.  Does NOT write rat_results.json."""
     os.makedirs(root_path, exist_ok=True)
 
@@ -557,12 +635,14 @@ def worker_main(full_name: str, root_path: str, llm: str, timeout: int, num_turn
         pass
 
     model = _make_model(model_name, root_path, timeout, llm, num_turn)
-    _run_one(full_name, model, root_path, category)
+    _run_one(full_name, model, root_path, category,
+             repair_mode=repair_mode, repair_rounds=repair_rounds)
 
 
 def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offset: int,
                     timeout: int, llm: str, num_turn: int, tier: str,
-                    category: Optional[str], model_name: str = "dockeragent") -> None:
+                    category: Optional[str], model_name: str = "dockeragent",
+                    repair_mode: str = "selfverify", repair_rounds: int = 2) -> None:
     """Original sequential loop — backward compatible."""
     os.makedirs(root_path, exist_ok=True)
     repos = _select_repos(repos_json, tier, category, offset, limit)
@@ -576,7 +656,8 @@ def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offse
 
     model = _make_model(model_name, root_path, timeout, llm, num_turn)
     for r in repos:
-        _run_one(r["full_name"], model, root_path, r.get("_category", "?"))
+        _run_one(r["full_name"], model, root_path, r.get("_category", "?"),
+                 repair_mode=repair_mode, repair_rounds=repair_rounds)
 
     aggregate(root_path)
 
@@ -584,7 +665,8 @@ def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offse
 def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset: int,
                   timeout: int, llm: str, num_turn: int, tier: str,
                   category: Optional[str], concurrency: int,
-                  model_name: str = "dockeragent") -> None:
+                  model_name: str = "dockeragent",
+                  repair_mode: str = "selfverify", repair_rounds: int = 2) -> None:
     """Scheduler mode: fan-out to N independent child processes."""
     os.makedirs(root_path, exist_ok=True)
     repos = _select_repos(repos_json, tier, category, offset, limit)
@@ -605,6 +687,8 @@ def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset:
         repos_json=repos_json,
         concurrency=concurrency,
         model_name=model_name,
+        repair_mode=repair_mode,
+        repair_rounds=repair_rounds,
     )
     aggregate(root_path)
 
@@ -659,7 +743,29 @@ if __name__ == "__main__":
                         default="dockeragent",
                         help="Which eval model to use (default: dockeragent).")
 
+    # Repair-loop controls
+    parser.add_argument("--repair-mode",
+                        choices=["runner", "selfverify", "both", "off"],
+                        default="selfverify",
+                        help=(
+                            "Repair strategy. "
+                            "'runner': runner-side verbatim Repo2Run loop ON, agent self-verify OFF. "
+                            "'selfverify': agent self-verify ON, runner loop OFF (current default). "
+                            "'both': both ON (debug-compare only). "
+                            "'off': both OFF (clean baseline). "
+                            "Default: selfverify."
+                        ))
+    parser.add_argument("--repair-rounds", type=int, default=2,
+                        help=(
+                            "Maximum LLM Dockerfile repair rounds for the runner-side loop. "
+                            "0 disables LLM repair (deterministic only). Default: 2."
+                        ))
+
     args = parser.parse_args()
+
+    # Set DOCKERAGENT_REPAIR_MODE so the adapter reads the correct value in this process
+    # and in any subprocess that inherits the environment (belt-and-suspenders with --repair-mode CLI).
+    os.environ["DOCKERAGENT_REPAIR_MODE"] = args.repair_mode
 
     # ── --prune ───────────────────────────────────────────────────────────────
     if args.prune:
@@ -681,6 +787,8 @@ if __name__ == "__main__":
             num_turn=args.num_turn,
             repos_json=args.repos_json,
             model_name=args.model,
+            repair_mode=args.repair_mode,
+            repair_rounds=args.repair_rounds,
         )
         sys.exit(0)
 
@@ -698,6 +806,8 @@ if __name__ == "__main__":
             category=args.category,
             concurrency=args.concurrency,
             model_name=args.model,
+            repair_mode=args.repair_mode,
+            repair_rounds=args.repair_rounds,
         )
         sys.exit(0)
 
@@ -713,4 +823,6 @@ if __name__ == "__main__":
         tier=args.tier,
         category=args.category,
         model_name=args.model,
+        repair_mode=args.repair_mode,
+        repair_rounds=args.repair_rounds,
     )
