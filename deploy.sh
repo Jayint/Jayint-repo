@@ -278,6 +278,11 @@ else
   grn ">> Hash assertion passed: all critical files match local vs VM."
 fi
 
+# Stamp the deployed commit so the runner (no git on the box) can self-label each run.
+SHORT_COMMIT="$(git rev-parse --short HEAD)"
+printf '%s\n' "$SHORT_COMMIT" | $SSH "$HOST" "cat > '$DEST/.deployed_commit'" \
+  && grn ">> stamped $DEST/.deployed_commit = $SHORT_COMMIT"
+
 grn ">> DONE. DockerAgent code at $DEST now matches the Mac working tree (tracked files)."
 ylw "   Tip: read provenance with  $SSH $HOST 'cat $DEST/.deployed_from_mac.txt'"
 

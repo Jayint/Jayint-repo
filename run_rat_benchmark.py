@@ -42,12 +42,29 @@ from typing import Optional
 # (Linux / macOS / WSL2) without editing source. Override either path via env var or, for the
 # repos file, the --repos-json flag.
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_RUNNER_COMMIT = (
-    subprocess.run(
-        ["git", "-C", _THIS_DIR, "rev-parse", "--short", "HEAD"],
-        capture_output=True, text=True, timeout=5,
-    ).stdout.strip() or "unknown"
-)
+def _resolve_runner_commit() -> str:
+    """Runner code version for traceability. Prefer git (dev box); fall back to the
+    .deployed_commit file written by deploy.sh (the VM has no git checkout); else unknown."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", _THIS_DIR, "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    try:
+        with open(os.path.join(_THIS_DIR, ".deployed_commit")) as _f:
+            v = _f.read().strip()
+            if v:
+                return v
+    except Exception:
+        pass
+    return "unknown"
+
+
+_RUNNER_COMMIT = _resolve_runner_commit()
 
 
 def _default_rat_root(repo_dir: str) -> str:
