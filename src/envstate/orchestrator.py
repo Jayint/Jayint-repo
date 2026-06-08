@@ -33,6 +33,7 @@ class EnvStateOrchestrator:
         observer: Observer,
         max_tasks: int = 20,
         on_usage=None,
+        global_action_budget: int = None,
     ):
         self.supervisor = supervisor
         self.worker = worker
@@ -42,7 +43,9 @@ class EnvStateOrchestrator:
         self.observer = observer
         self.max_tasks = max_tasks
         self.on_usage = on_usage
+        self.global_action_budget = global_action_budget
         self._step = 0
+        self._actions_executed = 0
 
     def _make_step_fn(self, task_spec):
         """Per-task execution closure handed to the Worker. Executes ONE action,
@@ -50,6 +53,7 @@ class EnvStateOrchestrator:
         probes, ACL certification). Threads the new snapshot back onto self."""
         def step_fn(action):
             self._step += 1
+            self._actions_executed += 1
             success, observation = self.executor(action)
             self.snapshot = self.observer(
                 self.snapshot, task_spec, self._step, action, success, observation
@@ -75,6 +79,12 @@ class EnvStateOrchestrator:
             report = self.worker.run_task(task_spec, self._make_step_fn(task_spec))
             reports.append(report)
             tasks_completed += 1
+            # Shared global executed-action cap (§3.5 / C2): behavior-preserving
+            # when global_action_budget is None (Arm B default stays unbounded).
+            if (self.global_action_budget is not None
+                    and self._actions_executed >= self.global_action_budget):
+                stop_reason = "global_action_budget"
+                break
         return {
             "tasks_completed": tasks_completed,
             "stop_reason": stop_reason,

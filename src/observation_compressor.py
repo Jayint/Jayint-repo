@@ -430,6 +430,8 @@ class TokenBucket:
 class RunTokenLedger:
     image_selector: TokenBucket = field(default_factory=TokenBucket)
     planner: TokenBucket = field(default_factory=TokenBucket)
+    supervisor: TokenBucket = field(default_factory=TokenBucket)
+    worker: TokenBucket = field(default_factory=TokenBucket)
     reflection: TokenBucket = field(default_factory=TokenBucket)
     memory: TokenBucket = field(default_factory=TokenBucket)
     recipe: TokenBucket = field(default_factory=TokenBucket)

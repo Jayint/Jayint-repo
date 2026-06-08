@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, Optional
 from src.language_handlers import LanguageHandler
 from src.constants import DEFAULT_LLM_MODEL
+from src.envstate.llm_response import response_text
 
 
 class Planner:
@@ -199,7 +200,7 @@ class Planner:
         # 4. Parse the model output before storing it. Some OpenAI-compatible
         # endpoints do not reliably honor stop sequences, so keep only the
         # executable single-step ReAct message in history.
-        content = response.choices[0].message.content or ""
+        content = response_text(response)
         thought = self._extract_thought(content)
         action = self._extract_tag(content, "Action")
         final_answer = self.extract_final_answer(content)

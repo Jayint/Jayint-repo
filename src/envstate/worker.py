@@ -32,6 +32,23 @@ def _looks_like_pin_edit(action: str) -> bool:
     return mutating_verb and touches_dep_file
 
 
+def interruption_decision(recent_window: List[Tuple[bool, str]], action: str) -> bool:
+    """Shared repeated-identical-failure guard (design §3.5/I1).
+
+    Parameterised by a fixed rolling window of the last N observations so the
+    firing semantics are identical across all arms (A/B/C).  Arms B/C call this
+    from should_interrupt with observations[-3:]; Arm A calls it with a rolling
+    last-3 window over its single contiguous history.
+
+    Only the repeated-failure check lives here; budget and pin-edit checks stay
+    in should_interrupt so Arm B's should_interrupt call remains bit-identical.
+    """
+    failures = [obs for ok, obs in recent_window if not ok]
+    if len(failures) >= 2 and failures[-1].strip() == failures[-2].strip():
+        return True
+    return False
+
+
 def should_interrupt(
     task_spec: dict[str, Any],
     observations: List[Tuple[bool, str]],
@@ -44,9 +61,8 @@ def should_interrupt(
         return True
     if _looks_like_pin_edit(action):
         return True
-    # repeated identical failure signature beyond the first repeat
-    failures = [obs for ok, obs in observations if not ok]
-    if len(failures) >= 2 and failures[-1].strip() == failures[-2].strip():
+    # repeated identical failure signature — delegate to shared guard
+    if interruption_decision(observations[-3:], action):
         return True
     return False
 

@@ -760,6 +760,8 @@ class AgentRollbackActionTests(unittest.TestCase):
         agent.run_token_ledger = SimpleNamespace(
             image_selector=SimpleNamespace(),
             planner=SimpleNamespace(),
+            supervisor=SimpleNamespace(),
+            worker=SimpleNamespace(),
             reflection=SimpleNamespace(),
             memory=SimpleNamespace(),
             recipe=SimpleNamespace(),
@@ -897,6 +899,8 @@ class AgentSetupLogSelectionTests(unittest.TestCase):
         agent.run_token_ledger = SimpleNamespace(
             image_selector=SimpleNamespace(),
             planner=SimpleNamespace(),
+            supervisor=SimpleNamespace(),
+            worker=SimpleNamespace(),
             reflection=SimpleNamespace(),
             memory=SimpleNamespace(),
             recipe=SimpleNamespace(),

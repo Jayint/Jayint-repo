@@ -195,6 +195,18 @@ def build_agent_command(
     if args.keep_container:
         command.append("--keep-container")
 
+    # EnvState / ablation-arm flags (§9.1 — forwarded only when set).
+    if getattr(args, "enable_supervisor", False):
+        command.append("--enable-supervisor")
+    if getattr(args, "enable_fullstate_worker", False):
+        command.append("--enable-fullstate-worker")
+    if getattr(args, "fullstate_worker_prompt", False):
+        command.append("--fullstate-worker-prompt")
+    if getattr(args, "enable_envstate", False):
+        command.append("--enable-envstate")
+    if getattr(args, "enable_cleanroom", False):
+        command.append("--enable-cleanroom")
+
     return command
 
 
@@ -3246,7 +3258,113 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="When reusing an existing workplace, rerun setup-log summary and recipe synthesis even if Dockerfile already exists.",
     )
-    return parser.parse_args()
+
+    # ---------------------------------------------------------------------------
+    # Ablation-experiment arm selector (§3.1, §9.1 of the experiment design spec)
+    # --arm maps to a canonical flag set + --steps override so all four arms can
+    # be launched without memorising per-arm flag combinations.
+    #   Arm 0: bare ReAct (no EnvState flags), --steps 180
+    #   Arm A: --enable-fullstate-worker --enable-cleanroom, --steps 30
+    #   Arm B: --enable-supervisor --enable-cleanroom, --steps 30
+    #   Arm C: --enable-supervisor --fullstate-worker-prompt --enable-cleanroom, --steps 30
+    # When --arm is absent the individual flags below are used directly (back-compat).
+    # ---------------------------------------------------------------------------
+    parser.add_argument(
+        "--arm",
+        choices=["0", "A", "B", "C"],
+        default=None,
+        help=(
+            "Ablation arm shorthand. "
+            "0=bare ReAct (no EnvState flags, --steps 180); "
+            "A=--enable-fullstate-worker --enable-cleanroom (--steps 30); "
+            "B=--enable-supervisor --enable-cleanroom (--steps 30); "
+            "C=--enable-supervisor --fullstate-worker-prompt --enable-cleanroom (--steps 30). "
+            "Overrides the individual --enable-* flags and --max-steps when set. "
+            "Outputs land under <output-root>/arm{0,A,B,C}_<label>/."
+        ),
+    )
+
+    # Individual pass-through flags (used directly when --arm is absent, or
+    # set implicitly by --arm).
+    parser.add_argument(
+        "--enable-supervisor",
+        action="store_true",
+        help="Forward --enable-supervisor to agent.py (Arm B/C).",
+    )
+    parser.add_argument(
+        "--enable-fullstate-worker",
+        action="store_true",
+        help="Forward --enable-fullstate-worker to agent.py (Arm A).",
+    )
+    parser.add_argument(
+        "--fullstate-worker-prompt",
+        action="store_true",
+        help="Forward --fullstate-worker-prompt to agent.py (Arm C, requires --enable-supervisor).",
+    )
+    parser.add_argument(
+        "--enable-envstate",
+        action="store_true",
+        help="Forward --enable-envstate to agent.py.",
+    )
+    parser.add_argument(
+        "--enable-cleanroom",
+        action="store_true",
+        help="Forward --enable-cleanroom to agent.py (Arms A/B/C).",
+    )
+
+    args = parser.parse_args()
+
+    # Apply --arm presets (overrides individual flags + max_steps).
+    _ARM_PRESETS: dict[str, dict] = {
+        "0": {
+            "enable_supervisor": False,
+            "enable_fullstate_worker": False,
+            "fullstate_worker_prompt": False,
+            "enable_envstate": False,
+            "enable_cleanroom": False,
+            "max_steps": 180,
+            "_label": "arm0_bare_react",
+        },
+        "A": {
+            "enable_supervisor": False,
+            "enable_fullstate_worker": True,
+            "fullstate_worker_prompt": False,
+            "enable_envstate": False,
+            "enable_cleanroom": True,
+            "max_steps": 30,
+            "_label": "armA_fullstate",
+        },
+        "B": {
+            "enable_supervisor": True,
+            "enable_fullstate_worker": False,
+            "fullstate_worker_prompt": False,
+            "enable_envstate": False,
+            "enable_cleanroom": True,
+            "max_steps": 30,
+            "_label": "armB_supervisor",
+        },
+        "C": {
+            "enable_supervisor": True,
+            "enable_fullstate_worker": False,
+            "fullstate_worker_prompt": True,
+            "enable_envstate": False,
+            "enable_cleanroom": True,
+            "max_steps": 30,
+            "_label": "armC_matched_planner",
+        },
+    }
+    if args.arm is not None:
+        preset = _ARM_PRESETS[args.arm]
+        for key, value in preset.items():
+            if not key.startswith("_"):
+                setattr(args, key, value)
+        # Embed arm label in output_root so arms never collide.
+        args.output_root = str(Path(args.output_root) / preset["_label"])
+        args._arm_label = preset["_label"]
+    else:
+        args._arm_label = None
+
+    return args
 
 
 def main() -> int:
