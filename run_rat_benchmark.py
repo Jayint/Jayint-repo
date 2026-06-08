@@ -42,6 +42,12 @@ from typing import Optional
 # (Linux / macOS / WSL2) without editing source. Override either path via env var or, for the
 # repos file, the --repos-json flag.
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_RUNNER_COMMIT = (
+    subprocess.run(
+        ["git", "-C", _THIS_DIR, "rev-parse", "--short", "HEAD"],
+        capture_output=True, text=True, timeout=5,
+    ).stdout.strip() or "unknown"
+)
 
 
 def _default_rat_root(repo_dir: str) -> str:
@@ -347,7 +353,7 @@ def aggregate(root_path: str) -> list:
         print(f"  {cat:<40}  {cn:>5}  {cmean('success'):>8}  {cmean('pytest_collect_success'):>10}  {cmean('pytest_pass_rate'):>9}")
 
     out_path = os.path.join(root_path, "rat_results.json")
-    json.dump(rows, open(out_path, "w"), indent=2)
+    json.dump({"runner_commit": _RUNNER_COMMIT, "rows": rows}, open(out_path, "w"), indent=2)
     print(f"\n[aggregate] Wrote {out_path}  ({n} rows)")
     _print_paper_faithful_essr(root_path)
     return rows
@@ -651,6 +657,11 @@ def sequential_main(repos_json: str, root_path: str, limit: Optional[int], offse
                     repair_mode: str = "selfverify", repair_rounds: int = 2) -> None:
     """Original sequential loop — backward compatible."""
     os.makedirs(root_path, exist_ok=True)
+    try:
+        json.dump({"commit": _RUNNER_COMMIT},
+                  open(os.path.join(root_path, "_runner_version.json"), "w"), indent=2)
+    except Exception:
+        pass
     repos = _select_repos(repos_json, tier, category, offset, limit)
 
     if not repos:
@@ -675,6 +686,11 @@ def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset:
                   repair_mode: str = "selfverify", repair_rounds: int = 2) -> None:
     """Scheduler mode: fan-out to N independent child processes."""
     os.makedirs(root_path, exist_ok=True)
+    try:
+        json.dump({"commit": _RUNNER_COMMIT},
+                  open(os.path.join(root_path, "_runner_version.json"), "w"), indent=2)
+    except Exception:
+        pass
     repos = _select_repos(repos_json, tier, category, offset, limit)
 
     if not repos:

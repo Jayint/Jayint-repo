@@ -1,5 +1,9 @@
 """Recipe-level build-recipe repair.
 
+DEPRECATED (2026-06-08): superseded by the runner-side trajectory-aware LLM repair in
+repo2run_repair_port.py. Retained only for the toggled-on legacy self-verify path. Do
+not extend.
+
 Shared logic for repairing a synthesized *build recipe* (the structured source of
 truth that renders the Dockerfile) after a clean-room build/test reveals the
 environment is incomplete. Two tiers:
@@ -377,6 +381,7 @@ def normalize_repaired_recipe(
     return repaired
 
 
+# DEPRECATED: use repo2run_repair_port._repair_and_rescore for new repair work.
 def repair_recipe_with_llm(
     client: Any,
     model: str,

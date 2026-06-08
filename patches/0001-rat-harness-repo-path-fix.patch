@@ -1,0 +1,20 @@
+--- a/libkit/environment.py
++++ b/libkit/environment.py
+@@ -747,7 +747,7 @@
+             cmd = f"chmod -R 777 {project_directory}/libkit/tools && docker cp {project_directory}/libkit/tools {self.container.name}:/home"
+             print("📋 Running command:", cmd)
+             subprocess.run(cmd, check=True, shell=True)
+-            cmd = f"docker cp {project_directory}/input/repo/{self.full_name}/. {self.container.name}:/repo"
++            cmd = f"docker cp {self.root_path}/input/repo/{self.full_name}/. {self.container.name}:/repo"
+             print("📋 Running command:", cmd)
+             subprocess.run(cmd, check=True, shell=True)
+             return used_repo_dockerfile
+@@ -1431,7 +1431,7 @@
+             cmd = f"chmod -R 777 {project_directory}/libkit/tools && docker cp {project_directory}/libkit/tools {self.container.name}:/home"
+             print("📋 Running command:", cmd)
+             subprocess.run(cmd, check=True, shell=True)
+-            cmd = f"docker cp {project_directory}/input/repo/{self.full_name} {self.container.name}:/repo"
++            cmd = f"docker cp {self.root_path}/input/repo/{self.full_name} {self.container.name}:/repo"
+             print("📋 Running command:", cmd)
+             subprocess.run(cmd, check=True, shell=True)
+ 

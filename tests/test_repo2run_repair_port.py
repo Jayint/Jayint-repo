@@ -1352,3 +1352,560 @@ class TestRepairAndRescore:
                 "successful_actions from workplace must reach build_dockerfile_repair_input; "
                 f"got commands: {commands}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Fix (b): build-fail stub
+# ---------------------------------------------------------------------------
+
+
+class TestBuildFailStub:
+    """Fix (b): when ALL build attempts fail, run_pytest_results.json must be written
+    with a build_failed stub so scorers never read stale data.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _point_workplace_root_at_tmp(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DOCKERAGENT_ROOT", str(tmp_path))
+
+    def test_build_fail_stub_written_when_all_builds_fail(self, tmp_path):
+        """When every docker build fails (returncode != 0), run_pytest_results.json
+        must be written with parse_method='build_failed' and zero counts.
+        """
+        import repo2run_repair_port as m
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        # All build attempts fail
+        with patch.object(m, "run_command", return_value=_make_docker_build_failure()), \
+             patch.object(m, "evaluate_built_image") as mock_eval, \
+             patch.object(m, "repair_dockerfile_with_llm") as mock_llm, \
+             patch.object(m, "create_openai_client_from_env", return_value=MagicMock()), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=2)
+
+        # evaluate_built_image must never be called (all builds failed)
+        mock_eval.assert_not_called()
+
+        pytest_json_path = out_dir / "run_pytest_results.json"
+        assert pytest_json_path.exists(), (
+            "run_pytest_results.json must be written even when all builds fail"
+        )
+        written = json.loads(pytest_json_path.read_text())
+
+        # Must have the canonical stub structure
+        assert written.get("parse_method") == "build_failed", (
+            f"Expected parse_method='build_failed', got: {written.get('parse_method')}"
+        )
+        summary = written.get("summary", {})
+        assert summary.get("total_tests") == 0
+        assert summary.get("passed") == 0
+        assert summary.get("failed") == 0
+        assert summary.get("errors") == 0
+        assert summary.get("skipped") == 0
+        assert summary.get("xfailed") == 0
+        assert summary.get("xpassed") == 0
+        assert written.get("returncode") == 1
+
+    def test_build_fail_stub_not_written_when_test_executed(self, tmp_path):
+        """When at least one build succeeds and tests run, the real result (not the stub)
+        must be in run_pytest_results.json.
+        """
+        import repo2run_repair_port as m
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        # One build succeeds, tests run (hollow)
+        with patch.object(m, "run_command", return_value=_make_docker_build_success()), \
+             patch.object(m, "evaluate_built_image", return_value=_make_hollow_test_execution()), \
+             patch.object(m, "repair_dockerfile_with_llm") as mock_llm, \
+             patch.object(m, "create_openai_client_from_env", return_value=MagicMock()), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        pytest_json_path = out_dir / "run_pytest_results.json"
+        assert pytest_json_path.exists()
+        written = json.loads(pytest_json_path.read_text())
+        # Must NOT be a build_failed stub — real result was written
+        assert written.get("parse_method") != "build_failed", (
+            "parse_method must not be 'build_failed' when tests actually ran"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Fix (c): real_test_command cd-prefix preservation
+# ---------------------------------------------------------------------------
+
+
+class TestRealTestCommandCdPrefix:
+    """Fix (c): 'cd dir && pytest ...' commands must preserve the cd prefix."""
+
+    def test_cd_prefix_preserved(self):
+        """'cd subdir && pytest tests/' preserves the full compound command."""
+        import repo2run_repair_port as m
+
+        recipe = {
+            "logs": {
+                "verified_test_commands": ["cd subdir && pytest tests/"],
+            }
+        }
+        cmd, junit_path = m.real_test_command(recipe)
+        assert "cd subdir" in cmd, (
+            f"Expected 'cd subdir' to be preserved in command, got: {cmd!r}"
+        )
+        assert "pytest" in cmd
+        assert "--junitxml=" in cmd
+
+    def test_cd_prefix_with_collect_only_stripped(self):
+        """'cd dir && pytest --collect-only -q tests/' strips --collect-only but keeps cd prefix."""
+        import repo2run_repair_port as m
+
+        recipe = {
+            "logs": {
+                "verified_test_commands": ["cd dir && pytest --collect-only -q tests/"],
+            }
+        }
+        cmd, junit_path = m.real_test_command(recipe)
+        assert "--collect-only" not in cmd, (
+            f"--collect-only must be stripped, got: {cmd!r}"
+        )
+        assert "cd dir" in cmd, (
+            f"Expected 'cd dir' to be preserved, got: {cmd!r}"
+        )
+        assert "pytest" in cmd
+        assert "--junitxml=" in cmd
+
+    def test_cd_prefix_with_poetry_run_pytest(self):
+        """'cd app && poetry run pytest tests/' preserves full compound command."""
+        import repo2run_repair_port as m
+
+        recipe = {
+            "logs": {
+                "verified_test_commands": ["cd app && poetry run pytest tests/"],
+            }
+        }
+        cmd, junit_path = m.real_test_command(recipe)
+        assert "cd app" in cmd, (
+            f"Expected 'cd app' prefix preserved, got: {cmd!r}"
+        )
+        assert "poetry run pytest" in cmd
+        assert "--junitxml=" in cmd
+
+    def test_simple_pytest_still_works_without_cd(self):
+        """Plain 'pytest tests/' (no cd prefix) still works correctly."""
+        import repo2run_repair_port as m
+
+        recipe = {
+            "logs": {
+                "verified_test_commands": ["pytest --collect-only tests/unit/"],
+            }
+        }
+        cmd, junit_path = m.real_test_command(recipe)
+        assert cmd.startswith("pytest")
+        assert "--collect-only" not in cmd
+        assert "tests/unit/" in cmd
+        assert "--junitxml=" in cmd
+
+    def test_cd_prefix_no_double_junitxml(self):
+        """Compound command with --junitxml already present must not add a second one."""
+        import repo2run_repair_port as m
+
+        recipe = {
+            "logs": {
+                "verified_test_commands": [
+                    "cd subdir && pytest tests/ --junitxml=/tmp/existing.xml"
+                ],
+            }
+        }
+        cmd, _ = m.real_test_command(recipe)
+        assert cmd.count("--junitxml=") == 1, (
+            f"Expected exactly 1 --junitxml=, got: {cmd!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — New coverage: pre-loop setup and glue correctness
+# ---------------------------------------------------------------------------
+
+
+class TestDockerignorePreLoop:
+    """Gap 1 fix: ensure_eval_dockerignore_includes_test_artifacts is invoked before
+    the repair loop, not skipped.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _point_workplace_root_at_tmp(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DOCKERAGENT_ROOT", str(tmp_path))
+
+    def test_dockerignore_rewrite_called_before_loop(self, tmp_path):
+        """ensure_eval_dockerignore_includes_test_artifacts must be called in
+        _repair_and_rescore before the first docker build attempt.
+        """
+        import repo2run_repair_port as m
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        call_order: list[str] = []
+
+        original_ensure = m.ensure_eval_dockerignore_includes_test_artifacts
+        original_run_command = m.run_command
+
+        def spy_ensure(*args, **kwargs):
+            call_order.append("ensure_dockerignore")
+            return original_ensure(*args, **kwargs)
+
+        def spy_run_command(*args, **kwargs):
+            call_order.append("run_command")
+            return _make_docker_build_failure()
+
+        with patch.object(m, "ensure_eval_dockerignore_includes_test_artifacts", side_effect=spy_ensure), \
+             patch.object(m, "run_command", side_effect=spy_run_command), \
+             patch.object(m, "evaluate_built_image", return_value=_make_hollow_test_execution()), \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        assert "ensure_dockerignore" in call_order, (
+            "ensure_eval_dockerignore_includes_test_artifacts was never called"
+        )
+        assert "run_command" in call_order, (
+            "run_command (docker build) was never called"
+        )
+        # dockerignore rewrite must happen BEFORE the first docker build
+        ensure_idx = next(i for i, v in enumerate(call_order) if v == "ensure_dockerignore")
+        build_idx = next(i for i, v in enumerate(call_order) if v == "run_command")
+        assert ensure_idx < build_idx, (
+            f"ensure_eval_dockerignore_includes_test_artifacts (pos {ensure_idx}) must be "
+            f"called before run_command / docker build (pos {build_idx}); "
+            f"call_order={call_order}"
+        )
+
+    def test_dockerignore_receives_test_commands(self, tmp_path):
+        """ensure_eval_dockerignore_includes_test_artifacts must receive the collect
+        commands (from derive_repo2run_collect_commands), not None.
+        """
+        import repo2run_repair_port as m
+
+        # A run_summary with a non-empty test_commands to ensure collect commands are non-empty
+        run_summary = _make_run_summary()
+        run_summary["build_recipe"]["test_commands"] = ["pytest --collect-only -q"]
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path, run_summary=run_summary)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        captured_kwargs: list[dict] = []
+
+        def capture_ensure(build_context, test_commands=None, run_summary=None):
+            captured_kwargs.append({"test_commands": test_commands, "run_summary": run_summary})
+            return {"changed": False, "reason": "no_dockerignore"}
+
+        with patch.object(m, "ensure_eval_dockerignore_includes_test_artifacts", side_effect=capture_ensure), \
+             patch.object(m, "run_command", return_value=_make_docker_build_failure()), \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        assert captured_kwargs, "ensure_eval_dockerignore_includes_test_artifacts was never called"
+        call = captured_kwargs[0]
+        # test_commands must not be None — it should come from derive_repo2run_collect_commands
+        assert call["test_commands"] is not None, (
+            "test_commands passed to ensure_eval_dockerignore_includes_test_artifacts must not be None"
+        )
+
+
+class TestDeriveRepo2RunCollectCommands:
+    """Gap 2 fix: _repair_and_rescore must use derive_repo2run_collect_commands
+    (which applies filter_runtime_preparation_commands) rather than
+    derive_verification_commands (which skips that filter).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _point_workplace_root_at_tmp(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DOCKERAGENT_ROOT", str(tmp_path))
+
+    def test_derive_repo2run_collect_commands_called(self, tmp_path):
+        """_repair_and_rescore must call derive_repo2run_collect_commands, not
+        derive_verification_commands, for runtime_commands derivation.
+        """
+        import repo2run_repair_port as m
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        collect_calls: list[int] = []
+        verify_calls: list[int] = []
+
+        original_collect = m.derive_repo2run_collect_commands
+        original_verify = m.derive_verification_commands
+
+        def spy_collect(workspace_root, run_summary=None):
+            collect_calls.append(1)
+            return original_collect(workspace_root, run_summary)
+
+        def spy_verify(run_summary):
+            verify_calls.append(1)
+            return original_verify(run_summary)
+
+        with patch.object(m, "derive_repo2run_collect_commands", side_effect=spy_collect), \
+             patch.object(m, "derive_verification_commands", side_effect=spy_verify), \
+             patch.object(m, "run_command", return_value=_make_docker_build_failure()), \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        assert len(collect_calls) >= 1, (
+            "derive_repo2run_collect_commands must be called at least once"
+        )
+        assert len(verify_calls) == 0, (
+            "derive_verification_commands must NOT be called by _repair_and_rescore "
+            "(use derive_repo2run_collect_commands instead)"
+        )
+
+    def test_filter_runtime_preparation_commands_strips_collect_cmds(self):
+        """filter_runtime_preparation_commands must strip commands that are
+        repo2run collect-only (e.g. 'pytest --collect-only -q').
+        """
+        import repo2run_repair_port as m
+
+        # A collect-only command must be stripped
+        collect_only = "pytest --collect-only -q"
+        # A normal runtime command must be kept
+        normal_cmd = "pip install -r requirements.txt"
+
+        result = m.filter_runtime_preparation_commands([collect_only, normal_cmd])
+        assert collect_only not in result, (
+            f"filter_runtime_preparation_commands must strip '{collect_only}'"
+        )
+        assert normal_cmd in result, (
+            f"filter_runtime_preparation_commands must keep '{normal_cmd}'"
+        )
+
+    def test_derive_repo2run_collect_commands_applies_filter(self, tmp_path):
+        """derive_repo2run_collect_commands must apply filter_runtime_preparation_commands
+        to strip collect-only commands from runtime_commands.
+        """
+        import repo2run_repair_port as m
+
+        # A run_summary where runtime_preparation_commands includes a collect-only command
+        run_summary = {
+            "build_recipe": {
+                "source": "agent",
+                "build_commands": [],
+                "runtime_commands": ["pytest --collect-only -q", "pip install -r requirements.txt"],
+                "test_commands": ["pytest --collect-only -q"],
+            }
+        }
+
+        runtime_cmds, test_cmds, source = m.derive_repo2run_collect_commands(
+            tmp_path, run_summary
+        )
+        # pytest --collect-only must be filtered OUT of runtime_commands
+        assert not any("--collect-only" in cmd for cmd in runtime_cmds), (
+            f"filter must remove collect-only from runtime_commands; got {runtime_cmds}"
+        )
+
+
+class TestJunitAcquisitionViaNamedContainer:
+    """evaluate_built_image must use --name + docker cp (not --rm) when
+    junit_container_path is specified, so the XML survives container exit.
+    """
+
+    def test_named_container_used_when_junit_path_set(self):
+        """When junit_container_path is provided, docker run must use --name
+        (not --rm), and docker cp must be attempted to retrieve the XML.
+        """
+        import repo2run_repair_port as m
+
+        docker_run_calls: list[list[str]] = []
+        subprocess_calls: list[list[str]] = []
+
+        def fake_run_command(cmd, **kwargs):
+            docker_run_calls.append(list(cmd))
+            return {
+                "returncode": 0,
+                "stdout": "1 passed in 0.1s",
+                "stderr": "",
+                "timed_out": False,
+            }
+
+        def fake_subprocess_run(cmd, **kwargs):
+            subprocess_calls.append(list(cmd))
+            result = MagicMock()
+            result.returncode = 0
+            return result
+
+        import tempfile
+
+        with patch.object(m, "run_command", side_effect=fake_run_command), \
+             patch("subprocess.run", side_effect=fake_subprocess_run), \
+             patch.object(m, "discover_internal_import_prefixes", return_value=None), \
+             patch("tempfile.NamedTemporaryFile") as mock_tmpfile, \
+             patch("pathlib.Path.read_text", return_value="<xml/>"), \
+             patch("pathlib.Path.unlink"):
+            # Set up the NamedTemporaryFile mock
+            mock_tmp = MagicMock()
+            mock_tmp.__enter__ = MagicMock(return_value=mock_tmp)
+            mock_tmp.__exit__ = MagicMock(return_value=False)
+            mock_tmp.name = "/tmp/fake_junit.xml"
+            mock_tmpfile.return_value = mock_tmp
+
+            m.evaluate_built_image(
+                image_tag="test-image",
+                workdir="/testbed",
+                runtime_commands=[],
+                test_commands=["pytest --junitxml=/tmp/repair_junit.xml"],
+                cwd=Path("/tmp"),
+                timeout_seconds=60,
+                junit_container_path="/tmp/repair_junit.xml",
+                attempt_index=0,
+            )
+
+        # docker run must NOT contain --rm
+        assert docker_run_calls, "docker run must have been called"
+        run_cmd = docker_run_calls[0]
+        assert "--rm" not in run_cmd, (
+            f"docker run must NOT use --rm when junit_container_path is set; got {run_cmd}"
+        )
+        # docker run must contain --name
+        assert "--name" in run_cmd, (
+            f"docker run must use --name when junit_container_path is set; got {run_cmd}"
+        )
+
+        # subprocess.run must have been called for docker cp
+        cp_calls = [c for c in subprocess_calls if "cp" in c]
+        assert cp_calls, (
+            f"docker cp must be attempted for JUnit XML retrieval; subprocess calls: {subprocess_calls}"
+        )
+
+    def test_rm_used_when_no_junit_path(self):
+        """Without junit_container_path, docker run must use --rm (standard path)."""
+        import repo2run_repair_port as m
+
+        docker_run_calls: list[list[str]] = []
+
+        def fake_run_command(cmd, **kwargs):
+            docker_run_calls.append(list(cmd))
+            return {
+                "returncode": 0,
+                "stdout": "1 passed in 0.1s",
+                "stderr": "",
+                "timed_out": False,
+            }
+
+        with patch.object(m, "run_command", side_effect=fake_run_command), \
+             patch.object(m, "discover_internal_import_prefixes", return_value=None):
+            m.evaluate_built_image(
+                image_tag="test-image",
+                workdir="/testbed",
+                runtime_commands=[],
+                test_commands=["pytest"],
+                cwd=Path("/tmp"),
+                timeout_seconds=60,
+                # No junit_container_path
+            )
+
+        assert docker_run_calls, "docker run must have been called"
+        run_cmd = docker_run_calls[0]
+        assert "--rm" in run_cmd, (
+            f"docker run must use --rm when junit_container_path is NOT set; got {run_cmd}"
+        )
+        assert "--name" not in run_cmd, (
+            f"docker run must NOT use --name when junit_container_path is not set; got {run_cmd}"
+        )
+
+
+class TestDockerPlatformFromRecipe:
+    """Fix (d): docker_platform must be read from recipe['docker_platform']
+    and passed to docker build and evaluate_built_image.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _point_workplace_root_at_tmp(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DOCKERAGENT_ROOT", str(tmp_path))
+        # Ensure env var doesn't interfere
+        monkeypatch.delenv("DOCKER_DEFAULT_PLATFORM", raising=False)
+
+    def test_docker_platform_read_from_recipe(self, tmp_path):
+        """When recipe['docker_platform'] is set, it must be forwarded to
+        the docker build command and evaluate_built_image.
+        """
+        import repo2run_repair_port as m
+
+        # Recipe with docker_platform
+        recipe = _make_recipe()
+        recipe["docker_platform"] = "linux/amd64"
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path, recipe=recipe)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        build_cmds_seen: list[list[str]] = []
+        eval_kwargs_seen: list[dict] = []
+
+        def fake_run_command(cmd, **kwargs):
+            build_cmds_seen.append(list(cmd))
+            return _make_docker_build_success()
+
+        def fake_evaluate(**kwargs):
+            eval_kwargs_seen.append(dict(kwargs))
+            return _make_effective_test_execution()
+
+        with patch.object(m, "run_command", side_effect=fake_run_command), \
+             patch.object(m, "evaluate_built_image", side_effect=fake_evaluate), \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        assert build_cmds_seen, "docker build must have been called"
+        build_cmd = build_cmds_seen[0]
+        assert "--platform" in build_cmd, (
+            f"docker build must include --platform when recipe['docker_platform'] is set; got {build_cmd}"
+        )
+        platform_idx = build_cmd.index("--platform")
+        assert build_cmd[platform_idx + 1] == "linux/amd64", (
+            f"Expected --platform linux/amd64, got {build_cmd[platform_idx + 1]!r}"
+        )
+
+        assert eval_kwargs_seen, "evaluate_built_image must have been called"
+        assert eval_kwargs_seen[0].get("docker_platform") == "linux/amd64", (
+            f"evaluate_built_image must receive docker_platform='linux/amd64'; "
+            f"got {eval_kwargs_seen[0].get('docker_platform')!r}"
+        )
+
+    def test_docker_platform_none_when_recipe_has_no_platform(self, tmp_path):
+        """When recipe has no docker_platform and env var is absent,
+        docker build must NOT include --platform.
+        """
+        import repo2run_repair_port as m
+
+        recipe = _make_recipe()  # no docker_platform key
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path, recipe=recipe)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        build_cmds_seen: list[list[str]] = []
+
+        def fake_run_command(cmd, **kwargs):
+            build_cmds_seen.append(list(cmd))
+            return _make_docker_build_failure()  # fail immediately so we don't need eval
+
+        with patch.object(m, "run_command", side_effect=fake_run_command), \
+             patch.object(m, "evaluate_built_image"), \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=0)
+
+        assert build_cmds_seen, "docker build must have been called"
+        build_cmd = build_cmds_seen[0]
+        assert "--platform" not in build_cmd, (
+            f"docker build must NOT include --platform when recipe has no docker_platform; "
+            f"got {build_cmd}"
+        )

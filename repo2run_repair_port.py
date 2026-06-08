@@ -14,6 +14,7 @@ real_test_command, _repair_and_rescore).
 from __future__ import annotations
 
 import base64
+import fnmatch
 import json
 import os
 import posixpath
@@ -36,6 +37,10 @@ from src.verification_bundle import derive_supported_verification_bundle
 # ---------------------------------------------------------------------------
 
 DOCKER_TIMEOUT_EXIT_CODE = 124
+REPO2RUN_PYTEST_COLLECT_COMMAND = "pytest --collect-only -q --disable-warnings"
+REPO2RUN_POETRY_COLLECT_COMMAND = "poetry run pytest --collect-only -q --disable-warnings"
+REPO2RUN_UV_COLLECT_COMMAND = f"uv run {REPO2RUN_PYTEST_COLLECT_COMMAND}"
+REPO2RUN_PDM_COLLECT_COMMAND = f"pdm run {REPO2RUN_PYTEST_COLLECT_COMMAND}"
 OBSERVED_PIP_CONSTRAINTS_PATH = "/tmp/jayint-pip-constraints.txt"
 TEST_EXECUTION_SHELL_WRAPPER = (
     "if command -v bash >/dev/null 2>&1; then exec bash -s; else exec sh -s; fi"
@@ -1796,7 +1801,19 @@ def evaluate_built_image(
     timeout_seconds: int,
     workspace_root: Optional[Path] = None,
     docker_platform: Optional[str] = None,
+    junit_container_path: Optional[str] = None,
+    attempt_index: int = 0,
 ) -> dict[str, Any]:
+    """Run test_commands inside the built image and return result dict.
+
+    When junit_container_path is provided, each container is started with a unique
+    --name (to prevent --rm from destroying it before docker cp runs).  After the
+    run, the JUnit XML is copied out and stored in execution["_junit_xml_data"],
+    then the container is removed with docker rm -f.  This fixes the silent cp
+    failure that occurred when --rm was used.
+    """
+    import tempfile
+
     command_results: list[dict[str, Any]] = []
     internal_import_prefixes = (
         discover_internal_import_prefixes(workspace_root) if workspace_root else None
@@ -1807,9 +1824,21 @@ def evaluate_built_image(
         test_commands,
     )
 
-    for test_command in test_commands:
+    for cmd_index, test_command in enumerate(test_commands):
         script = build_test_execution_script(workdir, runtime_commands, test_command)
-        docker_run_command = ["docker", "run", "--rm", "-i"]
+
+        # When we need to retrieve JUnit XML after the run, we cannot use --rm because
+        # the container is destroyed before docker cp runs.  Use a unique --name instead,
+        # copy the XML out, then remove the container explicitly.
+        use_named_container = junit_container_path is not None
+        if use_named_container:
+            safe_tag = re.sub(r"[^a-z0-9-]", "-", image_tag.lower())
+            container_name = f"{safe_tag}-a{attempt_index}-c{cmd_index}-{os.getpid()}"
+            docker_run_command = ["docker", "run", "--name", container_name, "-i"]
+        else:
+            container_name = None
+            docker_run_command = ["docker", "run", "--rm", "-i"]
+
         if docker_platform:
             docker_run_command.extend(["--platform", docker_platform])
         if add_postgres_host_alias:
@@ -1828,6 +1857,41 @@ def evaluate_built_image(
             input_text=script,
             timeout_seconds=timeout_seconds,
         )
+
+        # If we used a named container, attempt docker cp for JUnit XML, then remove.
+        if use_named_container and container_name:
+            junit_xml_data: Optional[str] = None
+            tmp_path_xml = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as tmp:
+                    tmp_path_xml = tmp.name
+                cp_result = subprocess.run(
+                    ["docker", "cp", f"{container_name}:{junit_container_path}", tmp_path_xml],
+                    capture_output=True,
+                    timeout=30,
+                )
+                if cp_result.returncode == 0:
+                    junit_xml_data = Path(tmp_path_xml).read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                junit_xml_data = None
+            finally:
+                if tmp_path_xml:
+                    try:
+                        Path(tmp_path_xml).unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                # Always remove the named container
+                try:
+                    subprocess.run(
+                        ["docker", "rm", "-f", container_name],
+                        capture_output=True,
+                        timeout=30,
+                    )
+                except Exception:
+                    pass
+            if junit_xml_data is not None:
+                execution["_junit_xml_data"] = junit_xml_data
+
         classification = classify_test_execution(
             execution,
             internal_import_prefixes=internal_import_prefixes,
@@ -2157,6 +2221,463 @@ def create_openai_client_from_env() -> OpenAI:
     return OpenAI(api_key=api_key, base_url=base_url if base_url else None)
 
 
+# ---------------------------------------------------------------------------
+# Verbatim collect-command helpers (run_repo2run_benchmark.py:2112-2418)
+# ---------------------------------------------------------------------------
+
+
+def workspace_uses_poetry(workspace_root: Path) -> bool:
+    if (workspace_root / "poetry.lock").exists():
+        return True
+    pyproject_path = workspace_root / "pyproject.toml"
+    if not pyproject_path.exists():
+        return False
+    try:
+        pyproject_text = pyproject_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return "[tool.poetry]" in pyproject_text
+
+
+def _normalize_python_module_pytest_prefix(command: str) -> str:
+    normalized = " ".join(str(command or "").split())
+    for python_prefix in ("python -m ", "python3 -m "):
+        if normalized.startswith(f"{python_prefix}pytest "):
+            return "pytest " + normalized[len(f"{python_prefix}pytest ") :]
+    return normalized
+
+
+def _normalize_collect_cd_workdir(workdir: str) -> Optional[str]:
+    normalized = str(workdir or "").strip().rstrip("/")
+    if normalized in {"", ".", "/app", "/app/."}:
+        return ""
+    if normalized.startswith("/app/"):
+        normalized = normalized[len("/app/") :]
+    elif normalized.startswith(("/", "~")):
+        return None
+
+    if not re.match(r"^[A-Za-z0-9_./-]+$", normalized):
+        return None
+    parts = [part for part in normalized.split("/") if part and part != "."]
+    if not parts or any(part == ".." for part in parts):
+        return None
+    return "/".join(parts)
+
+
+def _split_safe_leading_cd_collect_command(command: str) -> Optional[tuple[Optional[str], str]]:
+    normalized = " ".join(str(command or "").split())
+    try:
+        tokens = shlex.split(normalized)
+    except ValueError:
+        return None
+    if len(tokens) < 4 or tokens[0] != "cd" or tokens[2] != "&&":
+        return None
+
+    cd_workdir = _normalize_collect_cd_workdir(tokens[1])
+    if cd_workdir is None:
+        return None
+    inner_command = " ".join(shlex.quote(token) for token in tokens[3:]).strip()
+    if not inner_command:
+        return None
+    return cd_workdir or None, inner_command
+
+
+def _repo2run_collect_command_has_unsafe_shell_syntax(command: str) -> bool:
+    return any(fragment in command for fragment in UNSAFE_COLLECT_COMMAND_SUBSTRINGS)
+
+
+def _repo2run_token_has_shell_control(token: str) -> bool:
+    return any(character in token for character in (";", "&", "|", ">", "<", "`"))
+
+
+def _is_pytest_executable_token(token: str) -> bool:
+    return token == "pytest" or token.endswith("/pytest") or token.endswith("\\pytest")
+
+
+def _is_env_assignment_token(token: str) -> bool:
+    if _repo2run_token_has_shell_control(token):
+        return False
+    return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.+$", token))
+
+
+def _strip_leading_env_assignment_tokens(command_tokens: list[str]) -> list[str]:
+    index = 0
+    while index < len(command_tokens) and _is_env_assignment_token(command_tokens[index]):
+        index += 1
+    return command_tokens[index:]
+
+
+def _strip_leading_env_command_tokens(command_tokens: list[str]) -> Optional[list[str]]:
+    command_tokens = _strip_leading_env_assignment_tokens(command_tokens)
+    if not command_tokens or command_tokens[0] != "env":
+        return command_tokens
+
+    index = 1
+    while index < len(command_tokens) and _is_env_assignment_token(command_tokens[index]):
+        index += 1
+    if index >= len(command_tokens):
+        return None
+    if command_tokens[index].startswith("-"):
+        return None
+    return command_tokens[index:]
+
+
+def _repo2run_collect_source_from_tokens(command_tokens: list[str]) -> Optional[str]:
+    command_tokens = _strip_leading_env_command_tokens(command_tokens)
+    if not command_tokens:
+        return None
+    runner_end_index = 0
+    source: Optional[str] = None
+
+    if command_tokens[:3] == ["poetry", "run", "pytest"]:
+        runner_end_index = 3
+        source = "repo2run_poetry_collect_only_agent_verified"
+    elif command_tokens[:3] == ["uv", "run", "pytest"]:
+        runner_end_index = 3
+        source = "repo2run_uv_collect_only_agent_verified"
+    elif command_tokens[:3] == ["pdm", "run", "pytest"]:
+        runner_end_index = 3
+        source = "repo2run_pdm_collect_only_agent_verified"
+    elif command_tokens[:3] in (["python", "-m", "pytest"], ["python3", "-m", "pytest"]):
+        runner_end_index = 3
+        source = "repo2run_pytest_collect_only_agent_verified"
+    elif command_tokens and _is_pytest_executable_token(command_tokens[0]):
+        runner_end_index = 1
+        source = "repo2run_pytest_collect_only_agent_verified"
+
+    if not source:
+        return None
+
+    collect_args = command_tokens[runner_end_index:]
+    if not any(token == "--collect-only" or token.startswith("--collect-only=") for token in collect_args):
+        return None
+    for token in collect_args:
+        if token in DISALLOWED_COLLECT_TOKENS:
+            return None
+        if _repo2run_token_has_shell_control(token):
+            return None
+    return source
+
+
+def _split_xvfb_run_collect_command(command: str) -> Optional[tuple[list[str], list[str]]]:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None
+
+    if not tokens or tokens[0] != "xvfb-run":
+        return None
+
+    value_options = {
+        "-e",
+        "-f",
+        "-n",
+        "-s",
+        "--error-file",
+        "--auth-file",
+        "--server-num",
+        "--server-args",
+    }
+    flag_options = {
+        "-a",
+        "-l",
+        "--auto-servernum",
+        "--listen-tcp",
+    }
+    value_option_prefixes = tuple(f"{option}=" for option in value_options if option.startswith("--"))
+
+    index = 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token in flag_options:
+            index += 1
+            continue
+        if token in value_options:
+            index += 2
+            continue
+        if token.startswith(value_option_prefixes):
+            index += 1
+            continue
+        if token.startswith("-"):
+            return None
+        break
+
+    if index >= len(tokens):
+        return None
+    return tokens[:index], tokens[index:]
+
+
+def _repo2run_wrapped_collect_source_for_command(command: str) -> Optional[str]:
+    xvfb_tokens = _split_xvfb_run_collect_command(command)
+    if not xvfb_tokens:
+        return None
+
+    _, inner_tokens = xvfb_tokens
+    if _repo2run_collect_source_from_tokens(inner_tokens):
+        return "repo2run_xvfb_collect_only_agent_verified"
+    return None
+
+
+def repo2run_collect_source_for_command(command: str) -> Optional[str]:
+    normalized = normalize_repo2run_collect_candidate(command)
+    cd_split = _split_safe_leading_cd_collect_command(normalized)
+    if cd_split:
+        _, normalized = cd_split
+
+    if _repo2run_collect_command_has_unsafe_shell_syntax(normalized):
+        return None
+
+    wrapped_source = _repo2run_wrapped_collect_source_for_command(normalized)
+    if wrapped_source:
+        return wrapped_source
+
+    try:
+        command_tokens = shlex.split(normalized)
+    except ValueError:
+        return None
+    return _repo2run_collect_source_from_tokens(command_tokens)
+
+
+def normalize_repo2run_collect_candidate(command: str) -> str:
+    normalized = " ".join(str(command or "").split())
+    cd_split = _split_safe_leading_cd_collect_command(normalized)
+    cd_workdir: Optional[str] = None
+    if cd_split:
+        cd_workdir, normalized = cd_split
+    normalized = _normalize_python_module_pytest_prefix(normalized)
+
+    xvfb_tokens = _split_xvfb_run_collect_command(normalized)
+    if xvfb_tokens:
+        wrapper_tokens, inner_tokens = xvfb_tokens
+        inner_command = _normalize_python_module_pytest_prefix(
+            " ".join(shlex.quote(token) for token in inner_tokens)
+        )
+        normalized = " ".join(
+            [*(shlex.quote(token) for token in wrapper_tokens), inner_command]
+        )
+    if cd_workdir:
+        normalized = f"cd {shlex.quote(cd_workdir)} && {normalized}"
+    return normalized
+
+
+def select_repo2run_collect_commands_from_run_summary(
+    run_summary: Optional[dict[str, Any]],
+) -> Optional[tuple[list[str], str]]:
+    supported_bundle = derive_supported_verification_bundle(run_summary)
+    candidate_commands = normalize_command_list(supported_bundle.get("test_commands"))
+    if not candidate_commands:
+        return None
+
+    selected_commands: list[str] = []
+    sources: list[str] = []
+    for command in candidate_commands:
+        normalized = normalize_repo2run_collect_candidate(command)
+        source = repo2run_collect_source_for_command(normalized)
+        if not source:
+            return None
+        selected_commands.append(normalized)
+        sources.append(source)
+
+    source = sources[0] if len(set(sources)) == 1 else "repo2run_agent_verified_collect_commands"
+    return selected_commands, source
+
+
+def filter_runtime_preparation_commands(commands: list[str]) -> list[str]:
+    filtered: list[str] = []
+    for command in commands or []:
+        normalized = normalize_repo2run_collect_candidate(command)
+        if repo2run_collect_source_for_command(normalized):
+            continue
+        filtered.append(command)
+    return filtered
+
+
+def derive_repo2run_collect_commands(
+    workspace_root: Path,
+    run_summary: Optional[dict[str, Any]] = None,
+) -> tuple[list[str], list[str], str]:
+    supported_bundle = derive_supported_verification_bundle(run_summary)
+    runtime_commands = filter_runtime_preparation_commands(
+        normalize_command_list(supported_bundle.get("runtime_preparation_commands"))
+    )
+    agent_verified_choice = select_repo2run_collect_commands_from_run_summary(run_summary)
+    if agent_verified_choice is not None:
+        commands, source = agent_verified_choice
+        return runtime_commands, commands, source
+
+    if workspace_uses_poetry(workspace_root):
+        return [], [REPO2RUN_POETRY_COLLECT_COMMAND], "repo2run_poetry_collect_only"
+    return [], [REPO2RUN_PYTEST_COLLECT_COMMAND], "repo2run_pytest_collect_only"
+
+
+# ---------------------------------------------------------------------------
+# Verbatim dockerignore helpers (run_repo2run_benchmark.py:359-519)
+# ---------------------------------------------------------------------------
+
+
+def _infer_existing_eval_test_artifact_paths(
+    build_context: Path,
+    test_commands: Optional[list[str]] = None,
+    run_summary: Optional[dict[str, Any]] = None,
+) -> list[str]:
+    """Infer test artifacts that must survive .dockerignore for fresh eval."""
+    candidates: list[str] = ["tests", "test", "testing"]
+
+    for command in test_commands or []:
+        normalized = normalize_repo2run_collect_candidate(command)
+        try:
+            tokens = shlex.split(normalized)
+        except ValueError:
+            continue
+        for token in tokens:
+            if not token or token.startswith("-"):
+                continue
+            if token in {"pytest", "poetry", "run", "uv", "pdm", "xvfb-run"}:
+                continue
+            if token.endswith("/pytest") or token.endswith("\\pytest"):
+                continue
+            if token in {"python", "python3", "-m"}:
+                continue
+            path_token = token.strip().lstrip("./").rstrip("/")
+            if path_token and (
+                "/" in path_token
+                or path_token.startswith(("test", "tests", "testing"))
+                or path_token.endswith((".py", ".rst"))
+            ):
+                candidates.append(path_token.split("/", 1)[0])
+
+    for action in (run_summary or {}).get("successful_actions") or []:
+        command = normalize_repo2run_collect_candidate(str(action.get("command") or ""))
+        if not repo2run_collect_source_for_command(command):
+            continue
+        observation = str(
+            action.get("observation_summary") or action.get("observation") or ""
+        )
+        if not re.search(r"\b(?:tests?|items?) collected\b", observation):
+            continue
+        for line in observation.splitlines():
+            stripped = line.strip()
+            if "::" not in stripped:
+                continue
+            node_path = stripped.split("::", 1)[0].lstrip("./")
+            if "/" in node_path:
+                candidates.append(node_path.split("/", 1)[0])
+            elif node_path:
+                candidates.append(node_path)
+
+    seen: set[str] = set()
+    existing: list[str] = []
+    for candidate in candidates:
+        cleaned = candidate.strip().strip("/").replace("\\", "/")
+        if not cleaned or cleaned in seen:
+            continue
+        if (build_context / cleaned).exists():
+            seen.add(cleaned)
+            existing.append(cleaned)
+    return existing
+
+
+def _dockerignore_pattern_mentions_artifact(pattern: str, artifact_path: str) -> bool:
+    stripped = pattern.strip().replace("\\", "/")
+    if not stripped or stripped.startswith("#") or stripped.startswith("!"):
+        return False
+
+    normalized_pattern = stripped.lstrip("/").rstrip("/")
+    artifact = artifact_path.strip("/").replace("\\", "/")
+    if not normalized_pattern or not artifact:
+        return False
+
+    artifact_root = artifact.split("/", 1)[0]
+    if normalized_pattern in {"*", "**", "**/*"}:
+        return False
+    if normalized_pattern == artifact or normalized_pattern == artifact_root:
+        return True
+    if normalized_pattern.startswith(f"{artifact}/") or normalized_pattern.startswith(
+        f"{artifact_root}/"
+    ):
+        return True
+    if normalized_pattern.endswith(f"/{artifact}") or normalized_pattern.endswith(
+        f"/{artifact_root}"
+    ):
+        return True
+    if f"/{artifact}/" in normalized_pattern or f"/{artifact_root}/" in normalized_pattern:
+        return True
+    return bool(
+        fnmatch.fnmatch(artifact, normalized_pattern)
+        or fnmatch.fnmatch(f"{artifact}/__jayint_keep__", normalized_pattern)
+        or fnmatch.fnmatch(artifact_root, normalized_pattern)
+        or fnmatch.fnmatch(f"{artifact_root}/__jayint_keep__", normalized_pattern)
+    )
+
+
+def ensure_eval_dockerignore_includes_test_artifacts(
+    build_context: Path,
+    *,
+    test_commands: Optional[list[str]] = None,
+    run_summary: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """Prevent target .dockerignore files from hiding tests during eval replay."""
+    dockerignore_path = build_context / ".dockerignore"
+    artifact_paths = _infer_existing_eval_test_artifact_paths(
+        build_context,
+        test_commands=test_commands,
+        run_summary=run_summary,
+    )
+    result: dict[str, Any] = {
+        "path": str(dockerignore_path),
+        "test_artifact_paths": artifact_paths,
+        "changed": False,
+        "removed_patterns": [],
+        "appended_exceptions": [],
+    }
+    if not dockerignore_path.exists():
+        result["reason"] = "no_dockerignore"
+        return result
+    if not artifact_paths:
+        result["reason"] = "no_existing_test_artifacts_detected"
+        return result
+
+    original_lines = dockerignore_path.read_text(
+        encoding="utf-8", errors="replace"
+    ).splitlines()
+    kept_lines: list[str] = []
+    removed_patterns: list[str] = []
+    for line in original_lines:
+        if any(_dockerignore_pattern_mentions_artifact(line, path) for path in artifact_paths):
+            removed_patterns.append(line)
+            continue
+        kept_lines.append(line)
+
+    exceptions: list[str] = []
+    for path in artifact_paths:
+        if (build_context / path).is_dir():
+            exceptions.extend([f"!{path}/", f"!{path}/**"])
+        else:
+            exceptions.append(f"!{path}")
+
+    existing_lines = {line.strip() for line in kept_lines}
+    appended_exceptions = [line for line in exceptions if line not in existing_lines]
+    changed = bool(removed_patterns or appended_exceptions)
+    if changed:
+        rendered_lines = kept_lines[:]
+        if appended_exceptions:
+            if rendered_lines and rendered_lines[-1].strip():
+                rendered_lines.append("")
+            rendered_lines.append("# Repo2Run eval: keep test artifacts available inside the image.")
+            rendered_lines.extend(appended_exceptions)
+        dockerignore_path.write_text("\n".join(rendered_lines).rstrip() + "\n", encoding="utf-8")
+
+    result.update(
+        {
+            "changed": changed,
+            "removed_patterns": removed_patterns,
+            "appended_exceptions": appended_exceptions,
+            "reason": "updated" if changed else "already_includes_test_artifacts",
+        }
+    )
+    return result
+
+
 def derive_verification_commands(run_summary: Optional[dict[str, Any]]) -> tuple[list[str], list[str], str]:
     supported_bundle = derive_supported_verification_bundle(run_summary)
 
@@ -2416,12 +2937,17 @@ def junit_to_pytest_results(
     xml_text: Optional[str] = None
     parse_method = "regex_fallback"
 
-    # Test injection point: allows unit tests to supply XML without docker
+    # Priority 1: test injection point (unit tests supply XML directly)
     if "_junit_xml_override" in execution:
         xml_text = execution["_junit_xml_override"]
         parse_method = "junit_xml"
+    elif "_junit_xml_data" in execution:
+        # Priority 2: pre-fetched by evaluate_built_image via named container + docker cp
+        xml_text = execution["_junit_xml_data"]
+        parse_method = "junit_xml"
     else:
-        # Real path: docker cp from the container
+        # Priority 3 (fallback): attempt docker cp from image_tag — only works when
+        # the container was NOT started with --rm (i.e. legacy callers outside repair loop).
         import tempfile
         tmp_path = None
         try:
@@ -2505,6 +3031,38 @@ def _cmd_starts_with_pytest(cmd: str) -> bool:
     return any(stripped.startswith(pfx) for pfx in _PYTEST_PREFIXES)
 
 
+def _extract_pytest_from_compound_command(cmd: str) -> Optional[str]:
+    """Extract a pytest invocation from a compound command like 'cd dir && pytest ...'.
+
+    When the command contains '&&', find the last segment that contains a recognized
+    pytest prefix and return the full original command (minus --collect-only flags)
+    so that the 'cd dir' prefix is preserved.
+
+    Returns None if no pytest invocation is found anywhere in the command.
+    """
+    if "&&" not in cmd:
+        return None
+
+    segments = [s.strip() for s in cmd.split("&&")]
+    # Find the last segment that starts with a pytest prefix
+    pytest_segment_index: Optional[int] = None
+    for i, seg in enumerate(segments):
+        if _cmd_starts_with_pytest(seg):
+            pytest_segment_index = i
+
+    if pytest_segment_index is None:
+        return None
+
+    # Strip --collect-only flags from the pytest segment only
+    pytest_seg = _strip_collect_flags(segments[pytest_segment_index])
+    if not pytest_seg:
+        return None
+
+    # Rebuild: keep all segments up to and including the (stripped) pytest segment
+    rebuilt_segments = segments[:pytest_segment_index] + [pytest_seg]
+    return " && ".join(rebuilt_segments)
+
+
 def real_test_command(recipe: dict[str, Any]) -> tuple[str, str]:
     """Derive a runnable test command from the recipe.
 
@@ -2514,6 +3072,8 @@ def real_test_command(recipe: dict[str, Any]) -> tuple[str, str]:
     1. Read recipe.get("logs", {}).get("verified_test_commands") or [].
     2. Strip each command of --collect-only and any -q/--quiet flags.
     3. If stripped command is non-empty and starts with a recognized pytest prefix → accept.
+       If command contains '&&' and pytest appears after the last '&&', preserve the full
+       compound command (e.g. 'cd dir && pytest ...') minus --collect-only flags.
     4. If nothing passes → fallback 'pytest -q --disable-warnings'.
     5. Append --junitxml=/tmp/repair_junit.xml (unless already present).
     6. Return (command_with_junitxml, "/tmp/repair_junit.xml").
@@ -2529,6 +3089,11 @@ def real_test_command(recipe: dict[str, Any]) -> tuple[str, str]:
         stripped = _strip_collect_flags(cmd)
         if stripped and _cmd_starts_with_pytest(stripped):
             accepted = stripped
+            break
+        # Handle compound commands like "cd subdir && pytest tests/"
+        compound = _extract_pytest_from_compound_command(cmd)
+        if compound is not None:
+            accepted = compound
             break
 
     if accepted is None:
@@ -2631,18 +3196,28 @@ def _repair_and_rescore(
     except Exception:
         return out  # no Dockerfile → cannot repair
 
-    # ── GLUE: derive verification + test commands ────────────────────────────
-    runtime_commands, _test_commands_base, _source = derive_verification_commands(run_summary)
-    # Override with the real (non-collect-only) command + junitxml appended
-    real_cmd, junit_path = real_test_command(recipe)
-    test_commands = [real_cmd]
-
     # ── GLUE: collect pip constraints from run_summary (verbatim helper) ─────
     pip_constraints = collect_observed_pip_install_constraints(None, run_summary)
 
     # ── GLUE: paths for docker build context ─────────────────────────────────
     eval_build_context_path = Path(out_dir) / "eval_build"
     repo_root = Path(out_dir)
+
+    # ── GLUE: derive collect commands (mirrors run_repo2run_benchmark.py:3386-3393) ──
+    # Use derive_repo2run_collect_commands (not derive_verification_commands) so that
+    # filter_runtime_preparation_commands strips collect-only commands from runtime_commands.
+    runtime_commands, _test_commands_collect, _source = derive_repo2run_collect_commands(
+        eval_build_context_path, run_summary
+    )
+    # Override collect commands with the real (non-collect-only) command + junitxml appended
+    real_cmd, junit_path = real_test_command(recipe)
+    test_commands = [real_cmd]
+    # Rewrite .dockerignore so test artifacts are not excluded from the image build.
+    ensure_eval_dockerignore_includes_test_artifacts(
+        eval_build_context_path,
+        test_commands=_test_commands_collect,
+        run_summary=run_summary,
+    )
 
     # ── GLUE: synthetic instance dict for build_dockerfile_repair_input ──────
     instance = {
@@ -2656,11 +3231,18 @@ def _repair_and_rescore(
     safe_slug = re.sub(r"[^a-z0-9-]", "-", slug.lower())
     image_tag = f"dockeragent-repair-{safe_slug}-{os.getpid()}"
 
+    # ── GLUE: docker_platform — read from recipe then fall back to env (fix (d)) ──
+    docker_platform: Optional[str] = (
+        (recipe or {}).get("docker_platform")
+        or os.environ.get("DOCKER_DEFAULT_PLATFORM")
+    ) or None
+
     # ── GLUE: shared accumulators + lazy OpenAI client ───────────────────────
     dockerfile_validation_attempts: list[dict] = []
     dockerfile_repair_rounds: list[dict] = []
     repair_client = None
     eval_dockerfile_path = eval_build_context_path / "Dockerfile"
+    _pytest_json_written = False  # tracks whether run_pytest_results.json was written
 
     # ===== VERBATIM loop body from run_repo2run_benchmark.py:3398-3530 =====
     # (only I/O bindings are new glue; repair decision logic is byte-for-byte)
@@ -2670,7 +3252,8 @@ def _repair_and_rescore(
             eval_dockerfile_path.write_text(current_eval_dockerfile_text, encoding="utf-8")  # VERBATIM
 
             docker_build_command = ["docker", "build"]               # VERBATIM
-            # GLUE: no --platform (derive from recipe if needed; omit for now)
+            if docker_platform:                                      # GLUE: fix (d)
+                docker_build_command.extend(["--platform", docker_platform])
             docker_build_command.extend([                            # VERBATIM pattern
                 "-f", str(eval_dockerfile_path),
                 "-t", image_tag,
@@ -2693,7 +3276,9 @@ def _repair_and_rescore(
                     cwd=repo_root,
                     timeout_seconds=600,
                     workspace_root=eval_build_context_path,
-                    docker_platform=None,
+                    docker_platform=docker_platform,               # GLUE: fix (d)
+                    junit_container_path=junit_path,               # GLUE: fix (a)
+                    attempt_index=attempt_index,                   # GLUE: fix (a)
                 )
 
             attempt_success = bool(                                  # VERBATIM
@@ -2728,6 +3313,7 @@ def _repair_and_rescore(
                     json.dumps(pr, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
+                _pytest_json_written = True
                 # GLUE: write sidecar for audit trail
                 try:
                     _sidecar_path = pytest_json_path.replace(
@@ -2813,6 +3399,33 @@ def _repair_and_rescore(
                 pip_constraints=pip_constraints,
             )
         # ===== END VERBATIM LOOP =====
+
+        # GLUE fix (b): if all build attempts failed (test_execution was always None),
+        # run_pytest_results.json was never written.  Scorers read it unconditionally, so
+        # write a build_failed stub so they never read stale data from a previous run.
+        if not _pytest_json_written:
+            _build_failed_stub = {
+                "summary": {
+                    "total_tests": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "errors": 0,
+                    "skipped": 0,
+                    "xfailed": 0,
+                    "xpassed": 0,
+                },
+                "error_breakdown": {},
+                "failed_tests": [],
+                "returncode": 1,
+                "parse_method": "build_failed",
+            }
+            try:
+                Path(pytest_json_path).write_text(
+                    json.dumps(_build_failed_stub, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
 
     except Exception as _exc:
         # GLUE: never-raise contract; degrade to original results

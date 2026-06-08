@@ -511,10 +511,15 @@ def test_aggregate_produces_correct_rat_results_json(root_path):
     assert rat_results_path.exists(), "aggregate() must write rat_results.json"
 
     written = json.loads(rat_results_path.read_text())
-    assert isinstance(written, list)
-    assert len(written) == 2
+    # rat_results.json is now {"runner_commit": <str>, "rows": [...]}
+    assert isinstance(written, dict), "rat_results.json must be a dict with runner_commit + rows"
+    assert "runner_commit" in written, "rat_results.json must contain 'runner_commit'"
+    assert isinstance(written["runner_commit"], str)
+    rows_written = written["rows"]
+    assert isinstance(rows_written, list)
+    assert len(rows_written) == 2
     # All four scorer keys must be present in every row
-    for row in written:
+    for row in rows_written:
         for key in ("success", "pytest_collect_success", "pytest_pass_rate",
                     "pass_rate_exclude_code_issues"):
             assert key in row, f"Scorer key '{key}' missing from aggregated row"

@@ -1,0 +1,113 @@
+--- /tmp/Repo2Run_inspect/build_agent/utils/llm.py	2026-06-07 07:31:43.010569162 +0000
++++ /opt/rat-bench-integration/rat_run_repo2run/Repo2Run/build_agent/utils/llm.py	2026-06-07 07:52:49.486222780 +0000
+@@ -1,36 +1,91 @@
+-# Copyright (2025) Bytedance Ltd. and/or its affiliates 
+-
+-# Licensed under the Apache License, Version 2.0 (the "License"); 
+-# you may not use this file except in compliance with the License. 
+-# You may obtain a copy of the License at 
+-
++# Copyright (2025) Bytedance Ltd. and/or its affiliates
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
+ #     https://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++# --- ADAPTED for the RunAnyThing eval (2026-06-07) ---
++# Stock build_agent/utils/llm.py calls openai.ChatCompletion.create() (the pre-1.0 API)
++# while requirements pin openai==1.65.2, where that call is removed -> every LLM call
++# fails. This port:
++#   * uses the new OpenAI SDK client and routes to OpenRouter so it can use the same
++#     deepseek/deepseek-v4-flash model as the RAT/DockerAgent baselines (Alibaba pin);
++#     creds read from env (OPENROUTER_API_KEY/BASE/PROVIDER), inherited from harness .env.
++#   * returns (list_of_contents, usage_dict) to match how agents/configuration.py consumes
++#     it (configuration_agent_list[0] and usage["total_tokens"]).
++#   * default max_tokens raised 1024 -> 4096 so Thought+Action responses are not truncated.
+ 
+-# Unless required by applicable law or agreed to in writing, software 
+-# distributed under the License is distributed on an "AS IS" BASIS, 
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+-# See the License for the specific language governing permissions and 
+-# limitations under the License. 
++import os
++import time
+ 
++from openai import OpenAI
+ 
+-import openai
+-import time
+ 
+-def get_llm_response(model: str, messages, temperature = 0.0, n = 1, max_tokens = 1024):
++def _client():
++    base_url = (
++        os.getenv("OPENROUTER_API_BASE")
++        or os.getenv("OPENAI_BASE_URL")
++        or "https://openrouter.ai/api/v1"
++    )
++    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
++    return OpenAI(base_url=base_url, api_key=api_key)
++
++
++def _extra_body():
++    providers = [
++        p.strip()
++        for p in os.getenv("OPENROUTER_PROVIDER", "Alibaba").split(",")
++        if p.strip()
++    ]
++    if providers:
++        return {"provider": {"order": providers, "allow_fallbacks": False}}
++    return {}
++
++
++def _usage_to_dict(usage):
++    if usage is None:
++        return {"total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0}
++    try:
++        d = usage.model_dump()
++    except Exception:
++        d = {
++            "total_tokens": getattr(usage, "total_tokens", 0),
++            "prompt_tokens": getattr(usage, "prompt_tokens", 0),
++            "completion_tokens": getattr(usage, "completion_tokens", 0),
++        }
++    d.setdefault("total_tokens", 0)
++    return d
++
++
++def get_llm_response(model, messages, temperature=0.0, n=1, max_tokens=4096):
++    client = _client()
++    extra = _extra_body()
+     max_retry = 5
+     count = 0
+     while count < max_retry:
+         try:
+-            response = openai.ChatCompletion.create(
++            kwargs = dict(
+                 model=model,
+                 messages=messages,
+                 temperature=temperature,
+                 n=n,
+-                max_tokens=max_tokens
++                max_tokens=max_tokens,
+             )
+-            return response.choices[0].message.content, response.usage
++            if extra:
++                kwargs["extra_body"] = extra
++            response = client.chat.completions.create(**kwargs)
++            contents = [choice.message.content for choice in response.choices]
++            return contents, _usage_to_dict(response.usage)
+         except Exception as e:
+             print(f"Error: {e}")
+             count += 1
+             time.sleep(3)
+-    return None, None
+\ No newline at end of file
++    return [""], {"total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0}
