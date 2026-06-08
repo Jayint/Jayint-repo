@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from src.envstate.acl import apply_llm_proposal
 from src.envstate.jsonutil import extract_json_object
+from src.envstate.llm_response import response_text
 from src.envstate.ledger import ActionEvent
 from src.envstate.serde import snapshot_to_dict
 from src.envstate.types import EnvStateSnapshot
@@ -92,7 +93,7 @@ class Maintainer:
         response = self.client.chat.completions.create(
             model=self.model, messages=messages, temperature=0
         )
-        content = response.choices[0].message.content or ""
+        content = response_text(response)
         usage_obj = getattr(response, "usage", None)
         usage = {
             "input_tokens": getattr(usage_obj, "prompt_tokens", 0) or 0,

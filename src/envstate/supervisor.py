@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.ledger import ActionLedger
+from src.envstate.llm_response import response_text
 from src.envstate.types import EnvStateSnapshot, Source
 
 SETUP_PHASES = (
@@ -95,7 +96,7 @@ class Supervisor:
         response = self.client.chat.completions.create(
             model=self.model, messages=messages, temperature=0
         )
-        content = response.choices[0].message.content or ""
+        content = response_text(response)
         usage = {
             "input_tokens": response.usage.prompt_tokens,
             "output_tokens": response.usage.completion_tokens,

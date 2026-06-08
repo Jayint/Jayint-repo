@@ -3,11 +3,16 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, List, Tuple
 
+from src.envstate.llm_response import response_text
+
 # A worker executor runs one action and returns (success, observation).
 WorkerExecutor = Callable[[str], Tuple[bool, str]]
 
 DEFAULT_MAX_ACTIONS = 6
 DEP_PIN_FILES = ("requirements.txt", "pyproject.toml", "setup.py", "setup.cfg", "Pipfile")
+# Allow one re-prompt for an unparseable planner response before giving up, so a
+# reasoning model that drops the Action line once does not spin the action budget.
+MAX_EMPTY_PLANNER_RESPONSES = 2
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,7 @@ class Worker:
         observations: List[Tuple[bool, str]] = []
         commands: List[str] = []
         blockers: List[str] = []
+        empty_responses = 0
         max_actions = task_spec.get("max_actions", self.max_actions)
 
         while True:
@@ -75,6 +81,18 @@ class Worker:
                 # trailing action — the Supervisor decides what happens next.
                 return WorkerReport(task_id, "complete", "worker signaled completion",
                                     tuple(commands), tuple(blockers))
+            # An empty/unparseable action (e.g. a reasoning model that dropped the
+            # Action line) must NOT be run as a shell command — that would burn the
+            # budget on no-op successes. Re-prompt once, then bail out as blocked.
+            if action is None or not action.strip():
+                empty_responses += 1
+                note = "worker planner returned no parseable action"
+                blockers.append(note)
+                if empty_responses >= MAX_EMPTY_PLANNER_RESPONSES:
+                    return WorkerReport(task_id, "blocked", note,
+                                        tuple(commands), tuple(blockers))
+                continue
+            empty_responses = 0
             # Check interruption BEFORE executing a constraint-violating action.
             if should_interrupt(task_spec, observations, action, actions_used=len(commands)):
                 return WorkerReport(task_id, "interrupted",
@@ -157,7 +175,7 @@ class LlmWorkerPlanner:
         response = self.client.chat.completions.create(
             model=self.model, messages=messages, temperature=0, stop=["Observation:"]
         )
-        content = response.choices[0].message.content or ""
+        content = response_text(response)
         if self.on_usage is not None:
             usage_obj = getattr(response, "usage", None)
             self.on_usage({
