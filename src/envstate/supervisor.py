@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Optional
 
+from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.ledger import ActionLedger
 from src.envstate.llm_response import response_text
@@ -102,4 +103,6 @@ class Supervisor:
             "output_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens,
         }
-        return parse_task_spec(content), usage
+        task_spec = parse_task_spec(content)
+        log_llm_exchange("supervisor", response, parsed=task_spec)
+        return task_spec, usage

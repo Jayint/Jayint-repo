@@ -3,6 +3,7 @@ import json
 from typing import Any, Optional
 
 from src.envstate.acl import apply_llm_proposal
+from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.llm_response import response_text
 from src.envstate.ledger import ActionEvent
@@ -102,4 +103,6 @@ class Maintainer:
         }
         proposal = parse_maintainer_proposal(content)
         updated, rejected = apply_llm_proposal(snapshot, proposal)
+        parsed_summary = {"proposal_keys": list(proposal.keys()), "rejected_count": len(rejected)}
+        log_llm_exchange("maintainer", response, parsed=parsed_summary)
         return updated, proposal, rejected, usage

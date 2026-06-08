@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, List, Tuple
 
+from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.llm_response import response_text
 
 # A worker executor runs one action and returns (success, observation).
@@ -184,6 +185,9 @@ class LlmWorkerPlanner:
                 "total_tokens": getattr(usage_obj, "total_tokens", 0) or 0,
             })
         self.history.append({"role": "assistant", "content": content})
-        if _is_worker_finished(content):
+        action = _extract_worker_action(content)
+        is_finished = _is_worker_finished(content)
+        log_llm_exchange("worker", response, parsed={"action": action, "is_finished": is_finished})
+        if is_finished:
             return "", True
-        return _extract_worker_action(content), False
+        return action, False

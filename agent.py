@@ -848,6 +848,16 @@ class DockerAgent:
         from src.envstate.maintainer import Maintainer
         from src.envstate.types import BaseFacts, EnvStateSnapshot
 
+        # Enable opt-in LLM-exchange logging for this supervisor run.
+        # Scoped to this call: the previous value (if any) is restored in the
+        # finally block so that multiple agents in the same process don't
+        # inherit a stale path from a prior run.
+        _llm_log_dir = os.path.join(self.logs_dir, "setup_logs")
+        os.makedirs(_llm_log_dir, exist_ok=True)
+        _llm_log_path = os.path.join(_llm_log_dir, "envstate_llm.jsonl")
+        _prev_llm_log = os.environ.get("ENVSTATE_LLM_LOG")
+        os.environ["ENVSTATE_LLM_LOG"] = _llm_log_path
+
         supervisor = Supervisor(client=self.client, model=self.model)
         maintainer = Maintainer(client=self.client, model=self.model)
         base_image = (
@@ -902,6 +912,13 @@ class DockerAgent:
                     run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
                     print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
         finally:
+            # Restore the env var to its prior state so the logging scope does
+            # not leak into other code paths or subsequent agents in the same
+            # process.
+            if _prev_llm_log is None:
+                os.environ.pop("ENVSTATE_LLM_LOG", None)
+            else:
+                os.environ["ENVSTATE_LLM_LOG"] = _prev_llm_log
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
         return configuration_success
