@@ -124,6 +124,7 @@ class DockerAgent:
         enable_observation_compression=False,
         enable_long_term_memory=False,
         enable_envstate=False,
+        enable_supervisor=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
@@ -153,7 +154,8 @@ class DockerAgent:
         self._current_verification_group = []
         self.enable_observation_compression = enable_observation_compression
         self.enable_long_term_memory = enable_long_term_memory
-        self.enable_envstate = enable_envstate
+        self.enable_supervisor = enable_supervisor
+        self.enable_envstate = enable_envstate or enable_supervisor
         self.action_ledger = None
         self.current_task_id = None
         self.env_container_id = ""
@@ -785,8 +787,100 @@ class DockerAgent:
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
 
+    def _build_observer(self, maintainer):
+        """Per-action observation pipeline (design §6 steps 5-8). For each executed
+        action: record evidence + ActionEvent (legacy + ledger), advance the EnvState
+        revision on a real mutation, ask the Maintainer to interpret failures/mutations
+        into ACL-safe hypotheses + probe_requests, then run those probes on the host and
+        certify PRESENT/MISSING through the ACL. Returns the new (immutable) snapshot."""
+        from src.envstate.acl import advance_revision
+        from src.envstate.probes import ProbeSpec, certify_probe_result, run_probe
+
+        def observer(snapshot, task_spec, step, action, success, observation):
+            # 1. record into legacy evidence ledger + ActionLedger (the latter via
+            #    _append_action_event called inside these methods).
+            if success:
+                self._record_successful_action(step, action, observation)
+            else:
+                self._record_failed_action(step, action, observation)
+
+            mutation_class = None
+            if success and self.synthesizer.command_mutates_environment(action):
+                mutation_class = self.synthesizer.classify_mutation(action)
+                snapshot = advance_revision(snapshot, mutation_class)
+
+            # 2. interpret on failures or env mutations (where the map must change);
+            #    skip read-only successes to save LLM calls.
+            if (not success) or mutation_class:
+                action_event = self.action_ledger.events()[-1]
+                snapshot, proposal, rejected, _usage = maintainer.interpret(
+                    snapshot, task_spec, action_event, observation
+                )
+                if rejected:
+                    print(f"[EnvState ACL] rejected {len(rejected)} LLM proposal(s)")
+                # 3. run each requested probe on the HOST and certify the truth.
+                for request in proposal.get("probe_requests", []):
+                    name = request.get("name")
+                    if not name:
+                        continue
+                    spec = ProbeSpec(
+                        kind=request.get("kind", "cli"),
+                        name=name,
+                        predicate=request.get("predicate", ""),
+                    )
+                    result = run_probe(
+                        self.sandbox.exec_readonly, spec,
+                        env_revision=snapshot.revision, container_id=self.env_container_id,
+                    )
+                    requirement_id = request.get("requirement_id") or f"tool:{name}"
+                    snapshot = certify_probe_result(snapshot, requirement_id, result)
+            return snapshot
+
+        return observer
+
+    def _run_supervisor(self, max_steps=30, keep_container=False):
+        from src.envstate.supervisor import Supervisor
+        from src.envstate.worker import LlmWorkerPlanner, Worker
+        from src.envstate.orchestrator import EnvStateOrchestrator
+        from src.envstate.maintainer import Maintainer
+        from src.envstate.types import BaseFacts, EnvStateSnapshot
+
+        supervisor = Supervisor(client=self.client, model=self.model)
+        maintainer = Maintainer(client=self.client, model=self.model)
+        base_image = (
+            getattr(self, "base_image", None)
+            or getattr(self.synthesizer, "base_image", None)
+            or ""
+        )
+        snapshot = EnvStateSnapshot(
+            revision=0, container_id=self.env_container_id, base=BaseFacts(image=base_image),
+        )
+        worker = Worker(planner=LlmWorkerPlanner(self.client, self.model), max_actions=6)
+        orchestrator = EnvStateOrchestrator(
+            supervisor=supervisor, worker=worker, snapshot=snapshot,
+            ledger=self.action_ledger,
+            executor=self.sandbox.execute,            # raw exec; observer does the recording
+            observer=self._build_observer(maintainer),
+            max_tasks=max_steps,
+        )
+        try:
+            result = orchestrator.run()
+            self.env_snapshot = orchestrator.snapshot
+            configuration_success = (
+                self._auto_finalize_from_verified_tests("supervisor_run")
+                or bool(self.verification_bundle)
+            )
+            if configuration_success:
+                configuration_success = self._synthesize_final_build_recipe()
+            self._write_run_summary(configuration_success)
+            return configuration_success
+        finally:
+            self.sandbox.close(keep_alive=keep_container)
+
     def run(self, max_steps=30, keep_container=False):
         """Runs the ReAct loop to configure the environment."""
+        if getattr(self, "enable_supervisor", False):
+            return self._run_supervisor(max_steps=max_steps, keep_container=keep_container)
         print(f"Starting agent for repository: {self.repo_url}")
         observation = None
         configuration_success = False  # 成功标志位
@@ -2017,6 +2111,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--enable-envstate", action="store_true",
                         help="Maintain a host EnvState world model + ActionLedger (shadow mode).")
+    parser.add_argument("--enable-supervisor", action="store_true",
+                        help="Use the EnvState Supervisor/Worker orchestrator instead of the legacy ReAct loop.")
 
     args = parser.parse_args()
     
@@ -2029,6 +2125,7 @@ if __name__ == "__main__":
         enable_observation_compression=args.enable_observation_compression,
         enable_long_term_memory=args.enable_long_term_memory,
         enable_envstate=args.enable_envstate,
+        enable_supervisor=args.enable_supervisor,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
         command_timeout_seconds=args.command_timeout,

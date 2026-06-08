@@ -1,0 +1,163 @@
+from __future__ import annotations
+import re
+from dataclasses import dataclass
+from typing import Any, Callable, List, Tuple
+
+# A worker executor runs one action and returns (success, observation).
+WorkerExecutor = Callable[[str], Tuple[bool, str]]
+
+DEFAULT_MAX_ACTIONS = 6
+DEP_PIN_FILES = ("requirements.txt", "pyproject.toml", "setup.py", "setup.cfg", "Pipfile")
+
+
+@dataclass(frozen=True)
+class WorkerReport:
+    task_id: str
+    status: str  # "complete" | "blocked" | "interrupted"
+    summary: str
+    commands_attempted: Tuple[str, ...] = ()
+    observed_blockers: Tuple[str, ...] = ()
+
+
+def _looks_like_pin_edit(action: str) -> bool:
+    normalized = action.lower()
+    mutating_verb = any(v in normalized for v in ("sed -i", " > ", " >> ", "tee ", "rm ", "mv "))
+    touches_dep_file = any(f in normalized for f in DEP_PIN_FILES)
+    return mutating_verb and touches_dep_file
+
+
+def should_interrupt(
+    task_spec: dict[str, Any],
+    observations: List[Tuple[bool, str]],
+    action: str,
+    actions_used: int,
+) -> bool:
+    """Host-enforced interruption policy (design §14)."""
+    max_actions = task_spec.get("max_actions", DEFAULT_MAX_ACTIONS)
+    if actions_used >= max_actions:
+        return True
+    if _looks_like_pin_edit(action):
+        return True
+    # repeated identical failure signature beyond the first repeat
+    failures = [obs for ok, obs in observations if not ok]
+    if len(failures) >= 2 and failures[-1].strip() == failures[-2].strip():
+        return True
+    return False
+
+
+class Worker:
+    """Bounded ReAct execution inside one TaskSpec.
+
+    `planner` is any object with next_action(task_brief, recent_observations)
+    -> (action:str, is_finished:bool). In production this wraps the shared LLM
+    client with a worker-scoped prompt; in tests it is a fake.
+    """
+
+    def __init__(self, planner, max_actions: int = DEFAULT_MAX_ACTIONS):
+        self.planner = planner
+        self.max_actions = max_actions
+
+    def run_task(self, task_spec: dict[str, Any], executor: WorkerExecutor) -> WorkerReport:
+        task_id = task_spec.get("task_id", "task")
+        brief = build_task_brief(task_spec)
+        observations: List[Tuple[bool, str]] = []
+        commands: List[str] = []
+        blockers: List[str] = []
+        max_actions = task_spec.get("max_actions", self.max_actions)
+
+        while True:
+            if len(commands) >= max_actions:
+                return WorkerReport(task_id, "blocked", "action budget exhausted",
+                                    tuple(commands), tuple(blockers))
+            action, is_finished = self.planner.next_action(brief, observations[-3:])
+            if is_finished:
+                # Uniform completion: the worker signals done and does NOT execute a
+                # trailing action — the Supervisor decides what happens next.
+                return WorkerReport(task_id, "complete", "worker signaled completion",
+                                    tuple(commands), tuple(blockers))
+            # Check interruption BEFORE executing a constraint-violating action.
+            if should_interrupt(task_spec, observations, action, actions_used=len(commands)):
+                return WorkerReport(task_id, "interrupted",
+                                    f"interruption policy fired on: {action}",
+                                    tuple(commands), tuple(blockers))
+            success, observation = executor(action)
+            commands.append(action)
+            observations.append((success, observation))
+            if not success:
+                blockers.append(observation.strip().splitlines()[-1] if observation.strip() else "unknown failure")
+
+
+def build_task_brief(task_spec: dict[str, Any]) -> str:
+    """Narrow brief for the worker (design §9 worker input)."""
+    parts = [
+        f"Task: {task_spec.get('goal', '')}",
+        "Relevant facts:\n" + "\n".join(f"- {s}" for s in task_spec.get("relevant_state", [])),
+        "Constraints:\n" + "\n".join(f"- {s}" for s in task_spec.get("constraints", [])),
+        "Allowed actions:\n" + "\n".join(f"- {s}" for s in task_spec.get("allowed_actions", [])),
+        "Success criteria:\n" + "\n".join(f"- {s}" for s in task_spec.get("success_criteria", [])),
+        "Stop conditions:\n" + "\n".join(f"- {s}" for s in task_spec.get("stop_conditions", [])),
+    ]
+    return "\n\n".join(parts)
+
+
+WORKER_SYSTEM_PROMPT = """You are the ReAct build Worker for DockerAgent.
+
+You execute ONE bounded setup task by issuing shell commands inside the container.
+Work only within the task's goal, constraints, and allowed actions. Do local trial
+and error, but never edit dependency pin files, never change the task's scope, and
+never claim the whole environment is done.
+
+Respond each turn with exactly:
+Thought: <your reasoning>
+Action: <a single shell command>
+
+When the task's success criteria are met, instead respond with:
+Thought: <why the task is complete>
+Final Answer: Success
+
+You do not certify environment facts; the host verifies them with probes.
+"""
+
+_ACTION_RE = re.compile(r"^\s*Action:\s*(.+?)\s*$", re.MULTILINE)
+_FINAL_RE = re.compile(r"^\s*Final Answer:\s*(Success|Failure)\b", re.IGNORECASE | re.MULTILINE)
+
+
+def _extract_worker_action(content: str) -> str:
+    match = _ACTION_RE.search(content or "")
+    if not match:
+        return ""
+    action = match.group(1).strip()
+    action = re.sub(r"^```[a-zA-Z]*\n?", "", action)
+    action = re.sub(r"\n?```$", "", action).strip()
+    return action.splitlines()[0].strip() if action else ""
+
+
+def _is_worker_finished(content: str) -> bool:
+    return bool(_FINAL_RE.search(content or ""))
+
+
+class LlmWorkerPlanner:
+    """Adapter exposing next_action(task_brief, recent_observations) -> (action, is_finished)
+    over the shared OpenAI-compatible client. Maintains its own short ReAct history.
+    """
+
+    def __init__(self, client, model):
+        self.client = client
+        self.model = model
+        self.history: List[dict] = []
+
+    def next_action(self, task_brief: str, recent_observations: List[Tuple[bool, str]]):
+        if not self.history:
+            self.history.append({"role": "user", "content": task_brief})
+        elif recent_observations:
+            _ok, observation = recent_observations[-1]
+            self.history.append({"role": "user", "content": f"Observation: {observation}"})
+        messages = [{"role": "system", "content": WORKER_SYSTEM_PROMPT}] + self.history
+        response = self.client.chat.completions.create(
+            model=self.model, messages=messages, temperature=0, stop=["Observation:"]
+        )
+        content = response.choices[0].message.content or ""
+        self.history.append({"role": "assistant", "content": content})
+        if _is_worker_finished(content):
+            return "", True
+        return _extract_worker_action(content), False
