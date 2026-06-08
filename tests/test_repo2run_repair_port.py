@@ -1435,6 +1435,41 @@ class TestBuildFailStub:
             "parse_method must not be 'build_failed' when tests actually ran"
         )
 
+    def test_build_fail_does_not_clobber_real_framework_result(self, tmp_path):
+        """REGRESSION (clobber bug): a real framework run_pytest_results.json already on
+        disk must be PRESERVED when the repair's own rebuild fails on every attempt —
+        never overwritten with a build_failed 0-tests stub (mcp-atlassian 2578/2739 -> 0/0)."""
+        import repo2run_repair_port as m
+
+        root_path, out_dir = _setup_repair_tmpdir(tmp_path)
+        full_name = "owner/repo"
+        out = _make_out_dict(str(tmp_path), full_name)
+
+        # A real framework result with SOME failures (so the early-pass exit does NOT fire
+        # and the repair loop actually runs).
+        framework = {
+            "summary": {"total_tests": 2739, "passed": 2000, "failed": 739,
+                        "errors": 0, "skipped": 0, "xfailed": 0, "xpassed": 0},
+            "error_breakdown": {"AssertionError": 739}, "failed_tests": [],
+            "returncode": 1, "parse_method": "junit_xml",
+        }
+        (out_dir / "run_pytest_results.json").write_text(json.dumps(framework))
+
+        # Every repair build fails.
+        with patch.object(m, "run_command", return_value=_make_docker_build_failure()), \
+             patch.object(m, "evaluate_built_image") as mock_eval, \
+             patch.object(m, "repair_dockerfile_with_llm"), \
+             patch.object(m, "create_openai_client_from_env", return_value=MagicMock()), \
+             patch("subprocess.run"):
+            m._repair_and_rescore(out, str(tmp_path), full_name, "test-model", max_rounds=2)
+
+        written = json.loads((out_dir / "run_pytest_results.json").read_text())
+        assert written.get("parse_method") == "junit_xml", (
+            "framework result must be preserved, not clobbered by a build_failed stub"
+        )
+        assert written["summary"]["passed"] == 2000, "framework pass count must be intact"
+        assert written["summary"]["total_tests"] == 2739
+
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Fix (c): real_test_command cd-prefix preservation

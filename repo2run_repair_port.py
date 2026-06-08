@@ -3147,6 +3147,25 @@ def _repair_and_rescore(
     except Exception:
         pass  # missing or malformed JSON → proceed
 
+    # ── GLUE FIX (audit #2): preserve the framework's result; only overwrite if
+    # STRICTLY better. The RAT framework already wrote run_pytest_results.json from
+    # its own build+test. The repair must IMPROVE on it, never destroy it — e.g. a
+    # repair-build failure must NOT clobber a real framework result with a build_failed
+    # stub (this was wiping ~23 real results, mcp-atlassian 2578/2739 -> 0/0).
+    try:
+        _baseline_pr = json.loads(Path(pytest_json_path).read_text())
+    except Exception:
+        _baseline_pr = None
+
+    def _pr_score(_pr):
+        """Comparison key: (passed, total_tests). A build_failed stub = (0,0); absent = (-1,-1)."""
+        if not _pr:
+            return (-1, -1)
+        _s = _pr.get("summary", {}) or {}
+        return (_s.get("passed", 0), _s.get("total_tests", 0))
+
+    _best_score = _pr_score(_baseline_pr)
+
     # ── GLUE: load recipe ───────────────────────────────────────────────────
     try:
         recipe = json.loads(Path(recipe_path).read_text())
@@ -3309,11 +3328,15 @@ def _repair_and_rescore(
                     image_tag=image_tag,
                     junit_container_path=junit_path,
                 )
-                Path(pytest_json_path).write_text(
-                    json.dumps(pr, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                _pytest_json_written = True
+                # GLUE FIX (audit #2): only replace the on-disk result if STRICTLY
+                # better than the best so far (framework baseline or a prior attempt).
+                if _pr_score(pr) > _best_score:
+                    Path(pytest_json_path).write_text(
+                        json.dumps(pr, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                    _best_score = _pr_score(pr)
+                    _pytest_json_written = True
                 # GLUE: write sidecar for audit trail
                 try:
                     _sidecar_path = pytest_json_path.replace(
@@ -3400,10 +3423,11 @@ def _repair_and_rescore(
             )
         # ===== END VERBATIM LOOP =====
 
-        # GLUE fix (b): if all build attempts failed (test_execution was always None),
-        # run_pytest_results.json was never written.  Scorers read it unconditionally, so
-        # write a build_failed stub so they never read stale data from a previous run.
-        if not _pytest_json_written:
+        # GLUE fix (b): if all build attempts failed AND there was NO framework result
+        # to preserve, write a build_failed stub so scorers don't read stale data.
+        # CRITICAL: only stub when _baseline_pr is None — never clobber a real framework
+        # result with a 0-tests stub just because the repair's own rebuild failed.
+        if not _pytest_json_written and _baseline_pr is None:
             _build_failed_stub = {
                 "summary": {
                     "total_tests": 0,
