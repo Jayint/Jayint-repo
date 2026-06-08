@@ -123,6 +123,7 @@ class DockerAgent:
         language="",
         enable_observation_compression=False,
         enable_long_term_memory=False,
+        enable_envstate=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
@@ -152,6 +153,13 @@ class DockerAgent:
         self._current_verification_group = []
         self.enable_observation_compression = enable_observation_compression
         self.enable_long_term_memory = enable_long_term_memory
+        self.enable_envstate = enable_envstate
+        self.action_ledger = None
+        self.current_task_id = None
+        self.env_container_id = ""
+        if self.enable_envstate:
+            from src.envstate.ledger import ActionLedger
+            self.action_ledger = ActionLedger()
         self.memory_path = memory_path
         self.memory_embedding_model = memory_embedding_model
         self.command_timeout_seconds = command_timeout_seconds
@@ -267,7 +275,9 @@ class DockerAgent:
             platform_override=platform_override,
         )
         self.platform_override = platform_override  # Expose for adapter to read
-        
+        if self.enable_envstate and getattr(self.sandbox, "container", None) is not None:
+            self.env_container_id = self.sandbox.container.short_id
+
         # 6. Initialize Planner and Synthesizer
         # Load only repository structure from image_selector_logs. Configuration
         # files should be inspected explicitly by the agent when needed.
@@ -1355,6 +1365,12 @@ class DockerAgent:
         )
 
     def _record_failed_action(self, step_index, action, observation):
+        self._append_action_event(
+            step_index, action, rc=1, mutation_class=None,
+            env_revision_before=self._environment_revision,
+            env_revision_after=self._environment_revision,
+            summary=(observation or "")[:200],
+        )
         self.failed_actions.append({
             "step_index": step_index,
             "command": action or "",
@@ -1561,6 +1577,35 @@ class DockerAgent:
             )
         return prompt_observation
 
+    def _append_action_event(self, step_index, action, rc, mutation_class,
+                             env_revision_before, env_revision_after, summary):
+        """Append one ActionEvent to the ActionLedger (no-op when EnvState is off).
+
+        NOTE 1: ActionEvent.rc is a SUCCESS PROXY (0 on success, 1 on failure), not a
+        true exit code — Sandbox.execute() collapses the real rc into a bool before the
+        agent ever sees it. Probes (exec_readonly) DO carry real exit codes. Downstream
+        ledger consumers (synthesis) only branch on rc==0 vs !=0, so the proxy is safe;
+        a true-rc ledger is deferred.
+        NOTE 2: env_revision_* are passed in by the caller so they share the SAME source
+        as the successful_actions record's environment_revision — no duplicated stamping.
+        """
+        if not getattr(self, "enable_envstate", False) or self.action_ledger is None:
+            return
+        from src.envstate.ledger import ActionEvent
+        self.action_ledger.append(ActionEvent(
+            step=step_index,
+            task_id=getattr(self, "current_task_id", None),
+            cmd=action,
+            rc=rc,
+            stdout_path=None,
+            stderr_path=None,
+            env_revision_before=env_revision_before,
+            env_revision_after=env_revision_after,
+            mutation_class=mutation_class,
+            container_id=getattr(self, "env_container_id", ""),
+            summary=summary,
+        ))
+
     def _record_successful_action(self, step_index, action, observation):
         """Track successful actions and maintain the final contiguous verification block."""
         mutates_environment = self.synthesizer.command_mutates_environment(action)
@@ -1570,11 +1615,19 @@ class DockerAgent:
         observed_test_signal = self.synthesizer.observation_has_effective_test_signal(observation)
         analysis = self.synthesizer.analyze_test_run(action, observation)
 
+        record_revision = self._environment_revision + (1 if mutates_environment else 0)
+        mutation_class = self.synthesizer.classify_mutation(action) if mutates_environment else None
+        self._append_action_event(
+            step_index, action, rc=0, mutation_class=mutation_class,
+            env_revision_before=self._environment_revision, env_revision_after=record_revision,
+            summary=(observation or "")[:200],
+        )
+
         self.successful_actions.append({
             "step_index": step_index,
             "command": action,
             "observation": observation,
-            "environment_revision": self._environment_revision + (1 if mutates_environment else 0),
+            "environment_revision": record_revision,
             "mutates_environment": mutates_environment,
             "is_readonly": is_readonly,
             "is_runtime_service": is_runtime_service,
@@ -1850,7 +1903,7 @@ class DockerAgent:
         self.verified_test_command = None
 
     def _build_run_summary(self, configuration_success, run_error=None):
-        return {
+        summary = {
             "repo_url": self.repo_url,
             "configuration_success": configuration_success,
             "base_image": getattr(getattr(self, "synthesizer", None), "base_image", None),
@@ -1905,6 +1958,9 @@ class DockerAgent:
             },
             "error": run_error,
         }
+        if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
+            summary["action_ledger"] = self.action_ledger.to_list()
+        return summary
 
     def _write_run_summary(self, configuration_success, run_error=None):
         """Persist structured run metadata so the adapter does not need to parse markdown logs."""
@@ -1959,7 +2015,9 @@ if __name__ == "__main__":
         default=1800,
         help="Per-command timeout inside the sandbox in seconds. Defaults to 1800.",
     )
-    
+    parser.add_argument("--enable-envstate", action="store_true",
+                        help="Maintain a host EnvState world model + ActionLedger (shadow mode).")
+
     args = parser.parse_args()
     
     agent = DockerAgent(
@@ -1970,6 +2028,7 @@ if __name__ == "__main__":
         base_commit=args.base_commit,
         enable_observation_compression=args.enable_observation_compression,
         enable_long_term_memory=args.enable_long_term_memory,
+        enable_envstate=args.enable_envstate,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
         command_timeout_seconds=args.command_timeout,

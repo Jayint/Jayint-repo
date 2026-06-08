@@ -2891,6 +2891,21 @@ class Synthesizer:
         """Return True when a successful command changed the effective runtime environment."""
         return self._command_has_meaningful_setup_activity(command)
 
+    def classify_mutation(self, command: str) -> str:
+        """Coarse env-mutation class for the ActionLedger (design §13)."""
+        normalized = " ".join(str(command or "").lower().split())
+        if any(tok in normalized for tok in ("apt-get install", "apt install", "yum install", "apk add")):
+            return "system_package_install"
+        if any(tok in normalized for tok in ("apt-get remove", "apt remove", "yum remove", "apk del")):
+            return "system_package_remove"
+        if any(tok in normalized for tok in ("pip install", "pip3 install", "poetry install", "conda install", "npm install", "yarn add")):
+            return "language_package_install"
+        if "venv" in normalized or "virtualenv" in normalized:
+            return "venv_change"
+        if normalized.startswith(("export ", "ln -s")) or " > " in normalized or " >> " in normalized:
+            return "file_or_env_change"
+        return "other_mutation"
+
     def is_runtime_service_command(self, command):
         """Public wrapper for runtime service startup commands such as redis-server."""
         return self._command_matches_segment_predicate(command, self._is_runtime_service_segment)
