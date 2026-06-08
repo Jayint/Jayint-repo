@@ -166,16 +166,27 @@ You do not certify environment facts; the host verifies them with probes.
 
 _ACTION_RE = re.compile(r"^\s*Action:\s*(.+?)\s*$", re.MULTILINE)
 _FINAL_RE = re.compile(r"^\s*Final Answer:\s*(Success|Failure)\b", re.IGNORECASE | re.MULTILINE)
+_TOOLCALL_CMD_RE = re.compile(r'<parameter\s+name="command"\s*>(.*?)</parameter>', re.DOTALL)
 
 
 def _extract_worker_action(content: str) -> str:
+    # Primary path: plain "Action: <cmd>" line (Arm B — must remain byte-identical)
     match = _ACTION_RE.search(content or "")
-    if not match:
-        return ""
-    action = match.group(1).strip()
-    action = re.sub(r"^```[a-zA-Z]*\n?", "", action)
-    action = re.sub(r"\n?```$", "", action).strip()
-    return action.splitlines()[0].strip() if action else ""
+    if match:
+        action = match.group(1).strip()
+        action = re.sub(r"^```[a-zA-Z]*\n?", "", action)
+        action = re.sub(r"\n?```$", "", action).strip()
+        return action.splitlines()[0].strip() if action else ""
+
+    # Fallback: XML/tool-call format emitted by MiniMax and similar models
+    tc_match = _TOOLCALL_CMD_RE.search(content or "")
+    if tc_match:
+        action = tc_match.group(1).strip()
+        action = re.sub(r"^```[a-zA-Z]*\n?", "", action)
+        action = re.sub(r"\n?```$", "", action).strip()
+        return action
+
+    return ""
 
 
 def _is_worker_finished(content: str) -> bool:

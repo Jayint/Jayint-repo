@@ -92,6 +92,10 @@ When the environment is fully configured and the test suite is runnable, respond
 Thought: <why the environment is complete>
 Final Answer: Success
 
+IMPORTANT: emit the command ONLY as a plain text line starting with "Action: "
+followed by one shell command.  Do NOT use tool-call, function-call, or
+XML/<invoke> formats — they will not be parsed.
+
 You do not certify environment facts; the host verifies them with probes after
 each action.  Never claim a requirement is PRESENT or MISSING in your Thought.
 """
