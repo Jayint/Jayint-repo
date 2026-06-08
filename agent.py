@@ -1258,6 +1258,33 @@ class DockerAgent:
         return self.memory_manager.format_retrieval_results(results)
 
     def _synthesize_final_build_recipe(self):
+        if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
+            from src.envstate.synthesis import build_commands_from_ledger
+            ledger_commands = build_commands_from_ledger(
+                self.action_ledger,
+                distill=self.synthesizer._extract_recordable_setup_commands,
+            )
+            if ledger_commands:
+                # Only build_commands become Dockerfile RUN steps. The verification
+                # bundle (runtime_prep + test_commands) is already set on self by
+                # _auto_finalize_from_verified_tests / the agent-report finalizer and
+                # is serialized separately into the run summary — it is NOT part of the
+                # Dockerfile body.
+                self.synthesizer.apply_build_recipe({
+                    "build_commands": ledger_commands,
+                    "post_test_patch_commands": [],
+                    "runtime_preparation_commands": [],
+                    "test_commands": [],
+                    "excluded_commands": [],
+                    "rationale": "Assembled from ActionLedger (replayable actions only).",
+                    "confidence": "high",
+                })
+                self.build_recipe = {
+                    "build_commands": ledger_commands,
+                    "source": "action_ledger",
+                }
+                self.build_recipe_source = "action_ledger"
+                return True
         recipe_input = self._build_recipe_synthesis_input()
         result = self.synthesizer.synthesize_build_recipe(
             self.client,
