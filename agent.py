@@ -1667,6 +1667,7 @@ class DockerAgent:
 
         supported_bundle = derive_supported_verification_bundle(
             {
+                "environment_revision": self._environment_revision,
                 "verification_bundle": {
                     "runtime_preparation_commands": list(runtime_commands),
                     "test_commands": list(test_commands),

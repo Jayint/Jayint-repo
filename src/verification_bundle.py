@@ -18,6 +18,17 @@ def normalize_command_list(commands):
     return normalized
 
 
+def _final_environment_revision(run_summary: dict[str, Any]) -> int:
+    revisions = [
+        record.get("environment_revision", 0)
+        for record in (run_summary.get("successful_actions") or [])
+        if isinstance(record, dict)
+    ]
+    observed_max = max(revisions) if revisions else 0
+    declared = run_summary.get("environment_revision", 0) or 0
+    return max(observed_max, declared)
+
+
 def derive_supported_verification_bundle(
     run_summary: Optional[dict[str, Any]],
     synthesizer: Optional[Synthesizer] = None,
@@ -76,12 +87,17 @@ def _collect_effective_observed_test_commands(
     run_summary: dict[str, Any],
     synthesizer: Synthesizer,
 ) -> list[str]:
+    final_revision = _final_environment_revision(run_summary)
     commands = []
     for record in run_summary.get("successful_actions") or []:
         if not isinstance(record, dict):
             continue
         command = str(record.get("command") or "").strip()
         if not command:
+            continue
+        # A test command only proves the FINAL environment if no env-mutating
+        # action ran after it (i.e. it was observed at the current revision).
+        if record.get("environment_revision", 0) != final_revision:
             continue
         observation = str(
             record.get("observation_summary")
