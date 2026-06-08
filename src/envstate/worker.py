@@ -141,9 +141,10 @@ class LlmWorkerPlanner:
     over the shared OpenAI-compatible client. Maintains its own short ReAct history.
     """
 
-    def __init__(self, client, model):
+    def __init__(self, client, model, on_usage=None):
         self.client = client
         self.model = model
+        self.on_usage = on_usage
         self.history: List[dict] = []
 
     def next_action(self, task_brief: str, recent_observations: List[Tuple[bool, str]]):
@@ -157,6 +158,13 @@ class LlmWorkerPlanner:
             model=self.model, messages=messages, temperature=0, stop=["Observation:"]
         )
         content = response.choices[0].message.content or ""
+        if self.on_usage is not None:
+            usage_obj = getattr(response, "usage", None)
+            self.on_usage({
+                "input_tokens": getattr(usage_obj, "prompt_tokens", 0) or 0,
+                "output_tokens": getattr(usage_obj, "completion_tokens", 0) or 0,
+                "total_tokens": getattr(usage_obj, "total_tokens", 0) or 0,
+            })
         self.history.append({"role": "assistant", "content": content})
         if _is_worker_finished(content):
             return "", True

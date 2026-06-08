@@ -93,6 +93,23 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(result["final_revision"], 2)
         self.assertEqual(orch.snapshot.revision, 2)
 
+    def test_forwards_supervisor_usage_to_on_usage(self):
+        seen = []
+        supervisor = FakeSupervisor([
+            {"task_id": "t1", "phase": "x", "goal": "g", "success_criteria": []},
+        ])
+        worker = FakeWorker([WorkerReport("t1", "complete", "done")])
+        orch = EnvStateOrchestrator(
+            supervisor=supervisor, worker=worker,
+            snapshot=self._snapshot(), ledger=ActionLedger(),
+            executor=lambda a: (True, "ok"), observer=_noop_observer,
+            max_tasks=10, on_usage=seen.append,
+        )
+        orch.run()
+        # one task call + the terminal no-task call both report usage
+        self.assertGreaterEqual(len(seen), 1)
+        self.assertEqual(seen[0]["total_tokens"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

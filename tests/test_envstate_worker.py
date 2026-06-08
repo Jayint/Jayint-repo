@@ -95,6 +95,14 @@ class LlmWorkerPlannerTests(unittest.TestCase):
         self.assertEqual(action, "")
         self.assertTrue(finished)
 
+    def test_calls_on_usage_callback_with_token_usage(self):
+        seen = []
+        planner = LlmWorkerPlanner(
+            _fake_client("Thought: x\nAction: ls"), "m", on_usage=seen.append)
+        planner.next_action("brief", [])
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0]["total_tokens"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

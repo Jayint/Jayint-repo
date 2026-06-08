@@ -32,6 +32,7 @@ class EnvStateOrchestrator:
         executor: Executor,
         observer: Observer,
         max_tasks: int = 20,
+        on_usage=None,
     ):
         self.supervisor = supervisor
         self.worker = worker
@@ -40,6 +41,7 @@ class EnvStateOrchestrator:
         self.executor = executor
         self.observer = observer
         self.max_tasks = max_tasks
+        self.on_usage = on_usage
         self._step = 0
 
     def _make_step_fn(self, task_spec):
@@ -64,7 +66,9 @@ class EnvStateOrchestrator:
                 stop_reason = "max_tasks"
                 break
             budget = {"steps_remaining": self.max_tasks - tasks_completed}
-            task_spec, _usage = self.supervisor.next_task(self.snapshot, self.ledger, budget)
+            task_spec, usage = self.supervisor.next_task(self.snapshot, self.ledger, budget)
+            if self.on_usage is not None:
+                self.on_usage(usage)
             if not task_spec:
                 stop_reason = "no_more_tasks"
                 break

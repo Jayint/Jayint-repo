@@ -813,9 +813,10 @@ class DockerAgent:
             #    skip read-only successes to save LLM calls.
             if (not success) or mutation_class:
                 action_event = self.action_ledger.events()[-1]
-                snapshot, proposal, rejected, _usage = maintainer.interpret(
+                snapshot, proposal, rejected, usage = maintainer.interpret(
                     snapshot, task_spec, action_event, observation
                 )
+                self._record_supervisor_path_usage("reflection", usage)
                 if rejected:
                     print(f"[EnvState ACL] rejected {len(rejected)} LLM proposal(s)")
                 # 3. run each requested probe on the HOST and certify the truth.
@@ -855,27 +856,77 @@ class DockerAgent:
         snapshot = EnvStateSnapshot(
             revision=0, container_id=self.env_container_id, base=BaseFacts(image=base_image),
         )
-        worker = Worker(planner=LlmWorkerPlanner(self.client, self.model), max_actions=6)
+        worker = Worker(
+            planner=LlmWorkerPlanner(
+                self.client, self.model,
+                on_usage=lambda usage: self._record_supervisor_path_usage("planner", usage),
+            ),
+            max_actions=6,
+        )
         orchestrator = EnvStateOrchestrator(
             supervisor=supervisor, worker=worker, snapshot=snapshot,
             ledger=self.action_ledger,
             executor=self.sandbox.execute,            # raw exec; observer does the recording
             observer=self._build_observer(maintainer),
             max_tasks=max_steps,
+            on_usage=lambda usage: self._record_supervisor_path_usage("planner", usage),
         )
+        configuration_success = False
+        run_error = None
         try:
-            result = orchestrator.run()
+            orchestrator.run()
             self.env_snapshot = orchestrator.snapshot
             configuration_success = (
                 self._auto_finalize_from_verified_tests("supervisor_run")
                 or bool(self.verification_bundle)
             )
             if configuration_success:
-                configuration_success = self._synthesize_final_build_recipe()
-            self._write_run_summary(configuration_success)
-            return configuration_success
+                configuration_success = self._finalize_supervisor_artifacts(configuration_success)
+        except Exception as exc:
+            run_error = str(exc)
+            print(f"An error occurred during supervisor execution: {exc}")
+            if self._is_transient_llm_error(exc) and self._auto_finalize_from_verified_tests(
+                source="auto_after_transient_error"
+            ):
+                configuration_success = True
+                print(
+                    "[Auto Finalization] Transient LLM failure after a verified test "
+                    "collection command. Generating Dockerfile from recorded evidence."
+                )
+                try:
+                    configuration_success = self._finalize_supervisor_artifacts(configuration_success)
+                except Exception as synth_exc:
+                    configuration_success = False
+                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
+                    print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
         finally:
+            self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
+        return configuration_success
+
+    def _finalize_supervisor_artifacts(self, configuration_success):
+        """Synthesize the recipe, write the Dockerfile, and generate memories — the
+        same success-artifact path the legacy run() uses (agent.py:1043-1052)."""
+        if not self._synthesize_final_build_recipe():
+            print("[Warning] Build recipe synthesis failed. No Dockerfile will be generated.")
+            return False
+        dockerfile_path = os.path.join(self.workplace, "Dockerfile")
+        self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+        self._maybe_generate_long_term_memories(configuration_success)
+        return True
+
+    def _record_supervisor_path_usage(self, bucket, usage):
+        """Thread Supervisor/Worker/Maintainer LLM usage into the run token ledger so
+        supervisor-run cost totals are not under-reported. The new components are mapped
+        to existing ledger buckets (Supervisor+Worker -> 'planner', Maintainer ->
+        'reflection') because RunTokenLedger has a fixed set of buckets."""
+        if not usage:
+            return
+        self.run_token_ledger.add(
+            bucket,
+            input_tokens=usage.get("input_tokens", 0) or 0,
+            output_tokens=usage.get("output_tokens", 0) or 0,
+        )
 
     def run(self, max_steps=30, keep_container=False):
         """Runs the ReAct loop to configure the environment."""

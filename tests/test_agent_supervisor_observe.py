@@ -5,6 +5,7 @@ from agent import DockerAgent
 from src.synthesizer import Synthesizer
 from src.envstate.ledger import ActionLedger
 from src.envstate.types import BaseFacts, EnvStateSnapshot, Source, Status
+from src.observation_compressor import RunTokenLedger
 
 
 class _FakeMaintainer:
@@ -35,6 +36,7 @@ class AgentSupervisorObserveTests(unittest.TestCase):
         agent.required_local_services = set()
         agent.enable_envstate = True
         agent.action_ledger = ActionLedger()
+        agent.run_token_ledger = RunTokenLedger()
         agent.current_task_id = "t1"
         agent.env_container_id = "abc123"
         # exec_readonly probe runner: pg_config present (rc 0)
