@@ -125,6 +125,7 @@ class DockerAgent:
         enable_long_term_memory=False,
         enable_envstate=False,
         enable_supervisor=False,
+        enable_cleanroom=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
@@ -156,6 +157,7 @@ class DockerAgent:
         self.enable_long_term_memory = enable_long_term_memory
         self.enable_supervisor = enable_supervisor
         self.enable_envstate = enable_envstate or enable_supervisor
+        self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
         self.current_task_id = None
         self.env_container_id = ""
@@ -912,8 +914,65 @@ class DockerAgent:
             return False
         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+        if not self._verify_cleanroom_or_fail():
+            return False
         self._maybe_generate_long_term_memories(configuration_success)
         return True
+
+    def _verify_cleanroom_or_fail(self):
+        """Return True if clean-room verification passes (or is disabled). Rebuilds the
+        synthesized Dockerfile from scratch and re-runs the host-certified probes + the
+        final test command in a throwaway container."""
+        if not getattr(self, "enable_cleanroom", False):
+            return True
+        from src.envstate.cleanroom import ensure_repo_in_dockerfile, verify_cleanroom
+        from src.envstate.probes import ProbeSpec
+        from src.envstate.types import Source
+
+        # Re-render the Dockerfile text (idempotent; pass the workplace path so we do
+        # NOT write a stray ./Dockerfile in the cwd).
+        dockerfile_text = self.synthesizer.generate_dockerfile(
+            file_path=os.path.join(self.workplace, "Dockerfile")
+        )
+        workdir = getattr(self.synthesizer, "workdir", "/app")
+        dockerfile_text = ensure_repo_in_dockerfile(dockerfile_text, workdir)
+
+        # Re-probe only what the host already certified PRESENT this revision.
+        snapshot = getattr(self, "env_snapshot", None)
+        probes = []
+        if snapshot is not None:
+            for req in snapshot.requirements:
+                if req.source == Source.PROBE and req.status == "PRESENT" and req.evidence:
+                    probes.append(ProbeSpec(
+                                        kind="cli", name=req.name,
+                                        predicate=req.evidence.stdout_predicate,
+                                        command=req.evidence.probe_cmd,
+                                    ))
+
+        def run_command(image_ref, command):
+            # containers.run raises docker.errors.ContainerError on non-zero exit; capture
+            # the real exit status when available so a failing probe/test is surfaced as rc!=0.
+            try:
+                result = self.sandbox.client.containers.run(
+                    image_ref, command, remove=True, working_dir=workdir
+                )
+                if isinstance(result, (bytes, bytearray)):
+                    return 0, result.decode("utf-8", "replace")
+                return 0, str(result)
+            except Exception as exc:
+                return getattr(exc, "exit_status", 1), str(exc)
+
+        result = verify_cleanroom(
+            self.sandbox.client, dockerfile_text,
+            build_context_dir=self.workplace,
+            probes=probes,
+            test_commands=list(self.verified_test_commands),
+            run_command=run_command,
+        )
+        self.run_summary_cleanroom = {"passed": result.passed, "reason": result.reason}
+        if not result.passed:
+            print(f"[Clean-room] verification FAILED: {result.reason}")
+        return result.passed
 
     def _record_supervisor_path_usage(self, bucket, usage):
         """Thread Supervisor/Worker/Maintainer LLM usage into the run token ledger so
@@ -2132,6 +2191,8 @@ class DockerAgent:
         }
         if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
             summary["action_ledger"] = self.action_ledger.to_list()
+        if getattr(self, "run_summary_cleanroom", None) is not None:
+            summary["cleanroom"] = self.run_summary_cleanroom
         return summary
 
     def _write_run_summary(self, configuration_success, run_error=None):
@@ -2191,6 +2252,8 @@ if __name__ == "__main__":
                         help="Maintain a host EnvState world model + ActionLedger (shadow mode).")
     parser.add_argument("--enable-supervisor", action="store_true",
                         help="Use the EnvState Supervisor/Worker orchestrator instead of the legacy ReAct loop.")
+    parser.add_argument("--enable-cleanroom", action="store_true",
+                        help="After synthesis, rebuild the Dockerfile in a clean room and re-run probes + tests.")
 
     args = parser.parse_args()
     
@@ -2204,6 +2267,7 @@ if __name__ == "__main__":
         enable_long_term_memory=args.enable_long_term_memory,
         enable_envstate=args.enable_envstate,
         enable_supervisor=args.enable_supervisor,
+        enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
         command_timeout_seconds=args.command_timeout,
