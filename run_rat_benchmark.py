@@ -201,7 +201,13 @@ def _run_one(
         print(f"[done  ] {full_name}  status={out.get('status')}", flush=True)
 
     # ── Runner-side repair loop ──────────────────────────────────────────────
-    if repair_mode in ("runner", "both") and out.get("status") != "error":
+    # Run whenever an eval Dockerfile exists — INCLUDING status=error repos whose
+    # build failed but kept eval_build/Dockerfile (15/50 in the first run). The loop
+    # can rebuild + repair those. _repair_and_rescore is defensive: it no-ops on
+    # already-passing or absent-Dockerfile (e.g. no_dockerfile errors), so gating on
+    # the artifact's existence is strictly broader-and-safe vs the old status!=error.
+    _eval_dockerfile = os.path.join(root_path, "output", full_name, "eval_build", "Dockerfile")
+    if repair_mode in ("runner", "both") and os.path.exists(_eval_dockerfile):
         from repo2run_repair_port import _repair_and_rescore  # lazy import; module is optional
         try:
             out = _repair_and_rescore(
