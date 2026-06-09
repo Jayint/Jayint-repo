@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.ledger import ActionEvent, ActionLedger
-from src.envstate.llm_response import complete_with_retry, response_text
+from src.envstate.llm_response import complete_with_retry
 from src.envstate.world_model import CommandRecord, Task, TaskReport
 
 # ---------------------------------------------------------------------------

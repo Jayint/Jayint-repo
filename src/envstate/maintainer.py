@@ -18,9 +18,10 @@ done_flag rule (§5):
 from __future__ import annotations
 
 import json
-import re
 from typing import Any, Callable, Optional
 
+from src.envstate.diagnostics import log_llm_exchange
+from src.envstate.jsonutil import extract_json_object
 from src.envstate.llm_response import complete_with_retry
 from src.envstate.world_model import (
     Fact,
@@ -53,10 +54,10 @@ Record only what the command output actually demonstrates.
 - Do NOT invent facts that the output did not confirm.
 - Interpret failures into `open_problems` with a suspected layer.
 
-## done_flag
-Set `done_flag` to true ONLY when a `pytest --collect-only` command in the
-report exited with rc 0.  This is the EBSR gate.  Do not set done_flag for
-any other command.
+## done_flag (informational — you never set this)
+The harness derives `done_flag` structurally: it becomes true when a
+`pytest --collect-only` command in the report exits with rc 0 (the EBSR
+gate).  You do not emit it and cannot influence it.
 
 ## Output schema
 Return exactly one JSON object inside a ```json fenced block with these keys:
@@ -88,29 +89,6 @@ harness sets it from the report directly.
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-_FENCED_JSON_RE = re.compile(
-    r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL | re.IGNORECASE
-)
-
-
-def _extract_json(text: str) -> Optional[dict[str, Any]]:
-    """Extract and parse the first JSON object from a fenced code block.
-
-    Returns None on any parse failure.
-    """
-    if not text:
-        return None
-    m = _FENCED_JSON_RE.search(text)
-    raw = m.group(1).strip() if m else text.strip()
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            return parsed
-    except (json.JSONDecodeError, ValueError):
-        pass
-    return None
-
 
 def _collect_only_passed(report: TaskReport) -> bool:
     """Return True iff any command in the report is a collect-only run that exited 0."""
@@ -182,9 +160,14 @@ def parse_v1_maintainer_reply(
 
     On empty or unparseable input, returns the current map unchanged.
     """
-    parsed = _extract_json(text)
-    if parsed is None:
-        # Preserve done_flag if already True (but don't set it here).
+    parsed = extract_json_object(text) if text else None
+    if not parsed:
+        # On empty / unparseable output, still apply the structural done_flag
+        # rule from the report (collect-only rc0) so the EBSR gate cannot be
+        # missed just because the LLM reply was garbage on that cycle.
+        new_done = current_map.done_flag or _collect_only_passed(report)
+        if new_done != current_map.done_flag:
+            return merge_map(current_map, done_flag=new_done)
         return current_map
 
     # --- installed (grounded) ---
@@ -242,7 +225,8 @@ class Maintainer:
         model     — model slug
         on_usage  — optional callback(dict) called with token usage after each
                     LLM call; dict has keys ``input_tokens`` and ``output_tokens``
-        log_path  — optional path for debug logs (not used in v1 unit tests)
+        log_path  — optional path for the diagnostic LLM-exchange log
+                    (falls back to the ENVSTATE_LLM_LOG env var)
     """
 
     def __init__(
@@ -311,7 +295,7 @@ class Maintainer:
             {"role": "user", "content": user_content},
         ]
 
-        content, usage, _response = complete_with_retry(
+        content, usage, response = complete_with_retry(
             self._client,
             self._model,
             messages,
@@ -327,4 +311,17 @@ class Maintainer:
         if self._on_usage is not None:
             self._on_usage(usage)
 
-        return parse_v1_maintainer_reply(content, current_map, report)
+        new_map = parse_v1_maintainer_reply(content, current_map, report)
+
+        # Diagnostic trace (no-op unless a log path / ENVSTATE_LLM_LOG is set).
+        log_llm_exchange(
+            "maintainer",
+            response,
+            parsed={
+                "done_flag": new_map.done_flag,
+                "installed_count": len(new_map.installed),
+                "open_problems_count": len(new_map.open_problems),
+            },
+            log_path=self._log_path,
+        )
+        return new_map

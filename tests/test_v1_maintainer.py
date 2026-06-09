@@ -205,6 +205,17 @@ class TestParseV1MaintainerReply(unittest.TestCase):
         new_map = parse_v1_maintainer_reply("not json at all", base, report)
         self.assertEqual(new_map.installed, base.installed)
 
+    def test_unparseable_output_still_sets_done_flag_on_collect_only(self):
+        """Even when the LLM reply is unparseable, the structural done_flag rule
+        must still fire from the report (collect-only rc0) so the EBSR gate is
+        never missed just because the LLM returned garbage that cycle (spec §5)."""
+        base = _base_map()
+        report = _make_report(
+            [("pytest --collect-only -q --disable-warnings", 0, "collected 3 items")]
+        )
+        new_map = parse_v1_maintainer_reply("not json at all", base, report)
+        self.assertTrue(new_map.done_flag)
+
 
 # ---------------------------------------------------------------------------
 # done_flag detection
