@@ -26,6 +26,7 @@ ALLOWED_REFS = {
     "src/envstate/probes.py",            # the file being deleted
     "src/envstate/acl.py",               # the file being deleted
     "tests/test_deletions_cleanroom_no_probes.py",  # asserts cleanroom.py no longer imports probes
+    "tests/test_deletions_agent_cleanroom_api.py",  # asserts agent.py no longer imports ProbeSpec
 }
 
 PROBES_SYMBOL = "src.envstate.probes"

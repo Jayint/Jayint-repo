@@ -795,72 +795,6 @@ class DockerAgent:
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
 
-    def _build_observer(self, maintainer):
-        """Per-action observation pipeline (design §6 steps 5-8). For each executed
-        action: record evidence + ActionEvent (legacy + ledger), advance the EnvState
-        revision on a real mutation, ask the Maintainer to interpret failures/mutations
-        into ACL-safe hypotheses + probe_requests, then run those probes on the host and
-        certify PRESENT/MISSING through the ACL. Returns the new (immutable) snapshot."""
-        from src.envstate.acl import advance_revision
-        from src.envstate.probes import ProbeSpec, certify_probe_result, run_probe
-
-        def observer(snapshot, task_spec, step, action, success, observation):
-            # 1. record into legacy evidence ledger + ActionLedger (the latter via
-            #    _append_action_event called inside these methods).
-            if success:
-                self._record_successful_action(step, action, observation)
-            else:
-                self._record_failed_action(step, action, observation)
-
-            mutation_class = None
-            if success and self.synthesizer.command_mutates_environment(action):
-                mutation_class = self.synthesizer.classify_mutation(action)
-                snapshot = advance_revision(snapshot, mutation_class)
-
-            # 2. interpret on failures or env mutations (where the map must change);
-            #    skip read-only successes to save LLM calls.
-            if (not success) or mutation_class:
-                action_event = self.action_ledger.events()[-1]
-                snapshot, proposal, rejected, usage = maintainer.interpret(
-                    snapshot, task_spec, action_event, observation
-                )
-                self._record_supervisor_path_usage("reflection", usage)
-                if rejected:
-                    print(f"[EnvState ACL] rejected {len(rejected)} LLM proposal(s)")
-                # 3. run each requested probe on the HOST and certify the truth.
-                for request in proposal.get("probe_requests", []):
-                    name = request.get("name")
-                    # Derive name from requirement_id or pkg_name when absent.
-                    if not name:
-                        req_id = request.get("requirement_id", "")
-                        if req_id:
-                            for _pfx in ("pkg:", "tool:", "header:", "lib:", "pkgconfig:", "path:"):
-                                if req_id.startswith(_pfx):
-                                    name = req_id[len(_pfx):]
-                                    break
-                            if not name and ":" in req_id:
-                                name = req_id.split(":", 1)[1]
-                            if not name:
-                                name = req_id
-                        if not name:
-                            name = request.get("pkg_name", "")
-                    if not name:
-                        continue
-                    spec = ProbeSpec(
-                        kind=request.get("kind", "cli"),
-                        name=name,
-                        predicate=request.get("predicate", ""),
-                    )
-                    result = run_probe(
-                        self.sandbox.exec_readonly, spec,
-                        env_revision=snapshot.revision, container_id=self.env_container_id,
-                    )
-                    requirement_id = request.get("requirement_id") or f"tool:{name}"
-                    snapshot = certify_probe_result(snapshot, requirement_id, result)
-            return snapshot
-
-        return observer
-
     def _run_supervisor(self, max_steps=30, keep_container=False):
         from src.envstate.supervisor import Supervisor
         from src.envstate.worker import LlmWorkerPlanner, Worker, DEFAULT_MAX_ACTIONS
@@ -922,15 +856,11 @@ class DockerAgent:
             max_actions=DEFAULT_MAX_ACTIONS,
             workdir=_workdir,
         )
-        # Wrap the observer so each new snapshot is also threaded onto
-        # self.env_snapshot.  This ensures Arm C's FullStateWorkerPlanner sees
-        # the latest certified snapshot on every next_action call, not just the
-        # rev-0 seed set above.
-        _base_observer = self._build_observer(maintainer)
+        # v1 migration: _build_observer (probes/acl path) removed — Arms A/B/C deleted
+        # in Tasks 36/38. Use a no-op observer that threads snapshot onto self.env_snapshot.
         def _threading_observer(snap, task_spec, step, action, success, observation):
-            new_snap = _base_observer(snap, task_spec, step, action, success, observation)
-            self.env_snapshot = new_snap
-            return new_snap
+            self.env_snapshot = snap
+            return snap
         orchestrator = EnvStateOrchestrator(
             supervisor=supervisor, worker=worker, snapshot=snapshot,
             ledger=self.action_ledger,
@@ -1026,16 +956,14 @@ class DockerAgent:
         )
         self.env_snapshot = snapshot
 
-        # Inlined step closure — identical to EnvStateOrchestrator._make_step_fn (§3.6)
+        # Inlined step closure — v1 migration: _build_observer removed (probes/acl deleted).
+        # _run_fullstate_worker itself is deleted in Task 38; this stub is a no-op bridge.
         _global_actions_executed = [0]
-        observer = self._build_observer(maintainer)
 
         def step_fn(action):
             nonlocal snapshot
             _global_actions_executed[0] += 1
             success, observation = self.sandbox.execute(action)
-            snapshot = observer(snapshot, FULLSTATE_TASK_SPEC, _global_actions_executed[0],
-                                action, success, observation)
             self.env_snapshot = snapshot
             return success, observation
 
