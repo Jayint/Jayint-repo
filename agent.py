@@ -1309,47 +1309,54 @@ class DockerAgent:
             return False
         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
-        if not self._verify_cleanroom_or_fail():
+        _dockerfile_path = os.path.join(self.workplace, "Dockerfile")
+        if not self._verify_cleanroom_or_fail(
+            dockerfile_path=_dockerfile_path,
+            build_context=self.workplace,
+        ):
             return False
         self._maybe_generate_long_term_memories(configuration_success)
         return True
 
-    def _verify_cleanroom_or_fail(self):
-        """Return True if clean-room verification passes (or is disabled). Rebuilds the
-        synthesized Dockerfile from scratch and re-runs the host-certified probes + the
-        final test command in a throwaway container."""
+    def _verify_cleanroom_or_fail(self, dockerfile_path: str = "", build_context: str = "") -> bool:
+        """Return True if clean-room verification passes (or is disabled).
+
+        Rebuilds the synthesized Dockerfile from scratch and re-runs the
+        host-certified test commands in a throwaway container.
+
+        This method operates ONLY on the produced Dockerfile + build context.
+        It does NOT reference self.env_snapshot / snapshot.requirements / req.source
+        (those types are deleted in v1). Probe list is derived from
+        self.verified_test_commands (set by _run_v1 or the supervisor paths).
+
+        Args:
+            dockerfile_path: Absolute path to the synthesized Dockerfile.
+                             Defaults to <workplace>/Dockerfile when empty.
+            build_context:   Directory used as Docker build context.
+                             Defaults to self.workplace when empty.
+        """
         if not getattr(self, "enable_cleanroom", False):
             return True
+
         from src.envstate.cleanroom import ensure_repo_in_dockerfile, verify_cleanroom
-        from src.envstate.probes import ProbeSpec
-        from src.envstate.types import Source
 
-        # Re-render the Dockerfile text (idempotent; pass the workplace path so we do
-        # NOT write a stray ./Dockerfile in the cwd).
-        dockerfile_text = self.synthesizer.generate_dockerfile(
-            file_path=os.path.join(self.workplace, "Dockerfile")
-        )
-        workdir = getattr(self.synthesizer, "workdir", "/app")
-        dockerfile_text = ensure_repo_in_dockerfile(dockerfile_text, workdir)
+        _dockerfile_path = dockerfile_path or os.path.join(self.workplace, "Dockerfile")
+        _build_context = build_context or self.workplace
+        _workdir = getattr(self.synthesizer, "workdir", "/app")
 
-        # Re-probe only what the host already certified PRESENT this revision.
-        snapshot = getattr(self, "env_snapshot", None)
-        probes = []
-        if snapshot is not None:
-            for req in snapshot.requirements:
-                if req.source == Source.PROBE and req.status == "PRESENT" and req.evidence:
-                    probes.append(ProbeSpec(
-                                        kind="cli", name=req.name,
-                                        predicate=req.evidence.stdout_predicate,
-                                        command=req.evidence.probe_cmd,
-                                    ))
+        try:
+            with open(_dockerfile_path) as _df:
+                dockerfile_text = _df.read()
+        except OSError as exc:
+            print(f"[Clean-room] cannot read Dockerfile at {_dockerfile_path!r}: {exc}")
+            return False
+
+        dockerfile_text = ensure_repo_in_dockerfile(dockerfile_text, _workdir)
 
         def run_command(image_ref, command):
-            # containers.run raises docker.errors.ContainerError on non-zero exit; capture
-            # the real exit status when available so a failing probe/test is surfaced as rc!=0.
             try:
                 result = self.sandbox.client.containers.run(
-                    image_ref, command, remove=True, working_dir=workdir
+                    image_ref, command, remove=True, working_dir=_workdir
                 )
                 if isinstance(result, (bytes, bytearray)):
                     return 0, result.decode("utf-8", "replace")
@@ -1358,9 +1365,10 @@ class DockerAgent:
                 return getattr(exc, "exit_status", 1), str(exc)
 
         result = verify_cleanroom(
-            self.sandbox.client, dockerfile_text,
-            build_context_dir=self.workplace,
-            probes=probes,
+            self.sandbox.client,
+            dockerfile_text,
+            build_context_dir=_build_context,
+            probes=[],
             test_commands=list(self.verified_test_commands),
             run_command=run_command,
         )
