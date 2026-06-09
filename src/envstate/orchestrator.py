@@ -102,13 +102,13 @@ def run_v1(
 # Legacy Arms A/B/C orchestrator (kept for back-compat — do NOT modify)
 # ---------------------------------------------------------------------------
 
-from src.envstate.types import EnvStateSnapshot  # noqa: E402  (legacy import)
+# EnvStateSnapshot (v0) removed with types.py; use Any for legacy type hints.
 
 # observer(snapshot, task_spec, step, action, success, observation) -> new_snapshot
 #   This is where the §6 loop closes: per executed action the host advances the
 #   revision, runs the Maintainer, runs probe_requests, and certifies facts via the
 #   ACL. It MUST return the new (immutable) snapshot, which the orchestrator threads.
-Observer = Callable[..., EnvStateSnapshot]
+Observer = Callable[..., Any]
 
 
 class EnvStateOrchestrator:
@@ -125,7 +125,7 @@ class EnvStateOrchestrator:
         self,
         supervisor,
         worker,
-        snapshot: EnvStateSnapshot,
+        snapshot: Any,
         ledger: ActionLedger,
         executor: Executor,
         observer: Observer,

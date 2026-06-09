@@ -1,7 +1,8 @@
 import unittest
+from types import SimpleNamespace
 
 from src.envstate.orchestrator import EnvStateOrchestrator
-from src.envstate.types import BaseFacts, EnvStateSnapshot
+# BaseFacts/EnvStateSnapshot removed with types.py (Task 39) — replaced with SimpleNamespace
 from src.envstate.ledger import ActionLedger
 from src.envstate.build_agent import WorkerReport
 # advance_revision removed with acl.py — stubs updated below
@@ -40,7 +41,8 @@ def _noop_observer(snapshot, task_spec, step, action, success, observation):
 
 class OrchestratorTests(unittest.TestCase):
     def _snapshot(self):
-        return EnvStateSnapshot(revision=0, container_id="c1", base=BaseFacts(image="python:3.11-slim"))
+        # EnvStateSnapshot/BaseFacts removed with types.py (Task 39); plain namespace suffices
+        return SimpleNamespace(revision=0, container_id="c1")
 
     def test_loop_stops_when_supervisor_returns_no_task(self):
         supervisor = FakeSupervisor([

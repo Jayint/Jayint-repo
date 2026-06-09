@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from agent import DockerAgent
 from src.synthesizer import Synthesizer
 from src.envstate.ledger import ActionLedger
-from src.envstate.types import BaseFacts, EnvStateSnapshot, Source, Status
+# BaseFacts/EnvStateSnapshot/Source/Status removed with types.py (Task 39)
 from src.observation_compressor import RunTokenLedger
 
 
@@ -18,6 +18,7 @@ class _FakeMaintainer:
         return snapshot, proposal, [], {"total_tokens": 0}
 
 
+@unittest.skip("v0 supervisor/types removed — EnvStateSnapshot/BaseFacts/Source/Status deleted with types.py")
 class AgentSupervisorObserveTests(unittest.TestCase):
     def _make_agent(self):
         agent = DockerAgent.__new__(DockerAgent)

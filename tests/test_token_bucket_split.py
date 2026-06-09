@@ -379,7 +379,7 @@ class TestArmCSnapshotThreading(unittest.TestCase):
         # completes without Docker: make the supervisor emit one task, then done.
         # supervisor.py deleted in Task 36; import removed from this skipped class
         import src.envstate.orchestrator as orch_module
-        from src.envstate.types import EnvStateSnapshot, BaseFacts
+        # EnvStateSnapshot/BaseFacts removed with types.py (Task 39) — class is @unittest.skip
         from src.envstate.ledger import ActionLedger
 
         _orig_supervisor = None  # supervisor.py removed in Task 36

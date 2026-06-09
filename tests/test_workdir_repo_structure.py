@@ -6,8 +6,9 @@ TDD: these tests MUST fail before the implementation is in place.
 import unittest
 from types import SimpleNamespace
 
-from src.envstate.types import BaseFacts, EnvStateSnapshot, Requirement, Source, Status
-from src.envstate.serde import snapshot_to_dict, snapshot_from_dict
+# BaseFacts/EnvStateSnapshot/Requirement/Source/Status removed with types.py (Task 39)
+# snapshot_to_dict/snapshot_from_dict removed with serde.py (Task 40)
+# TypesDefaultsTests and SerdeRoundTripTests skipped below
 # render_planning_view removed with supervisor.py (Task 36)
 # Worker / build_task_brief removed with worker.py (Task 37) — WorkerWorkdirTests skipped below
 from src.envstate.ledger import ActionLedger
@@ -51,6 +52,7 @@ class FakeExecutor:
 # 1. types.py defaults
 # ---------------------------------------------------------------------------
 
+@unittest.skip("v0 types removed — BaseFacts/EnvStateSnapshot deleted with types.py (Task 39)")
 class TypesDefaultsTests(unittest.TestCase):
     """BaseFacts.workdir defaults to None; EnvStateSnapshot.repo_structure defaults to ''."""
 
@@ -99,6 +101,7 @@ class TypesDefaultsTests(unittest.TestCase):
 # 2. serde round-trip
 # ---------------------------------------------------------------------------
 
+@unittest.skip("v0 serde removed — snapshot_to_dict/snapshot_from_dict deleted with serde.py (Task 40)")
 class SerdeRoundTripTests(unittest.TestCase):
     def test_round_trip_with_workdir_and_repo_structure(self):
         original = EnvStateSnapshot(
