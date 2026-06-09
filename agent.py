@@ -1272,6 +1272,35 @@ class DockerAgent:
 
         return configuration_success
 
+    def _build_v1_ledger_appender(self, ledger):
+        """Return a thin closure that records (cmd, rc, stdout) into the ActionLedger.
+
+        This replaces the full _build_observer pipeline for v1 runs. In v1, the
+        per-action observer's only job is to persist evidence in the ledger so that:
+          - run_v1's done_flag scan can find the collect-only command.
+          - Token-bucket accounting remains intact via on_usage callbacks on the roles.
+
+        The Maintainer's interpretation work (formerly done per-action in _build_observer)
+        is now performed once per cycle by Maintainer.update inside run_v1.
+
+        Signature of the returned closure:
+            appender(cmd: str, rc: int, stdout: str) -> None
+        """
+        from src.envstate.ledger import ActionEvent
+
+        step_counter = [0]
+
+        def _appender(cmd: str, rc: int, stdout: str) -> None:
+            step_counter[0] += 1
+            ledger.append(ActionEvent(
+                cmd=cmd,
+                rc=rc,
+                stdout=stdout,
+                step=step_counter[0],
+            ))
+
+        return _appender
+
     def _finalize_supervisor_artifacts(self, configuration_success):
         """Synthesize the recipe, write the Dockerfile, and generate memories — the
         same success-artifact path the legacy run() uses (agent.py:1043-1052)."""

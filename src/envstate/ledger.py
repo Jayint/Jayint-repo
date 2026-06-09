@@ -6,16 +6,19 @@ from typing import Any, List, Optional, Tuple
 @dataclass(frozen=True)
 class ActionEvent:
     step: int
-    task_id: Optional[str]
     cmd: str
     rc: int
-    stdout_path: Optional[str]
-    stderr_path: Optional[str]
-    env_revision_before: int
-    env_revision_after: int
-    mutation_class: Optional[str]
-    container_id: str
-    summary: str
+    # Optional fields — v1 ledger-appender path stores inline stdout; legacy
+    # path stores file paths (stdout_path/stderr_path) and richer metadata.
+    task_id: Optional[str] = None
+    stdout: str = ""
+    stdout_path: Optional[str] = None
+    stderr_path: Optional[str] = None
+    env_revision_before: int = 0
+    env_revision_after: int = 0
+    mutation_class: Optional[str] = None
+    container_id: str = ""
+    summary: str = ""
 
 
 class ActionLedger:
