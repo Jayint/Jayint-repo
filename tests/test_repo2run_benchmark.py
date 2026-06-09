@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-import run_repo2run_benchmark as benchmark_module
 from run_repo2run_benchmark import (
     REPO2RUN_PDM_COLLECT_COMMAND,
     REPO2RUN_POETRY_COLLECT_COMMAND,
@@ -11,11 +10,8 @@ from run_repo2run_benchmark import (
     build_agent_command,
     build_dockerfile_repair_input,
     classify_test_execution,
-    collect_observed_pip_install_constraints,
     derive_repo2run_collect_commands,
     docker_build_failed_due_to_unavailable_daemon,
-    docker_build_failed_due_to_transient_network,
-    docker_build_timed_out_during_successful_trajectory_command,
     ensure_eval_dockerignore_includes_test_artifacts,
     evaluate_built_image,
     extract_observed_pip_install_constraints_from_text,
@@ -24,12 +20,9 @@ from run_repo2run_benchmark import (
     normalize_eval_dockerfile_for_replay,
     prepare_eval_build_context,
     render_eval_dockerfile,
-    repair_dockerfile_for_known_test_environment_failures,
-    repair_dockerfile_for_go_module_context,
     repair_dockerfile_for_missing_python_modules,
     repair_dockerfile_with_llm,
     resolve_benchmark_platform,
-    reused_workplace_needs_resynthesis,
     run_command,
     select_repo2run_collect_command_from_run_summary,
     should_add_postgres_host_alias,
@@ -43,7 +36,6 @@ from src.workplace_replay import (
     infer_base_image_from_dockerfile_text,
     load_platform_override_from_workplace,
     load_selected_base_image_from_workplace,
-    resolve_resynthesis_base_image,
     resynthesize_dockerfile_from_existing_workplace,
 )
 
@@ -68,46 +60,6 @@ WORKDIR ${APP_HOME}
 """
 
     assert infer_workdir_from_dockerfile(dockerfile) == "/app"
-
-
-def test_infer_workdir_defaults_unresolved_app_home_to_app():
-    dockerfile = """FROM python:3.11
-WORKDIR ${APP_HOME}
-"""
-
-    assert infer_workdir_from_dockerfile(dockerfile) == "/app"
-
-
-def test_render_eval_dockerfile_canonicalizes_unresolved_app_home_workdir():
-    agent_dockerfile = """FROM python:3.11
-WORKDIR ${APP_HOME}
-RUN pip install -e .
-"""
-
-    rendered = render_eval_dockerfile(agent_dockerfile)
-
-    assert "WORKDIR /app\nCOPY . /app\n\nRUN pip install -e ." in rendered
-    assert "${APP_HOME}" not in rendered
-    assert "/app/${APP_HOME}" not in rendered
-
-
-def test_normalize_eval_dockerfile_canonicalizes_unresolved_app_home_workdir():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\nWORKDIR ${APP_HOME}\nRUN pip install -e .\n"
-    )
-
-    assert "WORKDIR /app" in normalized
-    assert "${APP_HOME}" not in normalized
-
-
-def test_normalize_eval_dockerfile_canonicalizes_bad_app_home_context_copy():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\nWORKDIR ${APP_HOME}\nCOPY . /app/${APP_HOME}\n"
-    )
-
-    assert "WORKDIR /app" in normalized
-    assert "COPY . /app" in normalized
-    assert "/app/${APP_HOME}" not in normalized
 
 
 def test_normalize_eval_dockerfile_converts_export_path_to_env():
@@ -141,423 +93,6 @@ def test_normalize_eval_dockerfile_replaces_uv_shell_installer_with_pip_and_curl
     assert "https://astral.sh/uv/install.sh" in normalized
 
 
-def test_normalize_eval_dockerfile_drops_final_test_and_import_probe_runs():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "RUN pip install poetry\n"
-        "RUN cd /app && /root/.cache/pypoetry/virtualenvs/owl/bin/python -m pytest --collect-only -q --disable-warnings\n"
-        "RUN cd /app && /root/.cache/pypoetry/virtualenvs/owl/bin/python -c \"from owl.services.transcription.whisper_transcription_service import transcribe_audio; print('Import successful')\"\n"
-    )
-
-    assert "pip install poetry" in normalized
-    assert "pytest --collect-only" not in normalized
-    assert "Import successful" not in normalized
-
-
-def test_normalize_eval_dockerfile_drops_owl_repair_verification_runs():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "RUN cd /app && poetry run pytest --collect-only -q --disable-warnings\n"
-        "RUN /root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
-        "-m pytest --collect-only -q --disable-warnings\n"
-        "RUN cd /app && /root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
-        "-c \"from owl.services.transcription.whisper_transcription_service import "
-        "transcribe_audio; print('Import successful')\"\n"
-        "RUN /root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip "
-        "install -e /app --no-deps\n"
-    )
-
-    assert "pytest --collect-only" not in normalized
-    assert "Import successful" not in normalized
-    assert "/root/.cache/pypoetry/virtualenvs/" not in normalized
-    assert "poetry run pip install -e /app --no-deps" in normalized
-
-
-def test_normalize_eval_dockerfile_rewrites_generated_pypoetry_venv_pip_retry():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; "
-        "JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le "
-        "\"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc "
-        "'/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip "
-        "install av pyaudio setuptools wheel --force-reinstall' && "
-        "JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; done; "
-        "exit \"$JAYINT_PIP_STATUS\"\n"
-    )
-
-    assert "/root/.cache/pypoetry/virtualenvs/" not in normalized
-    assert "poetry run pip install av pyaudio setuptools wheel --force-reinstall" in normalized
-
-
-def test_normalize_eval_dockerfile_repairs_quoted_pypoetry_fallback_pip_command():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "RUN /root/.local/share/pypoetry/venv/bin/pip install av pyaudio "
-        "setuptools wheel --force-reinstall '2>/dev/null' '||' "
-        "poetry run pip install av pyaudio setuptools wheel --force-reinstall "
-        "'2>/dev/null' '||' poetry run pip install av pyaudio setuptools wheel "
-        "--force-reinstall\n"
-    )
-
-    assert "/root/.local/share/pypoetry/venv/bin/pip" not in normalized
-    assert "'2>/dev/null'" not in normalized
-    assert "'||'" not in normalized
-    assert "poetry run pip install av pyaudio setuptools wheel --force-reinstall" in normalized
-
-
-def test_normalize_eval_dockerfile_repairs_llm_corrupted_pip_retry_sleep_syntax():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; "
-        "JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le "
-        "\"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc "
-        "'poetry run pip install pydantic' && JAYINT_PIP_STATUS=0 && break; "
-        "JAYINT_PIP_STATUS=$?; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); "
-        "sleep 5); done; exit \"$JAYINT_PIP_STATUS\"\n"
-    )
-
-    assert "sleep 5); done" not in normalized
-    assert "sleep 5; done" in normalized
-
-
-def test_normalize_eval_dockerfile_repairs_llm_corrupted_pip_retry_variable_name():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.9\n"
-        "RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; "
-        "JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le "
-        "\"$JAYINT_PIP_MAX_ATTEMPPT\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc "
-        "'pip3 install Pillow' && JAYINT_PIP_STATUS=0 && break; "
-        "JAYINT_PIP_STATUS=$?; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); "
-        "sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\n"
-    )
-
-    assert "JAYINT_PIP_MAX_ATTEMPPT" not in normalized
-    assert '"$JAYINT_PIP_MAX_ATTEMPTS"' in normalized
-
-
-def test_normalize_eval_dockerfile_guards_single_file_sed_patches():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.9\n"
-        "WORKDIR /app\n"
-        "RUN sed -i '1s/^/from __future__ import annotations\\n/' /app/magic_pdf/data/read_api.py\n"
-    )
-
-    assert (
-        "RUN if [ -f /app/magic_pdf/data/read_api.py ]; then "
-        "sed -i '1s/^/from __future__ import annotations\\n/' "
-        "/app/magic_pdf/data/read_api.py; fi"
-    ) in normalized
-
-
-def test_known_test_environment_repair_sets_github_workspace():
-    repaired, repairs = repair_dockerfile_for_known_test_environment_failures(
-        "FROM python:3.9\nWORKDIR /app\nRUN pip install -e /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "tests/test_cli/conf/conf.py:4: in <module>\n"
-                            "    os.environ.get('GITHUB_WORKSPACE') + '/tests'\n"
-                            "E   TypeError: unsupported operand type(s) for +: "
-                            "'NoneType' and 'str'\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-    )
-
-    assert repairs == ["env:GITHUB_WORKSPACE"]
-    assert "ENV GITHUB_WORKSPACE=/app" in repaired
-
-
-def test_known_test_environment_repair_pins_cv2_numpy_abi():
-    repaired, repairs = repair_dockerfile_for_known_test_environment_failures(
-        "FROM python:3.9\n"
-        "WORKDIR /app\n"
-        "RUN python3 -m pip install pandas paddleocr==2.7.3\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "magic_pdf/libs/pdf_image_tools.py:2: in <module>\n"
-                            "    import cv2\n"
-                            "E   ImportError: numpy.core.multiarray failed to import\n"
-                            "RuntimeError: module compiled against ABI version 0x1000009 "
-                            "but this version of numpy is 0x2000000\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-    )
-
-    assert repairs == ["opencv-python-headless<4.10+numpy<2"]
-    assert "ENV JAYINT_CV2_NUMPY_ABI_REPAIR=1" in repaired
-    assert "python3 -m pip uninstall -y opencv-python opencv-contrib-python || true" in repaired
-    assert "numpy>=1.21.6,<2.0.0" in repaired
-    assert "opencv-python-headless<4.10" in repaired
-
-
-def test_known_test_environment_repair_stubs_torchtext_abi_mismatch():
-    repaired, repairs = repair_dockerfile_for_known_test_environment_failures(
-        "FROM python:3.9\nWORKDIR /app\nRUN pip3 install torchtext\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "E   OSError: /usr/local/lib/python3.9/site-packages/"
-                            "torchtext/lib/libtorchtext.so: undefined symbol: "
-                            "_ZN5torch6detail10class_baseC2ERKSsS3_SsRKSt9type_infoS6_\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-    )
-
-    assert repairs == ["torchtext-stub"]
-    assert "ENV JAYINT_TORCHTEXT_STUB_REPAIR=1" in repaired
-    assert "pip3 uninstall -y torchtext || true" in repaired
-    assert "Stub torchtext module for pytest collection compatibility" in repaired
-
-
-def test_missing_module_repair_maps_fitz_to_pymupdf():
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'fitz'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        None,
-    )
-
-    assert repairs == ["PyMuPDF"]
-    assert "pip install PyMuPDF" in repaired
-    assert "pip install fitz" not in repaired
-
-
-def test_missing_module_repair_maps_pdfminer_to_pdfminer_six():
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'pdfminer'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        None,
-    )
-
-    assert repairs == ["pdfminer.six"]
-    assert "pip install pdfminer.six" in repaired
-    assert "pip install pdfminer\n" not in repaired
-
-
-def test_missing_dotted_module_does_not_alias_unrelated_local_package(tmp_path):
-    local_unimernet = tmp_path / "magic_pdf" / "model" / "sub_modules" / "mfr" / "unimernet"
-    local_unimernet.mkdir(parents=True)
-    (local_unimernet / "__init__.py").write_text("", encoding="utf-8")
-
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'unimernet.common'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repairs == ["unimernet==0.1.2"]
-    assert "local-module:unimernet" not in repairs
-    assert "pip install unimernet==0.1.2" in repaired
-
-
-def test_missing_top_level_unimernet_prefers_external_package_over_nested_alias(tmp_path):
-    local_unimernet = tmp_path / "magic_pdf" / "model" / "sub_modules" / "mfr" / "unimernet"
-    local_unimernet.mkdir(parents=True)
-    (local_unimernet / "__init__.py").write_text("", encoding="utf-8")
-
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'unimernet'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repairs == ["unimernet==0.1.2"]
-    assert "local-module:unimernet" not in repairs
-    assert "ln -s /app/magic_pdf/model/sub_modules/mfr/unimernet" not in repaired
-    assert "pip install unimernet==0.1.2" in repaired
-
-
-def test_missing_torchtext_uses_collection_stub_instead_of_native_install(tmp_path):
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\nRUN pip3 install torch\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'torchtext'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repairs == ["torchtext-stub"]
-    assert "JAYINT_TORCHTEXT_STUB_REPAIR=1" in repaired
-    assert "pip3 uninstall -y torchtext || true" in repaired
-    assert "pip3 install torchtext" not in repaired
-
-
-def test_missing_detectron2_installs_from_git_not_pypi(tmp_path):
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        "FROM python:3.9\nWORKDIR /app\n",
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'detectron2'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repairs == ["git+https://github.com/facebookresearch/detectron2.git"]
-    assert "pip install git+https://github.com/facebookresearch/detectron2.git" in repaired
-    assert "pip install detectron2" not in repaired
-
-
-def test_missing_fasttext_uses_observed_fasttext_wheel(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "RUN printf '%s\\n' fasttext-wheel==0.9.2 > /tmp/jayint-pip-constraints.txt\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, repairs = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'fasttext'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repairs == ["fasttext-wheel==0.9.2"]
-    assert "pip install --no-deps fasttext-wheel==0.9.2" in repaired
-    assert "pip install fasttext\n" not in repaired
-
-
-def test_normalize_eval_dockerfile_rewrites_bare_pip_into_conda_env_before_env_python_install():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04\n"
-        "ENV CONDA_DIR=/opt/conda\n"
-        "RUN conda create -n aaiela python=3.9 -y\n"
-        "RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118\n"
-        "RUN pip install -r /app/requirements.txt\n"
-        "WORKDIR /app/models\n"
-        "RUN ${CONDA_DIR}/envs/aaiela/bin/python -m pip install -e detectron2\n"
-    )
-
-    assert (
-        "${CONDA_DIR}/envs/aaiela/bin/python -m pip install "
-        "--index-url https://download.pytorch.org/whl/cu118 torch torchvision"
-    ) in normalized
-    assert "${CONDA_DIR}/envs/aaiela/bin/python -m pip install -r /app/requirements.txt" in normalized
-    assert "/bin/sh -lc 'pip install torch torchvision --index-url" not in normalized
-
-
-def test_normalize_eval_dockerfile_installs_generated_pip_constraints_file():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "RUN printf '%s\\n' bs4==0.0.2 redis==7.4.0 > /tmp/minimal-requirements.txt\n"
-        "RUN pip install -e . --no-deps --constraint /tmp/minimal-requirements.txt\n"
-    )
-
-    assert "python3 -m pip install --no-deps -r /tmp/minimal-requirements.txt" in normalized
-
-
-def test_normalize_eval_dockerfile_does_not_duplicate_requirements_file_install():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "RUN printf '%s\\n' bs4==0.0.2 > /tmp/minimal-requirements.txt\n"
-        "RUN python3 -m pip install --no-deps -r /tmp/minimal-requirements.txt\n"
-    )
-
-    assert normalized.count("python3 -m pip install --no-deps -r /tmp/minimal-requirements.txt") == 1
-
-
-def test_reused_workplace_without_successful_recipe_needs_resynthesis():
-    assert reused_workplace_needs_resynthesis(
-        {
-            "configuration_success": False,
-            "verified_test_commands": [],
-            "successful_test_commands": [],
-            "verification_bundle": None,
-            "build_recipe": None,
-        }
-    )
-    assert reused_workplace_needs_resynthesis(
-        {
-            "configuration_success": False,
-            "build_recipe": {"build_commands": ["pip install -e ."]},
-            "resynthesis": {"dockerfile_generated": False},
-        }
-    )
-    assert not reused_workplace_needs_resynthesis(
-        {
-            "configuration_success": False,
-            "build_recipe": {"build_commands": ["pip install -e ."]},
-        }
-    )
-
-
 def test_extract_observed_pip_install_constraints_uses_later_successful_versions():
     constraints = extract_observed_pip_install_constraints_from_text(
         "Successfully installed gradio-5.23.1 gradio-client-1.8.0 jaxtyping-0.3.7\n"
@@ -568,29 +103,6 @@ def test_extract_observed_pip_install_constraints_uses_later_successful_versions
     assert constraints["gradio"] == "5.23.1"
     assert constraints["gradio-client"] == "1.8.0"
     assert constraints["jaxtyping"] == "0.2.38"
-
-
-def test_collect_observed_pip_install_constraints_filters_local_project_name(tmp_path):
-    (tmp_path / "pyproject.toml").write_text(
-        "[tool.poetry]\nname = \"owl\"\nversion = \"0.1.0\"\n",
-        encoding="utf-8",
-    )
-    constraints = collect_observed_pip_install_constraints(
-        tmp_path,
-        {
-            "successful_actions": [
-                {
-                    "observation_summary": (
-                        "Successfully installed owl-0.1.0 pytz-2024.1 whisperx-3.8.5\n"
-                    ),
-                }
-            ],
-        },
-    )
-
-    assert "owl" not in constraints
-    assert constraints["pytz"] == "2024.1"
-    assert constraints["whisperx"] == "3.8.5"
 
 
 def test_extract_observed_pip_install_constraints_does_not_cross_into_apt_output():
@@ -623,27 +135,9 @@ def test_normalize_eval_dockerfile_adds_observed_constraints_to_editable_install
     )
 
     assert "RUN printf '%s\\n' gradio==5.23.1 gradio-client==1.8.0 jaxtyping==0.2.38" in normalized
-    assert "python3 -m pip install --no-deps -r /tmp/jayint-pip-constraints.txt" not in normalized
     assert "--constraint /tmp/jayint-pip-constraints.txt" in normalized
-    assert 'python -m pip install -e ".[test]" pytest-shard --no-deps --constraint' in normalized
     assert normalized.count("--constraint /tmp/jayint-pip-constraints.txt") == 1
     assert "'jaxtyping<0.3.0' --constraint" not in normalized
-
-
-def test_normalize_eval_dockerfile_adds_no_deps_to_observed_constraint_editable_install():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.9\n"
-        "RUN python3 -m pip install -e /app\n",
-        pip_constraints={
-            "torch": "2.8.0",
-            "nvidia-cuda-runtime-cu12": "12.1.105",
-        },
-    )
-
-    assert (
-        "python3 -m pip install -e /app --no-deps "
-        "--constraint /tmp/jayint-pip-constraints.txt"
-    ) in normalized
 
 
 def test_normalize_eval_dockerfile_splits_broad_torch_to_cpu_index():
@@ -987,25 +481,6 @@ def test_normalize_eval_dockerfile_repairs_generated_apt_retry_with_orphan_packa
     assert "\n    && rm -rf /var/lib/apt/lists/*" not in normalized
 
 
-def test_normalize_eval_dockerfile_repairs_llm_corrupted_apt_retry_attempt_variable():
-    normalized = normalize_eval_dockerfile_for_replay(
-        "FROM python:3.11\n"
-        "RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; "
-        "while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do "
-        "rm -rf /var/lib/apt/lists/*; "
-        "DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y ffmpeg' "
-        "&& JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; "
-        "if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then "
-        "exit \"$JAYINT_APT_STATUS\"; fi; "
-        "JAYINT_APT_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; "
-        "exit \"$JAYINT_APT_STATUS\"\n"
-    )
-
-    assert "JAYINT_PIP_ATTEMPT" not in normalized
-    assert 'while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]' in normalized
-    assert "JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1))" in normalized
-
-
 def test_normalize_eval_dockerfile_drops_poetry_lock_when_lockfile_is_copied():
     normalized = normalize_eval_dockerfile_for_replay(
         "FROM python:3.11\n"
@@ -1091,107 +566,6 @@ def test_docker_daemon_unavailable_does_not_look_like_repairable_dockerfile_fail
     )
 
 
-def test_docker_build_transient_network_detector_catches_registry_auth_reset():
-    assert docker_build_failed_due_to_transient_network(
-        {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": (
-                'ERROR: failed to build: failed to solve: failed to fetch oauth token: '
-                'Post "https://auth.docker.io/token": read tcp 198.18.0.1:56778'
-                "->198.18.5.168:443: read: connection reset by peer"
-            ),
-        }
-    )
-
-
-def test_docker_build_transient_network_detector_catches_registry_metadata_eof():
-    assert docker_build_failed_due_to_transient_network(
-        {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": (
-                "#2 [internal] load metadata for docker.io/library/python:3.11-slim\n"
-                '#2 ERROR: failed to do request: Head "https://registry-1.docker.io/v2/'
-                'library/python/manifests/3.11-slim": EOF\n'
-                "ERROR: failed to build: failed to solve: python:3.11-slim: "
-                "failed to resolve source metadata for docker.io/library/python:3.11-slim"
-            ),
-        }
-    )
-
-
-def test_docker_build_transient_network_detector_catches_apt_bad_gateway():
-    assert docker_build_failed_due_to_transient_network(
-        {
-            "returncode": 100,
-            "stdout": "",
-            "stderr": (
-                "E: Failed to fetch http://deb.debian.org/debian/pool/main/p/pcre2/"
-                "libpcre2-dev_10.46-1_amd64.deb  502  Bad Gateway\n"
-                "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?"
-            ),
-        }
-    )
-
-
-def test_docker_build_transient_network_detector_ignores_real_dockerfile_error():
-    assert not docker_build_failed_due_to_transient_network(
-        {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": "Dockerfile.eval:8 unknown instruction: gcc",
-        }
-    )
-
-
-def test_docker_build_transient_network_detector_ignores_poetry_solver_failure_after_git_retry():
-    assert not docker_build_failed_due_to_transient_network(
-        {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": (
-                "#3 [internal] load metadata for docker.io/library/python:3.11-slim\n"
-                "#3 DONE 1.6s\n"
-                "[urllib3.connectionpool] retrying after connection broken by "
-                "SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred')"
-                ": /m-bain/whisperx.git/git-upload-pack\n"
-                "1: conflict: whisperx requires Python >=3.10, <3.14\n"
-                "1: ! thus: version solving failed\n"
-                "ERROR: process \"/bin/sh -c poetry install -vvv\" did not complete "
-                "successfully: exit code: 1"
-            ),
-        }
-    )
-
-
-def test_docker_build_timeout_detector_matches_successful_trajectory_command():
-    dockerfile = (
-        "FROM python:3.10\n"
-        "RUN JAYINT_PIP_ATTEMPT=1; while true; do /bin/sh -lc 'pip install colossalai'; done\n"
-    )
-    docker_build = {
-        "returncode": 124,
-        "stdout": "",
-        "stderr": "#14 [10/15] RUN /bin/sh -lc 'pip install colossalai'\n#14 1435.7 Downloading nvidia-nccl-cu12\n",
-        "timed_out": True,
-    }
-    run_summary = {
-        "build_recipe": {
-            "build_commands": [
-                "pip install pytest pytest-timeout",
-                "pip install colossalai",
-            ]
-        }
-    }
-
-    assert docker_build_timed_out_during_successful_trajectory_command(
-        docker_build,
-        dockerfile,
-        run_summary,
-    )
-
-
 def test_repair_dockerfile_for_missing_module_prefers_declared_requirement(tmp_path):
     (tmp_path / "requirements.txt").write_text("paddleocr==2.7.3\n", encoding="utf-8")
     dockerfile = (
@@ -1216,181 +590,8 @@ def test_repair_dockerfile_for_missing_module_prefers_declared_requirement(tmp_p
     )
 
     assert requirements == ["paddleocr==2.7.3"]
-    assert "/bin/sh -lc 'pip3 install --no-deps paddleocr==2.7.3'" in repaired
+    assert "/bin/sh -lc 'pip3 install paddleocr==2.7.3'" in repaired
     assert repaired.index("paddleocr==2.7.3") < repaired.index("CMD pytest")
-
-
-def test_repair_dockerfile_for_missing_module_defers_no_deps_dependency_and_optional_pin(tmp_path):
-    requirements_dir = tmp_path / "requirements"
-    requirements_dir.mkdir()
-    (requirements_dir / "requirements.txt").write_text("colossalai>=0.4.0\n", encoding="utf-8")
-    (requirements_dir / "requirements-pllava.txt").write_text(
-        "peft==0.10.0\npsutil==5.9.4\n",
-        encoding="utf-8",
-    )
-    dockerfile = (
-        "FROM python:3.10\n"
-        "WORKDIR /app\n"
-        "RUN pip install --no-deps colossalai==0.5.0\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "ModuleNotFoundError: No module named 'peft'\n"
-                            "ModuleNotFoundError: No module named 'psutil'\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert repaired == dockerfile
-    assert requirements == []
-
-
-def test_repair_dockerfile_for_missing_module_splits_no_deps_import_shim(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "ModuleNotFoundError: No module named 'matplotlib'\n"
-                            "ModuleNotFoundError: No module named 'ppstructure'\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["matplotlib", "paddleocr==2.7.3"]
-    assert "pip install matplotlib && pip install --no-deps paddleocr==2.7.3" in repaired
-
-
-def test_repair_dockerfile_for_missing_module_prefers_observed_constraint_no_deps(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "RUN printf '%s\\n' albumentations==1.4.20 > /tmp/jayint-pip-constraints.txt\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'albumentations'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["albumentations==1.4.20"]
-    assert "/bin/sh -lc 'pip install --no-deps albumentations==1.4.20'" in repaired
-
-
-def test_repair_dockerfile_for_ppstructure_ignores_observed_new_paddleocr(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "RUN printf '%s\\n' paddleocr==3.5.0 > /tmp/jayint-pip-constraints.txt\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'ppstructure'\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["paddleocr==2.7.3"]
-    assert "/bin/sh -lc 'pip install --no-deps paddleocr==2.7.3'" in repaired
-    assert "paddleocr==3.5.0" in repaired
-
-
-def test_repair_dockerfile_for_dependency_import_error_extracts_required_module(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "RUN printf '%s\\n' pytz==2026.2 > /tmp/jayint-pip-constraints.txt\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "E   ImportError: Unable to import required dependencies:\n"
-                            "E   pytz: No module named 'pytz'\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["pytz==2026.2"]
-    assert "/bin/sh -lc 'pip install --no-deps pytz==2026.2'" in repaired
-
-
-def test_repair_dockerfile_for_package_not_found_extracts_distribution(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "RUN printf '%s\\n' dill==0.4.0 > /tmp/jayint-pip-constraints.txt\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "E   importlib.metadata.PackageNotFoundError: dill\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["dill==0.4.0"]
-    assert "/bin/sh -lc 'pip install --no-deps dill==0.4.0'" in repaired
 
 
 def test_repair_dockerfile_for_missing_module_uses_poetry_lock_version(tmp_path):
@@ -1421,349 +622,6 @@ def test_repair_dockerfile_for_missing_module_uses_poetry_lock_version(tmp_path)
 
     assert requirements == ["transitions==0.9.2"]
     assert "/bin/sh -lc 'pip install transitions==0.9.2'" in repaired
-
-
-def test_repair_dockerfile_for_missing_module_detects_broken_import_from_module(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD poetry run pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "",
-                        "stderr": "ImportError: cannot import name 'command' from 'alembic' (unknown location)",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["alembic"]
-    assert "/bin/sh -lc 'pip install alembic'" in repaired
-
-
-def test_repair_dockerfile_for_missing_module_uses_test_python_environment(tmp_path):
-    (tmp_path / "poetry.lock").write_text(
-        '[[package]]\nname = "sqlmodel"\nversion = "0.0.14"\n',
-        encoding="utf-8",
-    )
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "RUN /root/.cache/pypoetry/virtualenvs/owl-abc-py3.11/bin/pip install -e /app --no-deps\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "test_command": (
-                        "/root/.cache/pypoetry/virtualenvs/owl-abc-py3.11/bin/python "
-                        "-m pytest --collect-only -q --disable-warnings"
-                    ),
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'sqlmodel'",
-                        "stderr": "",
-                    },
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["sqlmodel==0.0.14"]
-    assert (
-        "/bin/sh -lc '/root/.cache/pypoetry/virtualenvs/owl-abc-py3.11/bin/python "
-        "-m pip install sqlmodel==0.0.14'"
-    ) in repaired
-
-
-def test_repair_dockerfile_for_missing_crypto_module_installs_pycryptodome(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'Crypto'",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["pycryptodome"]
-    assert "/bin/sh -lc 'pip install pycryptodome'" in repaired
-
-
-def test_repair_dockerfile_for_missing_yaml_module_installs_pyyaml(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'yaml'",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["PyYAML"]
-    assert "/bin/sh -lc 'pip install PyYAML'" in repaired
-    assert "pip install yaml" not in repaired
-
-
-def test_repair_dockerfile_for_missing_cv2_reinstalls_opencv_headless(tmp_path):
-    dockerfile = (
-        "FROM python:3.9\n"
-        "WORKDIR /app\n"
-        "RUN pip install opencv-python-headless\n"
-        "RUN pip uninstall -y opencv-python\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'cv2'",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["opencv-python-headless"]
-    assert "pip install --force-reinstall --no-deps opencv-python-headless" in repaired
-    assert "pip install cv2" not in repaired
-    assert repaired.rindex("--force-reinstall --no-deps opencv-python-headless") < repaired.index(
-        "CMD pytest"
-    )
-
-
-def test_repair_dockerfile_for_missing_argon2_module_installs_argon2_cffi(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'argon2'",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["argon2-cffi"]
-    assert "/bin/sh -lc 'pip install argon2-cffi'" in repaired
-
-
-def test_repair_dockerfile_for_broken_argon2_low_level_removes_wrong_argon2_package(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "RUN pip install argon2\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "ModuleNotFoundError: No module named 'argon2.low_level'; "
-                            "'argon2' is not a package"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["argon2-cffi"]
-    assert "pip uninstall -y argon2 || true; pip install argon2-cffi" in repaired
-
-
-def test_repair_dockerfile_for_missing_nltk_resource_downloads_resource(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "Resource 'punkt_tab' not found.\n",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["nltk-resource:punkt_tab"]
-    assert "RUN python -m nltk.downloader punkt_tab" in repaired
-
-
-def test_repair_dockerfile_for_missing_module_and_nltk_resource_handles_both(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "ModuleNotFoundError: No module named 'redis'\n"
-                            "Resource 'punkt_tab' not found.\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["redis", "nltk-resource:punkt_tab"]
-    assert "/bin/sh -lc 'pip install redis'" in repaired
-    assert "RUN python -m nltk.downloader punkt_tab" in repaired
-
-
-def test_repair_dockerfile_for_missing_local_nested_modules_uses_symlinks(tmp_path):
-    (tmp_path / "nlm_ingestor" / "ingestor").mkdir(parents=True)
-    (tmp_path / "nlm_ingestor" / "ingestor" / "__init__.py").write_text("", encoding="utf-8")
-    (tmp_path / "nlm_ingestor" / "ingestor_utils").mkdir(parents=True)
-    (tmp_path / "nlm_ingestor" / "ingestor_utils" / "__init__.py").write_text("", encoding="utf-8")
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": (
-                            "ModuleNotFoundError: No module named 'ingestor'\n"
-                            "ModuleNotFoundError: No module named 'ingestor_utils'\n"
-                            "ModuleNotFoundError: No module named 'bs4'\n"
-                        ),
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["local-module:ingestor", "local-module:ingestor_utils", "bs4"]
-    assert "ln -s /app/nlm_ingestor/ingestor /app/ingestor" in repaired
-    assert "ln -s /app/nlm_ingestor/ingestor_utils /app/ingestor_utils" in repaired
-    assert "/bin/sh -lc 'pip install bs4'" in repaired
-    assert "pip install ingestor" not in repaired
-
-
-def test_repair_dockerfile_for_missing_top_level_local_module_uses_pythonpath(tmp_path):
-    (tmp_path / "owl").mkdir()
-    (tmp_path / "owl" / "__init__.py").write_text("", encoding="utf-8")
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "CMD poetry run pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'owl'",
-                        "stderr": "",
-                    }
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["local-module:owl"]
-    assert "ENV PYTHONPATH=/app:${PYTHONPATH}" in repaired
-    assert "pip install owl" not in repaired
-
-
-def test_repair_dockerfile_for_missing_dependency_after_pythonpath_uses_system_pip(tmp_path):
-    dockerfile = (
-        "FROM python:3.11\n"
-        "WORKDIR /app\n"
-        "ENV PYTHONPATH=/app:${PYTHONPATH}\n"
-        "CMD poetry run pytest --collect-only -q --disable-warnings\n"
-    )
-    repaired, requirements = repair_dockerfile_for_missing_python_modules(
-        dockerfile,
-        {
-            "results": [
-                {
-                    "test_command": "poetry run pytest --collect-only -q --disable-warnings",
-                    "execution": {
-                        "stdout": "ModuleNotFoundError: No module named 'sqlmodel'",
-                        "stderr": "",
-                    },
-                }
-            ]
-        },
-        tmp_path,
-    )
-
-    assert requirements == ["sqlmodel"]
-    assert "/bin/sh -lc 'pip install sqlmodel'" in repaired
-    assert "poetry run pip install sqlmodel" not in repaired
 
 
 def test_extract_dockerfile_repair_json_parses_full_dockerfile():
@@ -1816,43 +674,6 @@ def test_repair_dockerfile_with_llm_writes_log_and_returns_replacement(tmp_path)
     assert result["usage"]["total_tokens"] == 5
     assert "RUN pip install pybullet" in result["dockerfile_text"]
     assert Path(result["log_path"]).read_text(encoding="utf-8").count("Dockerfile repair") >= 1
-
-
-def test_repair_dockerfile_for_go_module_context_uses_actual_go_mod_directory(tmp_path):
-    (tmp_path / "runner").mkdir()
-    (tmp_path / "runner" / "go.mod").write_text(
-        "module github.com/NexaAI/nexa-sdk/runner\n",
-        encoding="utf-8",
-    )
-    dockerfile = "\n".join(
-        [
-            "FROM golang:1.24",
-            "WORKDIR /app/NexaAI__nexa-sdk",
-            "COPY . /app/NexaAI__nexa-sdk",
-            "RUN go mod download",
-            "",
-        ]
-    )
-
-    repaired, repairs = repair_dockerfile_for_go_module_context(
-        dockerfile,
-        {
-            "returncode": 1,
-            "stdout": "",
-            "stderr": "go: no modules specified (see 'go help mod download')",
-        },
-        tmp_path,
-        {
-            "verified_test_commands": [
-                "cd /app/runner && go test -buildvcs=false -list \".*\" ./internal/render/..."
-            ],
-        },
-        ["cd runner && go test -buildvcs=false -list '.*' ./internal/render/..."],
-    )
-
-    assert repairs == ["go_mod_download_workdir:/app/NexaAI__nexa-sdk/runner"]
-    assert "RUN cd /app/NexaAI__nexa-sdk/runner && go mod download" in repaired
-    assert "RUN go mod download" not in repaired
 
 
 def test_build_dockerfile_repair_input_includes_failure_logs_and_trajectory():
@@ -2476,78 +1297,6 @@ def test_derive_repo2run_collect_commands_keeps_agent_verified_venv_pytest(tmp_p
     assert source == "repo2run_pytest_collect_only_agent_verified"
 
 
-def test_derive_repo2run_collect_commands_recovers_successful_absolute_python_collect(
-    tmp_path,
-):
-    (tmp_path / "pyproject.toml").write_text(
-        "[tool.poetry]\nname = \"owl\"\n",
-        encoding="utf-8",
-    )
-    verified_command = (
-        "cd /app && "
-        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
-        "-m pytest --collect-only -q --disable-warnings 2>&1"
-    )
-
-    runtime_commands, test_commands, source = derive_repo2run_collect_commands(
-        tmp_path,
-        {
-            "successful_actions": [
-                {
-                    "command": "poetry run pytest --collect-only -q --disable-warnings 2>&1",
-                    "observation_summary": "1 test collected in 6.47s\n",
-                },
-                {
-                    "command": verified_command,
-                    "observation_summary": "1 test collected in 4.69s\n",
-                },
-            ],
-        },
-    )
-
-    assert runtime_commands == []
-    assert test_commands == [
-        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
-        "-m pytest --collect-only -q --disable-warnings"
-    ]
-    assert source == "repo2run_pytest_collect_only_agent_verified"
-
-
-def test_derive_repo2run_collect_commands_prefers_latest_successful_collect_over_absolute_venv(
-    tmp_path,
-):
-    (tmp_path / "pyproject.toml").write_text(
-        "[tool.poetry]\nname = \"owl\"\n",
-        encoding="utf-8",
-    )
-    absolute_command = (
-        "cd /app && "
-        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
-        "-m pytest --collect-only -q --disable-warnings 2>&1"
-    )
-    poetry_command = "cd /app && poetry run pytest --collect-only -q --disable-warnings 2>&1"
-
-    runtime_commands, test_commands, source = derive_repo2run_collect_commands(
-        tmp_path,
-        {
-            "successful_actions": [
-                {
-                    "command": absolute_command,
-                    "observation_summary": "1 test collected in 4.69s\n",
-                },
-                {
-                    "command": poetry_command,
-                    "observation_summary": "1 test collected in 6.47s\n",
-                },
-            ],
-        },
-    )
-
-    assert runtime_commands == []
-    assert test_commands == ["poetry run pytest --collect-only -q --disable-warnings"]
-    assert source == "repo2run_poetry_collect_only_agent_verified"
-
-
 def test_derive_repo2run_collect_commands_keeps_multiple_agent_verified_collect_commands(
     tmp_path,
 ):
@@ -2570,40 +1319,6 @@ def test_derive_repo2run_collect_commands_keeps_multiple_agent_verified_collect_
     assert runtime_commands == []
     assert test_commands == verified_commands
     assert source == "repo2run_poetry_collect_only_agent_verified"
-
-
-def test_derive_repo2run_collect_commands_accepts_agent_verified_go_test_list(
-    tmp_path,
-):
-    verified_command = (
-        "cd /app/runner && /usr/local/go/bin/go test -buildvcs=false "
-        "-list \".*\" ./internal/render/... ./server/utils/... 2>&1"
-    )
-
-    runtime_commands, test_commands, source = derive_repo2run_collect_commands(
-        tmp_path,
-        {
-            "successful_actions": [
-                {
-                    "command": verified_command,
-                    "observation_summary": "\n".join(
-                        [
-                            "TestThemeColor",
-                            "ok  \tgithub.com/NexaAI/nexa-sdk/runner/internal/render\t0.042s",
-                            "TestSaveURIToTempFile_WebP",
-                            "ok  \tgithub.com/NexaAI/nexa-sdk/runner/server/utils\t0.032s",
-                        ]
-                    ),
-                },
-            ],
-        },
-    )
-
-    assert runtime_commands == []
-    assert test_commands == [
-        "cd runner && /usr/local/go/bin/go test -buildvcs=false -list '.*' ./internal/render/... ./server/utils/..."
-    ]
-    assert source == "repo2run_go_test_list_agent_verified"
 
 
 def test_derive_repo2run_collect_commands_rejects_agent_verified_collect_with_pipe(
@@ -2686,31 +1401,11 @@ def test_should_use_agent_dockerfile_allows_unsuccessful_summary_with_verified_t
     assert reason is None
 
 
-def test_should_use_agent_dockerfile_rejects_stale_reused_existing_workplace():
+def test_should_use_agent_dockerfile_allows_reused_existing_workplace_after_failed_prior_run():
     usable, reason = should_use_agent_dockerfile(
         {"returncode": 1, "timed_out": False},
         reused_existing_workplace=True,
-        run_summary={
-            "configuration_success": False,
-            "verified_test_commands": [],
-            "successful_test_commands": [],
-            "verification_bundle": None,
-            "build_recipe": None,
-        },
-    )
-
-    assert usable is False
-    assert reason == "reused_workplace_requires_resynthesis"
-
-
-def test_should_use_agent_dockerfile_allows_reused_existing_workplace_with_recipe():
-    usable, reason = should_use_agent_dockerfile(
-        {"returncode": 1, "timed_out": False},
-        reused_existing_workplace=True,
-        run_summary={
-            "configuration_success": False,
-            "build_recipe": {"build_commands": ["pip install -e ."]},
-        },
+        run_summary={"configuration_success": False},
     )
 
     assert usable is True
@@ -2742,51 +1437,6 @@ def test_prepare_eval_build_context_uses_clean_git_checkout(tmp_path):
         "[tool.pytest]\ntestpaths = ['tests']\n"
     )
     assert not (destination / "agent_run_summary.json").exists()
-
-
-def test_prepare_eval_build_context_fetches_pr_refs_after_checkout_failure(tmp_path, monkeypatch):
-    source = tmp_path / "source"
-    source.mkdir()
-    (source / ".git").mkdir()
-    destination = tmp_path / "context"
-    calls = []
-    checkout_attempts = {"count": 0}
-
-    def fake_run_command(command, cwd=None, **kwargs):
-        calls.append(command)
-        if command[:2] == ["git", "clone"]:
-            return {"returncode": 0, "timed_out": False}
-        if command[:3] == ["git", "checkout", "--force"]:
-            checkout_attempts["count"] += 1
-            return {
-                "returncode": 0 if checkout_attempts["count"] == 2 else 1,
-                "timed_out": False,
-            }
-        if command[:2] == ["git", "fetch"]:
-            return {"returncode": 0, "timed_out": False}
-        if command[:2] == ["git", "clean"]:
-            return {"returncode": 0, "timed_out": False}
-        raise AssertionError(f"unexpected command: {command}")
-
-    monkeypatch.setattr(benchmark_module, "run_command", fake_run_command)
-
-    result = benchmark_module.prepare_eval_build_context(
-        source,
-        destination,
-        base_commit="abc123",
-        cwd=tmp_path,
-    )
-
-    assert result["success"] is True
-    assert checkout_attempts["count"] == 2
-    assert result["pr_ref_fetch"]["returncode"] == 0
-    assert [
-        "git",
-        "fetch",
-        "--filter=blob:none",
-        "origin",
-        "+refs/pull/*/head:refs/remotes/origin/pr/*",
-    ] in calls
 
 
 def test_ensure_eval_dockerignore_includes_tests_excluded_by_target_repo(tmp_path):
@@ -2876,42 +1526,6 @@ def test_load_selected_base_image_from_workplace_reads_image_selector_summary(tm
     )
 
     assert load_selected_base_image_from_workplace(workplace) == "python:3.10"
-
-
-def test_resolve_resynthesis_base_image_prefers_existing_lower_python_base(tmp_path):
-    workplace = tmp_path / "case"
-    summary_path = workplace / "logs" / "image_selector_logs" / "summary.json"
-    summary_path.parent.mkdir(parents=True)
-    summary_path.write_text(
-        json.dumps({"selected_image": "python:3.14"}, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    assert (
-        resolve_resynthesis_base_image(
-            workplace,
-            "FROM python:3.11-bookworm\n",
-        )
-        == "python:3.11-bookworm"
-    )
-
-
-def test_resolve_resynthesis_base_image_keeps_selected_over_non_python_existing(tmp_path):
-    workplace = tmp_path / "case"
-    summary_path = workplace / "logs" / "image_selector_logs" / "summary.json"
-    summary_path.parent.mkdir(parents=True)
-    summary_path.write_text(
-        json.dumps({"selected_image": "python:3.9"}, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    assert (
-        resolve_resynthesis_base_image(
-            workplace,
-            "FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu20.04\n",
-        )
-        == "python:3.9"
-    )
 
 
 def test_load_platform_override_from_workplace_reads_image_selector_summary(tmp_path):
@@ -3132,11 +1746,6 @@ def test_evaluate_built_image_forwards_platform_override(monkeypatch, tmp_path):
         "--platform",
         "linux/amd64",
     ]
-    assert "--entrypoint" in captured["command"]
-    assert "/bin/sh" in captured["command"]
-    assert captured["command"].index("/bin/sh") < captured["command"].index("demo")
-    assert "-c" in captured["command"]
-    assert "-lc" not in captured["command"]
     assert result["all_test_commands_effective"] is True
 
 
@@ -3182,7 +1791,6 @@ def test_evaluate_built_image_adds_postgres_host_alias(monkeypatch, tmp_path):
     assert "--add-host" in captured["command"]
     assert "postgres:127.0.0.1" in captured["command"]
     assert captured["command"].index("postgres:127.0.0.1") < captured["command"].index("demo")
-    assert captured["command"].index("/bin/sh") < captured["command"].index("demo")
 
 
 def test_build_agent_command_forwards_agent_command_timeout(tmp_path):

@@ -76,12 +76,6 @@ Required JSON keys:
 
 class MultiDockerEvalAdapter:
     """适配器：将 DockerAgent 输出转换为 Multi-Docker-Eval 评估格式"""
-    _ACCEPTED_VERIFICATION_SOURCES = {
-        "agent_report",
-        "agent_observation",
-        "auto_after_transient_error",
-        "auto_finalized_after_invalid_agent_report",
-    }
     _AGENT_ROOT_WORKDIR_PATTERN = re.compile(r"(?<![A-Za-z0-9_.-])/app(?=$|[^A-Za-z0-9_.-])")
     _DOCKERFILE_INSTRUCTION_PATTERN = re.compile(
         r"^\s*(FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|"
@@ -788,9 +782,7 @@ RUN git clone {repo_url} /testbed
             
             # 运行 agent 配置环境
             agent.run(max_steps=max_steps, keep_container=False)
-            accepted_verification = self._is_accepted_verification_source(
-                getattr(agent, "verification_source", None)
-            )
+            accepted_verification = getattr(agent, "verification_source", None) == "agent_report"
             
             # 记录 platform override（用于后续评估框架构建镜像时使用正确平台）
             if hasattr(agent, 'platform_override') and agent.platform_override:
@@ -2709,16 +2701,13 @@ RUN git clone {repo_url} /testbed
                 normalized_commands.append(stripped)
         return normalized_commands
 
-    def _is_accepted_verification_source(self, source: Optional[str]) -> bool:
-        return source in self._ACCEPTED_VERIFICATION_SOURCES
-
     def _load_agent_report_summary(self, workplace: str) -> Optional[Dict[str, Any]]:
-        """Only trust verification data from sources validated by DockerAgent."""
+        """Only trust verification data that came from an accepted agent-reported bundle."""
         summary = self._load_run_summary(workplace)
         if not summary:
             return None
 
-        if not self._is_accepted_verification_source(summary.get("verification_source")):
+        if summary.get("verification_source") != "agent_report":
             return None
 
         return summary

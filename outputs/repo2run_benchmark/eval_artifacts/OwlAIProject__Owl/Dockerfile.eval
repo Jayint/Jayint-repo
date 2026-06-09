@@ -1,62 +1,20 @@
-FROM python:3.11
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PIP_DEFAULT_TIMEOUT=300
-ENV PIP_RETRIES=5
+FROM python:3.11-slim as base
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
 
-RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+ARG DEBIAN_FRONTEND=noninteractive
 
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y ffmpeg libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libavfilter-dev libswscale-dev libswresample-dev pkg-config libavcodec-extra portaudio19-dev libportaudio2 libportaudiocpp0' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y curl git ffmpeg pkg-config libcairo2-dev portaudio19-dev libsndfile1 libgomp1 libjpeg-dev libpng-dev cmake && apt-get clean && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
 
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry pytest pytest-xdist' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir poetry && poetry --version
+
+ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
-COPY pyproject.toml /app/
-
-RUN cd /app
 
 COPY . /app
 
-RUN cd /app && poetry env use /usr/local/bin/python3
+RUN poetry config virtualenvs.create false && poetry install -vvv && rm -rf /root/.cache/pypoetry /root/.cache/pip
 
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install av --upgrade' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+RUN echo '#!/bin/sh\n if [ -z "$CONFIG_FILE" ]; then\n poetry run owl serve --host 0.0.0.0\n else\n poetry run owl serve --host 0.0.0.0 --config "$CONFIG_FILE"\n fi' > /entrypoint.sh && chmod +x /entrypoint.sh
 
-RUN mkdir -p /app/owl/services/transcription && touch /app/owl/services/transcription/__init__.py
-
-RUN printf '%s' 'I2ltcG9ydCBvcyBmcm9tIG93bC5zZXJ2aWNlcy50cmFuc2NyaXB0aW9uLndoaXNwZXJfdHJhbnNjcmlwdGlvbl9zZXJ2aWNlIGltcG9ydCB0cmFuc2NyaWJlX2F1ZGlvCgpkZWYgdGVzdF90cmFuc2NyaWJlX2F1ZGlvKCk6CiAgICB0ZXN0X2RpciA9IG9zLnBhdGguZGlybmFtZShvcy5wYXRoLmFiYnJlcGF0aChfX2ZpbGVfXykpCgogICAgbWFpbl9hdWRpb19maWxlcGF0aCA9IG9zLnBhdGguam9pbih0ZXN0X2RpciwgImRhdGEvYXVkaW8vdGVzdF9zZXNzaW9uLndhdmYiKQogICAgc3BlYWtlcl92ZXJpZmljYXRpb25fYXVkaW9fcGF0aCA9IG9zLnBhdGguam9pbih0ZXN0X2RpciwgImRhdGEvYXVkaW8vdGVzdF9zcGVha2VyLm00YSIpCgogICAgdHJhbnNjcmlwdGlvbl9yZXN1bHQgPSB0cmFuc2NyaWJlX2F1ZGlvKG1haW5fYXVkaW9fZmlsZXBhdGgsIHNwZWFrZXJfdmVyaWZpY2F0aW9uX2F1ZGlvX3BhdGgsICJCb2IiKQoKICAgIGFzc2VydCB0cmFuc2NyaXB0aW9uX3Jlc3VsdCBpcyBub3QgTm9uZQoKICAgIGV4cGVjdGVkX3RyYW5zY3JpcHRpb25zID0gWwogICAgICAgICJKdXN0IHRlc3Rpbmcgbm93LiIsCiAgICAgICAgIkp1c3QgdGVzdGluZyBub3cuIiwKICAgICAgICAiVGhhdCdzIGFsbCBJJ20gZG9pbmcuIgogICAgXQogICAgZm9yIGlkeCwgdXR0ZXJhbmNlIGluIGVudW0odHJhbnNjcmlwdGlvbl9yZXN1bHQudXR0ZXJhbmNlcyk6CiAgICAgICAgZXhwZWN0ZWRfdGV4dCA9IGV4cGVjdGVkX3RyYW5zY3JpcHRpb25zW2lkeF0KICAgICAgICBhc3NlcnQgdXR0ZXJhbmNlLnNwZWFrZXIgPT0gIkJvYiIsIGYiRmFpbGVkIGFzc2VydGlvbiBhdCB1dHRlcmFuY2Uge2lkeCArIDF9OiBTcGVha2VyIG1pc21hdGNoLiIKICAgICAgICBhc3NlcnQgdXR0ZXJhbmNlLnRleHQubHN0cmlwKCkgPT0gZXhwZWN0ZWRfdGV4dCwgZiJGYWlsZWQgYXNzZXJ0aW9uIGF0IHV0dGVyYW5jZSB7aWR4ICsgMX06IFRleHQgbWlzbWF0Y2guIg==' | base64 -d > /tmp/jayint_patch_test.py && cp /tmp/jayint_patch_test.py /app/tests/test_whisper_transcription_service.py
-
-RUN cat > /app/owl/services/transcription/whisper_transcription_service.py << 'SERVICEEOF'
-# This module provides a synchronous interface for transcription
-# The actual implementation uses async_whisper_transcription_service
-
-from owl.services.stt.asynchronous.async_whisper_transcription_service import AsyncWhisperTranscriptionService
-from owl.core.config import Configuration
-import asyncio
-
-def transcribe_audio(main_audio_filepath, speaker_verification_audio_path=None, speaker_name=None):
-    """Synchronous wrapper for async transcription service."""
-    config = Configuration.load_config_yaml("owl/sample_config.yaml")
-    service = AsyncWhisperTranscriptionService(config)
-    
-    try:
-        # Run the async method in an event loop
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    try:
-        result = loop.run_until_complete(
-            service.transcribe_audio(main_audio_filepath, speaker_verification_audio_path, speaker_name)
-        )
-        return result
-    finally:
-        pass  # Don't close the loop as it may be needed
-SERVICEEOF
-
-RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'poetry run pip install av pyaudio setuptools wheel --force-reinstall' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
-
-RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'poetry run pip install whisperx --no-deps' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
-
-RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'poetry run pip install --force-reinstall --no-cache-dir --no-deps '"'"'setuptools<67.0.0'"'"'' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
-
-RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'poetry run pip install -e /app --no-deps' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+ENTRYPOINT ["/entrypoint.sh"]

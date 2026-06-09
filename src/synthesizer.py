@@ -366,10 +366,10 @@ class Synthesizer:
         # Python
         r"^pytest\b",
         r"^py\.test\b",
-        r"^(?:[/.\w-]+/)?python(?:\d+(?:\.\d+)?)?\s+-m\s+pytest\b",
+        r"^python3?\s+-m\s+pytest\b",
         r"^(?:poetry|pdm|uv)\s+run\s+pytest\b",
-        r"^(?:poetry|pdm|uv)\s+run\s+(?:[/.\w-]+/)?python(?:\d+(?:\.\d+)?)?\s+-m\s+pytest\b",
-        r"^(?:[/.\w-]+/)?python(?:\d+(?:\.\d+)?)?\s+-m\s+unittest\b",
+        r"^(?:poetry|pdm|uv)\s+run\s+python3?\s+-m\s+pytest\b",
+        r"^python3?\s+-m\s+unittest\b",
         r"^tox\b",
         r"^nox\b",
         r"^nosetests\b",
@@ -383,7 +383,7 @@ class Synthesizer:
         r"^cypress\b",
         # Rust / Go / Java / Ruby / PHP
         r"^cargo\s+test\b",
-        r"^(?:[/.\w-]+/)?go\s+test\b",
+        r"^go\s+test\b",
         r"^(?:mvn|\.?/mvnw)\s+test\b",
         r"^(?:gradle|\.?/gradlew)\s+test\b",
         r"^bundle\s+exec\s+rspec\b",
@@ -773,11 +773,6 @@ class Synthesizer:
                 recipe_input,
                 test_commands,
             )
-        build_commands = self._supplement_build_commands_with_poetry_venv_bootstrap(
-            build_commands,
-            recipe_build_commands,
-            recipe_input,
-        )
         build_commands = self._strip_output_truncation_helpers_from_build_commands(build_commands)
         build_commands = self._sanitize_build_commands_for_replay(build_commands)
         build_commands = self._coalesce_postgres_build_configuration_commands(build_commands)
@@ -787,11 +782,6 @@ class Synthesizer:
             build_commands,
             excluded_commands,
             recipe_input=recipe_input,
-        )
-        build_commands = self._supplement_build_commands_with_poetry_venv_bootstrap(
-            build_commands,
-            recipe_build_commands,
-            recipe_input,
         )
         post_test_patch_commands = self._drop_excluded_build_commands(
             post_test_patch_commands,
@@ -880,76 +870,6 @@ class Synthesizer:
             index += 1
 
         return [unit for unit in units if unit]
-
-    def _supplement_build_commands_with_poetry_venv_bootstrap(
-        self,
-        build_commands,
-        recipe_build_commands,
-        recipe_input,
-    ):
-        """Restore the Poetry venv-creating side effect needed by hardcoded venv commands."""
-        if not build_commands:
-            return build_commands
-        if not any("/.cache/pypoetry/virtualenvs/" in command for command in build_commands):
-            return build_commands
-        if any(
-            re.search(r"\bpoetry\s+(?:install|env\s+use)\b", command)
-            for command in build_commands
-        ):
-            return build_commands
-
-        bootstrap = self._find_poetry_venv_bootstrap_command(
-            recipe_build_commands,
-            recipe_input,
-        )
-        if not bootstrap or self._command_already_included(bootstrap, build_commands):
-            return build_commands
-
-        supplemented = []
-        inserted = False
-        for command in build_commands:
-            if not inserted and "/.cache/pypoetry/virtualenvs/" in command:
-                supplemented.append(bootstrap)
-                inserted = True
-            supplemented.append(command)
-        if not inserted:
-            supplemented.append(bootstrap)
-        return supplemented
-
-    def _find_poetry_venv_bootstrap_command(self, recipe_build_commands, recipe_input):
-        for command in recipe_build_commands or []:
-            normalized = self._normalize_command_segment(command)
-            if self._is_poetry_venv_bootstrap_segment(normalized):
-                return command
-
-        failed_action_lists = [
-            (recipe_input or {}).get("failed_actions"),
-            ((recipe_input or {}).get("agent_run_summary") or {}).get("failed_actions"),
-        ]
-        for record in [item for records in failed_action_lists for item in (records or [])]:
-            if not isinstance(record, dict):
-                continue
-            command = str(record.get("command") or "").strip()
-            if not command:
-                continue
-            normalized = self._normalize_command_segment(command)
-            if not self._is_poetry_venv_bootstrap_segment(normalized):
-                continue
-            observation = str(record.get("observation_summary") or record.get("observation") or "")
-            if "command rejected before execution" in observation.lower():
-                continue
-            cleaned = self._strip_output_truncation_suffix(command).strip()
-            cleaned = re.sub(r"\s*\|\|\s*true\s*$", "", cleaned).strip()
-            if cleaned:
-                return f"{cleaned} || true"
-        return None
-
-    def _is_poetry_venv_bootstrap_segment(self, normalized_command):
-        if not normalized_command:
-            return False
-        if "|" in normalized_command and re.search(r"\b(?:head|tail|grep)\b", normalized_command):
-            return False
-        return bool(re.search(r"\bpoetry\s+(?:install|env\s+use)\b", normalized_command))
 
     def _normalize_shell_separator(self, separator):
         if separator == "\n":
@@ -1432,14 +1352,6 @@ class Synthesizer:
         excluded_step_ranges = self._collect_excluded_step_ranges(excluded_commands)
         excluded_clone_directories = self._collect_excluded_clone_directories(excluded_commands)
         excluded_pip_install_names = self._collect_excluded_pip_install_package_names(excluded_commands)
-        reliable_success_commands = self._collect_observed_successful_setup_commands(
-            recipe_input,
-            include_failed_test_command_prefixes=True,
-        )
-        reliable_success_commands.extend(
-            self._collect_promotable_file_rewrite_prefixes_from_failed_setup_chains(recipe_input)
-        )
-        reliable_success_commands = self._dedupe_preserve_order(reliable_success_commands)
         observed_records = self._collect_observed_successful_setup_command_records(recipe_input)
         observed_cursor = 0
         filtered = []
@@ -1452,23 +1364,12 @@ class Synthesizer:
                     observed_records,
                     start_index=observed_cursor,
                 )
-            has_reliable_success_evidence = self._command_has_reliable_success_evidence(
-                command,
-                reliable_success_commands,
-            )
-            matching_exclusions = [
-                excluded
+            if any(
+                self._excluded_command_matches_build_command(command, excluded)
                 for excluded in excluded_commands
-                if self._excluded_command_matches_build_command(command, excluded)
-            ]
-            if matching_exclusions:
+            ):
                 if matched_record_index is not None:
                     observed_cursor = matched_record_index + 1
-                if has_reliable_success_evidence and all(
-                    self._excluded_command_is_rejected_output_filter_variant(excluded)
-                    for excluded in matching_exclusions
-                ):
-                    filtered.append(command)
                 continue
             if self._command_installs_from_excluded_clone_directory(
                 command,
@@ -1491,27 +1392,6 @@ class Synthesizer:
             excluded_pip_install_names,
         )
         return self._dedupe_build_commands_preserve_order_sensitive(filtered)
-
-    def _excluded_command_is_rejected_output_filter_variant(self, excluded):
-        if isinstance(excluded, dict):
-            command = str(excluded.get("command") or "")
-            reason = str(excluded.get("reason") or "")
-        else:
-            command = str(excluded or "")
-            reason = ""
-        text = f"{command}\n{reason}".lower()
-        command = self._strip_parenthesized_exclusion_note(command)
-        has_output_filter = bool(
-            re.search(r"\|\s*(?:tail|head|grep|egrep|fgrep)\b", command.lower())
-        )
-        if not has_output_filter:
-            return False
-        return bool(
-            "rejected" in text
-            or "preflight" in text
-            or "filtered output" in text
-            or "output filter" in text
-        )
 
     def _collect_excluded_clone_directories(self, excluded_commands):
         directories = set()
@@ -3473,7 +3353,6 @@ class Synthesizer:
             r"^(?:pip3?|/[\w./-]*pip3?)\s+(?:list|show|freeze|check|index\s+versions)\b",
             r"^uv\s+pip\s+(?:list|show|freeze|check)\b",
             r"^(?:poetry|pdm)\s+(?:show|list)\b",
-            r"^poetry\s+env\s+info\b",
             r"^(?:npm|yarn|pnpm)\s+(?:list|ls|why)\b",
             r"^conda\s+(?:list|info)\b",
         )
@@ -3486,9 +3365,6 @@ class Synthesizer:
             return False
         if len(parts) < 3:
             return False
-
-        if len(parts) >= 5 and parts[0] in {"poetry", "pdm", "uv"} and parts[1] == "run":
-            parts = parts[2:]
 
         executable = parts[0].strip("\"'`")
         executable_name = executable.rsplit("/", 1)[-1]
@@ -3553,17 +3429,9 @@ class Synthesizer:
             if statement.startswith(("import ", "from ")):
                 continue
             if safe_call_pattern.match(statement):
-                if imported_names and any(
-                    re.search(rf"\b{re.escape(name)}\b", statement)
-                    for name in imported_names
-                ):
-                    continue
-                if imported_names and re.match(
-                    r"^print\s*\(\s*(?:['\"][^'\"]*['\"]|\d+(?:\.\d+)?)\s*\)\s*$",
-                    statement,
-                ):
-                    continue
                 if not imported_names:
+                    return False
+                if not any(re.search(rf"\b{re.escape(name)}\b", statement) for name in imported_names):
                     return False
                 continue
             return False
@@ -3797,8 +3665,6 @@ class Synthesizer:
                     "patch ",
                     "git apply",
                     "git checkout",
-                    "objcopy ",
-                    "patchelf ",
                     "python setup.py",
                 )
             ):

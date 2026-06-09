@@ -13,8 +13,8 @@ RUN groupadd --gid $GID user && useradd --create-home --gid $GID --uid $UID user
 USER user
 
 # Create and activate a virtual environments.
-ENV VIRTUAL_ENV=/opt/dspygen-env
-ENV PATH=$VIRTUAL_ENV/bin:$PATH
+ENV VIRTUAL_ENV /opt/dspygen-env
+ENV PATH $VIRTUAL_ENV/bin:$PATH
 RUN python -m venv $VIRTUAL_ENV
 
 # Set the working directory.
@@ -22,17 +22,17 @@ WORKDIR /workspaces/dspygen/
 
 
 
-FROM base AS poetry
+FROM base as poetry
 
 USER root
 
 # Install Poetry in separate venv so it doesn't pollute the main venv.
-ENV POETRY_VERSION=1.6.1
-ENV POETRY_VIRTUAL_ENV=/opt/poetry-env
-RUN --mount=type=cache,target=/root/.cache/pip/ python -m venv $POETRY_VIRTUAL_ENV && $POETRY_VIRTUAL_ENV/bin/pip install poetry==$POETRY_VERSION && ln -s $POETRY_VIRTUAL_ENV/bin/poetry /usr/local/bin/poetry
+ENV POETRY_VERSION 1.6.1
+ENV POETRY_VIRTUAL_ENV /opt/poetry-env
+RUN --mount=type=cache,target=/root/.cache/pip/ python -m venv $POETRY_VIRTUAL_ENV && $POETRY_VIRTUAL_ENV/bin/pip install poetry~=$POETRY_VERSION && ln -s $POETRY_VIRTUAL_ENV/bin/poetry /usr/local/bin/poetry
 
 # Install compilers that may be required for certain packages or platforms.
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && rm -rf /var/lib/apt/lists/* && DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends --yes build-essential && apt-get clean && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && --mount=type=cache,target=/var/cache/apt/ --mount=type=cache,target=/var/lib/apt/ apt-get update && apt-get install --no-install-recommends --yes build-essential' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
 
 USER user
 
@@ -43,11 +43,11 @@ RUN --mount=type=cache,uid=$UID,gid=$GID,target=/home/user/.cache/pypoetry/ poet
 
 
 
-FROM poetry AS dev
+FROM poetry as dev
 
 # Install development tools: curl, git, gpg, ssh, starship, sudo, vim, and zsh.
 USER root
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && rm -rf /var/lib/apt/lists/* && DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends --yes curl git gnupg ssh sudo vim zsh && sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- "--yes" && usermod --shell /usr/bin/zsh user && echo '"'"'user ALL=(root) NOPASSWD:ALL'"'"' > /etc/sudoers.d/user && chmod 0440 /etc/sudoers.d/user && apt-get clean && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
+RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && --mount=type=cache,target=/var/cache/apt/ --mount=type=cache,target=/var/lib/apt/ apt-get update && apt-get install --no-install-recommends --yes curl git gnupg ssh sudo vim zsh && sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- "--yes" && usermod --shell /usr/bin/zsh user && echo '"'"'user ALL=(root) NOPASSWD:ALL'"'"' > /etc/sudoers.d/user && chmod 0440 /etc/sudoers.d/user' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
 USER user
 
 # Install the development Python dependencies in the virtual environments.
@@ -58,213 +58,20 @@ COPY --chown=user:user .pre-commit-config.yaml /workspaces/dspygen/
 RUN mkdir -p /opt/build/poetry/ && cp poetry.lock /opt/build/poetry/ && git init && pre-commit install --install-hooks && mkdir -p /opt/build/git/ && cp .git/hooks/commit-msg .git/hooks/pre-commit /opt/build/git/
 
 # Configure the non-root user's shell.
-ENV ANTIDOTE_VERSION=1.8.6
+ENV ANTIDOTE_VERSION 1.8.6
 RUN git clone --branch v$ANTIDOTE_VERSION --depth=1 https://github.com/mattmc3/antidote.git ~/.antidote/ && echo 'zsh-users/zsh-syntax-highlighting' >> ~/.zsh_plugins.txt && echo 'zsh-users/zsh-autosuggestions' >> ~/.zsh_plugins.txt && echo 'source ~/.antidote/antidote.zsh' >> ~/.zshrc && echo 'antidote load' >> ~/.zshrc && echo 'eval "$(starship init zsh)"' >> ~/.zshrc && echo 'HISTFILE=~/.history/.zsh_history' >> ~/.zshrc && echo 'HISTSIZE=1000' >> ~/.zshrc && echo 'SAVEHIST=1000' >> ~/.zshrc && echo 'setopt share_history' >> ~/.zshrc && echo 'bindkey "^[[A" history-beginning-search-backward' >> ~/.zshrc && echo 'bindkey "^[[B" history-beginning-search-forward' >> ~/.zshrc && mkdir ~/.history/ && zsh -c 'source ~/.zshrc'
 
 
 
 FROM base AS app
-
-# Install system dependencies for pyperclip and other packages.
-USER root
-RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && rm -rf /var/lib/apt/lists/* && DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends --yes xclip xvfb && apt-get clean && rm -rf /var/lib/apt/lists/*' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]; then exit "$JAYINT_APT_STATUS"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_APT_STATUS"
-
-# Install Poetry and pytest via pip in the main venv.
-RUN $VIRTUAL_ENV/bin/pip install poetry pytest pytest-xdist pytest-asyncio pytest-mock pytest-httpx coverage
-
-# Install additional required packages for test collection.
-RUN $VIRTUAL_ENV/bin/pip install fastapi pydantic streamlit typer uvicorn openai dspy-ai chromadb duckduckgo-search icalendar apscheduler pre-commit ruff mypy jinja2 loguru pypdf playwright py-trees reactivex pygame sqlmodel pm4py confz docutils gunicorn trafilatura inflect munch icontract ijson inject python-docx python-pptx pyperclip groq gspread psutil transitions pykka pandasql pddlpy ollama realtime clingo poethepoet paho-mqtt html2text sungen st-pages
+RUN (python -m pip install pytest pytest-xdist poetry || python3 -m pip install pytest pytest-xdist poetry || pip install pytest pytest-xdist poetry)
 
 # Copy the virtual environments from the poetry stage.
 COPY --from=poetry $VIRTUAL_ENV $VIRTUAL_ENV
 
-# Create dslmodel stub package to satisfy import requirements.
-RUN mkdir -p /workspaces/dspygen/dslmodel_stub && cat > /workspaces/dspygen/dslmodel_stub/__init__.py << 'STUBEOF'
-"""Stub for dslmodel package."""
-from pydantic import BaseModel, Field
-from typing import Any, Optional
-import uuid
-from datetime import datetime, timezone
-
-class DSLModel(BaseModel):
-    """A base model class similar to dslmodel DSLModel."""
-    
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {}
-        
-    def model_dump(self, *args, **kwargs):
-        return super().model_dump(*args, **kwargs)
-    
-    def model_dump_json(self, *args, **kwargs):
-        return super().model_dump_json(*args, **kwargs)
-    
-    @classmethod
-    def from_yaml(cls, path: str):
-        import yaml
-        with open(path, 'r') as f:
-            data = yaml.safe_load(f)
-        return cls(**data)
-    
-    def to_yaml(self, path: str):
-        import yaml
-        with open(path, 'w') as f:
-            yaml.dump(self.model_dump(), f)
-
-class Base(DSLModel):
-    pass
-
-class TextField(Base):
-    value: str = ""
-
-class IntField(Base):
-    value: int = 0
-
-class FloatField(Base):
-    value: float = 0.0
-
-class BoolField(Base):
-    value: bool = False
-
-class DateField(Base):
-    value: str = ""
-
-class DateTimeField(Base):
-    value: str = ""
-
-class ListField(Base):
-    value: list = []
-
-class DictField(Base):
-    value: dict = {}
-
-class UUIDField(Base):
-    value: str = ""
-
-class EmailField(Base):
-    value: str = ""
-
-class URLField(Base):
-    value: str = ""
-
-class SlugField(Base):
-    value: str = ""
-
-class JSONField(Base):
-    value: Any = None
-
-class PhoneField(Base):
-    value: str = ""
-
-class ForeignKey(Base):
-    value: str = ""
-    related_model: Optional[str] = None
-
-class OneToOne(Base):
-    value: str = ""
-    related_model: Optional[str] = None
-
-class ManyToMany(Base):
-    value: list = []
-    related_model: Optional[str] = None
-
-class FileField(Base):
-    value: str = ""
-    path: Optional[str] = None
-
-class ImageField(FileField):
-    pass
-
-class PasswordField(Base):
-    value: str = ""
-
-class IPAddressField(Base):
-    value: str = ""
-
-__all__ = ['DSLModel', 'Base', 'TextField', 'IntField', 'FloatField', 'BoolField', 
-           'DateField', 'DateTimeField', 'ListField', 'DictField', 'UUIDField',
-           'EmailField', 'URLField', 'SlugField', 'JSONField', 'PhoneField',
-           'ForeignKey', 'OneToOne', 'ManyToMany', 'FileField', 'ImageField',
-           'PasswordField', 'IPAddressField']
-STUBEOF
-
-RUN cat > /workspaces/dspygen/dslmodel_stub/pyproject.toml << 'TOMLEOF'
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "dslmodel"
-version = "0.1.0"
-description = "Stub for dslmodel package"
-requires-python = ">=3.10"
-dependencies = ["pydantic>=2.0"]
-TOMLEOF
-
-# Install the dslmodel stub.
-RUN $VIRTUAL_ENV/bin/pip install -e /workspaces/dspygen/dslmodel_stub
-
-# Create the missing file_name_module stub.
-RUN mkdir -p /workspaces/dspygen/src/dspygen/modules && cat > /workspaces/dspygen/src/dspygen/modules/file_name_module.py << 'FILEEOF'
-"""Stub module for file name generation."""
-from dspygen.utils.dspy_tools import init_dspy
-
-def file_name_call(prompt: str, extension: str = "py") -> str:
-    """Generate a file name based on a prompt.
-    
-    Args:
-        prompt: The prompt describing the file content
-        extension: The file extension (default: "py")
-    
-    Returns:
-        A file name string
-    """
-    init_dspy()
-    import dspy
-    from dspy import Prediction
-    
-    # Simple heuristic: extract key words from prompt
-    words = prompt.lower().split()
-    key_words = [w.strip('.,!?;:()[]{}"') for w in words if len(w) > 3][:3]
-    
-    if not key_words:
-        return f"generated.{extension}"
-    
-    file_name = "_".join(key_words) + f".{extension}"
-    return file_name
-
-__all__ = ["file_name_call"]
-FILEEOF
-
-# Fix cli_app.py syntax errors that prevent import
-RUN printf '%s' 'cHl0aG9uMyAtYyAiCmltcG9ydCByZQp3aXRoIG9wZW4oJy93b3Jrc3BhY2VzL2RzcHlnZW4vc3JjL2RzcHlnZW4vZXhwZXJpbWVudHMvY2xpYXBpL2NsaV9hcHAucHknLCAncicpIGFzIGY6CiAgICBjb250ZW50ID0gZi5yZWFkKCkKIyBGaXggdW5lc2NhcGVkIGFwb3N0cm9waGVzIGluIHN0cmluZyBsaXRlcmFscwpjb250ZW50ID0gY29udGVudC5yZXBsYWNlKFwiYXNzaXN0YW50J3Mgc3VnZ2VzdGlvbnNcIiwgJ2Fzc2lzdGFudCBzdWdnZXN0aW9ucycpCiMgRml4IGludmFsaWQgdmFyaWFibGUgbmFtZXMgd2l0aCBzcGFjZXMgb3Igc2xhc2hlcwpjb250ZW50ID0gcmUuc3ViKHInKFx3KylccyovXHMqKFx3Kylccyo9XHMqdHlwZXJcLlR5cGVyJywgcidcMV9cMiA9IHR5cGVyLlR5cGVyJywgY29udGVudCkKY29udGVudCA9IHJlLnN1YihyJ0AoXHcrKVxzKi9ccyooXHcrKVwuJywgcidAXDFfXDIuJywgY29udGVudCkKY29udGVudCA9IHJlLnN1YihyJyhcdyspXHMrKFx3Kylccyo9XHMqdHlwZXJcLlR5cGVyJywgcidcMV9cMiA9IHR5cGVyLlR5cGVyJywgY29udGVudCkKY29udGVudCA9IHJlLnN1YihyJ0AoXHcrKVxzKyhcdyspXC4nLCByJ0BcMV9cMi4nLCBjb250ZW50KQojIEZpeCBpbnZhbGlkIGltcG9ydCBzdGF0ZW1lbnRzCmNvbnRlbnQgPSBjb250ZW50LnJlcGxhY2UoJ2ltcG9ydCB0eXBlcl9hcHAgPSB0eXBlci5UeXBlcicsICdpbXBvcnQgdHlwZXJcbnR5cGVyX2FwcCA9IHR5cGVyLlR5cGVyJykKY29udGVudCA9IGNvbnRlbnQucmVwbGFjZSgnaW1wb3J0IHR5cGVyX3R5cGVyX2FwcCA9IHR5cGVyLlR5cGVyJywgJ3R5cGVyX2FwcCA9IHR5cGVyLlR5cGVyJykKIyBGaXggR2l0SHViIE1hcmtldHBsYWNlIHZhcmlhYmxlIG5hbWVzCmNvbnRlbnQgPSByZS5zdWIocidHaXRIdWIgTWFya2V0cGxhY2VfYXBwJywgJ0dpdEh1Yk1hcmtldHBsYWNlQXBwJywgY29udGVudCkKY29udGVudCA9IGNvbnRlbnQucmVwbGFjZShcIm5hbWU9J0dpdEh1YiBNYXJrZXRwbGFjZScpXCIsIFwibmFtZT0nR2l0SHViTWFya2V0cGxhY2UnKVwiKQp3aXRoIG9wZW4oJy93b3Jrc3BhY2VzL2RzcHlnZW4vc3JjL2RzcHlnZW4vZXhwZXJpbWVudHMvY2xpYXBpL2NsaV9hcHAucHknLCAndycpIGFzIGY6CiAgICBmLndyaXRlKGNvbnRlbnQpCiIgfHwgdHJ1ZQ==' | base64 -d > /tmp/jayint_eval_run_1.sh && chmod +x /tmp/jayint_eval_run_1.sh && /bin/sh /tmp/jayint_eval_run_1.sh
-
-# Add missing init_versatile and init_instant functions to dspy_tools.py
-RUN cat >> /workspaces/dspygen/src/dspygen/utils/dspy_tools.py << 'DSPYEOF'
-
-
-def init_versatile(model: str = "gpt-4o-mini",
-                  max_tokens: int = 800,
-                  temperature=0.6,
-                  experimental=True):
-    """Initialize DSPy with a versatile configuration."""
-    lm = dspy.OpenAI(max_tokens=max_tokens, model=model, temperature=temperature)
-    dspy.settings.configure(lm=lm, experimental=experimental)
-    return lm
-
-
-def init_instant(model: str = "gpt-4o-mini",
-                 max_tokens: int = 800,
-                 temperature=0.0,
-                 experimental=True):
-    """Initialize DSPy with an instant/low-temperature configuration for deterministic output."""
-    lm = dspy.OpenAI(max_tokens=max_tokens, model=model, temperature=temperature)
-    dspy.settings.configure(lm=lm, experimental=experimental)
-    return lm
-DSPYEOF
-
 # Copy the package source code to the working directory.
 COPY --chown=user:user . .
 
-# Install the package in editable mode.
-RUN $VIRTUAL_ENV/bin/pip install -e /workspaces/dspygen --no-deps
+# Expose the application.
+ENTRYPOINT ["/opt/dspygen-env/bin/poe"]
+CMD ["api"]

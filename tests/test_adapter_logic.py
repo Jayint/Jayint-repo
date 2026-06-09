@@ -282,7 +282,7 @@ diff --git a/src/Range.cpp b/src/Range.cpp
         self.assertIsNone(runtime_commands)
         self.assertEqual(adapter._last_source_patch_rebuild_commands, [])
 
-    def test_rejects_unvalidated_fallback_for_eval_script_generation(self):
+    def test_requires_agent_report_bundle_for_eval_script_generation(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
 
         with tempfile.TemporaryDirectory() as workplace:
@@ -309,40 +309,6 @@ diff --git a/src/Range.cpp b/src/Range.cpp
 
         self.assertEqual(eval_script, "")
         self.assertEqual(adapter._last_test_command_source, "missing_agent_verification_bundle")
-
-    def test_accepts_auto_finalized_verification_for_eval_script_generation(self):
-        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
-
-        with tempfile.TemporaryDirectory() as workplace:
-            summary_path = Path(workplace) / "agent_run_summary.json"
-            summary_path.write_text(
-                json.dumps(
-                    {
-                        "verification_source": "auto_finalized_after_invalid_agent_report",
-                        "verified_test_commands": [
-                            "pytest --collect-only -q --disable-warnings",
-                        ],
-                        "verification_bundle": {
-                            "runtime_preparation_commands": [],
-                            "test_commands": [
-                                "pytest --collect-only -q --disable-warnings",
-                            ],
-                        },
-                    }
-                ),
-                encoding="utf-8",
-            )
-
-            eval_script, _, _ = adapter._generate_test_script(
-                workplace=workplace,
-                language="python",
-                problem_statement="",
-                test_patch="",
-                dockerfile_content="FROM python:3.11\nWORKDIR /testbed\n",
-            )
-
-        self.assertIn("pytest --collect-only -q --disable-warnings", eval_script)
-        self.assertEqual(adapter._last_test_command_source, "agent_report_verification_bundle")
 
     def test_does_not_infer_runtime_service_setup_without_agent_bundle(self):
         adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
