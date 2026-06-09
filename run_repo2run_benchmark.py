@@ -206,6 +206,8 @@ def build_agent_command(
         command.append("--enable-envstate")
     if getattr(args, "enable_cleanroom", False):
         command.append("--enable-cleanroom")
+    if getattr(args, "enable_v1", False):
+        command.append("--enable-v1")
 
     return command
 
@@ -3126,6 +3128,34 @@ def repair_dockerfile_with_llm(
     return result
 
 
+# ---------------------------------------------------------------------------
+# Ablation-experiment arm presets (§3.1, §9.1 of the experiment design spec)
+# Exposed at module level so tests can import _ARM_PRESETS directly.
+# ---------------------------------------------------------------------------
+_ARM_PRESETS: dict[str, dict] = {
+    "0": {
+        "enable_supervisor": False,
+        "enable_fullstate_worker": False,
+        "fullstate_worker_prompt": False,
+        "enable_envstate": False,
+        "enable_v1": False,
+        "enable_cleanroom": False,
+        "max_steps": 180,
+        "_label": "arm0_bare_react",
+    },
+    "v1": {
+        "enable_supervisor": False,
+        "enable_fullstate_worker": False,
+        "fullstate_worker_prompt": False,
+        "enable_envstate": False,
+        "enable_v1": True,
+        "enable_cleanroom": True,
+        "max_steps": 12,
+        "_label": "armV1_three_role",
+    },
+}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the Repo2Run Table 15 benchmark with this project's native agent."
@@ -3261,26 +3291,24 @@ def parse_args() -> argparse.Namespace:
 
     # ---------------------------------------------------------------------------
     # Ablation-experiment arm selector (§3.1, §9.1 of the experiment design spec)
-    # --arm maps to a canonical flag set + --steps override so all four arms can
-    # be launched without memorising per-arm flag combinations.
+    # --arm maps to a canonical flag set + --steps override so both arms can be
+    # launched without memorising per-arm flag combinations.
     #   Arm 0: bare ReAct (no EnvState flags), --steps 180
-    #   Arm A: --enable-fullstate-worker --enable-cleanroom, --steps 30
-    #   Arm B: --enable-supervisor --enable-cleanroom, --steps 30
-    #   Arm C: --enable-supervisor --fullstate-worker-prompt --enable-cleanroom, --steps 30
-    # When --arm is absent the individual flags below are used directly (back-compat).
+    #   Arm v1: three-role orchestrator (Planner/BuildAgent/Maintainer), --steps 12
+    # Arms A/B/C are retired.  When --arm is absent the individual flags below
+    # are used directly (back-compat).
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "A", "B", "C"],
+        choices=["0", "v1"],
         default=None,
         help=(
             "Ablation arm shorthand. "
             "0=bare ReAct (no EnvState flags, --steps 180); "
-            "A=--enable-fullstate-worker --enable-cleanroom (--steps 30); "
-            "B=--enable-supervisor --enable-cleanroom (--steps 30); "
-            "C=--enable-supervisor --fullstate-worker-prompt --enable-cleanroom (--steps 30). "
+            "v1=three-role orchestrator Planner/BuildAgent/Maintainer "
+            "(--enable-v1 --enable-cleanroom --steps 12). "
             "Overrides the individual --enable-* flags and --max-steps when set. "
-            "Outputs land under <output-root>/arm{0,A,B,C}_<label>/."
+            "Outputs land under <output-root>/arm{0,v1}_<label>/."
         ),
     )
 
@@ -3289,17 +3317,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--enable-supervisor",
         action="store_true",
-        help="Forward --enable-supervisor to agent.py (Arm B/C).",
+        help="[DEPRECATED — Arms B/C retired] Forward --enable-supervisor to agent.py.",
     )
     parser.add_argument(
         "--enable-fullstate-worker",
         action="store_true",
-        help="Forward --enable-fullstate-worker to agent.py (Arm A).",
+        help="[DEPRECATED — Arm A retired] Forward --enable-fullstate-worker to agent.py.",
     )
     parser.add_argument(
         "--fullstate-worker-prompt",
         action="store_true",
-        help="Forward --fullstate-worker-prompt to agent.py (Arm C, requires --enable-supervisor).",
+        help="[DEPRECATED — Arm C retired] Forward --fullstate-worker-prompt to agent.py.",
     )
     parser.add_argument(
         "--enable-envstate",
@@ -3309,50 +3337,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--enable-cleanroom",
         action="store_true",
-        help="Forward --enable-cleanroom to agent.py (Arms A/B/C).",
+        help="Forward --enable-cleanroom to agent.py.",
+    )
+    parser.add_argument(
+        "--enable-v1",
+        action="store_true",
+        help="Use the v1 three-role orchestrator (Planner/BuildAgent/Maintainer).",
     )
 
     args = parser.parse_args()
 
     # Apply --arm presets (overrides individual flags + max_steps).
-    _ARM_PRESETS: dict[str, dict] = {
-        "0": {
-            "enable_supervisor": False,
-            "enable_fullstate_worker": False,
-            "fullstate_worker_prompt": False,
-            "enable_envstate": False,
-            "enable_cleanroom": False,
-            "max_steps": 180,
-            "_label": "arm0_bare_react",
-        },
-        "A": {
-            "enable_supervisor": False,
-            "enable_fullstate_worker": True,
-            "fullstate_worker_prompt": False,
-            "enable_envstate": False,
-            "enable_cleanroom": True,
-            "max_steps": 30,
-            "_label": "armA_fullstate",
-        },
-        "B": {
-            "enable_supervisor": True,
-            "enable_fullstate_worker": False,
-            "fullstate_worker_prompt": False,
-            "enable_envstate": False,
-            "enable_cleanroom": True,
-            "max_steps": 30,
-            "_label": "armB_supervisor",
-        },
-        "C": {
-            "enable_supervisor": True,
-            "enable_fullstate_worker": False,
-            "fullstate_worker_prompt": True,
-            "enable_envstate": False,
-            "enable_cleanroom": True,
-            "max_steps": 30,
-            "_label": "armC_matched_planner",
-        },
-    }
     if args.arm is not None:
         preset = _ARM_PRESETS[args.arm]
         for key, value in preset.items():
