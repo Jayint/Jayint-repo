@@ -162,7 +162,9 @@ class DockerAgent:
         self.enable_fullstate_worker = enable_fullstate_worker
         self.fullstate_worker_prompt = fullstate_worker_prompt
         self.enable_v1 = enable_v1
-        self.enable_envstate = enable_envstate or enable_supervisor or enable_fullstate_worker or enable_v1
+        self.enable_envstate = (
+            enable_envstate or enable_supervisor or enable_fullstate_worker or enable_v1
+        )
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
         self.current_task_id = None
