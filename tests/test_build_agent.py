@@ -609,3 +609,79 @@ class TestBuildAgentLedgerAppends(unittest.TestCase):
 
         events = ledger.events()
         self.assertGreaterEqual(events[0].step, 10)
+
+
+# ---------------------------------------------------------------------------
+# 8. on_usage callback
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentOnUsage(unittest.TestCase):
+
+    def test_on_usage_called_once_per_llm_step(self):
+        """on_usage must be called once for each LLM call made by the agent."""
+        client = _fake_client_seq([
+            "Thought: step1\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        seen = []
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+            on_usage=seen.append,
+        )
+        agent.run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
+        # 2 LLM calls → 2 on_usage invocations
+        self.assertEqual(len(seen), 2)
+
+    def test_on_usage_receives_token_counts(self):
+        """Each on_usage dict must have input_tokens, output_tokens, total_tokens."""
+        client = _fake_client_seq(["Thought: done\nFinal Answer: Success"])
+        seen = []
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+            on_usage=seen.append,
+        )
+        agent.run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
+        self.assertEqual(len(seen), 1)
+        usage = seen[0]
+        self.assertIn("input_tokens", usage)
+        self.assertIn("output_tokens", usage)
+        self.assertIn("total_tokens", usage)
+
+    def test_on_usage_none_does_not_crash(self):
+        """on_usage=None (default) must not raise."""
+        client = _fake_client_seq(["Thought: done\nFinal Answer: Success"])
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+            on_usage=None,
+        )
+        # Should not raise
+        agent.run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
+
+    def test_log_path_stored_on_agent(self):
+        """log_path kwarg must be stored as self.log_path (canonical __init__ contract)."""
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=_fake_client_seq([]),
+            model="m",
+            synthesizer=_FakeSynthesizer(),
+            container_id="c",
+            log_path="/tmp/build_agent_test.log",
+        )
+        self.assertEqual(agent.log_path, "/tmp/build_agent_test.log")
+
+    def test_log_path_defaults_to_none(self):
+        """log_path must default to None when not supplied."""
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=_fake_client_seq([]),
+            model="m",
+            synthesizer=_FakeSynthesizer(),
+            container_id="c",
+        )
+        self.assertIsNone(agent.log_path)
