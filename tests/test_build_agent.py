@@ -234,3 +234,91 @@ class TestIsStuck(unittest.TestCase):
         # Even though history has 2 identical real failures, if the NEW action
         # is a preflight rejection we skip the guard.
         self.assertFalse(self._stuck(hist, is_preflight=True))
+
+
+# ---------------------------------------------------------------------------
+# 4. BuildAgent.run — success / "done" path
+# ---------------------------------------------------------------------------
+
+class _FakeSynthesizer:
+    """Minimal Synthesizer stand-in: all commands mutate, class='other_mutation'."""
+    def command_mutates_environment(self, command: str) -> bool:
+        return True
+    def classify_mutation(self, command: str) -> str:
+        return "other_mutation"
+
+
+def _make_agent(client, container_id="ctr-test"):
+    from src.envstate.build_agent import BuildAgent
+    return BuildAgent(
+        client=client,
+        model="test-model",
+        synthesizer=_FakeSynthesizer(),
+        container_id=container_id,
+    )
+
+
+class TestBuildAgentRunDone(unittest.TestCase):
+    """BuildAgent.run returns TaskReport(status='done') when LLM emits Final Answer: Success."""
+
+    def test_returns_done_when_llm_signals_finished_immediately(self):
+        """LLM says 'Final Answer: Success' on the very first step — no sandbox calls needed."""
+        client = _fake_client_seq(["Thought: done\nFinal Answer: Success"])
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return True, "ok"
+
+        task = _make_task()
+        ledger = _make_ledger()
+        agent = _make_agent(client)
+        report = agent.run(task, sandbox, ledger)
+
+        self.assertEqual(report.status, "done")
+        self.assertEqual(report.task_goal, task.goal)
+        self.assertEqual(len(sandbox_calls), 0, "No sandbox call when done immediately")
+
+    def test_returns_done_after_one_successful_action(self):
+        """LLM executes one command then signals done."""
+        client = _fake_client_seq([
+            "Thought: install\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, f"Installed {cmd}")
+
+        task = _make_task()
+        ledger = _make_ledger()
+        agent = _make_agent(client)
+        report = agent.run(task, sandbox, ledger)
+
+        self.assertEqual(report.status, "done")
+        self.assertEqual(len(report.commands), 1)
+        self.assertEqual(report.commands[0].cmd, "pip install flask")
+        self.assertEqual(report.commands[0].rc, 0)
+
+    def test_done_report_contains_learning(self):
+        client = _fake_client_seq([
+            "Thought: ok\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, "ok")
+
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        self.assertIsInstance(report.learning, str)
+        self.assertGreater(len(report.learning), 0)
+
+    def test_done_report_task_goal_matches_task(self):
+        task = _make_task(goal="install flask and psycopg2")
+        client = _fake_client_seq(["Thought: done\nFinal Answer: Success"])
+        report = _make_agent(client).run(task, lambda cmd: (True, "ok"), _make_ledger())
+        self.assertEqual(report.task_goal, "install flask and psycopg2")
+
+    def test_commands_tuple_is_frozen(self):
+        """TaskReport.commands must be a tuple (frozen), not a list."""
+        client = _fake_client_seq([
+            "Thought: x\nAction: ls",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        report = _make_agent(client).run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
+        self.assertIsInstance(report.commands, tuple)
