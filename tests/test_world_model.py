@@ -238,3 +238,108 @@ class TestInitialMap:
         # mutating the progress dict of m1 must not affect m2
         m1.progress["base"] = True
         assert m2.progress["base"] is False
+
+
+class TestMergeMap:
+    def test_returns_new_instance(self):
+        m = _minimal_map()
+        m2 = merge_map(m, done_flag=False)
+        assert m2 is not m
+
+    def test_done_flag_can_be_set_true(self):
+        m = _minimal_map()
+        m2 = merge_map(m, done_flag=True)
+        assert m2.done_flag is True
+
+    def test_original_done_flag_unchanged(self):
+        m = _minimal_map()
+        merge_map(m, done_flag=True)
+        assert m.done_flag is False
+
+    def test_installed_replaced(self):
+        m = _minimal_map()
+        facts = (_fact("flask", "3.0.0"), _fact("pytest", "8.0"))
+        m2 = merge_map(m, installed=facts)
+        assert m2.installed == facts
+
+    def test_installed_original_unchanged(self):
+        m = _minimal_map()
+        merge_map(m, installed=(_fact("flask"),))
+        assert m.installed == ()
+
+    def test_open_problems_replaced(self):
+        m = _minimal_map()
+        ops = (_open_problem(),)
+        m2 = merge_map(m, open_problems=ops)
+        assert m2.open_problems == ops
+
+    def test_notes_replaced(self):
+        m = _minimal_map()
+        notes = ("do not use psycopg2-binary",)
+        m2 = merge_map(m, notes=notes)
+        assert m2.notes == notes
+
+    def test_required_replaced(self):
+        m = _minimal_map()
+        req = (_fact("flask"),)
+        m2 = merge_map(m, required=req)
+        assert m2.required == req
+
+    def test_progress_replaced(self):
+        m = _minimal_map()
+        new_progress = {
+            "base": True, "system": True, "runtime": True,
+            "deps": False, "build": False, "tests": False,
+        }
+        m2 = merge_map(m, progress=new_progress)
+        assert m2.progress["base"] is True
+        assert m2.progress["deps"] is False
+
+    def test_progress_is_independent_copy(self):
+        m = _minimal_map()
+        new_progress = {
+            "base": True, "system": False, "runtime": False,
+            "deps": False, "build": False, "tests": False,
+        }
+        m2 = merge_map(m, progress=new_progress)
+        # mutating the dict we passed in must not affect m2
+        new_progress["base"] = False
+        assert m2.progress["base"] is True
+
+    def test_unspecified_fields_copied_unchanged(self):
+        original_required = (_fact("flask"),)
+        m = initial_map(
+            base_image="python:3.12-slim",
+            workdir="/app",
+            language="python 3.12",
+            build_system="pip",
+            repo_layout=("tests/",),
+            required=original_required,
+        )
+        m2 = merge_map(m, done_flag=True)
+        # base_image, workdir, language, build_system, repo_layout, required all unchanged
+        assert m2.base_image == "python:3.12-slim"
+        assert m2.workdir == "/app"
+        assert m2.language == "python 3.12"
+        assert m2.build_system == "pip"
+        assert m2.repo_layout == ("tests/",)
+        assert m2.required == original_required
+
+    def test_none_kwargs_leave_fields_unchanged(self):
+        ops = (_open_problem(),)
+        m = merge_map(_minimal_map(), open_problems=ops)
+        m2 = merge_map(m, done_flag=True)  # open_problems not supplied
+        assert m2.open_problems == ops
+
+    def test_chain_two_merges(self):
+        m0 = _minimal_map()
+        m1 = merge_map(m0, installed=(_fact("flask"),))
+        m2 = merge_map(m1, installed=(_fact("flask"), _fact("pytest")))
+        assert len(m2.installed) == 2
+        assert len(m1.installed) == 1  # m1 unchanged
+
+    def test_merge_map_result_is_still_frozen(self):
+        m = _minimal_map()
+        m2 = merge_map(m, done_flag=True)
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            m2.done_flag = False  # type: ignore[misc]
