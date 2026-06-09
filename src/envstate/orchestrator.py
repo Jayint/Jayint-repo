@@ -1,11 +1,109 @@
+"""EnvState v1 orchestrator loop.
+
+run_v1() is the new three-role loop (spec §4):
+    initial_map → planner.decide → (done/giveup → break)
+                → build_agent.run → maintainer.update
+                → (done_flag → break)
+                → repeat up to max_cycles
+
+The legacy EnvStateOrchestrator class is kept below run_v1 unchanged
+for Arms A/B/C back-compat.
+"""
 from __future__ import annotations
+
 from typing import Any, Callable, Tuple
 
 from src.envstate.ledger import ActionLedger
-from src.envstate.types import EnvStateSnapshot
+from src.envstate.world_model import (
+    PlannerDecision,
+    TaskReport,
+    WorldModelMap,
+)
 
-# executor(action) -> (success, observation)   — raw execution (Sandbox.execute)
+# Sentinel type aliases (readable names only, no runtime cost).
 Executor = Callable[[str], Tuple[bool, str]]
+
+# Module-level constants (spec §8).
+MAX_CYCLES: int = 12
+LOCAL_BUDGET: int = 8
+
+# Canonical collect-only command — referenced everywhere instead of inline strings.
+COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
+
+
+def run_v1(
+    planner: Any,
+    build_agent: Any,
+    maintainer: Any,
+    initial_world_map: WorldModelMap,
+    ledger: ActionLedger,
+    sandbox_execute: Callable[[str], tuple[bool, str]],
+    max_cycles: int = MAX_CYCLES,
+    local_budget: int = LOCAL_BUDGET,
+    on_cycle: (
+        Callable[[int, WorldModelMap, PlannerDecision, TaskReport | None], None] | None
+    ) = None,
+) -> tuple[WorldModelMap, str]:
+    """Top-level v1 orchestrator loop.
+
+    Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
+      ``'done_flag'``     — maintainer set WorldModelMap.done_flag=True
+      ``'planner_done'``  — planner emitted action='done'
+      ``'planner_giveup'``— planner emitted action='giveup'
+      ``'max_cycles'``    — loop ran for max_cycles without terminating
+
+    The loop terminates the instant done_flag is set — it does NOT wait
+    for the next planner.decide call (structural fix for the 'reached gate
+    but never committed' failure mode).
+    """
+    current_map: WorldModelMap = initial_world_map
+
+    for cycle in range(1, max_cycles + 1):
+        # ── 1. Planner decides what to do next ──────────────────────────────
+        decision: PlannerDecision = planner.decide(current_map)
+
+        if decision.action == "done":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, "planner_done"
+
+        if decision.action == "giveup":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, "planner_giveup"
+
+        # ── 2. BuildAgent executes the task ──────────────────────────────────
+        assert decision.task is not None, (
+            f"PlannerDecision action='task' but .task is None (cycle {cycle})"
+        )
+        report: TaskReport = build_agent.run(
+            decision.task,
+            sandbox_execute,
+            ledger,
+            step_offset=(cycle - 1) * local_budget,
+        )
+
+        # ── 3. Maintainer updates the world model ────────────────────────────
+        current_map = maintainer.update(current_map, report)
+
+        # ── 4. Notify caller (optional telemetry hook) ───────────────────────
+        if on_cycle is not None:
+            on_cycle(cycle, current_map, decision, report)
+
+        # ── 5. Hard-stop on done_flag — do NOT re-enter planner ──────────────
+        if current_map.done_flag:
+            return current_map, "done_flag"
+
+    # Exhausted all cycles without termination.
+    return current_map, "max_cycles"
+
+
+# ---------------------------------------------------------------------------
+# Legacy Arms A/B/C orchestrator (kept for back-compat — do NOT modify)
+# ---------------------------------------------------------------------------
+
+from src.envstate.types import EnvStateSnapshot  # noqa: E402  (legacy import)
+
 # observer(snapshot, task_spec, step, action, success, observation) -> new_snapshot
 #   This is where the §6 loop closes: per executed action the host advances the
 #   revision, runs the Maintainer, runs probe_requests, and certifies facts via the
