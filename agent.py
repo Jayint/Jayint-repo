@@ -828,6 +828,20 @@ class DockerAgent:
                 # 3. run each requested probe on the HOST and certify the truth.
                 for request in proposal.get("probe_requests", []):
                     name = request.get("name")
+                    # Derive name from requirement_id or pkg_name when absent.
+                    if not name:
+                        req_id = request.get("requirement_id", "")
+                        if req_id:
+                            for _pfx in ("pkg:", "tool:", "header:", "lib:", "pkgconfig:", "path:"):
+                                if req_id.startswith(_pfx):
+                                    name = req_id[len(_pfx):]
+                                    break
+                            if not name and ":" in req_id:
+                                name = req_id.split(":", 1)[1]
+                            if not name:
+                                name = req_id
+                        if not name:
+                            name = request.get("pkg_name", "")
                     if not name:
                         continue
                     spec = ProbeSpec(

@@ -56,12 +56,28 @@ def certify_from_probe(
     return _replace_requirement(snapshot, requirement_id, new_req)
 
 
+def _derive_name_from_id(id_val: str) -> str:
+    """Derive a bare name from an id by stripping a known kind prefix."""
+    for prefix in ("pkg:", "tool:", "header:", "lib:", "pkgconfig:", "path:"):
+        if id_val.startswith(prefix):
+            return id_val[len(prefix):]
+    # Unknown or no prefix: use as-is after stripping up to the first colon.
+    if ":" in id_val:
+        return id_val.split(":", 1)[1]
+    return id_val
+
+
 def _validate_llm_requirement(raw: dict[str, Any]) -> Optional[str]:
     if not isinstance(raw, dict):
         return "candidate is not an object"
+    # Accept when EITHER name OR id is present; derive name from id when needed.
     name = raw.get("name")
     if not isinstance(name, str) or not name.strip():
-        return "missing required 'name'"
+        id_val = raw.get("id")
+        if isinstance(id_val, str) and id_val.strip():
+            name = _derive_name_from_id(id_val.strip())
+        else:
+            return "missing required 'name' (and no 'id' to derive it from)"
     required_by = raw.get("required_by")
     if required_by is not None and not isinstance(required_by, (list, tuple)):
         return "required_by must be a list of strings"
@@ -95,11 +111,18 @@ def apply_llm_proposal(
         if reason is not None:
             rejected.append({"candidate": raw, "reason": reason})
             continue
+        # Derive name from id if name is missing (normalisation may have missed it).
+        _name = raw.get("name")
+        if not isinstance(_name, str) or not _name.strip():
+            _id_val = raw.get("id", "")
+            _name = _derive_name_from_id(_id_val) if _id_val else ""
+        _kind = raw.get("kind", "Tool")
+        _id = raw.get("id") or f"{_kind.lower()}:{_name}"
         accepted.append(
             Requirement(
-                id=raw.get("id") or f"{raw.get('kind', 'tool')}:{raw.get('name')}",
-                name=raw["name"],
-                kind=raw.get("kind", "Tool"),
+                id=_id,
+                name=_name,
+                kind=_kind,
                 status=raw["status"],
                 source=raw.get("source", Source.LLM_GUESS),
                 specifier=raw.get("specifier"),

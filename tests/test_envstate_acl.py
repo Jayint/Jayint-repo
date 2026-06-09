@@ -114,10 +114,23 @@ class AclRevisionTests(unittest.TestCase):
 
 
 class AclRobustnessTests(unittest.TestCase):
-    def test_candidate_missing_name_is_rejected_not_raised(self):
+    def test_candidate_missing_name_derives_from_id(self):
+        # After the name-key fix, a candidate with id but no name has its name
+        # derived from the id prefix, so it is ACCEPTED (not rejected).
         snap = _empty_snapshot()
         proposal = {"candidate_requirements": [
             {"id": "tool:x", "kind": "Tool", "status": "REQUIRED", "source": "LLM_GUESS"},
+        ]}
+        updated, rejected = apply_llm_proposal(snap, proposal)  # must NOT raise
+        self.assertEqual(len(updated.requirements), 1)
+        self.assertEqual(updated.requirements[0].name, "x")
+        self.assertEqual(rejected, [])
+
+    def test_candidate_missing_both_name_and_id_is_rejected(self):
+        # Without either name or id there is nothing to derive from — must be rejected.
+        snap = _empty_snapshot()
+        proposal = {"candidate_requirements": [
+            {"kind": "Tool", "status": "REQUIRED", "source": "LLM_GUESS"},
         ]}
         updated, rejected = apply_llm_proposal(snap, proposal)  # must NOT raise
         self.assertEqual(updated.requirements, ())
