@@ -470,5 +470,76 @@ class RenderPlanningViewTests(unittest.TestCase):
         self.assertIn("flask", view)
 
 
+# -- append to tests/test_envstate_planner.py --
+
+class PlannerPromptIncludesMapFieldsTests(unittest.TestCase):
+    """The rendered view must surface every WorldModelMap field the Planner needs."""
+
+    def test_view_includes_language(self):
+        from src.envstate.planner import render_planning_view
+        m = _base_map()
+        view = render_planning_view(m, budget={"cycles_remaining": 5})
+        self.assertIn("python 3.12", view)
+
+    def test_view_includes_workdir(self):
+        from src.envstate.planner import render_planning_view
+        view = render_planning_view(_base_map(), budget={"cycles_remaining": 5})
+        self.assertIn("/app", view)
+
+    def test_view_marks_completed_layers_with_checkmark(self):
+        from src.envstate.planner import render_planning_view
+        m = merge_map(_base_map(), progress={
+            "base": True, "system": True, "runtime": False,
+            "deps": False, "build": False, "tests": False,
+        })
+        view = render_planning_view(m, budget={"cycles_remaining": 5})
+        # Both symbols must appear for done vs not-done
+        self.assertIn("✓", view)
+        self.assertIn("✗", view)
+
+    def test_view_shows_out_of_scope_marker(self):
+        from src.envstate.planner import render_planning_view
+        op = OpenProblem(signature="swift not found", interpretation="runtime-only",
+                         layer="runtime", out_of_scope=True)
+        m = merge_map(_base_map(), open_problems=(op,))
+        view = render_planning_view(m, budget={"cycles_remaining": 5})
+        self.assertIn("out_of_scope", view)
+
+
+class PlannerDecideDoneFlagShortCircuitTests(unittest.TestCase):
+    """done_flag=True in the map must cause the LLM to return 'done' when the
+    rendered view is correct.  The orchestrator hard-stops before calling decide
+    when done_flag is set; this class tests the natural LLM path only.
+    """
+
+    def test_done_flag_true_client_says_done(self):
+        from src.envstate.planner import Planner
+        planner = Planner(client=_fake_client(_done_json("collect-only passed")),
+                          model="m")
+        m = merge_map(_base_map(), done_flag=True)
+        d = planner.decide(m)
+        self.assertEqual(d.action, "done")
+
+
+class PlannerFactsPassedDownTests(unittest.TestCase):
+    """Facts extracted from the map must be included in the task handed to BuildAgent."""
+
+    def test_task_facts_are_strings(self):
+        from src.envstate.planner import Planner
+        content = _task_json(facts=["flask>=2.0 in pyproject.toml", "build_system=poetry"])
+        planner = Planner(client=_fake_client(content), model="m")
+        d = planner.decide(_base_map())
+        for fact in d.task.facts:
+            self.assertIsInstance(fact, str)
+
+    def test_task_layer_is_a_known_layer(self):
+        from src.envstate.planner import Planner
+        known_layers = {"base", "system", "runtime", "deps", "build", "tests"}
+        content = _task_json(layer="deps")
+        planner = Planner(client=_fake_client(content), model="m")
+        d = planner.decide(_base_map())
+        self.assertIn(d.task.layer, known_layers)
+
+
 if __name__ == "__main__":
     unittest.main()
