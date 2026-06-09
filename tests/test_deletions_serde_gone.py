@@ -11,6 +11,7 @@ SERDE_FILE = REPO_ROOT / "src" / "envstate" / "serde.py"
 
 SKIP_PATHS = {
     "tests/test_deletions_serde_gone.py",
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 

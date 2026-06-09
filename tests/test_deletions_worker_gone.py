@@ -14,6 +14,7 @@ WORKER_TEST = REPO_ROOT / "tests" / "test_envstate_worker.py"
 
 SKIP_PATHS = {
     "tests/test_deletions_worker_gone.py",
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 

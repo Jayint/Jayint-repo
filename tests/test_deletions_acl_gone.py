@@ -19,6 +19,7 @@ ALLOWED_REFS: set[str] = {
     "agent.py",                          # _build_observer inner import (arms A/B/C only)
     "tests/test_deletions_acl_gone.py",  # this file itself
     "tests/test_deletions_preflight.py", # defines ACL_SYMBOL string constant (no import)
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 SKIP_PATHS = {

@@ -11,6 +11,7 @@ TYPES_FILE = REPO_ROOT / "src" / "envstate" / "types.py"
 
 SKIP_PATHS = {
     "tests/test_deletions_types_gone.py",
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 

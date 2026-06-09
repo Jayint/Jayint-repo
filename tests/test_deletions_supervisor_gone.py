@@ -14,6 +14,7 @@ SUPERVISOR_TEST = REPO_ROOT / "tests" / "test_envstate_supervisor.py"
 
 SKIP_PATHS = {
     "tests/test_deletions_supervisor_gone.py",
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 

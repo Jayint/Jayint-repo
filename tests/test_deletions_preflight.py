@@ -29,6 +29,7 @@ ALLOWED_REFS = {
     "tests/test_deletions_agent_cleanroom_api.py",  # asserts agent.py no longer imports ProbeSpec
     "tests/test_deletions_probes_gone.py",           # verifies probes.py deletion (string in SKIP_PATHS)
     "tests/test_deletions_acl_gone.py",              # verifies acl.py deletion (string in SKIP_PATHS)
+    "tests/test_deletions_final_verification.py",    # lists deleted modules as strings, not live imports
 }
 
 PROBES_SYMBOL = "src.envstate.probes"

@@ -16,6 +16,7 @@ SKIP_PATHS = {
     "tests/test_deletions_cleanroom_no_probes.py",
     "tests/test_deletions_agent_cleanroom_api.py",
     "tests/test_deletions_preflight.py",
+    "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }
 
 
