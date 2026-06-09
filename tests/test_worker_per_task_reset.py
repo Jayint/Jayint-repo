@@ -15,11 +15,8 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from src.envstate.worker import (
-    LlmWorkerPlanner,
-    Worker,
-    WorkerReport,
-)
+# LlmWorkerPlanner / Worker / WorkerReport removed with worker.py (Task 37)
+# All classes below are skipped.
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +100,7 @@ class BriefRecordingPlanner:
 # Test 1: LlmWorkerPlanner.reset() behaviour
 # ---------------------------------------------------------------------------
 
+@unittest.skip("worker.py removed — LlmWorkerPlanner / Worker deleted in Task 37")
 class TestLlmWorkerPlannerReset(unittest.TestCase):
     """reset() must clear history so the next task brief is re-injected."""
 
@@ -160,6 +158,7 @@ class TestLlmWorkerPlannerReset(unittest.TestCase):
 # Test 2: Worker.run_task() calls planner.reset() at task start
 # ---------------------------------------------------------------------------
 
+@unittest.skip("worker.py removed — Worker deleted in Task 37")
 class TestWorkerCallsReset(unittest.TestCase):
     """Worker.run_task() must call planner.reset() before the first next_action()."""
 
@@ -203,6 +202,7 @@ class TestWorkerCallsReset(unittest.TestCase):
 # Test 3: Cross-task brief correctness
 # ---------------------------------------------------------------------------
 
+@unittest.skip("worker.py removed — Worker / LlmWorkerPlanner deleted in Task 37")
 class TestCrossTaskBriefReset(unittest.TestCase):
     """Sequential run_task calls on the same Worker deliver the right brief each time."""
 

@@ -1,6 +1,6 @@
 import unittest
 
-from src.envstate.worker import Worker, WorkerReport
+# Worker removed with worker.py (Task 37) — EmptyActionGuardTests skipped below
 
 
 class RecordingExecutor:
@@ -36,6 +36,7 @@ class AlwaysEmptyPlanner:
         return ("", False)
 
 
+@unittest.skip("worker.py removed — EmptyActionGuardTests covered by build_agent tests")
 class EmptyActionGuardTests(unittest.TestCase):
     def test_blocks_on_repeated_empty_action_without_executing(self):
         planner = AlwaysEmptyPlanner()

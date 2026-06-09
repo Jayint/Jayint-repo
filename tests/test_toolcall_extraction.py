@@ -9,7 +9,7 @@ Conventions:
 """
 import unittest
 
-from src.envstate.worker import _extract_worker_action
+from src.envstate.build_agent import _extract_worker_action
 
 
 # Exact raw content from the bug report (MiniMax M2.7 native tool-call format)

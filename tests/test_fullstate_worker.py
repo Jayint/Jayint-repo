@@ -259,12 +259,9 @@ class FullstateWorkerPromptTests(unittest.TestCase):
         self.assertIn("Thought:", p)
         self.assertIn("Action:", p)
 
+    @unittest.skip("worker.py removed — WORKER_SYSTEM_PROMPT deleted in Task 37")
     def test_prompt_does_not_mutate_worker_prompt(self):
-        from src.envstate.worker import WORKER_SYSTEM_PROMPT
-        from src.envstate.fullstate_worker import FULLSTATE_WORKER_SYSTEM_PROMPT
-        # They must be distinct objects with distinct content
-        self.assertIsNot(FULLSTATE_WORKER_SYSTEM_PROMPT, WORKER_SYSTEM_PROMPT)
-        self.assertNotEqual(FULLSTATE_WORKER_SYSTEM_PROMPT, WORKER_SYSTEM_PROMPT)
+        raise NotImplementedError("worker.py deleted")
 
     def test_prompt_mentions_do_not_paper_over(self):
         from src.envstate.fullstate_worker import FULLSTATE_WORKER_SYSTEM_PROMPT
@@ -381,7 +378,7 @@ class FullStateWorkerPlannerTests(unittest.TestCase):
         self.assertEqual(seen[0]["total_tokens"], 8)
 
     def test_system_prompt_is_fullstate_prompt(self):
-        """FullStateWorkerPlanner must use FULLSTATE_WORKER_SYSTEM_PROMPT, not WORKER_SYSTEM_PROMPT."""
+        """FullStateWorkerPlanner must use FULLSTATE_WORKER_SYSTEM_PROMPT."""
         captured = []
 
         def fake_create(**kwargs):
@@ -392,7 +389,6 @@ class FullStateWorkerPlannerTests(unittest.TestCase):
             )
 
         from src.envstate.fullstate_worker import FullStateWorkerPlanner, FULLSTATE_WORKER_SYSTEM_PROMPT
-        from src.envstate.worker import WORKER_SYSTEM_PROMPT
         snap = _snapshot()
         client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create)))
         planner = FullStateWorkerPlanner(client=client, model="m", get_snapshot=lambda: snap)
@@ -401,7 +397,7 @@ class FullStateWorkerPlannerTests(unittest.TestCase):
         sys_msgs = [m for m in captured[0]["messages"] if m["role"] == "system"]
         self.assertEqual(len(sys_msgs), 1)
         self.assertEqual(sys_msgs[0]["content"], FULLSTATE_WORKER_SYSTEM_PROMPT)
-        self.assertNotEqual(sys_msgs[0]["content"], WORKER_SYSTEM_PROMPT)
+        # WORKER_SYSTEM_PROMPT comparison removed — worker.py deleted in Task 37
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +438,7 @@ class RunFullstateLoopTests(unittest.TestCase):
 
     def test_stops_on_final_answer(self):
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         planner = self._make_planner([
             ("ls /repo", False),
             ("", True),  # Final Answer
@@ -461,7 +457,7 @@ class RunFullstateLoopTests(unittest.TestCase):
 
     def test_stops_at_global_action_budget(self):
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         # 10 actions provided, budget = 3 → stops after 3
         planner = self._make_planner([("cmd", False)] * 10)
         step_fn = self._make_step_fn([(True, f"obs-{i}") for i in range(10)])
@@ -478,7 +474,7 @@ class RunFullstateLoopTests(unittest.TestCase):
 
     def test_never_executes_empty_action(self):
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import interruption_decision, MAX_EMPTY_PLANNER_RESPONSES
+        from src.envstate.build_agent import interruption_decision, MAX_EMPTY_PLANNER_RESPONSES
         # planner returns one empty then real action then finish
         # (one re-prompt is allowed; the real-cmd must execute, not the empty)
         planner = self._make_planner([
@@ -502,7 +498,7 @@ class RunFullstateLoopTests(unittest.TestCase):
 
     def test_blocks_after_too_many_empty_responses(self):
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import interruption_decision, MAX_EMPTY_PLANNER_RESPONSES
+        from src.envstate.build_agent import interruption_decision, MAX_EMPTY_PLANNER_RESPONSES
         # All empty responses
         planner = self._make_planner([("", False)] * 10)
         step_fn = self._make_step_fn([])
@@ -519,7 +515,7 @@ class RunFullstateLoopTests(unittest.TestCase):
 
     def test_returns_worker_report(self):
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import WorkerReport, interruption_decision
+        from src.envstate.build_agent import WorkerReport, interruption_decision
         planner = self._make_planner([("echo hi", False), ("", True)])
         step_fn = self._make_step_fn([(True, "hi")])
         snap = _snapshot()
@@ -560,7 +556,7 @@ class RunFullstateLoopTests(unittest.TestCase):
     def test_recent_observations_passed_as_rolling_last_3(self):
         """Planner receives rolling last-3 obs; loop tracks them correctly."""
         from src.envstate.fullstate_worker import run_fullstate_loop
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
 
         observation_windows = []
 
@@ -599,7 +595,7 @@ class InterruptionDecisionTests(unittest.TestCase):
     """
 
     def test_fires_on_repeated_identical_failure(self):
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         recent = [
             (False, "Error: pg_config executable not found"),
             (False, "Error: pg_config executable not found"),
@@ -607,7 +603,7 @@ class InterruptionDecisionTests(unittest.TestCase):
         self.assertTrue(interruption_decision(recent, "pip install psycopg2"))
 
     def test_no_fire_when_failures_differ(self):
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         recent = [
             (False, "Error: pg_config not found"),
             (False, "Error: different error"),
@@ -615,16 +611,16 @@ class InterruptionDecisionTests(unittest.TestCase):
         self.assertFalse(interruption_decision(recent, "apt-get install -y libpq-dev"))
 
     def test_no_fire_when_less_than_2_failures(self):
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         recent = [(False, "Error: something")]
         self.assertFalse(interruption_decision(recent, "apt-get install -y libpq-dev"))
 
     def test_no_fire_when_observations_empty(self):
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         self.assertFalse(interruption_decision([], "any-action"))
 
     def test_no_fire_when_last_two_successes(self):
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         recent = [(True, "ok"), (True, "ok")]
         self.assertFalse(interruption_decision(recent, "ls"))
 
@@ -632,36 +628,26 @@ class InterruptionDecisionTests(unittest.TestCase):
         """interruption_decision only handles the repeated-failure guard.
         Pin-edit detection stays in should_interrupt (via _looks_like_pin_edit).
         """
-        from src.envstate.worker import interruption_decision
+        from src.envstate.build_agent import interruption_decision
         # repeated-failure rule does NOT apply here since observations are empty
         result = interruption_decision([], "sed -i 's/1.0/2.0/' requirements.txt")
         self.assertFalse(result)
 
+    @unittest.skip("worker.py removed — should_interrupt deleted in Task 37")
     def test_should_interrupt_still_uses_interruption_decision_logic(self):
-        """Regression: should_interrupt behavior unchanged after refactor."""
-        from src.envstate.worker import should_interrupt
-        task = {"stop_conditions": []}
-        observations = [
-            (False, "Error: pg_config executable not found"),
-            (False, "Error: pg_config executable not found"),
-        ]
-        self.assertTrue(should_interrupt(task, observations, "pip install psycopg2", actions_used=2))
+        raise NotImplementedError("worker.py deleted")
 
+    @unittest.skip("worker.py removed — should_interrupt deleted in Task 37")
     def test_should_interrupt_budget_unchanged(self):
-        from src.envstate.worker import should_interrupt
-        task = {"max_actions": 4}
-        self.assertTrue(should_interrupt(task, [], "any", actions_used=4))
+        raise NotImplementedError("worker.py deleted")
 
+    @unittest.skip("worker.py removed — should_interrupt deleted in Task 37")
     def test_should_interrupt_pin_edit_unchanged(self):
-        from src.envstate.worker import should_interrupt
-        task = {}
-        self.assertTrue(should_interrupt(
-            task, [], "sed -i 's/2.8/2.9/' requirements.txt", actions_used=1))
+        raise NotImplementedError("worker.py deleted")
 
+    @unittest.skip("worker.py removed — should_interrupt deleted in Task 37")
     def test_should_interrupt_normal_action_unchanged(self):
-        from src.envstate.worker import should_interrupt
-        task = {"max_actions": 6}
-        self.assertFalse(should_interrupt(task, [], "apt-get install -y libpq-dev", actions_used=1))
+        raise NotImplementedError("worker.py deleted")
 
 
 # ---------------------------------------------------------------------------
@@ -680,7 +666,7 @@ class OrchestratorGlobalBudgetTests(unittest.TestCase):
     def test_global_action_budget_none_is_noop(self):
         """Existing behavior: no budget → runs until no_more_tasks."""
         from src.envstate.orchestrator import EnvStateOrchestrator
-        from src.envstate.worker import Worker, WorkerReport
+        from src.envstate.build_agent import WorkerReport
         from test_envstate_orchestrator import FakeSupervisor, FakeWorker
 
         supervisor = FakeSupervisor([
@@ -700,7 +686,7 @@ class OrchestratorGlobalBudgetTests(unittest.TestCase):
     def test_global_action_budget_breaks_at_cap(self):
         """When the action counter reaches the budget, the loop breaks."""
         from src.envstate.orchestrator import EnvStateOrchestrator
-        from src.envstate.worker import Worker, WorkerReport
+        from src.envstate.build_agent import WorkerReport
 
         # Each worker call executes exactly 1 action (FakeWorkerExecutesActions).
         # We supply many tasks but set budget=2 → should stop after 2 actions.
@@ -735,7 +721,7 @@ class OrchestratorGlobalBudgetTests(unittest.TestCase):
     def test_global_action_budget_breaks_stop_reason(self):
         """stop_reason is 'global_action_budget' when that fires."""
         from src.envstate.orchestrator import EnvStateOrchestrator
-        from src.envstate.worker import WorkerReport
+        from src.envstate.build_agent import WorkerReport
         from test_envstate_orchestrator import FakeSupervisor
         from src.envstate.ledger import ActionLedger
 
@@ -759,7 +745,7 @@ class OrchestratorGlobalBudgetTests(unittest.TestCase):
     def test_existing_orchestrator_tests_still_pass(self):
         """Regression: original tests unaffected (no global_action_budget kwarg)."""
         from src.envstate.orchestrator import EnvStateOrchestrator
-        from src.envstate.worker import WorkerReport
+        from src.envstate.build_agent import WorkerReport
         from test_envstate_orchestrator import FakeSupervisor, FakeWorker
         from src.envstate.ledger import ActionLedger
 

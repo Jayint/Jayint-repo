@@ -803,7 +803,7 @@ class DockerAgent:
         with on_usage -> 'worker', run_fullstate_loop with global_action_budget = max_steps *
         DEFAULT_MAX_ACTIONS, then the SAME finalization tail as _run_supervisor.
         """
-        from src.envstate.worker import DEFAULT_MAX_ACTIONS, interruption_decision
+        from src.envstate.build_agent import DEFAULT_MAX_ACTIONS, interruption_decision
         from src.envstate.fullstate_worker import (
             FULLSTATE_TASK_SPEC,
             FullStateWorkerPlanner,

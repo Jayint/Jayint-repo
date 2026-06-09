@@ -5,7 +5,8 @@ See spec §4 (build agent loop) and §6 (fixed stuck guard).
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any, Callable, List, Tuple
 
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.ledger import ActionEvent, ActionLedger
@@ -18,6 +19,42 @@ from src.envstate.world_model import CommandRecord, Task, TaskReport
 
 LOCAL_BUDGET: int = 8          # shell actions per task before forced "blocked"
 MAX_EMPTY_RESPONSES: int = 2   # re-prompts allowed for unparseable LLM output
+
+# ---------------------------------------------------------------------------
+# v0 compatibility symbols — inlined from worker.py (deleted in Task 37).
+# fullstate_worker.py, agent.py, and tests now import these from here.
+# ---------------------------------------------------------------------------
+
+DEFAULT_MAX_ACTIONS: int = 6
+MAX_EMPTY_PLANNER_RESPONSES: int = 2
+
+_DEP_PIN_FILES = ("requirements.txt", "pyproject.toml", "setup.py", "setup.cfg", "Pipfile")
+
+
+@dataclass(frozen=True)
+class WorkerReport:
+    """v0 worker result (kept for fullstate_worker.py and its tests)."""
+    task_id: str
+    status: str  # "complete" | "blocked" | "interrupted"
+    summary: str
+    commands_attempted: Tuple[str, ...] = ()
+    observed_blockers: Tuple[str, ...] = ()
+
+
+def interruption_decision(
+    recent_window: List[Tuple[bool, str]], action: str
+) -> bool:
+    """Shared repeated-identical-failure guard (design §3.5/I1).
+
+    Parameterised by a fixed rolling window of the last N observations so the
+    firing semantics are identical across all arms (A/B/C).
+    Only the repeated-failure check lives here; budget and pin-edit checks stay
+    in should_interrupt so Arm B's should_interrupt call remains bit-identical.
+    """
+    failures = [obs for ok, obs in recent_window if not ok]
+    if len(failures) >= 2 and failures[-1].strip() == failures[-2].strip():
+        return True
+    return False
 
 # ---------------------------------------------------------------------------
 # Action parsing — ported verbatim from worker.py (_extract_worker_action /

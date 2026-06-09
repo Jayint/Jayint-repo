@@ -3,8 +3,9 @@ import unittest
 from src.envstate.orchestrator import EnvStateOrchestrator
 from src.envstate.types import BaseFacts, EnvStateSnapshot
 from src.envstate.ledger import ActionLedger
-from src.envstate.worker import Worker, WorkerReport
+from src.envstate.build_agent import WorkerReport
 # advance_revision removed with acl.py — stubs updated below
+# Worker removed with worker.py (Task 37) — only used in skipped test below
 
 
 class FakeSupervisor:

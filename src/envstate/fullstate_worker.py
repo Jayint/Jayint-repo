@@ -17,7 +17,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.llm_response import response_text
 from src.envstate.types import EnvStateSnapshot, Source
-from src.envstate.worker import (
+from src.envstate.build_agent import (
     MAX_EMPTY_PLANNER_RESPONSES,
     WorkerReport,
     _extract_worker_action,

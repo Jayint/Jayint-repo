@@ -56,12 +56,13 @@ class SupervisorSuccessCriterionTests(unittest.TestCase):
         self.assertIn("task_id", self.prompt)
 
 
+@unittest.skip("worker.py removed — WORKER_SYSTEM_PROMPT deleted in Task 37")
 class WorkerSuccessCriterionTests(unittest.TestCase):
     """WORKER_SYSTEM_PROMPT must contain the Repo2Run goalpost."""
 
     def setUp(self):
-        from src.envstate.worker import WORKER_SYSTEM_PROMPT
-        self.prompt = WORKER_SYSTEM_PROMPT
+        # WORKER_SYSTEM_PROMPT import removed — worker.py deleted in Task 37
+        self.prompt = ""
 
     def test_contains_collect_only_command(self):
         self.assertIn("pytest --collect-only", self.prompt)

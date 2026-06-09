@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from src.envstate.types import BaseFacts, EnvStateSnapshot, Requirement, Source, Status
 from src.envstate.serde import snapshot_to_dict, snapshot_from_dict
 # render_planning_view removed with supervisor.py (Task 36)
-from src.envstate.worker import Worker, build_task_brief
+# Worker / build_task_brief removed with worker.py (Task 37) — WorkerWorkdirTests skipped below
 from src.envstate.ledger import ActionLedger
 
 
@@ -204,6 +204,7 @@ class RenderPlanningViewWorkdirTests(unittest.TestCase):
 # 4. Worker workdir propagation
 # ---------------------------------------------------------------------------
 
+@unittest.skip("worker.py removed — WorkerWorkdirTests superseded by build_agent tests")
 class WorkerWorkdirTests(unittest.TestCase):
     def test_workdir_prepended_to_brief(self):
         planner = FakeWorkerPlanner()
