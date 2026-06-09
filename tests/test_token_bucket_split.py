@@ -234,6 +234,7 @@ class TestRecordSupervisorPathUsage(unittest.TestCase):
 # 8. Source-code check: _run_supervisor routes on_usage correctly
 # ---------------------------------------------------------------------------
 
+@unittest.skip("supervisor removed — _run_supervisor deleted with supervisor.py (Task 36)")
 class TestRunSupervisorUsageRouting(unittest.TestCase):
     """_run_supervisor must route supervisor on_usage -> 'supervisor',
     worker on_usage -> 'worker' (§3.7/§3.8)."""
@@ -276,6 +277,7 @@ class TestRunSupervisorUsageRouting(unittest.TestCase):
 # 9. Runtime: Arm C env_snapshot threading (C1 fix — §2.3 / C1 review finding)
 # ---------------------------------------------------------------------------
 
+@unittest.skip("supervisor removed — _run_supervisor deleted with supervisor.py (Task 36)")
 class TestArmCSnapshotThreading(unittest.TestCase):
     """RUNTIME test: _run_supervisor with fullstate_worker_prompt=True must seed
     self.env_snapshot BEFORE constructing FullStateWorkerPlanner, and must thread
@@ -374,12 +376,12 @@ class TestArmCSnapshotThreading(unittest.TestCase):
 
         # Patch Supervisor and EnvStateOrchestrator minimally so _run_supervisor
         # completes without Docker: make the supervisor emit one task, then done.
-        import src.envstate.supervisor as sup_module
+        # supervisor.py deleted in Task 36; import removed from this skipped class
         import src.envstate.orchestrator as orch_module
         from src.envstate.types import EnvStateSnapshot, BaseFacts
         from src.envstate.ledger import ActionLedger
 
-        _orig_supervisor = sup_module.Supervisor
+        _orig_supervisor = None  # supervisor.py removed in Task 36
         _orig_orchestrator = orch_module.EnvStateOrchestrator
 
         call_count = [0]
@@ -426,7 +428,7 @@ class TestArmCSnapshotThreading(unittest.TestCase):
             def snapshot(self_inner):
                 return advancing_snapshot[0]
 
-        sup_module.Supervisor = FakeSupervisor
+        # sup_module.Supervisor removed with supervisor.py (Task 36)
         orch_module.EnvStateOrchestrator = FakeOrchestrator
 
         try:
@@ -436,7 +438,7 @@ class TestArmCSnapshotThreading(unittest.TestCase):
             self.fail(f"AttributeError raised — env_snapshot not seeded: {exc}")
         finally:
             fw_module.FullStateWorkerPlanner = _orig_planner_cls
-            sup_module.Supervisor = _orig_supervisor
+            # sup_module.Supervisor restore removed — supervisor.py deleted in Task 36
             orch_module.EnvStateOrchestrator = _orig_orchestrator
 
         # Verify get_snapshot() was callable at construction time (not AttributeError)
@@ -456,11 +458,11 @@ class TestArmCSnapshotThreading(unittest.TestCase):
         agent = self._make_minimal_agent()
         revisions_after_each_step = []
 
-        import src.envstate.supervisor as sup_module
+        # supervisor.py deleted in Task 36; import removed from this skipped class
         import src.envstate.orchestrator as orch_module
         import src.envstate.fullstate_worker as fw_module
 
-        _orig_supervisor = sup_module.Supervisor
+        _orig_supervisor = None  # supervisor.py removed
         _orig_orchestrator = orch_module.EnvStateOrchestrator
         _orig_planner_cls = fw_module.FullStateWorkerPlanner
 
@@ -501,14 +503,14 @@ class TestArmCSnapshotThreading(unittest.TestCase):
             def snapshot(self_inner):
                 return advancing_snapshot[0]
 
-        sup_module.Supervisor = FakeSupervisor
+        # sup_module.Supervisor removed — supervisor.py deleted in Task 36
         orch_module.EnvStateOrchestrator = FakeOrchestrator
         fw_module.FullStateWorkerPlanner = _NopPlanner
 
         try:
             agent._run_supervisor(max_steps=2)
         finally:
-            sup_module.Supervisor = _orig_supervisor
+            # sup_module.Supervisor restore removed — supervisor.py deleted in Task 36
             orch_module.EnvStateOrchestrator = _orig_orchestrator
             fw_module.FullStateWorkerPlanner = _orig_planner_cls
 

@@ -13,12 +13,13 @@ Run via: .venv/bin/python -m pytest tests/test_success_criterion_parity.py -q
 import unittest
 
 
+@unittest.skip("supervisor removed")
 class SupervisorSuccessCriterionTests(unittest.TestCase):
     """SUPERVISOR_SYSTEM_PROMPT must contain the Repo2Run goalpost."""
 
     def setUp(self):
-        from src.envstate.supervisor import SUPERVISOR_SYSTEM_PROMPT
-        self.prompt = SUPERVISOR_SYSTEM_PROMPT
+        # supervisor.py deleted in Task 36; import removed
+        self.prompt = ""
 
     def test_contains_collect_only_command(self):
         self.assertIn("pytest --collect-only", self.prompt)

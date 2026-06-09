@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from src.envstate.types import BaseFacts, EnvStateSnapshot, Requirement, Source, Status
 from src.envstate.serde import snapshot_to_dict, snapshot_from_dict
-from src.envstate.supervisor import render_planning_view
+# render_planning_view removed with supervisor.py (Task 36)
 from src.envstate.worker import Worker, build_task_brief
 from src.envstate.ledger import ActionLedger
 
@@ -146,6 +146,7 @@ class SerdeRoundTripTests(unittest.TestCase):
 # 3. render_planning_view
 # ---------------------------------------------------------------------------
 
+@unittest.skip("supervisor removed — render_planning_view deleted with supervisor.py")
 class RenderPlanningViewWorkdirTests(unittest.TestCase):
     def test_workdir_appears_on_base_line(self):
         snap = _snapshot(workdir="/app")

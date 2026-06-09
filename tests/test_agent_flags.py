@@ -150,6 +150,7 @@ class TestRunDispatch(unittest.TestCase):
         agent._legacy_run = _fake_legacy_run
         return agent
 
+    @unittest.skip("supervisor removed — enable_supervisor is a deprecated no-op (Task 36)")
     def test_supervisor_flag_routes_to_run_supervisor(self):
         """With enable_supervisor=True, run() must call _run_supervisor."""
         agent = self._make_dispatchable_agent(enable_supervisor=True, enable_fullstate_worker=False)
@@ -167,6 +168,7 @@ class TestRunDispatch(unittest.TestCase):
         self.assertIn("fullstate_worker", agent._called)
         self.assertNotIn("supervisor", agent._called)
 
+    @unittest.skip("supervisor removed — enable_supervisor is a deprecated no-op (Task 36)")
     def test_supervisor_takes_priority_when_both_set(self):
         """If both flags are set (shouldn't happen after arg-guard), supervisor check fires first."""
         # This tests the order in run() — supervisor branch must be checked first

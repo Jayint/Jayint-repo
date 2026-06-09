@@ -795,121 +795,6 @@ class DockerAgent:
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
 
-    def _run_supervisor(self, max_steps=30, keep_container=False):
-        from src.envstate.supervisor import Supervisor
-        from src.envstate.worker import LlmWorkerPlanner, Worker, DEFAULT_MAX_ACTIONS
-        from src.envstate.orchestrator import EnvStateOrchestrator
-        from src.envstate.maintainer import Maintainer
-        from src.envstate.types import BaseFacts, EnvStateSnapshot
-
-        # Enable opt-in LLM-exchange logging for this supervisor run.
-        # Scoped to this call: the previous value (if any) is restored in the
-        # finally block so that multiple agents in the same process don't
-        # inherit a stale path from a prior run.
-        _llm_log_dir = os.path.join(self.logs_dir, "setup_logs")
-        os.makedirs(_llm_log_dir, exist_ok=True)
-        _llm_log_path = os.path.join(_llm_log_dir, "envstate_llm.jsonl")
-        _prev_llm_log = os.environ.get("ENVSTATE_LLM_LOG")
-        os.environ["ENVSTATE_LLM_LOG"] = _llm_log_path
-
-        supervisor = Supervisor(client=self.client, model=self.model)
-        maintainer = Maintainer(client=self.client, model=self.model)
-        base_image = (
-            getattr(self, "base_image", None)
-            or getattr(self.synthesizer, "base_image", None)
-            or ""
-        )
-        _workdir = getattr(self.synthesizer, "workdir", "/app") or "/app"
-        _repo_structure = ""
-        _structure_file = os.path.join(self.logs_dir, "image_selector_logs", "structure.txt")
-        if os.path.exists(_structure_file):
-            try:
-                with open(_structure_file) as _f:
-                    _repo_structure = _f.read()
-            except Exception:
-                pass
-        snapshot = EnvStateSnapshot(
-            revision=0, container_id=self.env_container_id,
-            base=BaseFacts(image=base_image, workdir=_workdir),
-            repo_structure=_repo_structure,
-        )
-        # Seed self.env_snapshot now so the Arm-C FullStateWorkerPlanner lambda
-        # (get_snapshot=lambda: self.env_snapshot) resolves on the very first call.
-        # This must happen BEFORE constructing any planner that captures it.
-        self.env_snapshot = snapshot
-        # §3.8 Arm-C selector: swap the Worker's planner to FullStateWorkerPlanner when
-        # --fullstate-worker-prompt is set, leaving the orchestrator/supervisor untouched.
-        if getattr(self, "fullstate_worker_prompt", False):
-            from src.envstate.fullstate_worker import FullStateWorkerPlanner
-            worker_planner = FullStateWorkerPlanner(
-                self.client, self.model,
-                get_snapshot=lambda: self.env_snapshot,
-                on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
-            )
-        else:
-            worker_planner = LlmWorkerPlanner(
-                self.client, self.model,
-                on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
-            )
-        worker = Worker(
-            planner=worker_planner,
-            max_actions=DEFAULT_MAX_ACTIONS,
-            workdir=_workdir,
-        )
-        # v1 migration: _build_observer (probes/acl path) removed — Arms A/B/C deleted
-        # in Tasks 36/38. Use a no-op observer that threads snapshot onto self.env_snapshot.
-        def _threading_observer(snap, task_spec, step, action, success, observation):
-            self.env_snapshot = snap
-            return snap
-        orchestrator = EnvStateOrchestrator(
-            supervisor=supervisor, worker=worker, snapshot=snapshot,
-            ledger=self.action_ledger,
-            executor=self.sandbox.execute,            # raw exec; observer does the recording
-            observer=_threading_observer,
-            max_tasks=max_steps,
-            on_usage=lambda usage: self._record_supervisor_path_usage("supervisor", usage),
-        )
-        configuration_success = False
-        run_error = None
-        self._orchestrator_result = None
-        try:
-            self._orchestrator_result = orchestrator.run()
-            self.env_snapshot = orchestrator.snapshot
-            configuration_success = (
-                self._auto_finalize_from_verified_tests("supervisor_run")
-                or bool(self.verification_bundle)
-            )
-            if configuration_success:
-                configuration_success = self._finalize_supervisor_artifacts(configuration_success)
-        except Exception as exc:
-            run_error = str(exc)
-            print(f"An error occurred during supervisor execution: {exc}")
-            if self._is_transient_llm_error(exc) and self._auto_finalize_from_verified_tests(
-                source="auto_after_transient_error"
-            ):
-                configuration_success = True
-                print(
-                    "[Auto Finalization] Transient LLM failure after a verified test "
-                    "collection command. Generating Dockerfile from recorded evidence."
-                )
-                try:
-                    configuration_success = self._finalize_supervisor_artifacts(configuration_success)
-                except Exception as synth_exc:
-                    configuration_success = False
-                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
-                    print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
-        finally:
-            # Restore the env var to its prior state so the logging scope does
-            # not leak into other code paths or subsequent agents in the same
-            # process.
-            if _prev_llm_log is None:
-                os.environ.pop("ENVSTATE_LLM_LOG", None)
-            else:
-                os.environ["ENVSTATE_LLM_LOG"] = _prev_llm_log
-            self._write_run_summary(configuration_success, run_error)
-            self.sandbox.close(keep_alive=keep_container)
-        return configuration_success
-
     def _run_fullstate_worker(self, max_steps=30, keep_container=False):
         """Arm A: single planner-less ReAct loop over the full certified snapshot (§3.2/§3.6).
 
@@ -1327,7 +1212,14 @@ class DockerAgent:
         if getattr(self, "enable_v1", False):
             return self._run_v1(max_cycles=max_steps, keep_container=keep_container)
         if getattr(self, "enable_supervisor", False):
-            return self._run_supervisor(max_steps=max_steps, keep_container=keep_container)
+            # supervisor.py removed in v1 migration — treat as bare ReAct
+            import warnings
+            warnings.warn(
+                "--enable-supervisor is deprecated and has no effect (supervisor.py removed). "
+                "Use --enable-v1 for the v1 orchestrator.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         if getattr(self, "enable_fullstate_worker", False):
             return self._run_fullstate_worker(max_steps=max_steps, keep_container=keep_container)
         print(f"Starting agent for repository: {self.repo_url}")
