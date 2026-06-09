@@ -147,3 +147,94 @@ class TestFrozenDataclasses:
             learning="done",
         )
         assert isinstance(tr.commands, tuple)
+
+
+class TestInitialMap:
+    def test_returns_world_model_map_instance(self):
+        m = _minimal_map()
+        assert isinstance(m, WorldModelMap)
+
+    def test_base_image_and_workdir_stored(self):
+        m = initial_map(
+            base_image="python:3.12-slim",
+            workdir="/app",
+            language="python 3.12",
+            build_system="pip",
+            repo_layout=("tests/", "requirements.txt"),
+        )
+        assert m.base_image == "python:3.12-slim"
+        assert m.workdir == "/app"
+
+    def test_language_and_build_system_stored(self):
+        m = initial_map(
+            base_image="python:3.11-slim",
+            workdir="/workspace",
+            language="python 3.11",
+            build_system="poetry",
+            repo_layout=(),
+        )
+        assert m.language == "python 3.11"
+        assert m.build_system == "poetry"
+
+    def test_repo_layout_stored_as_tuple(self):
+        m = initial_map(
+            base_image="python:3.12-slim",
+            workdir="/app",
+            language="python 3.12",
+            build_system="pip",
+            repo_layout=("tests/", "src/", "pyproject.toml"),
+        )
+        assert m.repo_layout == ("tests/", "src/", "pyproject.toml")
+        assert isinstance(m.repo_layout, tuple)
+
+    def test_done_flag_defaults_false(self):
+        m = _minimal_map()
+        assert m.done_flag is False
+
+    def test_installed_starts_empty(self):
+        m = _minimal_map()
+        assert m.installed == ()
+
+    def test_open_problems_starts_empty(self):
+        m = _minimal_map()
+        assert m.open_problems == ()
+
+    def test_notes_starts_empty(self):
+        m = _minimal_map()
+        assert m.notes == ()
+
+    def test_required_defaults_to_empty_tuple(self):
+        m = _minimal_map()
+        assert m.required == ()
+
+    def test_required_can_be_supplied(self):
+        req = (_fact("flask"), _fact("pytest"))
+        m = initial_map(
+            base_image="python:3.12-slim",
+            workdir="/app",
+            language="python 3.12",
+            build_system="pip",
+            repo_layout=(),
+            required=req,
+        )
+        assert m.required == req
+
+    def test_progress_has_all_six_layers(self):
+        m = _minimal_map()
+        assert set(m.progress.keys()) == {"base", "system", "runtime", "deps", "build", "tests"}
+
+    def test_progress_all_false_at_start(self):
+        m = _minimal_map()
+        assert all(v is False for v in m.progress.values())
+
+    def test_progress_is_dict_not_frozen(self):
+        # progress is a plain dict by contract — merge_map handles copy-on-write
+        m = _minimal_map()
+        assert isinstance(m.progress, dict)
+
+    def test_two_calls_produce_independent_progress_dicts(self):
+        m1 = _minimal_map()
+        m2 = _minimal_map()
+        # mutating the progress dict of m1 must not affect m2
+        m1.progress["base"] = True
+        assert m2.progress["base"] is False
