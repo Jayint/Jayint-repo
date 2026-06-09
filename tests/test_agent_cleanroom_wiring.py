@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 from types import SimpleNamespace
 
@@ -5,6 +7,8 @@ from agent import DockerAgent
 
 
 class _FakeSynth:
+    workdir = "/app"
+
     def generate_dockerfile(self, *a, **k):
         return "FROM python:3.11-slim\nCOPY . /app\n"
 
@@ -16,7 +20,12 @@ class AgentCleanroomWiringTests(unittest.TestCase):
         agent.synthesizer = _FakeSynth()
         agent.env_snapshot = None
         agent.verified_test_commands = ["pytest -q"]
-        agent.workplace = "/tmp"  # any existing dir; fake build ignores it
+
+        # Write a real Dockerfile so _verify_cleanroom_or_fail can read it
+        tmpdir = tempfile.mkdtemp()
+        with open(os.path.join(tmpdir, "Dockerfile"), "w") as fh:
+            fh.write("FROM python:3.11-slim\nWORKDIR /app\nCOPY . /app\n")
+        agent.workplace = tmpdir
 
         class _Images:
             def build(self, **kwargs):

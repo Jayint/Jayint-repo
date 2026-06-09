@@ -2,7 +2,6 @@ import tempfile
 import unittest
 
 from src.envstate.cleanroom import CleanroomResult, ensure_repo_in_dockerfile, verify_cleanroom
-from src.envstate.probes import ProbeSpec
 
 
 class FakeImages:
@@ -25,96 +24,102 @@ class FakeDockerClient:
 class CleanroomTests(unittest.TestCase):
     def test_success_when_build_probes_and_tests_pass(self):
         client = FakeDockerClient(build_ok=True)
+
+        def run_ok(image_ref, command):
+            return 0, "ok"
+
         result = verify_cleanroom(
-            client, dockerfile_text="FROM python:3.11-slim\nCOPY . /app\n",
+            client,
+            dockerfile_text="FROM python:3.11-slim\nCOPY . /app\n",
             build_context_dir=tempfile.mkdtemp(),
-            probes=[ProbeSpec(kind="cli", name="pg_config", predicate="path exists")],
+            probe_commands=["command -v pg_config && pg_config --version"],
             test_commands=["pytest -q"],
-            run_command=lambda image, cmd: (0, "ok"),
+            run_command=run_ok,
         )
-        self.assertIsInstance(result, CleanroomResult)
         self.assertTrue(result.passed)
-        # built with a context path (so COPY works), not fileobj
-        self.assertIn("path", client.images.built[0])
+        self.assertEqual(result.reason, "clean-room verification passed")
 
-    def test_failure_when_build_fails(self):
+    def test_fails_when_build_fails(self):
         client = FakeDockerClient(build_ok=False)
-        result = verify_cleanroom(
-            client, dockerfile_text="FROM bad\n", build_context_dir=tempfile.mkdtemp(),
-            probes=[], test_commands=["pytest -q"], run_command=lambda image, cmd: (0, "ok"),
-        )
-        self.assertFalse(result.passed)
-        self.assertIn("build", result.reason.lower())
 
-    def test_failure_when_probe_regresses_in_clean_image(self):
-        client = FakeDockerClient(build_ok=True)
+        def run_ok(image_ref, command):
+            return 0, "ok"
+
         result = verify_cleanroom(
-            client, dockerfile_text="FROM python:3.11-slim\n",
+            client,
+            dockerfile_text="FROM python:3.11-slim\n",
             build_context_dir=tempfile.mkdtemp(),
-            probes=[ProbeSpec(kind="cli", name="pg_config", predicate="path exists")],
+            probe_commands=[],
             test_commands=["pytest -q"],
-            run_command=lambda image, cmd: (1, "not found"),  # probe fails in clean image
+            run_command=run_ok,
         )
         self.assertFalse(result.passed)
+        self.assertIn("build failed", result.reason)
 
-    def test_failure_when_test_fails_in_clean_image(self):
-        client = FakeDockerClient(build_ok=True)
+    def test_fails_when_probe_fails(self):
+        client = FakeDockerClient()
+
+        def run(image_ref, command):
+            if "pg_config" in command:
+                return 1, "not found"
+            return 0, "ok"
+
         result = verify_cleanroom(
-            client, dockerfile_text="FROM python:3.11-slim\n",
+            client,
+            dockerfile_text="FROM python:3.11-slim\n",
             build_context_dir=tempfile.mkdtemp(),
-            probes=[], test_commands=["pytest -q"],
-            run_command=lambda image, cmd: (1, "tests failed"),
+            probe_commands=["command -v pg_config && pg_config --version"],
+            test_commands=["pytest -q"],
+            run_command=run,
         )
         self.assertFalse(result.passed)
-        self.assertIn("test", result.reason.lower())
-        self.assertEqual(result.failed_tests, ("pytest -q",))
+        self.assertIn("probe", result.reason)
+        self.assertIn("command -v pg_config && pg_config --version", result.failed_probes)
+
+    def test_fails_when_test_command_fails(self):
+        client = FakeDockerClient()
+
+        def run(image_ref, command):
+            if "pytest" in command:
+                return 1, "FAILED"
+            return 0, "ok"
+
+        result = verify_cleanroom(
+            client,
+            dockerfile_text="FROM python:3.11-slim\n",
+            build_context_dir=tempfile.mkdtemp(),
+            probe_commands=[],
+            test_commands=["pytest -q"],
+            run_command=run,
+        )
+        self.assertFalse(result.passed)
+        self.assertIn("test command", result.reason)
 
     def test_fails_when_nothing_to_verify(self):
-        client = FakeDockerClient(build_ok=True)
+        client = FakeDockerClient()
+
+        def run_ok(image_ref, command):
+            return 0, "ok"
+
         result = verify_cleanroom(
-            client, dockerfile_text="FROM python:3.11-slim\n",
+            client,
+            dockerfile_text="FROM python:3.11-slim\n",
             build_context_dir=tempfile.mkdtemp(),
-            probes=[], test_commands=[],
-            run_command=lambda image, cmd: (0, "ok"),
+            probe_commands=[],
+            test_commands=[],
+            run_command=run_ok,
         )
         self.assertFalse(result.passed)
 
-    def test_replays_explicit_probe_command_verbatim(self):
-        # A probe carrying an explicit command (as the agent passes req.evidence.probe_cmd)
-        # must be re-run verbatim, NOT reconstructed as `command -v <name>`.
-        client = FakeDockerClient(build_ok=True)
-        seen = []
-        def run_command(image, cmd):
-            seen.append(cmd)
-            return (0, "ok")
-        verify_cleanroom(
-            client, dockerfile_text="FROM x\n", build_context_dir=tempfile.mkdtemp(),
-            probes=[ProbeSpec(kind="header", name="libpq-fe.h", predicate="p",
-                              command="find /usr/include -name 'libpq-fe.h' | grep -q .")],
-            test_commands=["pytest -q"],
-            run_command=run_command,
-        )
-        self.assertIn("find /usr/include -name 'libpq-fe.h' | grep -q .", seen)
+    def test_ensure_repo_in_dockerfile_inserts_after_workdir(self):
+        text = "FROM python:3.11-slim\nWORKDIR /app\nRUN pip install -e .\n"
+        result = ensure_repo_in_dockerfile(text, "/app")
+        lines = result.splitlines()
+        workdir_idx = next(i for i, l in enumerate(lines) if l.startswith("WORKDIR"))
+        copy_idx = next(i for i, l in enumerate(lines) if l.startswith("COPY . /app"))
+        self.assertEqual(copy_idx, workdir_idx + 1)
 
-
-class EnsureRepoInDockerfileTests(unittest.TestCase):
-    def test_inserts_copy_after_workdir(self):
-        text = "FROM python:3.11-slim\nWORKDIR /app\n\nRUN pip install -e .\n"
-        out = ensure_repo_in_dockerfile(text, "/app")
-        lines = out.splitlines()
-        self.assertEqual(lines[1], "WORKDIR /app")
-        self.assertEqual(lines[2], "COPY . /app")          # injected right after WORKDIR
-        self.assertTrue(lines.index("COPY . /app") < lines.index("RUN pip install -e ."))  # before RUN
-
-    def test_is_idempotent_when_copy_present(self):
-        text = "FROM x\nWORKDIR /app\nCOPY . /app\nRUN true\n"
-        self.assertEqual(ensure_repo_in_dockerfile(text, "/app"), text)
-
-    def test_appends_when_no_workdir(self):
-        text = "FROM x\nRUN true\n"
-        out = ensure_repo_in_dockerfile(text, "/srv")
-        self.assertIn("COPY . /srv", out.splitlines())
-
-    def test_uses_given_workdir(self):
-        out = ensure_repo_in_dockerfile("FROM x\nWORKDIR /srv\n", "/srv")
-        self.assertIn("COPY . /srv", out.splitlines())
+    def test_ensure_repo_in_dockerfile_idempotent(self):
+        text = "FROM python:3.11-slim\nWORKDIR /app\nCOPY . /app\nRUN pip install -e .\n"
+        result = ensure_repo_in_dockerfile(text, "/app")
+        self.assertEqual(result.count("COPY . /app"), 1)

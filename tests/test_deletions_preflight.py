@@ -25,6 +25,7 @@ ALLOWED_REFS = {
     "src/envstate/cleanroom.py",         # must be updated in this task
     "src/envstate/probes.py",            # the file being deleted
     "src/envstate/acl.py",               # the file being deleted
+    "tests/test_deletions_cleanroom_no_probes.py",  # asserts cleanroom.py no longer imports probes
 }
 
 PROBES_SYMBOL = "src.envstate.probes"

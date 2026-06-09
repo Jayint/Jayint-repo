@@ -1368,7 +1368,7 @@ class DockerAgent:
             self.sandbox.client,
             dockerfile_text,
             build_context_dir=_build_context,
-            probes=[],
+            probe_commands=[],
             test_commands=list(self.verified_test_commands),
             run_command=run_command,
         )
