@@ -75,6 +75,139 @@ class SynthesizerTests(unittest.TestCase):
             [],
         )
 
+    def test_absolute_python_pytest_is_test_command_not_build_command(self):
+        synthesizer = Synthesizer()
+        command = (
+            "cd /app && "
+            "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
+            "-m pytest --collect-only -q --disable-warnings"
+        )
+
+        self.assertTrue(synthesizer.is_test_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+    def test_relative_virtualenv_python_pytest_is_test_command_not_build_command(self):
+        synthesizer = Synthesizer()
+        command = ".venv/bin/python -m pytest --collect-only -q --disable-warnings 2>&1"
+
+        self.assertTrue(synthesizer.is_test_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+        analysis = synthesizer.analyze_test_run(command, "66 tests collected in 0.17s\n")
+        self.assertTrue(analysis["is_test_command"])
+        self.assertTrue(analysis["is_effective_test_run"])
+
+    def test_binary_patch_command_mutates_environment(self):
+        synthesizer = Synthesizer()
+        command = (
+            "objcopy -R .note.GNU-stack "
+            ".venv/lib/python3.12/site-packages/ctranslate2.libs/libctranslate2.so 2>&1"
+        )
+
+        self.assertTrue(synthesizer.command_mutates_environment(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [command])
+
+    def test_python_import_probe_is_readonly_not_build_command(self):
+        synthesizer = Synthesizer()
+        command = (
+            "cd /app && "
+            "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
+            "-c \"from owl.services.transcription.whisper_transcription_service "
+            "import transcribe_audio; print('Import successful')\""
+        )
+
+        self.assertTrue(synthesizer.is_readonly_command(command))
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
+
+    def test_trajectory_first_build_commands_excludes_final_verification_probes(self):
+        synthesizer = Synthesizer()
+        recipe = {
+            "build_commands": ["pip install poetry"],
+            "runtime_preparation_commands": [],
+            "test_commands": ["poetry run pytest --collect-only -q --disable-warnings"],
+        }
+        recipe_input = {
+            "successful_actions": [
+                {"step_index": 1, "command": "pip install poetry"},
+                {
+                    "step_index": 2,
+                    "command": (
+                        "cd /app && "
+                        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
+                        "-m pytest --collect-only -q --disable-warnings"
+                    ),
+                },
+                {
+                    "step_index": 3,
+                    "command": (
+                        "cd /app && "
+                        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/python "
+                        "-c \"from owl.services.transcription.whisper_transcription_service "
+                        "import transcribe_audio; print('Import successful')\""
+                    ),
+                },
+                {
+                    "step_index": 4,
+                    "command": (
+                        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip "
+                        "install -e /app --no-deps"
+                    ),
+                },
+            ],
+        }
+
+        normalized = synthesizer.normalize_build_recipe(recipe, recipe_input=recipe_input)
+
+        self.assertIn("pip install poetry", normalized["build_commands"])
+        self.assertIn(
+            "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip install -e /app --no-deps",
+            normalized["build_commands"],
+        )
+        self.assertFalse(
+            any("pytest --collect-only" in command for command in normalized["build_commands"])
+        )
+        self.assertFalse(
+            any("Import successful" in command for command in normalized["build_commands"])
+        )
+
+    def test_trajectory_first_restores_poetry_install_before_hardcoded_venv_pip(self):
+        synthesizer = Synthesizer()
+        recipe = {
+            "build_commands": [
+                "pip install poetry",
+                "cd /app && poetry install --no-interaction || true",
+                "cd /app && poetry run pip install -e . --no-deps",
+            ],
+            "runtime_preparation_commands": [],
+            "test_commands": ["poetry run pytest --collect-only -q --disable-warnings"],
+        }
+        recipe_input = {
+            "successful_actions": [
+                {"step_index": 1, "command": "pip install poetry"},
+                {
+                    "step_index": 2,
+                    "command": (
+                        "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip "
+                        "install av pyaudio setuptools wheel --force-reinstall"
+                    ),
+                },
+            ],
+        }
+
+        normalized = synthesizer.normalize_build_recipe(recipe, recipe_input=recipe_input)
+
+        self.assertEqual(
+            normalized["build_commands"],
+            [
+                "pip install poetry",
+                "cd /app && poetry install --no-interaction || true",
+                (
+                    "/root/.cache/pypoetry/virtualenvs/owl-9TtSrW0h-py3.11/bin/pip "
+                    "install av pyaudio setuptools wheel --force-reinstall"
+                ),
+            ],
+        )
+
     def test_normalize_build_recipe_keeps_verified_runtime_and_coalesces_postgres_setup(self):
         synthesizer = Synthesizer()
         recipe = {
@@ -272,6 +405,32 @@ class SynthesizerTests(unittest.TestCase):
         self.assertTrue(analysis["is_test_command"])
         self.assertTrue(analysis["is_effective_test_run"])
         self.assertEqual(analysis["reason"], "observed_test_execution_signal")
+
+    def test_absolute_go_test_path_is_effective_test_command(self):
+        synthesizer = Synthesizer()
+        command = (
+            "cd /app/runner && /usr/local/go/bin/go test -buildvcs=false "
+            "-v ./internal/render/... ./server/utils/... 2>&1"
+        )
+        analysis = synthesizer.analyze_test_run(
+            command,
+            "\n".join(
+                [
+                    "=== RUN   TestThemeColor",
+                    "--- PASS: TestThemeColor (0.00s)",
+                    "PASS",
+                    "ok  \tgithub.com/NexaAI/nexa-sdk/runner/internal/render\t0.040s",
+                    "=== RUN   TestSaveURIToTempFile_WebP",
+                    "--- PASS: TestSaveURIToTempFile_WebP (0.01s)",
+                    "PASS",
+                    "ok  \tgithub.com/NexaAI/nexa-sdk/runner/server/utils\t0.056s",
+                ]
+            ),
+        )
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertTrue(analysis["is_effective_test_run"])
+        self.assertEqual(synthesizer._extract_recordable_setup_commands(command), [])
 
     def test_go_test_with_only_no_test_files_is_empty_run(self):
         synthesizer = Synthesizer()
@@ -1463,6 +1622,88 @@ class SynthesizerTests(unittest.TestCase):
         )
 
         self.assertEqual(recipe["build_commands"], ["pip install pytest"])
+
+    def test_excluded_tail_rejections_do_not_drop_successful_trajectory_installs(self):
+        synthesizer = Synthesizer()
+
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": [
+                    "pip install pytest pytest-timeout",
+                    "pip install numpy==1.26.4",
+                    "pip install -e . --no-deps",
+                    "pip install mmengine>=0.10.3",
+                    "pip install ftfy>=6.2.0",
+                ],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["pytest --collect-only -q --disable-warnings tests/"],
+                "excluded_commands": [
+                    {
+                        "command": "pip install torch --index-url https://download.pytorch.org/whl/cpu 2>&1 | tail -30",
+                        "reason": "Filtered output - rejected by system before execution",
+                    },
+                    {
+                        "command": "pip install colossalai 2>&1 | tail -30",
+                        "reason": "Filtered output - rejected by system before execution",
+                    },
+                    {
+                        "command": "pip install rotary_embedding_torch==0.5.3 timm==0.9.16 torchvision 2>&1 | tail -30",
+                        "reason": "Filtered output - rejected by system before execution",
+                    },
+                    {
+                        "command": "pip install xformers 2>&1 | tail -30",
+                        "reason": "Filtered output - rejected by system before execution",
+                    },
+                ],
+                "rationale": "The clean successful install trajectory must be replayed.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "agent_run_summary": {
+                    "successful_actions": [
+                        {"step_index": 17, "command": "pip install pytest pytest-timeout"},
+                        {"step_index": 20, "command": "pip install numpy==1.26.4"},
+                        {
+                            "step_index": 22,
+                            "command": "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+                        },
+                        {"step_index": 25, "command": "pip install colossalai"},
+                        {"step_index": 26, "command": "pip install -e . --no-deps"},
+                        {
+                            "step_index": 29,
+                            "command": "pip install rotary_embedding_torch==0.5.3 timm==0.9.16 torchvision",
+                        },
+                        {"step_index": 32, "command": "pip install xformers"},
+                        {"step_index": 34, "command": "pip install mmengine>=0.10.3"},
+                        {"step_index": 36, "command": "pip install ftfy>=6.2.0"},
+                        {
+                            "step_index": 38,
+                            "command": "pytest --collect-only -q --disable-warnings tests/",
+                        },
+                    ],
+                    "verification_bundle": {
+                        "runtime_preparation_commands": [],
+                        "test_commands": ["pytest --collect-only -q --disable-warnings tests/"],
+                    },
+                },
+            },
+        )
+
+        self.assertEqual(
+            recipe["build_commands"],
+            [
+                "pip install pytest pytest-timeout",
+                "pip install numpy==1.26.4",
+                "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+                "pip install colossalai",
+                "pip install -e . --no-deps",
+                "pip install rotary_embedding_torch==0.5.3 timm==0.9.16 torchvision",
+                "pip install xformers",
+                "pip install mmengine>=0.10.3",
+                "pip install ftfy>=6.2.0",
+            ],
+        )
 
     def test_trajectory_first_honors_exclusions_and_replays_later_package_restores(self):
         synthesizer = Synthesizer()

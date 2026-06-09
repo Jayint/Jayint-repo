@@ -679,6 +679,58 @@ class AgentPrepareWorkplaceTests(unittest.TestCase):
             self.assertIn("filter.lfs.process=", commands[1])
             self.assertIn("clone", commands[1])
 
+    def test_missing_commit_fetches_github_pull_request_refs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = DockerAgent.__new__(DockerAgent)
+            agent.workplace = tmpdir
+            agent.repo_url = "https://github.com/example/repo.git"
+            agent.base_commit = "abc123"
+            commands = []
+
+            def fake_run(command, cwd=None, check=None, capture_output=None):
+                commands.append(command)
+                if "+refs/pull/*/head:refs/remotes/origin/pr/*" in command:
+                    return SimpleNamespace(returncode=0)
+                raise agent_module.subprocess.CalledProcessError(
+                    128,
+                    command,
+                    output=b"",
+                    stderr=b"fatal: couldn't find remote ref abc123",
+                )
+
+            with mock.patch.object(agent_module.subprocess, "run", side_effect=fake_run):
+                with mock.patch.object(agent, "_resolve_github_commit_sha", return_value=None):
+                    with mock.patch.object(agent, "_git_commit_exists", side_effect=[False, True]):
+                        agent._ensure_base_commit_available()
+
+            self.assertIn("+refs/pull/*/head:refs/remotes/origin/pr/*", commands[-1])
+
+    def test_short_github_commit_resolves_before_fetch(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = DockerAgent.__new__(DockerAgent)
+            agent.workplace = tmpdir
+            agent.repo_url = "https://github.com/example/repo.git"
+            agent.base_commit = "00a761"
+            full_sha = "00a761fb5bd3e4af2668dd5f2e5c8dc5fe0837d6"
+            commands = []
+
+            def fake_run(command, cwd=None, check=None, capture_output=None):
+                commands.append(command)
+                return SimpleNamespace(returncode=0)
+
+            with mock.patch.object(agent_module.subprocess, "run", side_effect=fake_run):
+                with mock.patch.object(agent, "_resolve_github_commit_sha", return_value=full_sha):
+                    with mock.patch.object(
+                        agent,
+                        "_git_commit_exists",
+                        side_effect=[False, False, True],
+                    ):
+                        agent._ensure_base_commit_available()
+
+            self.assertEqual(agent.base_commit, full_sha)
+            self.assertIn(full_sha, commands[0])
+            self.assertEqual(commands[0][-1], full_sha)
+
 
 class FakePlannerForRun:
     def __init__(self):

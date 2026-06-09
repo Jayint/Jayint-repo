@@ -60,6 +60,31 @@ def infer_base_image_from_dockerfile_text(dockerfile_text: str) -> Optional[str]
     return None
 
 
+def _python_base_version(image: Optional[str]) -> Optional[tuple[int, int]]:
+    match = re.match(r"^python:(?P<major>\d+)(?:\.(?P<minor>\d+))?", str(image or ""))
+    if not match:
+        return None
+    return int(match.group("major")), int(match.group("minor") or 0)
+
+
+def resolve_resynthesis_base_image(
+    workplace: Path,
+    existing_dockerfile_text: str,
+    explicit_base_image: Optional[str] = None,
+) -> str:
+    if explicit_base_image:
+        return explicit_base_image
+
+    selected_image = load_selected_base_image_from_workplace(workplace)
+    existing_image = infer_base_image_from_dockerfile_text(existing_dockerfile_text)
+    selected_python = _python_base_version(selected_image)
+    existing_python = _python_base_version(existing_image)
+    if selected_python and existing_python and existing_python < selected_python:
+        return str(existing_image)
+
+    return selected_image or existing_image or "python:3.10"
+
+
 def infer_workdir_from_dockerfile_text(dockerfile_text: str) -> str:
     for line in (dockerfile_text or "").splitlines():
         stripped = line.strip()
@@ -118,11 +143,10 @@ def resynthesize_dockerfile_from_existing_workplace(
         else ""
     )
 
-    resolved_base_image = (
-        base_image
-        or load_selected_base_image_from_workplace(workplace_path)
-        or infer_base_image_from_dockerfile_text(existing_dockerfile_text)
-        or "python:3.10"
+    resolved_base_image = resolve_resynthesis_base_image(
+        workplace_path,
+        existing_dockerfile_text,
+        explicit_base_image=base_image,
     )
     resolved_workdir = workdir or infer_workdir_from_dockerfile_text(existing_dockerfile_text)
     resolved_client = client or create_openai_client_from_env()

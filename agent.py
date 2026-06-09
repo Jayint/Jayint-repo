@@ -5,6 +5,9 @@ import argparse
 import subprocess
 import shutil
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from openai import OpenAI
 from src.sandbox import Sandbox
@@ -191,9 +194,9 @@ class DockerAgent:
         
         # 2. If base_commit is specified, checkout before image selection
         # so that LLM analyzes the actual files at base_commit, not the latest HEAD
-        if base_commit:
-            self._checkout_commit(base_commit)
-            print(f"Checked out commit: {base_commit}")
+        if self.base_commit:
+            self._checkout_commit(self.base_commit)
+            print(f"Checked out commit: {self.base_commit}")
 
         self.required_local_services = self._collect_local_service_hints()
         if self.required_local_services:
@@ -698,7 +701,14 @@ class DockerAgent:
         if self._git_commit_exists(commit):
             return
 
-        print(f"[Clone Strategy] Fetching target commit {commit}.")
+        fetch_commit = self._resolve_github_commit_sha(commit) or commit
+        if fetch_commit != commit:
+            print(f"[Clone Strategy] Resolved target commit {commit} -> {fetch_commit}.")
+            self.base_commit = fetch_commit
+            if self._git_commit_exists(fetch_commit):
+                return
+
+        print(f"[Clone Strategy] Fetching target commit {fetch_commit}.")
         fetch_strategies = [
             [
                 "git",
@@ -710,7 +720,7 @@ class DockerAgent:
                 "--depth",
                 "1",
                 "origin",
-                commit,
+                fetch_commit,
             ],
             [
                 "git",
@@ -721,7 +731,7 @@ class DockerAgent:
                 "fetch",
                 "--filter=blob:none",
                 "origin",
-                commit,
+                fetch_commit,
             ],
         ]
         last_error = None
@@ -733,10 +743,13 @@ class DockerAgent:
                     check=True,
                     capture_output=True,
                 )
-                if self._git_commit_exists(commit):
+                if self._git_commit_exists(fetch_commit) or self._git_commit_exists(commit):
                     return
             except subprocess.CalledProcessError as error:
                 last_error = error
+
+        if self._fetch_github_pull_request_refs_for_missing_commit(commit):
+            return
 
         if last_error is not None:
             raise last_error
@@ -749,6 +762,98 @@ class DockerAgent:
             capture_output=True,
         )
         return result.returncode == 0
+
+    def _resolve_github_commit_sha(self, commit: str) -> str | None:
+        if not re.fullmatch(r"[0-9a-fA-F]{6,39}", str(commit).strip()):
+            return None
+
+        repo_slug = self._github_repo_slug()
+        if not repo_slug:
+            return None
+
+        encoded_slug = "/".join(urllib.parse.quote(part, safe="") for part in repo_slug.split("/", 1))
+        encoded_commit = urllib.parse.quote(str(commit).strip(), safe="")
+        url = f"https://api.github.com/repos/{encoded_slug}/commits/{encoded_commit}"
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "repo2run-benchmark-agent",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8", errors="replace"))
+        except urllib.error.HTTPError as error:
+            if error.code in {404, 422}:
+                print(f"[Clone Strategy] GitHub cannot resolve target commit {commit}.")
+            else:
+                print(f"[Clone Strategy] GitHub commit lookup failed for {commit}: HTTP {error.code}.")
+            return None
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"[Clone Strategy] GitHub commit lookup failed for {commit}: {error}.")
+            return None
+
+        sha = str(payload.get("sha", "")).strip()
+        if re.fullmatch(r"[0-9a-fA-F]{40}", sha):
+            return sha
+        return None
+
+    def _github_repo_slug(self) -> str | None:
+        repo_url = (getattr(self, "repo_url", "") or "").strip()
+        if not repo_url:
+            return None
+
+        if repo_url.startswith("git@github.com:"):
+            path = repo_url.split(":", 1)[1]
+        else:
+            parsed = urllib.parse.urlparse(repo_url)
+            if "github.com" not in parsed.netloc.lower():
+                return None
+            path = parsed.path
+
+        path = path.strip("/")
+        if path.endswith(".git"):
+            path = path[:-4]
+        parts = [part for part in path.split("/") if part]
+        if len(parts) < 2:
+            return None
+        return f"{parts[0]}/{parts[1]}"
+
+    def _fetch_github_pull_request_refs_for_missing_commit(self, commit: str) -> bool:
+        repo_url = (getattr(self, "repo_url", "") or "").lower()
+        if "github.com" not in repo_url:
+            return False
+
+        print(
+            "[Clone Strategy] Target commit is not on ordinary refs; "
+            "fetching GitHub pull request refs."
+        )
+        command = [
+            "git",
+            "-c",
+            "http.lowSpeedLimit=1000",
+            "-c",
+            "http.lowSpeedTime=60",
+            "fetch",
+            "--filter=blob:none",
+            "origin",
+            "+refs/pull/*/head:refs/remotes/origin/pr/*",
+        ]
+        try:
+            subprocess.run(
+                command,
+                cwd=self.workplace,
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as error:
+            detail = self._format_clone_failure_detail(error)
+            print(f"[Clone Strategy Failed] GitHub pull request refs: {detail}")
+            return False
+
+        return self._git_commit_exists(commit)
 
     @staticmethod
     def _format_clone_failure_detail(error: subprocess.CalledProcessError) -> str:

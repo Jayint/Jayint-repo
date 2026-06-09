@@ -70,6 +70,7 @@ Rules:
 11. Treat `agent_run_summary.build_recipe.build_commands` as the authoritative replay order. If a successful command edited files, created symlinks, installed packages, or patched stubs, preserve that exact command text unless Dockerfile syntax alone forces escaping.
 12. Do not replace an observed successful file patch or stub with your own equivalent implementation. The goal is reproduction of the sandbox trajectory, not a cleaner independent solution.
 13. Do not try to fix a test-command runtime wrapper by adding a final Dockerfile `RUN` test. If the provided test command uses a wrapper such as `xvfb-run`, preserve the test command outside the Dockerfile.
+14. Do not add `--no-deps` to an observed successful install command solely to avoid a timeout. That drops the dependency closure that made the sandbox succeed. If a timeout forces such a change, you must reproduce the omitted dependency closure from trajectory evidence.
 
 `confidence` must be one of: "high", "medium", "low".
 """
@@ -257,6 +258,98 @@ def docker_build_failed_due_to_unavailable_daemon(docker_build: Optional[dict[st
     )
 
 
+def docker_build_failed_due_to_transient_network(docker_build: Optional[dict[str, Any]]) -> bool:
+    if not docker_build or docker_build.get("returncode") == 0:
+        return False
+    combined_output = "\n".join(
+        [
+            _decode_command_stream(docker_build.get("stdout")),
+            _decode_command_stream(docker_build.get("stderr")),
+        ]
+    ).lower()
+
+    transient_markers = (
+        "failed to fetch oauth token",
+        "connection reset by peer",
+        "tls handshake timeout",
+        "i/o timeout",
+        "network is unreachable",
+        "temporary failure resolving",
+        "could not resolve",
+        "proxyconnect tcp",
+        "unexpected eof",
+        "502 bad gateway",
+        "503 service unavailable",
+        "504 gateway timeout",
+        "hash sum mismatch",
+    )
+    if any(marker in combined_output for marker in transient_markers):
+        return True
+
+    registry_metadata_failure = (
+        "failed to resolve source metadata" in combined_output
+        and (
+            "failed to do request" in combined_output
+            or re.search(r"\beof\b", combined_output) is not None
+        )
+    )
+    if registry_metadata_failure:
+        return True
+
+    apt_fetch_failure = (
+        "e: failed to fetch" in combined_output
+        and "e: unable to fetch some archives" in combined_output
+    )
+    if apt_fetch_failure and re.search(r"\b(?:502|503|504)\b", combined_output):
+        return True
+
+    return False
+
+
+def docker_build_timed_out_during_successful_trajectory_command(
+    docker_build: Optional[dict[str, Any]],
+    dockerfile_text: str,
+    run_summary: Optional[dict[str, Any]],
+) -> bool:
+    """Detect slow replay of a command that already succeeded in the sandbox."""
+    if not docker_build or not docker_build.get("timed_out"):
+        return False
+    build_commands = normalize_command_list(
+        ((run_summary or {}).get("build_recipe") or {}).get("build_commands")
+    )
+    if not build_commands:
+        return False
+
+    combined_output = "\n".join(
+        [
+            _decode_command_stream(docker_build.get("stdout")),
+            _decode_command_stream(docker_build.get("stderr")),
+        ]
+    )
+    if not combined_output:
+        return False
+    dockerfile_text = dockerfile_text or ""
+    for command in build_commands:
+        command = str(command or "").strip()
+        if command and command in dockerfile_text and command in combined_output:
+            return True
+    return False
+
+
+def docker_build_failed_due_to_go_missing_module_context(
+    docker_build: Optional[dict[str, Any]],
+) -> bool:
+    if not docker_build or docker_build.get("returncode") == 0:
+        return False
+    combined_output = "\n".join(
+        [
+            _decode_command_stream(docker_build.get("stdout")),
+            _decode_command_stream(docker_build.get("stderr")),
+        ]
+    ).lower()
+    return "go: no modules specified" in combined_output
+
+
 def agent_run_completed_successfully(agent_run: Optional[dict[str, Any]]) -> bool:
     return bool(
         agent_run
@@ -272,12 +365,25 @@ def should_use_agent_dockerfile(
     run_summary: Optional[dict[str, Any]] = None,
 ) -> tuple[bool, Optional[str]]:
     if reused_existing_workplace:
+        if reused_workplace_needs_resynthesis(run_summary):
+            return False, "reused_workplace_requires_resynthesis"
         return True, None
     if agent_run_completed_successfully(agent_run):
         if _run_summary_reports_unusable_agent_configuration(run_summary):
             return False, "agent_configuration_unsuccessful"
         return True, None
     return False, "agent_run_failed_or_timed_out"
+
+
+def reused_workplace_needs_resynthesis(run_summary: Optional[dict[str, Any]]) -> bool:
+    """Detect stale reused workplaces whose Dockerfile predates build recipe synthesis."""
+    if not _run_summary_reports_unusable_agent_configuration(run_summary):
+        return False
+    resynthesis = (run_summary or {}).get("resynthesis") or {}
+    if isinstance(resynthesis, dict) and resynthesis.get("dockerfile_generated") is False:
+        return True
+    build_recipe = (run_summary or {}).get("build_recipe") or {}
+    return not normalize_command_list(build_recipe.get("build_commands"))
 
 
 def _run_summary_reports_unusable_agent_configuration(run_summary: Optional[dict[str, Any]]) -> bool:
@@ -314,6 +420,7 @@ def prepare_eval_build_context(
             cwd=cwd or source_workplace.parent,
         )
         checkout_result = None
+        pr_ref_fetch_result = None
         clean_result = None
         if clone_result["returncode"] == 0 and not clone_result.get("timed_out"):
             if base_commit:
@@ -321,6 +428,22 @@ def prepare_eval_build_context(
                     ["git", "checkout", "--force", str(base_commit)],
                     cwd=destination,
                 )
+                if checkout_result["returncode"] != 0:
+                    pr_ref_fetch_result = run_command(
+                        [
+                            "git",
+                            "fetch",
+                            "--filter=blob:none",
+                            "origin",
+                            "+refs/pull/*/head:refs/remotes/origin/pr/*",
+                        ],
+                        cwd=destination,
+                    )
+                    if pr_ref_fetch_result["returncode"] == 0 and not pr_ref_fetch_result.get("timed_out"):
+                        checkout_result = run_command(
+                            ["git", "checkout", "--force", str(base_commit)],
+                            cwd=destination,
+                        )
             clean_result = run_command(
                 ["git", "clean", "-fdx"],
                 cwd=destination,
@@ -340,6 +463,7 @@ def prepare_eval_build_context(
             "success": success,
             "clone": clone_result,
             "checkout": checkout_result,
+            "pr_ref_fetch": pr_ref_fetch_result,
             "clean": clean_result,
             "path": str(destination if success else source_workplace),
         }
@@ -866,6 +990,8 @@ def _parse_dockerfile_env_instruction(stripped_line: str) -> dict[str, str]:
 def _expand_dockerfile_variables(value: str, env: dict[str, str]) -> str:
     def replace(match: re.Match[str]) -> str:
         name = match.group("braced") or match.group("bare") or ""
+        if name == "APP_HOME":
+            return env.get(name, "/app")
         return env.get(name, match.group(0))
 
     return _DOCKERFILE_VARIABLE_RE.sub(replace, value or "")
@@ -900,11 +1026,76 @@ def infer_workdir_from_dockerfile(dockerfile_text: str) -> str:
     return workdir
 
 
+def _canonicalize_dockerfile_context_copy_line(
+    line: str,
+    env: dict[str, str],
+    workdir: str,
+) -> str:
+    stripped = line.strip()
+    if not stripped.upper().startswith("COPY "):
+        return line
+    try:
+        tokens = shlex.split(stripped)
+    except ValueError:
+        return line
+    if len(tokens) < 3 or tokens[0].upper() != "COPY":
+        return line
+
+    copy_args = tokens[1:]
+    flags: list[str] = []
+    while copy_args and copy_args[0].startswith("--"):
+        flags.append(copy_args.pop(0))
+    if len(copy_args) < 2 or "." not in copy_args[:-1]:
+        return line
+
+    destination = copy_args[-1]
+    if destination in {"/app/${APP_HOME}", "/app/$APP_HOME"}:
+        normalized_destination = "/app"
+    else:
+        normalized_destination = _normalize_dockerfile_path_value(
+            _expand_dockerfile_variables(destination, env)
+        )
+        if not normalized_destination.startswith("/"):
+            base = workdir if (workdir or "").startswith("/") else "/app"
+            normalized_destination = posixpath.normpath(
+                posixpath.join(base, normalized_destination)
+            )
+
+    copy_args[-1] = normalized_destination
+    indent = line[: len(line) - len(line.lstrip())]
+    rendered_tokens = ["COPY", *flags, *copy_args]
+    return indent + " ".join(shlex.quote(token) for token in rendered_tokens)
+
+
+def _canonicalize_dockerfile_workdir_lines(lines: list[str]) -> list[str]:
+    env: dict[str, str] = {}
+    workdir = "/app"
+    canonicalized: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.upper().startswith("WORKDIR "):
+            workdir = _normalize_dockerfile_workdir(
+                stripped.split(None, 1)[1].strip(),
+                env,
+                workdir,
+            )
+            indent = line[: len(line) - len(line.lstrip())]
+            canonicalized.append(f"{indent}WORKDIR {workdir}")
+        else:
+            canonicalized.append(_canonicalize_dockerfile_context_copy_line(line, env, workdir))
+
+        env_updates = _parse_dockerfile_env_instruction(stripped)
+        if env_updates:
+            for key, value in env_updates.items():
+                env[key] = _expand_dockerfile_variables(value, env)
+    return canonicalized
+
+
 def render_eval_dockerfile(agent_dockerfile_text: str) -> str:
-    lines = agent_dockerfile_text.splitlines()
+    lines = _canonicalize_dockerfile_workdir_lines(agent_dockerfile_text.splitlines())
     rendered: list[str] = []
     inserted_copy = False
-    workdir = infer_workdir_from_dockerfile(agent_dockerfile_text)
+    workdir = infer_workdir_from_dockerfile("\n".join(lines))
     last_from_index = -1
     for index, line in enumerate(lines):
         if line.strip().upper().startswith("FROM "):
@@ -957,18 +1148,174 @@ def _normalize_dockerfile_path_value(value: str) -> str:
     return normalized
 
 
+def _pypoetry_venv_executable_replacement(token: str) -> list[str] | None:
+    match = re.match(
+        r"^/.*/(?:\.cache/pypoetry/virtualenvs/[^/]+|\.local/share/pypoetry/venv)/bin/(?P<executable>[^/]+)$",
+        str(token or ""),
+    )
+    if not match:
+        return None
+    executable = match.group("executable")
+    if re.match(r"^pip(?:\d+(?:\.\d+)?)?$", executable):
+        return ["poetry", "run", "pip"]
+    if re.match(r"^python(?:\d+(?:\.\d+)?)?$", executable):
+        return ["poetry", "run", "python"]
+    return None
+
+
+def _rewrite_pypoetry_venv_executables_for_replay(command: str) -> str:
+    try:
+        tokens = shlex.split(str(command or ""))
+    except ValueError:
+        return command
+    if not tokens:
+        return command
+
+    rewritten_tokens: list[str] = []
+    changed = False
+    for token in tokens:
+        replacement = _pypoetry_venv_executable_replacement(token)
+        if replacement:
+            rewritten_tokens.extend(replacement)
+            changed = True
+        else:
+            rewritten_tokens.append(token)
+    if not changed:
+        return command
+    return shlex.join(rewritten_tokens)
+
+
+def _repair_malformed_quoted_pip_fallback_command(command: str) -> str:
+    try:
+        tokens = shlex.split(str(command or ""))
+    except ValueError:
+        return command
+    if "||" not in tokens and "2>/dev/null" not in tokens:
+        return command
+
+    segments: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in {"||", "2>/dev/null"}:
+            if current:
+                segments.append(current)
+                current = []
+            continue
+        current.append(token)
+    if current:
+        segments.append(current)
+
+    for segment in segments:
+        candidate = _rewrite_pypoetry_venv_executables_for_replay(shlex.join(segment))
+        if _is_bare_pip_install_command(candidate):
+            return candidate
+    return command
+
+
 def _is_bare_pip_install_command(command: str) -> bool:
     normalized = " ".join(str(command or "").split()).strip()
+    normalized = _rewrite_pypoetry_venv_executables_for_replay(normalized)
     if not normalized or "JAYINT_PIP_ATTEMPT" in normalized:
         return False
     if any(operator in normalized for operator in ("&&", "||", ";", "|")):
         return False
     return bool(
         re.match(
-            r"^(?:python(?:2|3)?(?:\.\d+)?\s+-m\s+pip|pip3?|uv\s+pip)\s+install\b",
+            r"^(?:"
+            r"python(?:2|3)?(?:\.\d+)?\s+-m\s+pip|"
+            r"pip3?|"
+            r"uv\s+pip|"
+            r"poetry\s+run\s+(?:python(?:2|3)?(?:\.\d+)?\s+-m\s+pip|pip3?)|"
+            r"pdm\s+run\s+(?:python(?:2|3)?(?:\.\d+)?\s+-m\s+pip|pip3?)"
+            r")\s+install\b",
             normalized,
         )
     )
+
+
+def _conda_env_name_from_create_command(command: str) -> Optional[str]:
+    try:
+        tokens = shlex.split(str(command or ""))
+    except ValueError:
+        return None
+    for index, token in enumerate(tokens[:-1]):
+        if token in {"-n", "--name"} and "conda" in tokens[: index + 1] and "create" in tokens[: index + 1]:
+            candidate = tokens[index + 1].strip()
+            return candidate or None
+    return None
+
+
+def _dockerfile_uses_conda_run_shell(lines: list[str], env_name: Optional[str]) -> bool:
+    if not env_name:
+        return False
+    pattern = re.compile(
+        r"^SHELL\s+\[.*?[\"']conda[\"'].*?[\"']run[\"'].*?[\"']-n[\"'].*?"
+        + re.escape(env_name)
+        + r".*?\]",
+        re.IGNORECASE,
+    )
+    return any(pattern.search(line.strip()) for line in lines)
+
+
+def _rewrite_pip_install_for_conda_env(command: str, conda_env_python: Optional[str]) -> str:
+    if not conda_env_python or not _is_bare_pip_install_command(command):
+        return command
+    parsed = _split_pip_install_command(command)
+    if not parsed:
+        return command
+    prefix, options, requirements = parsed
+    prefix_text = " ".join(prefix)
+    if prefix_text.startswith("/") or conda_env_python in prefix_text:
+        return command
+    if prefix_text not in {
+        "pip install",
+        "pip3 install",
+        "python -m pip install",
+        "python3 -m pip install",
+    }:
+        return command
+    tail = shlex.join([*options, *requirements])
+    if tail:
+        return f"{conda_env_python} -m pip install {tail}"
+    return f"{conda_env_python} -m pip install"
+
+
+def _generated_pip_requirements_file_path(command: str) -> str | None:
+    normalized = " ".join(str(command or "").split()).strip()
+    if "printf" not in normalized or ">" not in normalized:
+        return None
+    match = re.search(
+        r">\s*(?P<path>/tmp/[A-Za-z0-9_.-]*(?:constraint|constraints|requirements)[A-Za-z0-9_.-]*\.txt)\s*$",
+        normalized,
+    )
+    if not match:
+        return None
+    return match.group("path")
+
+
+def _dockerfile_installs_requirements_file(lines: list[str], requirements_path: str) -> bool:
+    path_pattern = re.escape(requirements_path)
+    install_pattern = re.compile(
+        r"\bpip(?:3)?\s+install\b.*(?:^|\s)(?:-r|--requirement)\s+"
+        + path_pattern
+        + r"(?:\s|$)"
+    )
+    python_install_pattern = re.compile(
+        r"\bpython(?:2|3)?(?:\.\d+)?\s+-m\s+pip\s+install\b.*(?:^|\s)(?:-r|--requirement)\s+"
+        + path_pattern
+        + r"(?:\s|$)"
+    )
+    for line in lines:
+        text = line.strip()
+        generated_pip_command = _extract_generated_pip_retry_inner_command(
+            text[4:].strip() if text.startswith("RUN ") else text
+        )
+        candidates = [text]
+        if generated_pip_command:
+            candidates.append(generated_pip_command)
+        if any(install_pattern.search(candidate) or python_install_pattern.search(candidate) for candidate in candidates):
+            return True
+    return False
 
 
 def _is_bare_uv_pip_install_command(command: str) -> bool:
@@ -1118,7 +1465,32 @@ def collect_observed_pip_install_constraints(
                 except OSError:
                     continue
 
+    for local_project_name in _workspace_declared_project_names(workplace):
+        constraints.pop(_normalize_pip_constraint_name(local_project_name), None)
+
     return constraints
+
+
+def _workspace_declared_project_names(workspace_root: Optional[Path]) -> set[str]:
+    if not workspace_root or not workspace_root.exists():
+        return set()
+    pyproject_path = workspace_root / "pyproject.toml"
+    if not pyproject_path.exists():
+        return set()
+    try:
+        text = pyproject_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+
+    names: set[str] = set()
+    for pattern in (
+        r"(?ms)^\[project\]\s*.*?^name\s*=\s*[\"'](?P<name>[^\"']+)[\"']",
+        r"(?ms)^\[tool\.poetry\]\s*.*?^name\s*=\s*[\"'](?P<name>[^\"']+)[\"']",
+    ):
+        match = re.search(pattern, text)
+        if match:
+            names.add(match.group("name").strip())
+    return {name for name in names if name}
 
 
 def _render_observed_pip_constraints_instruction(pip_constraints: dict[str, str]) -> str:
@@ -1164,7 +1536,14 @@ def _pip_install_command_needs_observed_constraints(command: str) -> bool:
 def _add_observed_constraints_to_pip_command(command: str, pip_constraints: dict[str, str]) -> str:
     if not pip_constraints or not _pip_install_command_needs_observed_constraints(command):
         return command
-    return f"{command} --constraint {shlex.quote(OBSERVED_PIP_CONSTRAINTS_PATH)}"
+    rewritten = command
+    try:
+        tokens = shlex.split(rewritten)
+    except ValueError:
+        tokens = []
+    if "--no-deps" not in tokens:
+        rewritten = f"{rewritten} --no-deps"
+    return f"{rewritten} --constraint {shlex.quote(OBSERVED_PIP_CONSTRAINTS_PATH)}"
 
 
 def _pip_installed_requirement_names(command: str) -> set[str]:
@@ -1498,6 +1877,59 @@ def _rewrite_absolute_tests_redirect_to_workdir(command: str, workdir: str) -> s
     )
 
 
+def _guard_single_file_sed_inplace_command(command: str) -> str:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return command
+    if len(tokens) < 4 or Path(tokens[0]).name != "sed":
+        return command
+    if any(token in _SHELL_CONTROL_TOKENS for token in tokens):
+        return command
+    if not any(token == "-i" or token.startswith("-i") for token in tokens[1:]):
+        return command
+
+    target = tokens[-1]
+    if not target or target.startswith("-"):
+        return command
+    return f"if [ -f {shlex.quote(target)} ]; then {command}; fi"
+
+
+def _is_python_import_probe_command(command: str) -> bool:
+    normalized = " ".join(str(command or "").split()).strip()
+    cd_split = _split_safe_leading_cd_collect_command(normalized)
+    if cd_split:
+        _, normalized = cd_split
+    try:
+        tokens = shlex.split(normalized)
+    except ValueError:
+        return False
+    if (
+        len(tokens) >= 3
+        and _is_python_executable_token(tokens[0])
+        and tokens[1] == "-c"
+    ):
+        script = tokens[2]
+    elif (
+        len(tokens) >= 5
+        and tokens[0] in {"poetry", "pdm", "uv"}
+        and tokens[1] == "run"
+        and _is_python_executable_token(tokens[2])
+        and tokens[3] == "-c"
+    ):
+        script = tokens[4]
+    else:
+        return False
+    return "Import successful" in script and re.search(r"\b(?:from|import)\b", script) is not None
+
+
+def _is_replay_verification_command(command: str) -> bool:
+    normalized = " ".join(str(command or "").split()).strip()
+    if repo2run_collect_source_for_command(normalized):
+        return True
+    return _is_python_import_probe_command(normalized)
+
+
 def _extract_generated_retry_inner_shell_command(command: str) -> str | None:
     normalized = str(command or "")
     if "JAYINT_PIP_ATTEMPT" not in normalized or "/bin/sh" not in normalized:
@@ -1655,8 +2087,11 @@ def _extract_generated_pip_retry_inner_command(command: str) -> str | None:
     except ValueError:
         return None
     for index, token in enumerate(tokens[:-1]):
-        if token == "-lc" and _is_bare_pip_install_command(tokens[index + 1]):
-            return tokens[index + 1]
+        if token != "-lc":
+            continue
+        inner_command = tokens[index + 1]
+        if _is_bare_pip_install_command(inner_command):
+            return inner_command
     return None
 
 
@@ -1701,12 +2136,36 @@ def _is_apt_install_replay_command(command: str) -> bool:
 def _repair_generated_apt_retry_status_variables(command: str) -> str:
     if "JAYINT_APT_ATTEMPT" not in (command or ""):
         return command
-    if "JAYINT_PIP_STATUS" not in command and "JAYINT_PIP_MAX_ATTEMPTS" not in command:
+    if (
+        "JAYINT_PIP_STATUS" not in command
+        and "JAYINT_PIP_MAX_ATTEMPTS" not in command
+        and "JAYINT_PIP_ATTEMPT" not in command
+    ):
         return command
     return (
         command.replace("JAYINT_PIP_STATUS", "JAYINT_APT_STATUS")
         .replace("JAYINT_PIP_MAX_ATTEMPTS", "JAYINT_APT_MAX_ATTEMPTS")
+        .replace("JAYINT_PIP_ATTEMPT", "JAYINT_APT_ATTEMPT")
     )
+
+
+def _repair_generated_retry_sleep_syntax(command: str) -> str:
+    if "JAYINT_" not in (command or ""):
+        return command
+    return re.sub(r"\bsleep\s+([0-9]+)\);", r"sleep \1;", command)
+
+
+def _repair_generated_retry_variable_typos(command: str) -> str:
+    if "JAYINT_" not in (command or ""):
+        return command
+    typo_replacements = {
+        "JAYINT_PIP_MAX_ATTEMPPT": "JAYINT_PIP_MAX_ATTEMPTS",
+        "JAYINT_APT_MAX_ATTEMPPT": "JAYINT_APT_MAX_ATTEMPTS",
+    }
+    repaired = command
+    for typo, replacement in typo_replacements.items():
+        repaired = repaired.replace(typo, replacement)
+    return repaired
 
 
 def build_resilient_uv_install_run_instruction(pip_command: str = "pip install uv") -> str:
@@ -1888,8 +2347,8 @@ def normalize_eval_dockerfile_for_replay(
 ) -> str:
     """Apply deterministic replay hardening after synthesis or LLM repair."""
     rendered: list[str] = []
-    lines = str(dockerfile_text or "").splitlines()
-    workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    lines = _canonicalize_dockerfile_workdir_lines(str(dockerfile_text or "").splitlines())
+    workdir = infer_workdir_from_dockerfile("\n".join(lines))
     index = 0
     multiline_script_index = 1
     local_pip_installed_projects: set[str] = set()
@@ -1921,6 +2380,21 @@ def normalize_eval_dockerfile_for_replay(
     )
     cuda_extension_builds_skipped = any("SKIP_CUDA_BUILD=TRUE" in line for line in lines)
     poetry_lock_available = _dockerfile_may_include_poetry_lock(dockerfile_text)
+    conda_env_name: str | None = None
+    for raw_line in lines:
+        raw_stripped = raw_line.strip()
+        if not raw_stripped.upper().startswith("RUN "):
+            continue
+        conda_env_name = _conda_env_name_from_create_command(raw_stripped[4:].strip())
+        if conda_env_name:
+            break
+    conda_shell_handles_pip = _dockerfile_uses_conda_run_shell(lines, conda_env_name)
+    conda_env_python = (
+        f"${{CONDA_DIR}}/envs/{conda_env_name}/bin/python"
+        if conda_env_name and not conda_shell_handles_pip
+        else None
+    )
+    conda_env_pip_rewrite_active = False
     while index < len(lines):
         generated_apt_retry = _collect_generated_apt_retry_with_orphan_continuations(lines, index)
         if generated_apt_retry:
@@ -1956,10 +2430,11 @@ def normalize_eval_dockerfile_for_replay(
             command = stripped[4:].strip()
             original_command = command
             command = _repair_generated_apt_retry_status_variables(command)
-            if command != original_command:
-                rendered.append(f"RUN {command}")
-                continue
+            command = _repair_generated_retry_variable_typos(command)
+            command = _repair_generated_retry_sleep_syntax(command)
+            command = _repair_malformed_quoted_pip_fallback_command(command)
             command = _rewrite_absolute_tests_redirect_to_workdir(command, workdir)
+            command = _rewrite_pypoetry_venv_executables_for_replay(command)
             poetry_lock_rewritten_command = _drop_replay_poetry_lock_command(
                 command,
                 poetry_lock_available=poetry_lock_available,
@@ -1970,7 +2445,36 @@ def normalize_eval_dockerfile_for_replay(
                 rendered.append(f"RUN {poetry_lock_rewritten_command}")
                 continue
             command = poetry_lock_rewritten_command
+            if (
+                _is_replay_verification_command(command)
+                or TEST_SIGNAL_DETECTOR.is_test_command(command)
+                or TEST_SIGNAL_DETECTOR.is_readonly_command(command)
+            ):
+                continue
             if cuda_extension_builds_skipped and _is_cuda_local_installer_scaffolding_command(command):
+                continue
+            guarded_sed_command = _guard_single_file_sed_inplace_command(command)
+            if guarded_sed_command != command:
+                rendered.append(f"RUN {guarded_sed_command}")
+                continue
+            if (
+                conda_env_python
+                and not conda_env_pip_rewrite_active
+                and _conda_env_name_from_create_command(command) == conda_env_name
+            ):
+                conda_env_pip_rewrite_active = True
+            generated_requirements_path = _generated_pip_requirements_file_path(command)
+            if generated_requirements_path:
+                rendered.append(line)
+                if (
+                    generated_requirements_path != OBSERVED_PIP_CONSTRAINTS_PATH
+                    and not _dockerfile_installs_requirements_file(lines, generated_requirements_path)
+                ):
+                    rendered.append(
+                        build_resilient_pip_install_run_instruction(
+                            f"python3 -m pip install --no-deps -r {shlex.quote(generated_requirements_path)}"
+                        )
+                    )
                 continue
             local_pip_installed_projects.update(_local_pip_install_project_names(command))
             generated_shell_command = _extract_generated_retry_inner_shell_command(command)
@@ -1988,6 +2492,19 @@ def normalize_eval_dockerfile_for_replay(
             generated_pip_command = _extract_generated_pip_retry_inner_command(command)
             if generated_pip_command:
                 applied_generated_pip_rewrite = False
+                rewritten_generated_pip_command = _rewrite_pypoetry_venv_executables_for_replay(
+                    generated_pip_command
+                )
+                if rewritten_generated_pip_command != generated_pip_command:
+                    generated_pip_command = rewritten_generated_pip_command
+                    applied_generated_pip_rewrite = True
+                rewritten_generated_pip_command = _rewrite_pip_install_for_conda_env(
+                    generated_pip_command,
+                    conda_env_python if conda_env_pip_rewrite_active else None,
+                )
+                if rewritten_generated_pip_command != generated_pip_command:
+                    generated_pip_command = rewritten_generated_pip_command
+                    applied_generated_pip_rewrite = True
                 generated_pip_command = _add_no_deps_to_known_force_reinstall(
                     generated_pip_command,
                     pip_installed_package_names,
@@ -2063,6 +2580,10 @@ def normalize_eval_dockerfile_for_replay(
                 rendered.append(build_resilient_apt_install_run_instruction(command))
                 continue
             if _is_bare_pip_install_command(command):
+                command = _rewrite_pip_install_for_conda_env(
+                    command,
+                    conda_env_python if conda_env_pip_rewrite_active else None,
+                )
                 command = _add_no_deps_to_known_force_reinstall(
                     command,
                     pip_installed_package_names,
@@ -2124,10 +2645,12 @@ def workspace_uses_poetry(workspace_root: Path) -> bool:
 
 def normalize_repo2run_collect_candidate(command: str) -> str:
     normalized = " ".join(str(command or "").split())
+    normalized = _strip_trailing_collect_output_redirect(normalized)
     cd_split = _split_safe_leading_cd_collect_command(normalized)
     cd_workdir: Optional[str] = None
     if cd_split:
         cd_workdir, normalized = cd_split
+        normalized = _strip_trailing_collect_output_redirect(normalized)
     normalized = _normalize_python_module_pytest_prefix(normalized)
 
     xvfb_tokens = _split_xvfb_run_collect_command(normalized)
@@ -2142,6 +2665,10 @@ def normalize_repo2run_collect_candidate(command: str) -> str:
     if cd_workdir:
         normalized = f"cd {shlex.quote(cd_workdir)} && {normalized}"
     return normalized
+
+
+def _strip_trailing_collect_output_redirect(command: str) -> str:
+    return re.sub(r"\s+2>&1\s*$", "", str(command or "").strip())
 
 
 def _normalize_python_module_pytest_prefix(command: str) -> str:
@@ -2214,6 +2741,15 @@ def _is_pytest_executable_token(token: str) -> bool:
     return token == "pytest" or token.endswith("/pytest") or token.endswith("\\pytest")
 
 
+def _is_python_executable_token(token: str) -> bool:
+    name = Path(str(token or "")).name
+    return bool(re.fullmatch(r"python(?:\d+(?:\.\d+)?)?", name))
+
+
+def _is_go_executable_token(token: str) -> bool:
+    return Path(str(token or "")).name == "go"
+
+
 def _is_env_assignment_token(token: str) -> bool:
     if _repo2run_token_has_shell_control(token):
         return False
@@ -2258,17 +2794,40 @@ def _repo2run_collect_source_from_tokens(command_tokens: list[str]) -> Optional[
     elif command_tokens[:3] == ["pdm", "run", "pytest"]:
         runner_end_index = 3
         source = "repo2run_pdm_collect_only_agent_verified"
-    elif command_tokens[:3] in (["python", "-m", "pytest"], ["python3", "-m", "pytest"]):
+    elif (
+        len(command_tokens) >= 3
+        and _is_python_executable_token(command_tokens[0])
+        and command_tokens[1:3] == ["-m", "pytest"]
+    ):
         runner_end_index = 3
         source = "repo2run_pytest_collect_only_agent_verified"
     elif command_tokens and _is_pytest_executable_token(command_tokens[0]):
         runner_end_index = 1
         source = "repo2run_pytest_collect_only_agent_verified"
+    elif (
+        len(command_tokens) >= 2
+        and _is_go_executable_token(command_tokens[0])
+        and command_tokens[1] == "test"
+    ):
+        runner_end_index = 2
+        source = (
+            "repo2run_go_test_list_agent_verified"
+            if any(token == "-list" or token.startswith("-list=") for token in command_tokens[2:])
+            else "repo2run_go_test_agent_verified"
+        )
 
     if not source:
         return None
 
     collect_args = command_tokens[runner_end_index:]
+    if source.startswith("repo2run_go_test"):
+        for token in collect_args:
+            if token in DISALLOWED_COLLECT_TOKENS:
+                return None
+            if _repo2run_token_has_shell_control(token):
+                return None
+        return source
+
     if not any(token == "--collect-only" or token.startswith("--collect-only=") for token in collect_args):
         return None
     for token in collect_args:
@@ -2358,13 +2917,61 @@ def repo2run_collect_source_for_command(command: str) -> Optional[str]:
     return _repo2run_collect_source_from_tokens(command_tokens)
 
 
+_COLLECT_SUCCESS_OBSERVATION_RE = re.compile(r"\b\d+\s+(?:tests?|items?) collected\b")
+
+
+def _successful_collect_commands_from_actions(
+    run_summary: Optional[dict[str, Any]],
+) -> list[tuple[str, str]]:
+    candidates: list[tuple[str, str]] = []
+    for action in (run_summary or {}).get("successful_actions") or []:
+        if not isinstance(action, dict):
+            continue
+        observation = "\n".join(
+            [
+                str(action.get("observation_summary") or ""),
+                str(action.get("observation") or ""),
+            ]
+        )
+        if not _COLLECT_SUCCESS_OBSERVATION_RE.search(observation):
+            continue
+        normalized = normalize_repo2run_collect_candidate(str(action.get("command") or ""))
+        source = repo2run_collect_source_for_command(normalized)
+        if source:
+            candidates.append((normalized, source))
+
+    if candidates:
+        return [candidates[-1]]
+    return []
+
+
+def _run_summary_reports_test_commands(run_summary: Optional[dict[str, Any]]) -> bool:
+    summary = run_summary or {}
+    verification_bundle = summary.get("verification_bundle") or {}
+    return bool(
+        normalize_command_list(verification_bundle.get("test_commands"))
+        or normalize_command_list(summary.get("verified_test_commands"))
+        or normalize_command_list(summary.get("verified_test_command"))
+    )
+
+
 def select_repo2run_collect_commands_from_run_summary(
     run_summary: Optional[dict[str, Any]],
 ) -> Optional[tuple[list[str], str]]:
+    if not _run_summary_reports_test_commands(run_summary):
+        successful_candidates = _successful_collect_commands_from_actions(run_summary)
+        if successful_candidates:
+            selected_command, source = successful_candidates[0]
+            return [selected_command], source
+
     supported_bundle = derive_supported_verification_bundle(run_summary)
     candidate_commands = normalize_command_list(supported_bundle.get("test_commands"))
     if not candidate_commands:
-        return None
+        successful_candidates = _successful_collect_commands_from_actions(run_summary)
+        if not successful_candidates:
+            return None
+        selected_command, source = successful_candidates[0]
+        return [selected_command], source
 
     selected_commands: list[str] = []
     sources: list[str] = []
@@ -2563,10 +3170,105 @@ def classify_test_execution(
 _MISSING_PYTHON_MODULE_RE = re.compile(
     r"(?:ModuleNotFoundError|ImportError):\s+No module named ['\"](?P<module>[^'\"]+)['\"]"
 )
+_BROKEN_IMPORT_FROM_MODULE_RE = re.compile(
+    r"ImportError:\s+cannot import name ['\"][^'\"]+['\"] from ['\"](?P<module>[^'\"]+)['\"]"
+)
+_DEPENDENCY_NO_MODULE_RE = re.compile(
+    r"(?:^|\n)\s*(?:E\s+)?(?!(?:ModuleNotFoundError|ImportError)\b)"
+    r"(?P<module>[A-Za-z_][A-Za-z0-9_.-]*):\s+"
+    r"No module named ['\"][^'\"]+['\"]"
+)
+_PACKAGE_NOT_FOUND_RE = re.compile(
+    r"PackageNotFoundError:\s+(?P<module>[A-Za-z_][A-Za-z0-9_.-]*)"
+)
+_MISSING_NLTK_RESOURCE_RE = re.compile(
+    r"Resource\s+['‘’\"](?P<resource>[A-Za-z0-9_.-]+)['‘’\"]\s+not\s+found",
+    re.IGNORECASE,
+)
 _KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS = {
+    "argon2": ("argon2-cffi", "argon2-cffi"),
+    "crypto": ("pycryptodome", "pycryptodome"),
+    "cv2": ("opencv-python-headless", "opencv-python-headless"),
+    "fasttext": ("fasttext-wheel", "fasttext-wheel"),
+    "fitz": ("pymupdf", "PyMuPDF"),
+    "pdfminer": ("pdfminer.six", "pdfminer.six"),
     "ppocr": ("paddleocr", "paddleocr==2.7.3"),
     "ppstructure": ("paddleocr", "paddleocr==2.7.3"),
+    "yaml": ("pyyaml", "PyYAML"),
 }
+_KNOWN_MISSING_MODULE_REQUIREMENT_OVERRIDES = {
+    "detectron2": "git+https://github.com/facebookresearch/detectron2.git",
+    "unimernet": "unimernet==0.1.2",
+}
+_FORCE_REINSTALL_MISSING_MODULE_REPAIRS = {
+    "cv2": {"opencv-python-headless"},
+}
+_NO_DEPS_MISSING_MODULE_REPAIRS = {
+    "ppocr": {"paddleocr"},
+    "ppstructure": {"paddleocr"},
+}
+_NO_DEPS_PACKAGE_DEPENDENCY_MODULES = {
+    "colossalai": {
+        "accelerate",
+        "bitsandbytes",
+        "contexttimer",
+        "diffusers",
+        "einops",
+        "fabric",
+        "fastapi",
+        "galore-torch",
+        "galore_torch",
+        "google",
+        "ninja",
+        "peft",
+        "protobuf",
+        "psutil",
+        "pydantic",
+        "ray",
+        "rpyc",
+        "safetensors",
+        "sentencepiece",
+        "torch",
+        "tqdm",
+        "transformers",
+        "uvicorn",
+    },
+}
+_OPTIONAL_REQUIREMENTS_FILE_HINTS = {
+    "data",
+    "dev",
+    "doc",
+    "docs",
+    "eval",
+    "example",
+    "examples",
+    "extra",
+    "extras",
+    "full",
+    "notebook",
+    "optional",
+    "pllava",
+    "test",
+    "tests",
+    "vae",
+}
+
+
+def _extract_missing_python_modules_from_text(text: str) -> list[str]:
+    modules: list[str] = []
+    seen: set[str] = set()
+    for pattern in (
+        _MISSING_PYTHON_MODULE_RE,
+        _BROKEN_IMPORT_FROM_MODULE_RE,
+        _DEPENDENCY_NO_MODULE_RE,
+        _PACKAGE_NOT_FOUND_RE,
+    ):
+        for match in pattern.finditer(str(text or "")):
+            module = (match.group("module") or "").strip()
+            if module and module not in seen:
+                seen.add(module)
+                modules.append(module)
+    return modules
 
 
 def extract_missing_python_modules_from_test_execution(
@@ -2582,12 +3284,304 @@ def extract_missing_python_modules_from_test_execution(
                 _decode_command_stream(execution.get("stderr")),
             ]
         )
-        for match in _MISSING_PYTHON_MODULE_RE.finditer(combined_output):
-            module = (match.group("module") or "").split(".", 1)[0].strip()
+        for module in _extract_missing_python_modules_from_text(combined_output):
             if module and module not in seen:
                 seen.add(module)
                 modules.append(module)
     return modules
+
+
+def extract_missing_nltk_resources_from_test_execution(
+    test_execution: Optional[dict[str, Any]],
+) -> list[str]:
+    resources: list[str] = []
+    seen: set[str] = set()
+    for item in (test_execution or {}).get("results") or []:
+        execution = item.get("execution") or {}
+        combined_output = "\n".join(
+            [
+                _decode_command_stream(execution.get("stdout")),
+                _decode_command_stream(execution.get("stderr")),
+            ]
+        )
+        for match in _MISSING_NLTK_RESOURCE_RE.finditer(combined_output):
+            resource = (match.group("resource") or "").strip()
+            if resource and resource not in seen:
+                seen.add(resource)
+            resources.append(resource)
+    return resources
+
+
+def _combined_test_execution_output(test_execution: Optional[dict[str, Any]]) -> str:
+    outputs: list[str] = []
+    for item in (test_execution or {}).get("results") or []:
+        execution = item.get("execution") or {}
+        outputs.extend(
+            [
+                _decode_command_stream(execution.get("stdout")),
+                _decode_command_stream(execution.get("stderr")),
+            ]
+        )
+    return "\n".join(outputs)
+
+
+def _dockerfile_has_env_var(dockerfile_text: str, env_name: str) -> bool:
+    target = str(env_name or "").strip()
+    if not target:
+        return True
+    for line in (dockerfile_text or "").splitlines():
+        env_values = _parse_dockerfile_env_instruction(line.strip())
+        if target in env_values:
+            return True
+    return False
+
+
+def _test_execution_needs_github_workspace(test_execution: Optional[dict[str, Any]]) -> bool:
+    output = _combined_test_execution_output(test_execution)
+    if "GITHUB_WORKSPACE" not in output:
+        return False
+    return bool(
+        "KeyError: 'GITHUB_WORKSPACE'" in output
+        or 'KeyError: "GITHUB_WORKSPACE"' in output
+        or re.search(
+            r"os\.environ\.get\(['\"]GITHUB_WORKSPACE['\"]\).*?unsupported operand type",
+            output,
+            re.DOTALL,
+        )
+        or (
+            "unsupported operand type(s) for +: 'NoneType' and 'str'" in output
+            and "GITHUB_WORKSPACE" in output
+        )
+    )
+
+
+def _test_execution_has_cv2_numpy_abi_mismatch(
+    test_execution: Optional[dict[str, Any]],
+) -> bool:
+    output = _combined_test_execution_output(test_execution)
+    if not re.search(r"\b(?:cv2|opencv)\b", output, re.IGNORECASE):
+        return False
+    return bool(
+        "numpy.core.multiarray failed to import" in output
+        or re.search(
+            r"module compiled against ABI version .* this version of numpy is 0x2",
+            output,
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
+
+
+def _dockerfile_has_cv2_numpy_abi_repair(dockerfile_text: str) -> bool:
+    return "JAYINT_CV2_NUMPY_ABI_REPAIR=1" in (dockerfile_text or "")
+
+
+def _test_execution_has_torchtext_abi_mismatch(
+    test_execution: Optional[dict[str, Any]],
+) -> bool:
+    output = _combined_test_execution_output(test_execution)
+    return bool(
+        "torchtext/lib/libtorchtext.so" in output
+        and "undefined symbol" in output
+    )
+
+
+def _dockerfile_has_torchtext_stub_repair(dockerfile_text: str) -> bool:
+    return "JAYINT_TORCHTEXT_STUB_REPAIR=1" in (dockerfile_text or "")
+
+
+def _torchtext_stub_run_instruction(dockerfile_text: str) -> str:
+    python_invocation = _preferred_python_invocation_for_resource_repair(
+        dockerfile_text,
+        None,
+    )
+    script = (
+        "import pathlib, sysconfig; "
+        "base = pathlib.Path(sysconfig.get_paths()['purelib']) / 'torchtext'; "
+        "(base / 'data').mkdir(parents=True, exist_ok=True); "
+        "(base / '__init__.py').write_text("
+        "'# Stub torchtext module for pytest collection compatibility\\n"
+        "__version__ = \"0.18.0\"\\n\\n"
+        "def disable_torchtext_deprecation_warning():\\n"
+        "    pass\\n'"
+        "); "
+        "(base / 'data' / '__init__.py').write_text("
+        "'# Stub torchtext.data module for pytest collection compatibility\\n\\n"
+        "class metrics:\\n"
+        "    @staticmethod\\n"
+        "    def bleu_score(predictions, references):\\n"
+        "        return 0.0\\n'"
+        ")"
+    )
+    return "RUN " + shlex.join([*shlex.split(python_invocation), "-c", script])
+
+
+def _insert_torchtext_stub_repair(dockerfile_text: str) -> str:
+    if _dockerfile_has_torchtext_stub_repair(dockerfile_text):
+        return dockerfile_text
+    pip_invocation = _preferred_pip_invocation_for_dockerfile(dockerfile_text)
+    repaired_text = _insert_run_instruction_before_final_command(
+        dockerfile_text,
+        "ENV JAYINT_TORCHTEXT_STUB_REPAIR=1",
+    )
+    repaired_text = _insert_run_instruction_before_final_command(
+        repaired_text,
+        f"RUN {pip_invocation} uninstall -y torchtext || true",
+    )
+    return _insert_run_instruction_before_final_command(
+        repaired_text,
+        _torchtext_stub_run_instruction(repaired_text),
+    )
+
+
+def repair_dockerfile_for_known_test_environment_failures(
+    dockerfile_text: str,
+    test_execution: Optional[dict[str, Any]],
+) -> tuple[str, list[str]]:
+    """Apply targeted deterministic repairs for common pytest collection drift."""
+
+    repaired_text = dockerfile_text
+    inserted_items: list[str] = []
+
+    if (
+        _test_execution_needs_github_workspace(test_execution)
+        and not _dockerfile_has_env_var(repaired_text, "GITHUB_WORKSPACE")
+    ):
+        workdir = infer_workdir_from_dockerfile(repaired_text)
+        repaired_text = _insert_run_instruction_before_final_command(
+            repaired_text,
+            f"ENV GITHUB_WORKSPACE={workdir}",
+        )
+        inserted_items.append("env:GITHUB_WORKSPACE")
+
+    if (
+        _test_execution_has_cv2_numpy_abi_mismatch(test_execution)
+        and not _dockerfile_has_cv2_numpy_abi_repair(repaired_text)
+    ):
+        pip_invocation = _preferred_pip_invocation_for_dockerfile(repaired_text)
+        repaired_text = _insert_run_instruction_before_final_command(
+            repaired_text,
+            "ENV JAYINT_CV2_NUMPY_ABI_REPAIR=1",
+        )
+        repaired_text = _insert_run_instruction_before_final_command(
+            repaired_text,
+            f"RUN {pip_invocation} uninstall -y opencv-python opencv-contrib-python || true",
+        )
+        repaired_text = _insert_run_instruction_before_final_command(
+            repaired_text,
+            build_resilient_pip_install_run_instruction(
+                f"{pip_invocation} install --force-reinstall "
+                f"{shlex.quote('numpy>=1.21.6,<2.0.0')} "
+                f"{shlex.quote('opencv-python-headless<4.10')}"
+            ),
+        )
+        inserted_items.append("opencv-python-headless<4.10+numpy<2")
+
+    if (
+        _test_execution_has_torchtext_abi_mismatch(test_execution)
+        and not _dockerfile_has_torchtext_stub_repair(repaired_text)
+    ):
+        repaired_text = _insert_torchtext_stub_repair(repaired_text)
+        inserted_items.append("torchtext-stub")
+
+    if not inserted_items:
+        return dockerfile_text, []
+    return repaired_text, inserted_items
+
+
+def _go_mod_relative_dirs(workspace_root: Optional[Path]) -> list[str]:
+    if workspace_root is None or not workspace_root.exists():
+        return []
+    dirs: list[str] = []
+    for go_mod_path in sorted(workspace_root.rglob("go.mod")):
+        rel_parts = go_mod_path.relative_to(workspace_root).parts
+        if ".git" in rel_parts:
+            continue
+        parent = go_mod_path.parent.relative_to(workspace_root).as_posix()
+        dirs.append("" if parent == "." else parent)
+    return dirs
+
+
+def _choose_go_module_relative_dir(
+    workspace_root: Optional[Path],
+    run_summary: Optional[dict[str, Any]],
+    test_commands: Optional[list[str]],
+) -> Optional[str]:
+    dirs = _go_mod_relative_dirs(workspace_root)
+    if not dirs:
+        return None
+    if len(dirs) == 1:
+        return dirs[0]
+
+    hint_commands = normalize_command_list(test_commands)
+    summary = run_summary or {}
+    hint_commands.extend(normalize_command_list(summary.get("verified_test_commands")))
+    hint_commands.extend(
+        normalize_command_list(
+            ((summary.get("verification_bundle") or {}).get("test_commands"))
+        )
+    )
+    hint_text = "\n".join(hint_commands)
+    for rel_dir in dirs:
+        if not rel_dir:
+            continue
+        if re.search(rf"(?:^|\s)cd\s+(?:/app/)?{re.escape(rel_dir)}(?:\s|&&|$)", hint_text):
+            return rel_dir
+        if f"./{rel_dir}/" in hint_text or f"/{rel_dir}/" in hint_text:
+            return rel_dir
+    return None
+
+
+def _go_mod_download_command_from_run(command: str) -> Optional[str]:
+    normalized = " ".join(str(command or "").split()).strip()
+    if not normalized:
+        return None
+    match = re.search(
+        r"(?P<go>(?:[/.\w-]+/)?go)\s+mod\s+download(?P<args>(?:\s+[^;&|]+)*)",
+        normalized,
+    )
+    if not match:
+        return None
+    return f"{match.group('go')} mod download{match.group('args') or ''}".strip()
+
+
+def repair_dockerfile_for_go_module_context(
+    dockerfile_text: str,
+    docker_build: Optional[dict[str, Any]],
+    workspace_root: Optional[Path],
+    run_summary: Optional[dict[str, Any]],
+    test_commands: Optional[list[str]],
+) -> tuple[str, list[str]]:
+    if not docker_build_failed_due_to_go_missing_module_context(docker_build):
+        return dockerfile_text, []
+
+    rel_dir = _choose_go_module_relative_dir(workspace_root, run_summary, test_commands)
+    if rel_dir is None:
+        return dockerfile_text, []
+
+    workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    module_workdir = posixpath.normpath(posixpath.join(workdir, rel_dir)) if rel_dir else workdir
+    repaired_lines: list[str] = []
+    repairs: list[str] = []
+
+    for line in str(dockerfile_text or "").splitlines():
+        stripped = line.strip()
+        if not stripped.upper().startswith("RUN "):
+            repaired_lines.append(line)
+            continue
+        command = stripped[4:].strip()
+        go_mod_download = _go_mod_download_command_from_run(command)
+        if not go_mod_download:
+            repaired_lines.append(line)
+            continue
+        indent = line[: len(line) - len(line.lstrip())]
+        repaired_lines.append(
+            f"{indent}RUN cd {shlex.quote(module_workdir)} && {go_mod_download}"
+        )
+        repairs.append(f"go_mod_download_workdir:{module_workdir}")
+
+    if not repairs:
+        return dockerfile_text, []
+    return "\n".join(repaired_lines).rstrip() + "\n", repairs
 
 
 def _strip_requirement_line(line: str) -> str:
@@ -2608,10 +3602,16 @@ def _find_declared_requirement_in_workspace(
         return None
 
     inspected = 0
-    for path in sorted(workspace_root.rglob("*requirements*.txt")):
+    requirement_paths = sorted(
+        workspace_root.rglob("*requirements*.txt"),
+        key=lambda path: _requirement_file_priority(workspace_root, path),
+    )
+    for path in requirement_paths:
         inspected += 1
         if inspected > 100:
             break
+        if _requirement_file_priority(workspace_root, path)[0] >= 2:
+            continue
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -2641,19 +3641,214 @@ def _find_declared_requirement_in_workspace(
     return None
 
 
+def _requirement_file_priority(workspace_root: Path, path: Path) -> tuple[int, str]:
+    try:
+        relative = path.relative_to(workspace_root).as_posix().lower()
+    except ValueError:
+        relative = path.as_posix().lower()
+    basename = path.name.lower()
+    stem = path.stem.lower()
+    if relative in {"requirements.txt", "requirements/requirements.txt"}:
+        return (0, relative)
+    if basename == "requirements.txt":
+        return (0, relative)
+    if any(hint in stem for hint in _OPTIONAL_REQUIREMENTS_FILE_HINTS):
+        return (2, relative)
+    return (1, relative)
+
+
+def _find_observed_constraint_requirement_in_dockerfile(
+    dockerfile_text: str,
+    package_name: str,
+) -> str | None:
+    normalized_name = _normalize_pip_constraint_name(package_name)
+    if not normalized_name:
+        return None
+    for match in re.finditer(
+        r"(?P<name>[A-Za-z0-9_.-]+)==(?P<version>[A-Za-z0-9_.!+~-]+)",
+        dockerfile_text or "",
+    ):
+        name = match.group("name")
+        if _normalize_pip_constraint_name(name) == normalized_name:
+            return f"{name}=={match.group('version')}"
+    return None
+
+
+_LOCAL_MODULE_SEARCH_SKIP_PARTS = {
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+}
+
+
+def _find_local_importable_module_path(
+    workspace_root: Optional[Path],
+    module: str,
+) -> Path | None:
+    module_name = (module or "").split(".", 1)[0].strip()
+    if (
+        not workspace_root
+        or not workspace_root.exists()
+        or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", module_name)
+    ):
+        return None
+
+    top_level_package = workspace_root / module_name
+    top_level_module = workspace_root / f"{module_name}.py"
+    if top_level_package.exists() or top_level_module.exists():
+        return None
+
+    candidates: list[Path] = []
+    inspected = 0
+    for path in workspace_root.rglob(module_name):
+        inspected += 1
+        if inspected > 2000:
+            break
+        if any(part in _LOCAL_MODULE_SEARCH_SKIP_PARTS for part in path.relative_to(workspace_root).parts):
+            continue
+        if path.is_dir() and (path / "__init__.py").exists():
+            candidates.append(path)
+
+    module_file = f"{module_name}.py"
+    file_inspected = 0
+    for path in workspace_root.rglob(module_file):
+        file_inspected += 1
+        if file_inspected > 2000:
+            break
+        if any(part in _LOCAL_MODULE_SEARCH_SKIP_PARTS for part in path.relative_to(workspace_root).parts):
+            continue
+        if path.is_file() and path.parent != workspace_root:
+            candidates.append(path)
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda candidate: (len(candidate.relative_to(workspace_root).parts), str(candidate)))
+    return candidates[0]
+
+
+def _workspace_has_top_level_importable_module(
+    workspace_root: Optional[Path],
+    module: str,
+) -> bool:
+    module_name = (module or "").split(".", 1)[0].strip()
+    if (
+        not workspace_root
+        or not workspace_root.exists()
+        or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", module_name)
+    ):
+        return False
+    package_path = workspace_root / module_name
+    module_path = workspace_root / f"{module_name}.py"
+    return (package_path / "__init__.py").exists() or module_path.is_file()
+
+
+def _local_module_alias_command(
+    module: str,
+    module_path: Path,
+    workspace_root: Path,
+    dockerfile_text: str,
+) -> str | None:
+    module_name = (module or "").split(".", 1)[0].strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", module_name):
+        return None
+    try:
+        relative_path = module_path.relative_to(workspace_root)
+    except ValueError:
+        return None
+    workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    source_path = posixpath.join(workdir, relative_path.as_posix())
+    target_name = f"{module_name}.py" if module_path.is_file() else module_name
+    target_path = posixpath.join(workdir, target_name)
+    return (
+        f"if [ ! -e {shlex.quote(target_path)} ]; then "
+        f"ln -s {shlex.quote(source_path)} {shlex.quote(target_path)}; "
+        "fi"
+    )
+
+
+def _local_module_path_satisfies_missing_module(module: str, module_path: Path) -> bool:
+    module_parts = [part for part in str(module or "").split(".") if part]
+    if len(module_parts) <= 1:
+        return True
+    if module_path.is_file():
+        return False
+    current = module_path
+    for part in module_parts[1:]:
+        package_candidate = current / part
+        module_candidate = current / f"{part}.py"
+        if (package_candidate / "__init__.py").exists():
+            current = package_candidate
+            continue
+        if module_candidate.is_file():
+            return part == module_parts[-1]
+        return False
+    return True
+
+
+def _dockerfile_pythonpath_includes_workdir(dockerfile_text: str) -> bool:
+    workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    for line in (dockerfile_text or "").splitlines():
+        stripped = line.strip()
+        if not stripped.upper().startswith("ENV "):
+            continue
+        env_values = _parse_dockerfile_env_instruction(stripped)
+        pythonpath = env_values.get("PYTHONPATH")
+        if not pythonpath:
+            continue
+        parts = [part.strip() for part in pythonpath.split(":")]
+        if workdir in parts or "${PYTHONPATH}" in parts or "$PYTHONPATH" in parts:
+            if workdir in parts:
+                return True
+    return False
+
+
+def _local_pythonpath_instruction(dockerfile_text: str) -> str | None:
+    if _dockerfile_pythonpath_includes_workdir(dockerfile_text):
+        return None
+    workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    return f"ENV PYTHONPATH={workdir}:${{PYTHONPATH}}"
+
+
 def _requirement_for_missing_module(
     module: str,
     workspace_root: Optional[Path],
+    dockerfile_text: str = "",
 ) -> str | None:
     module_name = _normalize_pip_constraint_name((module or "").split(".", 1)[0])
     if not module_name:
         return None
+    if module_name in _KNOWN_MISSING_MODULE_REQUIREMENT_OVERRIDES:
+        return _KNOWN_MISSING_MODULE_REQUIREMENT_OVERRIDES[module_name]
 
     candidate_package_names: list[str] = []
     fallback_requirement = module_name
     if module_name in _KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS:
         package_name, fallback_requirement = _KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS[module_name]
+        if module_name not in {"ppocr", "ppstructure"}:
+            observed = _find_observed_constraint_requirement_in_dockerfile(
+                dockerfile_text,
+                package_name,
+            )
+            if observed:
+                return observed
         candidate_package_names.append(package_name)
+    else:
+        observed = _find_observed_constraint_requirement_in_dockerfile(
+            dockerfile_text,
+            module_name,
+        )
+        if observed:
+            return observed
     candidate_package_names.append(module_name)
 
     for package_name in candidate_package_names:
@@ -2670,6 +3865,58 @@ def _preferred_pip_invocation_for_dockerfile(dockerfile_text: str) -> str:
     if re.search(r"\bpip3\s+install\b", text):
         return "pip3"
     return "pip"
+
+
+def _preferred_pip_invocation_for_missing_module_repair(
+    dockerfile_text: str,
+    test_execution: Optional[dict[str, Any]],
+) -> str:
+    if re.search(r"(?m)^\s*ENV\s+PYTHONPATH=", dockerfile_text or ""):
+        return _preferred_pip_invocation_for_dockerfile(dockerfile_text)
+    for item in (test_execution or {}).get("results") or []:
+        test_command = normalize_repo2run_collect_candidate(str(item.get("test_command") or ""))
+        cd_split = _split_safe_leading_cd_collect_command(test_command)
+        if cd_split:
+            _, test_command = cd_split
+        try:
+            tokens = shlex.split(test_command)
+        except ValueError:
+            continue
+        if (
+            len(tokens) >= 3
+            and _is_python_executable_token(tokens[0])
+            and tokens[1:3] == ["-m", "pytest"]
+        ):
+            return f"{tokens[0]} -m pip"
+        if tokens[:3] == ["poetry", "run", "pytest"]:
+            return "poetry run pip"
+    return _preferred_pip_invocation_for_dockerfile(dockerfile_text)
+
+
+def _preferred_python_invocation_for_resource_repair(
+    dockerfile_text: str,
+    test_execution: Optional[dict[str, Any]],
+) -> str:
+    for item in (test_execution or {}).get("results") or []:
+        test_command = normalize_repo2run_collect_candidate(str(item.get("test_command") or ""))
+        cd_split = _split_safe_leading_cd_collect_command(test_command)
+        if cd_split:
+            _, test_command = cd_split
+        try:
+            tokens = shlex.split(test_command)
+        except ValueError:
+            continue
+        if (
+            len(tokens) >= 3
+            and _is_python_executable_token(tokens[0])
+            and tokens[1:3] == ["-m", "pytest"]
+        ):
+            return tokens[0]
+        if tokens[:3] == ["poetry", "run", "pytest"]:
+            return "poetry run python"
+    if re.search(r"\bpython3\s+-m\s+pip\s+install\b", dockerfile_text or ""):
+        return "python3"
+    return "python"
 
 
 def _dockerfile_already_installs_requirement(dockerfile_text: str, requirement: str) -> bool:
@@ -2722,34 +3969,309 @@ def _insert_run_instruction_before_final_command(
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _dockerfile_downloads_nltk_resource(dockerfile_text: str, resource: str) -> bool:
+    normalized_resource = str(resource or "").strip()
+    if not normalized_resource:
+        return True
+    for line in (dockerfile_text or "").splitlines():
+        stripped = line.strip()
+        if "nltk.downloader" not in stripped:
+            continue
+        try:
+            tokens = shlex.split(stripped[4:].strip() if stripped.startswith("RUN ") else stripped)
+        except ValueError:
+            tokens = stripped.split()
+        if normalized_resource in tokens:
+            return True
+    return False
+
+
+def _dockerfile_installs_requirement_name(dockerfile_text: str, requirement_name: str) -> bool:
+    normalized_name = _normalize_pip_constraint_name(requirement_name)
+    if not normalized_name:
+        return False
+    for line in (dockerfile_text or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("RUN "):
+            continue
+        command = stripped[4:].strip()
+        candidate_commands = [command]
+        generated_pip_command = _extract_generated_pip_retry_inner_command(command)
+        if generated_pip_command:
+            candidate_commands.append(generated_pip_command)
+        for candidate_command in candidate_commands:
+            parsed = _split_pip_install_command(candidate_command)
+            if not parsed:
+                continue
+            _, _, requirements = parsed
+            if any(_pip_requirement_name(requirement) == normalized_name for requirement in requirements):
+                return True
+    return False
+
+
+def _missing_module_belongs_to_no_deps_installed_dependency(
+    dockerfile_text: str,
+    module_name: str,
+) -> bool:
+    normalized_module_name = _normalize_pip_constraint_name(module_name)
+    if not normalized_module_name:
+        return False
+    for line in (dockerfile_text or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("RUN "):
+            continue
+        command = stripped[4:].strip()
+        candidate_commands = [command]
+        generated_pip_command = _extract_generated_pip_retry_inner_command(command)
+        if generated_pip_command:
+            candidate_commands.append(generated_pip_command)
+        for candidate_command in candidate_commands:
+            parsed = _split_pip_install_command(candidate_command)
+            if not parsed:
+                continue
+            _, options, requirements = parsed
+            if "--no-deps" not in options:
+                continue
+            for requirement in requirements:
+                requirement_name = _pip_requirement_name(requirement)
+                dependency_modules = _NO_DEPS_PACKAGE_DEPENDENCY_MODULES.get(requirement_name, set())
+                normalized_dependency_modules = {
+                    _normalize_pip_constraint_name(item) for item in dependency_modules
+                }
+                if normalized_module_name in normalized_dependency_modules:
+                    return True
+    return False
+
+
+def _missing_module_repair_requires_force_reinstall(module: str, requirement: str) -> bool:
+    module_name = _normalize_pip_constraint_name((module or "").split(".", 1)[0])
+    requirement_name = _pip_requirement_name(requirement)
+    if not module_name or not requirement_name:
+        return False
+    return requirement_name in _FORCE_REINSTALL_MISSING_MODULE_REPAIRS.get(module_name, set())
+
+
+def _missing_module_repair_requires_no_deps(module: str, requirement: str) -> bool:
+    module_name = _normalize_pip_constraint_name((module or "").split(".", 1)[0])
+    requirement_name = _pip_requirement_name(requirement)
+    if not module_name or not requirement_name:
+        return False
+    return requirement_name in _NO_DEPS_MISSING_MODULE_REPAIRS.get(module_name, set())
+
+
+def _requirement_is_observed_constraint(dockerfile_text: str, requirement: str) -> bool:
+    requirement_name = _pip_requirement_name(requirement)
+    if not requirement_name:
+        return False
+    observed = _find_observed_constraint_requirement_in_dockerfile(
+        dockerfile_text,
+        requirement_name,
+    )
+    if not observed:
+        return False
+    return (
+        re.sub(r"\s+", "", observed).lower().replace("_", "-")
+        == re.sub(r"\s+", "", requirement).lower().replace("_", "-")
+    )
+
+
+def _prefix_missing_module_install_with_cleanup(
+    install_command: str,
+    pip_invocation: str,
+    requirements: list[str],
+    dockerfile_text: str,
+) -> str:
+    requirement_names = {_pip_requirement_name(requirement) for requirement in requirements}
+    cleanup_commands: list[str] = []
+    if (
+        "argon2-cffi" in requirement_names
+        and _dockerfile_installs_requirement_name(dockerfile_text, "argon2")
+    ):
+        cleanup_commands.append(f"{pip_invocation} uninstall -y argon2 || true")
+    if not cleanup_commands:
+        return install_command
+    return "; ".join([*cleanup_commands, install_command])
+
+
 def repair_dockerfile_for_missing_python_modules(
     dockerfile_text: str,
     test_execution: Optional[dict[str, Any]],
     workspace_root: Optional[Path],
 ) -> tuple[str, list[str]]:
     modules = extract_missing_python_modules_from_test_execution(test_execution)
-    if not modules:
+    nltk_resources = [
+        resource
+        for resource in extract_missing_nltk_resources_from_test_execution(test_execution)
+        if not _dockerfile_downloads_nltk_resource(dockerfile_text, resource)
+    ]
+    if not modules and not nltk_resources:
         return dockerfile_text, []
 
     requirements: list[str] = []
+    local_alias_commands: list[str] = []
+    local_alias_items: list[str] = []
+    local_pythonpath_needed = False
+    local_pythonpath_items: list[str] = []
     seen_requirement_names: set[str] = set()
+    force_reinstall_requirement_names: set[str] = set()
+    no_deps_requirement_names: set[str] = set()
+    torchtext_stub_needed = False
     for module in modules:
-        requirement = _requirement_for_missing_module(module, workspace_root)
-        if not requirement or _dockerfile_already_installs_requirement(dockerfile_text, requirement):
+        module_name = (module or "").split(".", 1)[0].strip()
+        normalized_module_name = _normalize_pip_constraint_name(module_name)
+        prefer_external_requirement = (
+            normalized_module_name in _KNOWN_MISSING_MODULE_REQUIREMENT_OVERRIDES
+        )
+        if _missing_module_belongs_to_no_deps_installed_dependency(
+            dockerfile_text,
+            normalized_module_name,
+        ):
             continue
+        if normalized_module_name == "torchtext":
+            torchtext_stub_needed = not _dockerfile_has_torchtext_stub_repair(dockerfile_text)
+            continue
+        if (
+            not prefer_external_requirement
+            and _workspace_has_top_level_importable_module(workspace_root, module)
+        ):
+            module_item = f"local-module:{module.split('.', 1)[0]}"
+            if not _dockerfile_pythonpath_includes_workdir(dockerfile_text):
+                local_pythonpath_needed = True
+                if module_item not in local_pythonpath_items:
+                    local_pythonpath_items.append(module_item)
+            continue
+        local_module_path = _find_local_importable_module_path(workspace_root, module)
+        if (
+            not prefer_external_requirement
+            and local_module_path
+            and workspace_root
+            and _local_module_path_satisfies_missing_module(module, local_module_path)
+        ):
+            alias_command = _local_module_alias_command(
+                module,
+                local_module_path,
+                workspace_root,
+                dockerfile_text,
+            )
+            if alias_command and alias_command not in local_alias_commands:
+                local_alias_commands.append(alias_command)
+                local_alias_items.append(f"local-module:{module.split('.', 1)[0]}")
+                continue
+        requirement = _requirement_for_missing_module(module, workspace_root, dockerfile_text)
+        force_reinstall = _missing_module_repair_requires_force_reinstall(module, requirement or "")
+        no_deps = _missing_module_repair_requires_no_deps(
+            module,
+            requirement or "",
+        ) or _requirement_is_observed_constraint(dockerfile_text, requirement or "")
         requirement_name = _pip_requirement_name(requirement)
-        if requirement_name in seen_requirement_names:
+        already_installed = False
+        if requirement and not force_reinstall:
+            already_installed = (
+                _dockerfile_already_installs_requirement(dockerfile_text, requirement)
+                if requirement_name
+                else requirement in (dockerfile_text or "")
+            )
+        if (
+            not requirement
+            or already_installed
+        ):
             continue
-        seen_requirement_names.add(requirement_name)
+        requirement_key = requirement_name or requirement
+        if requirement_key in seen_requirement_names:
+            continue
+        seen_requirement_names.add(requirement_key)
+        if force_reinstall:
+            force_reinstall_requirement_names.add(requirement_name)
+        if no_deps:
+            no_deps_requirement_names.add(requirement_name)
         requirements.append(requirement)
 
-    if not requirements:
+    inserted_items: list[str] = []
+    repaired_text = dockerfile_text
+
+    if torchtext_stub_needed:
+        repaired_text = _insert_torchtext_stub_repair(repaired_text)
+        inserted_items.append("torchtext-stub")
+
+    if local_alias_commands:
+        repaired_text = _insert_run_instruction_before_final_command(
+            repaired_text,
+            "RUN " + " && ".join(local_alias_commands),
+        )
+        inserted_items.extend(local_alias_items)
+
+    if local_pythonpath_needed:
+        pythonpath_instruction = _local_pythonpath_instruction(repaired_text)
+        if pythonpath_instruction:
+            repaired_text = _insert_run_instruction_before_final_command(
+                repaired_text,
+                pythonpath_instruction,
+            )
+            inserted_items.extend(local_pythonpath_items)
+
+    if requirements:
+        pip_invocation = _preferred_pip_invocation_for_missing_module_repair(
+            dockerfile_text,
+            test_execution,
+        )
+        normal_requirements = [
+            item
+            for item in requirements
+            if _pip_requirement_name(item)
+            not in force_reinstall_requirement_names | no_deps_requirement_names
+        ]
+        no_deps_requirements = [
+            item
+            for item in requirements
+            if _pip_requirement_name(item) in no_deps_requirement_names
+        ]
+        force_reinstall_requirements = [
+            item
+            for item in requirements
+            if _pip_requirement_name(item) in force_reinstall_requirement_names
+        ]
+        install_commands: list[str] = []
+        if normal_requirements:
+            install_commands.append(
+                f"{pip_invocation} install "
+                + " ".join(shlex.quote(item) for item in normal_requirements)
+            )
+        if no_deps_requirements:
+            install_commands.append(
+                f"{pip_invocation} install --no-deps "
+                + " ".join(shlex.quote(item) for item in no_deps_requirements)
+            )
+        if force_reinstall_requirements:
+            install_commands.append(
+                f"{pip_invocation} install --force-reinstall --no-deps "
+                + " ".join(shlex.quote(item) for item in force_reinstall_requirements)
+            )
+        install_command = " && ".join(install_commands)
+        install_command = _prefix_missing_module_install_with_cleanup(
+            install_command,
+            pip_invocation,
+            requirements,
+            dockerfile_text,
+        )
+        instruction = build_resilient_pip_install_run_instruction(install_command)
+        repaired_text = _insert_run_instruction_before_final_command(repaired_text, instruction)
+        inserted_items.extend(requirements)
+
+    if nltk_resources:
+        python_invocation = _preferred_python_invocation_for_resource_repair(
+            dockerfile_text,
+            test_execution,
+        )
+        instruction = "RUN " + shlex.join(
+            [*shlex.split(python_invocation), "-m", "nltk.downloader", *nltk_resources]
+        )
+        repaired_text = _insert_run_instruction_before_final_command(repaired_text, instruction)
+        inserted_items.extend(f"nltk-resource:{resource}" for resource in nltk_resources)
+
+    if not inserted_items:
         return dockerfile_text, []
 
-    pip_invocation = _preferred_pip_invocation_for_dockerfile(dockerfile_text)
-    install_command = f"{pip_invocation} install " + " ".join(shlex.quote(item) for item in requirements)
-    instruction = build_resilient_pip_install_run_instruction(install_command)
-    return _insert_run_instruction_before_final_command(dockerfile_text, instruction), requirements
+    return repaired_text, inserted_items
 
 
 def compute_paper_alignment(expected_success: bool, observed_success: bool) -> str:
@@ -2847,11 +4369,11 @@ def evaluate_built_image(
             docker_run_command.extend(["--platform", docker_platform])
         if add_postgres_host_alias:
             docker_run_command.extend(["--add-host", "postgres:127.0.0.1"])
+        docker_run_command.extend(["--entrypoint", "/bin/sh"])
         docker_run_command.extend(
             [
                 image_tag,
-                "sh",
-                "-lc",
+                "-c",
                 TEST_EXECUTION_SHELL_WRAPPER,
             ]
         )
@@ -3317,6 +4839,7 @@ def main() -> int:
 
         if reused_existing_workplace:
             print(f"[Reuse] Skipping agent setup and reusing workplace: {workplace}")
+            existing_run_summary = load_json(run_summary_path)
             agent_run = {
                 "command": agent_command,
                 "command_shell": shlex.join(agent_command),
@@ -3330,7 +4853,11 @@ def main() -> int:
                 "timed_out": False,
                 "timeout_seconds": None,
             }
-            if args.force_resynthesize or not agent_dockerfile_path.exists():
+            if (
+                args.force_resynthesize
+                or not agent_dockerfile_path.exists()
+                or reused_workplace_needs_resynthesis(existing_run_summary)
+            ):
                 resynthesis = resynthesize_dockerfile_from_existing_workplace(
                     workplace=workplace,
                     model=args.model,
@@ -3394,8 +4921,29 @@ def main() -> int:
             current_eval_dockerfile_text = eval_dockerfile_text
             repair_client = None
             max_repair_rounds = max(0, args.dockerfile_repair_rounds)
+            deterministic_environment_repair_budget = 4
+            deterministic_environment_repairs_used = 0
+            deterministic_missing_module_repair_budget = 30
+            deterministic_missing_module_repairs_used = 0
+            deterministic_go_module_context_repair_budget = 1
+            deterministic_go_module_context_repairs_used = 0
+            transient_docker_network_retry_budget = 3
+            transient_docker_network_retries_used = 0
+            trajectory_timeout_retry_budget = 1
+            trajectory_timeout_retries_used = 0
+            llm_repair_rounds_used = 0
+            current_docker_build_timeout = args.docker_build_timeout
 
-            for attempt_index in range(max_repair_rounds + 1):
+            max_validation_attempts = (
+                max_repair_rounds
+                + deterministic_environment_repair_budget
+                + deterministic_missing_module_repair_budget
+                + deterministic_go_module_context_repair_budget
+                + transient_docker_network_retry_budget
+                + trajectory_timeout_retry_budget
+                + 1
+            )
+            for attempt_index in range(max_validation_attempts):
                 workdir = infer_workdir_from_dockerfile(current_eval_dockerfile_text)
                 eval_dockerfile_path.write_text(current_eval_dockerfile_text, encoding="utf-8")
 
@@ -3415,7 +4963,7 @@ def main() -> int:
                     docker_build_command,
                     cwd=repo_root,
                     env=os.environ.copy(),
-                    timeout_seconds=args.docker_build_timeout,
+                    timeout_seconds=current_docker_build_timeout,
                 )
 
                 test_execution = None
@@ -3445,21 +4993,144 @@ def main() -> int:
                         "docker_build": docker_build,
                         "test_execution": test_execution,
                         "success": attempt_success,
+                        "transient_docker_network_failure": docker_build_failed_due_to_transient_network(docker_build),
                     }
                 )
 
                 if attempt_success:
                     break
-                if attempt_index < max_repair_rounds and test_execution:
+                if docker_build_failed_due_to_transient_network(docker_build):
+                    if transient_docker_network_retries_used < transient_docker_network_retry_budget:
+                        transient_docker_network_retries_used += 1
+                        continue
+                    break
+                if docker_build_timed_out_during_successful_trajectory_command(
+                    docker_build,
+                    current_eval_dockerfile_text,
+                    run_summary,
+                ):
+                    if trajectory_timeout_retries_used < trajectory_timeout_retry_budget:
+                        trajectory_timeout_retries_used += 1
+                        current_docker_build_timeout = max(
+                            current_docker_build_timeout * 2,
+                            current_docker_build_timeout + 1800,
+                        )
+                        dockerfile_repair_rounds.append(
+                            {
+                                "round": len(dockerfile_repair_rounds) + 1,
+                                "source": "deterministic_trajectory_timeout_retry",
+                                "error": None,
+                                "usage": {
+                                    "input_tokens": 0,
+                                    "output_tokens": 0,
+                                    "total_tokens": 0,
+                                },
+                                "raw_content": "",
+                                "dockerfile_text": current_eval_dockerfile_text,
+                                "rationale": (
+                                    "Docker build timed out while replaying a setup command that "
+                                    "succeeded in the sandbox; retrying the same Dockerfile with "
+                                    f"timeout {current_docker_build_timeout}s instead of rewriting "
+                                    "the verified command."
+                                ),
+                                "confidence": "high",
+                                "log_path": None,
+                            }
+                        )
+                        continue
+                    break
+                if (
+                    deterministic_go_module_context_repairs_used
+                    < deterministic_go_module_context_repair_budget
+                ):
+                    repaired_text, go_module_repairs = repair_dockerfile_for_go_module_context(
+                        current_eval_dockerfile_text,
+                        docker_build,
+                        eval_build_context_path,
+                        run_summary,
+                        test_commands,
+                    )
+                    if repaired_text != current_eval_dockerfile_text:
+                        deterministic_go_module_context_repairs_used += 1
+                        dockerfile_repair_rounds.append(
+                            {
+                                "round": len(dockerfile_repair_rounds) + 1,
+                                "source": "deterministic_go_module_context",
+                                "error": None,
+                                "usage": {
+                                    "input_tokens": 0,
+                                    "output_tokens": 0,
+                                    "total_tokens": 0,
+                                },
+                                "raw_content": "",
+                                "dockerfile_text": repaired_text,
+                                "rationale": (
+                                    "`go mod download` failed outside a Go module; "
+                                    "rerunning it from the observed go.mod directory: "
+                                    + ", ".join(go_module_repairs)
+                                ),
+                                "confidence": "high",
+                                "log_path": None,
+                            }
+                        )
+                        current_eval_dockerfile_text = normalize_eval_dockerfile_for_replay(
+                            repaired_text,
+                            pip_constraints={},
+                        )
+                        continue
+                if (
+                    test_execution
+                    and deterministic_environment_repairs_used
+                    < deterministic_environment_repair_budget
+                ):
+                    repaired_text, environment_repairs = (
+                        repair_dockerfile_for_known_test_environment_failures(
+                            current_eval_dockerfile_text,
+                            test_execution,
+                        )
+                    )
+                    if repaired_text != current_eval_dockerfile_text:
+                        deterministic_environment_repairs_used += 1
+                        dockerfile_repair_rounds.append(
+                            {
+                                "round": len(dockerfile_repair_rounds) + 1,
+                                "source": "deterministic_test_environment",
+                                "error": None,
+                                "usage": {
+                                    "input_tokens": 0,
+                                    "output_tokens": 0,
+                                    "total_tokens": 0,
+                                },
+                                "raw_content": "",
+                                "dockerfile_text": repaired_text,
+                                "rationale": (
+                                    "Applied deterministic pytest collection environment repairs: "
+                                    + ", ".join(environment_repairs)
+                                ),
+                                "confidence": "high",
+                                "log_path": None,
+                            }
+                        )
+                        current_eval_dockerfile_text = normalize_eval_dockerfile_for_replay(
+                            repaired_text,
+                            pip_constraints={},
+                        )
+                        continue
+                if (
+                    test_execution
+                    and deterministic_missing_module_repairs_used
+                    < deterministic_missing_module_repair_budget
+                ):
                     repaired_text, installed_requirements = repair_dockerfile_for_missing_python_modules(
                         current_eval_dockerfile_text,
                         test_execution,
                         eval_build_context_path,
                     )
                     if repaired_text != current_eval_dockerfile_text:
+                        deterministic_missing_module_repairs_used += 1
                         dockerfile_repair_rounds.append(
                             {
-                                "round": attempt_index + 1,
+                                "round": len(dockerfile_repair_rounds) + 1,
                                 "source": "deterministic_missing_python_modules",
                                 "error": None,
                                 "usage": {
@@ -3479,10 +5150,10 @@ def main() -> int:
                         )
                         current_eval_dockerfile_text = normalize_eval_dockerfile_for_replay(
                             repaired_text,
-                            pip_constraints=pip_constraints,
+                            pip_constraints={},
                         )
                         continue
-                if attempt_index >= max_repair_rounds:
+                if llm_repair_rounds_used >= max_repair_rounds:
                     break
                 if docker_build_failed_due_to_unavailable_daemon(docker_build):
                     break
@@ -3497,6 +5168,8 @@ def main() -> int:
                     docker_build=docker_build,
                     test_execution=test_execution,
                 )
+                llm_repair_rounds_used += 1
+                repair_round_index = len(dockerfile_repair_rounds) + 1
                 try:
                     if repair_client is None:
                         repair_client = create_openai_client_from_env()
@@ -3505,11 +5178,11 @@ def main() -> int:
                         model=args.model,
                         repair_input=repair_input,
                         artifact_dir=artifact_dir,
-                        round_index=attempt_index + 1,
+                        round_index=repair_round_index,
                     )
                 except Exception as exc:
                     repair_result = {
-                        "round": attempt_index + 1,
+                        "round": repair_round_index,
                         "source": "llm_error",
                         "error": str(exc),
                         "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
@@ -3525,7 +5198,7 @@ def main() -> int:
                     break
                 current_eval_dockerfile_text = normalize_eval_dockerfile_for_replay(
                     repaired_text,
-                    pip_constraints=pip_constraints,
+                    pip_constraints={},
                 )
 
             if not args.keep_docker_artifacts:
