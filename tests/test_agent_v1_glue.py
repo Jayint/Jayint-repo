@@ -47,8 +47,10 @@ def _install_stubs() -> None:
         "dotenv",
         "openai",
     ]:
-        if mod_name not in sys.modules:
-            sys.modules[mod_name] = _make_stub_module(mod_name)
+        # Always install a FRESH stub so the attribute assignments below never
+        # mutate a real, already-imported module (which would corrupt it for the
+        # rest of the suite). sys.modules is restored right after `import agent`.
+        sys.modules[mod_name] = _make_stub_module(mod_name)
 
     # src.constants needs DEFAULT_LLM_MODEL and DEFAULT_MEMORY_EMBEDDING_MODEL
     sys.modules["src.constants"].DEFAULT_LLM_MODEL = "test-model"
@@ -92,6 +94,12 @@ def _install_stubs() -> None:
     sys.modules["src.sandbox"].Sandbox = MagicMock
 
 
+_STUBBED_MODULE_NAMES = [
+    "src.sandbox", "src.synthesizer", "src.image_selector",
+    "src.verification_bundle", "src.constants", "src.memory_manager",
+    "src.observation_compressor", "src.planner", "dotenv", "openai",
+]
+_SYS_MODULES_BEFORE_STUBS = {n: sys.modules.get(n) for n in _STUBBED_MODULE_NAMES}
 _install_stubs()
 
 
@@ -99,6 +107,15 @@ _install_stubs()
 # Now import agent (stubs must be in place first)
 # ---------------------------------------------------------------------------
 import agent as _agent_module
+
+# Restore sys.modules so these import-time stubs do not leak into other test
+# modules (which must import the real heavy deps). `agent` keeps the mock
+# bindings it captured during its own import above.
+for _name, _orig in _SYS_MODULES_BEFORE_STUBS.items():
+    if _orig is None:
+        sys.modules.pop(_name, None)
+    else:
+        sys.modules[_name] = _orig
 
 
 def _make_agent_instance(**kwargs) -> "_agent_module.DockerAgent":
