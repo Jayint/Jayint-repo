@@ -161,6 +161,11 @@ When the task's success criteria are met, instead respond with:
 Thought: <why the task is complete>
 Final Answer: Success
 
+When the task's goal is verification, run the repository's Repo2Run collection
+command ("pytest --collect-only -q --disable-warnings", or
+"poetry run pytest --collect-only -q --disable-warnings" for Poetry projects) from
+the repository root. A successful collection is the proof the environment works.
+
 You do not certify environment facts; the host verifies them with probes.
 """
 

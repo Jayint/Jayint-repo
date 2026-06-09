@@ -66,7 +66,12 @@ command from the certified state:
   3. runtime          — Python version, interpreter, pip/virtualenv toolchain
   4. deps             — project Python/language packages (requirements, pyproject, setup.py)
   5. build            — compilation, linking, editable installs, extension modules
-  6. tests            — test runner availability, test-command correctness, fixture data
+  6. tests            — test runner availability, test-command correctness, fixture data;
+                        the environment is complete when
+                        "pytest --collect-only -q --disable-warnings" succeeds from
+                        the repo root (for Poetry: "poetry run pytest --collect-only
+                        -q --disable-warnings"). Run it to verify BEFORE responding
+                        with Final Answer: Success.
 
 Work from the bottom of the stack upward.  Do not paper over a symptom one layer
 above its cause (e.g. do not patch a Python import error when the root cause is a

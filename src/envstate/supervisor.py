@@ -37,6 +37,16 @@ Forbidden: do not claim a requirement is PRESENT or MISSING; do not edit EnvStat
 do not emit shell commands as the top-level output; do not ask the worker to solve
 the entire environment at once; do not treat a checklist or worker report as proof.
 
+Success criterion: the environment is correctly configured when
+"pytest --collect-only -q --disable-warnings" succeeds from the repository root.
+For Poetry projects use "poetry run pytest --collect-only -q --disable-warnings".
+The target is successful pytest COLLECTION — not running or passing the full suite.
+Collection/import/config errors, missing deps, missing services, and bad paths are
+setup failures to fix. The Verification phase MUST assign a task whose goal is to
+run this exact collection command from the repo root. The host records that
+successful run as the proof of completion (no separate bundle needed). Reach
+Verification promptly — do not over-install.
+
 Emit exactly one TaskSpec JSON object inside a ```json fenced block, with keys:
 task_id, phase, goal, relevant_state, constraints, allowed_actions,
 success_criteria, stop_conditions, suggested_tactics.
