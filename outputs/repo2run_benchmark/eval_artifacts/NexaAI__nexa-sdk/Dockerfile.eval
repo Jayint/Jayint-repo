@@ -1,0 +1,8 @@
+FROM golang:1.24
+
+WORKDIR /app
+COPY . /app
+
+RUN cd /app/runner && go mod download
+
+CMD cd /app/runner && go test -buildvcs=false ./internal/render/... ./server/utils/...
