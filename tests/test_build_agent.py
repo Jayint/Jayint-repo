@@ -397,3 +397,62 @@ class TestBuildAgentRunBlocked(unittest.TestCase):
         sandbox = lambda cmd: (False, "fail")
         report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
         self.assertIn("budget", report.learning.lower())
+
+
+# ---------------------------------------------------------------------------
+# 6. BuildAgent.run — stuck guard integration
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentStuckGuardIntegration(unittest.TestCase):
+    """The stuck guard inside BuildAgent.run must fire correctly."""
+
+    def test_stuck_fires_on_two_identical_real_failures(self):
+        """Two actions with the same failure output → status 'blocked'."""
+        err = "ERROR: Could not find a version that satisfies psycopg2"
+        client = _fake_client_seq([
+            "Thought: try 1\nAction: pip install psycopg2",
+            "Thought: try 2\nAction: pip install psycopg2",
+            "Thought: try 3\nAction: pip install psycopg2",
+            "Thought: done\nFinal Answer: Success",  # should not reach here
+        ])
+        sandbox = lambda cmd: (False, err)
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        self.assertEqual(report.status, "blocked")
+        self.assertIn("stuck", report.learning.lower())
+
+    def test_stuck_does_not_fire_on_different_errors(self):
+        """Two failures with different error text — guard must NOT fire."""
+        errors = iter(["ERROR: pg_config not found", "ERROR: different error"])
+        client = _fake_client_seq([
+            "Thought: try 1\nAction: pip install psycopg2",
+            "Thought: try 2\nAction: apt-get install libpq-dev",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (False, next(errors))
+        # With different errors the guard must not fire — loop must reach Final Answer
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        # The loop ran both failures then got Final Answer → done
+        self.assertEqual(report.status, "done")
+
+    def test_preflight_rejection_does_not_trigger_stuck(self):
+        """Preflight rejections must not count toward the stuck counter."""
+        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup commands must not pipe"
+        client = _fake_client_seq([
+            "Thought: bad1\nAction: pip install x | head",
+            "Thought: bad2\nAction: pip install x | head",
+            "Thought: ok\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            if "| head" in cmd:
+                return False, preflight
+            return True, "Installed flask"
+
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        # Two identical preflight rejections must NOT trigger stuck
+        # → loop continues to the real action and then Final Answer
+        self.assertEqual(report.status, "done")
+        self.assertEqual(len(report.commands), 3)
