@@ -343,3 +343,139 @@ class TestMergeMap:
         m2 = merge_map(m, done_flag=True)
         with pytest.raises(dataclasses.FrozenInstanceError):
             m2.done_flag = False  # type: ignore[misc]
+
+
+class TestMapSerialization:
+    """map_to_dict / map_from_dict must round-trip any WorldModelMap losslessly."""
+
+    def _rich_map(self) -> WorldModelMap:
+        """A map with non-trivial field values for thorough round-trip testing."""
+        base = initial_map(
+            base_image="python:3.12-slim",
+            workdir="/workspace",
+            language="python 3.12",
+            build_system="poetry",
+            repo_layout=("tests/", "src/", "pyproject.toml"),
+            required=(_fact("flask", ">=3.0"), _fact("pytest", ">=8.0")),
+        )
+        return merge_map(
+            base,
+            installed=(_fact("flask", "3.0.3"), _fact("pytest", "8.1.0")),
+            open_problems=(
+                OpenProblem(
+                    signature="ModuleNotFoundError: psycopg2",
+                    interpretation="psycopg2 not installed",
+                    layer="deps",
+                    out_of_scope=False,
+                ),
+            ),
+            progress={
+                "base": True, "system": True, "runtime": True,
+                "deps": False, "build": False, "tests": False,
+            },
+            notes=("do not use psycopg2-binary",),
+        )
+
+    def test_map_to_dict_returns_dict(self):
+        assert isinstance(map_to_dict(_minimal_map()), dict)
+
+    def test_map_to_dict_contains_base_image(self):
+        d = map_to_dict(_minimal_map())
+        assert d["base_image"] == "python:3.12-slim"
+
+    def test_map_to_dict_done_flag_false(self):
+        d = map_to_dict(_minimal_map())
+        assert d["done_flag"] is False
+
+    def test_map_to_dict_progress_is_dict(self):
+        d = map_to_dict(_minimal_map())
+        assert isinstance(d["progress"], dict)
+        assert set(d["progress"].keys()) == {"base", "system", "runtime", "deps", "build", "tests"}
+
+    def test_map_to_dict_installed_is_list(self):
+        m = merge_map(_minimal_map(), installed=(_fact("flask", "3.0.0"),))
+        d = map_to_dict(m)
+        assert isinstance(d["installed"], list)
+        assert d["installed"][0]["name"] == "flask"
+        assert d["installed"][0]["detail"] == "3.0.0"
+
+    def test_map_to_dict_open_problems_is_list(self):
+        m = merge_map(_minimal_map(), open_problems=(_open_problem(),))
+        d = map_to_dict(m)
+        assert isinstance(d["open_problems"], list)
+        assert d["open_problems"][0]["signature"] == "ModuleNotFoundError: psycopg2"
+
+    def test_map_to_dict_notes_is_list(self):
+        m = merge_map(_minimal_map(), notes=("note one",))
+        d = map_to_dict(m)
+        assert isinstance(d["notes"], list)
+        assert d["notes"] == ["note one"]
+
+    def test_map_to_dict_repo_layout_is_list(self):
+        d = map_to_dict(_minimal_map())
+        assert isinstance(d["repo_layout"], list)
+
+    def test_map_to_dict_is_json_serializable(self):
+        d = map_to_dict(self._rich_map())
+        serialized = json.dumps(d)  # must not raise
+        assert isinstance(serialized, str)
+
+    def test_round_trip_minimal_map(self):
+        m = _minimal_map()
+        assert map_from_dict(map_to_dict(m)) == m
+
+    def test_round_trip_preserves_done_flag_true(self):
+        m = merge_map(_minimal_map(), done_flag=True)
+        m2 = map_from_dict(map_to_dict(m))
+        assert m2.done_flag is True
+
+    def test_round_trip_preserves_installed_facts(self):
+        facts = (_fact("flask", "3.0.3"), _fact("pytest", "8.1.0"))
+        m = merge_map(_minimal_map(), installed=facts)
+        m2 = map_from_dict(map_to_dict(m))
+        assert m2.installed == facts
+
+    def test_round_trip_preserves_open_problems(self):
+        ops = (
+            OpenProblem(
+                signature="ModuleNotFoundError: psycopg2",
+                interpretation="psycopg2 not installed",
+                layer="deps",
+                out_of_scope=True,
+            ),
+        )
+        m = merge_map(_minimal_map(), open_problems=ops)
+        m2 = map_from_dict(map_to_dict(m))
+        assert m2.open_problems[0].out_of_scope is True
+        assert m2.open_problems[0].layer == "deps"
+
+    def test_round_trip_preserves_progress(self):
+        prog = {
+            "base": True, "system": True, "runtime": False,
+            "deps": False, "build": False, "tests": False,
+        }
+        m = merge_map(_minimal_map(), progress=prog)
+        m2 = map_from_dict(map_to_dict(m))
+        assert m2.progress["base"] is True
+        assert m2.progress["runtime"] is False
+
+    def test_round_trip_rich_map_equality(self):
+        m = self._rich_map()
+        assert map_from_dict(map_to_dict(m)) == m
+
+    def test_round_trip_notes_preserved(self):
+        m = merge_map(_minimal_map(), notes=("caution: editable install needed",))
+        m2 = map_from_dict(map_to_dict(m))
+        assert m2.notes == ("caution: editable install needed",)
+
+    def test_round_trip_result_is_frozen(self):
+        m2 = map_from_dict(map_to_dict(_minimal_map()))
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            m2.done_flag = True  # type: ignore[misc]
+
+    def test_map_from_dict_progress_is_independent_copy(self):
+        d = map_to_dict(_minimal_map())
+        m = map_from_dict(d)
+        # Mutating the source dict must not affect the deserialized map's progress
+        d["progress"]["base"] = True
+        assert m.progress["base"] is False
