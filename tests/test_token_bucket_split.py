@@ -355,8 +355,9 @@ class TestArmCSnapshotThreading(unittest.TestCase):
         snapshot_revisions_seen = []
 
         # Intercept FullStateWorkerPlanner construction to record get_snapshot result
-        import src.envstate.fullstate_worker as fw_module
-        _orig_planner_cls = fw_module.FullStateWorkerPlanner
+        # fullstate_worker.py removed in Task 38 — class is @unittest.skip
+        fw_module = None  # type: ignore[assignment]
+        _orig_planner_cls = None
 
         class _SpyPlanner(_orig_planner_cls):
             def __init__(self_inner, client, model, get_snapshot, on_usage=None):
@@ -458,13 +459,14 @@ class TestArmCSnapshotThreading(unittest.TestCase):
         agent = self._make_minimal_agent()
         revisions_after_each_step = []
 
-        # supervisor.py deleted in Task 36; import removed from this skipped class
+        # supervisor.py deleted in Task 36; fullstate_worker.py deleted in Task 38
+        # import removed from this skipped class
         import src.envstate.orchestrator as orch_module
-        import src.envstate.fullstate_worker as fw_module
+        fw_module = None  # type: ignore[assignment]  # fullstate_worker.py removed
 
         _orig_supervisor = None  # supervisor.py removed
         _orig_orchestrator = orch_module.EnvStateOrchestrator
-        _orig_planner_cls = fw_module.FullStateWorkerPlanner
+        _orig_planner_cls = None  # fullstate_worker.py removed
 
         class _NopPlanner(_orig_planner_cls):
             def next_action(self_inner, brief, recent_obs):

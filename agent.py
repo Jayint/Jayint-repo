@@ -795,118 +795,6 @@ class DockerAgent:
         except subprocess.CalledProcessError as e:
             print(f"Warning: Failed to checkout commit {commit}: {e.stderr.decode()}")
 
-    def _run_fullstate_worker(self, max_steps=30, keep_container=False):
-        """Arm A: single planner-less ReAct loop over the full certified snapshot (§3.2/§3.6).
-
-        Modeled on _run_supervisor: same initial snapshot build including workdir/repo_structure
-        seeding, same Maintainer, same observer, inlined step closure, FullStateWorkerPlanner
-        with on_usage -> 'worker', run_fullstate_loop with global_action_budget = max_steps *
-        DEFAULT_MAX_ACTIONS, then the SAME finalization tail as _run_supervisor.
-        """
-        from src.envstate.build_agent import DEFAULT_MAX_ACTIONS, interruption_decision
-        from src.envstate.fullstate_worker import (
-            FULLSTATE_TASK_SPEC,
-            FullStateWorkerPlanner,
-            run_fullstate_loop,
-        )
-        from src.envstate.maintainer import Maintainer
-        from src.envstate.types import BaseFacts, EnvStateSnapshot
-
-        # Enable opt-in LLM-exchange logging (same scope as _run_supervisor)
-        _llm_log_dir = os.path.join(self.logs_dir, "setup_logs")
-        os.makedirs(_llm_log_dir, exist_ok=True)
-        _llm_log_path = os.path.join(_llm_log_dir, "envstate_llm.jsonl")
-        _prev_llm_log = os.environ.get("ENVSTATE_LLM_LOG")
-        os.environ["ENVSTATE_LLM_LOG"] = _llm_log_path
-
-        maintainer = Maintainer(client=self.client, model=self.model)
-        base_image = (
-            getattr(self, "base_image", None)
-            or getattr(self.synthesizer, "base_image", None)
-            or ""
-        )
-        _workdir = getattr(self.synthesizer, "workdir", "/app") or "/app"
-        _repo_structure = ""
-        _structure_file = os.path.join(self.logs_dir, "image_selector_logs", "structure.txt")
-        if os.path.exists(_structure_file):
-            try:
-                with open(_structure_file) as _f:
-                    _repo_structure = _f.read()
-            except Exception:
-                pass
-        snapshot = EnvStateSnapshot(
-            revision=0, container_id=self.env_container_id,
-            base=BaseFacts(image=base_image, workdir=_workdir),
-            repo_structure=_repo_structure,
-        )
-        self.env_snapshot = snapshot
-
-        # Inlined step closure — v1 migration: _build_observer removed (probes/acl deleted).
-        # _run_fullstate_worker itself is deleted in Task 38; this stub is a no-op bridge.
-        _global_actions_executed = [0]
-
-        def step_fn(action):
-            nonlocal snapshot
-            _global_actions_executed[0] += 1
-            success, observation = self.sandbox.execute(action)
-            self.env_snapshot = snapshot
-            return success, observation
-
-        planner = FullStateWorkerPlanner(
-            self.client, self.model,
-            get_snapshot=lambda: self.env_snapshot,
-            on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
-        )
-
-        global_action_budget = max_steps * DEFAULT_MAX_ACTIONS
-
-        configuration_success = False
-        run_error = None
-        self._orchestrator_result = None
-        try:
-            report = run_fullstate_loop(
-                planner=planner,
-                get_snapshot=lambda: self.env_snapshot,
-                step_fn=step_fn,
-                global_action_budget=global_action_budget,
-                interruption_decision=interruption_decision,
-            )
-            self._orchestrator_result = {
-                "tasks_completed": 1,
-                "stop_reason": report.status,
-                "final_revision": self.env_snapshot.revision,
-            }
-            configuration_success = (
-                self._auto_finalize_from_verified_tests("fullstate_worker_run")
-                or bool(self.verification_bundle)
-            )
-            if configuration_success:
-                configuration_success = self._finalize_supervisor_artifacts(configuration_success)
-        except Exception as exc:
-            run_error = str(exc)
-            print(f"An error occurred during fullstate worker execution: {exc}")
-            if self._is_transient_llm_error(exc) and self._auto_finalize_from_verified_tests(
-                source="auto_after_transient_error"
-            ):
-                configuration_success = True
-                print(
-                    "[Auto Finalization] Transient LLM failure after a verified test "
-                    "collection command. Generating Dockerfile from recorded evidence."
-                )
-                try:
-                    configuration_success = self._finalize_supervisor_artifacts(configuration_success)
-                except Exception as synth_exc:
-                    configuration_success = False
-                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
-                    print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
-        finally:
-            if _prev_llm_log is None:
-                os.environ.pop("ENVSTATE_LLM_LOG", None)
-            else:
-                os.environ["ENVSTATE_LLM_LOG"] = _prev_llm_log
-            self._write_run_summary(configuration_success, run_error)
-            self.sandbox.close(keep_alive=keep_container)
-        return configuration_success
 
     def _run_v1(self, max_cycles=12, keep_container=False):
         """Arm v1: three-role (Planner / BuildAgent / Maintainer) loop (spec §4).
@@ -1221,7 +1109,14 @@ class DockerAgent:
                 stacklevel=2,
             )
         if getattr(self, "enable_fullstate_worker", False):
-            return self._run_fullstate_worker(max_steps=max_steps, keep_container=keep_container)
+            # fullstate_worker.py removed in v1 migration — treat as bare ReAct
+            import warnings
+            warnings.warn(
+                "--enable-fullstate-worker is deprecated and has no effect "
+                "(fullstate_worker.py removed). Use --enable-v1 for the v1 orchestrator.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         print(f"Starting agent for repository: {self.repo_url}")
         observation = None
         configuration_success = False  # 成功标志位

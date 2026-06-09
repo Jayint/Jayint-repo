@@ -95,12 +95,13 @@ class WorkerSuccessCriterionTests(unittest.TestCase):
         self.assertIn("not certify", self.prompt.lower())
 
 
+@unittest.skip("fullstate_worker removed")
 class FullstateWorkerSuccessCriterionTests(unittest.TestCase):
     """FULLSTATE_WORKER_SYSTEM_PROMPT must contain the Repo2Run goalpost."""
 
     def setUp(self):
-        from src.envstate.fullstate_worker import FULLSTATE_WORKER_SYSTEM_PROMPT
-        self.prompt = FULLSTATE_WORKER_SYSTEM_PROMPT
+        # fullstate_worker.py removed in Task 38 — class is @unittest.skip
+        self.prompt = ""
 
     def test_contains_collect_only_command(self):
         self.assertIn("pytest --collect-only", self.prompt)

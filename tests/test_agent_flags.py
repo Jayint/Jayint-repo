@@ -160,6 +160,7 @@ class TestRunDispatch(unittest.TestCase):
         self.assertIn("supervisor", agent._called)
         self.assertNotIn("fullstate_worker", agent._called)
 
+    @unittest.skip("fullstate_worker removed — _run_fullstate_worker deleted from agent.py (Task 38)")
     def test_fullstate_worker_flag_routes_to_run_fullstate_worker(self):
         """With enable_fullstate_worker=True, run() must call _run_fullstate_worker."""
         agent = self._make_dispatchable_agent(enable_supervisor=False, enable_fullstate_worker=True)
@@ -182,6 +183,7 @@ class TestRunDispatch(unittest.TestCase):
 # 4. _run_fullstate_worker method exists with correct signature
 # ---------------------------------------------------------------------------
 
+@unittest.skip("fullstate_worker removed — _run_fullstate_worker deleted from agent.py (Task 38)")
 class TestRunFullstateWorkerExists(unittest.TestCase):
     """_run_fullstate_worker must be defined on DockerAgent with (max_steps, keep_container)."""
 
