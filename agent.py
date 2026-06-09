@@ -127,6 +127,7 @@ class DockerAgent:
         enable_supervisor=False,
         enable_fullstate_worker=False,
         fullstate_worker_prompt=False,
+        enable_v1=False,
         enable_cleanroom=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
@@ -160,7 +161,8 @@ class DockerAgent:
         self.enable_supervisor = enable_supervisor
         self.enable_fullstate_worker = enable_fullstate_worker
         self.fullstate_worker_prompt = fullstate_worker_prompt
-        self.enable_envstate = enable_envstate or enable_supervisor or enable_fullstate_worker
+        self.enable_v1 = enable_v1
+        self.enable_envstate = enable_envstate or enable_supervisor or enable_fullstate_worker or enable_v1
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
         self.current_task_id = None
@@ -1093,6 +1095,183 @@ class DockerAgent:
             self.sandbox.close(keep_alive=keep_container)
         return configuration_success
 
+    def _run_v1(self, max_cycles=12, keep_container=False):
+        """Arm v1: three-role (Planner / BuildAgent / Maintainer) loop (spec §4).
+
+        Structure mirrors _run_supervisor / _run_fullstate_worker:
+          1. Set up LLM-exchange log scope.
+          2. Build initial WorldModelMap.
+          3. Instantiate Planner, BuildAgent, Maintainer with canonical signatures.
+          4. Call run_v1() from src.envstate.orchestrator.
+          5. Scan ActionLedger for the collect-only command; populate
+             verified_test_commands using COLLECT_ONLY_CMD as fallback.
+          6. On done_flag: call _auto_finalize_from_verified_tests then finalize.
+
+        CLEANROOM NOTE: _verify_cleanroom_or_fail is NOT called directly from this
+        method. The v1 path skips cleanroom (enable_cleanroom defaults to False).
+        EBSR is the trusted success metric. When _verify_cleanroom_or_fail is
+        rewritten to the decoupled signature
+            _verify_cleanroom_or_fail(self, dockerfile_path, build_context) -> bool
+        (with NO reference to self.env_snapshot / snapshot.requirements / req.source),
+        cleanroom can be opt-in enabled for v1 runs via enable_cleanroom=True.
+        Until then, _finalize_supervisor_artifacts respects enable_cleanroom=False
+        and skips the gate automatically.
+        """
+        import re as _re
+        from src.envstate.orchestrator import run_v1 as _run_v1_loop, COLLECT_ONLY_CMD
+        from src.envstate.planner import Planner as _Planner
+        from src.envstate.build_agent import BuildAgent as _BuildAgent
+        from src.envstate.maintainer import Maintainer as _Maintainer
+        from src.envstate.world_model import initial_map, Fact
+
+        # ── 1. LLM log scope (same pattern as _run_supervisor) ───────────────
+        _llm_log_dir = os.path.join(self.logs_dir, "setup_logs")
+        os.makedirs(_llm_log_dir, exist_ok=True)
+        _llm_log_path = os.path.join(_llm_log_dir, "envstate_llm.jsonl")
+        _prev_llm_log = os.environ.get("ENVSTATE_LLM_LOG")
+        os.environ["ENVSTATE_LLM_LOG"] = _llm_log_path
+
+        # ── 2. Build initial WorldModelMap ────────────────────────────────────
+        _base_image = (
+            getattr(self, "base_image", None)
+            or getattr(self.synthesizer, "base_image", None)
+            or ""
+        )
+        _workdir = getattr(self.synthesizer, "workdir", "/app") or "/app"
+        _repo_structure = ""
+        _structure_file = os.path.join(
+            self.logs_dir, "image_selector_logs", "structure.txt"
+        )
+        if os.path.exists(_structure_file):
+            try:
+                with open(_structure_file) as _f:
+                    _repo_structure = _f.read()
+            except Exception:
+                pass
+
+        # Derive repo_layout tuple from the first non-empty lines of structure.txt.
+        _repo_layout: tuple = tuple(
+            ln.strip() for ln in _repo_structure.splitlines()[:20] if ln.strip()
+        )
+
+        # Derive language/build_system from synthesizer attrs or fall back.
+        _language = (
+            getattr(self.synthesizer, "language", "")
+            or getattr(self, "language", "")
+            or "unknown"
+        )
+        _build_system = getattr(self.synthesizer, "build_system", "") or "unknown"
+
+        world_map = initial_map(
+            base_image=_base_image,
+            workdir=_workdir,
+            language=_language,
+            build_system=_build_system,
+            repo_layout=_repo_layout,
+        )
+
+        # ── 3. Instantiate collaborators with canonical signatures ─────────────
+        # All three roles share the same constructor shape:
+        #   Role(client, model, on_usage=<callable|None>, log_path=<str|None>)
+        # BuildAgent additionally receives sandbox/ledger/synthesizer deps.
+        planner = _Planner(
+            self.client,
+            self.model,
+            on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
+            log_path=_llm_log_path,
+        )
+        maintainer = _Maintainer(
+            self.client,
+            self.model,
+            on_usage=lambda usage: self._record_supervisor_path_usage("reflection", usage),
+            log_path=_llm_log_path,
+        )
+        build_agent = _BuildAgent(
+            self.client,
+            self.model,
+            on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
+            log_path=_llm_log_path,
+            sandbox=self.sandbox,
+            ledger=self.action_ledger,
+            synthesizer=self.synthesizer,
+        )
+
+        configuration_success = False
+        run_error = None
+
+        try:
+            # ── 4. Run the v1 loop ────────────────────────────────────────────
+            final_map, stop_reason = _run_v1_loop(
+                planner=planner,
+                build_agent=build_agent,
+                maintainer=maintainer,
+                initial_world_map=world_map,
+                ledger=self.action_ledger,
+                sandbox_execute=self.sandbox.execute,
+                max_cycles=max_cycles,
+            )
+
+            print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
+
+            # ── 5. Scan ActionLedger for collect-only command ─────────────────
+            # The ledger accumulates ActionEvent(cmd, rc, stdout, step) records
+            # written by BuildAgent during execution.  We look for the most recent
+            # successful pytest --collect-only invocation and use its exact command
+            # string so the verification bundle matches what was verified in-loop.
+            _COLLECT_ONLY_PAT = _re.compile(r"pytest\s+--collect-only", _re.IGNORECASE)
+            _collect_cmd = None
+            for ev in reversed(self.action_ledger.events()):
+                if ev.rc == 0 and _COLLECT_ONLY_PAT.search(ev.cmd):
+                    _collect_cmd = ev.cmd
+                    break
+            if _collect_cmd is None:
+                # Fallback: use the canonical module constant.
+                _collect_cmd = COLLECT_ONLY_CMD
+
+            if not self.verified_test_commands:
+                self.verified_test_commands = [_collect_cmd]
+
+            # ── 6. Finalize ───────────────────────────────────────────────────
+            configuration_success = (
+                self._auto_finalize_from_verified_tests("v1_done_flag")
+                or bool(self.verification_bundle)
+            )
+            if configuration_success:
+                configuration_success = self._finalize_supervisor_artifacts(
+                    configuration_success
+                )
+
+        except Exception as exc:
+            run_error = str(exc)
+            print(f"[v1] Error during v1 execution: {exc}")
+            if self._is_transient_llm_error(exc) and self._auto_finalize_from_verified_tests(
+                source="v1_auto_after_transient_error"
+            ):
+                configuration_success = True
+                print(
+                    "[v1 Auto Finalization] Transient LLM failure after a verified "
+                    "test collection command. Generating Dockerfile from recorded evidence."
+                )
+                try:
+                    configuration_success = self._finalize_supervisor_artifacts(
+                        configuration_success
+                    )
+                except Exception as synth_exc:
+                    configuration_success = False
+                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
+                    print(f"[v1 Warning] Auto-finalization synthesis failed: {synth_exc}")
+
+        finally:
+            # Restore env var scope (same pattern as _run_supervisor).
+            if _prev_llm_log is None:
+                os.environ.pop("ENVSTATE_LLM_LOG", None)
+            else:
+                os.environ["ENVSTATE_LLM_LOG"] = _prev_llm_log
+            self._write_run_summary(configuration_success, run_error)
+            self.sandbox.close(keep_alive=keep_container)
+
+        return configuration_success
+
     def _finalize_supervisor_artifacts(self, configuration_success):
         """Synthesize the recipe, write the Dockerfile, and generate memories — the
         same success-artifact path the legacy run() uses (agent.py:1043-1052)."""
@@ -1180,6 +1359,8 @@ class DockerAgent:
 
     def run(self, max_steps=30, keep_container=False):
         """Runs the ReAct loop to configure the environment."""
+        if getattr(self, "enable_v1", False):
+            return self._run_v1(max_cycles=max_steps, keep_container=keep_container)
         if getattr(self, "enable_supervisor", False):
             return self._run_supervisor(max_steps=max_steps, keep_container=keep_container)
         if getattr(self, "enable_fullstate_worker", False):
