@@ -2407,6 +2407,9 @@ if __name__ == "__main__":
                              "RCA prompt + full-snapshot context (isolates the planner vs Arm A).")
     parser.add_argument("--enable-cleanroom", action="store_true",
                         help="After synthesis, rebuild the Dockerfile in a clean room and re-run probes + tests.")
+    parser.add_argument("--enable-v1", action="store_true",
+                        help="Use the v1 three-role orchestrator (Planner/BuildAgent/Maintainer). "
+                             "Mutually exclusive with --enable-supervisor and --enable-fullstate-worker.")
 
     args = parser.parse_args()
 
@@ -2421,7 +2424,12 @@ if __name__ == "__main__":
         parser.error(
             "--fullstate-worker-prompt requires --enable-supervisor (Arm C)."
         )
-    
+    if args.enable_v1 and (args.enable_supervisor or args.enable_fullstate_worker):
+        parser.error(
+            "--enable-v1 is mutually exclusive with --enable-supervisor and "
+            "--enable-fullstate-worker. Use --arm v1 for the v1 preset."
+        )
+
     agent = DockerAgent(
         args.repo_url,
         base_image=args.image,
@@ -2434,6 +2442,7 @@ if __name__ == "__main__":
         enable_supervisor=args.enable_supervisor,
         enable_fullstate_worker=args.enable_fullstate_worker,
         fullstate_worker_prompt=args.fullstate_worker_prompt,
+        enable_v1=args.enable_v1,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
