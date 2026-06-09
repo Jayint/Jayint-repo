@@ -685,3 +685,94 @@ class TestBuildAgentOnUsage(unittest.TestCase):
             container_id="c",
         )
         self.assertIsNone(agent.log_path)
+
+
+# ---------------------------------------------------------------------------
+# 9. System prompt and task-message content
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentSystemPrompt(unittest.TestCase):
+
+    def test_system_prompt_exists_and_is_string(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT
+        self.assertIsInstance(BUILD_AGENT_SYSTEM_PROMPT, str)
+        self.assertGreater(len(BUILD_AGENT_SYSTEM_PROMPT), 100)
+
+    def test_system_prompt_mentions_all_rca_layers(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT
+        p = BUILD_AGENT_SYSTEM_PROMPT.lower()
+        for layer in ("base", "system", "runtime", "deps", "build", "tests"):
+            self.assertIn(layer, p, f"Layer '{layer}' missing from BUILD_AGENT_SYSTEM_PROMPT")
+
+    def test_system_prompt_has_final_answer_success(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT
+        self.assertIn("Final Answer: Success", BUILD_AGENT_SYSTEM_PROMPT)
+
+    def test_system_prompt_has_action_format(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT
+        self.assertIn("Action:", BUILD_AGENT_SYSTEM_PROMPT)
+        self.assertIn("Thought:", BUILD_AGENT_SYSTEM_PROMPT)
+
+    def test_llm_receives_system_prompt_as_first_message(self):
+        """The first message sent to the LLM must be role=system with BUILD_AGENT_SYSTEM_PROMPT."""
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT, BuildAgent
+        captured = []
+
+        def fake_create(**kwargs):
+            captured.append(kwargs["messages"])
+            return _fake_response("Thought: done\nFinal Answer: Success")
+
+        class _FakeCompletions:
+            def create(self, **kwargs): return fake_create(**kwargs)
+        class _FakeChat:
+            completions = _FakeCompletions()
+        class _FakeClient:
+            chat = _FakeChat()
+
+        agent = BuildAgent(
+            client=_FakeClient(), model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c"
+        )
+        agent.run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
+
+        self.assertGreater(len(captured), 0)
+        sys_msgs = [m for m in captured[0] if m["role"] == "system"]
+        self.assertEqual(len(sys_msgs), 1)
+        self.assertEqual(sys_msgs[0]["content"], BUILD_AGENT_SYSTEM_PROMPT)
+
+    def test_task_message_contains_goal_done_when_layer_facts(self):
+        """The user message must contain goal, done_when, layer, and facts."""
+        from src.envstate.build_agent import BuildAgent
+        captured = []
+
+        def fake_create(**kwargs):
+            captured.append(kwargs["messages"])
+            return _fake_response("Thought: done\nFinal Answer: Success")
+
+        class _FakeCompletions:
+            def create(self, **kwargs): return fake_create(**kwargs)
+        class _FakeChat:
+            completions = _FakeCompletions()
+        class _FakeClient:
+            chat = _FakeChat()
+
+        task = _make_task(
+            goal="install edsl package",
+            done_when="python -c 'import edsl' exits 0",
+            layer="deps",
+            facts=("build_system=pip", "python=3.12"),
+        )
+        agent = BuildAgent(
+            client=_FakeClient(), model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c"
+        )
+        agent.run(task, lambda cmd: (True, "ok"), _make_ledger())
+
+        user_msgs = [m for m in captured[0] if m["role"] == "user"]
+        self.assertGreater(len(user_msgs), 0)
+        content = user_msgs[0]["content"]
+        self.assertIn("install edsl package", content)
+        self.assertIn("python -c 'import edsl' exits 0", content)
+        self.assertIn("deps", content)
+        self.assertIn("build_system=pip", content)
+        self.assertIn("python=3.12", content)
