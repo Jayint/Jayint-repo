@@ -479,3 +479,94 @@ class TestMapSerialization:
         # Mutating the source dict must not affect the deserialized map's progress
         d["progress"]["base"] = True
         assert m.progress["base"] is False
+
+
+class TestDoneFlagAndEdgeCases:
+    """
+    done_flag must only be True when explicitly set via merge_map(done_flag=True).
+    merge_map must never silently drop fields or produce incorrect progress copies.
+    """
+
+    def test_done_flag_false_after_partial_progress(self):
+        """Even when all layers except tests are True, done_flag stays False."""
+        m = merge_map(
+            _minimal_map(),
+            progress={
+                "base": True, "system": True, "runtime": True,
+                "deps": True, "build": True, "tests": False,
+            },
+        )
+        assert m.done_flag is False
+
+    def test_done_flag_set_true_via_merge_map(self):
+        m = _minimal_map()
+        m2 = merge_map(m, done_flag=True)
+        assert m2.done_flag is True
+
+    def test_done_flag_can_be_set_back_false_via_merge_map(self):
+        m = merge_map(_minimal_map(), done_flag=True)
+        m2 = merge_map(m, done_flag=False)
+        assert m2.done_flag is False
+
+    def test_merge_map_with_no_kwargs_copies_everything(self):
+        installed = (_fact("flask", "3.0.0"),)
+        notes = ("keep editable install",)
+        m = merge_map(
+            _minimal_map(),
+            installed=installed,
+            notes=notes,
+            done_flag=True,
+        )
+        m2 = merge_map(m)  # no kwargs
+        assert m2.installed == installed
+        assert m2.notes == notes
+        assert m2.done_flag is True
+        assert m2.base_image == m.base_image
+
+    def test_merge_map_with_empty_installed_tuple_clears_field(self):
+        m = merge_map(_minimal_map(), installed=(_fact("flask"),))
+        m2 = merge_map(m, installed=())
+        assert m2.installed == ()
+
+    def test_merge_map_with_empty_notes_tuple_clears_field(self):
+        m = merge_map(_minimal_map(), notes=("note",))
+        m2 = merge_map(m, notes=())
+        assert m2.notes == ()
+
+    def test_progress_copy_does_not_alias_current_progress(self):
+        m = _minimal_map()
+        m2 = merge_map(m)  # no progress kwarg
+        m2.progress["base"] = True  # mutate the copy
+        # original m.progress must be unaffected
+        assert m.progress["base"] is False
+
+    def test_three_role_cycle_simulation(self):
+        """
+        Simulate one complete cycle:
+          initial_map → merge installed (build agent reports) → merge done_flag (maintainer sees collect-only rc=0)
+        Verify the map is a fresh object at each stage and done_flag fires correctly.
+        """
+        # Cycle start
+        m0 = _minimal_map()
+        assert m0.done_flag is False
+        assert m0.installed == ()
+
+        # After build agent runs `pip install flask` (rc=0)
+        m1 = merge_map(m0, installed=(_fact("flask", "3.0.3"),))
+        assert m1.done_flag is False
+        assert len(m1.installed) == 1
+        assert m0.installed == ()  # m0 unchanged
+
+        # After build agent runs `pytest --collect-only` (rc=0) — maintainer sees it
+        m2 = merge_map(
+            m1,
+            done_flag=True,
+            progress={
+                "base": True, "system": True, "runtime": True,
+                "deps": True, "build": True, "tests": True,
+            },
+        )
+        assert m2.done_flag is True
+        assert m2.progress["tests"] is True
+        assert m1.done_flag is False  # m1 unchanged
+        assert m1.progress["tests"] is False  # m1 unchanged
