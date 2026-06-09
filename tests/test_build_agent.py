@@ -456,3 +456,156 @@ class TestBuildAgentStuckGuardIntegration(unittest.TestCase):
         # → loop continues to the real action and then Final Answer
         self.assertEqual(report.status, "done")
         self.assertEqual(len(report.commands), 3)
+
+
+# ---------------------------------------------------------------------------
+# 7. ActionLedger appends — each executed action is recorded
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentLedgerAppends(unittest.TestCase):
+    """Each shell-executed action must be appended to the ActionLedger."""
+
+    def test_successful_action_appended_with_rc_0(self):
+        client = _fake_client_seq([
+            "Thought: install\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, "Successfully installed flask")
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].cmd, "pip install flask")
+        self.assertEqual(events[0].rc, 0)
+
+    def test_failed_action_appended_with_rc_1(self):
+        client = _fake_client_seq([
+            "Thought: try\nAction: pip install psycopg2",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (False, "ERROR: pg_config not found")
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].rc, 1)
+
+    def test_multiple_actions_all_appended_in_order(self):
+        client = _fake_client_seq([
+            "Thought: step1\nAction: apt-get install -y libpq-dev",
+            "Thought: step2\nAction: pip install psycopg2",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, f"ok: {cmd}")
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0].cmd, "apt-get install -y libpq-dev")
+        self.assertEqual(events[1].cmd, "pip install psycopg2")
+
+    def test_preflight_rejected_action_still_appended(self):
+        """Preflight rejections ARE appended to the ledger (rc=1, mutation_class=None)."""
+        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup"
+        client = _fake_client_seq([
+            "Thought: bad\nAction: pip install x | head",
+            "Thought: ok\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+
+        def sandbox(cmd):
+            if "| head" in cmd:
+                return False, preflight
+            return True, "ok"
+
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        self.assertEqual(len(events), 2)
+        # Preflight rejection: rc=1, mutation_class=None
+        self.assertEqual(events[0].rc, 1)
+        self.assertIsNone(events[0].mutation_class)
+        # Real successful action: rc=0
+        self.assertEqual(events[1].rc, 0)
+
+    def test_mutating_command_sets_mutation_class(self):
+        """Successful mutating command must carry a non-None mutation_class."""
+        client = _fake_client_seq([
+            "Thought: install\nAction: pip install flask",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, "ok")
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        # _FakeSynthesizer marks all commands as mutating → mutation_class set
+        self.assertIsNotNone(events[0].mutation_class)
+
+    def test_non_mutating_command_has_null_mutation_class(self):
+        """Read-only commands (synthesizer returns False) must have mutation_class=None."""
+        class _ReadOnlySynthesizer:
+            def command_mutates_environment(self, cmd): return False
+            def classify_mutation(self, cmd): return "other_mutation"
+
+        client = _fake_client_seq([
+            "Thought: read\nAction: cat requirements.txt",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox = lambda cmd: (True, "flask==2.3.0")
+        ledger = _make_ledger()
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_ReadOnlySynthesizer(), container_id="c"
+        )
+        agent.run(_make_task(), sandbox, ledger)
+
+        events = ledger.events()
+        self.assertIsNone(events[0].mutation_class)
+
+    def test_ledger_event_has_correct_container_id(self):
+        client = _fake_client_seq([
+            "Thought: x\nAction: ls",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        ledger = _make_ledger()
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="my-container-123"
+        )
+        agent.run(_make_task(), lambda cmd: (True, "ok"), ledger)
+
+        events = ledger.events()
+        self.assertEqual(events[0].container_id, "my-container-123")
+
+    def test_ledger_event_step_increments(self):
+        """step field must increment across actions."""
+        client = _fake_client_seq([
+            "Thought: a\nAction: cmd1",
+            "Thought: b\nAction: cmd2",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), lambda cmd: (True, "ok"), ledger)
+
+        events = ledger.events()
+        self.assertEqual(len(events), 2)
+        self.assertLess(events[0].step, events[1].step)
+
+    def test_step_offset_shifts_step_numbers(self):
+        """step_offset shifts all step numbers for correct multi-task ledger alignment."""
+        client = _fake_client_seq([
+            "Thought: x\nAction: ls",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        ledger = _make_ledger()
+        _make_agent(client).run(_make_task(), lambda cmd: (True, "ok"), ledger, step_offset=10)
+
+        events = ledger.events()
+        self.assertGreaterEqual(events[0].step, 10)
