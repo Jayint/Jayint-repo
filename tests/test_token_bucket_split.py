@@ -332,12 +332,10 @@ class TestArmCSnapshotThreading(unittest.TestCase):
         agent._record_successful_action = lambda *a, **k: None
         agent._record_failed_action = lambda *a, **k: None
         agent._record_supervisor_path_usage = lambda *a, **k: None
-        # Stub _build_observer with a minimal observer that advances the revision
-        # on "install" commands — avoids needing real Maintainer/probes/ledger wiring.
+        # Stub _build_observer with a minimal observer; advance_revision removed
+        # with acl.py — stub returns snapshot unchanged.
         def _simple_observer(snap, task_spec, step, action, success, observation):
-            from src.envstate.acl import advance_revision
-            if success and "install" in action:
-                snap = advance_revision(snap, "install")
+            # advance_revision removed with acl.py; stub returns snapshot unchanged
             return snap
         agent._build_observer = lambda maintainer: _simple_observer
         # Stub the finally-block helpers so _run_supervisor can complete
