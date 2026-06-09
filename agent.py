@@ -876,7 +876,9 @@ class DockerAgent:
         # ── 3. Instantiate collaborators with canonical signatures ─────────────
         # All three roles share the same constructor shape:
         #   Role(client, model, on_usage=<callable|None>, log_path=<str|None>)
-        # BuildAgent additionally receives sandbox/ledger/synthesizer deps.
+        # BuildAgent additionally receives the synthesizer (for mutation
+        # classification); the sandbox executor and ActionLedger are passed to
+        # the loop (_run_v1_loop) per-task, not to the constructor.
         planner = _Planner(
             self.client,
             self.model,
@@ -892,11 +894,10 @@ class DockerAgent:
         build_agent = _BuildAgent(
             self.client,
             self.model,
+            self.synthesizer,
+            container_id=getattr(self, "env_container_id", "unknown"),
             on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
             log_path=_llm_log_path,
-            sandbox=self.sandbox,
-            ledger=self.action_ledger,
-            synthesizer=self.synthesizer,
         )
 
         configuration_success = False
