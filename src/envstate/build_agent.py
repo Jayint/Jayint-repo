@@ -26,6 +26,10 @@ MAX_EMPTY_RESPONSES: int = 2   # re-prompts allowed for unparseable LLM output
 # ---------------------------------------------------------------------------
 
 _ACTION_RE = re.compile(r"^\s*Action:\s*(.+?)\s*$", re.MULTILINE)
+# Matches "Action: ```lang\n<body>\n```" — fenced block spanning multiple lines.
+_ACTION_FENCED_RE = re.compile(
+    r"^\s*Action:\s*```[a-zA-Z]*\n(.*?)```", re.MULTILINE | re.DOTALL
+)
 _FINAL_RE = re.compile(
     r"^\s*Final Answer:\s*Success\b", re.IGNORECASE | re.MULTILINE
 )
@@ -39,7 +43,19 @@ _PREFLIGHT_REJECTION_PREFIX = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION"
 
 
 def _extract_worker_action(content: str) -> str:
-    """Extract Action line from LLM content (mirrors worker.py verbatim)."""
+    """Extract Action line from LLM content (mirrors worker.py verbatim).
+
+    Handles three formats:
+    1. Plain: Action: <command>
+    2. Fenced: Action: ```lang\\n<command>\\n```
+    3. XML tool-call: <parameter name="command">...</parameter>
+    """
+    # Try fenced block first (superset of plain — avoids capturing only the
+    # fence header on multi-line fences).
+    fenced_match = _ACTION_FENCED_RE.search(content or "")
+    if fenced_match:
+        return fenced_match.group(1).strip().splitlines()[0].strip()
+
     match = _ACTION_RE.search(content or "")
     if match:
         action = match.group(1).strip()

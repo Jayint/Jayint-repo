@@ -67,3 +67,63 @@ class TestModuleConstants(unittest.TestCase):
     def test_max_empty_responses_default_is_2(self):
         from src.envstate import build_agent
         self.assertEqual(build_agent.MAX_EMPTY_RESPONSES, 2)
+
+
+# ---------------------------------------------------------------------------
+# 2. Action-parsing helpers (ported from worker.py)
+# ---------------------------------------------------------------------------
+
+class TestExtractWorkerAction(unittest.TestCase):
+    def _extract(self, content: str) -> str:
+        from src.envstate.build_agent import _extract_worker_action
+        return _extract_worker_action(content)
+
+    def test_plain_action_line(self):
+        out = self._extract("Thought: install\nAction: apt-get install -y libpq-dev")
+        self.assertEqual(out, "apt-get install -y libpq-dev")
+
+    def test_strips_backtick_fencing(self):
+        out = self._extract("Thought: ok\nAction: ```bash\npip install flask\n```")
+        self.assertEqual(out, "pip install flask")
+
+    def test_toolcall_xml_format(self):
+        content = (
+            "<invoke>\n"
+            '<parameter name="command">pip install psycopg2</parameter>\n'
+            "</invoke>"
+        )
+        out = self._extract(content)
+        self.assertEqual(out, "pip install psycopg2")
+
+    def test_empty_content_returns_empty_string(self):
+        self.assertEqual(self._extract(""), "")
+
+    def test_none_returns_empty_string(self):
+        from src.envstate.build_agent import _extract_worker_action
+        self.assertEqual(_extract_worker_action(None), "")
+
+    def test_multiline_action_takes_first_line(self):
+        out = self._extract("Action: echo hello\nworld")
+        self.assertEqual(out, "echo hello")
+
+
+class TestIsWorkerFinished(unittest.TestCase):
+    def _finished(self, content: str) -> bool:
+        from src.envstate.build_agent import _is_worker_finished
+        return _is_worker_finished(content)
+
+    def test_final_answer_success(self):
+        self.assertTrue(self._finished("Thought: done\nFinal Answer: Success"))
+
+    def test_final_answer_case_insensitive(self):
+        self.assertTrue(self._finished("Final answer: success"))
+
+    def test_not_finished_on_action_line(self):
+        self.assertFalse(self._finished("Thought: ok\nAction: ls"))
+
+    def test_empty_returns_false(self):
+        self.assertFalse(self._finished(""))
+
+    def test_final_answer_failure_not_finished(self):
+        # "Final Answer: Failure" must NOT be treated as completion
+        self.assertFalse(self._finished("Final Answer: Failure"))
