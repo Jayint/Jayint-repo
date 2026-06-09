@@ -322,3 +322,78 @@ class TestBuildAgentRunDone(unittest.TestCase):
         ])
         report = _make_agent(client).run(_make_task(), lambda cmd: (True, "ok"), _make_ledger())
         self.assertIsInstance(report.commands, tuple)
+
+
+# ---------------------------------------------------------------------------
+# 5. BuildAgent.run — budget exhaustion path (returns "blocked")
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentRunBlocked(unittest.TestCase):
+
+    def test_blocked_at_local_budget(self):
+        """After LOCAL_BUDGET actions without 'Final Answer', status must be 'blocked'."""
+        from src.envstate.build_agent import LOCAL_BUDGET
+        # Provide one more LLM response than the budget so the loop always has a response.
+        contents = [f"Thought: step {i}\nAction: pip install pkg{i}" for i in range(LOCAL_BUDGET + 1)]
+        client = _fake_client_seq(contents)
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return False, f"ERROR: install failed for {cmd}"
+
+        task = _make_task()
+        ledger = _make_ledger()
+        report = _make_agent(client).run(task, sandbox, ledger)
+
+        self.assertEqual(report.status, "blocked")
+        self.assertLessEqual(len(sandbox_calls), LOCAL_BUDGET)
+
+    def test_blocked_report_contains_commands(self):
+        """commands tuple must contain all executed actions."""
+        from src.envstate.build_agent import LOCAL_BUDGET
+        contents = [f"Thought: x\nAction: cmd{i}" for i in range(LOCAL_BUDGET + 1)]
+        client = _fake_client_seq(contents)
+        sandbox = lambda cmd: (False, "ERROR: failure")
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        self.assertIsInstance(report.commands, tuple)
+        self.assertGreater(len(report.commands), 0)
+
+    def test_blocked_after_too_many_empty_responses(self):
+        """MAX_EMPTY_RESPONSES consecutive empty responses → status 'blocked'."""
+        from src.envstate.build_agent import MAX_EMPTY_RESPONSES
+        # All responses are empty/unparseable (no Action line, no Final Answer)
+        contents = ["Thought: hmm" for _ in range(MAX_EMPTY_RESPONSES + 2)]
+        client = _fake_client_seq(contents)
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return True, "ok"
+
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        self.assertEqual(report.status, "blocked")
+        # No sandbox calls because empty responses never produce an action
+        self.assertEqual(sandbox_calls, [])
+
+    def test_empty_response_counter_resets_on_real_action(self):
+        """One empty response followed by a real action must NOT trigger the guard."""
+        from src.envstate.build_agent import MAX_EMPTY_RESPONSES
+        contents = [
+            "Thought: hmm",                            # empty — counter = 1
+            "Thought: ok\nAction: pip install flask",  # real action — counter resets
+            "Thought: done\nFinal Answer: Success",    # done
+        ]
+        client = _fake_client_seq(contents)
+        sandbox = lambda cmd: (True, "ok")
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        # Must NOT be blocked — empty counter reset after real action
+        self.assertEqual(report.status, "done")
+
+    def test_blocked_learning_mentions_budget(self):
+        from src.envstate.build_agent import LOCAL_BUDGET
+        contents = [f"Thought: x\nAction: cmd{i}" for i in range(LOCAL_BUDGET + 1)]
+        client = _fake_client_seq(contents)
+        sandbox = lambda cmd: (False, "fail")
+        report = _make_agent(client).run(_make_task(), sandbox, _make_ledger())
+        self.assertIn("budget", report.learning.lower())

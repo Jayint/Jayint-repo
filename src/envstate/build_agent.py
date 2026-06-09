@@ -278,7 +278,7 @@ class BuildAgent:
                     task_goal=task.goal,
                     status="blocked",
                     commands=tuple(history),
-                    learning=f"Stuck guard fired: identical failure twice on '{action}'",
+                    learning=f"Stuck guard fired (budget exhausted): identical failure twice on '{action}'",
                 )
 
             history.append(record)
