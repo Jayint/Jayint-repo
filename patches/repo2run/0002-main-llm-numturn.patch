@@ -1,0 +1,19 @@
+--- /tmp/Repo2Run_inspect/build_agent/main.py	2026-06-07 07:31:43.006569176 +0000
++++ /opt/rat-bench-integration/rat_run_repo2run/Repo2Run/build_agent/main.py	2026-06-07 07:47:30.435318031 +0000
+@@ -90,6 +90,7 @@
+     parser.add_argument('--sha', type=str, help='sha')
+     parser.add_argument('--root_path', type=str, help='root path')
+     parser.add_argument('--llm', type=str, default='gpt-4o-2024-05-13', help='base LLM name')
++    parser.add_argument('--num_turn', type=int, default=70, help='max turns for the configuration agent')
+ 
+     args = parser.parse_args()
+ 
+@@ -135,7 +136,7 @@
+ 
+     configuration_sandbox = Sandbox("python:3.10", full_name, root_path)
+     configuration_sandbox.start_container()
+-    configuration_agent = Configuration(configuration_sandbox, 'python:3.10', full_name, root_path, 100)
++    configuration_agent = Configuration(configuration_sandbox, 'python:3.10', full_name, root_path, llm, args.num_turn)
+     msg, outer_commands = configuration_agent.run('/tmp', trajectory, waiting_list, conflict_list)
+     with open(f'{root_path}/output/{full_name.split("/")[0]}/{full_name.split("/")[1]}/track.json', 'w') as w1:
+         w1.write(json.dumps(msg, indent=4))

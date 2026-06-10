@@ -2,6 +2,8 @@
 
 这是一个基于 LLM 的 Agent，旨在自动为 GitHub 仓库配置可执行的 Docker 环境。
 
+> **Running the RAT benchmark + scoring (EBSR/ESSR):** see [docs/RUNNING_RATBENCH.md](docs/RUNNING_RATBENCH.md).
+
 ## 核心组件
 
 1. **Sandbox (sandbox.py)**: 使用 Docker SDK 运行指令，并具有基于 `commit` 的回滚机制。

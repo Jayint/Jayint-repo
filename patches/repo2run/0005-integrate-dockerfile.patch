@@ -1,0 +1,46 @@
+diff --git a/build_agent/utils/integrate_dockerfile.py b/build_agent/utils/integrate_dockerfile.py
+index 1f35eb9..ecbc92d 100644
+--- a/build_agent/utils/integrate_dockerfile.py
++++ b/build_agent/utils/integrate_dockerfile.py
+@@ -276,8 +276,7 @@ def integrate_dockerfile(root_path):
+     workdir_st = f'WORKDIR /'
+     # 将patch文件夹移到根目录下，为/patch
+ 
+-    copy_st = f'COPY search_patch /search_patch'
+-    copy_edit_st = f'COPY code_edit.py /code_edit.py'
++    copy_st = f'COPY patch /patch'
+     pre_download = 'RUN apt-get update && apt-get install -y curl\nRUN curl -sSL https://install.python-poetry.org | python -\nENV PATH="/root/.local/bin:$PATH"\nRUN pip install pytest pytest-xdist\nRUN pip install pipdeptree'
+ 
+     git_st = f'RUN git clone https://github.com/{author_name}/{repo_name}.git'
+@@ -296,6 +295,7 @@ def integrate_dockerfile(root_path):
+     with open(f'{root_path}/pipdeptree.json', 'r') as r2:
+         pipdeptree_data = json.load(r2)
+     diff_no = 1
++    has_code_edit = False
+     for command in commands_data:
+         res = generate_statement(command, pipdeptree_data)
+         if res == -1:
+@@ -304,7 +304,10 @@ def integrate_dockerfile(root_path):
+         if res.startswith('FROM'):
+             base_image_st = res
+             container_run_set = list()
++            has_code_edit = False
++            diff_no = 1
+         elif command['command'].startswith('python /home/tools/code_edit.py'):
++            has_code_edit = True
+             if diff_no == 1:
+                 container_run_set.append(f'RUN cd /repo && git apply --reject /patch/patch_{diff_no}.diff --allow-empty')
+             else:
+@@ -317,11 +320,8 @@ def integrate_dockerfile(root_path):
+     # 组合最后的顺序
+     dockerfile.append(base_image_st)
+     dockerfile.append(workdir_st)
+-    if os.path.exists(f'{root_path}/patch'):
++    if has_code_edit:
+         dockerfile.append(copy_st)
+-
+-    if len(outer_command) > 0:
+-        dockerfile.append(copy_edit_st)
+     dockerfile.extend(pre_download.splitlines())
+     
+     dockerfile.append(git_st)

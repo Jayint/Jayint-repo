@@ -1,5 +1,6 @@
 import os
 import re
+import copy
 import json
 import argparse
 import subprocess
@@ -12,6 +13,7 @@ from src.planner import Planner
 from src.synthesizer import Synthesizer
 from src.image_selector import ImageSelector
 from src.verification_bundle import derive_supported_verification_bundle
+from src.artifact_verify import verify_and_repair_recipe
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.memory_manager import LongTermMemoryManager
 from src.observation_compressor import (
@@ -132,9 +134,14 @@ class DockerAgent:
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
+        enable_post_synthesis_repair=True,
+        self_verify_max_rounds=2,
     ):
         self.repo_url = repo_url
         self.model = model
+        self.enable_post_synthesis_repair = enable_post_synthesis_repair
+        self.self_verify_max_rounds = self_verify_max_rounds
+        self.self_verify_result = None
         self.base_commit = base_commit
         self.problem_statement = problem_statement or ""
         self.test_patch = test_patch or ""
@@ -223,33 +230,46 @@ class DockerAgent:
             )
         
         # 3. Initialize LLM client first (needed for image selection)
-        api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE")
+        #    Provider precedence: OpenRouter -> MiniMax -> OpenAI (all OpenAI-compatible).
+        api_key = (os.getenv("OPENROUTER_API_KEY")
+                   or os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY"))
+        base_url = (os.getenv("OPENROUTER_API_BASE")
+                    or os.getenv("MINIMAX_API_BASE") or os.getenv("OPENAI_API_BASE"))
         if not api_key:
-            raise ValueError("MINIMAX_API_KEY or OPENAI_API_KEY not found in environment variables.")
+            raise ValueError("No LLM API key found. Set OPENROUTER_API_KEY, MINIMAX_API_KEY, "
+                             "or OPENAI_API_KEY in environment variables (.env).")
             
         self.client = OpenAI(
             api_key=api_key,
             base_url=base_url if base_url else None
         )
 
-        # Optional OpenRouter provider pinning: when OPENROUTER_PROVIDER is set,
-        # route every chat completion through that upstream provider only (no
-        # fallbacks). Applies to every component sharing self.client — image
-        # selection, the Arm-0 ReAct loop, and the v1 Planner/BuildAgent/Maintainer.
-        _or_provider = os.getenv("OPENROUTER_PROVIDER")
-        if _or_provider:
+        # OpenRouter provider pinning. When talking to OpenRouter (detected via
+        # base_url / LLM_API_PROVIDER, or when OPENROUTER_PROVIDER is set), route
+        # every chat completion through the listed upstream provider(s) in order,
+        # no fallbacks. OPENROUTER_PROVIDER is comma-separated (default "Alibaba",
+        # e.g. for deepseek-v4-flash). Applies to every component sharing
+        # self.client — image selection, the Arm-0 ReAct loop, and the v1
+        # Planner/BuildAgent/Maintainer.
+        _or_provider_env = os.getenv("OPENROUTER_PROVIDER")
+        _is_openrouter = (
+            bool(_or_provider_env)
+            or (base_url and "openrouter" in base_url)
+            or os.getenv("LLM_API_PROVIDER") == "openrouter"
+        )
+        if _is_openrouter:
+            _providers = [p.strip() for p in (_or_provider_env or "Alibaba").split(",") if p.strip()]
             _orig_create = self.client.chat.completions.create
 
-            def _create_pinned(*args, _orig=_orig_create, _prov=_or_provider, **kwargs):
+            def _routed_create(*args, _orig=_orig_create, _prov=_providers, **kwargs):
                 extra_body = dict(kwargs.get("extra_body") or {})
                 extra_body.setdefault(
-                    "provider", {"only": [_prov], "allow_fallbacks": False}
+                    "provider", {"order": _prov, "allow_fallbacks": False}
                 )
                 kwargs["extra_body"] = extra_body
                 return _orig(*args, **kwargs)
 
-            self.client.chat.completions.create = _create_pinned
+            self.client.chat.completions.create = _routed_create
 
         if self.enable_long_term_memory:
             self.memory_manager = LongTermMemoryManager(
@@ -1375,6 +1395,7 @@ class DockerAgent:
                     # 生成 Dockerfile 到 workplace 目录
                     dockerfile_path = os.path.join(self.workplace, "Dockerfile")
                     self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+                    self._self_verify_and_repair(dockerfile_path)
                     self._maybe_generate_long_term_memories(configuration_success)
                 else:
                     configuration_success = False
@@ -1398,6 +1419,7 @@ class DockerAgent:
                     if self._synthesize_final_build_recipe():
                         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
                         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+                        self._self_verify_and_repair(dockerfile_path)
                         self._maybe_generate_long_term_memories(configuration_success)
                     else:
                         configuration_success = False
@@ -1595,6 +1617,55 @@ class DockerAgent:
                 "post-test-patch command(s)."
             )
             return True
+
+    def _self_verify_and_repair(self, dockerfile_path):
+        """DEPRECATED (2026-06-08): superseded by the runner-side repair loop
+        (run_rat_benchmark.py:_repair_and_rescore via repo2run_repair_port.py).
+        Retained and toggleable via enable_post_synthesis_repair / --repair-mode.
+        Do not extend — port improvements to the runner loop instead.
+
+        Build the synthesized recipe in a clean room, run the verified test command,
+        and repair the recipe (deterministic + LLM) if the environment is incomplete.
+
+        Recipe-level: on a resolved repair the repaired recipe is re-applied via
+        ``apply_build_recipe`` and the Dockerfile is regenerated, so every downstream
+        consumer inherits the fix. Fully guarded — never blocks finalization.
+        """
+        if not getattr(self, "enable_post_synthesis_repair", False):
+            return
+        if not getattr(self, "verified_test_command", None):
+            return
+        try:
+            slug = re.sub(r"[^a-z0-9]+", "-", (self.repo_url or "repo").lower()).strip("-")[:60] or "repo"
+            result = verify_and_repair_recipe(
+                recipe=self.build_recipe,
+                synthesizer=self.synthesizer,
+                repo_url=self.repo_url,
+                base_commit=self.base_commit,
+                workdir=self.synthesizer.workdir,
+                verified_test_command=self.verified_test_command,
+                runtime_preparation_commands=self.verified_runtime_preparation_commands,
+                workspace_root=self.workplace,
+                client=self.client,
+                model=self.model,
+                image_tag=f"dockeragent-selfverify-{slug}",
+                platform=getattr(self, "platform_override", None),
+                max_rounds=getattr(self, "self_verify_max_rounds", 2),
+            )
+        except Exception as exc:
+            print(f"[Self-Verify] Phase errored ({exc}); keeping original artifact.")
+            self.self_verify_result = {"status": "phase_error", "error": str(exc)}
+            return
+
+        self.self_verify_result = {k: result.get(k) for k in ("status", "changed", "rounds")}
+        if result.get("status") == "resolved" and result.get("changed"):
+            self.synthesizer.apply_build_recipe(result["recipe"])
+            # Own copy — apply_build_recipe aliases result["recipe"] onto the synthesizer.
+            self.build_recipe = copy.deepcopy(result["recipe"])
+            self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+            print(f"[Self-Verify] Adopted repaired recipe; regenerated {dockerfile_path}.")
+        else:
+            print(f"[Self-Verify] status={result.get('status')}; keeping original recipe.")
 
     def _build_recipe_synthesis_input(self):
         run_summary = self._build_run_summary(configuration_success=True, run_error=None)
@@ -2373,6 +2444,7 @@ class DockerAgent:
             "build_recipe": getattr(self, "build_recipe", None),
             "build_recipe_source": getattr(self, "build_recipe_source", None),
             "build_recipe_error": getattr(self, "build_recipe_error", None),
+            "self_verify_result": getattr(self, "self_verify_result", None),
             "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,
             "compression_stats": self.compression_stats,
@@ -2501,6 +2573,18 @@ if __name__ == "__main__":
     parser.add_argument("--enable-v1", action="store_true",
                         help="Use the v1 three-role orchestrator (Planner/BuildAgent/Maintainer). "
                              "Mutually exclusive with --enable-supervisor and --enable-fullstate-worker.")
+    parser.add_argument(
+        "--disable-post-synthesis-repair",
+        action="store_true",
+        help="Disable the post-synthesis clean-room self-verify + recipe-repair phase "
+             "(on by default). Use for a raw-agent baseline with no self-repair.",
+    )
+    parser.add_argument(
+        "--self-verify-max-rounds",
+        type=int,
+        default=2,
+        help="Max self-verify repair rounds (deterministic + LLM). Defaults to 2.",
+    )
 
     args = parser.parse_args()
 
@@ -2538,5 +2622,7 @@ if __name__ == "__main__":
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
         command_timeout_seconds=args.command_timeout,
+        enable_post_synthesis_repair=not args.disable_post_synthesis_repair,
+        self_verify_max_rounds=args.self_verify_max_rounds,
     )
     agent.run(max_steps=args.steps, keep_container=args.keep_container)
