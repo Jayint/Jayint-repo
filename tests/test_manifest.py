@@ -59,3 +59,22 @@ def test_dedup_across_files(tmp_path):
     r = parse_manifests(str(tmp_path))
     names = [f.name.lower() for f in r.required]
     assert names.count("flask") == 1
+
+
+def test_pipfile_detected_and_packages(tmp_path):
+    # spec §4.1: Pipfile → pipenv; [packages] names extracted (detail dropped for "*")
+    (tmp_path / "Pipfile").write_text(
+        '[packages]\nflask = "*"\nrequests = "==2.31.0"\n[dev-packages]\npytest = "*"\n'
+    )
+    r = parse_manifests(str(tmp_path))
+    assert r.build_system == "pipenv"
+    names = {f.name.lower() for f in r.required}
+    assert "flask" in names
+    assert "requests" in names
+
+
+def test_setup_only_is_setuptools(tmp_path):
+    # spec §4.1: setup.py / setup.cfg only → setuptools
+    (tmp_path / "setup.py").write_text("from setuptools import setup\nsetup()\n")
+    r = parse_manifests(str(tmp_path))
+    assert r.build_system == "setuptools"
