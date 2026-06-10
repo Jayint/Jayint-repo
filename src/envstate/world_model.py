@@ -163,6 +163,33 @@ def merge_map(
     )
 
 
+
+
+def _derive_progress(prev: dict[str, bool], m: WorldModelMap) -> dict[str, bool]:
+    """Deterministically compute layer progress from facts; monotonic vs prev.
+
+    Clean-signal layers: base/runtime/deps/tests. Signal-less layers
+    (system/build) are complete unless an unresolved open_problem targets
+    them. OR-merged with prev so a layer never flips True->False mid-run.
+    """
+    installed_lower = {f.name.lower() for f in m.installed}
+    deps_ok = bool(m.required) and all(
+        r.name.lower() in installed_lower for r in m.required
+    )
+    open_layers = {p.layer for p in m.open_problems if not p.out_of_scope}
+    computed = {
+        "base": bool(m.base_image),
+        "system": "system" not in open_layers,
+        "runtime": bool(m.env.get("python_version")),
+        "deps": deps_ok,
+        "build": "build" not in open_layers,
+        "tests": bool(m.done_flag),
+    }
+    return {
+        layer: bool(prev.get(layer, False)) or bool(computed.get(layer, False))
+        for layer in _PROGRESS_LAYERS
+    }
+
 # ---------------------------------------------------------------------------
 # JSON serialization helpers (for LLM message embedding)
 # ---------------------------------------------------------------------------
