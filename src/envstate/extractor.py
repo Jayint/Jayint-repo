@@ -4,6 +4,13 @@ from typing import Callable, Dict, Optional, Tuple
 
 ProbeExecutor = Callable[[str], Tuple[int, str]]
 
+# Curated build/config tools that appear in system-layer failure signatures.
+SYSTEM_TOOL_PROBES: tuple[str, ...] = (
+    "gcc", "g++", "cc", "make", "cmake", "pkg-config",
+    "pg_config", "mysql_config", "mariadb_config",
+    "curl-config", "xml2-config", "xslt-config", "krb5-config", "icu-config",
+)
+
 # field_name -> read-only command (design §12 extractor list, V1 subset)
 EXTRACTOR_COMMANDS: Dict[str, str] = {
     "os_release": "cat /etc/os-release",
@@ -16,6 +23,10 @@ EXTRACTOR_COMMANDS: Dict[str, str] = {
     "installed_pip": "pip list --format=freeze 2>/dev/null",
     "dpkg_packages": "dpkg -l 2>/dev/null | awk '/^ii/{print $2}'",
     "pkg_config_modules": "pkg-config --list-all 2>/dev/null",
+    "system_tools": (
+        "for t in " + " ".join(SYSTEM_TOOL_PROBES) +
+        "; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done"
+    ),
 }
 
 # Cheap subset re-run after every env mutation (design §12 run schedule).
