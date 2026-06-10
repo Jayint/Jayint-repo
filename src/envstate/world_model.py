@@ -190,6 +190,29 @@ def _derive_progress(prev: dict[str, bool], m: WorldModelMap) -> dict[str, bool]
         for layer in _PROGRESS_LAYERS
     }
 
+
+def _auto_resolve_problems(
+    open_problems: tuple[OpenProblem, ...],
+    installed: tuple[Fact, ...],
+) -> tuple[OpenProblem, ...]:
+    """Drop a problem whose package name appears (case-insensitive) in its
+    signature once that package is in `installed`.
+
+    Conservative exact-name match: covers pip ModuleNotFoundError cases.
+    Package-vs-import-name mismatches (psycopg2 vs psycopg2-binary) are left
+    for the Maintainer's `resolved` list. Never raises.
+    """
+    if not installed:
+        return open_problems
+    names = [f.name.lower() for f in installed if f.name]
+    kept: list[OpenProblem] = []
+    for p in open_problems:
+        sig = p.signature.lower()
+        if any(name in sig for name in names):
+            continue  # resolved
+        kept.append(p)
+    return tuple(kept)
+
 # ---------------------------------------------------------------------------
 # JSON serialization helpers (for LLM message embedding)
 # ---------------------------------------------------------------------------
