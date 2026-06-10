@@ -379,6 +379,93 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertEqual(output, "setup.py\n")
         self.assertEqual(len(sandbox.container.calls), 1)
 
+    def test_source_stub_write_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"created")],
+            status="running",
+        )
+
+        success, output = sandbox.execute(
+            "cat > /app/src/dslmodel/__init__.py << 'EOF'\n"
+            "class DSLModel: pass\n"
+            "EOF"
+        )
+
+        self.assertFalse(success)
+        self.assertIn("modify repository source/test code", output)
+        self.assertIn("/app/src/dslmodel/__init__.py", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_source_directory_creation_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"created")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("mkdir -p /app/src/dslmodel")
+
+        self.assertFalse(success)
+        self.assertIn("modify repository source/test code", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_source_sed_edit_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"edited")],
+            status="running",
+        )
+
+        success, output = sandbox.execute(
+            "sed -i 's/from utils/from dspygen.utils/g' /app/src/dspygen/experiments/self_cli.py"
+        )
+
+        self.assertFalse(success)
+        self.assertIn("modify repository source/test code", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_test_file_write_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"created")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("cat > tests/test_fake.py << 'EOF'\ndef test_fake(): pass\nEOF")
+
+        self.assertFalse(success)
+        self.assertIn("modify repository source/test code", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_dependency_config_write_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"written")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("cat > pyproject.toml << 'EOF'\n[project]\nname='demo'\nEOF")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "written")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_dependency_lock_edit_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"edited")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("sed -i 's/old/new/g' poetry.lock")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "edited")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
     def test_compound_setup_mutations_are_rejected_before_execution(self):
         sandbox = self._make_sandbox()
         sandbox.container = FakeContainer(

@@ -6,7 +6,7 @@ from src.constants import DEFAULT_LLM_MODEL
 
 
 class Planner:
-    DEFAULT_PROMPT_BUDGET_TOKENS = 180000
+    DEFAULT_PROMPT_BUDGET_TOKENS = 130000
     DEFAULT_COMPLETION_RESERVE_TOKENS = 8000
 
     def __init__(
@@ -22,6 +22,7 @@ class Planner:
         history_token_budget: int = None,
         enable_long_term_memory: bool = False,
         benchmark_evaluation_target: Optional[Dict[str, Any]] = None,
+        environment_plan_context: str = "",
     ):
         self.client = client
         self.model = model
@@ -45,6 +46,7 @@ class Planner:
         self.history_token_budget = history_token_budget
         self.enable_long_term_memory = enable_long_term_memory
         self.benchmark_evaluation_target = benchmark_evaluation_target or {}
+        self.environment_plan_context = environment_plan_context or ""
         
         # Create log directory if specified
         if self.log_dir:
@@ -77,13 +79,24 @@ class Planner:
             prompt_sections.append(structure_section.rstrip())
         if maven_repository_section:
             prompt_sections.append(maven_repository_section.rstrip())
+        if self.environment_plan_context:
+            prompt_sections.append(
+                "PLANNING AGENT CONTEXT (advisory execution map):\n"
+                "- Before exploratory setup, consult the typed task graph and ordered todo-list below.\n"
+                "- Prefer actions that advance the next unmet hard dependency in the todo-list.\n"
+                "- If a real Observation contradicts the graph, trust the Observation and adapt.\n"
+                "- The current plan is also materialized inside the container at `/tmp/repo2run_environment_plan.md` and `/tmp/repo2run_environment_plan.json`.\n"
+                "- You may request the latest host-managed plan at any time with `Action: __VIEW_PLAN__`.\n"
+                "- Command hints are not proof and are not final Verification Bundle entries until executed successfully.\n\n"
+                f"{self.environment_plan_context.rstrip()}"
+            )
         if language_instructions:
             prompt_sections.append(language_instructions.rstrip())
 
         action_format = (
-            "Action: <bash command to execute, __ROLLBACK__, or __RETRIEVE_MEMORY__>"
+            "Action: <bash command to execute, __ROLLBACK__, __VIEW_PLAN__, or __RETRIEVE_MEMORY__>"
             if self.enable_long_term_memory
-            else "Action: <bash command to execute, or __ROLLBACK__>"
+            else "Action: <bash command to execute, __ROLLBACK__, or __VIEW_PLAN__>"
         )
 
         prompt_sections.extend([
@@ -100,6 +113,8 @@ class Planner:
             "READ THESE FIRST (highest-priority rules):\n"
             "- **No Excuses Rule**: You CANNOT output 'Final Answer: Success' unless the final verification command(s) you will report have been executed for real and prove the repository's tests are collectable in the configured environment. For ordinary Python setup, this means `pytest --collect-only -q --disable-warnings` succeeds from the repository root; for Poetry projects, use `poetry run pytest --collect-only -q --disable-warnings`. You do NOT need to run the full test suite or make all tests pass. Collection/import/config errors, missing dependencies, missing services, bad paths, bad locale, or other fixable environment defects are still setup failures and must be fixed. If a `Benchmark Evaluation Target` is provided, use the metadata only as a clue for relevant test framework/files; the final proof should still be Repo2Run-style pytest collection success.\n"
             "- **No Bypassing Tests**: Run real pytest collection for the project. Do not create substitute tests or claim success from manual import checks alone.\n"
+            "- **Environment-Only Boundary**: Do not create stubs, rewrite tests, or modify source files to make imports pass. You may edit dependency/environment configuration files such as `pyproject.toml`, `.lock` files, `requirements*.txt`, `setup.cfg`, `tox.ini`, or pytest config when they contain dependency or environment conflicts. Fix missing local imports with `PYTHONPATH`, editable install, or package discovery configuration rather than changing source semantics.\n"
+            "- **Manifest-First Dependencies**: For Python/Poetry projects, derive dependency installs from `pyproject.toml`, lock files, requirements files, CI, and platform markers before reacting to individual pytest import errors. If the Planning Agent provides a manifest-driven dependency resolution plan, execute its setup steps first. Use pytest errors only to validate or promote a manifest-backed fallback; do not stack arbitrary packages in a long error-driven loop.\n"
             "- **No `sudo` In This Container**: Do not use `sudo`. In this container, `sudo` may be unavailable even when you already have permission to install packages directly. If you need a system package such as PostgreSQL, first try installing it directly with commands like `apt-get update && apt-get install -y <package>`.\n"
             "- **Keep Setup Commands Atomic**: Prefer one state-changing operation per Action. Do not combine package installs, file edits, service setup, generated artifacts, and verification/probe commands with `&&`, `;`, or pipes unless the command is intrinsically atomic and cannot be split. In particular, do not put environment-changing commands and read-only checks/tests in the same Action.\n"
             "- **No Output Truncation Filters**: Do not append `| tail`, `| head`, `| grep`, or similar output-limiting filters to setup, install, or verification commands. The host handles long output. These filters can hide the real failure and make later Dockerfile synthesis wrong.\n"
@@ -111,9 +126,11 @@ class Planner:
 
             "WORKFLOW:\n"
             "1. Inspect dependency, build, README/CI, and test configuration files as needed.\n"
-            "2. Install the dependencies, tools, and local services needed by the repository.\n"
-            "3. Run Repo2Run-style verification: `pytest --collect-only -q --disable-warnings` or, for Poetry projects, `poetry run pytest --collect-only -q --disable-warnings`. If tools, test dependencies, or services are missing, fix the environment rather than bypassing tests. Temporary `--ignore` flags are only for diagnosis; they do NOT count as final proof unless you also change the repository/test configuration so the plain Repo2Run command now succeeds.\n"
-            "4. Missing secrets/API keys may be documented only when the remaining failures are clearly secret-only.",
+            "2. Use the Planning Agent todo-list as your execution map. After a successful planned setup step, inspect the updated next todo with `Action: __VIEW_PLAN__` before starting an unrelated branch.\n"
+            "3. Install dependencies from the manifest/lock/CI-derived plan before adding pytest-error-derived packages. If the manifest or lock is internally inconsistent for Linux, repair the dependency configuration and retry from a clean dependency strategy.\n"
+            "4. Install the tools and local services needed by the repository.\n"
+            "5. Run Repo2Run-style verification: `pytest --collect-only -q --disable-warnings` or, for Poetry projects, `poetry run pytest --collect-only -q --disable-warnings`. If tools, test dependencies, or services are missing, fix the environment rather than bypassing tests. Temporary `--ignore` flags are only for diagnosis; they do NOT count as final proof unless you also change the repository/test configuration so the plain Repo2Run command now succeeds.\n"
+            "6. Missing secrets/API keys may be documented only when the remaining failures are clearly secret-only.",
 
             "ROLLBACK STRATEGY:\n"
             "- Ordinary command failures do NOT automatically roll back the container. Request `Action: __ROLLBACK__` only when a failed mutating step may have left partial or uncertain state behind.\n"

@@ -15,6 +15,7 @@ from src.language_handlers import (
     detect_language,
     LANGUAGE_HANDLERS
 )
+from src.planning import EnvironmentPlanningAgent
 
 
 # Prompt for locating potentially relevant files
@@ -289,62 +290,41 @@ class ImageSelector:
         if log_dir:
             self._init_log_dir(log_dir)
 
-        print("[ImageSelector] Analyzing repository structure...")
-        
-        # Step 1: Generate repository structure
-        repo_structure = self._generate_repo_structure(repo_path)
-        self._write_structure_log(repo_structure)
-        
-        # Step 2: Locate potentially relevant files
-        potential_files = self._locate_potential_files(repo_structure)
-        print(f"[ImageSelector] Found {len(potential_files)} potentially relevant files")
-        
-        # Step 3: Determine relevance of each file
-        relevant_files = self._filter_relevant_files(repo_path, potential_files)
-        print(f"[ImageSelector] {len(relevant_files)} files confirmed relevant")
-        
-        # Step 4: Read content of relevant files
-        files_content = self._read_files_content(repo_path, relevant_files)
-        
-        # Step 5: Build docs content (needed for both language detection and image selection)
-        docs = self._build_docs_content(files_content)
-
-        # Step 6: Detect language — LLM first, rule-based fallback
-        if language_hint:
-            detected_language = language_hint
-            detection_method = "hint"
-        else:
-            detected_language = self._llm_detect_language(docs)
-            detection_method = "llm"
-            if not detected_language:
-                # Fallback to rule-based detection
-                detected_language = detect_language(repo_structure, files_content)
-                detection_method = "rules"
-            if not detected_language:
-                detected_language = "python"
-                detection_method = "default"
-        print(f"[ImageSelector] Detected language: {detected_language} (via {detection_method})")
-        
-        # Step 7: Get language handler and candidate images
-        language_handler = get_language_handler(detected_language)
-        candidate_images = language_handler.base_images(platform)
-        
-        # Step 8: Use LLM to select base image
-        selected_image, platform_override = self._llm_select_base_image(
-            docs, detected_language, candidate_images
+        print("[ImageSelector] Delegating base-image selection to EnvironmentPlanningAgent...")
+        planning_agent = EnvironmentPlanningAgent(client=self.client, model=self.model)
+        plan = planning_agent.create_initial_plan(
+            repo_path=repo_path,
+            platform=platform,
+            language_hint=language_hint,
+            log_dir=log_dir,
         )
-        
+        usage = planning_agent.get_token_usage()
+        self.token_usage["input_tokens"] += usage.get("input_tokens", 0)
+        self.token_usage["output_tokens"] += usage.get("output_tokens", 0)
+        self.token_usage["total_tokens"] += usage.get("total_tokens", 0)
+
+        decision = planning_agent.base_image_decision
+        evidence = planning_agent.repository_evidence
+        selected_image = plan.repo_summary.get("recommended_base_image") or decision.selected_image
+        language_handler = planning_agent.language_handler or decision.language_handler
+        platform_override = plan.repo_summary.get("platform_override") or decision.platform_override
+        docs = evidence.docs if evidence else ""
+
+        print(f"[ImageSelector] Detected language: {decision.detected_language} (via planning)")
         print(f"[ImageSelector] Selected base image: {selected_image}")
+        if platform_override:
+            print(f"[ImageSelector] Platform override: {platform_override}")
 
-        self._write_summary_log(
-            potential_files,
-            relevant_files,
-            detected_language,
-            selected_image,
-            platform_override=platform_override,
-            detection_method=detection_method,
-        )
-        
+        if log_dir and evidence:
+            self._write_summary_log(
+                evidence.relevant_files,
+                evidence.relevant_files,
+                decision.detected_language,
+                selected_image,
+                platform_override=platform_override,
+                detection_method=decision.selection_method,
+            )
+
         return selected_image, language_handler, docs, platform_override
     
     def _generate_repo_structure(self, repo_path: str) -> str:

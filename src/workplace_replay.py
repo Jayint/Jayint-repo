@@ -20,6 +20,11 @@ def load_json(path: Path) -> Optional[dict[str, Any]]:
 
 
 def load_selected_base_image_from_workplace(workplace: Path) -> Optional[str]:
+    plan_summary = load_environment_plan_summary_from_workplace(workplace)
+    selected_image = str(plan_summary.get("recommended_base_image") or "").strip()
+    if selected_image:
+        return selected_image
+
     summary_path = workplace / "logs" / "image_selector_logs" / "summary.json"
     summary = load_json(summary_path) or {}
     selected_image = str(summary.get("selected_image") or "").strip()
@@ -27,6 +32,11 @@ def load_selected_base_image_from_workplace(workplace: Path) -> Optional[str]:
 
 
 def load_platform_override_from_workplace(workplace: Path) -> Optional[str]:
+    plan_summary = load_environment_plan_summary_from_workplace(workplace)
+    platform_override = str(plan_summary.get("platform_override") or "").strip()
+    if platform_override:
+        return platform_override
+
     summary_path = workplace / "logs" / "image_selector_logs" / "summary.json"
     summary = load_json(summary_path) or {}
     platform_override = str(summary.get("platform_override") or "").strip()
@@ -47,6 +57,13 @@ def load_platform_override_from_workplace(workplace: Path) -> Optional[str]:
             if match:
                 return match.group(1).lower()
     return None
+
+
+def load_environment_plan_summary_from_workplace(workplace: Path) -> dict[str, Any]:
+    plan_path = workplace / "logs" / "planning_logs" / "environment_build_plan.json"
+    plan = load_json(plan_path) or {}
+    summary = plan.get("repo_summary") or {}
+    return summary if isinstance(summary, dict) else {}
 
 
 def infer_base_image_from_dockerfile_text(dockerfile_text: str) -> Optional[str]:

@@ -271,13 +271,22 @@ class PlannerPromptTests(unittest.TestCase):
     def test_system_prompt_exposes_explicit_rollback_action(self):
         planner = Planner(client=None)
 
-        self.assertIn("Action: <bash command to execute, or __ROLLBACK__>", planner.system_prompt)
+        self.assertIn(
+            "Action: <bash command to execute, __ROLLBACK__, or __VIEW_PLAN__>",
+            planner.system_prompt,
+        )
         self.assertIn("Ordinary command failures do NOT automatically roll back the container", planner.system_prompt)
         self.assertIn("Action: __ROLLBACK__", planner.system_prompt)
+        self.assertIn("Action: __VIEW_PLAN__", planner.system_prompt)
         self.assertIn("Split Mutation From Verification", planner.system_prompt)
         self.assertIn("probe/test/read-only command", planner.system_prompt)
         self.assertIn("do not rely on that implicit partial state", planner.system_prompt)
         self.assertIn("rerun it as its own separate Action so it is confirmed successful", planner.system_prompt)
+        self.assertIn("Environment-Only Boundary", planner.system_prompt)
+        self.assertIn("Do not create stubs", planner.system_prompt)
+        self.assertIn("pyproject.toml", planner.system_prompt)
+        self.assertIn("Manifest-First Dependencies", planner.system_prompt)
+        self.assertIn("lock files", planner.system_prompt)
 
     def test_system_prompt_discourages_hard_to_replay_compound_commands(self):
         planner = Planner(client=None)
@@ -298,7 +307,7 @@ class PlannerPromptTests(unittest.TestCase):
         self.assertIn("[Long-Term Memory Hint]", memory_planner.system_prompt)
         self.assertIn("Prefer this before trying more speculative fixes", memory_planner.system_prompt)
         self.assertIn(
-            "Action: <bash command to execute, __ROLLBACK__, or __RETRIEVE_MEMORY__>",
+            "Action: <bash command to execute, __ROLLBACK__, __VIEW_PLAN__, or __RETRIEVE_MEMORY__>",
             memory_planner.system_prompt,
         )
 

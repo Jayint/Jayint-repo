@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import agent as agent_module
 from agent import DockerAgent
+from src.planning import EnvironmentBuildPlan, TaskNode
 from src.synthesizer import Synthesizer
 
 
@@ -48,6 +49,140 @@ class AgentVerificationAggregationTests(unittest.TestCase):
         self.assertEqual(captured["platform"], "linux/amd64")
         self.assertEqual(captured["seed_dir"], "/tmp/demo-workplace")
         self.assertEqual(captured["command_timeout_seconds"], 1234)
+
+    def test_environment_plan_is_materialized_and_progresses_next_todo(self):
+        class FakeEnvironmentPlanner:
+            def __init__(self):
+                self.feedback_calls = []
+
+            def format_initial_plan(self, plan):
+                return "formatted current plan"
+
+            def update_plan_from_execution_feedback(self, plan, failed_action, observation):
+                self.feedback_calls.append((failed_action, observation))
+                return plan
+
+        class FakeSandbox:
+            def __init__(self):
+                self.writes = {}
+
+            def write_text_file(self, path, content):
+                self.writes[path] = content
+                return True, f"wrote {path}"
+
+        plan = EnvironmentBuildPlan(
+            plan_source="test",
+            repo_summary={
+                "primary_language": "python",
+                "package_manager": "pip",
+                "test_framework": "pytest",
+                "recommended_base_image": "python:3.11",
+            },
+            nodes=[
+                TaskNode("python:3.11", "runtime", ["pyproject.toml"], 0.9, command_hint="FROM python:3.11"),
+                TaskNode("pip", "package_manager", ["requirements.txt"], 0.9, command_hint="python -m pip install --upgrade pip"),
+                TaskNode("requirements.txt", "language_dependency", ["requirements.txt"], 0.9, command_hint="pip install -r requirements.txt"),
+                TaskNode("pytest --collect-only -q --disable-warnings", "verification", ["tests"], 0.9, command_hint="pytest --collect-only -q --disable-warnings"),
+            ],
+            edges=[],
+            ordered_todo_list=[
+                {
+                    "step": 1,
+                    "node_id": "python:3.11",
+                    "task_type": "runtime",
+                    "description": "Select runtime.",
+                    "command_hint": "FROM python:3.11",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["pyproject.toml"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+                {
+                    "step": 2,
+                    "node_id": "pip",
+                    "task_type": "package_manager",
+                    "description": "Prepare package manager.",
+                    "command_hint": "python -m pip install --upgrade pip",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["requirements.txt"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+                {
+                    "step": 3,
+                    "node_id": "requirements.txt",
+                    "task_type": "language_dependency",
+                    "description": "Install dependencies.",
+                    "command_hint": "pip install -r requirements.txt",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["requirements.txt"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+            ],
+            risk_notes=[],
+            fallback_plan=[],
+            unresolved_questions=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = DockerAgent.__new__(DockerAgent)
+            agent.workplace = tmpdir
+            agent.logs_dir = os.path.join(tmpdir, "logs")
+            agent.environment_planner = FakeEnvironmentPlanner()
+            agent.sandbox = FakeSandbox()
+            agent.environment_plan_container_json = "/tmp/repo2run_environment_plan.json"
+            agent.environment_plan_container_md = "/tmp/repo2run_environment_plan.md"
+            agent._initialize_planning_execution_state(plan)
+            agent._refresh_environment_plan(plan, reason="test initial plan", step_index=0)
+
+            self.assertTrue(os.path.exists(agent.environment_plan_host_json))
+            self.assertTrue(os.path.exists(agent.environment_plan_host_md))
+            self.assertIn("/tmp/repo2run_environment_plan.md", agent.sandbox.writes)
+            view = agent._view_environment_plan_observation()
+            self.assertIn("NEXT: 2. [package_manager] pip", view)
+
+            feedback = agent._update_environment_plan_after_execution(
+                step_index=1,
+                action="python -m pip install --upgrade pip",
+                observation="Requirement already satisfied: pip",
+                success=True,
+            )
+
+            self.assertIn("pip", agent.planning_execution_state["completed_node_ids"])
+            self.assertIn("Next todo: 3. [language_dependency] requirements.txt", feedback)
+            self.assertIn("NEXT: 3. [language_dependency] requirements.txt", agent.sandbox.writes["/tmp/repo2run_environment_plan.md"])
+
+    def test_output_filter_is_removed_before_sandbox_execution(self):
+        class FakeSandbox:
+            def _command_pipes_setup_or_test_through_output_filter(self, command):
+                return "pytest" in command and "| head" in command
+
+        agent = DockerAgent.__new__(DockerAgent)
+        agent.sandbox = FakeSandbox()
+
+        rewritten, note = agent._prepare_action_for_execution(
+            "cd /app && pytest --collect-only -q --disable-warnings 2>&1 | head -200"
+        )
+
+        self.assertEqual(rewritten, "cd /app && pytest --collect-only -q --disable-warnings")
+        self.assertIn("Executed Action", note)
+        observation = agent._append_system_note("pytest output", note)
+        self.assertTrue(observation.startswith("pytest output\n\n[SYSTEM]"))
+        self.assertIn("Requested Action", observation)
+
+    def test_readonly_output_filter_is_not_rewritten_when_sandbox_allows_it(self):
+        class FakeSandbox:
+            def _command_pipes_setup_or_test_through_output_filter(self, command):
+                return False
+
+        agent = DockerAgent.__new__(DockerAgent)
+        agent.sandbox = FakeSandbox()
+
+        rewritten, note = agent._prepare_action_for_execution("ls /app | head -10")
+
+        self.assertEqual(rewritten, "ls /app | head -10")
+        self.assertEqual(note, "")
 
     def test_aggregates_final_contiguous_verification_block(self):
         agent = self._make_agent()

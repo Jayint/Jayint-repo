@@ -1644,12 +1644,31 @@ class Synthesizer:
             else:
                 text = str(excluded or "")
             for match in re.finditer(r"\bSteps?\s+(\d+)(?:\s*[-–—]\s*(\d+))?", text, flags=re.IGNORECASE):
+                if self._step_reference_points_to_successful_resolution(text, match.start()):
+                    continue
                 start = int(match.group(1))
                 end = int(match.group(2) or start)
                 if end < start:
                     start, end = end, start
                 ranges.append((start, end))
         return ranges
+
+    def _step_reference_points_to_successful_resolution(self, text, match_start):
+        """Ignore step references that explain the later successful resolution.
+
+        LLM excluded-command entries often look like
+        "step 9 failed; successful step 11 reinstalled the corrected package set".
+        Only step 9 should be excluded. Treating the explanatory "step 11" as an
+        excluded range drops the actual replay command.
+        """
+        prefix = str(text or "")[: max(0, int(match_start or 0))].lower()
+        recent = prefix[-80:]
+        return bool(
+            re.search(
+                r"(?:successful|succeeded|resolved\s+by|fixed\s+by|repaired\s+by)\s+$",
+                recent,
+            )
+        )
 
     def _collect_observed_successful_setup_command_records(self, recipe_input):
         records = []
@@ -3635,6 +3654,8 @@ class Synthesizer:
             return False
         if self._is_readonly_command(command):
             return False
+        if self._command_rewrites_files(command):
+            return True
 
         for _, normalized in self._iter_command_segments(command):
             if not normalized:
@@ -3729,7 +3750,9 @@ class Synthesizer:
         if not observation:
             return False
 
-        normalized_observation = self._normalize_observation_text(observation)
+        normalized_observation = self._strip_benign_test_failure_lines(
+            self._normalize_observation_text(observation)
+        )
         failure_patterns = [
             r"\b[1-9]\d*[ \t]+(?:failed|failures?|errors?)\b",
             r"\b(?:failures?|errors?):\s*[1-9]\d*\b",
@@ -3745,6 +3768,18 @@ class Synthesizer:
             re.search(pattern, normalized_observation, re.IGNORECASE | re.MULTILINE)
             for pattern in failure_patterns
         )
+
+    def _strip_benign_test_failure_lines(self, observation):
+        """Remove runner cache hints that contain failure-like words but are not failures."""
+        benign_patterns = [
+            r"^\s*run-last-failure:\s+\d+\s+known\s+failures?\s+not\s+in\s+selected(?:\s+tests?)?\s*$",
+        ]
+        kept_lines = []
+        for line in observation.splitlines():
+            if any(re.search(pattern, line, re.IGNORECASE) for pattern in benign_patterns):
+                continue
+            kept_lines.append(line)
+        return "\n".join(kept_lines)
 
     def _observation_has_effective_test_signal(self, observation):
         """Detect observation text that strongly suggests real tests were executed."""

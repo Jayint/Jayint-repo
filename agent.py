@@ -10,7 +10,7 @@ from openai import OpenAI
 from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
-from src.image_selector import ImageSelector
+from src.planning import EnvironmentPlanningAgent
 from src.verification_bundle import derive_supported_verification_bundle
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.memory_manager import LongTermMemoryManager
@@ -147,6 +147,22 @@ class DockerAgent:
         self.build_recipe = None
         self.build_recipe_source = None
         self.build_recipe_error = None
+        self.environment_build_plan = None
+        self.environment_build_plan_obj = None
+        self.environment_planner = None
+        self.environment_plan_context = ""
+        self.environment_plan_host_json = None
+        self.environment_plan_host_md = None
+        self.environment_plan_container_json = "/tmp/repo2run_environment_plan.json"
+        self.environment_plan_container_md = "/tmp/repo2run_environment_plan.md"
+        self.planning_execution_state = {
+            "completed_node_ids": [],
+            "failed_node_ids": [],
+            "node_attempts": {},
+            "last_feedback": None,
+        }
+        self.planning_warnings = []
+        self.planning_source = None
         self.run_summary_path = os.path.join(self.workplace, "agent_run_summary.json")
         self._environment_revision = 0
         self._current_verification_group = []
@@ -226,55 +242,88 @@ class DockerAgent:
                 f"(embedding: {self.memory_embedding_model})"
             )
         
-        # 4. Auto-detect base image if set to "auto" or not specified
+        # 4. Build an initial read-only environment plan. The former ImageSelector
+        # role is now handled inside EnvironmentPlanningAgent as BaseImagePlanner.
         platform_override = None
         self.logs_dir = os.path.join(self.workplace, "logs")
-        image_selector_log_dir = os.path.join(self.logs_dir, "image_selector_logs")
+        planning_log_dir = os.path.join(self.logs_dir, "planning_logs")
+        self.planning_log_dir = planning_log_dir
+        print("[DockerAgent] Building initial environment plan...")
+        environment_planner = EnvironmentPlanningAgent(self.client, model)
+        self.environment_planner = environment_planner
+        base_image_override = None if base_image == "auto" else base_image
+        environment_plan = environment_planner.create_initial_plan(
+            repo_path=self.workplace,
+            platform="linux",
+            language_hint=self.language or None,
+            base_image_override=base_image_override,
+            log_dir=planning_log_dir,
+        )
+        self.language_handler = environment_planner.language_handler
+        evidence = environment_planner.repository_evidence
+        self.repo_docs = evidence.docs if evidence else ""
+        planning_usage = environment_planner.get_token_usage()
+        self.run_token_ledger.add(
+            "image_selector",
+            input_tokens=planning_usage["input_tokens"],
+            output_tokens=planning_usage["output_tokens"],
+        )
+
+        # 5. Auto-detect base image if set to "auto" or use the explicit override.
         if base_image == "auto":
-            print("[DockerAgent] Analyzing repository to select optimal base image...")
-            selector = ImageSelector(self.client, model)
-            selected_image, language_handler, docs, platform_override = selector.select_base_image(
-                repo_path=self.workplace,
-                platform="linux",
-                log_dir=image_selector_log_dir
+            base_image = (
+                environment_plan.repo_summary.get("recommended_base_image")
+                or "python:3.11"
             )
-            usage = selector.get_token_usage()
-            self.run_token_ledger.add(
-                "image_selector",
-                input_tokens=usage["input_tokens"],
-                output_tokens=usage["output_tokens"],
-            )
-            base_image = selected_image
-            self.language_handler = language_handler
-            self.repo_docs = docs
+            platform_override = environment_plan.repo_summary.get("platform_override")
             print(f"[DockerAgent] Selected base image: {base_image}")
             if platform_override:
                 print(f"[DockerAgent] Platform override: {platform_override} (for ARM64 compatibility)")
-            print(f"[DockerAgent] Image selection logs saved to: {image_selector_log_dir}")
+            print(f"[DockerAgent] Planning logs saved to: {planning_log_dir}")
         else:
-            # Use specified base image with legacy detection for Python
-            if base_image.startswith("python:"):
-                detected = self._detect_python_image()
-                if detected:
-                    print(f"[Auto-detect] Using base image: {detected} (from project files)")
-                    base_image = detected
-            self.language_handler = None
-            self.repo_docs = ""
+            platform_override = environment_plan.repo_summary.get("platform_override")
+            print(f"[DockerAgent] Using user-specified base image: {base_image}")
+            if platform_override:
+                print(f"[DockerAgent] Platform override: {platform_override} (from planning)")
         
-        # 5. Setup Sandbox with a copied workspace so rollback restores repo state too.
+        # 6. Setup Sandbox with a copied workspace so rollback restores repo state too.
         self.sandbox = self._create_sandbox(
             base_image=base_image,
             platform_override=platform_override,
         )
         self.platform_override = platform_override  # Expose for adapter to read
+
+        # 7. Refine the initial plan with read-only sandbox probes. This gives
+        # the setup agent concrete environment facts before it starts mutating
+        # the sandbox.
+        print("[DockerAgent] Refining environment plan with sandbox exploration...")
+        try:
+            environment_plan = environment_planner.refine_plan_with_sandbox_exploration(
+                environment_plan,
+                self.sandbox,
+                log_dir=planning_log_dir,
+            )
+            print("[DockerAgent] Sandbox planning exploration completed.")
+        except Exception as exc:
+            environment_plan.validator_warnings.append(
+                f"Sandbox planning exploration failed: {exc}"
+            )
+            print(f"[DockerAgent] Warning: sandbox planning exploration failed: {exc}")
+
+        self._initialize_planning_execution_state(environment_plan)
+        self._refresh_environment_plan(
+            environment_plan,
+            reason="initial sandbox-refined plan",
+            step_index=0,
+        )
         
-        # 6. Initialize Planner and Synthesizer
-        # Load only repository structure from image_selector_logs. Configuration
+        # 8. Initialize Planner and Synthesizer
+        # Load only repository structure from planning_logs. Configuration
         # files should be inspected explicitly by the agent when needed.
         repo_structure = ""
         
         # Load structure.txt
-        structure_file = os.path.join(image_selector_log_dir, "structure.txt")
+        structure_file = os.path.join(planning_log_dir, "structure.txt")
         if os.path.exists(structure_file):
             try:
                 with open(structure_file, 'r') as f:
@@ -304,6 +353,7 @@ class DockerAgent:
             repo_structure=repo_structure,
             maven_repository_hints=maven_repository_hints,
             benchmark_evaluation_target=self.benchmark_evaluation_target,
+            environment_plan_context=self.environment_plan_context,
             log_dir=setup_log_dir,
             enable_long_term_memory=self.enable_long_term_memory,
         )
@@ -879,14 +929,32 @@ class DockerAgent:
                 env_revision_before = self._environment_revision
                 is_rollback_action = self._is_explicit_rollback_action(action)
                 is_memory_retrieval_action = self._is_memory_retrieval_action(action)
-                if is_memory_retrieval_action:
+                is_plan_view_action = self._is_plan_view_action(action)
+                execution_action = action
+                action_rewrite_note = ""
+                if not (is_rollback_action or is_memory_retrieval_action or is_plan_view_action):
+                    execution_action, action_rewrite_note = self._prepare_action_for_execution(action)
+                    if execution_action != action:
+                        print(
+                            "\n[System] Removed lossy output filtering before execution.\n"
+                            f"[Executed Action]\n{execution_action}"
+                        )
+                planning_feedback = ""
+                if is_plan_view_action:
+                    print("\n[System] Agent requested the current environment plan.")
+                    success, observation = True, self._view_environment_plan_observation()
+                elif is_memory_retrieval_action:
                     print("\n[System] Agent requested long-term memory retrieval for the last failure.")
                     success, observation = True, self._retrieve_long_term_memory_observation()
                 elif is_rollback_action:
                     print("\n[System] Agent requested an explicit rollback to the last successful snapshot.")
                     success, observation = self.sandbox.rollback(reason="agent_requested")
+                    if success:
+                        self._sync_environment_plan_files_to_sandbox()
                 else:
-                    success, observation = self.sandbox.execute(action)
+                    success, observation = self.sandbox.execute(execution_action)
+                    if action_rewrite_note:
+                        observation = self._append_system_note(observation, action_rewrite_note)
                 prompt_observation = self._prepare_observation_for_prompt(observation)
                 
                 print(f"\n[Observation]\n{observation if observation.strip() else '(No output)'}")
@@ -894,10 +962,21 @@ class DockerAgent:
                 # 3. Synthesize if successful
                 mutates_environment = False
                 accepted_observation_final = False
-                if success and not is_rollback_action and not is_memory_retrieval_action:
-                    self.synthesizer.record_success(action)
-                    mutates_environment = self.synthesizer.command_mutates_environment(action)
-                    self._record_successful_action(step + 1, action, observation)
+                if (
+                    success
+                    and not is_rollback_action
+                    and not is_memory_retrieval_action
+                    and not is_plan_view_action
+                ):
+                    self.synthesizer.record_success(execution_action)
+                    mutates_environment = self.synthesizer.command_mutates_environment(execution_action)
+                    self._record_successful_action(step + 1, execution_action, observation)
+                    planning_feedback = self._update_environment_plan_after_execution(
+                        step_index=step + 1,
+                        action=execution_action,
+                        observation=observation,
+                        success=True,
+                    )
                     if self._observation_contains_final_success_bundle(observation):
                         accepted_observation_final = self._finalize_verification_from_agent_report(
                             observation,
@@ -912,15 +991,26 @@ class DockerAgent:
                             "had to recover from an unhealthy container."
                         )
                         if not is_rollback_action and not is_memory_retrieval_action:
-                            self._record_failed_action(step + 1, action, prompt_observation)
-                            self._remember_failure_for_memory(action, prompt_observation)
+                            self._record_failed_action(step + 1, execution_action, prompt_observation)
+                            self._remember_failure_for_memory(execution_action, prompt_observation)
+                            planning_feedback = self._update_environment_plan_after_execution(
+                                step_index=step + 1,
+                                action=execution_action,
+                                observation=prompt_observation,
+                                success=False,
+                            )
                             prompt_observation = self._append_long_term_memory_hint(prompt_observation)
+                if planning_feedback:
+                    prompt_observation = self._append_system_note(
+                        prompt_observation,
+                        planning_feedback,
+                    )
 
                 if self.enable_observation_compression:
                     self._record_agent_step(
                         step_id=step + 1,
                         thought=thought or "",
-                        action=action,
+                        action=execution_action,
                         assistant_content=raw_llm_output,
                         success=success,
                         observation=observation,
@@ -1035,6 +1125,435 @@ class DockerAgent:
 
     def _is_memory_retrieval_action(self, action):
         return (action or "").strip() == "__RETRIEVE_MEMORY__"
+
+    def _is_plan_view_action(self, action):
+        return (action or "").strip() == "__VIEW_PLAN__"
+
+    def _prepare_action_for_execution(self, action):
+        """Remove lossy trailing output filters when sandbox would reject the command."""
+        action = action or ""
+        should_rewrite = self._action_has_rejected_output_filter(action)
+        if not should_rewrite:
+            return action, ""
+
+        rewritten = self._strip_trailing_output_filters(action)
+        if not rewritten or rewritten == action:
+            return action, ""
+
+        note = (
+            "[SYSTEM] The model requested a setup/test/probe command with a lossy "
+            "output filter. The host removed the trailing filter before execution so "
+            "the step is not wasted and the full exit status/output remains available.\n"
+            f"[SYSTEM] Requested Action: `{action}`\n"
+            f"[SYSTEM] Executed Action: `{rewritten}`"
+        )
+        return rewritten, note
+
+    def _action_has_rejected_output_filter(self, action):
+        sandbox = getattr(self, "sandbox", None)
+        checker = getattr(sandbox, "_command_pipes_setup_or_test_through_output_filter", None)
+        if callable(checker):
+            try:
+                return bool(checker(action or ""))
+            except Exception:
+                pass
+        return bool(
+            re.search(
+                r"\|\s*(?:head|tail|grep)\b",
+                action or "",
+                flags=re.IGNORECASE,
+            )
+        )
+
+    def _strip_trailing_output_filters(self, action):
+        command = (action or "").strip()
+        if not command:
+            return command
+
+        previous = None
+        while previous != command:
+            previous = command
+            command = re.sub(
+                r"\s*(?:2>\s*&\s*1\s*)?\|\s*(?:head|tail)\b"
+                r"(?:\s+-n\s*\d+|\s+-\d+|\s+\d+)?\s*$",
+                "",
+                command,
+                flags=re.IGNORECASE,
+            ).strip()
+            command = re.sub(
+                r"\s*(?:2>\s*&\s*1\s*)?\|\s*grep\b(?:\s+[^|;&]+)?\s*$",
+                "",
+                command,
+                flags=re.IGNORECASE,
+            ).strip()
+
+        return command
+
+    def _initialize_planning_execution_state(self, plan):
+        completed = []
+        for node in getattr(plan, "nodes", []) or []:
+            if node.type == "runtime":
+                completed.append(node.id)
+        self.planning_execution_state = {
+            "completed_node_ids": sorted(set(completed)),
+            "failed_node_ids": [],
+            "node_attempts": {},
+            "last_feedback": None,
+        }
+
+    def _refresh_environment_plan(self, plan, reason, step_index=None):
+        self.environment_build_plan_obj = plan
+        self.environment_build_plan = plan.to_dict() if plan else None
+        if self.environment_planner and plan:
+            self.environment_plan_context = self.environment_planner.format_initial_plan(plan)
+        else:
+            self.environment_plan_context = ""
+        self.planning_warnings = list(getattr(plan, "validator_warnings", []) or [])
+        self.planning_source = getattr(plan, "plan_source", None)
+        self._write_environment_plan_files(reason=reason, step_index=step_index)
+
+    def _write_environment_plan_files(self, reason, step_index=None):
+        if not self.environment_build_plan_obj:
+            return
+
+        planning_dir = os.path.join(getattr(self, "logs_dir", self.workplace), "planning")
+        os.makedirs(planning_dir, exist_ok=True)
+        self.environment_plan_host_json = os.path.join(
+            planning_dir,
+            "current_environment_plan.json",
+        )
+        self.environment_plan_host_md = os.path.join(
+            planning_dir,
+            "current_environment_plan.md",
+        )
+
+        payload = self._current_environment_plan_payload(reason, step_index)
+        markdown = self._format_environment_plan_markdown(payload)
+        with open(self.environment_plan_host_json, "w", encoding="utf-8") as file_obj:
+            json.dump(payload, file_obj, indent=2, ensure_ascii=False)
+        with open(self.environment_plan_host_md, "w", encoding="utf-8") as file_obj:
+            file_obj.write(markdown)
+
+        self._sync_environment_plan_files_to_sandbox(markdown=markdown, payload=payload)
+
+    def _sync_environment_plan_files_to_sandbox(self, markdown=None, payload=None):
+        sandbox = getattr(self, "sandbox", None)
+        if not sandbox or not hasattr(sandbox, "write_text_file"):
+            return
+
+        if payload is None:
+            payload = self._current_environment_plan_payload(
+                reason="sync current plan to sandbox",
+                step_index=None,
+            )
+        if markdown is None:
+            markdown = self._format_environment_plan_markdown(payload)
+
+        json_text = json.dumps(payload, indent=2, ensure_ascii=False)
+        for path, content in (
+            (self.environment_plan_container_json, json_text),
+            (self.environment_plan_container_md, markdown),
+        ):
+            success, output = sandbox.write_text_file(path, content)
+            if not success:
+                print(f"[Planning File] Warning: {output}")
+
+    def _current_environment_plan_payload(self, reason, step_index=None):
+        next_todo = self._next_plan_todo_item()
+        state = dict(self.planning_execution_state or {})
+        state["next_todo"] = next_todo
+        state["plan_files"] = {
+            "host_json": self.environment_plan_host_json,
+            "host_markdown": self.environment_plan_host_md,
+            "container_json": self.environment_plan_container_json,
+            "container_markdown": self.environment_plan_container_md,
+        }
+        return {
+            "plan_file_version": 1,
+            "updated_reason": reason,
+            "updated_after_step": step_index,
+            "execution_state": state,
+            "environment_build_plan": self.environment_build_plan_obj.to_dict(),
+        }
+
+    def _format_environment_plan_markdown(self, payload):
+        plan = payload.get("environment_build_plan", {})
+        summary = plan.get("repo_summary", {}) or {}
+        state = payload.get("execution_state", {}) or {}
+        completed = set(state.get("completed_node_ids") or [])
+        failed = set(state.get("failed_node_ids") or [])
+        next_todo = state.get("next_todo")
+
+        lines = [
+            "# Repo2Run Environment Plan",
+            "",
+            f"- Updated reason: {payload.get('updated_reason')}",
+            f"- Updated after step: {payload.get('updated_after_step')}",
+            f"- Plan source: {plan.get('plan_source')}",
+            f"- Primary language: {summary.get('primary_language') or 'unknown'}",
+            f"- Package manager: {summary.get('package_manager') or 'unknown'}",
+            f"- Test framework: {summary.get('test_framework') or 'unknown'}",
+            f"- Recommended base image: {summary.get('recommended_base_image') or 'unknown'}",
+            f"- Target platform: {summary.get('target_platform') or 'unknown'}",
+            "",
+            "## How To Use This Plan",
+            "",
+            "- This file is advisory planning state, not execution evidence.",
+            "- Command hints do not count for Dockerfile replay or Verification Bundle until executed successfully.",
+            "- After completing a setup step, check the next todo before starting an unrelated branch.",
+            f"- Container markdown path: `{self.environment_plan_container_md}`",
+            f"- Container JSON path: `{self.environment_plan_container_json}`",
+            "- You can request the current plan with `Action: __VIEW_PLAN__`.",
+            "",
+            "## Current Todo",
+            "",
+        ]
+        summary_insert_index = lines.index("## How To Use This Plan") - 1
+        host_environment = summary.get("planning_host_environment") or {}
+        if host_environment:
+            lines.insert(
+                summary_insert_index,
+                "- Planning host environment: "
+                f"{host_environment.get('normalized_os') or host_environment.get('os_name')}/"
+                f"{host_environment.get('normalized_arch') or host_environment.get('machine')}",
+            )
+            summary_insert_index += 1
+        sandbox_runtime = summary.get("sandbox_runtime_environment") or {}
+        if sandbox_runtime:
+            lines.insert(
+                summary_insert_index,
+                "- Sandbox runtime environment: "
+                f"{sandbox_runtime.get('platform') or 'unknown'}",
+            )
+        if next_todo:
+            lines.extend(self._format_plan_todo_item(next_todo, prefix="- NEXT: "))
+        else:
+            lines.append("- NEXT: no remaining planned todo item.")
+
+        lines.extend(["", "## Ordered Todo List", ""])
+        for item in plan.get("ordered_todo_list", []) or []:
+            node_id = item.get("node_id")
+            if node_id in completed:
+                marker = "[x]"
+            elif node_id in failed:
+                marker = "[!]"
+            else:
+                marker = "[ ]"
+            lines.extend(self._format_plan_todo_item(item, prefix=f"- {marker} "))
+
+        risk_notes = plan.get("risk_notes", []) or []
+        if risk_notes:
+            lines.extend(["", "## Risk Notes", ""])
+            lines.extend(f"- {note}" for note in risk_notes[:12])
+
+        fallback_plan = plan.get("fallback_plan", []) or []
+        if fallback_plan:
+            lines.extend(["", "## Fallback Plan", ""])
+            for item in fallback_plan[:12]:
+                lines.append(
+                    "- Trigger: "
+                    f"{item.get('trigger')} | Suggested action: {item.get('suggested_action')}"
+                )
+
+        warnings = plan.get("validator_warnings", []) or []
+        if warnings:
+            lines.extend(["", "## Validator Warnings", ""])
+            lines.extend(f"- {warning}" for warning in warnings[:12])
+
+        return "\n".join(lines).rstrip() + "\n"
+
+    def _format_plan_todo_item(self, item, prefix="- "):
+        command_hint = item.get("command_hint")
+        evidence = ", ".join(str(value) for value in (item.get("evidence") or [])[:3])
+        lines = [
+            (
+                f"{prefix}{item.get('step')}. [{item.get('task_type')}] "
+                f"{item.get('node_id')}"
+            )
+        ]
+        if command_hint:
+            lines.append(f"  - Command hint: `{command_hint}`")
+        if evidence:
+            lines.append(f"  - Evidence: {evidence}")
+        if item.get("description"):
+            lines.append(f"  - Description: {item.get('description')}")
+        return lines
+
+    def _view_environment_plan_observation(self):
+        if not self.environment_build_plan_obj:
+            return "[SYSTEM] No Planning Agent plan is available yet."
+        self._write_environment_plan_files(
+            reason="agent requested current plan view",
+            step_index=None,
+        )
+        if self.environment_plan_host_md and os.path.exists(self.environment_plan_host_md):
+            with open(self.environment_plan_host_md, "r", encoding="utf-8") as file_obj:
+                markdown = file_obj.read()
+        else:
+            markdown = self._format_environment_plan_markdown(
+                self._current_environment_plan_payload(
+                    reason="agent requested current plan view",
+                    step_index=None,
+                )
+            )
+        return (
+            "[SYSTEM] Current Planning Agent state follows. Use the NEXT todo to choose "
+            "the next setup action, unless the latest real Observation proves the plan is wrong.\n\n"
+            f"{self._truncate_for_recipe(markdown, 16000)}"
+        )
+
+    def _update_environment_plan_after_execution(
+        self,
+        step_index,
+        action,
+        observation,
+        success,
+    ):
+        if not self.environment_build_plan_obj:
+            return ""
+
+        matched_node_id = self._match_plan_node_for_action(action)
+        previous_next = self._next_plan_todo_item()
+        previous_next_id = previous_next.get("node_id") if previous_next else None
+        changed = False
+        if matched_node_id:
+            changed = self._record_plan_node_attempt(
+                node_id=matched_node_id,
+                step_index=step_index,
+                action=action,
+                success=success,
+            ) or changed
+
+        updated_plan = self.environment_build_plan_obj
+        if not success and self.environment_planner:
+            updated_plan = self.environment_planner.update_plan_from_execution_feedback(
+                self.environment_build_plan_obj,
+                failed_action=action or "",
+                observation=observation or "",
+            )
+            if updated_plan is not self.environment_build_plan_obj:
+                changed = True
+
+        if changed:
+            reason = (
+                f"execution feedback after step {step_index}: "
+                f"{'success' if success else 'failure'}"
+            )
+            self._refresh_environment_plan(updated_plan, reason=reason, step_index=step_index)
+        else:
+            self._write_environment_plan_files(
+                reason=f"execution feedback observed after step {step_index}",
+                step_index=step_index,
+            )
+
+        next_todo = self._next_plan_todo_item()
+        next_id = next_todo.get("node_id") if next_todo else None
+        should_emit_feedback = (
+            changed
+            or (success and matched_node_id and matched_node_id == previous_next_id)
+            or (previous_next_id != next_id)
+        )
+        if not should_emit_feedback:
+            return ""
+
+        next_text = "no remaining planned todo item"
+        if next_todo:
+            next_text = (
+                f"{next_todo.get('step')}. [{next_todo.get('task_type')}] "
+                f"{next_todo.get('node_id')}"
+            )
+            if next_todo.get("command_hint"):
+                next_text += f" | hint: {next_todo.get('command_hint')}"
+
+        status = "completed" if success else "failed"
+        matched_text = matched_node_id or "no exact planned node matched"
+        return (
+            "[Planning Update]\n"
+            f"- Step {step_index} {status}; matched planned node: {matched_text}.\n"
+            f"- Next todo: {next_text}.\n"
+            f"- Full plan: `{self.environment_plan_container_md}` (`Action: __VIEW_PLAN__`)."
+        )
+
+    def _record_plan_node_attempt(self, node_id, step_index, action, success):
+        changed = False
+        state = self.planning_execution_state
+        attempts = state.setdefault("node_attempts", {})
+        node_attempts = attempts.setdefault(node_id, [])
+        node_attempts.append(
+            {
+                "step_index": step_index,
+                "command": action or "",
+                "success": bool(success),
+            }
+        )
+        state["last_feedback"] = {
+            "step_index": step_index,
+            "node_id": node_id,
+            "success": bool(success),
+        }
+
+        completed = set(state.setdefault("completed_node_ids", []))
+        failed = set(state.setdefault("failed_node_ids", []))
+        if success and node_id not in completed:
+            completed.add(node_id)
+            failed.discard(node_id)
+            changed = True
+        elif not success and node_id not in failed:
+            failed.add(node_id)
+            changed = True
+        state["completed_node_ids"] = sorted(completed)
+        state["failed_node_ids"] = sorted(failed)
+        return changed
+
+    def _next_plan_todo_item(self):
+        if not self.environment_build_plan_obj:
+            return None
+        completed = set(self.planning_execution_state.get("completed_node_ids") or [])
+        for item in self.environment_build_plan_obj.ordered_todo_list:
+            if item.get("node_id") not in completed:
+                return item
+        return None
+
+    def _match_plan_node_for_action(self, action):
+        normalized_action = self._normalize_plan_action(action)
+        if not normalized_action or not self.environment_build_plan_obj:
+            return None
+
+        candidates = []
+        for item in self.environment_build_plan_obj.ordered_todo_list:
+            candidates.append((item.get("node_id"), item.get("node_id")))
+            candidates.append((item.get("node_id"), item.get("command_hint")))
+        for node in self.environment_build_plan_obj.nodes:
+            candidates.append((node.id, node.id))
+            candidates.append((node.id, node.command_hint))
+
+        for node_id, candidate in candidates:
+            normalized_candidate = self._normalize_plan_action(candidate)
+            if not node_id or not normalized_candidate:
+                continue
+            if normalized_action == normalized_candidate:
+                return node_id
+            if normalized_candidate in normalized_action:
+                return node_id
+            if normalized_action in normalized_candidate:
+                return node_id
+        return None
+
+    def _normalize_plan_action(self, action):
+        text = (action or "").strip()
+        if not text:
+            return ""
+        text = re.sub(r"\s+2>&1\s*$", "", text)
+        text = re.sub(r"^\s*cd\s+\S+\s+&&\s+", "", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip().lower()
+
+    def _append_system_note(self, observation, note):
+        if not note:
+            return observation
+        if not observation:
+            return note
+        return f"{observation.rstrip()}\n\n{note}"
 
     def _remember_failure_for_memory(self, action, observation):
         if not self.enable_long_term_memory:
@@ -1866,6 +2385,17 @@ class DockerAgent:
             "verification_source": self.verification_source,
             "verification_bundle": self.verification_bundle,
             "benchmark_evaluation_target": self.benchmark_evaluation_target,
+            "environment_build_plan": getattr(self, "environment_build_plan", None),
+            "environment_plan_files": {
+                "host_json": getattr(self, "environment_plan_host_json", None),
+                "host_markdown": getattr(self, "environment_plan_host_md", None),
+                "container_json": getattr(self, "environment_plan_container_json", None),
+                "container_markdown": getattr(self, "environment_plan_container_md", None),
+            },
+            "planning_logs_dir": getattr(self, "planning_log_dir", None),
+            "planning_execution_state": getattr(self, "planning_execution_state", {}),
+            "planning_warnings": getattr(self, "planning_warnings", []),
+            "planning_source": getattr(self, "planning_source", None),
             "build_recipe": getattr(self, "build_recipe", None),
             "build_recipe_source": getattr(self, "build_recipe_source", None),
             "build_recipe_error": getattr(self, "build_recipe_error", None),

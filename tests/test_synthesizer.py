@@ -375,6 +375,56 @@ class SynthesizerTests(unittest.TestCase):
         self.assertEqual(analysis["reason"], "test_failure_signal")
         self.assertTrue(synthesizer.observation_has_test_failure_signal(observation))
 
+    def test_pytest_collect_ignores_run_last_failure_cache_hint(self):
+        synthesizer = Synthesizer()
+        observation = "\n".join(
+            [
+                "============================= test session starts ==============================",
+                "platform linux -- Python 3.10.20, pytest-9.0.3, pluggy-1.6.0",
+                "collecting ... collected 128 items",
+                "run-last-failure: 5 known failures not in selected tests",
+                "",
+                "<Dir app>",
+                "  <Dir tests>",
+                "    <Module test_workflow_unit.py>",
+                "      <Function test_workflow_creation>",
+                "========================= 128 tests collected in 2.15s =========================",
+            ]
+        )
+
+        analysis = synthesizer.analyze_test_run(
+            "pytest --collect-only -q --disable-warnings 2>&1",
+            observation,
+        )
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertTrue(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "observed_test_execution_signal")
+        self.assertFalse(synthesizer.observation_has_test_failure_signal(observation))
+
+    def test_pytest_collect_cache_hint_does_not_hide_real_collection_error(self):
+        synthesizer = Synthesizer()
+        observation = "\n".join(
+            [
+                "collecting ... collected 17 items / 1 error",
+                "run-last-failure: 5 known failures not in selected tests",
+                "==================================== ERRORS ====================================",
+                "ERROR collecting src/dspygen/pyautomator/calendar/calendar_app.py",
+                "ModuleNotFoundError: No module named 'EventKit'",
+                "==================== 17 tests collected, 1 error in 26.78s ====================",
+            ]
+        )
+
+        analysis = synthesizer.analyze_test_run(
+            "pytest --collect-only -q --disable-warnings 2>&1",
+            observation,
+        )
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertFalse(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "test_failure_signal")
+        self.assertTrue(synthesizer.observation_has_test_failure_signal(observation))
+
     def test_public_observation_signal_wrapper_detects_real_test_output(self):
         synthesizer = Synthesizer()
 
@@ -1370,6 +1420,83 @@ class SynthesizerTests(unittest.TestCase):
         self.assertEqual(
             recipe["build_commands"],
             ["pip install gym tqdm zarr atomics wandb pyrealsense2"],
+        )
+
+    def test_build_recipe_keeps_later_successful_installs_referenced_by_exclusions(self):
+        synthesizer = Synthesizer()
+
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": [],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["pytest --collect-only -q --disable-warnings"],
+                "excluded_commands": [
+                    (
+                        "pip install loguru py-trees ... pyobjc osascript (step 9): "
+                        "Failed due to invalid package; successful step 11 reinstalled "
+                        "core packages without invalid names"
+                    ),
+                    (
+                        "pip install dslmodel (step 15): Failed because the package "
+                        "requires Python >=3.12; resolved by step 29 using "
+                        "--ignore-requires-python"
+                    ),
+                    (
+                        "sed to add dslmodel to pyproject.toml (step 25): "
+                        "Partially succeeded but was cleaned up by step 27"
+                    ),
+                ],
+                "rationale": "Failed exploratory commands should not drop later successful repairs.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "agent_run_summary": {
+                    "successful_actions": [
+                        {"step_index": 2, "command": "pip install pytest"},
+                        {
+                            "step_index": 11,
+                            "command": "pip install loguru py-trees apscheduler gspread",
+                            "observation_summary": "Successfully installed loguru py-trees apscheduler gspread",
+                        },
+                        {
+                            "step_index": 25,
+                            "command": (
+                                "sed -i '/^\\[tool.poetry.dependencies\\]/a\\"
+                                "    dslmodel = \">=2024.1.0,<2024.10.0\"' /app/pyproject.toml"
+                            ),
+                        },
+                        {
+                            "step_index": 27,
+                            "command": (
+                                "sed -i '/^    dslmodel = \">=2024.1.0,<2024.10.0\"$/d' "
+                                "/app/pyproject.toml"
+                            ),
+                        },
+                        {
+                            "step_index": 29,
+                            "command": "pip install dslmodel==2024.10.3 --ignore-requires-python",
+                            "observation_summary": "Successfully installed dslmodel-2024.10.3",
+                        },
+                    ],
+                    "verification_bundle": {
+                        "runtime_preparation_commands": [],
+                        "test_commands": ["pytest --collect-only -q --disable-warnings"],
+                    },
+                },
+            },
+        )
+
+        self.assertIn(
+            "pip install loguru py-trees apscheduler gspread",
+            recipe["build_commands"],
+        )
+        self.assertIn(
+            "pip install dslmodel==2024.10.3 --ignore-requires-python",
+            recipe["build_commands"],
+        )
+        self.assertFalse(
+            any(">=2024.1.0,<2024.10.0" in command for command in recipe["build_commands"])
         )
 
     def test_build_recipe_does_not_supplement_cleanup_prefix_from_test_command(self):

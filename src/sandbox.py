@@ -8,6 +8,62 @@ from src.synthesizer import Synthesizer
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
 
+SOURCE_SEMANTIC_EXTENSIONS = {
+    ".py",
+    ".pyi",
+    ".ipynb",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".java",
+    ".go",
+    ".rs",
+    ".c",
+    ".cc",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".rb",
+    ".php",
+    ".scala",
+    ".kt",
+    ".swift",
+    ".m",
+    ".mm",
+    ".r",
+    ".jl",
+    ".lua",
+}
+
+ENV_CONFIG_FILENAMES = {
+    "pyproject.toml",
+    "poetry.lock",
+    "pdm.lock",
+    "uv.lock",
+    "pipfile",
+    "pipfile.lock",
+    "setup.cfg",
+    "tox.ini",
+    "pytest.ini",
+    "mypy.ini",
+    "ruff.toml",
+    ".python-version",
+    "environment.yml",
+    "environment.yaml",
+    "dockerfile",
+}
+
+ENV_CONFIG_SUFFIXES = (
+    ".toml",
+    ".lock",
+    ".cfg",
+    ".ini",
+    ".yaml",
+    ".yml",
+)
+
 
 class Sandbox:
     def __init__(
@@ -297,6 +353,64 @@ class Sandbox:
 
             return False, output
 
+    def inspect(self, command):
+        """
+        Executes a planning-time diagnostic command without committing a snapshot
+        or recording runtime setup state. Callers must pass read-only commands.
+        """
+        print(f"[Container ID: {self.container.short_id}]")
+        print(f"[Planning Inspect] Executing: {command}")
+
+        wrapped_command = ["/bin/bash", "-c", self._wrap_command_with_timeout(command)]
+        try:
+            exec_result = self.container.exec_run(
+                wrapped_command,
+                workdir=self.workdir,
+            )
+        except docker.errors.DockerException as exc:
+            return False, f"[SYSTEM] Planning inspect command failed: {exc}"
+
+        exit_code = exec_result.exit_code
+        output = exec_result.output.decode("utf-8", errors="replace")
+        if self._is_timeout_exit(exit_code):
+            output = (
+                f"[SYSTEM] Planning inspect command timed out after "
+                f"{self.command_timeout_seconds} seconds.\n\n{output}"
+            )
+
+        success = exit_code == 0 or self._is_informational_exit(exit_code, output)
+        if success:
+            print("[Planning Inspect] Command succeeded without snapshot.")
+        else:
+            print(f"[Planning Inspect] Command failed (exit {exit_code}) without rollback.")
+        return success, output
+
+    def write_text_file(self, path, content):
+        """Write a host-managed control file into the container without recording setup state."""
+        directory = os.path.dirname(path) or "."
+        mkdir_result = self.container.exec_run(
+            ["/bin/bash", "-c", f"mkdir -p {shlex.quote(directory)}"],
+            workdir=self.workdir,
+        )
+        if mkdir_result.exit_code != 0:
+            output = mkdir_result.output.decode("utf-8", errors="replace")
+            return False, f"Failed to create container directory {directory}: {output}"
+
+        archive_buffer = io.BytesIO()
+        data = (content or "").encode("utf-8")
+        tar_info = tarfile.TarInfo(name=os.path.basename(path))
+        tar_info.size = len(data)
+        tar_info.mode = 0o644
+        with tarfile.open(fileobj=archive_buffer, mode="w") as archive:
+            archive.addfile(tar_info, io.BytesIO(data))
+        archive_buffer.seek(0)
+
+        try:
+            self.container.put_archive(directory, archive_buffer.getvalue())
+        except docker.errors.DockerException as exc:
+            return False, f"Failed to write container file {path}: {exc}"
+        return True, f"Wrote container file {path}"
+
     def rollback(self, reason="agent_requested"):
         """Restore the container to the last successful snapshot on explicit agent request."""
         print(f"[System] Explicit rollback requested ({reason}).")
@@ -436,22 +550,7 @@ class Sandbox:
         """
         判断指令是否会对环境产生影响，从而决定是否需要 commit。
         """
-        # 常见的不产生副作用的指令
-        readonly_commands = [
-            'ls', 'cat', 'pwd', 'echo', 'env', 'hostname', 'whoami', 
-            'head', 'tail', 'grep', 'find', 'du', 'df', 'top', 'ps', 
-            'date', 'which', 'type', 'file'
-        ]
-        
-        # 获取指令的第一个单词
-        first_word = command.strip().split()[0].lower() if command.strip() else ""
-        
-        # 如果指令在只读列表中，则不 commit
-        if first_word in readonly_commands:
-            return False
-            
-        # 默认需要 commit
-        return True
+        return self._command_classifier.command_mutates_environment(command or "")
 
     def _track_runtime_command(self, command):
         """Remember pure runtime service commands so they can be replayed after rollback."""
@@ -667,8 +766,165 @@ class Sandbox:
         """Reject commands that are too ambiguous to record/replay safely."""
         return (
             self._get_invalid_output_filter_prefix(command)
+            or self._get_protected_source_mutation_prefix(command)
             or self._get_invalid_compound_setup_prefix(command)
         )
+
+    def _get_protected_source_mutation_prefix(self, command):
+        protected_target = self._find_protected_source_mutation_target(command or "")
+        if not protected_target:
+            return ""
+
+        return (
+            "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: this Action attempts to "
+            f"modify repository source/test code at `{protected_target}`.\n"
+            "[SYSTEM] Repo2Run setup may change environment and dependency configuration "
+            "files such as `pyproject.toml`, `.lock`, `requirements*.txt`, `setup.cfg`, "
+            "or `tox.ini`, but it must not create stubs, rewrite tests, or change source "
+            "semantics. Fix missing packages with installs, local imports with PYTHONPATH/"
+            "editable install, or dependency conflicts by editing configuration files.\n"
+            "[SYSTEM] The command was NOT executed and the environment was not changed.\n\n"
+        )
+
+    def _find_protected_source_mutation_target(self, command):
+        for raw_segment, _ in self._command_classifier._split_shell_chain(command or ""):
+            for target, operation in self._protected_mutation_targets_from_segment(raw_segment):
+                if self._is_protected_source_mutation_target(target, operation):
+                    return target
+        return ""
+
+    def _protected_mutation_targets_from_segment(self, raw_segment):
+        segment = raw_segment or ""
+        cleaned_segment = self._command_classifier._strip_trailing_redirections(segment)
+        targets = []
+
+        for match in re.finditer(r"(?<!\d)(?:>>?|&>)\s*([^\s;&|]+)", segment):
+            target = self._clean_shell_path_token(match.group(1))
+            if target:
+                targets.append((target, "write_file"))
+
+        try:
+            tokens = shlex.split(cleaned_segment, posix=True)
+        except ValueError:
+            tokens = []
+
+        if tokens:
+            command = tokens[0].rsplit("/", 1)[-1]
+            if command == "tee":
+                append_mode = False
+                for token in tokens[1:]:
+                    if token in {"-a", "--append"}:
+                        append_mode = True
+                        continue
+                    if token.startswith("-"):
+                        continue
+                    targets.append((token, "append_file" if append_mode else "write_file"))
+            elif command == "sed" and any(token == "-i" or token.startswith("-i") for token in tokens[1:]):
+                for token in tokens[1:]:
+                    if token.startswith("-"):
+                        continue
+                    targets.append((token, "edit_file"))
+            elif command == "touch":
+                for token in tokens[1:]:
+                    if not token.startswith("-"):
+                        targets.append((token, "write_file"))
+            elif command in {"mkdir", "install"}:
+                for token in tokens[1:]:
+                    if not token.startswith("-"):
+                        targets.append((token, "make_dir"))
+            elif command in {"cp", "mv"} and len(tokens) >= 3:
+                targets.append((tokens[-1], "write_path"))
+
+        protected_roots = self._protected_source_root_patterns()
+        if re.search(r"\b(?:open|Path)\s*\([^)]*(?:/app|src/|tests?/)", segment):
+            for pattern in protected_roots:
+                match = re.search(pattern, segment)
+                if match:
+                    targets.append((match.group(0), "write_file"))
+        if re.search(r"\bwrite_text\s*\(", segment) or re.search(r"\bmkdir\s*\(", segment):
+            for pattern in protected_roots:
+                match = re.search(pattern, segment)
+                if match:
+                    targets.append((match.group(0), "write_file"))
+
+        return targets
+
+    def _protected_source_root_patterns(self):
+        workdir = re.escape((self.workdir or "/app").rstrip("/"))
+        return (
+            rf"{workdir}/src/[^\s'\";|)]+",
+            rf"{workdir}/tests?/[^\s'\";|)]+",
+            r"src/[^\s'\";|)]+",
+            r"tests?/[^\s'\";|)]+",
+        )
+
+    def _clean_shell_path_token(self, token):
+        token = (token or "").strip()
+        if not token:
+            return ""
+        token = token.strip("\"'")
+        if token in {"/dev/null", "-", "&1"}:
+            return ""
+        if token.startswith("&"):
+            return ""
+        return token
+
+    def _is_protected_source_mutation_target(self, target, operation):
+        normalized = self._normalize_container_path(target)
+        if not normalized:
+            return False
+
+        workdir = (self.workdir or "/app").rstrip("/") or "/app"
+        if normalized == workdir:
+            return False
+        if not normalized.startswith(workdir + "/"):
+            return False
+
+        rel_path = normalized[len(workdir) + 1 :]
+        lowered_rel = rel_path.lower()
+        basename = lowered_rel.rsplit("/", 1)[-1]
+        _, extension = os.path.splitext(basename)
+
+        if self._is_environment_config_path(lowered_rel):
+            return False
+
+        protected_prefixes = ("src/", "tests/", "test/", "spec/", "features/")
+        if lowered_rel.startswith(protected_prefixes):
+            if operation in {"make_dir", "write_path"}:
+                return True
+            return extension in SOURCE_SEMANTIC_EXTENSIONS or "." not in basename
+
+        if extension in SOURCE_SEMANTIC_EXTENSIONS:
+            return True
+        if basename.startswith("test_") or basename.endswith("_test.py"):
+            return True
+        return False
+
+    def _normalize_container_path(self, target):
+        target = self._clean_shell_path_token(target)
+        if not target:
+            return ""
+        if re.search(r"[$*?{}\[\]`]", target):
+            return ""
+        if target.startswith("~"):
+            return ""
+
+        workdir = (self.workdir or "/app").rstrip("/") or "/app"
+        if target.startswith("/"):
+            normalized = os.path.normpath(target)
+        else:
+            normalized = os.path.normpath(os.path.join(workdir, target))
+        return normalized
+
+    def _is_environment_config_path(self, lowered_rel_path):
+        basename = lowered_rel_path.rsplit("/", 1)[-1]
+        if basename in ENV_CONFIG_FILENAMES:
+            return True
+        if basename.startswith(("requirements", "constraints")) and basename.endswith(".txt"):
+            return True
+        if basename.endswith(ENV_CONFIG_SUFFIXES) and "/" not in lowered_rel_path:
+            return True
+        return False
 
     def _get_invalid_output_filter_prefix(self, command):
         """Reject setup/test commands piped through lossy output filters."""

@@ -1528,12 +1528,42 @@ def test_load_selected_base_image_from_workplace_reads_image_selector_summary(tm
     assert load_selected_base_image_from_workplace(workplace) == "python:3.10"
 
 
+def test_load_selected_base_image_from_workplace_reads_planning_logs(tmp_path):
+    workplace = tmp_path / "case"
+    plan_path = workplace / "logs" / "planning_logs" / "environment_build_plan.json"
+    plan_path.parent.mkdir(parents=True)
+    plan_path.write_text(
+        json.dumps(
+            {"repo_summary": {"recommended_base_image": "python:3.12"}},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    assert load_selected_base_image_from_workplace(workplace) == "python:3.12"
+
+
 def test_load_platform_override_from_workplace_reads_image_selector_summary(tmp_path):
     workplace = tmp_path / "case"
     summary_path = workplace / "logs" / "image_selector_logs" / "summary.json"
     summary_path.parent.mkdir(parents=True)
     summary_path.write_text(
         json.dumps({"platform_override": "linux/amd64"}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    assert load_platform_override_from_workplace(workplace) == "linux/amd64"
+
+
+def test_load_platform_override_from_workplace_reads_planning_logs(tmp_path):
+    workplace = tmp_path / "case"
+    plan_path = workplace / "logs" / "planning_logs" / "environment_build_plan.json"
+    plan_path.parent.mkdir(parents=True)
+    plan_path.write_text(
+        json.dumps(
+            {"repo_summary": {"platform_override": "linux/amd64"}},
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
