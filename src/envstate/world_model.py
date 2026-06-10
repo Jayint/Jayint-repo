@@ -50,6 +50,7 @@ class WorldModelMap:
     progress: dict[str, bool]            # keys: base, system, runtime, deps, build, tests
     done_flag: bool = False              # True once pytest --collect-only exited 0
     notes: tuple[str, ...] = ()          # durable cautions the maintainer wants kept
+    env: dict[str, str] = dataclasses.field(default_factory=dict)   # NEW: scalar probe facts
 
 
 # ---------------------------------------------------------------------------
@@ -139,12 +140,14 @@ def merge_map(
     done_flag: bool | None = None,
     notes: tuple[str, ...] | None = None,
     required: tuple[Fact, ...] | None = None,
+    env: dict[str, str] | None = None,
+    build_system: str | None = None,
+    language: str | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
-    All other fields are copied unchanged from *current*.
-    The progress dict is always shallow-copied so callers never share a
-    reference to the same live dict.  Never raises.
+    progress and env are always copied so callers never share a live dict.
+    Never raises.
     """
     return dataclasses.replace(
         current,
@@ -154,6 +157,9 @@ def merge_map(
         done_flag=done_flag if done_flag is not None else current.done_flag,
         notes=notes if notes is not None else current.notes,
         required=required if required is not None else current.required,
+        env=dict(env) if env is not None else dict(current.env),
+        build_system=build_system if build_system is not None else current.build_system,
+        language=language if language is not None else current.language,
     )
 
 
@@ -205,6 +211,7 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "progress": dict(m.progress),
         "done_flag": m.done_flag,
         "notes": list(m.notes),
+        "env": dict(m.env),
     }
 
 
@@ -227,4 +234,5 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         progress=dict(d.get("progress", {layer: False for layer in _PROGRESS_LAYERS})),
         done_flag=bool(d.get("done_flag", False)),
         notes=tuple(d.get("notes", [])),
+        env=dict(d.get("env", {})),
     )
