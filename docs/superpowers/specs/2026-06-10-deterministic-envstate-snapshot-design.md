@@ -42,7 +42,7 @@ Three refinements accepted on top:
 
 - **① `env` field** — a new `dict[str,str]` on `WorldModelMap` for scalar probe facts (`python_version`, `which_python`, `venv`, `pip_version`, `arch`, `os_release`).
 - **② Deterministic `progress`** — computed from facts in `apply_deterministic`; the Maintainer no longer emits `progress`.
-- **③ Auto-resolve `open_problems`** — a problem whose package is now in `installed` is dropped deterministically (fixes the current append-only never-removed staleness bug).
+- **③ Auto-resolve `open_problems`** — a problem whose package is now in `installed` is dropped deterministically (fixes the current append-only never-removed staleness bug). Because `installed` is pip-only, this covers Python problems; **the narrowed Maintainer additionally emits a `resolved` list** (signatures to drop) so non-pip / system-layer problems (`pg_config not found`, `gcc: command not found`) also clear once the report shows them fixed. Deterministic pip-resolve + LLM `resolved` together keep `open_problems` honest.
 
 **Non-negotiable invariant:** the success gate is unchanged. Done = `pytest --collect-only` exits 0 → host sets `done_flag`. `required − installed` is *guidance only*; it never terminates the run (both false-positive and false-negative directions exist).
 
@@ -91,7 +91,8 @@ def parse_manifests(workplace: str) -> ManifestResult: ...
 
 - **build_system detection precedence:** `poetry.lock` or `[tool.poetry]` → poetry; `pyproject [build-system].build-backend` → setuptools/hatchling/flit; `Pipfile` → pipenv; `requirements*.txt` → pip; `setup.py`/`setup.cfg` only → setuptools; none → `unknown`.
 - **required sources (shallow, names only):** `pyproject [project.dependencies]`; `requirements*.txt` (resolve `-r <file>` includes; strip version specifiers/markers into `detail`); `poetry [tool.poetry.dependencies]` (skip `python`); `Pipfile [packages]`.
-- Reads files with `open()` from `workplace`. Missing/malformed files are skipped; the function returns best-effort and never raises.
+- Reads files with `open()` from `workplace`. Missing/malformed files are skipped; the function returns best-effort and never raises (degrade → log a `note`, never silent).
+- **Parse with stdlib + PyPA, not regex (Layer 1):** `tomllib` (stdlib 3.11+) for `pyproject.toml`/`Pipfile`; `packaging.requirements.Requirement` for each requirement string (handles specifiers, extras `flask[async]`, and environment markers `; python_version < "3.9"`). Wrap per-line parsing in try/except so one malformed line is skipped, not fatal. Handle `requirements.txt` `-r <file>` includes and `#` comments manually (strip before handing to `packaging`). Add `packaging` to the project's declared deps (present transitively today; make it explicit since `manifest.py` imports it).
 - **Future (deferred):** deep resolution from lock files / resolver behind the same interface.
 
 ### 4.2 `snapshot.py` (read-only probe, never raises)
@@ -106,7 +107,8 @@ def probe_env(exec_readonly: Callable[[str], tuple[int, str]]) -> EnvSnapshot: .
 ```
 
 - Wraps `extractor.run_extractor(exec_readonly, LIGHTWEIGHT_FIELDS + ("which_python","venv"))`. `exec_readonly`'s `(int, str)` return type already matches `extractor.ProbeExecutor`.
-- Parses `installed_pip` (`name==version` lines) into `Fact` tuples. Scalar fields populate `env`.
+- Parses the installed-package list (`name==version` lines) into `Fact` tuples. Scalar fields populate `env`.
+- **Use `pip list --format=freeze`, NOT bare `pip freeze`** (change `extractor.EXTRACTOR_COMMANDS["installed_pip"]` accordingly). Verified: bare `pip freeze` excludes `pip`/`setuptools`/`wheel`/`distribute` by default. With bare freeze, a manifest that declares `setuptools`/`wheel` (common in `[build-system].requires`) would show those packages permanently in the `required − installed` gap even after they are installed, causing the Planner to chase a phantom-missing build tool indefinitely. `pip list --format=freeze` includes them and the gap closes correctly. (Measured on python:3.10–3.13: bare freeze = 0 packages on a fresh base image; the official images no longer ship setuptools/wheel.)
 - On any probe error returns an empty snapshot; the caller keeps the prior cycle's facts.
 
 ### 4.3 `world_model.py` changes
@@ -140,8 +142,8 @@ def apply_deterministic(current: WorldModelMap,
 ### 4.4 `maintainer.py` changes
 
 - Delete `_ground_installed`.
-- Output schema and `MAINTAINER_SYSTEM_PROMPT` narrowed to **`open_problems` + `notes`** (no `installed`, no `progress`). The prompt states facts are authoritative/pre-filled and the LLM's only job is interpreting failures and recording durable cautions.
-- `Maintainer.update(map, report)` signature unchanged; it now receives a map whose facts are already filled, and merges only `open_problems` (append, dedup) + `notes` (append). `done_flag` structural rule stays.
+- Output schema and `MAINTAINER_SYSTEM_PROMPT` narrowed to **`open_problems` + `resolved` + `notes`** (no `installed`, no `progress`). `resolved` is a list of `open_problem` signatures the report shows are now fixed. The prompt states facts are authoritative/pre-filled and the LLM's only job is interpreting failures, clearing fixed ones, and recording durable cautions.
+- `Maintainer.update(map, report)` signature unchanged; it receives a facts-filled map and merges `open_problems` (append, dedup), drops any signature in `resolved`, and appends `notes`. `done_flag` structural rule stays.
 - The user payload includes the pre-filled facts + the `required − installed` diff so the LLM can attribute failures to a layer.
 
 ### 4.5 `orchestrator.py` changes
@@ -214,7 +216,7 @@ STEADY CYCLE:
 | `required` | manifest | **replace** (stable) |
 | `language` | `env['python_version']` | **replace** when present, else keep |
 | `progress` | derived (②) | recomputed, monotonic |
-| `open_problems` | LLM + auto-resolve (③) | **append** (dedup by signature), minus auto-resolved |
+| `open_problems` | LLM + auto-resolve (③) | **append** (dedup by signature), minus deterministic pip-resolve, minus LLM `resolved` signatures |
 | `notes` | LLM | **append** |
 | `done_flag` | host structural | unchanged (collect-only rc 0) |
 | `base_image`, `workdir`, `repo_layout` | init | immutable |
@@ -253,8 +255,13 @@ This *strengthens* grounding versus both v0 and current v1, while keeping v1's s
 
 Reuse established seams: `exec_readonly` faked as `lambda cmd: (0, "...")`; `_fake_client(content)` SimpleNamespace for the LLM; frozen-map equality/containment assertions; helpers inline (no new conftest).
 
-- **Unit:** `parse_manifests` (each manifest type, `-r` includes, malformed, build_system precedence); `probe_env` (parse `pip freeze`, missing fields, probe error → empty); `apply_deterministic` (replace semantics, auto-resolve, derived progress, empty-snapshot degrade); narrowed Maintainer parse (problems/notes only; ignores any stray `installed`/`progress` keys).
-- **Integration:** cycle-0 fill yields a grounded initial map (build_system + required populated); one full cycle pre-fills facts then the Maintainer adds only problems/notes; probe-failure cycle degrades without wiping facts; an `open_problem` auto-resolves once its package appears in `installed`.
+- **Unit — `parse_manifests`:** each manifest type; `-r` includes; `#` comments; malformed file (no raise); build_system precedence; `packaging` extras (`flask[async]`) + environment markers; none-present → `unknown`/`()`; dedup of deps declared across two files.
+- **Unit — `probe_env`:** parse `name==version` → Facts; missing scalar fields; probe error/nonzero → empty snapshot; malformed freeze line skipped; **[REGRESSION] `pip list --format=freeze` includes `setuptools`/`wheel`** so a declared build tool clears the `required − installed` gap once installed (guards the bare-`pip freeze` exclusion bug).
+- **Unit — `apply_deterministic` + helpers:** replace semantics; empty-snapshot degrade (keep prior facts); ③ pip auto-resolve; `_auto_resolve_problems` name variants (`psycopg2`/`psycopg2-binary`, case-insensitive); `_derive_progress` monotonic (never True→False); `merge_map(env=)` defensive-copies the dict.
+- **Unit — narrowed Maintainer:** ignores stray `installed`/`progress` keys; `resolved` list drops a system-layer `open_problem` (Issue 3); **[REGRESSION] Maintainer no longer touches `installed`** (was `_ground_installed`); **[REGRESSION] `done_flag` still fires on empty/garbage LLM output**.
+- **Unit — serialization:** `map_to_dict`/`map_from_dict` round-trip with the new `env` field.
+- **Integration:** cycle-0 fill yields a grounded initial map (build_system + required populated); one full cycle pre-fills facts then the Maintainer adds only problems/notes/resolved; **[REGRESSION] `run_v1` new `(probe, manifest)` signature — update `test_orchestrator_v1.py` callers**; `planner` done/giveup → probe NOT called that cycle; probe-failure cycle degrades without wiping facts.
+- **[→EVAL] Maintainer/Planner prompt change:** the narrowed prompts (drop `installed`/`progress`, add `resolved`) are a behavioral change to LLM roles. Validate via a benchmark A/B run (Repo2Run arm v1 before/after), not just unit tests — the unit tests fix the parsing contract, the benchmark proves the prompts still drive good decisions.
 
 ---
 
@@ -274,3 +281,17 @@ Reuse established seams: `exec_readonly` faked as `lambda cmd: (0, "...")`; `_fa
 - **`required` as a done-signal** — explicitly rejected; the collect-only gate is the only stop condition.
 - **System-package (apt/dpkg) install planning** — `dpkg` may be captured into `env` for diagnostics, but apt-layer planning stays the LLM/reactive path for now.
 - **Re-parsing manifests every cycle** — parsed once unless we later detect agent edits.
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | pending | offered |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 3 arch + 1 quality resolved; 13 test gaps added (4 regressions); 0 critical gaps; 0 unresolved |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | n/a (backend) | — |
+
+**UNRESOLVED:** 0
+**VERDICT:** ENG CLEARED — ready to implement. Outside voice (codex) offered, not yet run.
