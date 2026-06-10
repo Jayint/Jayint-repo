@@ -781,6 +781,10 @@ if __name__ == "__main__":
     parser.add_argument("--model", choices=["dockeragent", "rat", "repo2run"],
                         default="dockeragent",
                         help="Which eval model to use (default: dockeragent).")
+    parser.add_argument("--arm", choices=["arm0", "v1"], default="arm0",
+                        help="DockerAgent variant: 'arm0' = legacy ReAct loop (default); "
+                             "'v1' = three-role Planner/BuildAgent/Maintainer loop "
+                             "(sets DOCKERAGENT_ENABLE_V1=1 for the adapter).")
 
     # Repair-loop controls
     parser.add_argument("--repair-mode",
@@ -805,6 +809,9 @@ if __name__ == "__main__":
     # Set DOCKERAGENT_REPAIR_MODE so the adapter reads the correct value in this process
     # and in any subprocess that inherits the environment (belt-and-suspenders with --repair-mode CLI).
     os.environ["DOCKERAGENT_REPAIR_MODE"] = args.repair_mode
+    # Set DOCKERAGENT_ENABLE_V1 so the adapter constructs DockerAgent(enable_v1=...)
+    # in this process and any subprocess that inherits the environment.
+    os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if args.arm == "v1" else "0"
 
     # ── --prune ───────────────────────────────────────────────────────────────
     if args.prune:
