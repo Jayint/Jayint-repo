@@ -213,6 +213,47 @@ def _auto_resolve_problems(
         kept.append(p)
     return tuple(kept)
 
+
+def apply_deterministic(
+    current: WorldModelMap,
+    snap: Any,   # EnvSnapshot (duck-typed: .installed, .env)
+    man: Any,    # ManifestResult (duck-typed: .build_system, .required)
+) -> WorldModelMap:
+    """Fold deterministic facts into the map. Pure; never raises.
+
+    REPLACES installed/env/build_system/required/language from snap+man.
+    Empty snap.env => probe failed => keep prior installed/env (degrade).
+    AUTO-RESOLVES pip problems; RECOMPUTES progress deterministically.
+    Leaves notes/base_image/workdir/repo_layout/done_flag untouched.
+    """
+    if snap.env:  # non-empty env == probe succeeded (arch always reads on success)
+        installed = tuple(snap.installed)
+        env = dict(snap.env)
+        language = snap.env.get("python_version") or current.language
+    else:
+        installed = current.installed
+        env = dict(current.env)
+        language = current.language
+
+    build_system = (
+        man.build_system
+        if man.build_system and man.build_system != "unknown"
+        else current.build_system
+    )
+    resolved = _auto_resolve_problems(current.open_problems, installed)
+
+    interim = merge_map(
+        current,
+        installed=installed,
+        env=env,
+        required=tuple(man.required),
+        build_system=build_system,
+        language=language,
+        open_problems=resolved,
+    )
+    progress = _derive_progress(current.progress, interim)
+    return merge_map(interim, progress=progress)
+
 # ---------------------------------------------------------------------------
 # JSON serialization helpers (for LLM message embedding)
 # ---------------------------------------------------------------------------
