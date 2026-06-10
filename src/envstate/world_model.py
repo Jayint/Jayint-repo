@@ -50,7 +50,8 @@ class WorldModelMap:
     progress: dict[str, bool]            # keys: base, system, runtime, deps, build, tests
     done_flag: bool = False              # True once pytest --collect-only exited 0
     notes: tuple[str, ...] = ()          # durable cautions the maintainer wants kept
-    env: dict[str, str] = dataclasses.field(default_factory=dict)   # NEW: scalar probe facts
+    env: dict[str, str] = dataclasses.field(default_factory=dict)   # scalar probe facts
+    system_installed: tuple[Fact, ...] = ()   # apt names + pkg-config modules + tools present
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +144,7 @@ def merge_map(
     env: dict[str, str] | None = None,
     build_system: str | None = None,
     language: str | None = None,
+    system_installed: tuple[Fact, ...] | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -160,6 +162,7 @@ def merge_map(
         env=dict(env) if env is not None else dict(current.env),
         build_system=build_system if build_system is not None else current.build_system,
         language=language if language is not None else current.language,
+        system_installed=system_installed if system_installed is not None else current.system_installed,
     )
 
 
@@ -303,6 +306,7 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "done_flag": m.done_flag,
         "notes": list(m.notes),
         "env": dict(m.env),
+        "system_installed": [_fact_to_dict(f) for f in m.system_installed],
     }
 
 
@@ -326,4 +330,5 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         done_flag=bool(d.get("done_flag", False)),
         notes=tuple(d.get("notes", [])),
         env=dict(d.get("env", {})),
+        system_installed=tuple(_fact_from_dict(f) for f in d.get("system_installed", [])),
     )
