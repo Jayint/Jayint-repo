@@ -1,15 +1,13 @@
 # src/envstate/maintainer.py
-"""EnvState v1 — Maintainer: the single writer of the WorldModelMap.
+"""EnvState v1 — Maintainer: interpreter of the WorldModelMap.
 
 The Maintainer receives a TaskReport from the BuildAgent and produces a new
-WorldModelMap.  It calls the LLM once per cycle, parses the reply, and applies
-the grounding rule before updating the map.
+WorldModelMap.  It calls the LLM once per cycle, parses the reply, and updates
+open_problems / resolved / notes only.
 
-Grounding rule (§2 of the design doc):
-    A Fact is added to `installed` only if the fact's name appears (case-
-    insensitive substring) in at least one command's output within the report.
-    This prevents the LLM from inventing facts that the command output did not
-    demonstrate.
+Narrowed contract (Task 7):
+    Facts (installed/progress/build_system/required/env) are owned by
+    apply_deterministic and are NOT touched here.
 
 done_flag rule (§5):
     `done_flag` is set to True if any CommandRecord in the report has
@@ -42,48 +40,31 @@ COLLECT_ONLY_CMD: str = "--collect-only"
 # ---------------------------------------------------------------------------
 
 MAINTAINER_SYSTEM_PROMPT = """\
-You are the Maintainer for the EnvState v1 system.  After each build-agent
-task you receive the TaskReport (the commands that were run, their exit codes,
-and their output) and the current WorldModelMap.  Your job is to produce an
-updated map.
+You are the Maintainer for the EnvState v1 system.  Installed packages, the
+build system, declared requirements, and the interpreter are ALREADY filled in
+by the host (authoritative) — do NOT report them.  Your only job is to interpret
+this cycle's TaskReport: record new failures, clear fixed ones, and keep notes.
 
 ## Ground truth rule
 Record only what the command output actually demonstrates.
-- Add a package to `installed` only if the command output shows it was
-  successfully installed (e.g. "Successfully installed flask-3.0.0").
-- Do NOT invent facts that the output did not confirm.
 - Interpret failures into `open_problems` with a suspected layer.
+- List in `resolved` the `signature` of any existing problem the output shows is now fixed.
 
 ## done_flag (informational — you never set this)
-The harness derives `done_flag` structurally: it becomes true when a
-`pytest --collect-only` command in the report exits with rc 0 (the EBSR
-gate).  You do not emit it and cannot influence it.
+The harness sets done_flag when a `pytest --collect-only` command exits 0.
 
 ## Output schema
 Return exactly one JSON object inside a ```json fenced block with these keys:
 
 ```json
 {
-  "installed": [{"name": "...", "detail": "..."}],
-  "open_problems": [
-    {"signature": "...", "interpretation": "...", "layer": "..."}
-  ],
-  "progress": {
-    "base": false, "system": false, "runtime": false,
-    "deps": false, "build": false, "tests": false
-  },
+  "open_problems": [{"signature": "...", "interpretation": "...", "layer": "..."}],
+  "resolved": ["<signature of a now-fixed problem>"],
   "notes": ["..."]
 }
 ```
 
-Field meanings:
-- `installed`      — packages/tools confirmed present by this cycle's commands
-- `open_problems`  — failures with a signature and suspected layer
-- `progress`       — which stack layers are now complete (set True conservatively)
-- `notes`          — durable cautions to preserve across future cycles
-
-Do not include any other keys.  Do not mention done_flag in your output — the
-harness sets it from the report directly.
+Do not include any other keys.  Do not report installed packages or progress.
 """
 
 # ---------------------------------------------------------------------------
@@ -96,30 +77,6 @@ def _collect_only_passed(report: TaskReport) -> bool:
         if COLLECT_ONLY_CMD in rec.cmd and rec.rc == 0:
             return True
     return False
-
-
-def _all_output_text(report: TaskReport) -> str:
-    """Concatenate all command outputs into a single lowercased string for grounding."""
-    return "\n".join(rec.output for rec in report.commands).lower()
-
-
-def _ground_installed(
-    proposed: list[dict[str, Any]],
-    report: TaskReport,
-) -> tuple[Fact, ...]:
-    """Apply the grounding rule: keep only facts whose name appears in the output."""
-    output_text = _all_output_text(report)
-    facts: list[Fact] = []
-    for item in proposed:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("name", "")
-        if not name:
-            continue
-        # Grounding check: the fact's name must appear in the combined output.
-        if name.lower() in output_text:
-            facts.append(Fact(name=name, detail=str(item.get("detail", ""))))
-    return tuple(facts)
 
 
 def _parse_open_problems(
@@ -153,67 +110,44 @@ def parse_v1_maintainer_reply(
     current_map: WorldModelMap,
     report: TaskReport,
 ) -> WorldModelMap:
-    """Parse the LLM's reply and return an updated WorldModelMap.
+    """Parse the narrowed Maintainer reply: open_problems + resolved + notes.
 
-    Applies the grounding rule (installed facts must be evidenced in output)
-    and the done_flag rule (collect-only rc 0 → done_flag = True).
-
-    On empty or unparseable input, returns the current map unchanged.
+    Facts (installed/progress/build_system/required/env) are owned by
+    apply_deterministic and are NOT touched here. done_flag is structural
+    (collect-only rc 0 in the report). On empty/unparseable input, only the
+    structural done_flag rule applies.
     """
     parsed = extract_json_object(text) if text else None
     if not parsed:
-        # On empty / unparseable output, still apply the structural done_flag
-        # rule from the report (collect-only rc0) so the EBSR gate cannot be
-        # missed just because the LLM reply was garbage on that cycle.
         new_done = current_map.done_flag or _collect_only_passed(report)
         if new_done != current_map.done_flag:
             return merge_map(current_map, done_flag=new_done)
         return current_map
 
-    # --- installed (grounded) ---
-    proposed_installed = parsed.get("installed") or []
-    new_facts = _ground_installed(proposed_installed, report)
-    # Merge with existing installed facts (deduplicate by name).
-    existing_names = {f.name for f in current_map.installed}
-    merged_installed = current_map.installed + tuple(
-        f for f in new_facts if f.name not in existing_names
-    )
-
-    # --- open_problems ---
-    proposed_problems = parsed.get("open_problems") or []
-    new_problems = _parse_open_problems(proposed_problems)
+    # open_problems: append new (dedup by signature)
+    new_problems = _parse_open_problems(parsed.get("open_problems") or [])
     existing_sigs = {p.signature for p in current_map.open_problems}
-    merged_problems = current_map.open_problems + tuple(
+    merged = current_map.open_problems + tuple(
         p for p in new_problems if p.signature not in existing_sigs
     )
 
-    # --- progress ---
-    progress_from_llm = parsed.get("progress")
-    if isinstance(progress_from_llm, dict):
-        # Merge: once a layer is True it stays True.
-        new_progress = dict(current_map.progress)
-        for layer, val in progress_from_llm.items():
-            if layer in new_progress:
-                new_progress[layer] = new_progress[layer] or bool(val)
-    else:
-        new_progress = dict(current_map.progress)
+    # resolved: drop listed signatures
+    resolved = {str(s) for s in (parsed.get("resolved") or [])}
+    if resolved:
+        merged = tuple(p for p in merged if p.signature not in resolved)
 
-    # --- notes (append, never replace) ---
-    new_note_strings = parsed.get("notes") or []
-    added_notes = tuple(str(n) for n in new_note_strings if str(n) not in current_map.notes)
+    # notes: append (never replace)
+    added_notes = tuple(
+        str(n) for n in (parsed.get("notes") or []) if str(n) not in current_map.notes
+    )
     merged_notes = current_map.notes + added_notes
 
-    # --- done_flag ---
-    # Structural rule: set if collect-only passed; once True, stays True.
     done = current_map.done_flag or _collect_only_passed(report)
-
     return merge_map(
         current_map,
-        installed=merged_installed,
-        open_problems=merged_problems,
-        progress=new_progress,
-        done_flag=done,
+        open_problems=merged,
         notes=merged_notes,
+        done_flag=done,
     )
 
 
@@ -262,10 +196,6 @@ class Maintainer:
                     "language": current_map.language,
                     "build_system": current_map.build_system,
                     "repo_layout": list(current_map.repo_layout),
-                    "installed": [
-                        {"name": f.name, "detail": f.detail}
-                        for f in current_map.installed
-                    ],
                     "open_problems": [
                         {
                             "signature": p.signature,
@@ -274,7 +204,6 @@ class Maintainer:
                         }
                         for p in current_map.open_problems
                     ],
-                    "progress": dict(current_map.progress),
                     "done_flag": current_map.done_flag,
                     "notes": list(current_map.notes),
                 },
@@ -319,7 +248,6 @@ class Maintainer:
             response,
             parsed={
                 "done_flag": new_map.done_flag,
-                "installed_count": len(new_map.installed),
                 "open_problems_count": len(new_map.open_problems),
             },
             log_path=self._log_path,

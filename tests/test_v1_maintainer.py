@@ -1,9 +1,10 @@
 # tests/test_v1_maintainer.py
-"""Unit tests for the v1 Maintainer rewrite.
+"""Unit tests for the v1 Maintainer (narrowed contract).
 
 Covers:
 - parse_v1_maintainer_reply: valid JSON → WorldModelMap fields
-- Grounding rule: a Fact not demonstrated in command output is not added to installed
+- installed and progress are NOT touched by parse_v1_maintainer_reply (new contract)
+- resolved key drops listed open_problem signatures
 - done_flag set when a pytest --collect-only command has rc==0
 - done_flag NOT set when collect-only rc!=0
 - done_flag NOT set when an unrelated command has rc==0
@@ -19,7 +20,6 @@ from types import SimpleNamespace
 from dataclasses import replace
 
 # world_model is built in Group 1 and must already be present.
-# The rewritten maintainer.py does not exist yet — imports below will fail.
 from src.envstate.world_model import (
     Fact,
     OpenProblem,
@@ -90,7 +90,7 @@ def _make_report(
 
 
 # ---------------------------------------------------------------------------
-# parse_v1_maintainer_reply
+# parse_v1_maintainer_reply — narrowed contract
 # ---------------------------------------------------------------------------
 
 class TestParseV1MaintainerReply(unittest.TestCase):
@@ -99,43 +99,40 @@ class TestParseV1MaintainerReply(unittest.TestCase):
     def _llm_json(self, **fields) -> str:
         return "```json\n" + json.dumps(fields) + "\n```"
 
-    def test_installed_fact_recorded_when_output_confirms_it(self):
-        base = _base_map()
+    def test_installed_unchanged_even_when_llm_proposes_it(self):
+        """New contract: installed is host-owned; LLM 'installed' key is ignored."""
+        base = merge_map(_base_map(), installed=(Fact("flask", "3.0.0"),))
         report = _make_report(
             [("pip install flask==3.0.0", 0, "Successfully installed flask-3.0.0")]
         )
+        # LLM proposes extra installed facts — they must be ignored
         reply = self._llm_json(
-            installed=[{"name": "flask", "detail": "3.0.0"}],
+            installed=[{"name": "requests", "detail": "2.31.0"}],
             open_problems=[],
-            progress={"base": True, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
             notes=[],
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
+        # installed must remain exactly as it was
+        self.assertEqual(new_map.installed, (Fact("flask", "3.0.0"),))
         names = [f.name for f in new_map.installed]
-        self.assertIn("flask", names)
+        self.assertNotIn("requests", names)
 
-    def test_invented_fact_not_added_when_absent_from_output(self):
-        """Grounding rule: LLM proposes 'numpy' but the output never mentions it."""
+    def test_progress_unchanged_even_when_llm_proposes_it(self):
+        """New contract: progress is host-owned; LLM 'progress' key is ignored."""
         base = _base_map()
         report = _make_report(
-            [("pip install flask==3.0.0", 0, "Successfully installed flask-3.0.0")]
+            [("apt-get install -y python3-dev", 0, "Setting up python3-dev")]
         )
+        # LLM proposes progress changes — they must be ignored
         reply = self._llm_json(
-            # LLM invents numpy even though command output says nothing about it
-            installed=[
-                {"name": "flask", "detail": "3.0.0"},
-                {"name": "numpy", "detail": "1.26"},
-            ],
             open_problems=[],
-            progress={"base": False, "system": False, "runtime": False,
+            progress={"base": True, "system": True, "runtime": False,
                       "deps": False, "build": False, "tests": False},
             notes=[],
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
-        names = [f.name for f in new_map.installed]
-        self.assertNotIn("numpy", names)
-        self.assertIn("flask", names)
+        # progress must remain as-is from the base map
+        self.assertEqual(new_map.progress, base.progress)
 
     def test_open_problem_recorded_from_failed_command(self):
         base = _base_map()
@@ -144,7 +141,6 @@ class TestParseV1MaintainerReply(unittest.TestCase):
               "error: pg_config executable not found")]
         )
         reply = self._llm_json(
-            installed=[],
             open_problems=[
                 {
                     "signature": "ModuleNotFoundError: psycopg2",
@@ -152,39 +148,33 @@ class TestParseV1MaintainerReply(unittest.TestCase):
                     "layer": "system",
                 }
             ],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=[],
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         sigs = [p.signature for p in new_map.open_problems]
         self.assertIn("ModuleNotFoundError: psycopg2", sigs)
 
-    def test_progress_updated_from_llm_reply(self):
-        base = _base_map()
-        report = _make_report(
-            [("apt-get install -y python3-dev", 0, "Setting up python3-dev")]
-        )
+    def test_resolved_drops_problem(self):
+        """resolved key removes existing open_problem by signature."""
+        base = merge_map(_base_map(), open_problems=(
+            OpenProblem("pg_config not found", "needs libpq-dev", "system"),
+        ))
+        report = _make_report([("apt-get install -y libpq-dev", 0, "ok")])
         reply = self._llm_json(
-            installed=[{"name": "python3-dev", "detail": ""}],
             open_problems=[],
-            progress={"base": True, "system": True, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=["pg_config not found"],
             notes=[],
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
-        self.assertTrue(new_map.progress["system"])
-        self.assertTrue(new_map.progress["base"])
-        self.assertFalse(new_map.progress["deps"])
+        self.assertEqual(new_map.open_problems, ())
 
     def test_notes_appended_not_replaced(self):
         base = merge_map(_base_map(), notes=("existing note",))
         report = _make_report([("pip install x", 0, "ok")])
         reply = self._llm_json(
-            installed=[{"name": "x", "detail": ""}],
             open_problems=[],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=["new caution"],
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
@@ -230,11 +220,8 @@ class TestDoneFlag(unittest.TestCase):
             [("pytest --collect-only -q --disable-warnings", 0,
               "collected 12 items")]
         )
-        # LLM reply says tests layer is done
         reply = (
-            '```json\n{"installed": [], "open_problems": [],'
-            ' "progress": {"base": true, "system": true, "runtime": true,'
-            ' "deps": true, "build": true, "tests": true}, "notes": []}\n```'
+            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertTrue(new_map.done_flag)
@@ -246,9 +233,7 @@ class TestDoneFlag(unittest.TestCase):
               "collected 5 items")]
         )
         reply = (
-            '```json\n{"installed": [], "open_problems": [],'
-            ' "progress": {"base": true, "system": true, "runtime": true,'
-            ' "deps": true, "build": true, "tests": true}, "notes": []}\n```'
+            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertTrue(new_map.done_flag)
@@ -260,9 +245,7 @@ class TestDoneFlag(unittest.TestCase):
               "ERROR: ModuleNotFoundError: edsl")]
         )
         reply = (
-            '```json\n{"installed": [], "open_problems": [],'
-            ' "progress": {"base": true, "system": false, "runtime": false,'
-            ' "deps": false, "build": false, "tests": false}, "notes": []}\n```'
+            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertFalse(new_map.done_flag)
@@ -273,10 +256,7 @@ class TestDoneFlag(unittest.TestCase):
             [("pip install flask", 0, "Successfully installed flask-3.0.0")]
         )
         reply = (
-            '```json\n{"installed": [{"name": "flask", "detail": "3.0.0"}],'
-            ' "open_problems": [],'
-            ' "progress": {"base": true, "system": false, "runtime": false,'
-            ' "deps": true, "build": false, "tests": false}, "notes": []}\n```'
+            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertFalse(new_map.done_flag)
@@ -286,9 +266,7 @@ class TestDoneFlag(unittest.TestCase):
         base = merge_map(_base_map(), done_flag=True)
         report = _make_report([("ls", 0, "")])
         reply = (
-            '```json\n{"installed": [], "open_problems": [],'
-            ' "progress": {"base": true, "system": true, "runtime": true,'
-            ' "deps": true, "build": true, "tests": true}, "notes": []}\n```'
+            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         )
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertTrue(new_map.done_flag)
@@ -308,10 +286,8 @@ class TestMaintainerUpdate(unittest.TestCase):
         maintainer = Maintainer(
             client=_fake_client(
                 self._reply_json(
-                    installed=[],
                     open_problems=[],
-                    progress={"base": False, "system": False, "runtime": False,
-                               "deps": False, "build": False, "tests": False},
+                    resolved=[],
                     notes=[],
                 )
             ),
@@ -324,10 +300,8 @@ class TestMaintainerUpdate(unittest.TestCase):
 
     def test_update_sets_done_flag_on_collect_only_rc0(self):
         reply = self._reply_json(
-            installed=[],
             open_problems=[],
-            progress={"base": True, "system": True, "runtime": True,
-                      "deps": True, "build": True, "tests": True},
+            resolved=[],
             notes=[],
         )
         maintainer = Maintainer(client=_fake_client(reply), model="test-model")
@@ -341,7 +315,6 @@ class TestMaintainerUpdate(unittest.TestCase):
 
     def test_update_records_open_problem_on_install_failure(self):
         reply = self._reply_json(
-            installed=[],
             open_problems=[
                 {
                     "signature": "ImportError: cannot import name 'edsl'",
@@ -349,8 +322,7 @@ class TestMaintainerUpdate(unittest.TestCase):
                     "layer": "deps",
                 }
             ],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=[],
         )
         maintainer = Maintainer(client=_fake_client(reply), model="test-model")
@@ -366,11 +338,12 @@ class TestMaintainerUpdate(unittest.TestCase):
 
     def test_update_does_not_mutate_input_map(self):
         """WorldModelMap is frozen — update must return a new object."""
+        # Under the new contract, LLM does NOT set installed.
+        # installed stays empty; we verify the original map is untouched
+        # and the result has the same installed (both empty).
         reply = self._reply_json(
-            installed=[{"name": "flask", "detail": "3.0.0"}],
             open_problems=[],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=[],
         )
         maintainer = Maintainer(client=_fake_client(reply), model="test-model")
@@ -381,8 +354,8 @@ class TestMaintainerUpdate(unittest.TestCase):
         result = maintainer.update(base, report)
         # The original map must be untouched.
         self.assertEqual(base.installed, ())
-        # The new map has the installed fact.
-        self.assertTrue(any(f.name == "flask" for f in result.installed))
+        # installed is host-owned — Maintainer leaves it unchanged
+        self.assertEqual(result.installed, ())
 
     def test_update_tolerates_empty_llm_response(self):
         """Empty LLM reply must not crash — map comes back unchanged."""
@@ -396,10 +369,8 @@ class TestMaintainerUpdate(unittest.TestCase):
     def test_on_usage_callback_is_called(self):
         """on_usage must be invoked exactly once per update call with a usage dict."""
         reply = self._reply_json(
-            installed=[],
             open_problems=[],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=[],
         )
         received: list[dict] = []
@@ -417,10 +388,8 @@ class TestMaintainerUpdate(unittest.TestCase):
     def test_on_usage_none_does_not_crash(self):
         """Maintainer with on_usage=None must run without error."""
         reply = self._reply_json(
-            installed=[],
             open_problems=[],
-            progress={"base": False, "system": False, "runtime": False,
-                      "deps": False, "build": False, "tests": False},
+            resolved=[],
             notes=[],
         )
         maintainer = Maintainer(
@@ -448,9 +417,17 @@ class TestMaintainerSystemPrompt(unittest.TestCase):
         self.assertIn("done_flag", MAINTAINER_SYSTEM_PROMPT)
 
     def test_prompt_mentions_single_output_shape(self):
-        """The prompt must reference the four output keys of the v1 schema."""
-        for key in ("installed", "open_problems", "progress", "notes"):
+        """The prompt must reference the three output keys of the narrowed v1 schema."""
+        for key in ("open_problems", "resolved", "notes"):
             self.assertIn(key, MAINTAINER_SYSTEM_PROMPT)
+
+    def test_prompt_states_facts_are_host_authoritative(self):
+        """The prompt must inform the LLM that installed facts are host-owned."""
+        prompt_lower = MAINTAINER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "authoritative" in prompt_lower or "already filled" in prompt_lower,
+            "Prompt should state that installed/facts are host-authoritative",
+        )
 
 
 if __name__ == "__main__":
