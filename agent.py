@@ -233,6 +233,24 @@ class DockerAgent:
             base_url=base_url if base_url else None
         )
 
+        # Optional OpenRouter provider pinning: when OPENROUTER_PROVIDER is set,
+        # route every chat completion through that upstream provider only (no
+        # fallbacks). Applies to every component sharing self.client — image
+        # selection, the Arm-0 ReAct loop, and the v1 Planner/BuildAgent/Maintainer.
+        _or_provider = os.getenv("OPENROUTER_PROVIDER")
+        if _or_provider:
+            _orig_create = self.client.chat.completions.create
+
+            def _create_pinned(*args, _orig=_orig_create, _prov=_or_provider, **kwargs):
+                extra_body = dict(kwargs.get("extra_body") or {})
+                extra_body.setdefault(
+                    "provider", {"only": [_prov], "allow_fallbacks": False}
+                )
+                kwargs["extra_body"] = extra_body
+                return _orig(*args, **kwargs)
+
+            self.client.chat.completions.create = _create_pinned
+
         if self.enable_long_term_memory:
             self.memory_manager = LongTermMemoryManager(
                 client=self.client,
