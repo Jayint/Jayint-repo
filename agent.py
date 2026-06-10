@@ -844,6 +844,8 @@ class DockerAgent:
         from src.envstate.build_agent import BuildAgent as _BuildAgent
         from src.envstate.maintainer import Maintainer as _Maintainer
         from src.envstate.world_model import initial_map, Fact
+        from src.envstate.manifest import parse_manifests
+        from src.envstate.snapshot import probe_env
 
         # ── 1. LLM log scope (same pattern as _run_supervisor) ───────────────
         _llm_log_dir = os.path.join(self.logs_dir, "setup_logs")
@@ -923,6 +925,9 @@ class DockerAgent:
 
         try:
             # ── 4. Run the v1 loop ────────────────────────────────────────────
+            # Deterministic facts: manifest (host FS) + read-only env probe.
+            _manifest = parse_manifests(self.workplace)
+            _probe = lambda: probe_env(self.sandbox.exec_readonly)
             final_map, stop_reason = _run_v1_loop(
                 planner=planner,
                 build_agent=build_agent,
@@ -931,6 +936,8 @@ class DockerAgent:
                 ledger=self.action_ledger,
                 sandbox_execute=self.sandbox.execute,
                 max_cycles=max_cycles,
+                probe=_probe,
+                manifest=_manifest,
             )
 
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
