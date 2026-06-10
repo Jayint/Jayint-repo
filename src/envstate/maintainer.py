@@ -54,6 +54,8 @@ Record only what the command output actually demonstrates.
   pick a failure's layer (a name in `missing` => `deps`; a wrong `env.which_python` or
   `env.venv` => `runtime`) and to judge what is now `resolved` — but never echo these
   facts back; they are inputs, not outputs.
+- Use `system_tools` / `build_tools` / `os_release` to judge whether a `system`-layer
+  problem is fixed and which package manager applies (apt/apk/yum).
 
 ## done_flag (informational — you never set this)
 The harness sets done_flag when a `pytest --collect-only` command exits 0.
@@ -218,6 +220,7 @@ class Maintainer:
         # so the LLM can attribute a failure to a layer and judge `resolved`.
         _installed_names = {f.name.lower() for f in current_map.installed}
         _missing = [f.name for f in current_map.required if f.name.lower() not in _installed_names]
+        _sys_tools = [f.name for f in current_map.system_installed if f.detail in ("tool", "pkgconfig")]
 
         # Build the user message: current map + task report.
         user_content = json.dumps(
@@ -238,6 +241,9 @@ class Maintainer:
                     ],
                     "missing": _missing,
                     "env": dict(current_map.env),
+                    "system_tools": _sys_tools[:40],
+                    "os_release": current_map.env.get("os_release", ""),
+                    "build_tools": current_map.env.get("build_tools", ""),
                     "open_problems": [
                         {
                             "signature": p.signature,
