@@ -69,6 +69,16 @@ class FakeSandbox:
         if "--collect-only" in cmd:
             return True, "collected 7 items / 7 selected\n"
         return True, "ok\n"
+    def exec_readonly(self, cmd):
+        # Read-only env probe (snapshot.probe_env -> extractor.run_extractor).
+        # Off the ledger; folded into the map by apply_deterministic each cycle.
+        if "uname -m" in cmd:
+            return 0, "x86_64\n"
+        if "python --version" in cmd:
+            return 0, "Python 3.12.1\n"
+        if "pip list --format=freeze" in cmd:
+            return 0, "flask==3.0.0\n"
+        return 1, ""
     def close(self, keep_alive=False): self.closed = True
 
 
@@ -83,6 +93,7 @@ class RunV1IntegrationTest(unittest.TestCase):
     def test_run_v1_constructs_real_roles_and_finalizes_on_done_flag(self):
         agent = _agent_module.DockerAgent.__new__(_agent_module.DockerAgent)
         agent.logs_dir = tempfile.mkdtemp()
+        agent.workplace = tempfile.mkdtemp()  # host FS root for parse_manifests()
         agent.client = FakeLLM()
         agent.model = "fake-model"
         agent.synthesizer = FakeSynth()
