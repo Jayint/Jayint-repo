@@ -761,6 +761,16 @@ RUN git clone {repo_url} /testbed
         try:
             # 1. 运行 DockerAgent 进行环境配置
             print("[Step 1/4] Running DockerAgent for environment configuration...")
+            # Honour DOCKERAGENT_REPAIR_MODE set by run_rat_benchmark.py.
+            # selfverify / both → enable the agent's own post-synthesis repair.
+            # runner / off      → disable it (runner loop is authoritative, or baseline mode).
+            _repair_mode_env = os.environ.get("DOCKERAGENT_REPAIR_MODE", "selfverify")
+            _enable_agent_repair = _repair_mode_env in ("selfverify", "both")
+            # Honour DOCKERAGENT_ENABLE_V1 set by run_rat_benchmark.py --arm v1.
+            # When on, DockerAgent.run() dispatches the v1 three-role loop
+            # (Planner/BuildAgent/Maintainer) instead of the legacy ReAct loop.
+            _enable_v1 = os.environ.get("DOCKERAGENT_ENABLE_V1", "").lower() in ("1", "true", "yes", "on")
+
             agent = DockerAgent(
                 repo_url=repo_url,
                 base_image=base_image or "auto",
@@ -775,6 +785,8 @@ RUN git clone {repo_url} /testbed
                 enable_long_term_memory=enable_long_term_memory,
                 memory_path=memory_path,
                 memory_embedding_model=memory_embedding_model,
+                enable_post_synthesis_repair=_enable_agent_repair,
+                enable_v1=_enable_v1,
             )
             
             # base_commit 已在 DockerAgent.__init__ 中完成 checkout

@@ -1,0 +1,24 @@
+--- a/libkit/tools/run_pytest.py
++++ b/libkit/tools/run_pytest.py
+@@ -632,7 +632,20 @@
+     """Main entrypoint - auto-detect working directory."""
+     # Auto-detect current working directory
+     repo_path = os.getcwd()
+-    timeout = 180
++    # CORRECTED VARIANT (RAT-bench fidelity fix A): the original hardcoded
++    # `timeout = 180` here, silently overriding run_pytest()'s 600s default and
++    # contradicting the paper's stated 600s. Large suites that legitimately need
++    # >180s were killed and (via the scorer's TimeoutError->1.0 heuristic) became
++    # phantom perfect passes. Make the subprocess timeout configurable via
++    # RAT_PYTEST_TIMEOUT (seconds), defaulting HIGHER (1800s) so real totals are
++    # recorded. Set RAT_PYTEST_TIMEOUT=180 to exactly reproduce the paper-faithful
++    # baseline.
++    try:
++        timeout = int(os.environ.get("RAT_PYTEST_TIMEOUT", "1800"))
++        if timeout <= 0:
++            timeout = 1800
++    except (TypeError, ValueError):
++        timeout = 1800
+     verbose = True  # Always verbose
+ 
+     # Output path (based on working directory)

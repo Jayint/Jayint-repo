@@ -1,0 +1,74 @@
+--- a/eval/common/scorers.py
++++ b/eval/common/scorers.py
+@@ -73,6 +73,7 @@
+         "pytest_failed": 0,
+         "pytest_errors": 0,
+         "pytest_executed": False,
++        "pytest_timeout_unverified": False,
+         "error_breakdown": {},
+         "pass_rate_exclude_code_issues": 0.0,
+     }
+@@ -105,19 +106,28 @@
+         errors = summary.get("errors", 0)
+         skipped = summary.get("skipped", 0)
+ 
++        # CORRECTED VARIANT (RAT-bench fidelity fix B): detect the timeout-only,
++        # zero-recorded-tests case. The paper-faithful baseline assigned this
++        # pass_rate = 1.0 ("treat 'no error within timeout' as pass"), which rewards
++        # suites too slow to finish and is the single largest source of optimism in
++        # the headline ESSR. "No error within timeout" is NOT "all tests pass". Here
++        # we score it 0.0 and surface a `pytest_timeout_unverified` flag so honest
++        # scoreboards can report/exclude these separately. Applied to BOTH the
++        # pytest_pass_rate and pass_rate_exclude_code_issues branches.
++        timeout_only_no_tests = (
++            total_tests == 0
++            and len(error_breakdown) == 1
++            and "TimeoutError" in error_breakdown
++        )
++
+         # Compute pass rate: passed / (total_tests - skipped)
+         effective_total = total_tests - skipped
+         if effective_total > 0:
+             pass_rate = passed / effective_total
+-        elif (
+-            effective_total == 0
+-            and total_tests == 0
+-            and len(error_breakdown) == 1
+-            and "TimeoutError" in error_breakdown
+-        ):
+-            # All tests timed out; likely tests run forever or take a very long time.
+-            # Treat "no error within timeout" as pass.
+-            pass_rate = 1.0
++        elif timeout_only_no_tests:
++            # All tests timed out with nothing recorded -> NOT a pass. Treat as 0.0
++            # (unverified); reported separately via pytest_timeout_unverified.
++            pass_rate = 0.0
+         else:
+             pass_rate = 0.0
+ 
+@@ -132,13 +142,10 @@
+             pass_rate_exclude_code_issues = (
+                 passed / effective_tests_excluding_code_issues
+             )
+-        elif (
+-            effective_tests_excluding_code_issues == 0
+-            and total_tests == 0
+-            and len(error_breakdown) == 1
+-            and "TimeoutError" in error_breakdown
+-        ):
+-            pass_rate_exclude_code_issues = 1.0
++        elif timeout_only_no_tests:
++            # Same correction for the S2-style "verified" denominator branch:
++            # a timeout with no recorded tests is unverified, not a perfect pass.
++            pass_rate_exclude_code_issues = 0.0
+         else:
+             pass_rate_exclude_code_issues = 0.0
+ 
+@@ -149,6 +156,7 @@
+             "pytest_failed": failed,
+             "pytest_errors": errors,
+             "pytest_executed": True,
++            "pytest_timeout_unverified": bool(timeout_only_no_tests),
+             "error_breakdown": error_breakdown,
+             "pass_rate_exclude_code_issues": round(pass_rate_exclude_code_issues, 4),
+         }
