@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from typing import Any
 
 
@@ -213,6 +214,54 @@ def _auto_resolve_problems(
         sig = p.signature.lower()
         if any(name in sig for name in names):
             continue  # resolved
+        kept.append(p)
+    return tuple(kept)
+
+
+# Failure-signature shapes → the missing artifact token.
+_SYS_ARTIFACT_PATTERNS = (
+    re.compile(r"([A-Za-z0-9_.+-]+)\s*(?::\s*)?(?:command not found|executable not found|: not found)", re.I),
+    re.compile(r"no package '([^']+)' found", re.I),
+    re.compile(r"cannot find -l(\S+)", re.I),
+    re.compile(r"fatal error:\s*([A-Za-z0-9_./+-]+)\.h\b", re.I),
+)
+
+
+def _system_artifact(signature: str) -> str | None:
+    """Best-effort extraction of the missing tool/lib/module from a signature."""
+    for pat in _SYS_ARTIFACT_PATTERNS:
+        m = pat.search(signature)
+        if m:
+            return m.group(1).strip().lower()
+    return None
+
+
+def _auto_resolve_system_problems(
+    open_problems: tuple[OpenProblem, ...],
+    system_installed: tuple[Fact, ...],
+) -> tuple[OpenProblem, ...]:
+    """Drop a layer=='system' problem once the probe confirms its missing artifact
+    is present in system_installed (apt names / pkg-config modules / tools on PATH).
+
+    Matches against WHAT THE ARTIFACT IS, not the apt package name (the signature
+    names pg_config, not libpq-dev). Conservative: unrecognized shapes are kept.
+    Never raises; leaves non-system problems untouched.
+    """
+    if not system_installed:
+        return open_problems
+    present = {f.name.lower() for f in system_installed if f.name}
+    # also index without a leading 'lib' so 'libpq' matches 'pq' artifacts and vice-versa
+    present |= {n[3:] for n in present if n.startswith("lib")}
+    present |= {"lib" + n for n in list(present)}
+
+    kept: list[OpenProblem] = []
+    for p in open_problems:
+        if p.layer != "system":
+            kept.append(p)
+            continue
+        art = _system_artifact(p.signature)
+        if art is not None and (art in present or art.replace("lib", "") in present):
+            continue  # resolved deterministically
         kept.append(p)
     return tuple(kept)
 
