@@ -1,0 +1,45 @@
+{
+  "summary": {
+    "total_tests": 5,
+    "passed": 0,
+    "failed": 5,
+    "skipped": 0,
+    "errors": 0,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "KeyError": 5
+  },
+  "failed_tests": [
+    {
+      "test_id": "tests.test_service::test_network_post_permissions",
+      "error_type": "KeyError",
+      "error_message": "KeyError: '2375/tcp'"
+    },
+    {
+      "test_id": "tests.test_service::test_exec_permissions",
+      "error_type": "KeyError",
+      "error_message": "KeyError: '2375/tcp'"
+    },
+    {
+      "test_id": "tests.test_service::test_default_permissions",
+      "error_type": "KeyError",
+      "error_message": "KeyError: '2375/tcp'"
+    },
+    {
+      "test_id": "tests.test_service::test_post_permissions",
+      "error_type": "KeyError",
+      "error_message": "KeyError: '2375/tcp'"
+    },
+    {
+      "test_id": "tests.test_service::test_container_permissions",
+      "error_type": "KeyError",
+      "error_message": "KeyError: '2375/tcp'"
+    }
+  ],
+  "error_tests": [],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.10.20, pytest-9.0.3, pluggy-1.5.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, forked-1.6.0, anyio-4.13.0\ncreated: 8/8 workers\n8 workers [5 items]\n\nscheduling tests via LoadScheduling\n\ntests/test_service.py::test_network_post_permissions \ntests/test_service.py::test_exec_permissions \ntests/test_service.py::test_default_permissions \ntests/test_service.py::test_post_permissions \ntests/test_service.py::test_container_permissions \n[gw1] [ 20%] FAILED tests/test_service.py::test_container_permissions \n[gw4] [ 40%] FAILED tests/test_service.py::test_network_post_permissions \n[gw3] [ 60%] FAILED tests/test_service.py::test_exec_permissions \n[gw2] [ 80%] FAILED tests/test_service.py::test_post_permissions \n[gw0] [100%] FAILED tests/test_service.py::test_default_permissions \n\n=================================== FAILURES ===================================\n__________________________ test_container_permissions __________________________\n[gw1] linux -- Python 3.10.20 /usr/local/bin/python\ntests/test_service.py:44: in test_container_permissions\n    with proxy_factory(CONTAINERS=1) as test_container:\n/usr/local/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\ntests/conftest.py:76: in _proxy\n    socket_port = container_data[0][\"NetworkSettings\"][\"Ports\"][\"2375/tcp\"][0][\nE   KeyError: '2375/tcp'\n________________________ test_network_post_permissions _________________________\n[gw4] linux -- Python 3.10.20 /usr/local/bin/python\ntests/test_service.py:71: in test_network_post_permissions\n    with proxy_factory(POST=1, NETWORKS=1):\n/usr/local/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\ntests/conftest.py:76: in _proxy\n    socket_port = container_data[0][\"NetworkSettings\"][\"Ports\"][\"2375/tcp\"][0][\nE   KeyError: '2375/tcp'\n____________________________ test_exec_permissions _____________________________\n[gw3] linux -- Python 3.10.20 /usr/local/bin/python\ntests/test_service.py:82: in test_exec_permissions\n    with proxy_factory(CONTAINERS=1, EXEC=1, POST=1) as container_id:\n/usr/local/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\ntests/conftest.py:76: in _proxy\n    socket_port = container_data[0][\"NetworkSettings\"][\"Ports\"][\"2375/tcp\"][0][\nE   KeyError: '2375/tcp'\n____________________________ test_post_permissions _____________________________\n[gw2] linux -- Python 3.10.20 /usr/local/bin/python\ntests/test_service.py:59: in test_post_permissions\n    with proxy_factory(POST=1) as test_container:\n/usr/local/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\ntests/conftest.py:76: in _proxy\n    socket_port = container_data[0][\"NetworkSettings\"][\"Ports\"][\"2375/tcp\"][0][\nE   KeyError: '2375/tcp'\n___________________________ test_default_permissions ___________________________\n[gw0] linux -- Python 3.10.20 /usr/local/bin/python\ntests/test_service.py:19: in test_default_permissions\n    with proxy_factory() as test_container:\n/usr/local/lib/python3.10/contextlib.py:135: in __enter__\n    return next(self.gen)\ntests/conftest.py:76: in _proxy\n    socket_port = container_data[0][\"NetworkSettings\"][\"Ports\"][\"2375/tcp\"][0][\nE   KeyError: '2375/tcp'\n--------------- generated xml file: /repo/logs/junit_report.xml ----------------\n=========================== short test summary info ============================\nFAILED tests/test_service.py::test_container_permissions - KeyError: '2375/tcp'\nFAILED tests/test_service.py::test_network_post_permissions - KeyError: '2375...\nFAILED tests/test_service.py::test_exec_permissions - KeyError: '2375/tcp'\nFAILED tests/test_service.py::test_post_permissions - KeyError: '2375/tcp'\nFAILED tests/test_service.py::test_default_permissions - KeyError: '2375/tcp'\n============================== 5 failed in 9.84s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

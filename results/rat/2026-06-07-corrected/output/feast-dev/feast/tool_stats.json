@@ -1,0 +1,81 @@
+{
+  "edit-file": {
+    "count": 2,
+    "total_time": 0.0009589195251464844,
+    "avg_time": 0.0004794597625732422,
+    "total_tokens": 0,
+    "success_count": 0,
+    "failed_count": 2,
+    "calls": [
+      {
+        "command": "edit-file --mode search --filePath /repo/sdk/python/feast/templates/ray_rag/feature_repo/test_workflow.py --oldStr 'import sys\\nfrom pathlib import Path\\nsys.path.append(str(Path(__file__).parent))\\ntry:\\n    from sentence_transformers import SentenceTransformer\\n    from feast import FeatureStore\\nexcept ImportError as e:\\n    print(f\"Missing dependency: {e}\")\\n    print(\"💡 Install with: pip install feast[ray] sentence-transformers\")\\n    sys.exit(1)' --newStr 'from pathlib import Path\\nimport pytest\\nsys.path.append(str(Path(__file__).parent))\\ntry:\\n    from sentence_transformers import SentenceTransformer\\n    from feast import FeatureStore\\nexcept ImportError as e:\\n    pytest.skip(f\"Missing dependency: {e}. Install with: pip install feast[ray] sentence-transformers\")'",
+        "time": 0.0006780624389648438,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780787641.8262455
+      },
+      {
+        "command": "edit-file --mode search --filePath /repo/sdk/python/feast/templates/ray_rag/feature_repo/test_workflow.py --oldStr 'import sys' --newStr 'import sys, pytest'",
+        "time": 0.0002808570861816406,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780787644.5062034
+      }
+    ]
+  },
+  "run-pytest": {
+    "count": 1,
+    "total_time": 10.032588720321655,
+    "avg_time": 10.032588720321655,
+    "total_tokens": 0,
+    "success_count": 1,
+    "failed_count": 0,
+    "calls": [
+      {
+        "command": "run-pytest",
+        "time": 10.032588720321655,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780787690.014612
+      }
+    ]
+  },
+  "run-pytest-collect": {
+    "count": 4,
+    "total_time": 27.864134311676025,
+    "avg_time": 6.966033577919006,
+    "total_tokens": 0,
+    "success_count": 0,
+    "failed_count": 4,
+    "calls": [
+      {
+        "command": "run-pytest-collect",
+        "time": 2.0306756496429443,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780785939.8221335
+      },
+      {
+        "command": "run-pytest-collect",
+        "time": 7.582432508468628,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786910.0728528
+      },
+      {
+        "command": "run-pytest-collect",
+        "time": 7.281605243682861,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786927.5006514
+      },
+      {
+        "command": "run-pytest-collect",
+        "time": 10.969420909881592,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780787678.9266598
+      }
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "instance_id": "nomadkaraoke__karaoke-gen",
+  "repo_url": "https://github.com/nomadkaraoke/karaoke-gen",
+  "language": "python",
+  "dockerfile": "FROM python:3.13\nWORKDIR /testbed\n\n# Configure apt reliability for eval image builds\nRUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n\n# Install git for cloning\nRUN command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)\n\n# Dependency-manager helpers inferred from verified setup\n# No extra dependency bootstrap needed\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/nomadkaraoke/karaoke-gen /testbed\n# No base commit provided; using repository default branch HEAD\n\n# Agent's verified setup instructions\nRUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'pip install poetry==1.8.5' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_PIP_STATUS\"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_PIP_STATUS\"\nRUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y libsndfile1' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_APT_STATUS\"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_APT_STATUS\"\nRUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y sox' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_APT_STATUS\"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_APT_STATUS\"\nRUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y build-essential' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_APT_STATUS\"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_APT_STATUS\"\nRUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y curl xz-utils fontconfig' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_APT_STATUS\"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_APT_STATUS\"\nRUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do rm -rf /var/lib/apt/lists/*; DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y ffmpeg' && JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; (apt-get clean >/dev/null 2>&1 || true); rm -rf /var/lib/apt/lists/*; if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then exit \"$JAYINT_APT_STATUS\"; fi; JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1)); sleep 5; done; exit \"$JAYINT_APT_STATUS\"\nRUN cd /testbed && poetry install --no-interaction --with dev\n\n# Post-setup compatibility helpers inferred from verified setup\n# No post-setup compatibility helpers needed\n",
+  "eval_script": "#!/bin/bash\n\ncd /testbed\n\n\ncd /testbed\n\nset +e\n(\ncd /testbed && poetry run pytest --collect-only -q --disable-warnings\n)\nTEST_EXIT_CODE=$?\nset -e\n\necho \"echo OMNIGRIL_EXIT_CODE=$TEST_EXIT_CODE\"\nexit $TEST_EXIT_CODE\n",
+  "build_success": true,
+  "test_success": false,
+  "platform": null,
+  "logs": {
+    "agent_steps": [],
+    "error": null,
+    "verified_test_command": "cd /app && poetry run pytest --collect-only -q --disable-warnings",
+    "verified_test_commands": [
+      "cd /app && poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "verified_post_test_patch_commands": [],
+    "source_patch_rebuild_commands": [],
+    "deferred_post_test_patch_commands": [],
+    "filtered_runtime_preparation_commands": [],
+    "filtered_test_commands": [],
+    "refined_test_commands": [],
+    "dropped_broad_test_commands": [],
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "artifact_preflight": [],
+    "artifact_repair_rounds": [],
+    "test_command_source": "agent_runtime_argument_list",
+    "runtime_preparation_source": "no_runtime_preparation_commands",
+    "post_test_patch_source": "no_post_test_patch_commands",
+    "verification_source": "agent_report",
+    "benchmark_evaluation_target": {},
+    "skip_evaluation": false,
+    "platform_support": {
+      "supported": true,
+      "detected_runtime": "linux",
+      "required_platform": "linux",
+      "indicators": [],
+      "reason": null
+    },
+    "recipe_runtime_preparation_commands": [],
+    "recipe_test_commands": [
+      "cd /app && poetry run pytest --collect-only -q --disable-warnings"
+    ],
+    "eval_runtime_preparation_commands": [],
+    "build_recipe": {
+      "build_commands": [
+        "pip install poetry==1.8.5",
+        "apt-get install -y libsndfile1",
+        "apt-get install -y sox",
+        "apt-get install -y build-essential",
+        "apt-get install -y curl xz-utils fontconfig",
+        "apt-get install -y ffmpeg",
+        "cd /app && poetry install --no-interaction --with dev"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "cd /app && poetry run pytest --collect-only -q --disable-warnings"
+      ],
+      "excluded_commands": [
+        {
+          "command": "cat /app/pyproject.toml (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "python3 --version && which python3 && which poetry || echo \"poetry not found\" (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/Makefile (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/backend/Dockerfile (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/backend/Dockerfile.base (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "pwd && ls -la (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /home/user/work/repo/pyproject.toml (failed, no such file)",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /home/user/work/repo/ (failed)",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /home/user/ (failed)",
+          "reason": ""
+        },
+        {
+          "command": "apt-get update && apt-get install -y libsndfile1 libsox-dev sox build-essential curl xz-utils fontconfig chromium && rm -rf /var/lib/apt/lists/* (rejected compound command)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/MakefileObservation: ... (rejected compound command)",
+          "reason": ""
+        },
+        {
+          "command": "apt-get update && apt-get install -y libsndfile1 libsox-dev sox build-essential curl xz-utils fontconfig chromium && rm -rf /var/lib/apt/lists/* (rejected compound command)",
+          "reason": ""
+        }
+      ],
+      "rationale": "All build_commands are persistent, state-changing actions that were successfully executed in the setup trajectory. pip install poetry is required because the base python:3.13 image lacks Poetry. System dependencies (libsndfile1, sox, build-essential, curl/xz-utils/fontconfig, ffmpeg) are needed for the project (informed by backend Dockerfile inspection). The poetry install with dev dependencies installs the full project and pytest. Test commands run the collection-only pytest as verified. Excluded commands are read-only probes or failed/rejected compound attempts.",
+      "confidence": "high"
+    },
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    }
+  },
+  "setup_scripts": {}
+}

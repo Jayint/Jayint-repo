@@ -1,0 +1,20 @@
+diff --git a/Dockerfile b/Dockerfile
+deleted file mode 100644
+index 87f4429..0000000
+--- a/Dockerfile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# This Dockerfile is for running the tests on a windows system where the
+-# TwinCat router can interfere with the tests. In the first instance tests should be run with tox.
+-
+-ARG python_version=3.13
+-
+-# Build python environment and setup pyads
+-FROM python:${python_version}
+-COPY . /pyads
+-WORKDIR /pyads
+-RUN python -m pip install .
+-
+-# Test commands
+-RUN pip install pytest
+-CMD pytest

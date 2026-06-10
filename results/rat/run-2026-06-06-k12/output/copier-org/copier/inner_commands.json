@@ -1,0 +1,128 @@
+[
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6133418083190918,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -type f 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6117000579833984,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.612015962600708,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /",
+        "returncode": 0,
+        "time": 1.612558364868164,
+        "dir": "/repo"
+    },
+    {
+        "command": "find / -maxdepth 3 -name \"*.py\" -o -name \"*.txt\" -o -name \"*.toml\" -o -name \"*.cfg\" -o -name \"*.yml\" -o -name \"*.yaml\" 2>/dev/null | head -50",
+        "returncode": 0,
+        "time": 1.6322388648986816,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6118335723876953,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/.* 2>/dev/null",
+        "returncode": 2,
+        "time": 1.110138177871704,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/src",
+        "returncode": 0,
+        "time": 1.6118800640106201,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /repo/src/__init__.py << 'EOF'\ndef add(a, b):\n    return a + b\n\ndef subtract(a, b):\n    return a - b\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import os os.makedirs('/repo/src', exist_ok=True) with open('/repo/src/__init__.py', 'w') as f:     f.write('def add(a, b):\\n    return a + b\\n\\ndef subtract(a, b):\\n    return a - b\\n') with open('/repo/src/calculator.py', 'w') as f:     f.write('from . import add, subtract\\n\\ndef calculate(a, b, op):\\n    if op == \\\"+\\\":\\n        return add(a, b)\\n    elif op == \\\"-\\\":\\n        return subtract(a, b)\\n    else:\\n        raise ValueError(\\\"Unknown operator\\\")\\n') \"",
+        "returncode": 1,
+        "time": 1.1347570419311523,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import os; os.makedirs('/repo/src', exist_ok=True)\"",
+        "returncode": 0,
+        "time": 1.636559247970581,
+        "dir": "/repo"
+    },
+    {
+        "command": "...",
+        "returncode": 127,
+        "time": 1.1059045791625977,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"with open('/repo/src/__init__.py','w') as f: f.write('')\"",
+        "returncode": 0,
+        "time": 1.6347718238830566,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"with open('/repo/src/calculator.py','w') as f: f.write('def add(a, b): return a + b\\n\\ndef subtract(a, b): return a - b\\n\\ndef calculate(a, b, op):\\n    if op == \\\"+\\\":\\n        return add(a, b)\\n    elif op == \\\"-\\\":\\n        return subtract(a, b)\\n    else:\\n        raise ValueError(\\\"Unknown operator\\\")\\n')\"",
+        "returncode": 0,
+        "time": 1.636115550994873,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/tests",
+        "returncode": 0,
+        "time": 1.6111810207366943,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"with open('/repo/tests/test_calculator.py','w') as f: f.write('import pytest\\nfrom src.calculator import add, subtract, calculate\\n\\ndef test_add():\\n    assert add(2, 3) == 5\\n\\ndef test_subtract():\\n    assert subtract(5, 3) == 2\\n\\ndef test_calculate_add():\\n    assert calculate(2, 3, \\\"+\\\") == 5\\n\\ndef test_calculate_subtract():\\n    assert calculate(5, 3, \\\"-\\\") == 2\\n\\ndef test_calculate_invalid():\\n    with pytest.raises(ValueError):\\n        calculate(1, 2, \\\"*\\\")\\n')\"",
+        "returncode": 0,
+        "time": 1.6370573043823242,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q pytest -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.091215133666992,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.608792781829834,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.1822502613067627,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6083717346191406,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 0,
+        "time": 2.0364415645599365,
+        "dir": "/repo"
+    }
+]

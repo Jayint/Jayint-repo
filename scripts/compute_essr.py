@@ -16,15 +16,20 @@ Official definitions (verified against the RunAnyThing_Anonymous source):
   avg_pass_rate (== "ESSR", paper macro) = sum(pass_rate over executed) / executed_count
 
 We also report the metrics the headline hides:
-  coverage           = executed / total
-  pass_rate_over_all = sum(pass_rate) / total            (coverage-penalized macro)
+  EBSR_build_execute = (built + pytest executed) / total  (Repo2Run metric; excludes build_failed stubs)
+  coverage           = executed / total                   (includes build_failed stubs; >= EBSR)
+  pass_rate_over_all = sum(pass_rate) / total              (coverage-penalized macro; "ESSR ÷all")
   micro_pooled       = sum(passed) / sum(effective_total)  over executed
+
+EBSR vs ESSR (the two benchmarks measure different things):
+  EBSR (Repo2Run-bench): does the env BUILD and do tests RUN?  (pass-rate ignored)
+  ESSR (RATBench):       what FRACTION of tests PASS?          (the headline here)
 
 Usage:
   python scripts/compute_essr.py \
-    dockeragent=results/dockeragent/2026-06-07-baseline \
-    rat=results/rat/2026-06-07-corrected \
-    repo2run=results/repo2run/2026-06-07-repo2run
+    dockeragent=rat_run_runner4 \
+    rat=rat_run_rat_corrected \
+    repo2run=rat_run_repo2run
 """
 from __future__ import annotations
 
@@ -74,14 +79,22 @@ def score_agent(root_path: str) -> Dict[str, Any]:
         full_name = "/".join(d.split(os.sep)[-2:])
         results_path = os.path.join(d, "run_pytest_results.json")
         executed = os.path.exists(results_path)
+        parse_method = None
         if executed:
             try:
                 results = json.load(open(results_path))
                 pr, pr_excl, passed, eff_total = official_pass_rate(results)
+                parse_method = results.get("parse_method")
             except (json.JSONDecodeError, KeyError, TypeError):
                 executed, pr, pr_excl, passed, eff_total = False, 0.0, 0.0, 0, 0
         else:
             pr, pr_excl, passed, eff_total = 0.0, 0.0, 0, 0
+
+        # EBSR (Repo2Run "Environment Building Success Rate"): the Dockerfile built AND
+        # pytest executed in the container — pass-rate is NOT required. A parse_method of
+        # "build_failed" means `docker build` failed (the runner wrote a stub results file),
+        # so it is NOT an EBSR success even though run_pytest_results.json exists.
+        ebsr = bool(executed and parse_method != "build_failed")
 
         # Collect-only metric (official pytest_collect_scorer = run_pytest_collect_results.json["success"]).
         collect_path = os.path.join(d, "run_pytest_collect_results.json")
@@ -124,6 +137,7 @@ def score_agent(root_path: str) -> Dict[str, Any]:
 
         rows.append({
             "full_name": full_name, "executed": executed,
+            "parse_method": parse_method, "ebsr": ebsr,
             "pass_rate": pr, "pass_rate_excl": pr_excl,
             "passed": passed, "eff_total": eff_total,
             "collect_attempted": collect_attempted, "collect_success": collect_success,
@@ -140,6 +154,12 @@ def score_agent(root_path: str) -> Dict[str, Any]:
     micro_total = sum(r["eff_total"] for r in ex)
     micro = round(micro_passed / micro_total, 4) if micro_total else 0.0
     full_pass = sum(1 for r in ex if r["pass_rate"] >= 0.999)
+
+    # EBSR (Repo2Run metric): Dockerfile built + pytest executed (pass not required).
+    # Excludes build_failed stubs, so it is stricter than `coverage` (which counts any
+    # results file, including build-failure stubs).
+    n_ebsr = sum(1 for r in rows if r["ebsr"])
+    ebsr_rate = round(n_ebsr / n, 4) if n else 0.0
 
     # Collect-only metrics (binary per-repo collection success).
     n_collect = sum(1 for r in rows if r["collect_success"])
@@ -158,6 +178,8 @@ def score_agent(root_path: str) -> Dict[str, Any]:
 
     return {
         "n": n, "n_exec": n_exec, "coverage": round(n_exec / n, 4) if n else 0.0,
+        "EBSR_build_execute": ebsr_rate,                # Repo2Run metric: built + pytest ran (÷ total)
+        "n_ebsr": n_ebsr,
         "ESSR_avg_pass_rate_official": avg_pass_rate,   # paper headline (÷ executed)
         "ESSR_excl_code_issues": avg_pass_excl,         # ÷ executed, lenient variant
         "pass_rate_over_all": pass_over_all,            # coverage-penalized (÷ total)
@@ -187,20 +209,29 @@ def main(argv) -> int:
         name, path = a.split("=", 1)
         specs.append((name, path))
 
-    print(f"{'agent':<12} {'n':>3} {'exec':>5} {'cover':>6} {'ESSR(÷exec)':>12} {'÷all':>7} {'micro':>7} "
-          f"{'collect÷all':>11} {'collect÷exe':>11} {'hollow':>7} {'fullpass':>9}")
-    print("-" * 104)
-    all_res = {}
-    for name, path in specs:
-        r = score_agent(path)
-        all_res[name] = r
-        print(f"{name:<12} {r['n']:>3} {r['n_exec']:>5} {r['coverage']:>6} "
-              f"{r['ESSR_avg_pass_rate_official']:>12} {r['pass_rate_over_all']:>7} {r['micro_pooled']:>7} "
-              f"{r['collect_success_all']:>11} {r['collect_success_exec']:>11} "
-              f"{len(r['hollow_collect_not_pass']):>7} {r['full_pass_repos']:>9}")
+    all_res = {name: score_agent(path) for name, path in specs}
 
-    print("\nLegend: ÷all = paper-faithful pass-rate (failures=0). collect÷all = collection-success rate")
-    print("        (pytest --collect-only succeeded). hollow = repos that COLLECT but pass_rate < 0.5.")
+    header = (f"{'agent':<22} {'n':>3}  {'EBSR (build+exec)':<17}  {'ESSR ÷all':>9}  "
+              f"{'ESSR ÷exec':>10}  {'coverage':<14}  {'full_pass':>9}  {'hollow':>6}  {'micro':>7}")
+    print(header)
+    print("-" * len(header))
+    for name, r in all_res.items():
+        ebsr_s = f"{r['n_ebsr']}/{r['n']} = {r['EBSR_build_execute']:.2f}"
+        cov_s = f"{r['n_exec']}/{r['n']} = {r['coverage']:.2f}"
+        print(f"{name:<22} {r['n']:>3}  {ebsr_s:<17}  "
+              f"{r['pass_rate_over_all']:>9.4f}  {r['ESSR_avg_pass_rate_official']:>10.4f}  "
+              f"{cov_s:<14}  {r['full_pass_repos']:>9}  "
+              f"{len(r['hollow_collect_not_pass']):>6}  {r['micro_pooled']:>7.4f}")
+
+    print("\nMetrics:")
+    print("  EBSR (build+exec)  Repo2Run metric: Dockerfile built AND pytest executed (pass NOT required).")
+    print("                     Excludes build_failed stubs. This is what Repo2Run-bench reports.")
+    print("  ESSR ÷all          RATBench headline: mean per-repo pass-rate over ALL repos (setup-fail = 0).")
+    print("  ESSR ÷exec         mean per-repo pass-rate over EXECUTED repos only (÷exec deviation; flatters low coverage).")
+    print("  coverage           repos that produced a results file ÷ all (INCLUDES build_failed stubs; > EBSR).")
+    print("  full_pass          repos passing ~100% of tests (pass_rate >= 0.999).")
+    print("  hollow             repos that pytest-collected OK but pass_rate < 0.5 (hollow env / false-pass).")
+    print("  micro              Σ passed / Σ effective tests over executed (test-weighted, not per-repo).")
 
     print("\nCross-check vs stored _result_row.json (recomputed-from-raw should match):")
     for name, r in all_res.items():
@@ -218,8 +249,8 @@ def main(argv) -> int:
         else:
             print(f"  [{name}] OK — all {r['n']} repos match stored scorer (pass-rate + collect).")
 
-    out = os.path.join(os.path.dirname(__file__) or ".", "..", "results", "analysis-2026-06-07", "essr_recompute.json")
-    out = os.path.normpath(out)
+    out = os.path.normpath(os.path.join(os.path.dirname(__file__) or ".", "..", "results", "essr_recompute.json"))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     json.dump({k: {kk: vv for kk, vv in v.items() if kk != "rows"} | {"rows": v["rows"]} for k, v in all_res.items()},
               open(out, "w"), indent=1)
     print(f"\nWrote {out}")

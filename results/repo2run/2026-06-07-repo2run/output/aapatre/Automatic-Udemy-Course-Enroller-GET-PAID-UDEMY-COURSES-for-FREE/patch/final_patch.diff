@@ -1,0 +1,21 @@
+diff --git a/Dockerfile b/Dockerfile
+deleted file mode 100644
+index 114d5a9..0000000
+--- a/Dockerfile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-FROM python:3.10-alpine
+-
+-RUN apk add --no-cache build-base
+-
+-RUN addgroup -S enroller && adduser -S enroller -G enroller
+-USER enroller
+-RUN mkdir -p ~/.udemy_enroller
+-
+-WORKDIR /src
+-
+-COPY . . 
+-
+-RUN pip install --no-cache-dir -r requirements.txt
+-
+-ENTRYPOINT [ "python", "run_enroller.py" ]

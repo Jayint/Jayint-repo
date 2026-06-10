@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 1,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "SyntaxError": 1
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "tests.test_hello",
+      "error_type": "SyntaxError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.10.20, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /repo\nplugins: anyio-4.13.0\ncollecting ... collected 0 items / 1 error\n\n==================================== ERRORS ====================================\n_____________________ ERROR collecting tests/test_hello.py _____________________\n/usr/local/lib/python3.10/site-packages/_pytest/python.py:507: in importtestmodule\n    mod = import_path(\n/usr/local/lib/python3.10/site-packages/_pytest/pathlib.py:587: in import_path\n    importlib.import_module(module_name)\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n<frozen importlib._bootstrap>:1050: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1027: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1006: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:688: in _load_unlocked\n    ???\n/usr/local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:188: in exec_module\n    source_stat, co = _rewrite_test(fn, self.config)\n/usr/local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:357: in _rewrite_test\n    tree = ast.parse(source, filename=strfn)\n/usr/local/lib/python3.10/ast.py:50: in parse\n    return compile(source, filename, mode, flags,\nE     File \"/repo/tests/test_hello.py\", line 1\nE       from my_project import hello  def test_hello():     assert hello() == \"Hello, World!\"     assert hello(\"Python\") == \"Hello, Python!\" \nE                                     ^^^\nE   SyntaxError: invalid syntax\n--------------- generated xml file: /repo/logs/junit_report.xml ----------------\n=========================== short test summary info ============================\nERROR tests/test_hello.py\n=============================== 1 error in 0.10s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

@@ -1,0 +1,118 @@
+[
+    {
+        "LLM_time": 1.2854149341583252
+    },
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6645982265472412
+    },
+    {
+        "LLM_time": 3.8771309852600098
+    },
+    {
+        "command": "cat /repo/README.md /repo/setup.py /repo/setup.cfg /repo/requirements-dev.txt /repo/pyproject.toml 2>/dev/null || echo \"Some files not found\"",
+        "returncode": 0,
+        "time": 1.6654620170593262
+    },
+    {
+        "command": "cat /repo/README.md",
+        "returncode": 0,
+        "time": 1.6634070873260498
+    },
+    {
+        "command": "ls /repo/setup.py /repo/setup.cfg /repo/requirements-dev.txt /repo/pyproject.toml 2>/dev/null; echo \"---\"; cat /repo/setup.py; echo \"===\"; cat /repo/setup.cfg; echo \"===\"; cat /repo/requirements-dev.txt",
+        "returncode": 0,
+        "time": 1.6741530895233154
+    },
+    {
+        "LLM_time": 3.595618724822998
+    },
+    {
+        "command": "pip install -q --upgrade pip -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 4.579932689666748
+    },
+    {
+        "command": "pip install -q -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.997668027877808
+    },
+    {
+        "command": "pip install -q -r /repo/requirements-dev.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.348366975784302
+    },
+    {
+        "LLM_time": 1.0217080116271973
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 3.0842156410217285
+    },
+    {
+        "LLM_time": 1.0659139156341553
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 255.72528624534607
+    },
+    {
+        "LLM_time": 6.290111541748047
+    },
+    {
+        "command": "cat /repo/logs/run_pytest_results.json | python3 -c \"import json,sys; data=json.load(sys.stdin); print(f'Total: {data[\\\"summary\\\"][\\\"total\\\"]}, Passed: {data[\\\"summary\\\"][\\\"passed\\\"]}, Failed: {data[\\\"summary\\\"][\\\"failed\\\"]}, Errors: {data[\\\"summary\\\"][\\\"errors\\\"]}'); [print(f'{t[\\\"type\\\"]}: {t[\\\"file\\\"]}::{t[\\\"name\\\"]}') for t in data['tests'] if t['status']!='PASSED']\" 2>/dev/null | head -80",
+        "returncode": 0,
+        "time": 1.715636968612671
+    },
+    {
+        "LLM_time": 1.2954387664794922
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Total:', d['summary']['total'], 'Passed:', d['summary']['passed'], 'Failed:', d['summary']['failed'], 'Errors:', d['summary']['errors'])\"",
+        "returncode": 0,
+        "time": 1.184723138809204
+    },
+    {
+        "LLM_time": 1.5476796627044678
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(list(d.keys())))\"",
+        "returncode": 0,
+        "time": 1.6830580234527588
+    },
+    {
+        "LLM_time": 1.6641943454742432
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(d['summary'], indent=2)); print('---'); print(json.dumps(d['error_breakdown'], indent=2))\"",
+        "returncode": 0,
+        "time": 1.71028733253479
+    },
+    {
+        "LLM_time": 5.247920513153076
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Error tests:'); [print(t['file'], '::', t['name'], '-', t['type']) for t in d.get('error_tests', [])]\"",
+        "returncode": 0,
+        "time": 1.208573818206787
+    },
+    {
+        "LLM_time": 2.166616916656494
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Failed tests sample:'); print(json.dumps(d['failed_tests'][0], indent=2) if d['failed_tests'] else 'none'); print('---'); print('Error tests sample:'); print(json.dumps(d['error_tests'][0], indent=2) if d['error_tests'] else 'none')\"",
+        "returncode": 0,
+        "time": 1.711658239364624
+    },
+    {
+        "LLM_time": 3.2874677181243896
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); [print(t['test_id'], ':', t['error_type'], '-', t['error_message'][:200]) for t in d['failed_tests'] if 'error_handler' in t['test_id']]\"",
+        "returncode": 0,
+        "time": 1.6817421913146973
+    }
+]

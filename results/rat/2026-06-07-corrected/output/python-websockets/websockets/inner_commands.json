@@ -1,0 +1,236 @@
+[
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6131577491760254,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/setup.py",
+        "returncode": 0,
+        "time": 1.6101405620574951,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.611156940460205,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.rst",
+        "returncode": 0,
+        "time": 1.6108391284942627,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6079590320587158,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/tests",
+        "returncode": 0,
+        "time": 1.6109533309936523,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.607795000076294,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/src/websockets/",
+        "returncode": 0,
+        "time": 1.6122910976409912,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/requirements.txt",
+        "returncode": 0,
+        "time": 1.611772060394287,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6079423427581787,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tox.ini",
+        "returncode": 0,
+        "time": 1.6105728149414062,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 4.415456295013428,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q mitmproxy python-socks[asyncio] trio werkzeug -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 48.51824450492859,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 4.288211822509766,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6052861213684082,
+        "dir": "/repo"
+    },
+    {
+        "command": "timeout 60 python -m pytest tests/test_imports.py -v --tb=short 2>&1 || echo \"TIMEOUT_OR_FAILURE\"",
+        "returncode": 0,
+        "time": 1.9298889636993408,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6056039333343506,
+        "dir": "/repo"
+    },
+    {
+        "command": "timeout 60 python -m pytest tests/test_uri.py tests/test_frames.py tests/test_headers.py tests/test_datastructures.py tests/test_exceptions.py tests/test_utils.py -v --tb=short 2>&1 || echo \"TIMEOUT_OR_ERROR\"",
+        "returncode": 0,
+        "time": 2.107407569885254,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/.github/workflows/",
+        "returncode": 0,
+        "time": 1.6102266311645508,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/.github/workflows/tests.yml",
+        "returncode": 0,
+        "time": 1.61104416847229,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6055021286010742,
+        "dir": "/repo"
+    },
+    {
+        "command": "WEBSOCKETS_TESTS_TIMEOUT_FACTOR=10 python -m pytest tests/test_client.py -v --tb=short 2>&1 | head -100",
+        "returncode": 0,
+        "time": 2.0105392932891846,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6059465408325195,
+        "dir": "/repo"
+    },
+    {
+        "command": "timeout 30 python -m pytest tests/asyncio/test_client.py -v --tb=short 2>&1 | head -60",
+        "returncode": 143,
+        "time": 31.126149654388428,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -n \"test_reconnect\" /repo/tests/asyncio/test_client.py",
+        "returncode": 0,
+        "time": 1.6196074485778809,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -n \"TIMEOUT\\|timeout\\|_test_timeout\" /repo/tests/utils.py | head -20",
+        "returncode": 0,
+        "time": 1.6112964153289795,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/utils.py | head -80",
+        "returncode": 0,
+        "time": 1.6081221103668213,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6064271926879883,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"from websockets.version import released; print('released:', released)\"",
+        "returncode": 0,
+        "time": 1.6804003715515137,
+        "dir": "/repo"
+    },
+    {
+        "command": "WEBSOCKETS_TESTS_TIMEOUT_FACTOR=12 timeout 120 python -m pytest tests/asyncio/test_client.py -v --tb=short 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 4.116860628128052,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.607349157333374,
+        "dir": "/repo"
+    },
+    {
+        "command": "WEBSOCKETS_TESTS_TIMEOUT_FACTOR=12 timeout 180 python -m pytest tests/ -v --tb=short -x 2>&1 | tail -40",
+        "returncode": 0,
+        "time": 4.5023345947265625,
+        "dir": "/repo"
+    },
+    {
+        "command": "sed -n '162,260p' /repo/tests/asyncio/test_client.py",
+        "returncode": 0,
+        "time": 1.6130094528198242,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /home/tools/run_pytest.py | head -50",
+        "returncode": 0,
+        "time": 1.6191930770874023,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'export WEBSOCKETS_TESTS_TIMEOUT_FACTOR=12' >> /root/.bashrc",
+        "returncode": 0,
+        "time": 1.6125125885009766,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'export WEBSOCKETS_TESTS_TIMEOUT_FACTOR=12' >> /etc/environment",
+        "returncode": 0,
+        "time": 1.6083805561065674,
+        "dir": "/repo"
+    },
+    {
+        "command": "export WEBSOCKETS_TESTS_TIMEOUT_FACTOR=12",
+        "returncode": 0,
+        "time": 1.6085708141326904,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 21.784734964370728,
+        "dir": "/repo"
+    }
+]

@@ -1,0 +1,230 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6133034229278564,
+        "dir": "/"
+    },
+    {
+        "command": "ls -la /repo/app /repo/test /repo/docs",
+        "returncode": 0,
+        "time": 1.614389419555664,
+        "dir": "/"
+    },
+    {
+        "command": "ls -la /repo/test/requirements/",
+        "returncode": 0,
+        "time": 1.611861228942871,
+        "dir": "/"
+    },
+    {
+        "command": "cat /repo/test/pytest.ini",
+        "returncode": 0,
+        "time": 1.6103503704071045,
+        "dir": "/"
+    },
+    {
+        "command": "cat /repo/test/requirements/*.txt 2>/dev/null || echo \"No txt files\"",
+        "returncode": 0,
+        "time": 1.6112194061279297,
+        "dir": "/"
+    },
+    {
+        "command": "pip install -q -r /repo/test/requirements/python-requirements.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 5.503883361816406,
+        "dir": "/"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 255,
+        "time": 61.371098041534424,
+        "dir": "/"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6080727577209473,
+        "dir": "/"
+    },
+    {
+        "command": "python -m pytest --co -q test/ 2>&1 | head -50",
+        "returncode": 0,
+        "time": 2.0968072414398193,
+        "dir": "/repo"
+    },
+    {
+        "command": "head -100 /repo/test/conftest.py",
+        "returncode": 0,
+        "time": 1.6084372997283936,
+        "dir": "/repo"
+    },
+    {
+        "command": "head -200 /repo/test/conftest.py | tail -100",
+        "returncode": 0,
+        "time": 1.6112160682678223,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/test/test_build/ /repo/test/test_custom/ /repo/test/test_nominal/ /repo/test/test_ssl/",
+        "returncode": 0,
+        "time": 1.612816333770752,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/test/test_build/test_build.py",
+        "returncode": 0,
+        "time": 1.6097829341888428,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md | head -100",
+        "returncode": 0,
+        "time": 1.6102185249328613,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.607074499130249,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/issue/",
+        "returncode": 0,
+        "time": 1.6105470657348633,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /tmp/mock_docker",
+        "returncode": 0,
+        "time": 1.6120691299438477,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /tmp/mock_docker/__init__.py << 'EOF' \nclass MockDockerClient:\n    def from_env(self):\n        return self\n    def containers(self):\n        return MockContainers()\n    def images(self):\n        return MockImages()\n    def networks(self):\n        return MockNetworks()\n    def ping(self):\n        return True\n    @property\n    def api(self):\n        return self\n\nclass MockContainers:\n    def list(self, **kwargs):\n        return []\n    def run(self, *args, **kwargs):\n        return MockContainer()\n    def get(self, *args, **kwargs):\n        return MockContainer()\n\nclass MockContainer:\n    def wait(self):\n        return {\"StatusCode\": 0}\n    def logs(self):\n        return b\"\"\n    def remove(self, *args, **kwargs):\n        pass\n    @property\n    def attrs(self):\n        return {\"NetworkSettings\": {\"Networks\": {\"bridge\": {\"IPAddress\": \"127.0.0.1\"}}}}\n    @property\n    def name(self):\n        return \"mock\"\n    def reload(self):\n        pass\n\nclass MockImages:\n    def build(self, *args, **kwargs):\n        return (MockImage(), [])\n    def remove(self, *args, **kwargs):\n        pass\n    def list(self, *args, **kwargs):\n        return []\n\nclass MockImage:\n    @property\n    def id(self):\n        return \"mock-id\"\n\nclass MockNetworks:\n    def list(self, *args, **kwargs):\n        return []\n    def get(self, *args, **kwargs):\n        return MockNetwork()\n\nclass MockNetwork:\n    @property\n    def name(self):\n        return \"mock\"\n    def remove(self, *args, **kwargs):\n        pass\n\nclass errors:\n    class DockerException(Exception):\n        pass\n\nfrom_env = MockDockerClient().from_env\n\nimport sys\nsys.modules['docker'] = type(sys)('docker')\nsys.modules['docker'].from_env = from_env\nsys.modules['docker'].errors = errors\nsys.modules['docker'].models = type(sys)('docker.models')\nsys.modules['docker'].models.containers = type(sys)('docker.models.containers')\nsys.modules['docker'].models.containers.Container = MockContainer\nsys.modules['docker'].models.networks = type(sys)('docker.models.networks')\nsys.modules['docker'].models.networks.Network = MockNetwork\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import os code = ''' class MockDockerClient:     def from_env(self):         return self     def containers(self):         return MockContainers()     def images(self):         return MockImages()     def networks(self):         return MockNetworks()     def ping(self):         return True     @property     def api(self):         return self  class MockContainers:     def list(self, **kwargs):         return []     def run(self, *args, **kwargs):         return MockContainer()     def get(self, *args, **kwargs):         return MockContainer()  class MockContainer:     def wait(self):         return {'StatusCode': 0}     def logs(self):         return b''     def remove(self, *args, **kwargs):         pass     @property     def attrs(self):         return {'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}}     @property     def name(self):         return 'mock'     def reload(self):         pass  class MockImages:     def build(self, *args, **kwargs):         return (MockImage(), [])     def remove(self, *args, **kwargs):         pass     def list(self, *args, **kwargs):         return []  class MockImage:     @property     def id(self):         return 'mock-id'  class MockNetworks:     def list(self, *args, **kwargs):         return []     def get(self, *args, **kwargs):         return MockNetwork()  class MockNetwork:     @property     def name(self):         return 'mock'     def remove(self, *args, **kwargs):         pass  class errors:     class DockerException(Exception):         pass  from_env = MockDockerClient().from_env  import sys mod = type(sys)('docker') mod.from_env = from_env mod.errors = errors mod.models = type(sys)('docker.models') mod.models.containers = type(sys)('docker.models.containers') mod.models.containers.Container = MockContainer mod.models.networks = type(sys)('docker.models.networks') mod.models.networks.Network = MockNetwork sys.modules['docker'] = mod ''' os.makedirs('/tmp/mock_docker', exist_ok=True) with open('/tmp/mock_docker/__init__.py', 'w') as f:     f.write(code) print('Done') \"",
+        "returncode": 1,
+        "time": 1.1297857761383057,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; sys.path.insert(0, '/tmp')\"",
+        "returncode": 0,
+        "time": 1.6224102973937988,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 << 'HEREDOC_END'\nimport os\nos.makedirs('/tmp/mock_docker', exist_ok=True)\nwith open('/tmp/mock_docker/conftest.py', 'w') as f:\n    f.write(\"\"\"\nimport sys\n\nclass MockDockerClient:\n    def from_env(self):\n        return self\n    def containers(self):\n        return self\n    def images(self):\n        return self\n    def networks(self):\n        return self\n    def ping(self):\n        return True\n    @property\n    def api(self):\n        return self\n    def list(self, **kwargs):\n        return []\n    def run(self, *args, **kwargs):\n        return self\n    def get(self, *args, **kwargs):\n        return self\n    def build(self, *args, **kwargs):\n        return (self, [])\n    def remove(self, *args, **kwargs):\n        pass\n    def wait(self):\n        return {'StatusCode': 0}\n    def logs(self):\n        return b''\n    @property\n    def attrs(self):\n        return {'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}}\n    @property\n    def name(self):\n        return 'mock'\n    def reload(self):\n        pass\n    def id(self):\n        return 'mock-id'\n\nclass errors:\n    class DockerException(Exception):\n        pass\n\nmod = type(sys)('docker')\nmod.from_env = MockDockerClient().from_env\nmod.errors = errors\nmod.models = type(sys)('docker.models')\nmod.models.containers = type(sys)('docker.models.containers')\nmod.models.containers.Container = type('Container', (), {})\nmod.models.networks = type(sys)('docker.models.networks')\nmod.models.networks.Network = type('Network', (), {})\nsys.modules['docker'] = mod\n\"\"\")\nprint('Mock conftest created')\nHEREDOC_END",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"open('/tmp/preload_docker_mock.py','w').write('import sys\\nclass Mock:from_env=staticmethod(lambda:Mock());containers=lambda:self;images=lambda:self;networks=lambda:self;ping=lambda:True\\n@property\\ndef api(self):return self\\ndef list(self,**kw):return []\\ndef run(self,*a,**kw):return self\\ndef get(self,*a,**kw):return self\\ndef build(self,*a,**kw):return (self,[])\\ndef remove(self,*a,**kw):pass\\ndef wait(self):return {\\\"StatusCode\\\":0}\\ndef logs(self):return b\\\"\\\"\\n@property\\ndef attrs(self):return {\\\"NetworkSettings\\\":{\\\"Networks\\\":{\\\"bridge\\\":{\\\"IPAddress\\\":\\\"127.0.0.1\\\"}}}}\\n@property\\ndef name(self):return \\\"mock\\\"\\ndef reload(self):pass\\ndef id(self):return \\\"mock-id\\\"\\nclass errors:class DockerException(Exception):pass\\nm=type(sys)(\\\"docker\\\")\\nm.from_env=Mock().from_env\\nm.errors=errors\\nsys.modules[\\\"docker\\\"]=m\\n');print('written')\"",
+        "returncode": 0,
+        "time": 1.6450138092041016,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import sys sys.path.insert(0, '/tmp') import preload_docker_mock # Verify docker is mocked import docker print(type(docker)) print(type(docker.from_env())) \"",
+        "returncode": 1,
+        "time": 1.122697353363037,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; sys.path.insert(0, '/tmp'); import preload_docker_mock; import docker; print(type(docker)); print(type(docker.from_env())); print('Mock works')\"",
+        "returncode": 1,
+        "time": 1.1389694213867188,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" code = '''import sys  class MockDockerClient:     def from_env(self):         return self     @property     def api(self):         return self     def containers(self):         return self     def images(self):         return self     def networks(self):         return self     def ping(self):         return True     def list(self, **kw):         return []     def run(self, *a, **kw):         return self     def get(self, *a, **kw):         return self     def build(self, *a, **kw):         return (self, [])     def remove(self, *a, **kw):         pass     def wait(self):         return {'StatusCode': 0}     def logs(self):         return b''     @property     def attrs(self):         return {'NetworkSettings': {'Networks': {'bridge': {'IPAddress': '127.0.0.1'}}}}     @property     def name(self):         return 'mock'     def reload(self):         pass     @property     def id(self):         return 'mock-id'  class errors:     class DockerException(Exception):         pass  m = type(sys)('docker') m.from_env = MockDockerClient().from_env m.errors = errors sys.modules['docker'] = m ''' with open('/tmp/preload_docker_mock.py', 'w') as f:     f.write(code) print('Written OK') \"",
+        "returncode": 1,
+        "time": 1.1310606002807617,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /tmp/preload_docker_mock.py 2>&1 || echo \"Need to fix the mock file\"",
+        "returncode": 0,
+        "time": 1.6290714740753174,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" f = open('/tmp/preload_docker_mock.py', 'w') f.write('import sys\\n') f.write('class MockDockerClient:\\n') f.write('    def from_env(self):\\n') f.write('        return self\\n') f.write('    @property\\n') f.write('    def api(self):\\n') f.write('        return self\\n') f.write('    def containers(self):\\n') f.write('        return self\\n') f.write('    def images(self):\\n') f.write('        return self\\n') f.write('    def networks(self):\\n') f.write('        return self\\n') f.write('    def ping(self):\\n') f.write('        return True\\n') f.write('    def list(self, **kw):\\n') f.write('        return []\\n') f.write('    def run(self, *a, **kw):\\n') f.write('        return self\\n') f.write('    def get(self, *a, **kw):\\n') f.write('        return self\\n') f.write('    def build(self, *a, **kw):\\n') f.write('        return (self, [])\\n') f.write('    def remove(self, *a, **kw):\\n') f.write('        pass\\n') f.write('    def wait(self):\\n') f.write('        return {\\\"StatusCode\\\": 0}\\n') f.write('    def logs(self):\\n') f.write('        return b\\\"\\\"\\n') f.write('    @property\\n') f.write('    def attrs(self):\\n') f.write('        return {\\\"NetworkSettings\\\": {\\\"Networks\\\": {\\\"bridge\\\": {\\\"IPAddress\\\": \\\"127.0.0.1\\\"}}}}\\n') f.write('    @property\\n') f.write('    def name(self):\\n') f.write('        return \\\"mock\\\"\\n') f.write('    def reload(self):\\n') f.write('        pass\\n') f.write('    @property\\n') f.write('    def id(self):\\n') f.write('        return \\\"mock-id\\\"\\n') f.write('class errors:\\n') f.write('    class DockerException(Exception):\\n') f.write('        pass\\n') f.write('m = type(sys)(\\\"docker\\\")\\n') f.write('m.from_env = MockDockerClient().from_env\\n') f.write('m.errors = errors\\n') f.write('sys.modules[\\\"docker\\\"] = m\\n') f.close() print('Written OK') \"",
+        "returncode": 1,
+        "time": 1.121687889099121,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys,base64; open('/tmp/preload_docker_mock.py','wb').write(base64.b64decode('aW1wb3J0IHN5cwoKY2xhc3MgTW9ja0RvY2tlckNsaWVudDoKICAgIGRlZiBmcm9tX2VudihzZWxmKToKICAgICAgICByZXR1cm4gc2VsZgogICAgQHByb3BlcnR5CiAgICBkZWYgYXBpKHNlbGYpOgogICAgICAgIHJldHVybiBzZWxmCiAgICBkZWYgY29udGFpbmVycyhzZWxmKToKICAgICAgICByZXR1cm4gc2VsZgogICAgZGVmIGltYWdlcyhzZWxmKToKICAgICAgICByZXR1cm4gc2VsZgogICAgZGVmIG5ldHdvcmtzKHNlbGYpOgogICAgICAgIHJldHVybiBzZWxmCiAgICBkZWYgcGluZyhzZWxmKToKICAgICAgICByZXR1cm4gVHJ1ZQogICAgZGVmIGxpc3Qoc2VsZiwgKiprdyk6CiAgICAgICAgcmV0dXJuIFtdCiAgICBkZWYgcnVuKHNlbGYsICphLCAqKmt3KToKICAgICAgICByZXR1cm4gc2VsZgogICAgZGVmIGdldChzZWxmLCAqYSwgKiprdyk6CiAgICAgICAgcmV0dXJuIHNlbGYKICAgIGRlZiBidWlsZChzZWxmLCAqYSwgKiprdyk6CiAgICAgICAgcmV0dXJuIChzZWxmLCBbXSkKICAgIGRlZiByZW1vdmUoc2VsZiwgKmEsICoqa3cpOgogICAgICAgIHBhc3MKICAgIGRlZiB3YWl0KHNlbGYpOgogICAgICAgIHJldHVybiB7J1N0YXR1c0NvZGUnOiAwfQogICAgZGVmIGxvZ3Moc2VsZik6CiAgICAgICAgcmV0dXJuIGInJwogICAgQHByb3BlcnR5CiAgICBkZWYgYXR0cnMoc2VsZik6CiAgICAgICAgcmV0dXJuIHsnTmV0d29ya1NldHRpbmdzJzogeydOZXR3b3Jrcyc6IHsnYnJpZGdlJzogeydJUEFkZHJlc3MnOiAnMTI3LjAuMC4xJ319fX0KICAgIEBwcm9wZXJ0eQogICAgZGVmIG5hbWUoc2VsZik6CiAgICAgICAgcmV0dXJuICdtb2NrJwogICAgZGVmIHJlbG9hZChzZWxmKToKICAgICAgICBwYXNzCiAgICBAcHJvcGVydHkKICAgIGRlZiBpZChzZWxmKToKICAgICAgICByZXR1cm4gJ21vY2staWQnCgpjbGFzcyBlcnJvcnM6CiAgICBjbGFzcyBEb2NrZXJFeGNlcHRpb24oRXhjZXB0aW9uKToKICAgICAgICBwYXNzCgptID0gdHlwZShzeXMpKCdkb2NrZXInKQptLmZyb21fbnYgPSBNb2NrRG9ja2VyQ2xpZW50KCkuZnJvbV9lbnYKbS5lcnJvcnMgPSBlcnJvcnMKc3lzLm1vZHVsZXNbJ2RvY2tlciddID0gbQo=')); print('Written OK')\"",
+        "returncode": 0,
+        "time": 1.6363918781280518,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; sys.path.insert(0, '/tmp'); import preload_docker_mock; import docker; print(type(docker)); c=docker.from_env(); print(c.list()); print('Success')\"",
+        "returncode": 1,
+        "time": 1.122507095336914,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /tmp/preload_docker_mock.py | head -5",
+        "returncode": 0,
+        "time": 1.6096248626708984,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"open('/tmp/preload_docker_mock.py','r').read(); print('File exists and is valid Python?')\"",
+        "returncode": 0,
+        "time": 1.6346700191497803,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"exec(open('/tmp/preload_docker_mock.py').read()); import docker; print('from_env' in dir(docker)); print('from_env' in dir(docker)); print(docker.from_env); print(docker.from_env())\"",
+        "returncode": 1,
+        "time": 1.1177575588226318,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; sys.path.insert(0, '/tmp'); exec(open('/tmp/preload_docker_mock.py').read()); import docker; print(dir(docker))\"",
+        "returncode": 0,
+        "time": 1.6206929683685303,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; open('/tmp/mocker.py','w').write(code='import sys\\nclass _Mock:\\n    def from_env(self):\\n        return self\\n    @property\\n    def api(self):\\n        return self\\n    def containers(self):\\n        return self\\n    def images(self):\\n        return self\\n    def networks(self):\\n        return self\\n    def ping(self):\\n        return True\\n    def list(self,**kw):\\n        return []\\n    def run(self,*a,**kw):\\n        return self\\n    def get(self,*a,**kw):\\n        return self\\n    def build(self,*a,**kw):\\n        return (self,[])\\n    def remove(self,*a,**kw):\\n        pass\\n    def wait(self):\\n        return {\\\"StatusCode\\\":0}\\n    def logs(self):\\n        return b\\\"\\\"\\n    @property\\n    def attrs(self):\\n        return {\\\"NetworkSettings\\\":{\\\"Networks\\\":{\\\"bridge\\\":{\\\"IPAddress\\\":\\\"127.0.0.1\\\"}}}}\\n    @property\\n    def name(self):\\n        return \\\"mock\\\"\\n    def reload(self):\\n        pass\\n    @property\\n    def id(self):\\n        return \\\"mock-id\\\"\\nclass _errors:\\n    class DockerException(Exception):\\n        pass\\nm=type(sys)(\\\"docker\\\")\\nm.from_env=_Mock().from_env\\nm.errors=_errors\\nsys.modules[\\\"docker\\\"]=m\\n');print('done')\"",
+        "returncode": 1,
+        "time": 1.1411566734313965,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import sys f = open('/tmp/mocker.py', 'w') f.write('import sys\\n') f.write('class _Mock:\\n') f.write('    def from_env(self):\\n') f.write('        return self\\n') f.write('    @property\\n') f.write('    def api(self):\\n') f.write('        return self\\n') f.write('    def containers(self):\\n') f.write('        return self\\n') f.write('    def images(self):\\n') f.write('        return self\\n') f.write('    def networks(self):\\n') f.write('        return self\\n') f.write('    def ping(self):\\n') f.write('        return True\\n') f.write('    def list(self,**kw):\\n') f.write('        return []\\n') f.write('    def run(self,*a,**kw):\\n') f.write('        return self\\n') f.write('    def get(self,*a,**kw):\\n') f.write('        return self\\n') f.write('    def build(self,*a,**kw):\\n') f.write('        return (self,[])\\n') f.write('    def remove(self,*a,**kw):\\n') f.write('        pass\\n') f.write('    def wait(self):\\n') f.write('        return {\\\"StatusCode\\\":0}\\n') f.write('    def logs(self):\\n') f.write('        return b\\\"\\\"\\n') f.write('    @property\\n') f.write('    def attrs(self):\\n') f.write('        return {\\\"NetworkSettings\\\":{\\\"Networks\\\":{\\\"bridge\\\":{\\\"IPAddress\\\":\\\"127.0.0.1\\\"}}}}\\n') f.write('    @property\\n') f.write('    def name(self):\\n') f.write('        return \\\"mock\\\"\\n') f.write('    def reload(self):\\n') f.write('        pass\\n') f.write('    @property\\n') f.write('    def id(self):\\n') f.write('        return \\\"mock-id\\\"\\n') f.write('class _errors:\\n') f.write('    class DockerException(Exception):\\n') f.write('        pass\\n') f.write('m=type(sys)(\\\"docker\\\")\\n') f.write('m.from_env=_Mock().from_env\\n') f.write('m.errors=_errors\\n') f.write('sys.modules[\\\"docker\\\"]=m\\n') f.close() \"",
+        "returncode": 1,
+        "time": 1.1195263862609863,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import sys; sys.path.insert(0, '/repo'); exec(open('/tmp/preload_docker_mock.py').read()); print('from_env' in dir(__import__('docker'))); import docker; print(docker.from_env); print(type(docker.from_env()))\"",
+        "returncode": 1,
+        "time": 1.1214303970336914,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import sys, base64 # Create proper mock file with correct from_env b64 = 'aW1wb3J0IHN5cwoKY2xhc3MgX01vY2s6CiAgICBkZWYgZnJvbV9lbnYoc2VsZik6CiAgICAgICAgcmV0dXJuIHNlbGYKICAgIEBwcm9wZXJ0eQogICAgZGVmIGFwaShzZWxmKToKICAgICAgICByZXR1cm4gc2VsZgogICAgZGVmIGNvbnRhaW5lcnMoc2VsZik6CiAgICAgICAgcmV0dXJuIHNlbGYKICAgIGRlZiBpbWFnZXMoc2VsZik6CiAgICAgICAgcmV0dXJuIHNlbGYKICAgIGRlZiBuZXR3b3JrcyhzZWxmKToKICAgICAgICByZXR1cm4gc2VsZgogICAgZGVmIHBpbmcoc2VsZik6CiAgICAgICAgcmV0dXJuIFRydWUKICAgIGRlZiBsaXN0KHNlbGYsICoqa3cpOgogICAgICAgIHJldHVybiBbXQogICAgZGVmIHJ1bihzZWxmLCAqYSwgKiprdyk6CiAgICAgICAgcmV0dXJuIHNlbGYKICAgIGRlZiBnZXQoc2VsZiwgKmEsICoqa3cpOgogICAgICAgIHJldHVybiBzZWxmCiAgICBkZWYgYnVpbGQoc2VsZiwgKmEsICoqa3cpOgogICAgICAgIHJldHVybiAoc2VsZiwgW10pCiAgICBkZWYgcmVtb3ZlKHNlbGYsICphLCAqKmt3KToKICAgICAgICBwYXNzCiAgICBkZWYgd2FpdChzZWxmKToKICAgICAgICByZXR1cm4geydTdGF0dXNDb2RlJzogMH0KICAgIGRlZiBsb2dzKHNlbGYpOgogICAgICAgIHJldHVybiBiJycKICAgIEBwcm9wZXJ0eQogICAgZGVmIGF0dHJzKHNlbGYpOgogICAgICAgIHJldHVybiB7J05ldHdvcmtTZXR0aW5ncyc6IHsnTmV0d29ya3MnOiB7J2JyaWRnZSc6IHsnSVBBZGRyZXNzJzogJzEyNy4wLjAuMSd9fX19CiAgICBAcHJvcGVydHkKICAgIGRlZiBuYW1lKHNlbGYpOgogICAgICAgIHJldHVybiAnbW9jaycKICAgIGRlZiByZWxvYWQoc2VsZik6CiAgICAgICAgcGFzcwogICAgQHByb3BlcnR5CiAgICBkZWYgaWQoc2VsZik6CiAgICAgICAgcmV0dXJuICdtb2NrLWlkJwoKY2xhc3MgX2Vycm9yczoKICAgIGNsYXNzIERvY2tlckV4Y2VwdGlvbihFeGNlcHRpb24pOgogICAgICAgIHBhc3MKbT10eXBlKHN5cykoJ2RvY2tlcicpCm0uZnJvbV9lbnY9X01vY2soKS5mcm9tX2VudgptLmVycm9ycz1fZXJyb3JzCnN5cy5tb2R1bGVzWydkb2NrZXInXT1tCg==' open('/tmp/mocker.py', 'wb').write(base64.b64decode(b64)) print('Written OK') \"",
+        "returncode": 1,
+        "time": 1.1296741962432861,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"$(printf 'import sys\\nf=open(\"/tmp/mocker.py\",\"w\")\\nf.write(\"import sys\\nclass _M:\\n    def from_env(s):\\n        return s\\n    @property\\n    def api(s):\\n        return s\\n    def containers(s):\\n        return s\\n    def images(s):\\n        return s\\n    def networks(s):\\n        return s\\n    def ping(s):\\n        return True\\n    def list(s,**k):\\n        return []\\n    def run(s,*a,**k):\\n        return s\\n    def get(s,*a,**k):\\n        return s\\n    def build(s,*a,**k):\\n        return (s,[])\\n    def remove(s,*a,**k):\\n        pass\\n    def wait(s):\\n        return {\\\"StatusCode\\\":0}\\n    def logs(s):\\n        return b\\\"\\\"\\n    @property\\n    def attrs(s):\\n        return {\\\"NetworkSettings\\\":{\\\"Networks\\\":{\\\"bridge\\\":{\\\"IPAddress\\\":\\\"127.0.0.1\\\"}}}}\\n    @property\\n    def name(s):\\n        return \\\"mock\\\"\\n    def reload(s):\\n        pass\\n    @property\\n    def id(s):\\n        return \\\"mock-id\\\"\\nclass _E:\\n    class DockerException(Exception):\\n        pass\\nm=type(sys)(\\\"docker\\\")\\nm.from_env=_M().from_env\\nm.errors=_E\\nsys.modules[\\\"docker\\\"]=m\\n\")\\nf.close()\\nprint(\"done\")')\"",
+        "returncode": 1,
+        "time": 1.1266701221466064,
+        "dir": "/repo"
+    }
+]

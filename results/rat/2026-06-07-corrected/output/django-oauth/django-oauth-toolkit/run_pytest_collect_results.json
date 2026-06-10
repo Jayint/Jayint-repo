@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "returncode": 4,
+  "errors": [
+    "E   django.core.exceptions.ImproperlyConfigured: Requested setting OAUTH2_PROVIDER, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings."
+  ],
+  "raw_output": "\nImportError while loading conftest '/repo/tests/conftest.py'.\ntests/conftest.py:14: in <module>\n    from oauth2_provider.models import get_application_model, get_id_token_model\noauth2_provider/models.py:24: in <module>\n    from .generators import generate_client_id, generate_client_secret\noauth2_provider/generators.py:4: in <module>\n    from .settings import oauth2_settings\noauth2_provider/settings.py:32: in <module>\n    USER_SETTINGS = getattr(settings, \"OAUTH2_PROVIDER\", None)\n/usr/local/lib/python3.10/site-packages/django/conf/__init__.py:81: in __getattr__\n    self._setup(name)\n/usr/local/lib/python3.10/site-packages/django/conf/__init__.py:61: in _setup\n    raise ImproperlyConfigured(\nE   django.core.exceptions.ImproperlyConfigured: Requested setting OAUTH2_PROVIDER, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.\n"
+}

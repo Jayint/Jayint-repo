@@ -1,0 +1,308 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6112523078918457,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.612945795059204,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md",
+        "returncode": 0,
+        "time": 1.6107850074768066,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.607959270477295,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.611046552658081,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6079990863800049,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6096436977386475,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/tests",
+        "returncode": 0,
+        "time": 1.6085634231567383,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install poetry -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 25.88517737388611,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/conftest.py",
+        "returncode": 0,
+        "time": 1.6102468967437744,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6068592071533203,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/test_service.py",
+        "returncode": 0,
+        "time": 1.6083862781524658,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6075916290283203,
+        "dir": "/repo"
+    },
+    {
+        "command": "poetry config virtualenvs.create false",
+        "returncode": 0,
+        "time": 2.0962817668914795,
+        "dir": "/repo"
+    },
+    {
+        "command": "poetry install --no-interaction --no-ansi -v 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 5.992345571517944,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 2.4644339084625244,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install 'pytest>=7.0.0' pytest-xdist plumbum --upgrade -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 3.223637342453003,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 1.6544666290283203,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install 'plumbum<2.0' -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.5844452381134033,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"from plumbum.cmd import docker; print('ok')\"",
+        "returncode": 1,
+        "time": 1.1792171001434326,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"import plumbum; print(plumbum.__version__); from plumbum import cmd; print(type(cmd)); print(hasattr(cmd, 'docker')); print(cmd.docker)\"",
+        "returncode": 1,
+        "time": 1.1981682777404785,
+        "dir": "/repo"
+    },
+    {
+        "command": "which docker || echo \"Docker not found in PATH\"",
+        "returncode": 0,
+        "time": 1.610870599746704,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /var/run/docker.sock 2>&1 || echo \"No docker socket\"; apt-get update",
+        "returncode": 0,
+        "time": 2.9323110580444336,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y docker.io-cli 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 2.3186209201812744,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y docker.io 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 14.729106664657593,
+        "dir": "/repo"
+    },
+    {
+        "command": "which docker",
+        "returncode": 0,
+        "time": 1.6062383651733398,
+        "dir": "/repo"
+    },
+    {
+        "command": "docker --version",
+        "returncode": 0,
+        "time": 1.6211776733398438,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"from plumbum.cmd import docker; print('ok'); print(docker)\"",
+        "returncode": 0,
+        "time": 1.703183889389038,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.0940182209014893,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 2.457045316696167,
+        "dir": "/repo"
+    },
+    {
+        "command": "dockerd --version",
+        "returncode": 0,
+        "time": 1.7844605445861816,
+        "dir": "/repo"
+    },
+    {
+        "command": "service docker start 2>&1 || dockerd &>/dev/null &",
+        "returncode": 123,
+        "time": 1.1154508590698242,
+        "dir": "/repo"
+    },
+    {
+        "command": "sleep 3",
+        "returncode": 0,
+        "time": 4.60918402671814,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /var/run/docker.sock 2>&1",
+        "returncode": 0,
+        "time": 1.6072962284088135,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 4.2488627433776855,
+        "dir": "/repo"
+    },
+    {
+        "command": "docker image build -t test:docker-socket-proxy /repo",
+        "returncode": 0,
+        "time": 51.06473708152771,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 11.637341737747192,
+        "dir": "/repo"
+    },
+    {
+        "command": "docker container run --detach --privileged --publish=2375 --volume=/var/run/docker.sock:/var/run/docker.sock test:docker-socket-proxy > /tmp/cid.txt",
+        "returncode": 0,
+        "time": 5.860551357269287,
+        "dir": "/repo"
+    },
+    {
+        "command": "sleep 1",
+        "returncode": 0,
+        "time": 2.606610059738159,
+        "dir": "/repo"
+    },
+    {
+        "command": "docker container inspect $(cat /tmp/cid.txt) | python3 -c \"import sys,json; d=json.load(sys.stdin); print(json.dumps(d[0]['NetworkSettings']['Ports'], indent=2))\"",
+        "returncode": 0,
+        "time": 1.650559425354004,
+        "dir": "/repo"
+    },
+    {
+        "command": "docker container rm -f $(cat /tmp/cid.txt)",
+        "returncode": 0,
+        "time": 2.65242600440979,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/Dockerfile",
+        "returncode": 0,
+        "time": 1.6063706874847412,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/.github",
+        "returncode": 0,
+        "time": 1.6124250888824463,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -name \"Dockerfile*\" -not -path \"/.git/*\" 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6137053966522217,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/.github/workflows/*.yml",
+        "returncode": 0,
+        "time": 1.6062674522399902,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/haproxy.cfg | head -20",
+        "returncode": 0,
+        "time": 1.6100561618804932,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6049988269805908,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/docker-entrypoint.sh | head -20",
+        "returncode": 0,
+        "time": 1.6069390773773193,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/issue",
+        "returncode": 0,
+        "time": 1.6072139739990234,
+        "dir": "/repo"
+    },
+    {
+        "command": "git -C /repo log --oneline -5",
+        "returncode": 0,
+        "time": 1.615860939025879,
+        "dir": "/repo"
+    },
+    {
+        "command": "git -C /repo show --stat HEAD | head -30",
+        "returncode": 0,
+        "time": 1.6128709316253662,
+        "dir": "/repo"
+    }
+]

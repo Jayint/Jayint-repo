@@ -1,0 +1,138 @@
+{
+  "instance_id": "bruin-data__ingestr",
+  "repo_url": "https://github.com/bruin-data/ingestr",
+  "language": "python",
+  "dockerfile": "FROM python:3.11\nWORKDIR /testbed\n\n# Configure apt reliability for eval image builds\nRUN printf '%s\\n' 'Acquire::Retries \"5\";' 'Acquire::http::Timeout \"120\";' 'Acquire::https::Timeout \"120\";' 'Acquire::http::Pipeline-Depth \"0\";' > /etc/apt/apt.conf.d/99jayint-retries\n\n# Install git for cloning\nRUN command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)\n\n# Dependency-manager helpers inferred from verified setup\n# No extra dependency bootstrap needed\n\n# Clone repository and checkout base commit\nRUN git clone https://github.com/bruin-data/ingestr /testbed\n# No base commit provided; using repository default branch HEAD\n\n# Agent's verified setup instructions\nRUN cd /testbed && go run cmd/genregistry/main.go\n\n# Post-setup compatibility helpers inferred from verified setup\n# No post-setup compatibility helpers needed\n",
+  "eval_script": "",
+  "build_success": false,
+  "test_success": false,
+  "platform": null,
+  "logs": {
+    "agent_steps": [],
+    "error": null,
+    "verified_test_command": "go test -count=0 ./... 2>&1",
+    "verified_test_commands": [
+      "go test -count=0 ./... 2>&1"
+    ],
+    "verified_runtime_preparation_commands": [],
+    "verified_post_test_patch_commands": [],
+    "source_patch_rebuild_commands": [],
+    "deferred_post_test_patch_commands": [],
+    "filtered_runtime_preparation_commands": [],
+    "filtered_test_commands": [],
+    "refined_test_commands": [],
+    "dropped_broad_test_commands": [],
+    "build_recipe_source": "llm",
+    "build_recipe_error": null,
+    "artifact_preflight": [],
+    "artifact_repair_rounds": [],
+    "test_command_source": "missing_agent_verification_bundle",
+    "runtime_preparation_source": null,
+    "post_test_patch_source": null,
+    "verification_source": "auto_finalized_after_invalid_agent_report",
+    "benchmark_evaluation_target": {},
+    "skip_evaluation": true,
+    "platform_support": {
+      "supported": true,
+      "detected_runtime": "linux",
+      "required_platform": "linux",
+      "indicators": [],
+      "reason": null
+    },
+    "recipe_runtime_preparation_commands": [],
+    "recipe_test_commands": [
+      "go test -count=0 ./... 2>&1"
+    ],
+    "eval_runtime_preparation_commands": [],
+    "build_recipe": {
+      "build_commands": [
+        "cd /app && go run cmd/genregistry/main.go"
+      ],
+      "post_test_patch_commands": [],
+      "runtime_preparation_commands": [],
+      "test_commands": [
+        "go test -count=0 ./... 2>&1"
+      ],
+      "excluded_commands": [
+        {
+          "command": "go version 2>/dev/null || echo \"Go not installed\" (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /etc/os-release 2>/dev/null || cat /etc/lsb-release 2>/dev/null (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "ls /usr/local/go/bin/go 2>/dev/null || ls /usr/bin/go 2>/dev/null || which go 2>/dev/null || echo \"Go not found\" (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "go version (read-only verification after install)",
+          "reason": ""
+        },
+        {
+          "command": "ls /work/ 2>/dev/null || ls /home/ 2>/dev/null || ls /app/ 2>/dev/null || pwd (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "pwd && ls -la (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "head -5 go.mod (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/internal/uri/registry.go (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/internal/registry/registry.go (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "ls -la /app/internal/registry/imports/ 2>/dev/null || echo \"Directory does not exist\" (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "ls /app/cmd/genregistry/ (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "cat /app/cmd/genregistry/main.go (read-only inspection)",
+          "reason": ""
+        },
+        {
+          "command": "apt-get update && apt-get install -y golang-go 2>&1 | tail -5 (failed - output filter not allowed)",
+          "reason": ""
+        },
+        {
+          "command": "cd /work/multi_docker_eval_bruin-data__ingestr && go mod download 2>&1 | head -20 (failed - output filter not allowed)",
+          "reason": ""
+        },
+        {
+          "command": "cd /work/multi_docker_eval_bruin-data__ingestr && go mod download (failed - wrong directory)",
+          "reason": ""
+        }
+      ],
+      "rationale": "The environment required Go installation, module download, and generated registry imports to compile/test. The three build commands are the minimal persistent setup derived from successful state-changing actions (step 5, step 12, step 20). All read-only commands, failed commands, and the test command itself are excluded as they are not part of the reproducible build.",
+      "confidence": "high"
+    },
+    "memory_stats": {
+      "enabled": false,
+      "retrievals": 0,
+      "retrieval_hits": 0,
+      "generation_attempted": false,
+      "candidate_memories": 0,
+      "written_memories": 0,
+      "skipped_duplicates": 0,
+      "skipped_invalid": 0,
+      "relation_judged_pairs": 0,
+      "relation_links_accepted": 0,
+      "relation_links_rejected": 0,
+      "relation_duplicates_rejected": 0,
+      "errors": []
+    }
+  },
+  "setup_scripts": {}
+}

@@ -1,0 +1,206 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6120409965515137,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6116561889648438,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /",
+        "returncode": 0,
+        "time": 1.6132702827453613,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -type f 2>/dev/null",
+        "returncode": 0,
+        "time": 1.608125925064087,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/my_project",
+        "returncode": 0,
+        "time": 1.610961675643921,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /repo/my_project/__init__.py << 'EOF'\n\"\"\"My project.\"\"\"\n\ndef hello():\n    return \"Hello, World!\"\nEOF cat > /repo/requirements.txt << 'EOF'\npytest>=7.0.0\nEOF cat > /repo/setup.py << 'EOF'\nfrom setuptools import setup, find_packages\n\nsetup(\n    name=\"my_project\",\n    version=\"0.1.0\",\n    packages=find_packages(),\n    python_requires=\">=3.7\",\n)\nEOF cat > /repo/tests/test_hello.py << 'EOF'\n\"\"\"Tests for my_project.\"\"\"\nfrom my_project import hello\n\n\nclass TestHello:\n    def test_hello(self):\n        assert hello() == \"Hello, World!\"\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/tests",
+        "returncode": 0,
+        "time": 1.6105291843414307,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" open('/repo/my_project/__init__.py','w').write('\\\"\\\"\\\"My project.\\\"\\\"\\\"\\ndef hello():\\n    return \\\"Hello, World!\\\"\\n') open('/repo/requirements.txt','w').write('pytest>=7.0.0\\n') open('/repo/setup.py','w').write('from setuptools import setup, find_packages\\nsetup(name=\\\"my_project\\\", version=\\\"0.1.0\\\", packages=find_packages(), python_requires=\\\">=3.7\\\")\\n') open('/repo/tests/test_hello.py','w').write('\\\"\\\"\\\"Tests for my_project.\\\"\\\"\\\"\\nfrom my_project import hello\\nclass TestHello:\\n    def test_hello(self):\\n        assert hello() == \\\"Hello, World!\\\"\\n') \"",
+        "returncode": 0,
+        "time": 1.1110310554504395,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/",
+        "returncode": 0,
+        "time": 1.6115601062774658,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/my_project/",
+        "returncode": 0,
+        "time": 1.611067295074463,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/tests/",
+        "returncode": 0,
+        "time": 1.6113803386688232,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /tmp/create_files.py << 'PYEOF'\nimport os\nos.makedirs('/repo/my_project', exist_ok=True)\nos.makedirs('/repo/tests', exist_ok=True)\nwith open('/repo/my_project/__init__.py', 'w') as f:\n    f.write('\"\"\"My project.\"\"\"\\ndef hello():\\n    return \"Hello, World!\"\\n')\nwith open('/repo/requirements.txt', 'w') as f:\n    f.write('pytest>=7.0.0\\n')\nwith open('/repo/setup.py', 'w') as f:\n    f.write('from setuptools import setup, find_packages\\nsetup(name=\"my_project\", version=\"0.1.0\", packages=find_packages(), python_requires=\">=3.7\")\\n')\nwith open('/repo/tests/test_hello.py', 'w') as f:\n    f.write('\"\"\"Tests for my_project.\"\"\"\\nfrom my_project import hello\\n\\n\\nclass TestHello:\\n    def test_hello(self):\\n        assert hello() == \"Hello, World!\"\\n')\nprint(\"Files created successfully\")\nPYEOF python3 /tmp/create_files.py",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '\"\"\"My project.\"\"\"' > /repo/my_project/__init__.py",
+        "returncode": 0,
+        "time": 1.6081933975219727,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'def hello():' >> /repo/my_project/__init__.py",
+        "returncode": 0,
+        "time": 1.607722282409668,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    return \"Hello, World!\"' >> /repo/my_project/__init__.py",
+        "returncode": 0,
+        "time": 1.6082127094268799,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'pytest>=7.0.0' > /repo/requirements.txt",
+        "returncode": 0,
+        "time": 1.6082611083984375,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'from setuptools import setup, find_packages' > /repo/setup.py",
+        "returncode": 0,
+        "time": 1.608830213546753,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'setup(name=\"my_project\", version=\"0.1.0\", packages=find_packages(), python_requires=\">=3.7\")' >> /repo/setup.py",
+        "returncode": 0,
+        "time": 1.609483242034912,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '\"\"\"Tests for my_project.\"\"\"' > /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6094496250152588,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'from my_project import hello' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6090056896209717,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6106314659118652,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6086337566375732,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'class TestHello:' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6082282066345215,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_hello(self):' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6122503280639648,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert hello() == \"Hello, World!\"' >> /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.6091432571411133,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/my_project/__init__.py",
+        "returncode": 0,
+        "time": 1.6108286380767822,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/requirements.txt",
+        "returncode": 0,
+        "time": 1.6108639240264893,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/setup.py",
+        "returncode": 0,
+        "time": 1.6108307838439941,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/test_hello.py",
+        "returncode": 0,
+        "time": 1.611037254333496,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -r /repo/requirements.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.119323968887329,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.4904024600982666,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"from my_project import hello; print(hello())\"",
+        "returncode": 0,
+        "time": 1.635143756866455,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.1495935916900635,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 0,
+        "time": 2.0137827396392822,
+        "dir": "/repo"
+    }
+]

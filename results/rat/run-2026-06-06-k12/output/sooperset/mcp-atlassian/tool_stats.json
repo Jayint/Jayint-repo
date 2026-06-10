@@ -1,0 +1,91 @@
+{
+  "edit-file": {
+    "count": 4,
+    "total_time": 3.697134017944336,
+    "avg_time": 0.924283504486084,
+    "total_tokens": 0,
+    "success_count": 1,
+    "failed_count": 3,
+    "calls": [
+      {
+        "command": "edit-file --file /repo/test_basic.py --mode search --old \"from mypkg import hello  def test_hello():     assert hello() == \\\"hello world\\\" \" --new \"from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "time": 0.0004947185516357422,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780677754.561331
+      },
+      {
+        "command": "edit-file --file /repo/test_basic.py --mode llm --prompt \"Replace the entire file content with: from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "time": 0.0003285408020019531,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780677757.192322
+      },
+      {
+        "command": "edit-file --file /repo/test_basic.py --mode llm --instruction \"Replace the entire file content with proper python code: from mypkg import hello on line 1, then a blank line, then def test_hello(): on line 3, then indented assert hello() == 'hello world' on line 4\"",
+        "time": 1.5811007022857666,
+        "tokens": 0,
+        "return_code": 2,
+        "timestamp": 1780677761.6006494
+      },
+      {
+        "command": "edit-file --file /repo/test_basic.py --mode search --search \"from mypkg import hello  def test_hello():     assert hello() == \\\"hello world\\\" \" --replace \"from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "time": 2.1152100563049316,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780677769.1912405
+      }
+    ]
+  },
+  "stop": {
+    "count": 1,
+    "total_time": 2.3126602172851562e-05,
+    "avg_time": 2.3126602172851562e-05,
+    "total_tokens": 0,
+    "success_count": 1,
+    "failed_count": 0,
+    "calls": [
+      {
+        "command": "stop",
+        "time": 2.3126602172851562e-05,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780677794.2385395
+      }
+    ]
+  },
+  "run-pytest": {
+    "count": 1,
+    "total_time": 2.0662825107574463,
+    "avg_time": 2.0662825107574463,
+    "total_tokens": 0,
+    "success_count": 1,
+    "failed_count": 0,
+    "calls": [
+      {
+        "command": "run-pytest",
+        "time": 2.0662825107574463,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780677791.3478408
+      }
+    ]
+  },
+  "run-pytest-collect": {
+    "count": 1,
+    "total_time": 1.7219781875610352,
+    "avg_time": 1.7219781875610352,
+    "total_tokens": 0,
+    "success_count": 1,
+    "failed_count": 0,
+    "calls": [
+      {
+        "command": "run-pytest-collect",
+        "time": 1.7219781875610352,
+        "tokens": 0,
+        "return_code": 5,
+        "timestamp": 1780677087.910017
+      }
+    ]
+  }
+}

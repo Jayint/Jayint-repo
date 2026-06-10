@@ -1,0 +1,572 @@
+[
+    {
+        "LLM_time": 1.5846469402313232
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6643552780151367
+    },
+    {
+        "LLM_time": 1.7440495491027832
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6604409217834473
+    },
+    {
+        "LLM_time": 0.8982746601104736
+    },
+    {
+        "command": "cat /repo/README.md",
+        "returncode": 0,
+        "time": 1.6617908477783203
+    },
+    {
+        "LLM_time": 1.1921501159667969
+    },
+    {
+        "command": "ls /repo/src/",
+        "returncode": 0,
+        "time": 1.6583125591278076
+    },
+    {
+        "LLM_time": 1.3462469577789307
+    },
+    {
+        "command": "find /repo/src -name \"pyproject.toml\" -o -name \"requirements*.txt\" -o -name \"setup.py\" | sort",
+        "returncode": 0,
+        "time": 1.6668989658355713
+    },
+    {
+        "LLM_time": 1.847909927368164
+    },
+    {
+        "command": "cat /repo/src/auth/pyproject.toml",
+        "returncode": 0,
+        "time": 1.661858081817627
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6584062576293945
+    },
+    {
+        "command": "cat /repo/src/functions/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6626336574554443
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6584155559539795
+    },
+    {
+        "command": "cat /repo/src/postgrest/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6629564762115479
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6590979099273682
+    },
+    {
+        "command": "cat /repo/src/realtime/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6621651649475098
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6596322059631348
+    },
+    {
+        "command": "cat /repo/src/storage/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6631042957305908
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6576943397521973
+    },
+    {
+        "command": "cat /repo/src/supabase/pyproject.toml",
+        "returncode": 0,
+        "time": 1.663372278213501
+    },
+    {
+        "LLM_time": 2.8767354488372803
+    },
+    {
+        "command": "which uv || echo \"uv not found\"",
+        "returncode": 0,
+        "time": 1.6610240936279297
+    },
+    {
+        "command": "find /repo/.github -type f -name \"*.yml\" -o -name \"*.yaml\" | head -5",
+        "returncode": 0,
+        "time": 1.6628754138946533
+    },
+    {
+        "command": "cat /repo/.github/workflows/ci.yml 2>/dev/null || echo \"no ci.yml\"",
+        "returncode": 0,
+        "time": 1.6612930297851562
+    },
+    {
+        "LLM_time": 2.690905809402466
+    },
+    {
+        "command": "pip install uv -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 13.433023691177368
+    },
+    {
+        "LLM_time": 2.0406811237335205
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6582403182983398
+    },
+    {
+        "command": "uv sync --index-url https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 17.707173585891724
+    },
+    {
+        "LLM_time": 1.361802339553833
+    },
+    {
+        "command": "find /repo/src -type d -name \"tests\" | sort",
+        "returncode": 0,
+        "time": 1.667686939239502
+    },
+    {
+        "LLM_time": 1.2613275051116943
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.657444953918457
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 2.2257468700408936
+    },
+    {
+        "LLM_time": 2.5308315753936768
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6587085723876953
+    },
+    {
+        "command": "python -c \"import jwt\" 2>&1 || uv pip install \"pyjwt[crypto]\" -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.2034380435943604
+    },
+    {
+        "command": "uv pip install faker respx pytest pytest-asyncio pytest-cov pytest-mock pytest-depends pyotp -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 1.69089674949646
+    },
+    {
+        "LLM_time": 2.417027711868286
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6592204570770264
+    },
+    {
+        "command": "uv pip list | grep -E \"jwt|faker|respx|supabase|postgrest|realtime|storage\" 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6983451843261719
+    },
+    {
+        "LLM_time": 4.893256902694702
+    },
+    {
+        "command": "cat /repo/src/auth/tests/conftest.py",
+        "returncode": 0,
+        "time": 1.6621627807617188
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.660003900527954
+    },
+    {
+        "command": "cat /repo/src/supabase/tests/conftest.py",
+        "returncode": 0,
+        "time": 1.6583783626556396
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.658588171005249
+    },
+    {
+        "command": "cat /repo/src/functions/tests/conftest.py 2>/dev/null || echo \"no conftest\"",
+        "returncode": 0,
+        "time": 1.662046194076538
+    },
+    {
+        "LLM_time": 1.8069024085998535
+    },
+    {
+        "command": "find /repo/src -name \"__init__.py\" -path \"*/tests/*\" | sort",
+        "returncode": 0,
+        "time": 1.6667351722717285
+    },
+    {
+        "LLM_time": 5.369006395339966
+    },
+    {
+        "command": "cat /repo/Makefile",
+        "returncode": 0,
+        "time": 1.6637916564941406
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6578073501586914
+    },
+    {
+        "command": "cat /repo/src/functions/Makefile",
+        "returncode": 0,
+        "time": 1.6627404689788818
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.658958911895752
+    },
+    {
+        "command": "cat /repo/src/auth/Makefile",
+        "returncode": 0,
+        "time": 1.661973476409912
+    },
+    {
+        "LLM_time": 3.6090352535247803
+    },
+    {
+        "command": "head -30 /repo/src/functions/tests/test_client.py",
+        "returncode": 0,
+        "time": 1.6627039909362793
+    },
+    {
+        "LLM_time": 3.5781497955322266
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6580395698547363
+    },
+    {
+        "command": "uv run --package supabase_functions pytest --co -q",
+        "returncode": 0,
+        "time": 4.481802463531494
+    },
+    {
+        "LLM_time": 4.612950801849365
+    },
+    {
+        "command": "head -20 /repo/src/functions/tests/_async/test_function_client.py",
+        "returncode": 0,
+        "time": 1.6578664779663086
+    },
+    {
+        "LLM_time": 2.0389108657836914
+    },
+    {
+        "command": "head -5 /repo/src/functions/tests/_async/__init__.py",
+        "returncode": 0,
+        "time": 1.6574175357818604
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6559078693389893
+    },
+    {
+        "command": "cat /repo/src/functions/tests/_async/conftest.py 2>/dev/null || echo \"no conftest\"",
+        "returncode": 0,
+        "time": 1.6585547924041748
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6565687656402588
+    },
+    {
+        "command": "head -5 /repo/src/postgrest/tests/_async/test_client.py",
+        "returncode": 0,
+        "time": 1.661496639251709
+    },
+    {
+        "LLM_time": 2.035808563232422
+    },
+    {
+        "command": "cat /repo/src/storage/tests/_async/conftest.py",
+        "returncode": 0,
+        "time": 1.6605119705200195
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6563127040863037
+    },
+    {
+        "command": "cat /repo/src/storage/tests/_sync/conftest.py 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6583259105682373
+    },
+    {
+        "LLM_time": 7.920234441757202
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.656360149383545
+    },
+    {
+        "command": "uv run --package supabase_functions python -c \"import sys; print(sys.path)\" 2>&1 | head -20",
+        "returncode": 0,
+        "time": 1.9097709655761719
+    },
+    {
+        "LLM_time": 6.216238737106323
+    },
+    {
+        "command": "cd /repo/src/functions",
+        "returncode": 0,
+        "time": 1.6593844890594482
+    },
+    {
+        "command": "uv run --package supabase_functions pytest --co -q",
+        "returncode": 0,
+        "time": 2.777168035507202
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6559009552001953
+    },
+    {
+        "command": "cd /repo/src/auth",
+        "returncode": 0,
+        "time": 1.663149118423462
+    },
+    {
+        "command": "uv run --package supabase_auth pytest --co -q 2>&1 | tail -30",
+        "returncode": 0,
+        "time": 2.899393081665039
+    },
+    {
+        "LLM_time": 2.707904100418091
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.658315896987915
+    },
+    {
+        "command": "uv run --package supabase_functions pytest --co -q",
+        "returncode": 0,
+        "time": 2.8273305892944336
+    },
+    {
+        "command": "echo \"===auth===\"",
+        "returncode": 0,
+        "time": 1.6863882541656494
+    },
+    {
+        "command": "uv run --package supabase_auth pytest --co -q",
+        "returncode": 0,
+        "time": 2.777909994125366
+    },
+    {
+        "command": "echo \"===postgrest===\"",
+        "returncode": 0,
+        "time": 1.664844274520874
+    },
+    {
+        "command": "uv run --package postgrest pytest --co -q 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 3.206738233566284
+    },
+    {
+        "LLM_time": 4.748748779296875
+    },
+    {
+        "command": "cd /repo/src/functions",
+        "returncode": 0,
+        "time": 1.6588354110717773
+    },
+    {
+        "command": "uv run --package supabase_functions pytest -q --no-header 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 3.006406545639038
+    },
+    {
+        "command": "echo \"===auth===\"",
+        "returncode": 0,
+        "time": 1.6559739112854004
+    },
+    {
+        "command": "cd /repo/src/auth",
+        "returncode": 0,
+        "time": 1.6566319465637207
+    },
+    {
+        "command": "uv run --package supabase_auth pytest -q --no-header 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 22.765504598617554
+    },
+    {
+        "command": "echo \"===postgrest===\"",
+        "returncode": 0,
+        "time": 1.656273365020752
+    },
+    {
+        "command": "cd /repo/src/postgrest",
+        "returncode": 0,
+        "time": 1.656019926071167
+    },
+    {
+        "command": "uv run --package postgrest pytest -q --no-header 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 38.68528771400452
+    },
+    {
+        "LLM_time": 7.984975576400757
+    },
+    {
+        "command": "cd /repo/src/realtime",
+        "returncode": 0,
+        "time": 1.656477451324463
+    },
+    {
+        "command": "uv run --package realtime pytest -q --no-header 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 65.12644100189209
+    },
+    {
+        "command": "echo \"===storage===\"",
+        "returncode": 0,
+        "time": 1.6564199924468994
+    },
+    {
+        "command": "cd /repo/src/storage",
+        "returncode": 0,
+        "time": 1.6565241813659668
+    },
+    {
+        "command": "uv run --package storage3 pytest -q --no-header 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 10.284219741821289
+    },
+    {
+        "command": "echo \"===supabase===\"",
+        "returncode": 0,
+        "time": 1.656796932220459
+    },
+    {
+        "command": "cd /repo/src/supabase",
+        "returncode": 0,
+        "time": 1.656590223312378
+    },
+    {
+        "command": "uv run --package supabase pytest -q --no-header 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 3.788682699203491
+    },
+    {
+        "LLM_time": 5.649041414260864
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6560068130493164
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 2.1170425415039062
+    },
+    {
+        "LLM_time": 5.280555725097656
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.655806303024292
+    },
+    {
+        "command": "python -c \"import supabase_auth; print(supabase_auth.__file__)\" 2>&1",
+        "returncode": 0,
+        "time": 1.1664767265319824
+    },
+    {
+        "command": "python -c \"import jwt; print(jwt.__file__)\" 2>&1",
+        "returncode": 0,
+        "time": 1.1665737628936768
+    },
+    {
+        "command": "python -c \"import faker; print(faker.__file__)\" 2>&1",
+        "returncode": 0,
+        "time": 1.1716835498809814
+    },
+    {
+        "command": "python -c \"import respx; print(respx.__file__)\" 2>&1",
+        "returncode": 0,
+        "time": 1.1717321872711182
+    },
+    {
+        "LLM_time": 1.9843378067016602
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6570491790771484
+    },
+    {
+        "command": "ls -la .venv/bin/python",
+        "returncode": 0,
+        "time": 1.6591486930847168
+    },
+    {
+        "command": ".venv/bin/python -c \"import supabase_auth; print('ok')\" 2>&1",
+        "returncode": 0,
+        "time": 2.047872543334961
+    },
+    {
+        "LLM_time": 3.0103816986083984
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.656684160232544
+    },
+    {
+        "command": "python -c \"import sys; print('\\n'.join(sys.path))\"",
+        "returncode": 0,
+        "time": 1.703416347503662
+    },
+    {
+        "command": "echo \"---VENV---\"",
+        "returncode": 0,
+        "time": 1.656745433807373
+    },
+    {
+        "command": ".venv/bin/python -c \"import sys; print('\\n'.join(sys.path))\"",
+        "returncode": 0,
+        "time": 1.8734314441680908
+    }
+]

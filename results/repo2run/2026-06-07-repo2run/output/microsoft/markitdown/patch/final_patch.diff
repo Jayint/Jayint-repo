@@ -1,0 +1,51 @@
+diff --git a/Dockerfile b/Dockerfile
+deleted file mode 100644
+index c65bf9c..0000000
+--- a/Dockerfile
++++ /dev/null
+@@ -1,33 +0,0 @@
+-FROM python:3.13-slim-bullseye
+-
+-ENV DEBIAN_FRONTEND=noninteractive
+-ENV EXIFTOOL_PATH=/usr/bin/exiftool
+-ENV FFMPEG_PATH=/usr/bin/ffmpeg
+-
+-# Runtime dependency
+-RUN apt-get update && apt-get install -y --no-install-recommends \
+-    ffmpeg \
+-    exiftool
+-
+-ARG INSTALL_GIT=false
+-RUN if [ "$INSTALL_GIT" = "true" ]; then \
+-    apt-get install -y --no-install-recommends \
+-    git; \
+-    fi
+-
+-# Cleanup
+-RUN rm -rf /var/lib/apt/lists/*
+-
+-WORKDIR /app
+-COPY . /app
+-RUN pip --no-cache-dir install \
+-    /app/packages/markitdown[all] \
+-    /app/packages/markitdown-sample-plugin
+-
+-# Default USERID and GROUPID
+-ARG USERID=nobody
+-ARG GROUPID=nogroup
+-
+-USER $USERID:$GROUPID
+-
+-ENTRYPOINT [ "markitdown" ]
+diff --git a/packages/markitdown-ocr/tests/__init__.py b/packages/markitdown-ocr/tests/__init__.py
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/packages/markitdown-sample-plugin/tests/__init__.py b/packages/markitdown-sample-plugin/tests/__init__.py
+deleted file mode 100644
+index 44af7d7..0000000
+--- a/packages/markitdown-sample-plugin/tests/__init__.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+-# SPDX-FileCopyrightText: 2024-present Adam Fourney <adamfo@microsoft.com>
+-#
+-# SPDX-License-Identifier: MIT

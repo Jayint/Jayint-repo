@@ -1,0 +1,374 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6125929355621338,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6099486351013184,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/sdcm/ /repo/unit_tests/ 2>/dev/null | head -80",
+        "returncode": 0,
+        "time": 1.6129992008209229,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/unit_tests/ /repo/unit_tests/conftest.py /repo/unit_tests/integration/ 2>/dev/null",
+        "returncode": 0,
+        "time": 1.613403081893921,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/unit_tests/unit/",
+        "returncode": 0,
+        "time": 1.614692211151123,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/unit_tests/pytest.ini",
+        "returncode": 0,
+        "time": 1.6084415912628174,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md | head -100",
+        "returncode": 0,
+        "time": 1.6115970611572266,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/*.txt /repo/requirements* /repo/Pipfile* /repo/environment.yml /poetry.lock 2>/dev/null; cat /repo/setup.py 2>/dev/null || echo \"No setup.py found\"",
+        "returncode": 0,
+        "time": 1.6152293682098389,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 --version",
+        "returncode": 0,
+        "time": 1.6117510795593262,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip --version",
+        "returncode": 0,
+        "time": 1.8332397937774658,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6074042320251465,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -e . --no-build-isolation -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -50",
+        "returncode": 0,
+        "time": 2.553415298461914,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.60732102394104,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install uv -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 12.081712484359741,
+        "dir": "/repo"
+    },
+    {
+        "command": "uv sync --frozen -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -50",
+        "returncode": 0,
+        "time": 7.562275648117065,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get update",
+        "returncode": 0,
+        "time": 2.889329195022583,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y build-essential gcc make",
+        "returncode": 0,
+        "time": 10.474493026733398,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install setuptools>=65.0.0,<75 -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 1,
+        "time": 1.1070659160614014,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -r <(grep -A100 'dependencies = \\[' /repo/pyproject.toml | head -100 | grep '^    \"' | sed 's/^    \"//;s/\",//') -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -80",
+        "returncode": 0,
+        "time": 1.9312233924865723,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6093368530273438,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import tomllib with open('pyproject.toml', 'rb') as f:     data = tomllib.load(f) deps = data['project']['dependencies'] for d in deps:     print(d) \" > /tmp/requirements.txt",
+        "returncode": 1,
+        "time": 1.130424976348877,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install setuptools 'setuptools>=65.0.0,<75' -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 3.5767650604248047,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6071882247924805,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import tomllib with open('pyproject.toml', 'rb') as f:     data = tomllib.load(f) with open('/tmp/requirements.txt', 'w') as out:     for d in data['project']['dependencies']:         out.write(d + '\\n') \"",
+        "returncode": 1,
+        "time": 1.1301460266113281,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -r /tmp/requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -100",
+        "returncode": 0,
+        "time": 1.9838190078735352,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6050450801849365,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 << 'EOF'\nimport tomllib\nwith open('pyproject.toml', 'rb') as f:\n    data = tomllib.load(f)\nwith open('/tmp/requirements.txt', 'w') as out:\n    for d in data['project']['dependencies']:\n        out.write(d + '\\n')\nprint(f\"Written {len(data['project']['dependencies'])} dependencies\")\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6069087982177734,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import tomllib; f=open('pyproject.toml','rb'); d=tomllib.load(f); f.close(); open('/tmp/requirements.txt','w').write('\\n'.join(d['project']['dependencies']))\"",
+        "returncode": 1,
+        "time": 1.130028486251831,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /tmp/requirements.txt",
+        "returncode": 0,
+        "time": 1.6097688674926758,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6057796478271484,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install tomli -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 1.986781120300293,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import tomli; f=open('pyproject.toml','rb'); d=tomli.load(f); f.close(); open('/tmp/requirements.txt','w').write('\\n'.join(d['project']['dependencies']))\"",
+        "returncode": 0,
+        "time": 1.6529018878936768,
+        "dir": "/repo"
+    },
+    {
+        "command": "head -20 /tmp/requirements.txt",
+        "returncode": 0,
+        "time": 1.6106312274932861,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6069672107696533,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install --timeout 120 -r /tmp/requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -100",
+        "returncode": 0,
+        "time": 374.33213233947754,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 12.54723072052002,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 --version",
+        "returncode": 0,
+        "time": 1.609886884689331,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip --version",
+        "returncode": 0,
+        "time": 1.8087286949157715,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6055946350097656,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import tomli; f=open('pyproject.toml','rb'); d=tomli.load(f); f.close(); open('/tmp/requirements.txt','w').write('\\n'.join(d['project']['dependencies']))\"",
+        "returncode": 0,
+        "time": 1.6510915756225586,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -r /tmp/requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 295.53555703163147,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get update",
+        "returncode": 0,
+        "time": 2.995636463165283,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y build-essential gcc make",
+        "returncode": 0,
+        "time": 10.141956567764282,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 --version",
+        "returncode": 0,
+        "time": 1.6116490364074707,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 --version",
+        "returncode": 0,
+        "time": 1.6099731922149658,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6066184043884277,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import datetime; print(hasattr(datetime, 'UTC'))\"",
+        "returncode": 0,
+        "time": 1.6368541717529297,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import enum; print(hasattr(enum, 'StrEnum'))\"",
+        "returncode": 0,
+        "time": 1.6183769702911377,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import argus.client.session; print(argus.client.session.__file__)\"",
+        "returncode": 1,
+        "time": 1.16752028465271,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install requests -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 2.8989076614379883,
+        "dir": "/repo"
+    },
+    {
+        "command": "find / -name \"session.py\" -path \"*/argus/client/*\" 2>/dev/null",
+        "returncode": 0,
+        "time": 1.7414896488189697,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/argus/client/session.py | head -20",
+        "returncode": 0,
+        "time": 1.6119475364685059,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -rn \"from enum import.*StrEnum\" /repo/ /usr/local/lib/python3.10/ 2>/dev/null | head -10",
+        "returncode": 0,
+        "time": 1.8677330017089844,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6057066917419434,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import tomli; f=open('pyproject.toml','rb'); d=tomli.load(f); f.close(); open('/tmp/requirements.txt','w').write('\\n'.join(d['project']['dependencies']))\"",
+        "returncode": 0,
+        "time": 1.6485507488250732,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install --timeout 120 -r /tmp/requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | grep -E \"ERROR|Successfully|error:\" | tail -10",
+        "returncode": 0,
+        "time": 172.73723220825195,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6078722476959229,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y gcc make 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 1.6416163444519043,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install --pre 'hdrhistogram<0.10' -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 3.8167166709899902,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6072049140930176,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install enum34 -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -3",
+        "returncode": 0,
+        "time": 4.006167650222778,
+        "dir": "/repo"
+    }
+]

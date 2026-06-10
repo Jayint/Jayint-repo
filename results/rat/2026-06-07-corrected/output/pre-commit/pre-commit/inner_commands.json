@@ -1,0 +1,98 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.612555980682373,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md /repo/setup.py /repo/setup.cfg /repo/requirements-dev.txt /repo/pyproject.toml 2>/dev/null || echo \"Some files not found\"",
+        "returncode": 0,
+        "time": 1.6122283935546875,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md",
+        "returncode": 0,
+        "time": 1.6110715866088867,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/setup.py /repo/setup.cfg /repo/requirements-dev.txt /repo/pyproject.toml 2>/dev/null; echo \"---\"; cat /repo/setup.py; echo \"===\"; cat /repo/setup.cfg; echo \"===\"; cat /repo/requirements-dev.txt",
+        "returncode": 0,
+        "time": 1.6207482814788818,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --upgrade pip -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 4.528371810913086,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.945452213287354,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -r /repo/requirements-dev.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.296474695205688,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 3.013678550720215,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 255.66622281074524,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/logs/run_pytest_results.json | python3 -c \"import json,sys; data=json.load(sys.stdin); print(f'Total: {data[\\\"summary\\\"][\\\"total\\\"]}, Passed: {data[\\\"summary\\\"][\\\"passed\\\"]}, Failed: {data[\\\"summary\\\"][\\\"failed\\\"]}, Errors: {data[\\\"summary\\\"][\\\"errors\\\"]}'); [print(f'{t[\\\"type\\\"]}: {t[\\\"file\\\"]}::{t[\\\"name\\\"]}') for t in data['tests'] if t['status']!='PASSED']\" 2>/dev/null | head -80",
+        "returncode": 0,
+        "time": 1.6643502712249756,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Total:', d['summary']['total'], 'Passed:', d['summary']['passed'], 'Failed:', d['summary']['failed'], 'Errors:', d['summary']['errors'])\"",
+        "returncode": 1,
+        "time": 1.133352518081665,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(list(d.keys())))\"",
+        "returncode": 0,
+        "time": 1.6310596466064453,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(d['summary'], indent=2)); print('---'); print(json.dumps(d['error_breakdown'], indent=2))\"",
+        "returncode": 0,
+        "time": 1.658203125,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Error tests:'); [print(t['file'], '::', t['name'], '-', t['type']) for t in d.get('error_tests', [])]\"",
+        "returncode": 1,
+        "time": 1.1563301086425781,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); print('Failed tests sample:'); print(json.dumps(d['failed_tests'][0], indent=2) if d['failed_tests'] else 'none'); print('---'); print('Error tests sample:'); print(json.dumps(d['error_tests'][0], indent=2) if d['error_tests'] else 'none')\"",
+        "returncode": 0,
+        "time": 1.6591157913208008,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; d=json.load(open('/repo/logs/run_pytest_results.json')); [print(t['test_id'], ':', t['error_type'], '-', t['error_message'][:200]) for t in d['failed_tests'] if 'error_handler' in t['test_id']]\"",
+        "returncode": 0,
+        "time": 1.629420280456543,
+        "dir": "/repo"
+    }
+]

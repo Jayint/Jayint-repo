@@ -1,0 +1,290 @@
+[
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6122820377349854,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -type f -o -type d | head -50",
+        "returncode": 0,
+        "time": 1.6126415729522705,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/my_project",
+        "returncode": 0,
+        "time": 1.6109228134155273,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /repo/my_project/__init__.py << 'EOF'\n\"\"\"Sample project.\"\"\"\nEOF  cat > /repo/my_project/utils.py << 'EOF'\n\"\"\"Utility functions.\"\"\"\n\ndef add(a, b):\n    return a + b\n\ndef subtract(a, b):\n    return a - b\n\ndef multiply(a, b):\n    return a * b\n\ndef divide(a, b):\n    if b == 0:\n        raise ValueError(\"Cannot divide by zero\")\n    return a / b\nEOF  mkdir -p /repo/tests",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /repo/tests/__init__.py << 'EOF'\nEOF\n\ncat > /repo/tests/test_utils.py << 'EOF'\n\"\"\"Tests for utility functions.\"\"\"\n\nimport pytest\nfrom my_project.utils import add, subtract, multiply, divide\n\n\nclass TestMathOperations:\n    def test_add(self):\n        assert add(2, 3) == 5\n        assert add(-1, 1) == 0\n        assert add(0, 0) == 0\n    \n    def test_subtract(self):\n        assert subtract(5, 3) == 2\n        assert subtract(0, 0) == 0\n        assert subtract(-1, -1) == 0\n    \n    def test_multiply(self):\n        assert multiply(2, 3) == 6\n        assert multiply(0, 5) == 0\n        assert multiply(-1, 2) == -2\n    \n    def test_divide(self):\n        assert divide(6, 3) == 2.0\n        assert divide(0, 1) == 0.0\n    \n    def test_divide_by_zero(self):\n        with pytest.raises(ValueError, match=\"Cannot divide by zero\"):\n            divide(1, 0)\nEOF  cat > /repo/requirements.txt << 'EOF'\npytest>=7.0.0\nEOF  cat > /repo/setup.py << 'EOF'\nfrom setuptools import setup, find_packages\n\nsetup(\n    name=\"my_project\",\n    version=\"0.1.0\",\n    packages=find_packages(),\n    install_requires=[],\n)\nEOF  cat > /repo/pyproject.toml << 'EOF'\n[build-system]\nrequires = [\"setuptools>=61.0\"]\nbuild-backend = \"setuptools.backends._legacy:_Backend\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\nEOF  ls -la /repo",
+        "returncode": 123,
+        "time": 0.10591864585876465,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -type f",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"open('/repo/my_project/__init__.py','w').write('\\\"\\\"\\\"Sample project.\\\"\\\"\\\"\\n')\"",
+        "returncode": 0,
+        "time": 1.6328327655792236,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"open('/repo/my_project/utils.py','w').write('\\\"\\\"\\\"Utility functions.\\\"\\\"\\\"\\n\\ndef add(a, b):\\n    return a + b\\n\\ndef subtract(a, b):\\n    return a - b\\n\\ndef multiply(a, b):\\n    return a * b\\n\\ndef divide(a, b):\\n    if b == 0:\\n        raise ValueError(\\\"Cannot divide by zero\\\")\\n    return a / b\\n')\"",
+        "returncode": 0,
+        "time": 1.637223720550537,
+        "dir": "/repo"
+    },
+    {
+        "command": "mkdir -p /repo/tests",
+        "returncode": 0,
+        "time": 1.6114869117736816,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"open('/repo/tests/__init__.py','w').write('')\"",
+        "returncode": 0,
+        "time": 1.6307072639465332,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"content = '\\\"\\\"\\\"Tests for utility functions.\\\"\\\"\\\"\\n\\nimport pytest\\nfrom my_project.utils import add, subtract, multiply, divide\\n\\n\\nclass TestMathOperations:\\n    def test_add(self):\\n        assert add(2, 3) == 5\\n        assert add(-1, 1) == 0\\n        assert add(0, 0) == 0\\n    \\n    def test_subtract(self):\\n        assert subtract(5, 3) == 2\\n        assert subtract(0, 0) == 0\\n        assert subtract(-1, -1) == 0\\n    \\n    def test_multiply(self):\\n        assert multiply(2, 3) == 6\\n        assert multiply(0, 5) == 0\\n        assert multiply(-1, 2) == -2\\n    \\n    def test_divide(self):\\n        assert divide(6, 3) == 2.0\\n        assert divide(0, 1) == 0.0\\n    \\n    def test_divide_by_zero(self):\\n        with pytest.raises(ValueError, match=\\\"Cannot divide by zero\\\"):\\n            divide(1, 0)\\n'\\nopen('/repo/tests/test_utils.py','w').write(content)\"",
+        "returncode": 1,
+        "time": 1.1374988555908203,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 << 'PYEOF'\ncontent = '''\"\"\"Tests for utility functions.\"\"\"\n\nimport pytest\nfrom my_project.utils import add, subtract, multiply, divide\n\n\nclass TestMathOperations:\n    def test_add(self):\n        assert add(2, 3) == 5\n        assert add(-1, 1) == 0\n        assert add(0, 0) == 0\n    \n    def test_subtract(self):\n        assert subtract(5, 3) == 2\n        assert subtract(0, 0) == 0\n        assert subtract(-1, -1) == 0\n    \n    def test_multiply(self):\n        assert multiply(2, 3) == 6\n        assert multiply(0, 5) == 0\n        assert multiply(-1, 2) == -2\n    \n    def test_divide(self):\n        assert divide(6, 3) == 2.0\n        assert divide(0, 1) == 0.0\n    \n    def test_divide_by_zero(self):\n        with pytest.raises(ValueError, match=\"Cannot divide by zero\"):\n            divide(1, 0)\n'''\nwith open('/repo/tests/test_utils.py', 'w') as f:\n    f.write(content)\nprint(\"Test file created successfully\")\nPYEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '\"\"\"Tests for utility functions.\"\"\"' > /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6088755130767822,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.607905387878418,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'import pytest' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.608320951461792,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'from my_project.utils import add, subtract, multiply, divide' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6091556549072266,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6082475185394287,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6084482669830322,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'class TestMathOperations:' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6083884239196777,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_add(self):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.608062505722046,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert add(2, 3) == 5' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6087098121643066,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert add(-1, 1) == 0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.608694076538086,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert add(0, 0) == 0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6086454391479492,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    ' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6092090606689453,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_subtract(self):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6087961196899414,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert subtract(5, 3) == 2' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6089324951171875,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert subtract(0, 0) == 0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6081531047821045,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert subtract(-1, -1) == 0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6089253425598145,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    ' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6086649894714355,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_multiply(self):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.608715295791626,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert multiply(2, 3) == 6' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.608595371246338,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert multiply(0, 5) == 0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6078941822052002,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert multiply(-1, 2) == -2' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.610884428024292,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    ' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6078078746795654,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_divide(self):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6069207191467285,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert divide(6, 3) == 2.0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6085505485534668,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        assert divide(0, 1) == 0.0' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6088805198669434,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    ' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6151471138000488,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '    def test_divide_by_zero(self):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6086170673370361,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '        with pytest.raises(ValueError, match=\"Cannot divide by zero\"):' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6097207069396973,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '            divide(1, 0)' >> /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6074023246765137,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo 'pytest>=7.0.0' > /repo/requirements.txt",
+        "returncode": 0,
+        "time": 1.608124017715454,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q pytest -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.0934865474700928,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/test_utils.py",
+        "returncode": 0,
+        "time": 1.6090936660766602,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6078400611877441,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import my_project.utils; print('Module importable')\"",
+        "returncode": 0,
+        "time": 1.6367824077606201,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.177682399749756,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 0,
+        "time": 2.056464672088623,
+        "dir": "/repo"
+    }
+]

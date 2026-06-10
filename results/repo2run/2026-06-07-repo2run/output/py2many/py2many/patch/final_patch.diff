@@ -1,0 +1,26 @@
+diff --git a/pygo/stubs.py b/pygo/stubs.py
+index 20840bb..50dab77 100644
+--- a/pygo/stubs.py
++++ b/pygo/stubs.py
+@@ -361,7 +361,7 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
+         _add_using(self, "net/http")
+     )
+     and f"http.Get({vargs[0]})",
+-    "smtplib.SMTP": lambda self, node, vargs: f"smtpClient({vargs[0] if vargs else '\"localhost\"'})",
++    "smtplib.SMTP": lambda self, node, vargs: f"smtpClient({vargs[0] if vargs else chr(34)+'localhost'+chr(34)})",
+     "poplib.POP3": lambda self, node, vargs: "0",
+     "imaplib.IMAP4": lambda self, node, vargs: "0",
+     "xmlrpc.client.ServerProxy": lambda self, node, vargs: f"0 /* RPC placeholder for {vargs[0]} */",
+diff --git a/pyv/stubs.py b/pyv/stubs.py
+index 80c3dfd..0bb25d8 100644
+--- a/pyv/stubs.py
++++ b/pyv/stubs.py
+@@ -121,7 +121,7 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
+     and f"math.erfc({', '.join(vargs)})",
+     # os module
+     "os.listdir": lambda self, node, vargs: (self._usings.add("os") or True)
+-    and f"os.ls({vargs[0] if vargs else "'.'"}) or {{ panic(err) }}",
++    and f'os.ls({vargs[0] if vargs else chr(39) + "." + chr(39)}) or {{ panic(err) }}',
+     "os.mkdir": lambda self, node, vargs: (self._usings.add("os") or True)
+     and f"os.mkdir({vargs[0]}) or {{ panic(err) }}",
+     "os.getcwd": lambda self, node, vargs: (self._usings.add("os") or True)

@@ -1,0 +1,140 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index ed64b96..5c711b3 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -18,6 +18,7 @@ supabase = { workspace = true }
+ 
+ [tool.pytest.ini_options]
+ asyncio_mode = "auto"
++pythonpath = ["src"]
+ 
+ [tool.ruff]
+ target-version = "py39"
+diff --git a/src/supabase/tests/conftest.py b/src/supabase/tests/conftest.py
+deleted file mode 100644
+index 0f616ad..0000000
+--- a/src/supabase/tests/conftest.py
++++ /dev/null
+@@ -1,21 +0,0 @@
+-from __future__ import annotations
+-
+-import os
+-
+-import pytest
+-from dotenv import load_dotenv
+-
+-from supabase import Client, create_client
+-
+-
+-def pytest_configure(config) -> None:
+-    load_dotenv(dotenv_path="tests/tests.env")
+-
+-
+-@pytest.fixture(scope="session")
+-def supabase() -> Client:
+-    url = os.environ.get("SUPABASE_TEST_URL")
+-    assert url is not None, "Must provide SUPABASE_TEST_URL environment variable"
+-    key = os.environ.get("SUPABASE_TEST_KEY")
+-    assert key is not None, "Must provide SUPABASE_TEST_KEY environment variable"
+-    return create_client(url, key)
+diff --git a/uv.lock b/uv.lock
+index 538941d..894c56f 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -2028,7 +2028,7 @@ wheels = [
+ 
+ [[package]]
+ name = "postgrest"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/postgrest" }
+ dependencies = [
+     { name = "deprecation" },
+@@ -2784,7 +2784,7 @@ wheels = [
+ 
+ [[package]]
+ name = "realtime"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/realtime" }
+ dependencies = [
+     { name = "pydantic" },
+@@ -3430,7 +3430,7 @@ wheels = [
+ 
+ [[package]]
+ name = "storage3"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/storage" }
+ dependencies = [
+     { name = "deprecation" },
+@@ -3479,6 +3479,9 @@ lints = [
+     { name = "ruff" },
+     { name = "unasync" },
+ ]
++mypy = [
++    { name = "pyiceberg" },
++]
+ tests = [
+     { name = "pytest" },
+     { name = "pytest-asyncio" },
+@@ -3523,6 +3526,7 @@ lints = [
+     { name = "ruff", specifier = ">=0.12.1" },
+     { name = "unasync", specifier = ">=0.6.0" },
+ ]
++mypy = [{ name = "pyiceberg", specifier = ">=0.10.0" }]
+ tests = [
+     { name = "pytest", specifier = ">=8.3.5" },
+     { name = "pytest-asyncio", specifier = ">=0.21.0" },
+@@ -3553,7 +3557,7 @@ wheels = [
+ 
+ [[package]]
+ name = "supabase"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/supabase" }
+ dependencies = [
+     { name = "httpx" },
+@@ -3565,6 +3569,11 @@ dependencies = [
+     { name = "yarl" },
+ ]
+ 
++[package.optional-dependencies]
++iceberg = [
++    { name = "storage3", extra = ["iceberg"] },
++]
++
+ [package.dev-dependencies]
+ dev = [
+     { name = "mypy" },
+@@ -3593,10 +3602,12 @@ requires-dist = [
+     { name = "postgrest", editable = "src/postgrest" },
+     { name = "realtime", editable = "src/realtime" },
+     { name = "storage3", editable = "src/storage" },
++    { name = "storage3", extras = ["iceberg"], marker = "extra == 'iceberg'", editable = "src/storage" },
+     { name = "supabase-auth", editable = "src/auth" },
+     { name = "supabase-functions", editable = "src/functions" },
+     { name = "yarl", specifier = ">=1.22.0" },
+ ]
++provides-extras = ["iceberg"]
+ 
+ [package.metadata.requires-dev]
+ dev = [
+@@ -3622,7 +3633,7 @@ tests = [
+ 
+ [[package]]
+ name = "supabase-auth"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/auth" }
+ dependencies = [
+     { name = "httpx", extra = ["http2"] },
+@@ -3709,7 +3720,7 @@ tests = [
+ 
+ [[package]]
+ name = "supabase-functions"
+-version = "2.30.1"
++version = "2.31.0"
+ source = { editable = "src/functions" }
+ dependencies = [
+     { name = "httpx", extra = ["http2"] },

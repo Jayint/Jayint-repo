@@ -1,0 +1,307 @@
+[
+    {
+        "LLM_time": 1.095667839050293
+    },
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6696786880493164
+    },
+    {
+        "LLM_time": 1.0138604640960693
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6637177467346191
+    },
+    {
+        "LLM_time": 1.5604846477508545
+    },
+    {
+        "command": "cat /repo/setup.cfg",
+        "returncode": 0,
+        "time": 1.6618192195892334
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.673658847808838
+    },
+    {
+        "command": "cat /repo/README.md | head -100",
+        "returncode": 0,
+        "time": 1.6723783016204834
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6744441986083984
+    },
+    {
+        "command": "ls /repo/tests/",
+        "returncode": 0,
+        "time": 1.673551321029663
+    },
+    {
+        "LLM_time": 1.4116156101226807
+    },
+    {
+        "command": "cat /repo/tests/requirements.txt",
+        "returncode": 0,
+        "time": 1.6569960117340088
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6557817459106445
+    },
+    {
+        "command": "cat /repo/tox.ini",
+        "returncode": 0,
+        "time": 1.6646020412445068
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6585776805877686
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6622259616851807
+    },
+    {
+        "LLM_time": 3.1194450855255127
+    },
+    {
+        "command": "pip install -q --no-cache-dir setuptools wheel -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.592205286026001
+    },
+    {
+        "command": "pip install -q --no-cache-dir -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 11.832452297210693
+    },
+    {
+        "LLM_time": 1.2449183464050293
+    },
+    {
+        "command": "pip install -q --no-cache-dir -r /repo/tests/requirements.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 53.95533013343811
+    },
+    {
+        "LLM_time": 1.3591911792755127
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 4.593555450439453
+    },
+    {
+        "LLM_time": 3.5590665340423584
+    },
+    {
+        "command": "pip install -q --no-cache-dir \"scrapling[fetchers]\" -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 45.40242075920105
+    },
+    {
+        "command": "pip install -q --no-cache-dir \"scrapling[ai]\" -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.649328470230103
+    },
+    {
+        "LLM_time": 1.279613971710205
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 6.804046392440796
+    },
+    {
+        "LLM_time": 2.8303256034851074
+    },
+    {
+        "command": "pip install -q --no-cache-dir requests -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 3.264051675796509
+    },
+    {
+        "command": "playwright install chromium 2>/dev/null || true",
+        "returncode": 0,
+        "time": 17.98568105697632
+    },
+    {
+        "LLM_time": 2.2177460193634033
+    },
+    {
+        "command": "patchright install chromium 2>/dev/null || true",
+        "returncode": 0,
+        "time": 1.972702980041504
+    },
+    {
+        "LLM_time": 1.1906979084014893
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6616332530975342
+    },
+    {
+        "LLM_time": 1.835299015045166
+    },
+    {
+        "command": "printf '[pytest]\\nasyncio_mode = strict\\nasyncio_default_fixture_loop_scope = function\\naddopts = -p no:warnings --doctest-modules --ignore=setup.py --ignore=benchmarks.py --ignore=agent-skill --verbose\\nmarkers =\\n    asyncio: marks tests as async\\nasyncio_fixture_scope = function\\n' > /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6627171039581299
+    },
+    {
+        "LLM_time": 1.0123493671417236
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 3.711239814758301
+    },
+    {
+        "LLM_time": 1.39662504196167
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 35.31794261932373
+    },
+    {
+        "LLM_time": 5.776721715927124
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); f=[t for t in data.get('failed_tests',[]) if t]; print(f'Total failed: {len(f)}'); [print(f'{t[\\\"test_name\\\"]}: {t[\\\"error_type\\\"]}') for t in f[:30]]\"",
+        "returncode": 0,
+        "time": 1.187288522720337
+    },
+    {
+        "LLM_time": 4.059431076049805
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(list(data.keys()), indent=2)); f=data.get('failed_tests',[]); print(f'Total failed: {len(f)}'); print(json.dumps(f[0], indent=2)[:500])\"",
+        "returncode": 0,
+        "time": 1.7153348922729492
+    },
+    {
+        "LLM_time": 2.616687536239624
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); eb=data.get('error_breakdown',{}); print(json.dumps(eb, indent=2))\"",
+        "returncode": 0,
+        "time": 1.7108721733093262
+    },
+    {
+        "LLM_time": 2.29001522064209
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); f=[t for t in data.get('failed_tests',[]) if t.get('error_type')=='ModuleNotFoundError']; print(f'Total ModuleNotFoundError: {len(f)}'); [print(f'{t[\\\"test_id\\\"]}: {t[\\\"error_message\\\"][:200]}') for t in f]\"",
+        "returncode": 0,
+        "time": 1.724048376083374
+    },
+    {
+        "LLM_time": 2.197507619857788
+    },
+    {
+        "command": "pip install -q --no-cache-dir IPython -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 11.8038969039917
+    },
+    {
+        "LLM_time": 1.8038196563720703
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 33.16584515571594
+    },
+    {
+        "LLM_time": 3.3290133476257324
+    },
+    {
+        "command": "apt-get update -qq",
+        "returncode": 0,
+        "time": 3.013350248336792
+    },
+    {
+        "command": "apt-get install -y -qq xvfb 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 9.06848955154419
+    },
+    {
+        "LLM_time": 4.66969895362854
+    },
+    {
+        "command": "xvfb-run python -m pytest /repo/tests/fetchers/test_base.py -v --tb=short 2>&1 | head -40",
+        "returncode": 0,
+        "time": 2.1484107971191406
+    },
+    {
+        "LLM_time": 2.7689363956451416
+    },
+    {
+        "command": "xvfb-run python -m pytest /repo/tests/fetchers/sync/test_dynamic.py -v --tb=long 2>&1 | head -50",
+        "returncode": 0,
+        "time": 7.697563648223877
+    },
+    {
+        "LLM_time": 3.319204568862915
+    },
+    {
+        "command": "playwright install-deps chromium 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 11.481205701828003
+    },
+    {
+        "LLM_time": 1.5661931037902832
+    },
+    {
+        "command": "xvfb-run python -m pytest -v --tb=short --continue-on-collection-errors /repo -x --ignore=/repo/agent-skill --ignore=/repo/benchmarks.py 2>&1 | tail -100",
+        "returncode": 0,
+        "time": 20.979198932647705
+    },
+    {
+        "LLM_time": 5.7977516651153564
+    },
+    {
+        "command": "grep -n \"test_properties\\|kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/fetchers/async/test_dynamic.py | head -20",
+        "returncode": 0,
+        "time": 1.663025140762329
+    },
+    {
+        "LLM_time": 4.7359230518341064
+    },
+    {
+        "command": "grep -rn \"def kwargs\\|kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/fetchers/ --include=\"*.py\" | head -20",
+        "returncode": 0,
+        "time": 1.6601412296295166
+    },
+    {
+        "LLM_time": 2.2999284267425537
+    },
+    {
+        "command": "find /repo/tests -name \"conftest.py\" -exec cat {} \\; | head -100",
+        "returncode": 0,
+        "time": 1.6598339080810547
+    },
+    {
+        "LLM_time": 4.020097970962524
+    },
+    {
+        "command": "find /repo/tests -type f -name \"conftest.py\"",
+        "returncode": 0,
+        "time": 1.662386178970337
+    },
+    {
+        "command": "grep -rn \"kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/ --include=\"*.py\"",
+        "returncode": 0,
+        "time": 1.1578900814056396
+    }
+]

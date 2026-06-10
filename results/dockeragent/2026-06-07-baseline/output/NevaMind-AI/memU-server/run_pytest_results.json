@@ -1,0 +1,61 @@
+{
+  "summary": {
+    "total_tests": 8,
+    "passed": 0,
+    "failed": 2,
+    "skipped": 0,
+    "errors": 6,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 8
+  },
+  "failed_tests": [
+    {
+      "test_id": "tests.test_env_validation::test_app_requires_openai_api_key",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "assert 'OPENAI_API_KEY environment variable is not set or is empty' in 'Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n    from app.main import app; print(app.title)\\n    "
+    },
+    {
+      "test_id": "tests.test_env_validation::test_app_starts_with_valid_openai_api_key",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "assert 1 == 0\n +  where 1 = CompletedProcess(args=['/usr/local/bin/python', '-c', 'from app.main import app; print(app.title)'], returncode=1, stdout='', stderr='Traceback (most recent call last):\\n  "
+    }
+  ],
+  "error_tests": [
+    {
+      "test_id": "tests.test_clear_categories",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_health",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_memorize_status",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_memu_config",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_memu_service",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_temporal_workers",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.13.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /testbed\nconfigfile: pyproject.toml\nplugins: asyncio-1.4.0, cov-7.1.0, anyio-4.13.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 2 items / 6 errors\n\ntests/test_env_validation.py::test_app_requires_openai_api_key FAILED    [ 50%]\ntests/test_env_validation.py::test_app_starts_with_valid_openai_api_key FAILED [100%]\n\n==================================== ERRORS ====================================\n_______________ ERROR collecting tests/test_clear_categories.py ________________\nImportError while importing test module '/testbed/tests/test_clear_categories.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_clear_categories.py:6: in <module>\n    from fastapi.testclient import TestClient\nE   ModuleNotFoundError: No module named 'fastapi'\n____________________ ERROR collecting tests/test_health.py _____________________\nImportError while importing test module '/testbed/tests/test_health.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_health.py:6: in <module>\n    from fastapi.testclient import TestClient\nE   ModuleNotFoundError: No module named 'fastapi'\n________________ ERROR collecting tests/test_memorize_status.py ________________\nImportError while importing test module '/testbed/tests/test_memorize_status.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_memorize_status.py:7: in <module>\n    from fastapi.testclient import TestClient\nE   ModuleNotFoundError: No module named 'fastapi'\n__________________ ERROR collecting tests/test_memu_config.py __________________\nImportError while importing test module '/testbed/tests/test_memu_config.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_memu_config.py:3: in <module>\n    from config.memu import MemUUser, build_memu_config, build_memu_llm_profiles\nconfig/__init__.py:3: in <module>\n    from .memu import MemUUser, build_memu_config, build_memu_llm_profiles\nconfig/memu.py:5: in <module>\n    from pydantic import BaseModel\nE   ModuleNotFoundError: No module named 'pydantic'\n_________________ ERROR collecting tests/test_memu_service.py __________________\nImportError while importing test module '/testbed/tests/test_memu_service.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_memu_service.py:5: in <module>\n    from app.services.memu import create_memory_service\napp/services/memu.py:5: in <module>\n    from memu.app import MemoryService\nE   ModuleNotFoundError: No module named 'memu'\n_______________ ERROR collecting tests/test_temporal_workers.py ________________\nImportError while importing test module '/testbed/tests/test_temporal_workers.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.13/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_temporal_workers.py:9: in <module>\n    from app.workers.memorize_activity import task_memorize\napp/workers/memorize_activity.py:9: in <module>\n    from temporalio import activity\nE   ModuleNotFoundError: No module named 'temporalio'\n=================================== FAILURES ===================================\n_______________________ test_app_requires_openai_api_key _______________________\ntests/test_env_validation.py:65: in test_app_requires_openai_api_key\n    assert \"OPENAI_API_KEY environment variable is not set or is empty\" in result.stderr\nE   assert 'OPENAI_API_KEY environment variable is not set or is empty' in 'Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n    from app.main import app; print(app.title)\\n    ^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/testbed/app/main.py\", line 13, in <module>\\n    from fastapi import FastAPI, HTTPException, Request\\nModuleNotFoundError: No module named \\'fastapi\\'\\n'\nE    +  where 'Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n    from app.main import app; print(app.title)\\n    ^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/testbed/app/main.py\", line 13, in <module>\\n    from fastapi import FastAPI, HTTPException, Request\\nModuleNotFoundError: No module named \\'fastapi\\'\\n' = CompletedProcess(args=['/usr/local/bin/python', '-c', 'from app.main import app; print(app.title)'], returncode=1, stdout='', stderr='Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n    from app.main import app; print(app.title)\\n    ^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/testbed/app/main.py\", line 13, in <module>\\n    from fastapi import FastAPI, HTTPException, Request\\nModuleNotFoundError: No module named \\'fastapi\\'\\n').stderr\n__________________ test_app_starts_with_valid_openai_api_key ___________________\ntests/test_env_validation.py:78: in test_app_starts_with_valid_openai_api_key\n    assert result.returncode == 0\nE   assert 1 == 0\nE    +  where 1 = CompletedProcess(args=['/usr/local/bin/python', '-c', 'from app.main import app; print(app.title)'], returncode=1, stdout='', stderr='Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n    from app.main import app; print(app.title)\\n    ^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"/testbed/app/main.py\", line 13, in <module>\\n    from fastapi import FastAPI, HTTPException, Request\\nModuleNotFoundError: No module named \\'fastapi\\'\\n').returncode\n-------------- generated xml file: /testbed/logs/junit_report.xml --------------\n=========================== short test summary info ============================\nFAILED tests/test_env_validation.py::test_app_requires_openai_api_key - asser...\nFAILED tests/test_env_validation.py::test_app_starts_with_valid_openai_api_key\nERROR tests/test_clear_categories.py\nERROR tests/test_health.py\nERROR tests/test_memorize_status.py\nERROR tests/test_memu_config.py\nERROR tests/test_memu_service.py\nERROR tests/test_temporal_workers.py\n========================= 2 failed, 6 errors in 0.30s ==========================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

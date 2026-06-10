@@ -1,0 +1,231 @@
+[
+    {
+        "LLM_time": 1.957742691040039
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6644628047943115
+    },
+    {
+        "command": "find /repo -maxdepth 3 -name \"*.py\" -type f | head -50",
+        "returncode": 0,
+        "time": 1.6671266555786133
+    },
+    {
+        "LLM_time": 4.583328485488892
+    },
+    {
+        "command": "ls -la /",
+        "returncode": 0,
+        "time": 1.6650726795196533
+    },
+    {
+        "command": "find / -maxdepth 3 -name \"*.py\" -type f 2>/dev/null | head -50",
+        "returncode": 0,
+        "time": 1.6813600063323975
+    },
+    {
+        "command": "find / -maxdepth 2 -name \"requirements.txt\" -o -name \"setup.py\" -o -name \"pyproject.toml\" 2>/dev/null | head -20",
+        "returncode": 0,
+        "time": 1.6668577194213867
+    },
+    {
+        "LLM_time": 3.726250648498535
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6604995727539062
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 1.7226285934448242
+    },
+    {
+        "LLM_time": 4.369105339050293
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6602287292480469
+    },
+    {
+        "command": "ls -la",
+        "returncode": 0,
+        "time": 1.6628894805908203
+    },
+    {
+        "command": "find /repo -mindepth 1 -maxdepth 3 -type f 2>/dev/null | head -30",
+        "returncode": 0,
+        "time": 1.6679306030273438
+    },
+    {
+        "LLM_time": 3.870396852493286
+    },
+    {
+        "command": "cat /home/tools/create_test.py",
+        "returncode": 0,
+        "time": 1.6940255165100098
+    },
+    {
+        "LLM_time": 8.368013620376587
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6604766845703125
+    },
+    {
+        "command": "mkdir -p mypkg",
+        "returncode": 0,
+        "time": 1.662820816040039
+    },
+    {
+        "command": "echo 'def hello(): return \"hello world\"' > mypkg/__init__.py",
+        "returncode": 0,
+        "time": 1.6609482765197754
+    },
+    {
+        "command": "echo 'from mypkg import hello  def test_hello():     assert hello() == \"hello world\" ' > test_basic.py",
+        "returncode": 0,
+        "time": 1.6604857444763184
+    },
+    {
+        "command": "python -m pytest --co -q /repo 2>&1 | head -20",
+        "returncode": 0,
+        "time": 2.0339865684509277
+    },
+    {
+        "LLM_time": 2.866791248321533
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.660456895828247
+    },
+    {
+        "command": "rm -f test_basic.py",
+        "returncode": 0,
+        "time": 1.6625876426696777
+    },
+    {
+        "command": "echo 'from mypkg import hello  def test_hello():     assert hello() == \"hello world\" ' > test_basic.py",
+        "returncode": 0,
+        "time": 1.6705849170684814
+    },
+    {
+        "command": "python -m pytest --co -q /repo 2>&1",
+        "returncode": 0,
+        "time": 1.530040979385376
+    },
+    {
+        "LLM_time": 2.823498249053955
+    },
+    {
+        "command": "python3 -c \" import os os.chdir('/repo') with open('test_basic.py', 'w') as f:     f.write('from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n') \"",
+        "returncode": 0,
+        "time": 1.182222843170166
+    },
+    {
+        "command": "python -m pytest --co -q /repo 2>&1",
+        "returncode": 0,
+        "time": 1.530724287033081
+    },
+    {
+        "LLM_time": 3.2380950450897217
+    },
+    {
+        "command": "python3 << 'PYEOF'\nimport os\nos.chdir('/repo')\nwith open('test_basic.py', 'w') as f:\n    f.write('from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \"hello world\"\\n')\nPYEOF",
+        "returncode": 0,
+        "time": 603.3547508716583
+    },
+    {
+        "LLM_time": 2.4831652641296387
+    },
+    {
+        "command": "cat /repo/test_basic.py",
+        "returncode": 0,
+        "time": 1.6615138053894043
+    },
+    {
+        "LLM_time": 1.578160047531128
+    },
+    {
+        "command": "edit-file --file /repo/test_basic.py --mode search --old \"from mypkg import hello  def test_hello():     assert hello() == \\\"hello world\\\" \" --new \"from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "returncode": 0,
+        "time": 0.0006160736083984375
+    },
+    {
+        "LLM_time": 1.5765037536621094
+    },
+    {
+        "command": "edit-file --file /repo/test_basic.py --mode llm --prompt \"Replace the entire file content with: from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "returncode": 0,
+        "time": 0.00044918060302734375
+    },
+    {
+        "LLM_time": 1.7696776390075684
+    },
+    {
+        "command": "edit-file --file /repo/test_basic.py --mode llm --instruction \"Replace the entire file content with proper python code: from mypkg import hello on line 1, then a blank line, then def test_hello(): on line 3, then indented assert hello() == 'hello world' on line 4\"",
+        "returncode": 0,
+        "time": 1.5817301273345947
+    },
+    {
+        "LLM_time": 4.4202046394348145
+    },
+    {
+        "command": "edit-file --file /repo/test_basic.py --mode search --search \"from mypkg import hello  def test_hello():     assert hello() == \\\"hello world\\\" \" --replace \"from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n\"",
+        "returncode": 0,
+        "time": 2.1160948276519775
+    },
+    {
+        "LLM_time": 2.4621710777282715
+    },
+    {
+        "command": "cat /repo/test_basic.py",
+        "returncode": 0,
+        "time": 1.6624369621276855
+    },
+    {
+        "LLM_time": 1.6405982971191406
+    },
+    {
+        "command": "rm -f /repo/test_basic.py",
+        "returncode": 0,
+        "time": 6.29425048828125e-05
+    },
+    {
+        "command": "python3 -c \"open('/repo/test_basic.py','w').write('from mypkg import hello\\n\\ndef test_hello():\\n    assert hello() == \\\"hello world\\\"\\n')\"",
+        "returncode": 0,
+        "time": 1.6863429546356201
+    },
+    {
+        "command": "cat /repo/test_basic.py",
+        "returncode": 0,
+        "time": 1.6623401641845703
+    },
+    {
+        "LLM_time": 1.7407736778259277
+    },
+    {
+        "command": "python -m pytest --co -q /repo 2>&1",
+        "returncode": 0,
+        "time": 1.8919589519500732
+    },
+    {
+        "LLM_time": 1.4650311470031738
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.658360481262207
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 2.067305088043213
+    }
+]

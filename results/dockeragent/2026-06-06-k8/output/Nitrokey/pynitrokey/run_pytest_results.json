@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 1,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 1
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "pynitrokey",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /testbed\nconfigfile: pyproject.toml\nplugins: anyio-4.13.0\ncollecting ... collected 0 items / 1 error\n\n==================================== ERRORS ====================================\n_________________________ ERROR collecting pynitrokey __________________________\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:935: in _load_unlocked\n    ???\n/usr/local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:197: in exec_module\n    exec(co, module.__dict__)\npynitrokey/conftest.py:13: in <module>\n    from nitrokey.nk3.secrets_app import Instruction, SecretsApp\nE   ModuleNotFoundError: No module named 'nitrokey'\n-------------- generated xml file: /testbed/logs/junit_report.xml --------------\n=========================== short test summary info ============================\nERROR pynitrokey - ModuleNotFoundError: No module named 'nitrokey'\n=============================== 1 error in 0.06s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

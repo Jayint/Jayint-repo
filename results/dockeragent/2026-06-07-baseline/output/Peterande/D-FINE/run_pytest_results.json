@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 1,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 1
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "src.nn.backbone.test_resnet",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.4, pytest-9.0.3, pluggy-1.6.0 -- /root/miniconda3/bin/python\ncachedir: .pytest_cache\nrootdir: /testbed\nplugins: anyio-4.6.0\ncollecting ... collected 0 items / 1 error\n\n==================================== ERRORS ====================================\n_______________ ERROR collecting src/nn/backbone/test_resnet.py ________________\nImportError while importing test module '/testbed/src/nn/backbone/test_resnet.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/root/miniconda3/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsrc/__init__.py:6: in <module>\n    from . import data, nn, optim, zoo\nsrc/data/__init__.py:8: in <module>\n    from .dataset import *\nsrc/data/dataset/__init__.py:8: in <module>\n    from .coco_dataset import (\nsrc/data/dataset/coco_dataset.py:8: in <module>\n    import faster_coco_eval.core.mask as coco_mask\nE   ModuleNotFoundError: No module named 'faster_coco_eval'\n-------------- generated xml file: /testbed/logs/junit_report.xml --------------\n=========================== short test summary info ============================\nERROR src/nn/backbone/test_resnet.py\n=============================== 1 error in 1.92s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

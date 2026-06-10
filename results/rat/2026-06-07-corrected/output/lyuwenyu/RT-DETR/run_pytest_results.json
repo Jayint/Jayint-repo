@@ -1,0 +1,37 @@
+{
+  "summary": {
+    "total_tests": 3,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 3,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 1,
+    "AttributeError": 1,
+    "ImportError": 1
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "rtdetr_paddle.ppdet.modeling.transformers.ext_op.test_ms_deformable_attn_op",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "rtdetr_pytorch.src.nn.backbone.test_resnet",
+      "error_type": "AttributeError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "rtdetrv2_pytorch.src.nn.backbone.test_resnet",
+      "error_type": "ImportError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python\ncachedir: .pytest_cache\nhypothesis profile 'default'\nrootdir: /repo\nplugins: anyio-4.13.0, hypothesis-6.152.7\ncollecting ... collected 0 items / 3 errors\n\n==================================== ERRORS ====================================\n_ ERROR collecting rtdetr_paddle/ppdet/modeling/transformers/ext_op/test_ms_deformable_attn_op.py _\nImportError while importing test module '/repo/rtdetr_paddle/ppdet/modeling/transformers/ext_op/test_ms_deformable_attn_op.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nrtdetr_paddle/ppdet/modeling/transformers/ext_op/test_ms_deformable_attn_op.py:23: in <module>\n    import paddle\nE   ModuleNotFoundError: No module named 'paddle'\n________ ERROR collecting rtdetr_pytorch/src/nn/backbone/test_resnet.py ________\n/usr/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:488: in _call_with_frames_removed\n    ???\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:488: in _call_with_frames_removed\n    ???\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1310: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:488: in _call_with_frames_removed\n    ???\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:935: in _load_unlocked\n    ???\n<frozen importlib._bootstrap_external>:995: in exec_module\n    ???\n<frozen importlib._bootstrap>:488: in _call_with_frames_removed\n    ???\nrtdetr_pytorch/src/__init__.py:2: in <module>\n    from . import data\nrtdetr_pytorch/src/data/__init__.py:6: in <module>\n    from .transforms import *\nrtdetr_pytorch/src/data/transforms.py:29: in <module>\n    ToImageTensor = register(T.ToImageTensor)\n                             ^^^^^^^^^^^^^^^\nE   AttributeError: module 'torchvision.transforms.v2' has no attribute 'ToImageTensor'. Did you mean: 'ToPureTensor'?\n_______ ERROR collecting rtdetrv2_pytorch/src/nn/backbone/test_resnet.py _______\nImportError while importing test module '/repo/rtdetrv2_pytorch/src/nn/backbone/test_resnet.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nrtdetrv2_pytorch/src/__init__.py:5: in <module>\n    from . import optim\nrtdetrv2_pytorch/src/optim/__init__.py:4: in <module>\n    from .ema import *\nrtdetrv2_pytorch/src/optim/ema.py:12: in <module>\n    from ..misc import dist_utils\nE   ImportError: cannot import name 'dist_utils' from 'src.misc' (/repo/rtdetr_pytorch/src/misc/__init__.py)\n--------------- generated xml file: /repo/logs/junit_report.xml ----------------\n=========================== short test summary info ============================\nERROR rtdetr_paddle/ppdet/modeling/transformers/ext_op/test_ms_deformable_attn_op.py\nERROR rtdetr_pytorch/src/nn/backbone/test_resnet.py - AttributeError: module ...\nERROR rtdetrv2_pytorch/src/nn/backbone/test_resnet.py\n============================== 3 errors in 2.69s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

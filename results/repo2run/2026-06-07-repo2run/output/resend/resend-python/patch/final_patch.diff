@@ -1,0 +1,23 @@
+diff --git a/Dockerfile b/Dockerfile
+deleted file mode 100644
+index d78a90c..0000000
+--- a/Dockerfile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-FROM python:3.14.5
+-
+-RUN pip install --upgrade pip
+-
+-ADD requirements.txt requirements.txt
+-
+-RUN pip install -r requirements.txt
+-
+-RUN pip install tox
+-RUN pip install setuptools==68.2.2
+-RUN pip install wheel
+-
+-ENV APP_HOME /app
+-
+-ADD . $APP_HOME
+-WORKDIR $APP_HOME
+\ No newline at end of file

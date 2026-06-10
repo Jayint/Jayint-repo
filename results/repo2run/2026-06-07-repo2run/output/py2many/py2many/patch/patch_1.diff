@@ -1,0 +1,13 @@
+diff --git a/pygo/stubs.py b/pygo/stubs.py
+index 20840bb..50dab77 100644
+--- a/pygo/stubs.py
++++ b/pygo/stubs.py
+@@ -361,7 +361,7 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
+         _add_using(self, "net/http")
+     )
+     and f"http.Get({vargs[0]})",
+-    "smtplib.SMTP": lambda self, node, vargs: f"smtpClient({vargs[0] if vargs else '\"localhost\"'})",
++    "smtplib.SMTP": lambda self, node, vargs: f"smtpClient({vargs[0] if vargs else chr(34)+'localhost'+chr(34)})",
+     "poplib.POP3": lambda self, node, vargs: "0",
+     "imaplib.IMAP4": lambda self, node, vargs: "0",
+     "xmlrpc.client.ServerProxy": lambda self, node, vargs: f"0 /* RPC placeholder for {vargs[0]} */",

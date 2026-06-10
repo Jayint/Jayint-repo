@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="5" failures="2" skipped="0" tests="7" time="6.531" timestamp="2026-06-06T23:14:41.413901+00:00" hostname="6b66dcdd0cd0"><testcase classname="" name="examples.rag.feature_repo.test_workflow" time="0.000"><error message="collection failure">ImportError while importing test module '/repo/examples/rag/feature_repo/test_workflow.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+examples/rag/feature_repo/test_workflow.py:6: in &lt;module&gt;
+    from example_repo import city_embeddings_feature_view, item
+E   ModuleNotFoundError: No module named 'example_repo'</error></testcase><testcase classname="" name="sdk.python.tests" time="0.000"><error message="collection failure">/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+&lt;frozen importlib._bootstrap&gt;:1050: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1027: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1006: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:688: in _load_unlocked
+    ???
+/usr/local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+sdk/python/tests/conftest.py:39: in &lt;module&gt;
+    from tests.universal.feature_repos.integration_test_repo_config import (  # noqa: E402
+sdk/python/tests/universal/feature_repos/integration_test_repo_config.py:9: in &lt;module&gt;
+    from tests.universal.feature_repos.universal.data_sources.file import (
+sdk/python/tests/universal/feature_repos/universal/data_sources/file.py:17: in &lt;module&gt;
+    from minio import Minio
+E   ModuleNotFoundError: No module named 'minio'</error></testcase><testcase classname="sdk.python.feast.templates.athena.feature_repo.test_workflow" name="test_end_to_end" time="0.001"><failure message="UnboundLocalError: local variable 'fs' referenced before assignment">sdk/python/feast/templates/athena/feature_repo/test_workflow.py:95: in test_end_to_end
+    fs.teardown()
+E   UnboundLocalError: local variable 'fs' referenced before assignment</failure></testcase><testcase classname="sdk.python.feast.templates.athena.feature_repo.test_workflow" name="test_cli" time="0.004"><failure message="FileNotFoundError: [Errno 2] No such file or directory: 'output'">sdk/python/feast/templates/athena/feature_repo/test_workflow.py:102: in test_cli
+    with open("output", "r") as f:
+E   FileNotFoundError: [Errno 2] No such file or directory: 'output'</failure></testcase><testcase classname="sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow" name="test_online_inference" time="0.000"><error message="failed on setup with &quot;file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 173&#10;  def test_online_inference(store: FeatureStore):&#10;E       fixture 'store' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:173&quot;">file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 173
+  def test_online_inference(store: FeatureStore):
+E       fixture 'store' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:173</error></testcase><testcase classname="sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow" name="test_on_demand_sentiment_prediction" time="0.000"><error message="failed on setup with &quot;file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 207&#10;  def test_on_demand_sentiment_prediction(store: FeatureStore):&#10;E       fixture 'store' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:207&quot;">file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 207
+  def test_on_demand_sentiment_prediction(store: FeatureStore):
+E       fixture 'store' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:207</error></testcase><testcase classname="sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow" name="test_feature_services" time="0.000"><error message="failed on setup with &quot;file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 262&#10;  def test_feature_services(store: FeatureStore):&#10;E       fixture 'store' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:262&quot;">file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 262
+  def test_feature_services(store: FeatureStore):
+E       fixture 'store' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:262</error></testcase></testsuite></testsuites>

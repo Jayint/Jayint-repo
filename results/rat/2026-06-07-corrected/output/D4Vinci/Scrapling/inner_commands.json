@@ -1,0 +1,260 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6186740398406982,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6105413436889648,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/setup.cfg",
+        "returncode": 0,
+        "time": 1.6091511249542236,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6224462985992432,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md | head -100",
+        "returncode": 0,
+        "time": 1.6162528991699219,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.615126132965088,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/tests/",
+        "returncode": 0,
+        "time": 1.6172475814819336,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/requirements.txt",
+        "returncode": 0,
+        "time": 1.605808973312378,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6050152778625488,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tox.ini",
+        "returncode": 0,
+        "time": 1.613135814666748,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.607637643814087,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6104743480682373,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir setuptools wheel -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.5402772426605225,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 11.780096292495728,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir -r /repo/tests/requirements.txt -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 53.90399646759033,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 4.53428840637207,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir \"scrapling[fetchers]\" -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 45.35081195831299,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir \"scrapling[ai]\" -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 9.597964525222778,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 6.745771169662476,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir requests -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 3.2128279209136963,
+        "dir": "/repo"
+    },
+    {
+        "command": "playwright install chromium 2>/dev/null || true",
+        "returncode": 0,
+        "time": 17.93352198600769,
+        "dir": "/repo"
+    },
+    {
+        "command": "patchright install chromium 2>/dev/null || true",
+        "returncode": 0,
+        "time": 1.921435832977295,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6098928451538086,
+        "dir": "/repo"
+    },
+    {
+        "command": "printf '[pytest]\\nasyncio_mode = strict\\nasyncio_default_fixture_loop_scope = function\\naddopts = -p no:warnings --doctest-modules --ignore=setup.py --ignore=benchmarks.py --ignore=agent-skill --verbose\\nmarkers =\\n    asyncio: marks tests as async\\nasyncio_fixture_scope = function\\n' > /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6109192371368408,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 3.6490285396575928,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 35.25170922279358,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); f=[t for t in data.get('failed_tests',[]) if t]; print(f'Total failed: {len(f)}'); [print(f'{t[\\\"test_name\\\"]}: {t[\\\"error_type\\\"]}') for t in f[:30]]\"",
+        "returncode": 1,
+        "time": 1.1359121799468994,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(list(data.keys()), indent=2)); f=data.get('failed_tests',[]); print(f'Total failed: {len(f)}'); print(json.dumps(f[0], indent=2)[:500])\"",
+        "returncode": 0,
+        "time": 1.6631786823272705,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); eb=data.get('error_breakdown',{}); print(json.dumps(eb, indent=2))\"",
+        "returncode": 0,
+        "time": 1.6593711376190186,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); f=[t for t in data.get('failed_tests',[]) if t.get('error_type')=='ModuleNotFoundError']; print(f'Total ModuleNotFoundError: {len(f)}'); [print(f'{t[\\\"test_id\\\"]}: {t[\\\"error_message\\\"][:200]}') for t in f]\"",
+        "returncode": 0,
+        "time": 1.6719355583190918,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q --no-cache-dir IPython -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 11.75185489654541,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 33.09503245353699,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get update -qq",
+        "returncode": 0,
+        "time": 2.9623515605926514,
+        "dir": "/repo"
+    },
+    {
+        "command": "apt-get install -y -qq xvfb 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 9.016574382781982,
+        "dir": "/repo"
+    },
+    {
+        "command": "xvfb-run python -m pytest /repo/tests/fetchers/test_base.py -v --tb=short 2>&1 | head -40",
+        "returncode": 0,
+        "time": 2.0966429710388184,
+        "dir": "/repo"
+    },
+    {
+        "command": "xvfb-run python -m pytest /repo/tests/fetchers/sync/test_dynamic.py -v --tb=long 2>&1 | head -50",
+        "returncode": 0,
+        "time": 7.645171165466309,
+        "dir": "/repo"
+    },
+    {
+        "command": "playwright install-deps chromium 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 11.42995834350586,
+        "dir": "/repo"
+    },
+    {
+        "command": "xvfb-run python -m pytest -v --tb=short --continue-on-collection-errors /repo -x --ignore=/repo/agent-skill --ignore=/repo/benchmarks.py 2>&1 | tail -100",
+        "returncode": 0,
+        "time": 20.922927856445312,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -n \"test_properties\\|kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/fetchers/async/test_dynamic.py | head -20",
+        "returncode": 0,
+        "time": 1.6116836071014404,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -rn \"def kwargs\\|kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/fetchers/ --include=\"*.py\" | head -20",
+        "returncode": 0,
+        "time": 1.6089143753051758,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo/tests -name \"conftest.py\" -exec cat {} \\; | head -100",
+        "returncode": 0,
+        "time": 1.6086950302124023,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo/tests -type f -name \"conftest.py\"",
+        "returncode": 0,
+        "time": 1.6114490032196045,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -rn \"kwargs0\\|kwargs1\\|kwargs2\\|kwargs3\" /repo/tests/ --include=\"*.py\"",
+        "returncode": 1,
+        "time": 1.106792688369751,
+        "dir": "/repo"
+    }
+]

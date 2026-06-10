@@ -1,0 +1,152 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6073570251464844,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -maxdepth 3 -type f | head -100",
+        "returncode": 123,
+        "time": 1.1044044494628906,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 0.6052422523498535,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la",
+        "returncode": 0,
+        "time": 1.6099412441253662,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat README.md | head -100",
+        "returncode": 0,
+        "time": 1.6119379997253418,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6098604202270508,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/INSTALL.md",
+        "returncode": 0,
+        "time": 1.608433723449707,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/darts/ | head -30",
+        "returncode": 0,
+        "time": 1.6106288433074951,
+        "dir": "/repo"
+    },
+    {
+        "command": "python --version",
+        "returncode": 0,
+        "time": 1.6091413497924805,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip --version",
+        "returncode": 0,
+        "time": 1.805373191833496,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -e \"/repo[dev,optional]\" -i https://mirrors.aliyun.com/pypi/simple --timeout 120",
+        "returncode": 0,
+        "time": 93.28983569145203,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.606447696685791,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 22.42064332962036,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q \"darts[torch]\" -i https://mirrors.aliyun.com/pypi/simple --timeout 120",
+        "returncode": 0,
+        "time": 15.947875261306763,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q pytest-cov pytest-timeout testfixtures ty -i https://mirrors.aliyun.com/pypi/simple --timeout 120",
+        "returncode": 0,
+        "time": 11.974183082580566,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6052336692810059,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 16.51071858406067,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6047742366790771,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 1305.130701303482,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/logs/run_pytest_results.json | python3 -c \"import json,sys; data=json.load(sys.stdin); print('Total:', data['summary']['total']); print('Passed:', data['summary']['passed']); print('Failed:', data['summary']['failed']); print('Errors:', data['summary']['errors']); print(); [print(f'{t[\\\"type\\\"]}: {t[\\\"node_id\\\"]} - {t[\\\"message\\\"][:100]}') for t in data['tests'] if t['outcome'] != 'passed']\"",
+        "returncode": 1,
+        "time": 1.184316873550415,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); print(json.dumps(list(data.keys()), indent=2))\"",
+        "returncode": 0,
+        "time": 1.662071943283081,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import json; data=json.load(open('/repo/logs/run_pytest_results.json')); print('Summary:', json.dumps(data['summary'], indent=2)); print('Error breakdown:', json.dumps(data['error_breakdown'], indent=2)); print('Failed:', len(data['failed_tests'])); print('Errors:', len(data['error_tests']))\"",
+        "returncode": 0,
+        "time": 1.672675371170044,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q ipywidgets -i https://mirrors.aliyun.com/pypi/simple --timeout 120",
+        "returncode": 0,
+        "time": 4.4276487827301025,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6067805290222168,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 1121.5280666351318,
+        "dir": "/repo"
+    }
+]

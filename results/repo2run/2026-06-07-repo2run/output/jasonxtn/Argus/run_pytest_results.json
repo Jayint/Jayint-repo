@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 1,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "OtherError": 1
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "argus.modules.recursive_nameserver_leak_test::test_ns",
+      "error_type": "OtherError",
+      "error_message": "failed on setup with \"file /repo/argus/modules/recursive_nameserver_leak_test.py, line 80\n  def test_ns(ns_host: str, domain: str) -> tuple:\nE       fixture 'ns_host' not found\n>       available fixtu"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.10.20, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /repo\nconfigfile: pyproject.toml\nplugins: cov-7.1.0, xdist-3.8.0\ncollecting ... collected 1 item\n\nargus/modules/recursive_nameserver_leak_test.py::test_ns ERROR           [100%]\n\n==================================== ERRORS ====================================\n__________________________ ERROR at setup of test_ns ___________________________\nfile /repo/argus/modules/recursive_nameserver_leak_test.py, line 80\n  def test_ns(ns_host: str, domain: str) -> tuple:\nE       fixture 'ns_host' not found\n>       available fixtures: cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, worker_id\n>       use 'pytest --fixtures [testpath]' for help on them.\n\n/repo/argus/modules/recursive_nameserver_leak_test.py:80\n--------------- generated xml file: /repo/logs/junit_report.xml ----------------\n=========================== short test summary info ============================\nERROR argus/modules/recursive_nameserver_leak_test.py::test_ns\n=============================== 1 error in 0.30s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

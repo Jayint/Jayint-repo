@@ -1,0 +1,114 @@
+[
+    {
+        "LLM_time": 1.1755175590515137
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.663377046585083
+    },
+    {
+        "LLM_time": 2.0386698246002197
+    },
+    {
+        "command": "find /repo -type f -o -type d | head -50",
+        "returncode": 0,
+        "time": 1.6629698276519775
+    },
+    {
+        "LLM_time": 1.855414628982544
+    },
+    {
+        "command": "mkdir -p /repo/my_project",
+        "returncode": 0,
+        "time": 1.6618249416351318
+    },
+    {
+        "command": "cat > /repo/my_project/__init__.py << 'EOF' EOF",
+        "returncode": 0,
+        "time": 603.3564920425415
+    },
+    {
+        "LLM_time": 5.293324708938599
+    },
+    {
+        "command": "python3 -c \"import os; os.makedirs('/repo/my_project', exist_ok=True); open('/repo/my_project/__init__.py', 'w').close()\"",
+        "returncode": 0,
+        "time": 1.6866600513458252
+    },
+    {
+        "command": "python3 -c \"open('/repo/my_project/module.py', 'w').write('def add(a, b):\\n    return a + b\\n\\ndef subtract(a, b):\\n    return a - b\\n')\"",
+        "returncode": 0,
+        "time": 1.6866085529327393
+    },
+    {
+        "command": "python3 -c \"open('/repo/tests/__init__.py', 'w').close()\"",
+        "returncode": 0,
+        "time": 1.1820898056030273
+    },
+    {
+        "command": "python3 -c \"open('/repo/tests/test_module.py', 'w').write('import pytest\\nfrom my_project.module import add, subtract\\n\\ndef test_add():\\n    assert add(2, 3) == 5\\n\\ndef test_subtract():\\n    assert subtract(5, 3) == 2\\n')\"",
+        "returncode": 0,
+        "time": 1.1837284564971924
+    },
+    {
+        "command": "python3 -c \"open('/repo/requirements.txt', 'w').write('pytest>=7.0.0\\n')\"",
+        "returncode": 0,
+        "time": 1.6851952075958252
+    },
+    {
+        "command": "python3 -c \"open('/repo/setup.py', 'w').write('from setuptools import setup, find_packages\\nsetup(\\n    name=\\\"my_project\\\",\\n    version=\\\"0.1.0\\\",\\n    packages=find_packages(),\\n)\\n')\"",
+        "returncode": 0,
+        "time": 1.685835599899292
+    },
+    {
+        "LLM_time": 2.6986496448516846
+    },
+    {
+        "command": "mkdir -p /repo/tests",
+        "returncode": 0,
+        "time": 1.6633539199829102
+    },
+    {
+        "command": "python3 -c \"open('/repo/tests/__init__.py', 'w').close()\"",
+        "returncode": 0,
+        "time": 1.683492660522461
+    },
+    {
+        "command": "python3 -c \"open('/repo/tests/test_module.py', 'w').write('import pytest\\nfrom my_project.module import add, subtract\\n\\ndef test_add():\\n    assert add(2, 3) == 5\\n\\ndef test_subtract():\\n    assert subtract(5, 3) == 2\\n')\"",
+        "returncode": 0,
+        "time": 1.6859428882598877
+    },
+    {
+        "LLM_time": 2.1622583866119385
+    },
+    {
+        "command": "pip install -q pytest -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.1516401767730713
+    },
+    {
+        "LLM_time": 1.6212220191955566
+    },
+    {
+        "command": "pip install -q -e /repo -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 2.6337761878967285
+    },
+    {
+        "LLM_time": 1.1276655197143555
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 2.206446647644043
+    },
+    {
+        "LLM_time": 1.2553293704986572
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 2.098050355911255
+    }
+]

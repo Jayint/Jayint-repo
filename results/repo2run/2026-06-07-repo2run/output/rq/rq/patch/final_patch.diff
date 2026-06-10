@@ -1,0 +1,17 @@
+diff --git a/Dockerfile b/Dockerfile
+deleted file mode 100644
+index 64c50c7..0000000
+--- a/Dockerfile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-FROM python:3.10
+-
+-WORKDIR /root
+-
+-COPY . /tmp/rq
+-
+-RUN pip install /tmp/rq
+-
+-RUN rm -r /tmp/rq
+-
+-ENTRYPOINT ["rq", "worker"]

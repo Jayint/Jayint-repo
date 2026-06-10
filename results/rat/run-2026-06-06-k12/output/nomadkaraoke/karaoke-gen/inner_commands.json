@@ -1,0 +1,230 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6121511459350586,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -maxdepth 2 -type f | head -50",
+        "returncode": 0,
+        "time": 1.6101641654968262,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/",
+        "returncode": 0,
+        "time": 1.6099021434783936,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/",
+        "returncode": 0,
+        "time": 1.611138105392456,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -maxdepth 3 -type f 2>/dev/null",
+        "returncode": 123,
+        "time": 1.1051867008209229,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /",
+        "returncode": 0,
+        "time": 1.6119508743286133,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6070630550384521,
+        "dir": "/repo"
+    },
+    {
+        "command": "pwd",
+        "returncode": 0,
+        "time": 1.607241153717041,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /workspace/",
+        "returncode": 0,
+        "time": 1.611417293548584,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /opt/",
+        "returncode": 0,
+        "time": 1.6104531288146973,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /opt/pytorch/",
+        "returncode": 0,
+        "time": 1.6114814281463623,
+        "dir": "/repo"
+    },
+    {
+        "command": "cp -r /opt/pytorch/* /opt/pytorch/.[!.]* /repo/ 2>/dev/null; ls -la /repo/",
+        "returncode": 0,
+        "time": 12.810304164886475,
+        "dir": "/repo"
+    },
+    {
+        "command": "python --version",
+        "returncode": 0,
+        "time": 1.6110782623291016,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip list 2>/dev/null | grep -i torch",
+        "returncode": 0,
+        "time": 1.8481688499450684,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/requirements.txt",
+        "returncode": 0,
+        "time": 1.6091716289520264,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6075141429901123,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/requirements-build.txt",
+        "returncode": 0,
+        "time": 1.6095662117004395,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -r /repo/requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 2.139679193496704,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 60.447160720825195,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6094326972961426,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/logs/run_pytest_collect_results.json | python -m json.tool 2>/dev/null | head -100",
+        "returncode": 0,
+        "time": 1.6594657897949219,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 1.6106722354888916,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/test/ | head -20",
+        "returncode": 0,
+        "time": 1.612800121307373,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/conftest.py",
+        "returncode": 1,
+        "time": 1.1071362495422363,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat >> /repo/pytest.ini << 'EOF'\n\nnorecursedirs =\n    third_party\n    build\n    dist\n    .git\n    .github\n    docs\n    benchmarks\n    cmake\n    android\n    scripts\n    tools\n    binaries\n    .spin\n    .vscode\n    c10\n    aten\n    caffe2\n    torchgen\n    functorch\n    mypy_plugins\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "cp /repo/pytest.ini /repo/pytest.ini.bak",
+        "returncode": 0,
+        "time": 1.6109919548034668,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo '[pytest] addopts =     # show summary of all tests that did not pass     -rEfX     # Make tracebacks shorter     --tb=native     # capture only Python print and C++ py::print, but not C output (low-level Python errors)     --capture=sys     # don'\\''t suppress warnings, but don'\\''t shove them all to the end either     -p no:warnings     # Use custom pytest shard located in test/pytest_shard_custom.py instead     -p no:pytest-shard     # don'\\''t rewrite assertions (usually not a problem in CI due to differences in imports, see #95844)     --assert=plain testpaths =     test junit_logging_reruns = all filterwarnings =     ignore:Module already imported so cannot be rewritten.*hypothesis:pytest.PytestAssertRewriteWarning xfail_strict = True markers =     serial: marks tests as needs to be run serially (deselect with '\\''-m \\\"not serial\\\"'\\'') norecursedirs =     third_party     build     dist     .git     .github     docs     benchmarks     cmake     android     scripts     tools     binaries     .spin     .vscode     c10     aten     caffe2     torchgen     functorch     mypy_plugins' > /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6177337169647217,
+        "dir": "/repo"
+    },
+    {
+        "command": "cp /repo/pytest.ini.bak /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6112785339355469,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" import configparser, io # Read the existing pytest.ini with open('/repo/pytest.ini', 'r') as f:     content = f.read()  # Parse with configparser to handle the ini format # But pytest.ini uses a special format, let's just append norecursedirs lines = content.split('\\n') # Find the end of the [pytest] section and add norecursedirs new_lines = [] in_pytest = False added = False for line in lines:     new_lines.append(line)     if line.strip() == '[pytest]':         in_pytest = True     elif in_pytest and line.strip().startswith('[') and line.strip() != '[pytest]':         in_pytest = False     elif in_pytest and not added and line.strip().startswith('markers'):         # Add after markers         new_lines.append('norecursedirs =')         new_lines.append('    third_party')         new_lines.append('    build')         new_lines.append('    dist')         new_lines.append('    .git')         new_lines.append('    .github')         new_lines.append('    docs')         new_lines.append('    benchmarks')         new_lines.append('    cmake')         new_lines.append('    android')         new_lines.append('    scripts')         new_lines.append('    tools')         new_lines.append('    binaries')         new_lines.append('    .spin')         new_lines.append('    .vscode')         new_lines.append('    c10')         new_lines.append('    aten')         new_lines.append('    caffe2')         new_lines.append('    torchgen')         new_lines.append('    functorch')         new_lines.append('    mypy_plugins')         added = True  with open('/repo/pytest.ini', 'w') as f:     f.write('\\n'.join(new_lines)) print('Done') \"",
+        "returncode": 1,
+        "time": 1.1466033458709717,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" with open('/repo/pytest.ini', 'r') as f:     content = f.read() # Add norecursedirs after the markers line old = 'xfail_strict = True' new = '''xfail_strict = True norecursedirs =     third_party     build     dist     .git     .github     docs     benchmarks     cmake     android     scripts     tools     binaries     .spin     .vscode     c10     aten     caffe2     torchgen     functorch     mypy_plugins''' content = content.replace(old, new) with open('/repo/pytest.ini', 'w') as f:     f.write(content) print('Done') \"",
+        "returncode": 1,
+        "time": 1.1370563507080078,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /tmp/fix_pytest.py << 'ENDOFPYTHON'\nwith open('/repo/pytest.ini', 'r') as f:\n    content = f.read()\nold = 'xfail_strict = True'\nnew = '''xfail_strict = True\nnorecursedirs =\n    third_party\n    build\n    dist\n    .git\n    .github\n    docs\n    benchmarks\n    cmake\n    android\n    scripts\n    tools\n    binaries\n    .spin\n    .vscode\n    c10\n    aten\n    caffe2\n    torchgen\n    functorch\n    mypy_plugins'''\ncontent = content.replace(old, new)\nwith open('/repo/pytest.ini', 'w') as f:\n    f.write(content)\nprint('Done')\nENDOFPYTHON python3 /tmp/fix_pytest.py",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6101810932159424,
+        "dir": "/repo"
+    },
+    {
+        "command": "printf '\\nnorecursedirs =\\n    third_party\\n    build\\n    dist\\n    .git\\n    .github\\n    docs\\n    benchmarks\\n    cmake\\n    android\\n    scripts\\n    tools\\n    binaries\\n    .spin\\n    .vscode\\n    c10\\n    aten\\n    caffe2\\n    torchgen\\n    functorch\\n    mypy_plugins\\n' >> /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.611093282699585,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6095733642578125,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 40.859259366989136,
+        "dir": "/repo"
+    },
+    {
+        "command": "printf '    .ci\\n' >> /repo/pytest.ini",
+        "returncode": 0,
+        "time": 1.6082203388214111,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pytest.ini | tail -30",
+        "returncode": 0,
+        "time": 1.611067771911621,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 37.2261438369751,
+        "dir": "/repo"
+    }
+]

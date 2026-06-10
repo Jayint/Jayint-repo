@@ -1,0 +1,284 @@
+[
+    {
+        "command": "ls /repo",
+        "returncode": 0,
+        "time": 1.6100456714630127,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -maxdepth 3 -name \"*.txt\" -o -name \"*.toml\" -o -name \"*.cfg\" -o -name \"*.yml\" -o -name \"*.yaml\" -o -name \"Makefile\" -o -name \"Dockerfile\" -o -name \"*.md\" | head -50",
+        "returncode": 0,
+        "time": 1.6153106689453125,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6082370281219482,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/src",
+        "returncode": 0,
+        "time": 1.6068637371063232,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls /repo/tests",
+        "returncode": 0,
+        "time": 1.613694667816162,
+        "dir": "/repo"
+    },
+    {
+        "command": "head -100 /repo/README.md",
+        "returncode": 0,
+        "time": 1.6091852188110352,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo/tests -type f -name \"*.py\" | head -20",
+        "returncode": 0,
+        "time": 1.607924461364746,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/.circleci/config.yml 2>/dev/null | head -80",
+        "returncode": 0,
+        "time": 1.6062970161437988,
+        "dir": "/repo"
+    },
+    {
+        "command": "which poetry 2>/dev/null || echo \"poetry not found\"",
+        "returncode": 0,
+        "time": 1.6075665950775146,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/poetry.toml",
+        "returncode": 0,
+        "time": 1.606546401977539,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/poetry.lock | head -20",
+        "returncode": 0,
+        "time": 1.6108193397521973,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install poetry -q -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 36.41801595687866,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.605268955230713,
+        "dir": "/repo"
+    },
+    {
+        "command": "poetry install --no-ansi -q",
+        "returncode": 0,
+        "time": 6.82930850982666,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 2.750058650970459,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip list 2>/dev/null | grep -i pytest",
+        "returncode": 0,
+        "time": 2.1155223846435547,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/integration/conftest.py",
+        "returncode": 0,
+        "time": 1.6070923805236816,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip list 2>/dev/null | grep -i recording",
+        "returncode": 1,
+        "time": 1.4911375045776367,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"import pytest_recording; print(pytest_recording.__version__)\" 2>/dev/null || echo \"pytest_recording not importable\"",
+        "returncode": 0,
+        "time": 1.6351957321166992,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -A5 \"pytest-recording\" /repo/poetry.lock",
+        "returncode": 0,
+        "time": 1.6071832180023193,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install pytest-recording -q -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 6.220707178115845,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 1,
+        "time": 1.9584345817565918,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6135530471801758,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -e . -q -i https://mirrors.aliyun.com/pypi/simple",
+        "returncode": 0,
+        "time": 23.302652597427368,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -c \"import nba_api; print(nba_api.__version__)\"",
+        "returncode": 0,
+        "time": 1.6477863788604736,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 3.0272018909454346,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 49.26455235481262,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -path \"*/cassettes/*\" -type f | head -10",
+        "returncode": 0,
+        "time": 1.6142866611480713,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/unit/http/test_http.py | head -40",
+        "returncode": 0,
+        "time": 1.6118321418762207,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/unit/http/test_http.py",
+        "returncode": 0,
+        "time": 1.6092777252197266,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/library/http.py",
+        "returncode": 0,
+        "time": 1.6104001998901367,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/stats/endpoints/__init__.py | head -50",
+        "returncode": 0,
+        "time": 1.608720064163208,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -rn \"get_session\\|NBAHTTP\\|_session\" /repo/src/nba_api/stats/endpoints/ | head -30",
+        "returncode": 0,
+        "time": 1.614882230758667,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -rn \"class.*Endpoint\\|class.*Stats\\|get_session\\|NBAHTTP\" /repo/src/nba_api/stats/ | head -30",
+        "returncode": 0,
+        "time": 1.6251094341278076,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo/src -name \"*.py\" -exec grep -l \"class Endpoint\" {} \\;",
+        "returncode": 0,
+        "time": 2.1339879035949707,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/stats/endpoints/_base.py",
+        "returncode": 0,
+        "time": 1.6103644371032715,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/stats/endpoints/alltimeleadersgrids.py",
+        "returncode": 0,
+        "time": 1.6114706993103027,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/live/nba/endpoints/_base.py",
+        "returncode": 0,
+        "time": 1.6097736358642578,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/stats/library/http.py",
+        "returncode": 0,
+        "time": 1.6068115234375,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6056208610534668,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -m pytest tests/unit/http/test_http.py::test_endpoint_uses_global_session -v --tb=long 2>&1 | tail -40",
+        "returncode": 0,
+        "time": 2.3562510013580322,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6066429615020752,
+        "dir": "/repo"
+    },
+    {
+        "command": "python -m pytest tests/unit/http/ -v --tb=long 2>&1 | tail -60",
+        "returncode": 0,
+        "time": 2.3892953395843506,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/tests/unit/live/endpoints/test_live_boxscore.py",
+        "returncode": 0,
+        "time": 1.6128151416778564,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/src/nba_api/live/nba/endpoints/boxscore.py | head -20",
+        "returncode": 0,
+        "time": 1.6099956035614014,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -n \"__init__\\|get_request\\|load_response\" /repo/src/nba_api/live/nba/endpoints/boxscore.py",
+        "returncode": 0,
+        "time": 1.6126766204833984,
+        "dir": "/repo"
+    },
+    {
+        "command": "sed -n '314,340p' /repo/src/nba_api/live/nba/endpoints/boxscore.py",
+        "returncode": 0,
+        "time": 1.612025260925293,
+        "dir": "/repo"
+    }
+]

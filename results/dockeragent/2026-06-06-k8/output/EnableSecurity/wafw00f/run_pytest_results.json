@@ -1,0 +1,35 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 3,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 3
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "tests.test_detection",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_evillib",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "tests.test_matching",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /testbed\nconfigfile: pyproject.toml\ncollecting ... collected 6 items / 3 errors\n\ntests/test_manager.py::TestLoadPlugins::test_load_plugins_returns_dict PASSED [ 16%]\ntests/test_manager.py::TestLoadPlugins::test_load_plugins_not_empty PASSED [ 33%]\ntests/test_manager.py::TestLoadPlugins::test_plugins_have_name_attribute PASSED [ 50%]\ntests/test_manager.py::TestLoadPlugins::test_plugins_have_is_waf_function PASSED [ 66%]\ntests/test_manager.py::TestLoadPlugins::test_known_plugins_loaded PASSED [ 83%]\ntests/test_manager.py::TestLoadPlugins::test_plugin_names_are_strings PASSED [100%]\n\n==================================== ERRORS ====================================\n___________________ ERROR collecting tests/test_detection.py ___________________\nImportError while importing test module '/testbed/tests/test_detection.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/site-packages/_pytest/python.py:507: in importtestmodule\n    mod = import_path(\n/usr/local/lib/python3.12/site-packages/_pytest/pathlib.py:587: in import_path\n    importlib.import_module(module_name)\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:935: in _load_unlocked\n    ???\n/usr/local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:197: in exec_module\n    exec(co, module.__dict__)\ntests/test_detection.py:4: in <module>\n    import responses\nE   ModuleNotFoundError: No module named 'responses'\n____________________ ERROR collecting tests/test_evillib.py ____________________\nImportError while importing test module '/testbed/tests/test_evillib.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/site-packages/_pytest/python.py:507: in importtestmodule\n    mod = import_path(\n/usr/local/lib/python3.12/site-packages/_pytest/pathlib.py:587: in import_path\n    importlib.import_module(module_name)\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:935: in _load_unlocked\n    ???\n/usr/local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:197: in exec_module\n    exec(co, module.__dict__)\ntests/test_evillib.py:4: in <module>\n    import responses\nE   ModuleNotFoundError: No module named 'responses'\n___________________ ERROR collecting tests/test_matching.py ____________________\nImportError while importing test module '/testbed/tests/test_matching.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/site-packages/_pytest/python.py:507: in importtestmodule\n    mod = import_path(\n/usr/local/lib/python3.12/site-packages/_pytest/pathlib.py:587: in import_path\n    importlib.import_module(module_name)\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen importlib._bootstrap>:1387: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1360: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:935: in _load_unlocked\n    ???\n/usr/local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:197: in exec_module\n    exec(co, module.__dict__)\ntests/test_matching.py:4: in <module>\n    from wafw00f.main import WAFW00F\nwafw00f/main.py:23: in <module>\n    from wafw00f.lib.evillib import waftoolsengine\nwafw00f/lib/evillib.py:12: in <module>\n    import requests\nE   ModuleNotFoundError: No module named 'requests'\n-------------- generated xml file: /testbed/logs/junit_report.xml --------------\n=========================== short test summary info ============================\nERROR tests/test_detection.py\nERROR tests/test_evillib.py\nERROR tests/test_matching.py\n========================= 6 passed, 3 errors in 0.35s ==========================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

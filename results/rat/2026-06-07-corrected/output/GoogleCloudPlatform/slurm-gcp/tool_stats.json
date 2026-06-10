@@ -1,0 +1,102 @@
+{
+  "edit-file": {
+    "count": 6,
+    "total_time": 10.778436183929443,
+    "avg_time": 1.7964060306549072,
+    "total_tokens": 0,
+    "success_count": 5,
+    "failed_count": 1,
+    "calls": [
+      {
+        "command": "edit-file --mode search --search-path /repo/test/conftest.py --search 'sys.path.append(\"../scripts\")' --replace 'sys.path.append(str(root / \"scripts\"))'",
+        "time": 0.00022292137145996094,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786720.5364287
+      },
+      {
+        "command": "edit-file /repo/test/conftest.py --mode search --search 'sys.path.append(\"../scripts\")' --replace 'sys.path.append(str(root / \"scripts\"))'",
+        "time": 2.1443135738372803,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780786724.9370422
+      },
+      {
+        "command": "edit-file /repo/test/deploy.py --mode search --search 'sys.path.append(\"../scripts\")' --replace 'sys.path.append(str(Path(__file__).resolve().parent.parent / \"scripts\"))'",
+        "time": 2.155137777328491,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780786729.5651813
+      },
+      {
+        "command": "edit-file /repo/test/conftest.py --mode search --search 'sys.path.append(str(root / \"scripts\"))' --replace 'sys.path.append(str(Path(__file__).parent.parent / \"scripts\"))'",
+        "time": 2.141718864440918,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780786742.7038548
+      },
+      {
+        "command": "edit-file /repo/scripts/util.py --mode search --search 'compute = compute_service()' --replace $'try:\\n    compute = compute_service()\\nexcept Exception:\\n    compute = None'",
+        "time": 2.120330333709717,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780786780.3038442
+      },
+      {
+        "command": "edit-file /repo/scripts/util.py --mode search --search '$try:\\n    compute = compute_service()\\nexcept Exception:\\n    compute = None' --replace 'try:\\n    compute = compute_service()\\nexcept Exception:\\n    compute = None'",
+        "time": 2.216712713241577,
+        "tokens": 0,
+        "return_code": 0,
+        "timestamp": 1780786789.4152768
+      }
+    ]
+  },
+  "run-pytest": {
+    "count": 1,
+    "total_time": 1.6495156288146973,
+    "avg_time": 1.6495156288146973,
+    "total_tokens": 0,
+    "success_count": 0,
+    "failed_count": 1,
+    "calls": [
+      {
+        "command": "run-pytest",
+        "time": 1.6495156288146973,
+        "tokens": 0,
+        "return_code": 5,
+        "timestamp": 1780786813.9044738
+      }
+    ]
+  },
+  "run-pytest-collect": {
+    "count": 3,
+    "total_time": 5.8672192096710205,
+    "avg_time": 1.9557397365570068,
+    "total_tokens": 0,
+    "success_count": 0,
+    "failed_count": 3,
+    "calls": [
+      {
+        "command": "run-pytest-collect",
+        "time": 1.9773669242858887,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786692.2111702
+      },
+      {
+        "command": "run-pytest-collect",
+        "time": 1.6658577919006348,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786737.2772295
+      },
+      {
+        "command": "run-pytest-collect",
+        "time": 2.223994493484497,
+        "tokens": 0,
+        "return_code": 1,
+        "timestamp": 1780786751.9100473
+      }
+    ]
+  }
+}

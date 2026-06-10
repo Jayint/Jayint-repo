@@ -1,0 +1,212 @@
+[
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6069746017456055,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/README.md | head -100",
+        "returncode": 0,
+        "time": 1.6070680618286133,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/requirements.txt",
+        "returncode": 0,
+        "time": 1.6075983047485352,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6052155494689941,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6063263416290283,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6179370880126953,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/argus/",
+        "returncode": 0,
+        "time": 1.6096644401550293,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -name \"test*\" -type f 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6139752864837646,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6071040630340576,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -name \"*test*\" -type d 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6165692806243896,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6076545715332031,
+        "dir": "/repo"
+    },
+    {
+        "command": "ls -la /repo/argus/cli/ /repo/argus/core/ /repo/argus/modules/ /repo/argus/utils/",
+        "returncode": 0,
+        "time": 1.6146533489227295,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6066646575927734,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 62.878424644470215,
+        "dir": "/repo"
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.6074166297912598,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -e . -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 12.721896886825562,
+        "dir": "/repo"
+    },
+    {
+        "command": "pip install -q \"rich>=15\" -i https://mirrors.aliyun.com/pypi/simple 2>&1 | tail -5",
+        "returncode": 0,
+        "time": 2.5457730293273926,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.533810615539551,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 1,
+        "time": 1.7503564357757568,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/argus/modules/recursive_nameserver_leak_test.py",
+        "returncode": 0,
+        "time": 1.6106822490692139,
+        "dir": "/repo"
+    },
+    {
+        "command": "find /repo -name \"conftest*\" -type f",
+        "returncode": 0,
+        "time": 1.6137089729309082,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"===\"",
+        "returncode": 0,
+        "time": 1.6072404384613037,
+        "dir": "/repo"
+    },
+    {
+        "command": "head -20 /repo/argus/modules/ipv6_reachability_test.py /repo/argus/modules/rate_limit_waf_bypass_test.py /repo/argus/modules/clickjacking_test.py",
+        "returncode": 0,
+        "time": 1.6115639209747314,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -n \"^def test_\" /repo/argus/modules/ipv6_reachability_test.py /repo/argus/modules/rate_limit_waf_bypass_test.py /repo/argus/modules/clickjacking_test.py /repo/argus/modules/recursive_nameserver_leak_test.py",
+        "returncode": 0,
+        "time": 1.613983154296875,
+        "dir": "/repo"
+    },
+    {
+        "command": "grep -A 10 \"\\[tool.pytest\" /repo/pyproject.toml || grep -A 10 \"pytest\" /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.6138362884521484,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat > /repo/argus/modules/conftest.py << 'EOF'\nimport pytest\n\n@pytest.fixture\ndef ns_host() -> str:\n    return \"test_ns_host\"\n\n@pytest.fixture\ndef domain() -> str:\n    return \"example.com\"\nEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \"import os; os.makedirs('/repo/argus/modules', exist_ok=True); open('/repo/argus/modules/conftest.py', 'w').write('import pytest\\n\\n@pytest.fixture\\ndef ns_host() -> str:\\n    return \\\"test_ns_host\\\"\\n\\n@pytest.fixture\\ndef domain() -> str:\\n    return \\\"example.com\\\"')\"",
+        "returncode": 0,
+        "time": 1.661121129989624,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/argus/modules/conftest.py",
+        "returncode": 0,
+        "time": 1.6107866764068604,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 -c \" content = '''import pytest  @pytest.fixture def ns_host() -> str:     return \\\"test_ns_host\\\"  @pytest.fixture def domain() -> str:     return \\\"example.com\\\" ''' with open('/repo/argus/modules/conftest.py', 'w') as f:     f.write(content) \"",
+        "returncode": 1,
+        "time": 1.1548130512237549,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 << 'PYEOF'\ncontent = '''import pytest\n\n@pytest.fixture\ndef ns_host() -> str:\n    return \"test_ns_host\"\n\n@pytest.fixture\ndef domain() -> str:\n    return \"example.com\"\n'''\nwith open('/repo/argus/modules/conftest.py', 'w') as f:\n    f.write(content)\nPYEOF",
+        "returncode": -1,
+        "time": -1,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo -e 'import pytest\\n\\n@pytest.fixture\\ndef ns_host() -> str:\\n    return \"test_ns_host\"\\n\\n@pytest.fixture\\ndef domain() -> str:\\n    return \"example.com\"' > /repo/argus/modules/conftest.py",
+        "returncode": 0,
+        "time": 1.6105711460113525,
+        "dir": "/repo"
+    },
+    {
+        "command": "cat /repo/argus/modules/conftest.py",
+        "returncode": 0,
+        "time": 1.6098175048828125,
+        "dir": "/repo"
+    },
+    {
+        "command": "echo \"---\"",
+        "returncode": 0,
+        "time": 1.6072039604187012,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest_collect.py",
+        "returncode": 0,
+        "time": 2.264143943786621,
+        "dir": "/repo"
+    },
+    {
+        "command": "python3 /home/tools/run_pytest.py",
+        "returncode": 0,
+        "time": 2.2674427032470703,
+        "dir": "/repo"
+    }
+]

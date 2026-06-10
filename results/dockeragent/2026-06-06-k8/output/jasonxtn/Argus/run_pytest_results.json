@@ -1,0 +1,40 @@
+{
+  "summary": {
+    "total_tests": 4,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 4,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 4
+  },
+  "failed_tests": [],
+  "error_tests": [
+    {
+      "test_id": "argus.modules.clickjacking_test",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "argus.modules.ipv6_reachability_test",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "argus.modules.rate_limit_waf_bypass_test",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "argus.modules.recursive_nameserver_leak_test",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /testbed\nconfigfile: pyproject.toml\ncollecting ... collected 0 items / 4 errors\n\n==================================== ERRORS ====================================\n_____________ ERROR collecting argus/modules/clickjacking_test.py ______________\nImportError while importing test module '/testbed/argus/modules/clickjacking_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nargus/modules/clickjacking_test.py:9: in <module>\n    import requests\nE   ModuleNotFoundError: No module named 'requests'\n___________ ERROR collecting argus/modules/ipv6_reachability_test.py ___________\nImportError while importing test module '/testbed/argus/modules/ipv6_reachability_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nargus/modules/ipv6_reachability_test.py:4: in <module>\n    from rich.console import Console\nE   ModuleNotFoundError: No module named 'rich'\n_________ ERROR collecting argus/modules/rate_limit_waf_bypass_test.py _________\nImportError while importing test module '/testbed/argus/modules/rate_limit_waf_bypass_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nargus/modules/rate_limit_waf_bypass_test.py:9: in <module>\n    import requests\nE   ModuleNotFoundError: No module named 'requests'\n_______ ERROR collecting argus/modules/recursive_nameserver_leak_test.py _______\nImportError while importing test module '/testbed/argus/modules/recursive_nameserver_leak_test.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nargus/modules/recursive_nameserver_leak_test.py:9: in <module>\n    import dns.resolver\nE   ModuleNotFoundError: No module named 'dns'\n-------------- generated xml file: /testbed/logs/junit_report.xml --------------\n=========================== short test summary info ============================\nERROR argus/modules/clickjacking_test.py\nERROR argus/modules/ipv6_reachability_test.py\nERROR argus/modules/rate_limit_waf_bypass_test.py\nERROR argus/modules/recursive_nameserver_leak_test.py\n============================== 4 errors in 0.08s ===============================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

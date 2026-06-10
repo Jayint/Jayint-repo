@@ -1,0 +1,58 @@
+{
+  "summary": {
+    "total_tests": 7,
+    "passed": 0,
+    "failed": 2,
+    "skipped": 0,
+    "errors": 5,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "error_breakdown": {
+    "ModuleNotFoundError": 2,
+    "OtherError": 4,
+    "FileNotFoundError": 1
+  },
+  "failed_tests": [
+    {
+      "test_id": "sdk.python.feast.templates.athena.feature_repo.test_workflow::test_end_to_end",
+      "error_type": "OtherError",
+      "error_message": "UnboundLocalError: local variable 'fs' referenced before assignment"
+    },
+    {
+      "test_id": "sdk.python.feast.templates.athena.feature_repo.test_workflow::test_cli",
+      "error_type": "FileNotFoundError",
+      "error_message": "FileNotFoundError: [Errno 2] No such file or directory: 'output'"
+    }
+  ],
+  "error_tests": [
+    {
+      "test_id": "examples.rag.feature_repo.test_workflow",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "sdk.python.tests",
+      "error_type": "ModuleNotFoundError",
+      "error_message": "collection failure"
+    },
+    {
+      "test_id": "sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow::test_online_inference",
+      "error_type": "OtherError",
+      "error_message": "failed on setup with \"file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 173\n  def test_online_inference(store: FeatureStore):\nE       fixture 'store' not found\n>   "
+    },
+    {
+      "test_id": "sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow::test_on_demand_sentiment_prediction",
+      "error_type": "OtherError",
+      "error_message": "failed on setup with \"file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 207\n  def test_on_demand_sentiment_prediction(store: FeatureStore):\nE       fixture 'store' "
+    },
+    {
+      "test_id": "sdk.python.feast.templates.pytorch_nlp.feature_repo.test_workflow::test_feature_services",
+      "error_type": "OtherError",
+      "error_message": "failed on setup with \"file /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 262\n  def test_feature_services(store: FeatureStore):\nE       fixture 'store' not found\n>   "
+    }
+  ],
+  "raw_output": "============================= test session starts ==============================\nplatform linux -- Python 3.10.20, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /repo\nconfigfile: pyproject.toml\nplugins: typeguard-4.5.2, anyio-4.13.0\ncollecting ... collected 5 items / 2 errors\n\nsdk/python/feast/templates/athena/feature_repo/test_workflow.py::test_end_to_end FAILED [ 20%]\nsdk/python/feast/templates/athena/feature_repo/test_workflow.py::test_cli FAILED [ 40%]\nsdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_online_inference ERROR [ 60%]\nsdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_on_demand_sentiment_prediction ERROR [ 80%]\nsdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_feature_services ERROR [100%]\n\n==================================== ERRORS ====================================\n_________ ERROR collecting examples/rag/feature_repo/test_workflow.py __________\nImportError while importing test module '/repo/examples/rag/feature_repo/test_workflow.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\nexamples/rag/feature_repo/test_workflow.py:6: in <module>\n    from example_repo import city_embeddings_feature_view, item\nE   ModuleNotFoundError: No module named 'example_repo'\n______________________ ERROR collecting sdk/python/tests _______________________\n/usr/local/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n<frozen importlib._bootstrap>:1050: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1027: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1006: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:688: in _load_unlocked\n    ???\n/usr/local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:197: in exec_module\n    exec(co, module.__dict__)\nsdk/python/tests/conftest.py:39: in <module>\n    from tests.universal.feature_repos.integration_test_repo_config import (  # noqa: E402\nsdk/python/tests/universal/feature_repos/integration_test_repo_config.py:9: in <module>\n    from tests.universal.feature_repos.universal.data_sources.file import (\nsdk/python/tests/universal/feature_repos/universal/data_sources/file.py:17: in <module>\n    from minio import Minio\nE   ModuleNotFoundError: No module named 'minio'\n___________________ ERROR at setup of test_online_inference ____________________\nfile /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 173\n  def test_online_inference(store: FeatureStore):\nE       fixture 'store' not found\n>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory\n>       use 'pytest --fixtures [testpath]' for help on them.\n\n/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:173\n____________ ERROR at setup of test_on_demand_sentiment_prediction _____________\nfile /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 207\n  def test_on_demand_sentiment_prediction(store: FeatureStore):\nE       fixture 'store' not found\n>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory\n>       use 'pytest --fixtures [testpath]' for help on them.\n\n/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:207\n___________________ ERROR at setup of test_feature_services ____________________\nfile /repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py, line 262\n  def test_feature_services(store: FeatureStore):\nE       fixture 'store' not found\n>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory\n>       use 'pytest --fixtures [testpath]' for help on them.\n\n/repo/sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py:262\n=================================== FAILURES ===================================\n_______________________________ test_end_to_end ________________________________\nsdk/python/feast/templates/athena/feature_repo/test_workflow.py:95: in test_end_to_end\n    fs.teardown()\nE   UnboundLocalError: local variable 'fs' referenced before assignment\n----------------------------- Captured stdout call -----------------------------\n[Errno 2] No such file or directory: 'feature_repo/feature_store.yaml'\n___________________________________ test_cli ___________________________________\nsdk/python/feast/templates/athena/feature_repo/test_workflow.py:102: in test_cli\n    with open(\"output\", \"r\") as f:\nE   FileNotFoundError: [Errno 2] No such file or directory: 'output'\n----------------------------- Captured stderr call -----------------------------\nsh: 1: feast: not found\nsh: 1: feast: not found\n--------------- generated xml file: /repo/logs/junit_report.xml ----------------\n=========================== short test summary info ============================\nFAILED sdk/python/feast/templates/athena/feature_repo/test_workflow.py::test_end_to_end\nFAILED sdk/python/feast/templates/athena/feature_repo/test_workflow.py::test_cli\nERROR examples/rag/feature_repo/test_workflow.py\nERROR sdk/python/tests - ModuleNotFoundError: No module named 'minio'\nERROR sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_online_inference\nERROR sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_on_demand_sentiment_prediction\nERROR sdk/python/feast/templates/pytorch_nlp/feature_repo/test_workflow.py::test_feature_services\n========================= 2 failed, 5 errors in 6.53s ==========================\n\n",
+  "returncode": 1,
+  "parse_method": "junit_xml"
+}

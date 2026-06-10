@@ -1,0 +1,277 @@
+[
+    {
+        "LLM_time": 1.3054115772247314
+    },
+    {
+        "command": "ls -la /repo",
+        "returncode": 0,
+        "time": 1.6694326400756836
+    },
+    {
+        "LLM_time": 1.3387434482574463
+    },
+    {
+        "command": "cat /repo/pyproject.toml",
+        "returncode": 0,
+        "time": 1.663053035736084
+    },
+    {
+        "LLM_time": 1.148155689239502
+    },
+    {
+        "command": "ls -la /repo/src",
+        "returncode": 0,
+        "time": 1.657970905303955
+    },
+    {
+        "command": "ls -la /repo/tests | head -30",
+        "returncode": 0,
+        "time": 1.6587247848510742
+    },
+    {
+        "command": "ls -la /repo/apps",
+        "returncode": 0,
+        "time": 1.6584391593933105
+    },
+    {
+        "command": "ls -la /repo/packages",
+        "returncode": 0,
+        "time": 1.6583704948425293
+    },
+    {
+        "LLM_time": 2.635044813156128
+    },
+    {
+        "command": "find /repo -name \"requirements*.txt\" -o -name \"Pipfile\" -o -name \"environment.yml\" 2>/dev/null",
+        "returncode": 0,
+        "time": 1.6714074611663818
+    },
+    {
+        "command": "head -50 /repo/README.md",
+        "returncode": 0,
+        "time": 1.6595237255096436
+    },
+    {
+        "LLM_time": 1.0923645496368408
+    },
+    {
+        "command": "cat /repo/Dockerfile",
+        "returncode": 0,
+        "time": 1.657994270324707
+    },
+    {
+        "command": "cat /repo/docker/requirements.txt",
+        "returncode": 0,
+        "time": 1.6584582328796387
+    },
+    {
+        "LLM_time": 2.911489725112915
+    },
+    {
+        "command": "pip install -q -r /repo/docker/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -30",
+        "returncode": 0,
+        "time": 47.52781367301941
+    },
+    {
+        "LLM_time": 2.3509979248046875
+    },
+    {
+        "command": "python --version",
+        "returncode": 0,
+        "time": 1.6578865051269531
+    },
+    {
+        "command": "pip install -q -e \".[all]\" -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -30",
+        "returncode": 0,
+        "time": 604.6431550979614
+    },
+    {
+        "LLM_time": 3.293647289276123
+    },
+    {
+        "command": "cd /repo",
+        "returncode": 0,
+        "time": 1.659172534942627
+    },
+    {
+        "command": "pip install -q -e \".[tree-mem,mem-scheduler,mem-user,mem-reader,pref-mem]\" -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -20",
+        "returncode": 0,
+        "time": 117.94960045814514
+    },
+    {
+        "LLM_time": 1.597158432006836
+    },
+    {
+        "command": "pip install -q pytest pytest-asyncio pytest-cov pytest-html -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 8.714049816131592
+    },
+    {
+        "LLM_time": 1.1650300025939941
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 7.852421760559082
+    },
+    {
+        "LLM_time": 1.2572791576385498
+    },
+    {
+        "command": "pip install -q torch -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 603.7258892059326
+    },
+    {
+        "LLM_time": 2.0919182300567627
+    },
+    {
+        "command": "pip install torch --index-url https://download.pytorch.org/whl/cpu -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -15",
+        "returncode": 0,
+        "time": 188.55514073371887
+    },
+    {
+        "LLM_time": 1.4336111545562744
+    },
+    {
+        "command": "run-pytest-collect",
+        "returncode": 0,
+        "time": 11.885744094848633
+    },
+    {
+        "LLM_time": 1.0629909038543701
+    },
+    {
+        "command": "run-pytest",
+        "returncode": 0,
+        "time": 21.370864629745483
+    },
+    {
+        "LLM_time": 2.415395736694336
+    },
+    {
+        "command": "pip install -q qdrant-client volcengine-python-sdk -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 37.095078468322754
+    },
+    {
+        "LLM_time": 2.8330750465393066
+    },
+    {
+        "command": "python -c \"import volcenginesdkarkruntime\" 2>&1; python -c \"from transformers import DynamicCache; help(DynamicCache)\" 2>&1 | head -20; python -c \"import qdrant_client\" 2>&1",
+        "returncode": 0,
+        "time": 5.364924430847168
+    },
+    {
+        "LLM_time": 2.97298526763916
+    },
+    {
+        "command": "python -c \"from volcenginesdkarkruntime import ArkRuntime\" 2>&1",
+        "returncode": 0,
+        "time": 1.6394479274749756
+    },
+    {
+        "LLM_time": 1.6688017845153809
+    },
+    {
+        "command": "cat /repo/tests/embedders/test_ark.py",
+        "returncode": 0,
+        "time": 1.6602730751037598
+    },
+    {
+        "LLM_time": 1.414623737335205
+    },
+    {
+        "command": "find /repo/src -name \"*.py\" | xargs grep -l \"ark\\|volcengine\" 2>/dev/null | head -10",
+        "returncode": 0,
+        "time": 1.777632713317871
+    },
+    {
+        "LLM_time": 2.6538913249969482
+    },
+    {
+        "command": "cat /repo/tests/memories/activation/test_kv.py",
+        "returncode": 0,
+        "time": 1.6637470722198486
+    },
+    {
+        "LLM_time": 2.319681406021118
+    },
+    {
+        "command": "cat /repo/src/memos/embedders/factory.py",
+        "returncode": 0,
+        "time": 1.660275936126709
+    },
+    {
+        "LLM_time": 2.5068066120147705
+    },
+    {
+        "command": "python -c \"import volcenginesdkarkruntime; print(dir(volcenginesdkarkruntime))\" 2>&1",
+        "returncode": 0,
+        "time": 2.0739800930023193
+    },
+    {
+        "LLM_time": 1.368863821029663
+    },
+    {
+        "command": "cat /repo/src/memos/embedders/ark.py",
+        "returncode": 0,
+        "time": 1.663367748260498
+    },
+    {
+        "LLM_time": 3.7847437858581543
+    },
+    {
+        "command": "pip show volcengine-python-sdk 2>&1 | head -20",
+        "returncode": 0,
+        "time": 3.627122402191162
+    },
+    {
+        "LLM_time": 3.0170207023620605
+    },
+    {
+        "command": "pip install -q 'volcengine-python-sdk[ark]' -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 3.494028329849243
+    },
+    {
+        "LLM_time": 32.926196813583374
+    },
+    {
+        "command": "python -c \"from transformers import DynamicCache; c=DynamicCache(); print(dir(c)); print([x for x in dir(c) if not x.startswith('_')])\" 2>&1",
+        "returncode": 0,
+        "time": 4.313510894775391
+    },
+    {
+        "LLM_time": 2.2975962162017822
+    },
+    {
+        "command": "cat /repo/src/memos/memories/activation/kv.py",
+        "returncode": 0,
+        "time": 1.6693508625030518
+    },
+    {
+        "LLM_time": 5.427649259567261
+    },
+    {
+        "command": "python -c \"import transformers; print(transformers.__version__); from transformers import DynamicCache; c=DynamicCache(); print(hasattr(c, 'key_cache'), hasattr(c, 'layers'))\" 2>&1",
+        "returncode": 0,
+        "time": 4.174011707305908
+    },
+    {
+        "LLM_time": 4.599276304244995
+    },
+    {
+        "command": "pip install -q 'transformers>=4.51.3,<4.55.0' -i https://mirrors.aliyun.com/pypi/simple/ 2>&1 | tail -10",
+        "returncode": 0,
+        "time": 14.668885707855225
+    },
+    {
+        "LLM_time": 2.9268405437469482
+    },
+    {
+        "command": "python -c \"import transformers; print(transformers.__version__); from transformers import DynamicCache; c=DynamicCache(); print('key_cache:', hasattr(c, 'key_cache'), 'layers:', hasattr(c, 'layers'))\" 2>&1",
+        "returncode": 0,
+        "time": 3.7995753288269043
+    }
+]

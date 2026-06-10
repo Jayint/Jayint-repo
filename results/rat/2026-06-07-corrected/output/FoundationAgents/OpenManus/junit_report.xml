@@ -1,0 +1,2118 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="18" failures="7" skipped="0" tests="25" time="3.573" timestamp="2026-06-06T22:43:25.807037+00:00" hostname="95451c700aec"><testcase classname="tests.sandbox.test_client" name="test_sandbox_creation" time="0.071"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_client.py:39: in test_sandbox_creation
+    await local_client.create(config)
+app/sandbox/client.py:107: in create
+    self.sandbox = DockerSandbox(config, volume_bindings)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_client" name="test_local_command_execution" time="0.002"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_client.py:47: in test_local_command_execution
+    await local_client.create()
+app/sandbox/client.py:107: in create
+    self.sandbox = DockerSandbox(config, volume_bindings)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_client" name="test_local_file_operations" time="0.003"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_client.py:59: in test_local_file_operations
+    await local_client.create()
+app/sandbox/client.py:107: in create
+    self.sandbox = DockerSandbox(config, volume_bindings)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_client" name="test_local_volume_binding" time="0.002"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_client.py:86: in test_local_volume_binding
+    await local_client.create(volume_bindings=volume_bindings)
+app/sandbox/client.py:107: in create
+    self.sandbox = DockerSandbox(config, volume_bindings)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_client" name="test_local_error_handling" time="0.002"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_client.py:98: in test_local_error_handling
+    await local_client.create()
+app/sandbox/client.py:107: in create
+    self.sandbox = DockerSandbox(config, volume_bindings)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_basic_command_execution" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_environment_variables" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_working_directory" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_command_timeout" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_multiple_commands" time="0.015"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_docker_terminal.TestAsyncDockerizedTerminal" name="test_session_cleanup" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_docker_terminal.py:13: in docker_client
+    return docker.from_env()
+           ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_working_directory" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_file_operations" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_python_execution" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_file_persistence" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_python_environment" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_network_access" time="0.000"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:22: in sandbox
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_cleanup" time="0.002"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:123: in test_sandbox_cleanup
+    sandbox = DockerSandbox(sandbox_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_sandbox" name="test_sandbox_error_handling" time="0.002"><failure message="docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox.py:146: in test_sandbox_error_handling
+    sandbox = DockerSandbox(invalid_config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/sandbox.py:45: in __init__
+    self.client = docker.from_env()
+                  ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</failure></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_create_sandbox" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_max_sandboxes_limit" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_get_nonexistent_sandbox" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_sandbox_cleanup" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_idle_sandbox_cleanup" time="0.001"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase><testcase classname="tests.sandbox.test_sandbox_manager" name="test_manager_cleanup" time="0.002"><error message="failed on setup with &quot;docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))&quot;">/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   FileNotFoundError: [Errno 2] No such file or directory
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:645: in send
+    resp = conn.urlopen(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/usr/local/lib/python3.12/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/usr/local/lib/python3.12/site-packages/urllib3/connectionpool.py:493: in _make_request
+    conn.request(
+/usr/local/lib/python3.12/site-packages/urllib3/connection.py:500: in request
+    self.endheaders()
+/usr/local/lib/python3.12/http/client.py:1353: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+/usr/local/lib/python3.12/http/client.py:1113: in _send_output
+    self.send(msg)
+/usr/local/lib/python3.12/http/client.py:1057: in send
+    self.connect()
+/usr/local/lib/python3.12/site-packages/docker/transport/unixconn.py:26: in connect
+    sock.connect(self.unix_socket)
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+During handling of the above exception, another exception occurred:
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:223: in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/daemon.py:181: in version
+    return self._result(self._get(url), json=True)
+                        ^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/utils/decorators.py:44: in inner
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:246: in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:605: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:592: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/sessions.py:706: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/requests/adapters.py:660: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))
+
+The above exception was the direct cause of the following exception:
+tests/sandbox/test_sandbox_manager.py:18: in manager
+    manager = SandboxManager(max_sandboxes=2, idle_timeout=60, cleanup_interval=30)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/sandbox/core/manager.py:47: in __init__
+    self._client = docker.from_env()
+                   ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/client.py:94: in from_env
+    return cls(
+/usr/local/lib/python3.12/site-packages/docker/client.py:45: in __init__
+    self.api = APIClient(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:207: in __init__
+    self._version = self._retrieve_server_version()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/site-packages/docker/api/client.py:230: in _retrieve_server_version
+    raise DockerException(
+E   docker.errors.DockerException: Error while fetching server API version: ('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))</error></testcase></testsuite></testsuites>

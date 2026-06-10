@@ -1,0 +1,14 @@
+diff --git a/scripts/util.py b/scripts/util.py
+index e2d9c710..54ac893c 100755
+--- a/scripts/util.py
++++ b/scripts/util.py
+@@ -2037,7 +2037,8 @@ if not cfg:
+ lkp = Lookup(cfg)
+ 
+ # Needs to be run after the lookup is complete to get endpoint versions
+-compute = compute_service()
++# compute = compute_service()  # disabled to avoid requiring credentials at import time
++compute = None
+ 
+ 
+ if __name__ == "__main__":

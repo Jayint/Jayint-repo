@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "returncode": 4,
+  "errors": [
+    "E   google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information."
+  ],
+  "raw_output": "\nWARNING:util:config file not found: /repo/scripts/config.yaml\nWARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.\nWARNING:util:config not found in bucket: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.\nWARNING:google.auth._default:Authentication failed using Compute Engine authentication due to unavailable metadata server.\nImportError while loading conftest '/repo/test/conftest.py'.\ntest/conftest.py:9: in <module>\n    import util  # noqa: E402\nscripts/util.py:2040: in <module>\n    compute = compute_service()\nscripts/util.py:457: in compute_service\n    credentials = get_credentials()\nscripts/util.py:203: in get_credentials\n    credentials = default_credentials()\nscripts/util.py:170: in default_credentials\n    return google.auth.default()[0]\n/usr/local/lib/python3.10/site-packages/google/auth/_default.py:719: in default\n    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)\nE   google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.\n"
+}
