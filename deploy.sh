@@ -31,10 +31,10 @@
 set -euo pipefail
 
 # ---- config (verified against the live box) --------------------------------
-SRC="/Users/john/rat-bench-integration"     # Mac working tree (git repo)
+SRC="${DEPLOY_SRC:-/Users/john/rat-bench-integration}"     # Mac working tree (git repo); override with DEPLOY_SRC
 HOST="root@167.233.64.96"                    # VM box (root key auth, no password)
 DEST="/opt/rat-bench-integration"            # DOCKERAGENT_ROOT on the box
-BRANCH_EXPECT="rat-bench-integration"        # refuse to deploy from another branch
+BRANCH_EXPECT="${DEPLOY_BRANCH:-rat-bench-integration}"        # refuse to deploy from another branch; override with DEPLOY_BRANCH
 RSYNC="/usr/bin/rsync"                        # Mac stock openrsync (pinned on purpose)
 SSH="ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new"
 # RAT harness lives in a SEPARATE gitless dir on the box (NOT under our repo). We keep

@@ -5,7 +5,10 @@ from a checked-out repo. Pure, never raises. Uses tomllib + packaging.
 from __future__ import annotations
 
 import os
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python < 3.11 (e.g. the 3.10 benchmark box)
+    import tomli as tomllib
 from dataclasses import dataclass
 
 from packaging.requirements import Requirement
