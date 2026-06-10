@@ -18,6 +18,7 @@ from src.envstate.world_model import (
     PlannerDecision,
     TaskReport,
     WorldModelMap,
+    apply_deterministic,
 )
 
 # Sentinel type aliases (readable names only, no runtime cost).
@@ -43,6 +44,9 @@ def run_v1(
     on_cycle: (
         Callable[[int, WorldModelMap, PlannerDecision, TaskReport | None], None] | None
     ) = None,
+    *,
+    probe: Callable[[], Any] | None = None,
+    manifest: Any | None = None,
 ) -> tuple[WorldModelMap, str]:
     """Top-level v1 orchestrator loop.
 
@@ -57,6 +61,8 @@ def run_v1(
     but never committed' failure mode).
     """
     current_map: WorldModelMap = initial_world_map
+    if probe is not None and manifest is not None:
+        current_map = apply_deterministic(current_map, probe(), manifest)
 
     for cycle in range(1, max_cycles + 1):
         # ── 1. Planner decides what to do next ──────────────────────────────
@@ -82,6 +88,10 @@ def run_v1(
             ledger,
             step_offset=(cycle - 1) * local_budget,
         )
+
+        # ── 2b. Deterministic facts (read-only probe, OFF the ledger) ─────────
+        if probe is not None and manifest is not None:
+            current_map = apply_deterministic(current_map, probe(), manifest)
 
         # ── 3. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
