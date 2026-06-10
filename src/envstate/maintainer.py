@@ -49,6 +49,11 @@ this cycle's TaskReport: record new failures, clear fixed ones, and keep notes.
 Record only what the command output actually demonstrates.
 - Interpret failures into `open_problems` with a suspected layer.
 - List in `resolved` the `signature` of any existing problem the output shows is now fixed.
+- The host pre-fills `current_map` with authoritative facts: `installed`, `required`,
+  `missing` (the `required - installed` gap), and `env` (interpreter / venv). Use them to
+  pick a failure's layer (a name in `missing` => `deps`; a wrong `env.which_python` or
+  `env.venv` => `runtime`) and to judge what is now `resolved` — but never echo these
+  facts back; they are inputs, not outputs.
 
 ## done_flag (informational — you never set this)
 The harness sets done_flag when a `pytest --collect-only` command exits 0.
@@ -187,6 +192,11 @@ class Maintainer:
         (except for structural done_flag / collect-only detection which still
         applies from the report itself).
         """
+        # Pre-filled authoritative facts + the required-installed gap (design §4.4),
+        # so the LLM can attribute a failure to a layer and judge `resolved`.
+        _installed_names = {f.name.lower() for f in current_map.installed}
+        _missing = [f.name for f in current_map.required if f.name.lower() not in _installed_names]
+
         # Build the user message: current map + task report.
         user_content = json.dumps(
             {
@@ -196,6 +206,16 @@ class Maintainer:
                     "language": current_map.language,
                     "build_system": current_map.build_system,
                     "repo_layout": list(current_map.repo_layout),
+                    "installed": [
+                        {"name": f.name, "detail": f.detail}
+                        for f in current_map.installed
+                    ],
+                    "required": [
+                        {"name": f.name, "detail": f.detail}
+                        for f in current_map.required
+                    ],
+                    "missing": _missing,
+                    "env": dict(current_map.env),
                     "open_problems": [
                         {
                             "signature": p.signature,
