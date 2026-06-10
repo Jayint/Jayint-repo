@@ -282,10 +282,12 @@ def apply_deterministic(
         installed = tuple(snap.installed)
         env = dict(snap.env)
         language = snap.env.get("python_version") or current.language
+        system_installed = tuple(getattr(snap, "system_installed", ()))
     else:
         installed = current.installed
         env = dict(current.env)
         language = current.language
+        system_installed = current.system_installed
 
     build_system = (
         man.build_system
@@ -293,6 +295,7 @@ def apply_deterministic(
         else current.build_system
     )
     resolved = _auto_resolve_problems(current.open_problems, installed)
+    resolved = _auto_resolve_system_problems(resolved, system_installed)   # NEW
 
     interim = merge_map(
         current,
@@ -302,6 +305,7 @@ def apply_deterministic(
         build_system=build_system,
         language=language,
         open_problems=resolved,
+        system_installed=system_installed,
     )
     progress = _derive_progress(current.progress, interim)
     return merge_map(interim, progress=progress)
