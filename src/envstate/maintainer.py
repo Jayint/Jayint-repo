@@ -110,6 +110,22 @@ def _parse_open_problems(
 # Public API
 # ---------------------------------------------------------------------------
 
+def _progress_synced_with_done(
+    current_map: WorldModelMap, done: bool
+) -> dict[str, bool] | None:
+    """Keep the derived ``progress['tests']`` consistent with the structural
+    ``done_flag`` (§4.3: tests == done_flag).
+
+    apply_deterministic derives progress *before* the Maintainer runs, so in the
+    terminal cycle ``tests`` would otherwise lag one step (done_flag True but
+    progress.tests False, with no next fold to catch up). Returns ``None`` when no
+    change is needed so merge_map keeps the current dict untouched.
+    """
+    if done and not current_map.progress.get("tests", False):
+        return {**current_map.progress, "tests": True}
+    return None
+
+
 def parse_v1_maintainer_reply(
     text: str,
     current_map: WorldModelMap,
@@ -117,16 +133,21 @@ def parse_v1_maintainer_reply(
 ) -> WorldModelMap:
     """Parse the narrowed Maintainer reply: open_problems + resolved + notes.
 
-    Facts (installed/progress/build_system/required/env) are owned by
-    apply_deterministic and are NOT touched here. done_flag is structural
-    (collect-only rc 0 in the report). On empty/unparseable input, only the
-    structural done_flag rule applies.
+    Facts (installed/build_system/required/env and the derived progress layers)
+    are owned by apply_deterministic. The only progress layer touched here is
+    ``tests``, kept consistent with the structural ``done_flag`` (collect-only
+    rc 0 in the report). On empty/unparseable input, only the structural
+    done_flag rule (and its tests sync) applies.
     """
     parsed = extract_json_object(text) if text else None
     if not parsed:
         new_done = current_map.done_flag or _collect_only_passed(report)
         if new_done != current_map.done_flag:
-            return merge_map(current_map, done_flag=new_done)
+            return merge_map(
+                current_map,
+                done_flag=new_done,
+                progress=_progress_synced_with_done(current_map, new_done),
+            )
         return current_map
 
     # open_problems: append new (dedup by signature)
@@ -153,6 +174,7 @@ def parse_v1_maintainer_reply(
         open_problems=merged,
         notes=merged_notes,
         done_flag=done,
+        progress=_progress_synced_with_done(current_map, done),
     )
 
 
