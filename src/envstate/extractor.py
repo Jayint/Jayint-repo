@@ -13,7 +13,7 @@ EXTRACTOR_COMMANDS: Dict[str, str] = {
     "path": "echo \"$PATH\"",
     "which_python": "command -v python",
     "venv": "echo \"${VIRTUAL_ENV:-}\"",
-    "installed_pip": "pip freeze 2>/dev/null",
+    "installed_pip": "pip list --format=freeze 2>/dev/null",
     "dpkg_packages": "dpkg -l 2>/dev/null | awk '/^ii/{print $2}'",
     "pkg_config_modules": "pkg-config --list-all 2>/dev/null",
 }
