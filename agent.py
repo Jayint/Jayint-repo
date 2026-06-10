@@ -843,7 +843,7 @@ class DockerAgent:
         from src.envstate.planner import Planner as _Planner
         from src.envstate.build_agent import BuildAgent as _BuildAgent
         from src.envstate.maintainer import Maintainer as _Maintainer
-        from src.envstate.world_model import initial_map, Fact
+        from src.envstate.world_model import initial_map, Fact, map_to_dict, apply_deterministic
         from src.envstate.manifest import parse_manifests
         from src.envstate.snapshot import probe_env
 
@@ -928,6 +928,70 @@ class DockerAgent:
             # Deterministic facts: manifest (host FS) + read-only env probe.
             _manifest = parse_manifests(self.workplace)
             _probe = lambda: probe_env(self.sandbox.exec_readonly)
+
+            # Structured per-cycle component trace (NL prompts excluded): one JSONL
+            # line per cycle with the planner decision, build report, and the
+            # resulting state map (Maintainer output). cycle 0 = the grounded
+            # initial map == the Planner's first input. Diagnostic only; never
+            # raises into the loop.
+            _cycle_log_path = os.path.join(_llm_log_dir, "envstate_cycles.jsonl")
+
+            def _write_cycle_record(record):
+                try:
+                    with open(_cycle_log_path, "a", encoding="utf-8") as _fh:
+                        _fh.write(json.dumps(record) + "\n")
+                except Exception:
+                    pass
+
+            def _trunc(text, limit=400):
+                text = text or ""
+                return text if len(text) <= limit else text[:limit] + "…"
+
+            def _decision_dict(decision):
+                if decision is None:
+                    return None
+                task = getattr(decision, "task", None)
+                return {
+                    "action": decision.action,
+                    "task": (
+                        {"goal": task.goal, "done_when": task.done_when,
+                         "layer": task.layer, "facts": list(task.facts)}
+                        if task is not None else None
+                    ),
+                    "reason": getattr(decision, "reason", ""),
+                }
+
+            def _report_dict(report):
+                if report is None:
+                    return None
+                return {
+                    "task_goal": report.task_goal,
+                    "status": report.status,
+                    "commands": [
+                        {"cmd": c.cmd, "rc": c.rc, "output": _trunc(c.output)}
+                        for c in report.commands
+                    ],
+                    "learning": report.learning,
+                }
+
+            # cycle 0: the grounded initial map (the Planner's first input).
+            try:
+                _grounded0 = apply_deterministic(world_map, _probe(), _manifest)
+                _write_cycle_record(
+                    {"cycle": 0, "planner": None, "build_report": None,
+                     "state_map": map_to_dict(_grounded0)}
+                )
+            except Exception:
+                pass
+
+            def _on_cycle(cycle, current_map, decision, report):
+                _write_cycle_record({
+                    "cycle": cycle,
+                    "planner": _decision_dict(decision),
+                    "build_report": _report_dict(report),
+                    "state_map": map_to_dict(current_map),
+                })
+
             final_map, stop_reason = _run_v1_loop(
                 planner=planner,
                 build_agent=build_agent,
@@ -938,6 +1002,7 @@ class DockerAgent:
                 max_cycles=max_cycles,
                 probe=_probe,
                 manifest=_manifest,
+                on_cycle=_on_cycle,
             )
 
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
