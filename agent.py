@@ -1007,27 +1007,20 @@ class DockerAgent:
 
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
 
-            # ── 5. Scan ActionLedger for collect-only command ─────────────────
-            # The ledger accumulates ActionEvent(cmd, rc, stdout, step) records
-            # written by BuildAgent during execution.  We look for the most recent
-            # successful pytest --collect-only invocation and use its exact command
-            # string so the verification bundle matches what was verified in-loop.
-            _COLLECT_ONLY_PAT = _re.compile(r"pytest\s+--collect-only", _re.IGNORECASE)
-            _collect_cmd = None
-            for ev in reversed(self.action_ledger.events()):
-                if ev.rc == 0 and _COLLECT_ONLY_PAT.search(ev.cmd):
-                    _collect_cmd = ev.cmd
-                    break
-            if _collect_cmd is None:
-                # Fallback: use the canonical module constant.
-                _collect_cmd = COLLECT_ONLY_CMD
-
-            if not self.verified_test_commands:
+            # ── 5. Verify the collect-only gate genuinely passed (design §2) ───
+            # Success requires an actual `pytest --collect-only` rc 0 — never the
+            # Planner's say-so. Prefer real in-loop evidence; if the gate was not
+            # reached (e.g. the Planner declared 'done' on deps alone) actively run
+            # it in the still-live container. Returns None — and we do NOT fabricate
+            # a verified command — when the gate cannot be confirmed.
+            _collect_cmd = self._resolve_v1_verified_collect_only(final_map.done_flag)
+            if _collect_cmd is not None and not self.verified_test_commands:
                 self.verified_test_commands = [_collect_cmd]
 
-            # ── 6. Finalize ───────────────────────────────────────────────────
+            # ── 6. Finalize — success only when the gate actually passed ───────
+            _verif_source = "v1_done_flag" if final_map.done_flag else "v1_collect_only_finalize"
             configuration_success = (
-                self._auto_finalize_from_verified_tests("v1_done_flag")
+                self._auto_finalize_from_verified_tests(_verif_source)
                 or bool(self.verification_bundle)
             )
             if configuration_success:
@@ -1065,6 +1058,51 @@ class DockerAgent:
             self.sandbox.close(keep_alive=keep_container)
 
         return configuration_success
+
+    def _resolve_v1_verified_collect_only(self, done_flag):
+        """Return the genuinely-verified ``pytest --collect-only`` command, or None.
+
+        Design §2: a v1 run is a success ONLY when the collect-only gate actually
+        exits 0 — never on the Planner's say-so. Resolution order:
+          1. a real rc-0 collect-only already in the ActionLedger (verified in-loop);
+          2. ``done_flag`` True (the structural gate fired in-loop);
+          3. otherwise actively run the canonical collect-only in the still-live
+             container and use it ONLY if it passes.
+        Never fabricates: returns None when the gate cannot be confirmed, so the
+        caller reports an honest (unverified) result instead of a false pass.
+        """
+        from src.envstate.orchestrator import COLLECT_ONLY_CMD
+        from src.envstate.ledger import ActionEvent
+
+        pattern = re.compile(r"pytest\s+--collect-only", re.IGNORECASE)
+        for ev in reversed(self.action_ledger.events()):
+            if ev.rc == 0 and pattern.search(ev.cmd):
+                return ev.cmd  # genuine in-loop evidence (exact command)
+
+        if done_flag:
+            return COLLECT_ONLY_CMD  # structural gate already fired this run
+
+        # Gate never reached in-loop: actively verify rather than assume success.
+        try:
+            ok, out = self.sandbox.execute(COLLECT_ONLY_CMD)
+        except Exception as exc:
+            print(f"[v1] finalize collect-only verification raised: {exc}")
+            return None
+        print(f"[v1] finalize collect-only verification: {'PASS' if ok else 'FAIL'}")
+        if not ok:
+            return None
+        self.action_ledger.append(
+            ActionEvent(
+                step=len(self.action_ledger.events()),
+                cmd=COLLECT_ONLY_CMD,
+                rc=0,
+                stdout=(out or "")[-400:],
+                mutation_class=None,  # verification, not an env mutation -> not synthesized
+                container_id=getattr(self, "env_container_id", ""),
+                summary="v1 finalize collect-only verification",
+            )
+        )
+        return COLLECT_ONLY_CMD
 
     def _build_v1_ledger_appender(self, ledger):
         """Return a thin closure that records (cmd, rc, stdout) into the ActionLedger.
