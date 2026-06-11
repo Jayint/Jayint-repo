@@ -50,12 +50,12 @@ class FakeLLM:
                 "done_when": "pytest --collect-only -q exits 0",
                 "layer": "tests", "facts": [],
             }))
-        if "You are the v1 Build Agent" in system:
+        if "skilled in environment configuration" in system:
             # Deliberately never emits "Final Answer" — proves termination comes
             # from the map's done_flag, not the agent declaring success.
             return _Resp("Thought: probe the collection gate.\n"
                          "Action: pytest --collect-only -q --disable-warnings")
-        if "You are the Maintainer" in system:
+        if "State Maintainer" in system:
             return _Resp("```json\n" + json.dumps({
                 "installed": [], "open_problems": [],
                 "progress": {"tests": True}, "notes": [],

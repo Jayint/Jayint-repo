@@ -776,3 +776,46 @@ class TestBuildAgentSystemPrompt(unittest.TestCase):
         self.assertIn("deps", content)
         self.assertIn("build_system=pip", content)
         self.assertIn("python=3.12", content)
+
+
+class TestBuildAgentPromptContract(unittest.TestCase):
+    """The Repo2Run-style BuildAgent prompt must stay parser-compatible and keep the
+    task-scoping, integrity rules, and static (non-countdown) budget signal."""
+
+    def setUp(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT, LOCAL_BUDGET
+        self.prompt = BUILD_AGENT_SYSTEM_PROMPT
+        self.budget = LOCAL_BUDGET
+
+    def test_format_is_parser_compatible(self):
+        # Must instruct the exact tokens the parser keys on, and NOT the "### Action"
+        # markdown header (which would not match _ACTION_RE).
+        self.assertIn("Action:", self.prompt)
+        self.assertIn("Final Answer: Success", self.prompt)
+        self.assertNotIn("### Action", self.prompt)
+
+    def test_references_planner_task_fields(self):
+        for label in ("Task goal", "Done when", "Layer", "Relevant facts"):
+            self.assertIn(label, self.prompt)
+
+    def test_one_line_chaining_rule_present(self):
+        self.assertIn("&&", self.prompt)
+        self.assertIn("ONE line", self.prompt)
+
+    def test_static_budget_interpolated_no_countdown(self):
+        # The "up to N commands" line must track LOCAL_BUDGET (no drift); there is no
+        # live remaining-steps countdown by design (avoids rush-to-fake-success).
+        self.assertIn(f"up to {self.budget} commands", self.prompt)
+
+    def test_integrity_rules_present(self):
+        low = self.prompt.lower()
+        self.assertIn("do not make extensive changes", low)
+        self.assertIn("modifying or deleting test functions", self.prompt)
+
+    def test_role_is_env_config_expert(self):
+        self.assertIn("environment configuration", self.prompt)
+
+    def test_role_boundary_no_plan_no_certify(self):
+        low = self.prompt.lower()
+        self.assertIn("do not plan", low)
+        self.assertIn("do not certify", low)

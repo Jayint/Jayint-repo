@@ -261,6 +261,43 @@ class TestDoneFlag(unittest.TestCase):
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertFalse(new_map.done_flag)
 
+    # -- detector robustness (hardening after dropping self-declared done) ----
+
+    def _done_after(self, cmd: str, rc: int = 0) -> bool:
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
+        new_map = parse_v1_maintainer_reply(reply, _base_map(), _make_report([(cmd, rc, "out")]))
+        return new_map.done_flag
+
+    def test_done_flag_set_for_co_alias(self):
+        # pytest registers `--co` as an explicit alias for `--collect-only`.
+        self.assertTrue(self._done_after("pytest --co"))
+
+    def test_done_flag_set_regardless_of_arg_order(self):
+        self.assertTrue(self._done_after("pytest -q --collect-only --disable-warnings"))
+
+    def test_done_flag_set_for_python_m_pytest(self):
+        self.assertTrue(self._done_after("python -m pytest --collect-only"))
+
+    def test_done_flag_set_for_path_pytest(self):
+        self.assertTrue(self._done_after("/venv/bin/pytest --co -q"))
+
+    def test_cov_flag_does_not_trigger(self):
+        # --cov (pytest-cov) shares the '--co' prefix but is NOT collect-only.
+        self.assertFalse(self._done_after("pytest --cov=src tests/"))
+
+    def test_color_flag_does_not_trigger(self):
+        self.assertFalse(self._done_after("pytest --color=yes -q"))
+
+    def test_non_pytest_tool_with_co_does_not_trigger(self):
+        self.assertFalse(self._done_after("sometool --co --collect-only"))
+
+    def test_co_alias_still_gated_on_rc0(self):
+        self.assertFalse(self._done_after("pytest --co", rc=1))
+
+    def test_malformed_quoting_does_not_crash(self):
+        # Unbalanced quote: must not raise, and still detects via the fallback split.
+        self.assertTrue(self._done_after('pytest --collect-only "oops -q'))
+
     def test_done_flag_preserved_when_already_true(self):
         """If done_flag is somehow already True, update must keep it True."""
         base = merge_map(_base_map(), done_flag=True)
@@ -428,6 +465,118 @@ class TestMaintainerSystemPrompt(unittest.TestCase):
             "authoritative" in prompt_lower or "already filled" in prompt_lower,
             "Prompt should state that installed/facts are host-authoritative",
         )
+
+
+# ---------------------------------------------------------------------------
+# New schema: kind -> layer, hypothesis -> interpretation, planner_notes -> notes
+# ---------------------------------------------------------------------------
+
+class TestNewSchemaParsing(unittest.TestCase):
+    def _parse(self, problems=None, resolved=None, planner_notes=None, notes=None):
+        obj = {"open_problems": problems or []}
+        if resolved is not None:
+            obj["resolved"] = resolved
+        if planner_notes is not None:
+            obj["planner_notes"] = planner_notes
+        if notes is not None:
+            obj["notes"] = notes
+        text = "```json\n" + json.dumps(obj) + "\n```"
+        return parse_v1_maintainer_reply(text, _base_map(), _make_report([("noop", 0, "")]))
+
+    def test_system_kind_maps_to_system_layer(self):
+        # This is the whole point: a native-tool failure must land on layer 'system'
+        # so the host's _auto_resolve_system_problems can engage.
+        out = self._parse(problems=[{
+            "signature": "pg_config: command not found",
+            "kind": "system_tool_missing",
+            "hypothesis": "psycopg2 build needs libpq",
+            "root_or_downstream": "root",
+        }])
+        op = out.open_problems[0]
+        self.assertEqual(op.signature, "pg_config: command not found")
+        self.assertEqual(op.layer, "system")
+
+    def test_header_and_native_kinds_map_to_system(self):
+        for kind in ("native_build_dependency", "header_missing"):
+            out = self._parse(problems=[{"signature": f"sig-{kind}", "kind": kind,
+                                         "hypothesis": "h"}])
+            self.assertEqual(out.open_problems[0].layer, "system", kind)
+
+    def test_package_kinds_map_to_deps(self):
+        for kind in ("language_package_missing", "import_failure"):
+            out = self._parse(problems=[{"signature": f"sig-{kind}", "kind": kind}])
+            self.assertEqual(out.open_problems[0].layer, "deps", kind)
+
+    def test_test_failure_maps_to_tests_layer(self):
+        out = self._parse(problems=[{"signature": "collection error", "kind": "test_failure"}])
+        self.assertEqual(out.open_problems[0].layer, "tests")
+
+    def test_unknown_kind_defaults_to_deps(self):
+        out = self._parse(problems=[{"signature": "weird", "kind": "totally_unknown"}])
+        self.assertEqual(out.open_problems[0].layer, "deps")
+
+    def test_hypothesis_becomes_interpretation_with_root_tag(self):
+        out = self._parse(problems=[{
+            "signature": "No module named 'psycopg2'",
+            "kind": "import_failure",
+            "hypothesis": "downstream of the pg_config wall",
+            "root_or_downstream": "downstream",
+        }])
+        interp = out.open_problems[0].interpretation
+        self.assertIn("downstream", interp)
+        self.assertIn("pg_config wall", interp)
+
+    def test_planner_notes_become_notes(self):
+        out = self._parse(problems=[], planner_notes=["log was truncated; request full log"])
+        self.assertIn("log was truncated; request full log", out.notes)
+
+    def test_verbatim_signature_preserved_exactly(self):
+        sig = "fatal error: libpq-fe.h: No such file or directory"
+        out = self._parse(problems=[{"signature": sig, "kind": "header_missing"}])
+        self.assertEqual(out.open_problems[0].signature, sig)
+
+    # -- back-compat: old replies must still parse --------------------------------
+
+    def test_legacy_layer_and_interpretation_still_parse(self):
+        out = self._parse(problems=[{"signature": "E1", "interpretation": "i", "layer": "runtime"}],
+                          notes=["careful"])
+        op = out.open_problems[0]
+        self.assertEqual(op.layer, "runtime")
+        self.assertEqual(op.interpretation, "i")
+        self.assertIn("careful", out.notes)
+
+    def test_resolved_still_drops_signatures(self):
+        base = merge_map(
+            _base_map(),
+            open_problems=(OpenProblem("old sig", "x", "deps"),),
+        )
+        text = '```json\n{"open_problems": [], "resolved": ["old sig"], "planner_notes": []}\n```'
+        out = parse_v1_maintainer_reply(text, base, _make_report([("noop", 0, "")]))
+        self.assertEqual(out.open_problems, ())
+
+
+class TestNewPromptContract(unittest.TestCase):
+    def test_prompt_demands_literal_signatures(self):
+        low = MAINTAINER_SYSTEM_PROMPT.lower()
+        self.assertTrue("literal" in low or "do not paraphrase" in low)
+
+    def test_prompt_defines_kind_taxonomy(self):
+        for kind in ("native_build_dependency", "system_tool_missing", "header_missing",
+                     "language_package_missing", "import_failure", "test_failure"):
+            self.assertIn(kind, MAINTAINER_SYSTEM_PROMPT)
+
+    def test_prompt_forbids_certifying_facts(self):
+        low = MAINTAINER_SYSTEM_PROMPT.lower()
+        self.assertIn("do not certify", low)
+
+    def test_prompt_warns_learning_is_weak(self):
+        self.assertIn("learning", MAINTAINER_SYSTEM_PROMPT)
+        self.assertIn("not evidence", MAINTAINER_SYSTEM_PROMPT.lower())
+
+    def test_prompt_distinguishes_root_vs_downstream(self):
+        low = MAINTAINER_SYSTEM_PROMPT.lower()
+        self.assertIn("root", low)
+        self.assertIn("downstream", low)
 
 
 if __name__ == "__main__":

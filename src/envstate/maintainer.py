@@ -16,6 +16,7 @@ done_flag rule (§5):
 from __future__ import annotations
 
 import json
+import shlex
 from typing import Any, Callable, Optional
 
 from src.envstate.diagnostics import log_llm_exchange
@@ -30,48 +31,116 @@ from src.envstate.world_model import (
 )
 
 # ---------------------------------------------------------------------------
-# COLLECT_ONLY_CMD — the canonical done-gate substring
+# Collect-only detection — the structural done-gate
+#
+# done_flag fires when a real `pytest --collect-only` run exits 0. This is the
+# SOLE success signal (the Planner has no self-declared `done`), so the detector
+# must recognise every legitimate spelling without false-triggering:
+#   - the `--co` alias (pytest registers it explicitly for `--collect-only`)
+#   - the flag in any arg position (`pytest -q --collect-only`)
+#   - wrappers (`poetry run pytest ...`, `python -m pytest ...`)
+# while NOT matching `--cov` / `--color`, a quoted/echoed mention, or a
+# non-pytest tool that happens to take `--co`. Matched as whole shell tokens,
+# and only alongside a pytest invocation.
 # ---------------------------------------------------------------------------
 
 COLLECT_ONLY_CMD: str = "--collect-only"
+_COLLECT_ONLY_TOKENS: frozenset[str] = frozenset({COLLECT_ONLY_CMD, "--co"})
+
+
+def _looks_like_pytest(tok: str) -> bool:
+    """True if a command token is a pytest entry point (pytest / py.test / .../pytest)."""
+    return tok in ("pytest", "py.test") or tok.endswith("/pytest")
+
+
+def _is_collect_only_cmd(cmd: str) -> bool:
+    """Return True iff *cmd* is a pytest collection run.
+
+    Recognises ``--collect-only`` and its registered ``--co`` alias as whole
+    shell tokens, in any arg order and through wrappers, but only when a pytest
+    invocation is present — so ``--cov`` / ``--color`` and non-pytest tools never
+    false-trigger. Never raises (malformed quoting falls back to a plain split).
+    """
+    try:
+        tokens = shlex.split(cmd)
+    except ValueError:
+        # Unbalanced quotes etc. — fall back to whitespace split so a malformed
+        # command can never crash the done-gate.
+        tokens = cmd.split()
+    has_pytest = any(_looks_like_pytest(t) for t in tokens)
+    has_collect_only = any(t in _COLLECT_ONLY_TOKENS for t in tokens)
+    return has_pytest and has_collect_only
 
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
 
 MAINTAINER_SYSTEM_PROMPT = """\
-You are the Maintainer for the EnvState v1 system.  Installed packages, the
-build system, declared requirements, and the interpreter are ALREADY filled in
-by the host (authoritative) — do NOT report them.  Your only job is to interpret
-this cycle's TaskReport: record new failures, clear fixed ones, and keep notes.
+You are the State Maintainer for a Docker environment setup agent. You read the
+current Environment State Map and the latest BuildAgent TaskReport (both given as
+JSON in the next message) and propose structured updates to the map.
 
-## Ground truth rule
-Record only what the command output actually demonstrates.
-- Interpret failures into `open_problems` with a suspected layer.
-- List in `resolved` the `signature` of any existing problem the output shows is now fixed.
-- The host pre-fills `current_map` with authoritative facts: `installed`, `required`,
-  `missing` (the `required - installed` gap), and `env` (interpreter / venv). Use them to
-  pick a failure's layer (a name in `missing` => `deps`; a wrong `env.which_python` or
-  `env.venv` => `runtime`) and to judge what is now `resolved` — but never echo these
-  facts back; they are inputs, not outputs.
-- Use `system_tools` / `build_tools` / `os_release` to judge whether a `system`-layer
-  problem is fixed and which package manager applies (apt/apk/yum).
+You are NOT the build agent. You do NOT run shell commands. You do NOT certify
+that packages, tools, headers, imports, or services are present or missing — only
+deterministic host scripts and probes certify facts. You do NOT set done_flag (the
+host sets it when `pytest --collect-only` exits 0).
 
-## done_flag (informational — you never set this)
-The harness sets done_flag when a `pytest --collect-only` command exits 0.
+## What you are given (read-only — never restate it as output)
+- current_map: host-certified, authoritative facts — `installed`, `required`, `missing`
+  (`required - installed`), `env` (interpreter / venv), `system_tools`,
+  `build_tools`, `os_release`, plus existing `open_problems` and `notes`.
+- task_report: this cycle's transcript — `commands` (each `{cmd, rc, output}`),
+  `status`, and `learning`.
 
-## Output schema
-Return exactly one JSON object inside a ```json fenced block with these keys:
+## How to read the transcript
+- Failure signatures live in `commands[*].output`. Prefer commands where `rc != 0`.
+- `learning` is a weak one-line summary, NOT evidence — never infer a fact from it.
+- `status` is task-level (done/blocked), not proof the environment works.
+
+## Your job
+1. Copy each failure signature LITERALLY from the command output — do not paraphrase.
+   Good: "pg_config executable not found"
+   Bad:  "Postgres config is missing"
+   Put your reasoning in `hypothesis`; keep `signature` verbatim.
+2. Classify each problem's `kind` (the host uses this to route deterministic
+   resolution, so getting it right is what lets the host auto-clear the problem):
+     native_build_dependency | system_tool_missing | header_missing
+        -> a missing native tool / library / header
+     language_package_missing | import_failure
+        -> a missing language package / failed import
+     test_failure   -> a pytest collection or run error
+     config_missing -> a missing config the build/run needs
+     unknown        -> cannot tell from the output
+3. Mark each problem `root` or `downstream`. Example: if `pip install` fails because
+   `pg_config` is missing, then "No module named 'psycopg2'" is `downstream`.
+4. In `resolved`, list a signature ONLY when THIS cycle's output shows that exact
+   failure no longer occurs (you are reporting the transcript, not certifying the
+   environment — the host re-probes to confirm fixes).
+5. If output is truncated or ambiguous, say so in `planner_notes` and do not invent
+   missing details.
+
+## Output
+Return exactly one JSON object inside a ```json fenced block — nothing else:
 
 ```json
 {
-  "open_problems": [{"signature": "...", "interpretation": "...", "layer": "..."}],
-  "resolved": ["<signature of a now-fixed problem>"],
-  "notes": ["..."]
+  "open_problems": [
+    {
+      "signature": "literal error text from output",
+      "kind": "native_build_dependency | system_tool_missing | header_missing | language_package_missing | import_failure | test_failure | config_missing | unknown",
+      "hypothesis": "short explanation",
+      "root_or_downstream": "root | downstream | unknown"
+    }
+  ],
+  "resolved": ["<signature the transcript shows no longer occurs>"],
+  "planner_notes": ["short note for the next planning step"]
 }
 ```
 
-Do not include any other keys.  Do not report installed packages or progress.
+## Hard safety rule
+If you are tempted to write present, missing, installed, fixed, verified, or
+working as a fact, do not — just record the literal signature and let the host's
+probes certify reality.
 """
 
 # ---------------------------------------------------------------------------
@@ -81,15 +150,56 @@ Do not include any other keys.  Do not report installed packages or progress.
 def _collect_only_passed(report: TaskReport) -> bool:
     """Return True iff any command in the report is a collect-only run that exited 0."""
     for rec in report.commands:
-        if COLLECT_ONLY_CMD in rec.cmd and rec.rc == 0:
+        if rec.rc == 0 and _is_collect_only_cmd(rec.cmd):
             return True
     return False
+
+
+# Map the Maintainer's concrete failure `kind` onto the coarse stack `layer` the
+# deterministic resolver keys on. The model reasons in error-kinds (what it can
+# see in the output); the host derives the layer (what auto_resolve needs).
+# Crucially the three native kinds map to "system", so _auto_resolve_system_problems
+# (which fires only on layer=="system") can finally engage.
+_KIND_TO_LAYER: dict[str, str] = {
+    "native_build_dependency": "system",
+    "system_tool_missing": "system",
+    "header_missing": "system",
+    "language_package_missing": "deps",
+    "import_failure": "deps",
+    "test_failure": "tests",
+    "config_missing": "build",
+    "unknown": "deps",
+}
+
+
+def _layer_for(item: dict[str, Any]) -> str:
+    """Derive the stack layer from the LLM's `kind` (new schema), falling back to an
+    explicit `layer` for back-compat with older replies / serialized maps."""
+    kind = item.get("kind")
+    if kind is not None:
+        return _KIND_TO_LAYER.get(str(kind), "deps")
+    return str(item.get("layer", "deps"))
+
+
+def _interpretation_for(item: dict[str, Any]) -> str:
+    """Compose the stored interpretation from `hypothesis` (new schema; back-compat
+    `interpretation`), tagged with root/downstream when the model supplied it."""
+    text = str(item.get("hypothesis", item.get("interpretation", "")))
+    rod = str(item.get("root_or_downstream", "")).strip().lower()
+    if rod in ("root", "downstream"):
+        return f"[{rod}] {text}".strip()
+    return text
 
 
 def _parse_open_problems(
     proposed: list[dict[str, Any]],
 ) -> tuple[OpenProblem, ...]:
-    """Parse open_problems from LLM reply; no grounding check (failures are trusted)."""
+    """Parse open_problems from an LLM reply (no grounding check; failures trusted).
+
+    New schema item: {signature, kind, hypothesis, root_or_downstream}. `kind` is
+    mapped to the resolver's `layer`; `hypothesis` (+ a root/downstream tag) becomes
+    the stored interpretation. Old {signature, interpretation, layer} items still parse.
+    """
     problems: list[OpenProblem] = []
     for item in proposed:
         if not isinstance(item, dict):
@@ -100,8 +210,8 @@ def _parse_open_problems(
         problems.append(
             OpenProblem(
                 signature=sig,
-                interpretation=str(item.get("interpretation", "")),
-                layer=str(item.get("layer", "deps")),
+                interpretation=_interpretation_for(item),
+                layer=_layer_for(item),
                 out_of_scope=bool(item.get("out_of_scope", False)),
             )
         )
@@ -164,9 +274,12 @@ def parse_v1_maintainer_reply(
     if resolved:
         merged = tuple(p for p in merged if p.signature not in resolved)
 
-    # notes: append (never replace)
+    # planner_notes (new schema) → notes; back-compat with legacy "notes". Append.
+    _incoming_notes = parsed.get("planner_notes")
+    if _incoming_notes is None:
+        _incoming_notes = parsed.get("notes") or []
     added_notes = tuple(
-        str(n) for n in (parsed.get("notes") or []) if str(n) not in current_map.notes
+        str(n) for n in _incoming_notes if str(n) not in current_map.notes
     )
     merged_notes = current_map.notes + added_notes
 

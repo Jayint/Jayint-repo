@@ -119,15 +119,19 @@ class PlannerSystemPromptTests(unittest.TestCase):
             self.assertIn(layer, PLANNER_SYSTEM_PROMPT,
                           f"Prompt must mention layer '{layer}'")
 
-    def test_prompt_mentions_task_done_giveup(self):
+    def test_prompt_offers_task_and_giveup(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
-        for action in ("task", "done", "giveup"):
-            self.assertIn(action, PLANNER_SYSTEM_PROMPT,
-                          f"Prompt must mention action '{action}'")
+        self.assertIn('"action": "task"', PLANNER_SYSTEM_PROMPT)
+        self.assertIn('"action": "giveup"', PLANNER_SYSTEM_PROMPT)
 
-    def test_prompt_mentions_out_of_scope(self):
+    def test_prompt_does_not_offer_done_action(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
-        self.assertIn("out_of_scope", PLANNER_SYSTEM_PROMPT)
+        self.assertNotIn('"action": "done"', PLANNER_SYSTEM_PROMPT)
+        self.assertNotIn('"action":"done"', PLANNER_SYSTEM_PROMPT)
+
+    def test_prompt_names_environment_state_map(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("Environment State Map", PLANNER_SYSTEM_PROMPT)
 
     def test_prompt_mentions_json_fields(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
@@ -163,13 +167,11 @@ class ParsePlannerDecisionTests(unittest.TestCase):
         self.assertEqual(decision.task.layer, "deps")
         self.assertEqual(decision.task.facts, ("flask in pyproject.toml",))
 
-    def test_parses_done_action(self):
+    def test_done_action_is_rejected(self):
         from src.envstate.planner import parse_planner_decision
-        decision = parse_planner_decision(_done_json("tests passing"))
-        self.assertIsNotNone(decision)
-        self.assertEqual(decision.action, "done")
-        self.assertIsNone(decision.task)
-        self.assertEqual(decision.reason, "tests passing")
+        # `done` is no longer a valid action — only the structural done_flag
+        # may declare success, so a self-declared done parses to None.
+        self.assertIsNone(parse_planner_decision(_done_json("tests passing")))
 
     def test_parses_giveup_action(self):
         from src.envstate.planner import parse_planner_decision
@@ -263,14 +265,14 @@ class PlannerDecideTests(unittest.TestCase):
         self.assertIsInstance(decision.task, Task)
         self.assertEqual(decision.task.layer, "deps")
 
-    def test_decide_returns_done_when_done_flag_true(self):
-        """When map.done_flag is True the planner must emit action='done'."""
+    def test_decide_rejects_self_declared_done(self):
+        """A self-declared 'done' is invalid; after retries decide falls back to giveup."""
         from src.envstate.planner import Planner
         planner = Planner(client=_fake_client(_done_json("collect-only passed")),
                           model="test-model")
         m = merge_map(_base_map(), done_flag=True)
         decision = planner.decide(m)
-        self.assertEqual(decision.action, "done")
+        self.assertEqual(decision.action, "giveup")
 
     def test_decide_returns_giveup_on_no_path(self):
         """When the LLM emits giveup, decide returns PlannerDecision(action='giveup')."""
@@ -506,19 +508,18 @@ class PlannerPromptIncludesMapFieldsTests(unittest.TestCase):
         self.assertIn("out_of_scope", view)
 
 
-class PlannerDecideDoneFlagShortCircuitTests(unittest.TestCase):
-    """done_flag=True in the map must cause the LLM to return 'done' when the
-    rendered view is correct.  The orchestrator hard-stops before calling decide
-    when done_flag is set; this class tests the natural LLM path only.
+class PlannerNoSelfDeclaredDoneTests(unittest.TestCase):
+    """The Planner has no `done` action; only the structural done_flag (checked
+    by the orchestrator) may declare success. A model that says done is ignored
+    and the planner falls back to giveup after retries.
     """
 
-    def test_done_flag_true_client_says_done(self):
+    def test_self_declared_done_falls_back_to_giveup(self):
         from src.envstate.planner import Planner
         planner = Planner(client=_fake_client(_done_json("collect-only passed")),
                           model="m")
-        m = merge_map(_base_map(), done_flag=True)
-        d = planner.decide(m)
-        self.assertEqual(d.action, "done")
+        d = planner.decide(merge_map(_base_map(), done_flag=True))
+        self.assertEqual(d.action, "giveup")
 
 
 class PlannerFactsPassedDownTests(unittest.TestCase):
@@ -539,6 +540,55 @@ class PlannerFactsPassedDownTests(unittest.TestCase):
         planner = Planner(client=_fake_client(content), model="m")
         d = planner.decide(_base_map())
         self.assertIn(d.task.layer, known_layers)
+
+
+# ---------------------------------------------------------------------------
+# 7. Principled prompt contract (the single Planner prompt; flag removed)
+# ---------------------------------------------------------------------------
+
+class PrincipledPromptContractTests(unittest.TestCase):
+    """PLANNER_SYSTEM_PROMPT is now the single, principled prompt — there is no
+    variant flag, no PRINCIPLED_ alias, no allow_done / prompt_variant params."""
+
+    def test_prompt_drops_dead_out_of_scope_instructions(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertNotIn("out_of_scope", PLANNER_SYSTEM_PROMPT)
+
+    def test_prompt_is_mechanism_grounded(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("root cause", PLANNER_SYSTEM_PROMPT.lower())
+
+    def test_no_principled_alias_constant(self):
+        import src.envstate.planner as planner_mod
+        self.assertFalse(
+            hasattr(planner_mod, "PRINCIPLED_PLANNER_SYSTEM_PROMPT"),
+            "the PRINCIPLED_ alias should be folded into PLANNER_SYSTEM_PROMPT",
+        )
+
+    def test_render_header_is_environment_state_map(self):
+        from src.envstate.planner import render_planning_view
+        view = render_planning_view(_base_map(), budget={"cycles_remaining": 5})
+        self.assertIn("# Environment State Map", view)
+        self.assertNotIn("# WorldModelMap", view)
+
+    def test_parser_has_no_allow_done_param(self):
+        import inspect
+        from src.envstate.planner import parse_planner_decision
+        self.assertNotIn(
+            "allow_done", inspect.signature(parse_planner_decision).parameters
+        )
+
+    def test_planner_has_no_prompt_variant_param(self):
+        import inspect
+        from src.envstate.planner import Planner
+        self.assertNotIn(
+            "prompt_variant", inspect.signature(Planner.__init__).parameters
+        )
+
+    def test_valid_actions_excludes_done(self):
+        from src.envstate.planner import _VALID_ACTIONS
+        self.assertNotIn("done", _VALID_ACTIONS)
+        self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup"}))
 
 
 if __name__ == "__main__":

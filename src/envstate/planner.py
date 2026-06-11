@@ -29,56 +29,56 @@ from src.envstate.world_model import (
 # System prompt
 # ---------------------------------------------------------------------------
 
-PLANNER_SYSTEM_PROMPT = """You are the Planner for DockerAgent environment setup (v1).
+PLANNER_SYSTEM_PROMPT = """You are an expert in software environment setup. You are the Planner in an
+automated system that prepares a repository's Docker environment so its tests
+can run. You reason about state; you do not execute. A separate BuildAgent runs
+the single task you emit, and a Maintainer folds the result back into a shared
+Environment State Map that you read on the next cycle.
 
-Your only job is to read the current WorldModelMap and decide what to do next.
-You NEVER run shell commands and NEVER write to the map directly.
+## The Environment State Map is your evidence
+You are given the current state of the whole environment as an Environment State Map:
+- Host-certified facts (ground truth): base image, interpreter/runtime (`env`),
+  declared `required` packages, confirmed `installed` packages, system tools and
+  libraries, and per-layer `progress`.
+- `open_problems`: failures observed so far — each with a signature, an
+  interpretation, and the stack layer at which it surfaced.
+- `notes`: durable cautions carried from earlier cycles.
+Do not invent facts that are not in the map.
 
-## Fixed goal
-Make `pytest --collect-only -q --disable-warnings` exit 0 from the repo root.
-For Poetry projects use `poetry run pytest --collect-only -q --disable-warnings`.
+## How to plan: mechanism-grounded reasoning, not trial-and-error
+Treat the stack as a causal model — each layer rests on the ones beneath it:
+  base -> system -> runtime -> deps -> build -> tests
+A failure that surfaces at one layer usually has its root cause at or below it.
+Read the map as a whole — the `required` vs `installed` gap, the system facts,
+and the interpretation of each open problem — and diagnose the single deepest
+unmet cause that is currently blocking progress. Do NOT propose speculative
+installs to see if they help. Emit the one task that removes that root cause,
+and cite, in `facts`, the specific map evidence that justifies it.
 
-## Stack layers (attack in order unless blocked)
-  base → system → runtime → deps → build → tests
+Your fixed objective: make `pytest --collect-only -q --disable-warnings` exit 0
+from the repo root. For Poetry projects use
+`poetry run pytest --collect-only -q --disable-warnings`.
 
-## Your output
-Emit exactly one JSON object (inside a ```json fenced block) with these fields:
+## Output
+Emit exactly one JSON object inside a ```json fenced block — nothing else:
 
-For a new task:
 ```json
 {
   "action": "task",
-  "goal": "<one concrete sub-goal, e.g. install project deps from pyproject>",
-  "done_when": "<checkable criterion, e.g. poetry install exits 0 and python -c 'import edsl' works>",
-  "layer": "<one of: base | system | runtime | deps | build | tests>",
-  "facts": ["<relevant fact from the map the agent needs>"]
+  "goal": "<the single sub-goal that removes the diagnosed root cause>",
+  "done_when": "<a command-checkable success criterion>",
+  "layer": "<base | system | runtime | deps | build | tests — the layer of the root cause>",
+  "facts": ["<the map evidence that justifies this task>"]
 }
 ```
 
-When the environment is ready (collect-only succeeded or done_flag is True):
+When no viable path remains:
+
 ```json
-{"action": "done", "reason": "<brief explanation>"}
+{"action": "giveup", "reason": "<the open problems that remain and why no path resolves them>"}
 ```
 
-When no viable path remains (all options exhausted):
-```json
-{"action": "giveup", "reason": "<brief explanation>"}
-```
-
-## Sequencing rules
-- Attack the lowest unmet layer first.
-- An open_problem with out_of_scope=True must be skipped entirely — do not emit
-  a task targeting it.  If an open_problem is runtime-only (e.g. swift, cuda)
-  and does not block pytest collection, mark it out_of_scope by noting this in
-  the reason field of a task targeting a different layer.
-- If the last task was blocked on a layer, try a different approach or mark the
-  problem out_of_scope before moving on.
-- Emit "giveup" only when every layer has been tried and no viable path exists.
-
-## Forbidden
-- Do not run shell commands (never run, no shell, no execute).
-- Do not emit more than one JSON object.
-- Do not invent facts not present in the map.
+You never run shell commands.
 """
 
 # ---------------------------------------------------------------------------
@@ -92,9 +92,13 @@ def render_planning_view(
     world_map: WorldModelMap,
     budget: dict[str, Any],
 ) -> str:
-    """Compact projection of WorldModelMap for the Planner prompt."""
+    """Compact projection of the state map for the Planner prompt.
+
+    The header label ("Environment State Map") is the only place this name is
+    shown to the model and must match the vocabulary of PLANNER_SYSTEM_PROMPT.
+    """
     lines: list[str] = []
-    lines.append("# WorldModelMap")
+    lines.append("# Environment State Map")
     lines.append(f"base_image: {world_map.base_image}")
     lines.append(f"workdir: {world_map.workdir}")
     lines.append(f"language: {world_map.language}")
@@ -149,7 +153,10 @@ def render_planning_view(
 # JSON → PlannerDecision parser
 # ---------------------------------------------------------------------------
 
-_VALID_ACTIONS = frozenset({"task", "done", "giveup"})
+# The Planner may only emit `task` or `giveup`. There is no self-declared
+# `done`: the structural done_flag (a real `pytest --collect-only` exit 0) is
+# the sole success stop, which closes the unverified-exit leak.
+_VALID_ACTIONS = frozenset({"task", "giveup"})
 
 
 def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
@@ -158,7 +165,8 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
     Returns None when:
     - text is empty / None
     - no JSON object found
-    - action key is missing or has an unknown value
+    - action key is missing or has an unknown value (a self-declared "done" is
+      rejected here — it is not a valid action)
     - action="task" but goal / done_when / layer is missing
     """
     obj = extract_json_object(text)
@@ -182,7 +190,7 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
         task = Task(goal=goal, done_when=done_when, layer=layer, facts=facts)
         return PlannerDecision(action="task", task=task, reason=reason)
 
-    # done or giveup
+    # giveup
     return PlannerDecision(action=action, task=None, reason=reason)
 
 
@@ -191,15 +199,14 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
 # ---------------------------------------------------------------------------
 
 class Planner:
-    """Reads the WorldModelMap once per cycle and emits a PlannerDecision.
+    """Reads the Environment State Map once per cycle and emits a PlannerDecision.
 
     One LLM call per cycle (via complete_with_retry).  Never runs shell
-    commands.  Owns global sequencing and done/giveup termination.
+    commands.  Emits only `task` or `giveup`.
 
-    The orchestrator is responsible for hard-stopping on done_flag; the Planner
-    does NOT special-case it internally (no override guard).  The map view
-    surfaces done_flag=True to the LLM so a well-behaved model will return
-    'done' naturally.
+    The orchestrator hard-stops on the structural done_flag; the Planner has no
+    self-declared `done` action, so the only successful stop is a real
+    `pytest --collect-only` exit 0 (closes the unverified-exit leak).
     """
 
     def __init__(
@@ -227,17 +234,16 @@ class Planner:
         """Single LLM call per cycle.
 
         Reads the map and emits a PlannerDecision with action in
-        {'task', 'done', 'giveup'}.  Reuses complete_with_retry for
+        {'task', 'giveup'}.  Reuses complete_with_retry for
         retry-on-empty / retry-on-unparseable.
 
         Returns a giveup PlannerDecision if all retry attempts fail to
         yield a parseable response (safe fallback).
 
-        NOTE: The done_flag override guard is intentionally absent here.
-        The orchestrator hard-stops before calling decide() when done_flag
-        is True.  The rendered view exposes done_flag so the LLM returns
-        'done' naturally.  Duplicating the check here would hide orchestrator
-        bugs and make this method harder to test independently.
+        NOTE: There is no done_flag override guard here.  The orchestrator
+        hard-stops before calling decide() when done_flag is True, and the
+        Planner cannot self-declare done — so a successful stop is always
+        backed by a real collect-only exit 0.
         """
         self._cycle += 1
         budget = {"cycles_remaining": max(0, 12 - self._cycle)}
@@ -256,7 +262,7 @@ class Planner:
             retry_nudge=(
                 "Your previous response did not contain a valid PlannerDecision. "
                 "Emit exactly one JSON object with action in "
-                "['task', 'done', 'giveup'] and all required fields."
+                "['task', 'giveup'] and all required fields."
             ),
             temperature=0,
         )
