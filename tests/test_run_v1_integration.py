@@ -46,15 +46,15 @@ class FakeLLM:
         system = messages[0]["content"] if messages else ""
         if "You are the Planner" in system:
             return _Resp(json.dumps({
-                "action": "task", "goal": "reach the pytest --collect-only gate",
-                "done_when": "pytest --collect-only -q exits 0",
+                "action": "task", "goal": "run the test suite with bare interpreter",
+                "done_when": "python -m pytest -q exits 0 with at least one passed",
                 "layer": "tests", "facts": [],
             }))
         if "skilled in environment configuration" in system:
             # Deliberately never emits "Final Answer" — proves termination comes
             # from the map's done_flag, not the agent declaring success.
-            return _Resp("Thought: probe the collection gate.\n"
-                         "Action: pytest --collect-only -q --disable-warnings")
+            return _Resp("Thought: run the test suite.\n"
+                         "Action: python -m pytest -q")
         if "State Maintainer" in system:
             return _Resp("```json\n" + json.dumps({
                 "installed": [], "open_problems": [],
@@ -66,8 +66,9 @@ class FakeLLM:
 class FakeSandbox:
     def __init__(self): self.closed = False
     def execute(self, cmd):
-        if "--collect-only" in cmd:
-            return True, "collected 7 items / 7 selected\n"
+        # Return a real execution summary for any pytest/test command.
+        if "pytest" in cmd or "python -m pytest" in cmd:
+            return True, "7 passed in 0.3s\n"
         return True, "ok\n"
     def exec_readonly(self, cmd):
         # Read-only env probe (snapshot.probe_env -> extractor.run_extractor).
@@ -120,16 +121,16 @@ class RunV1IntegrationTest(unittest.TestCase):
         # here, before the loop ever ran.
         result = agent._run_v1(max_cycles=1)
 
-        # The orchestrator finalized via the structural done_flag path.
+        # The orchestrator finalized via the structural done_flag path (execution gate).
         self.assertIn("v1_done_flag", calls["finalize"],
                       "run_v1 must finalize via the done_flag path")
-        # The ledger captured the build agent's collect-only command (the
-        # Dockerfile source of truth) and it was promoted to verified commands.
+        # The ledger captured the build agent's execution command and it was
+        # promoted to verified commands.
         self.assertTrue(
-            any("--collect-only" in c for c in agent.verified_test_commands),
-            "verified_test_commands must be populated from the ledger collect-only scan")
-        self.assertTrue(any("--collect-only" in e.cmd for e in agent.action_ledger.events()),
-                        "build agent must have executed + recorded a collect-only command")
+            len(agent.verified_test_commands) > 0,
+            "verified_test_commands must be populated from the ledger execution scan")
+        self.assertTrue(any("pytest" in e.cmd for e in agent.action_ledger.events()),
+                        "build agent must have executed + recorded a test command")
         self.assertTrue(agent.sandbox.closed, "sandbox must be closed in the finally block")
         self.assertTrue(result)
 

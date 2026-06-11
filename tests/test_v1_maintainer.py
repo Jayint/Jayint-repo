@@ -195,58 +195,65 @@ class TestParseV1MaintainerReply(unittest.TestCase):
         new_map = parse_v1_maintainer_reply("not json at all", base, report)
         self.assertEqual(new_map.installed, base.installed)
 
-    def test_unparseable_output_still_sets_done_flag_on_collect_only(self):
+    def test_unparseable_output_still_sets_done_flag_on_real_execution(self):
         """Even when the LLM reply is unparseable, the structural done_flag rule
-        must still fire from the report (collect-only rc0) so the EBSR gate is
-        never missed just because the LLM returned garbage that cycle (spec §5)."""
+        must still fire from the report (real execution rc0 with passed output) so
+        the EBSR gate is never missed just because the LLM returned garbage that
+        cycle (spec §5)."""
         base = _base_map()
         report = _make_report(
-            [("pytest --collect-only -q --disable-warnings", 0, "collected 3 items")]
+            [("python -m pytest -q", 0, "3 passed in 0.5s")]
         )
         new_map = parse_v1_maintainer_reply("not json at all", base, report)
         self.assertTrue(new_map.done_flag)
 
 
 # ---------------------------------------------------------------------------
-# done_flag detection
+# done_flag detection — execution-gate semantics
 # ---------------------------------------------------------------------------
 
 class TestDoneFlag(unittest.TestCase):
-    """done_flag is set iff a pytest --collect-only command exited 0."""
+    """done_flag is set iff the report contains a real test execution (>=1 passed,
+    bare interpreter, no venv wrapper) that exited 0."""
 
-    def test_done_flag_set_on_collect_only_rc0(self):
+    def test_done_flag_set_on_real_execution_rc0(self):
+        """python -m pytest -q with 'N passed' output must finalize."""
+        base = _base_map()
+        report = _make_report(
+            [("python -m pytest -q", 0, "12 passed in 0.5s")]
+        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
+        new_map = parse_v1_maintainer_reply(reply, base, report)
+        self.assertTrue(new_map.done_flag)
+
+    def test_done_flag_NOT_set_on_collect_only(self):
+        """pytest --collect-only with 'collected N items' (no passed) must NOT finalize."""
         base = _base_map()
         report = _make_report(
             [("pytest --collect-only -q --disable-warnings", 0,
               "collected 12 items")]
         )
-        reply = (
-            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         new_map = parse_v1_maintainer_reply(reply, base, report)
-        self.assertTrue(new_map.done_flag)
+        self.assertFalse(new_map.done_flag)
 
-    def test_done_flag_set_for_poetry_run_collect_only(self):
+    def test_done_flag_NOT_set_for_poetry_run_even_with_passed_output(self):
+        """poetry run pytest is venv-wrapped — must NOT finalize."""
         base = _base_map()
         report = _make_report(
-            [("poetry run pytest --collect-only -q --disable-warnings", 0,
-              "collected 5 items")]
+            [("poetry run pytest -q", 0, "5 passed in 1.0s")]
         )
-        reply = (
-            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         new_map = parse_v1_maintainer_reply(reply, base, report)
-        self.assertTrue(new_map.done_flag)
+        self.assertFalse(new_map.done_flag)
 
-    def test_done_flag_not_set_when_collect_only_fails(self):
+    def test_done_flag_not_set_when_execution_fails(self):
+        """rc != 0 must not finalize even if output has 'passed'."""
         base = _base_map()
         report = _make_report(
-            [("pytest --collect-only -q --disable-warnings", 1,
-              "ERROR: ModuleNotFoundError: edsl")]
+            [("python -m pytest -q", 1, "3 passed, 1 failed in 0.5s")]
         )
-        reply = (
-            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertFalse(new_map.done_flag)
 
@@ -255,56 +262,48 @@ class TestDoneFlag(unittest.TestCase):
         report = _make_report(
             [("pip install flask", 0, "Successfully installed flask-3.0.0")]
         )
-        reply = (
-            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertFalse(new_map.done_flag)
 
-    # -- detector robustness (hardening after dropping self-declared done) ----
+    # -- detector robustness ----
 
-    def _done_after(self, cmd: str, rc: int = 0) -> bool:
+    def _done_after(self, cmd: str, rc: int = 0, output: str = "") -> bool:
         reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        new_map = parse_v1_maintainer_reply(reply, _base_map(), _make_report([(cmd, rc, "out")]))
+        new_map = parse_v1_maintainer_reply(
+            reply, _base_map(), _make_report([(cmd, rc, output)])
+        )
         return new_map.done_flag
 
-    def test_done_flag_set_for_co_alias(self):
-        # pytest registers `--co` as an explicit alias for `--collect-only`.
-        self.assertTrue(self._done_after("pytest --co"))
-
-    def test_done_flag_set_regardless_of_arg_order(self):
-        self.assertTrue(self._done_after("pytest -q --collect-only --disable-warnings"))
+    def test_done_flag_set_for_pytest_passed(self):
+        self.assertTrue(self._done_after("pytest -q", output="8 passed in 1.2s"))
 
     def test_done_flag_set_for_python_m_pytest(self):
-        self.assertTrue(self._done_after("python -m pytest --collect-only"))
+        self.assertTrue(self._done_after("python -m pytest -q", output="3 passed in 0.3s"))
 
-    def test_done_flag_set_for_path_pytest(self):
-        self.assertTrue(self._done_after("/venv/bin/pytest --co -q"))
+    def test_done_flag_NOT_set_for_co_alias_collect_only(self):
+        # --co is still collect-only — no 'passed' in output
+        self.assertFalse(self._done_after("pytest --co", output="collected 7 items"))
 
-    def test_cov_flag_does_not_trigger(self):
-        # --cov (pytest-cov) shares the '--co' prefix but is NOT collect-only.
-        self.assertFalse(self._done_after("pytest --cov=src tests/"))
+    def test_done_flag_set_regardless_of_arg_order_with_execution(self):
+        self.assertTrue(self._done_after(
+            "pytest -q --disable-warnings", output="5 passed in 0.2s"
+        ))
 
-    def test_color_flag_does_not_trigger(self):
-        self.assertFalse(self._done_after("pytest --color=yes -q"))
+    def test_unrelated_rc0_does_not_trigger(self):
+        self.assertFalse(self._done_after("pip install flask", output="ok"))
 
-    def test_non_pytest_tool_with_co_does_not_trigger(self):
-        self.assertFalse(self._done_after("sometool --co --collect-only"))
+    def test_venv_wrapped_does_not_trigger(self):
+        self.assertFalse(self._done_after("hatch run pytest", output="3 passed in 0.1s"))
 
-    def test_co_alias_still_gated_on_rc0(self):
-        self.assertFalse(self._done_after("pytest --co", rc=1))
-
-    def test_malformed_quoting_does_not_crash(self):
-        # Unbalanced quote: must not raise, and still detects via the fallback split.
-        self.assertTrue(self._done_after('pytest --collect-only "oops -q'))
+    def test_execution_still_gated_on_rc0(self):
+        self.assertFalse(self._done_after("pytest -q", rc=1, output="3 failed"))
 
     def test_done_flag_preserved_when_already_true(self):
         """If done_flag is somehow already True, update must keep it True."""
         base = merge_map(_base_map(), done_flag=True)
         report = _make_report([("ls", 0, "")])
-        reply = (
-            '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
-        )
+        reply = '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```'
         new_map = parse_v1_maintainer_reply(reply, base, report)
         self.assertTrue(new_map.done_flag)
 
@@ -335,7 +334,23 @@ class TestMaintainerUpdate(unittest.TestCase):
         result = maintainer.update(base, report)
         self.assertIsInstance(result, WorldModelMap)
 
-    def test_update_sets_done_flag_on_collect_only_rc0(self):
+    def test_update_sets_done_flag_on_real_execution_rc0(self):
+        """A real test execution (>=1 passed, bare interpreter) must finalize."""
+        reply = self._reply_json(
+            open_problems=[],
+            resolved=[],
+            notes=[],
+        )
+        maintainer = Maintainer(client=_fake_client(reply), model="test-model")
+        base = _base_map()
+        report = _make_report(
+            [("python -m pytest -q", 0, "7 passed in 0.5s")]
+        )
+        result = maintainer.update(base, report)
+        self.assertTrue(result.done_flag)
+
+    def test_update_does_NOT_set_done_flag_on_collect_only(self):
+        """pytest --collect-only with 'collected N items' must NOT finalize."""
         reply = self._reply_json(
             open_problems=[],
             resolved=[],
@@ -348,7 +363,7 @@ class TestMaintainerUpdate(unittest.TestCase):
               "collected 7 items")]
         )
         result = maintainer.update(base, report)
-        self.assertTrue(result.done_flag)
+        self.assertFalse(result.done_flag)
 
     def test_update_records_open_problem_on_install_failure(self):
         reply = self._reply_json(
@@ -450,7 +465,8 @@ class TestMaintainerSystemPrompt(unittest.TestCase):
         self.assertIn("command", MAINTAINER_SYSTEM_PROMPT.lower())
 
     def test_prompt_describes_done_flag_trigger(self):
-        self.assertIn("collect-only", MAINTAINER_SYSTEM_PROMPT)
+        # The prompt still must mention done_flag; the exact gate wording
+        # is in the module docstring/comments, not necessarily the system prompt.
         self.assertIn("done_flag", MAINTAINER_SYSTEM_PROMPT)
 
     def test_prompt_mentions_single_output_shape(self):

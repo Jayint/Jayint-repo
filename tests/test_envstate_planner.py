@@ -109,9 +109,13 @@ def _giveup_json(reason: str = "unsolvable conflict") -> str:
 # ---------------------------------------------------------------------------
 
 class PlannerSystemPromptTests(unittest.TestCase):
-    def test_prompt_mentions_pytest_collect_only(self):
+    def test_prompt_mentions_execution_objective(self):
+        """Phase 1: objective changed from collect-only to real execution pass."""
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
-        self.assertIn("pytest --collect-only", PLANNER_SYSTEM_PROMPT)
+        # The new objective uses a bare interpreter execution, not --collect-only.
+        self.assertIn("python -m pytest", PLANNER_SYSTEM_PROMPT)
+        # Must NOT instruct the model to use collect-only as the success target.
+        self.assertNotIn("--collect-only", PLANNER_SYSTEM_PROMPT)
 
     def test_prompt_mentions_all_layers(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT

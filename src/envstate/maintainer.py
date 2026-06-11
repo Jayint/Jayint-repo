@@ -9,13 +9,22 @@ Narrowed contract (Task 7):
     Facts (installed/progress/build_system/required/env) are owned by
     apply_deterministic and are NOT touched here.
 
-done_flag rule (§5):
-    `done_flag` is set to True if any CommandRecord in the report has
-    ``--collect-only`` in the cmd AND rc == 0.  Once True it stays True.
+done_flag rule (§5, Phase 1 — execution-aware gate):
+    `done_flag` is set to True when any CommandRecord in the report satisfies
+    ALL of the following:
+      1. rc == 0
+      2. is_test_command(cmd) is True  (Synthesizer classifier)
+      3. NOT venv-wrapped (not run under poetry/pipenv/hatch/conda/pdm)
+      4. analyze_test_run(cmd, output)["is_effective_test_run"] is True
+      5. _shows_execution(output) is True — output contains an execution
+         summary (e.g. "N passed" or "Ran N tests"), NOT merely
+         "collected N items" from a pure --collect-only run.
+    Once True it stays True.
 """
 from __future__ import annotations
 
 import json
+import re
 import shlex
 from typing import Any, Callable, Optional
 
@@ -31,17 +40,106 @@ from src.envstate.world_model import (
 )
 
 # ---------------------------------------------------------------------------
-# Collect-only detection — the structural done-gate
-#
-# done_flag fires when a real `pytest --collect-only` run exits 0. This is the
-# SOLE success signal (the Planner has no self-declared `done`), so the detector
-# must recognise every legitimate spelling without false-triggering:
-#   - the `--co` alias (pytest registers it explicitly for `--collect-only`)
-#   - the flag in any arg position (`pytest -q --collect-only`)
-#   - wrappers (`poetry run pytest ...`, `python -m pytest ...`)
-# while NOT matching `--cov` / `--color`, a quoted/echoed mention, or a
-# non-pytest tool that happens to take `--co`. Matched as whole shell tokens,
-# and only alongside a pytest invocation.
+# Execution-aware done-gate helpers
+# ---------------------------------------------------------------------------
+
+# Module-level detector singleton — lazy-imported to avoid circular imports.
+# Use _get_detector() instead of _DETECTOR directly in case synthesizer has
+# not yet been imported at module load time.
+_DETECTOR = None
+
+
+def _get_detector():
+    """Return the module-level Synthesizer singleton, creating it on first call."""
+    global _DETECTOR
+    if _DETECTOR is None:
+        from src.synthesizer import Synthesizer  # lazy to avoid circular import
+        _DETECTOR = Synthesizer()
+    return _DETECTOR
+
+
+# Venv runner prefixes that wrap the test command — the grader uses the bare
+# system interpreter, so commands run under these wrappers do NOT count.
+_VENV_WRAPPERS: frozenset[str] = frozenset({
+    "poetry", "pipenv", "hatch", "conda", "pdm",
+})
+
+
+def _is_venv_wrapped(cmd: str) -> bool:
+    """Return True iff *cmd* is run under a venv manager (poetry/pipenv/hatch/conda/pdm).
+
+    Detects the pattern ``<wrapper> run <...>`` at the start of the command
+    (after optional path prefix). Case-insensitive on the wrapper name.
+    Never raises.
+    """
+    try:
+        tokens = shlex.split(cmd.strip())
+    except ValueError:
+        tokens = cmd.strip().split()
+    if len(tokens) < 2:
+        return False
+    # The first token may be a full path, e.g. /usr/local/bin/poetry.
+    first = tokens[0].split("/")[-1].lower()
+    # Pattern: <wrapper> run ...
+    return first in _VENV_WRAPPERS and len(tokens) >= 2 and tokens[1] == "run"
+
+
+# Regexes for execution summary detection (condition 5 of the gate).
+# Matches "N passed" (pytest) and "Ran N tests" (unittest) with N >= 1.
+_RE_N_PASSED = re.compile(r"\b([1-9]\d*)\s+passed\b", re.IGNORECASE)
+_RE_RAN_N_TESTS = re.compile(r"\bran\s+([1-9]\d*)\s+tests?\b", re.IGNORECASE)
+
+
+def _shows_execution(output: str) -> bool:
+    """Return True iff *output* shows a genuine test execution summary.
+
+    Accepts:
+      - "N passed ..."  (pytest) with N >= 1
+      - "Ran N tests ..." (unittest) with N >= 1
+
+    Rejects:
+      - "collected N items"  (pure --collect-only, the hole we are closing)
+      - ""  (no output)
+      - "0 passed"  (zero tests pass does not satisfy >=1 requirement)
+    """
+    if not output:
+        return False
+    return bool(_RE_N_PASSED.search(output) or _RE_RAN_N_TESTS.search(output))
+
+
+def _verified_test_run_passed(
+    report: TaskReport,
+    detector=None,
+) -> bool:
+    """Return True iff any command in *report* is a verified passing test execution.
+
+    Gate (all five conditions must hold):
+      1. rec.rc == 0
+      2. detector.is_test_command(rec.cmd)
+      3. NOT _is_venv_wrapped(rec.cmd)
+      4. detector.analyze_test_run(rec.cmd, rec.output)["is_effective_test_run"]
+      5. _shows_execution(rec.output)
+    """
+    if detector is None:
+        detector = _get_detector()
+    for rec in report.commands:
+        if rec.rc != 0:
+            continue
+        if not detector.is_test_command(rec.cmd):
+            continue
+        if _is_venv_wrapped(rec.cmd):
+            continue
+        output = rec.output or ""
+        if not detector.analyze_test_run(rec.cmd, output).get("is_effective_test_run", False):
+            continue
+        if not _shows_execution(output):
+            continue
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Back-compat: keep the collect-only helpers for orchestrator.py import
 # ---------------------------------------------------------------------------
 
 COLLECT_ONLY_CMD: str = "--collect-only"
@@ -54,18 +152,10 @@ def _looks_like_pytest(tok: str) -> bool:
 
 
 def _is_collect_only_cmd(cmd: str) -> bool:
-    """Return True iff *cmd* is a pytest collection run.
-
-    Recognises ``--collect-only`` and its registered ``--co`` alias as whole
-    shell tokens, in any arg order and through wrappers, but only when a pytest
-    invocation is present — so ``--cov`` / ``--color`` and non-pytest tools never
-    false-trigger. Never raises (malformed quoting falls back to a plain split).
-    """
+    """Return True iff *cmd* is a pytest collection run (back-compat; not used by gate)."""
     try:
         tokens = shlex.split(cmd)
     except ValueError:
-        # Unbalanced quotes etc. — fall back to whitespace split so a malformed
-        # command can never crash the done-gate.
         tokens = cmd.split()
     has_pytest = any(_looks_like_pytest(t) for t in tokens)
     has_collect_only = any(t in _COLLECT_ONLY_TOKENS for t in tokens)
@@ -83,7 +173,8 @@ JSON in the next message) and propose structured updates to the map.
 You are NOT the build agent. You do NOT run shell commands. You do NOT certify
 that packages, tools, headers, imports, or services are present or missing — only
 deterministic host scripts and probes certify facts. You do NOT set done_flag (the
-host sets it when `pytest --collect-only` exits 0).
+host sets it when a bare `python -m pytest -q` run exits 0 with at least one passed
+test — execution-aware gate, not merely pytest --collect-only).
 
 ## What you are given (read-only — never restate it as output)
 - current_map: host-certified, authoritative facts — `installed`, `required`, `missing`
@@ -148,7 +239,11 @@ probes certify reality.
 # ---------------------------------------------------------------------------
 
 def _collect_only_passed(report: TaskReport) -> bool:
-    """Return True iff any command in the report is a collect-only run that exited 0."""
+    """Return True iff any command in the report is a collect-only run that exited 0.
+
+    Kept for back-compat — NOT used by the done-gate (which uses
+    _verified_test_run_passed instead). May be removed when no longer referenced.
+    """
     for rec in report.commands:
         if rec.rc == 0 and _is_collect_only_cmd(rec.cmd):
             return True
@@ -247,13 +342,14 @@ def parse_v1_maintainer_reply(
 
     Facts (installed/build_system/required/env and the derived progress layers)
     are owned by apply_deterministic. The only progress layer touched here is
-    ``tests``, kept consistent with the structural ``done_flag`` (collect-only
-    rc 0 in the report). On empty/unparseable input, only the structural
-    done_flag rule (and its tests sync) applies.
+    ``tests``, kept consistent with the structural ``done_flag`` (execution-aware
+    gate: a real test run with >=1 passed, bare interpreter, no venv wrapper).
+    On empty/unparseable input, only the structural done_flag rule (and its tests
+    sync) applies.
     """
     parsed = extract_json_object(text) if text else None
     if not parsed:
-        new_done = current_map.done_flag or _collect_only_passed(report)
+        new_done = current_map.done_flag or _verified_test_run_passed(report)
         if new_done != current_map.done_flag:
             return merge_map(
                 current_map,
@@ -283,7 +379,7 @@ def parse_v1_maintainer_reply(
     )
     merged_notes = current_map.notes + added_notes
 
-    done = current_map.done_flag or _collect_only_passed(report)
+    done = current_map.done_flag or _verified_test_run_passed(report)
     return merge_map(
         current_map,
         open_problems=merged,
@@ -326,7 +422,7 @@ class Maintainer:
 
         Never mutates *current_map* (WorldModelMap is frozen).
         On empty or unparseable LLM output, returns *current_map* unchanged
-        (except for structural done_flag / collect-only detection which still
+        (except for the structural done_flag / execution-gate check which still
         applies from the report itself).
         """
         # Pre-filled authoritative facts + the required-installed gap (design §4.4),

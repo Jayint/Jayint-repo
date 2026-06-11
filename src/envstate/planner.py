@@ -55,9 +55,10 @@ unmet cause that is currently blocking progress. Do NOT propose speculative
 installs to see if they help. Emit the one task that removes that root cause,
 and cite, in `facts`, the specific map evidence that justifies it.
 
-Your fixed objective: make `pytest --collect-only -q --disable-warnings` exit 0
-from the repo root. For Poetry projects use
-`poetry run pytest --collect-only -q --disable-warnings`.
+Your fixed objective: run the project's test suite with a bare interpreter
+(`python -m pytest -q` from the repo root) and reach at least one passed test
+with no collection or setup errors. Do NOT use venv wrappers such as
+`poetry run` — the grader uses the bare system interpreter.
 
 ## Output
 Emit exactly one JSON object inside a ```json fenced block — nothing else:
@@ -154,8 +155,8 @@ def render_planning_view(
 # ---------------------------------------------------------------------------
 
 # The Planner may only emit `task` or `giveup`. There is no self-declared
-# `done`: the structural done_flag (a real `pytest --collect-only` exit 0) is
-# the sole success stop, which closes the unverified-exit leak.
+# `done`: the structural done_flag (a real `python -m pytest -q` with >=1 passed)
+# is the sole success stop, which closes the unverified-exit leak.
 _VALID_ACTIONS = frozenset({"task", "giveup"})
 
 
@@ -205,8 +206,9 @@ class Planner:
     commands.  Emits only `task` or `giveup`.
 
     The orchestrator hard-stops on the structural done_flag; the Planner has no
-    self-declared `done` action, so the only successful stop is a real
-    `pytest --collect-only` exit 0 (closes the unverified-exit leak).
+    self-declared `done` action, so the only successful stop is a real test
+    execution pass (>=1 passed, bare `python -m pytest -q`, no venv wrapper)
+    that closes the unverified-exit leak.
     """
 
     def __init__(
@@ -243,7 +245,7 @@ class Planner:
         NOTE: There is no done_flag override guard here.  The orchestrator
         hard-stops before calling decide() when done_flag is True, and the
         Planner cannot self-declare done — so a successful stop is always
-        backed by a real collect-only exit 0.
+        backed by a real test execution pass (>=1 passed, bare interpreter).
         """
         self._cycle += 1
         budget = {"cycles_remaining": max(0, 12 - self._cycle)}

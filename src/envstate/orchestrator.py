@@ -28,8 +28,12 @@ Executor = Callable[[str], Tuple[bool, str]]
 MAX_CYCLES: int = 12
 LOCAL_BUDGET: int = 8
 
-# Canonical collect-only command — referenced everywhere instead of inline strings.
+# Canonical collect-only command — kept for back-compat (some tests/modules import it).
 COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
+
+# Canonical execution-verify command used by the Phase-1 execution gate.
+# The gate requires a bare interpreter (no venv wrapper) and >=1 passed test.
+VERIFY_TEST_CMD: str = "python -m pytest -q"
 
 
 def run_v1(

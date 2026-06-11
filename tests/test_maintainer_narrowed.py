@@ -42,6 +42,7 @@ def test_does_not_touch_installed_or_progress():
 
 def test_done_flag_fires_on_empty_llm_output():
     m = _map()
-    report = _report(cmds=(CommandRecord("pytest --collect-only", 0, "ok"),))
+    # Must use a real execution command with passed output to trigger done_flag.
+    report = _report(cmds=(CommandRecord("python -m pytest -q", 0, "3 passed in 0.5s"),))
     out = parse_v1_maintainer_reply("", m, report)
     assert out.done_flag is True

@@ -418,14 +418,15 @@ class TestRunV1Method(unittest.TestCase):
         agent, _ = self._patched_run_v1_call(done_flag=True)
         agent.sandbox.close.assert_called_once()
 
-    def test_verified_test_commands_populated_from_collect_only(self):
-        """_run_v1 must set self.verified_test_commands from the collect-only CommandRecord."""
+    def test_verified_test_commands_populated_from_execution_run(self):
+        """_run_v1 must set self.verified_test_commands from a genuine execution
+        CommandRecord in the ActionLedger (Phase 1: execution gate replaces collect-only)."""
         from src.envstate.world_model import (
             CommandRecord, TaskReport, WorldModelMap, initial_map, merge_map,
         )
         from src.envstate.ledger import ActionLedger
 
-        collect_cmd = "pytest --collect-only -q --disable-warnings"
+        exec_cmd = "python -m pytest -q"
         world_map = initial_map(
             base_image="python:3.11-slim",
             workdir="/app",
@@ -455,15 +456,13 @@ class TestRunV1Method(unittest.TestCase):
         import src.envstate.maintainer as maintainer_mod
         import src.envstate.world_model as wm_mod
 
-        # Simulate what _run_v1 must do internally: populate verified_test_commands
-        # by scanning the action_ledger for the collect-only command.
-        # Seed the ledger with a matching ActionEvent so the real scan finds it.
+        # Seed the ledger with a genuine execution run (rc=0, N passed).
         from src.envstate.ledger import ActionEvent
         agent.action_ledger._events = [
             ActionEvent(
                 step=1,
                 task_id=None,
-                cmd=collect_cmd,
+                cmd=exec_cmd,
                 rc=0,
                 stdout_path=None,
                 stderr_path=None,
@@ -471,7 +470,7 @@ class TestRunV1Method(unittest.TestCase):
                 env_revision_after=0,
                 mutation_class=None,
                 container_id="",
-                summary="5 items collected",
+                summary="5 passed in 0.3s",
             )
         ]
 
@@ -491,8 +490,10 @@ class TestRunV1Method(unittest.TestCase):
         ):
             agent._run_v1(max_cycles=12, keep_container=False)
 
-        self.assertIn(collect_cmd, agent.verified_test_commands,
-                      "_run_v1 must populate verified_test_commands with the collect-only cmd")
+        self.assertTrue(
+            len(agent.verified_test_commands) > 0,
+            "_run_v1 must populate verified_test_commands from the execution ledger scan",
+        )
 
     def test_run_v1_does_not_call_verify_cleanroom(self):
         """Cleanroom is skipped in the v1 path (EBSR is the trusted metric).

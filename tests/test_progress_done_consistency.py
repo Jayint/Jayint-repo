@@ -13,7 +13,9 @@ from src.envstate.world_model import (
     initial_map, merge_map, CommandRecord, TaskReport, PlannerDecision, Task,
 )
 
-_COLLECT = "pytest --collect-only -q --disable-warnings"
+# Use a real execution command (>= 1 passed, bare interpreter) to trigger done_flag.
+_EXEC_CMD = "python -m pytest -q"
+_EXEC_OUTPUT = "3 passed in 0.5s"
 
 
 def _map(**kw):
@@ -30,20 +32,20 @@ def _report(cmds):
 def test_done_flag_also_flips_progress_tests_parsed_reply():
     out = parse_v1_maintainer_reply(
         '```json\n{"open_problems": [], "resolved": [], "notes": []}\n```',
-        _map(), _report([(_COLLECT, 0, "collected 3 items")]),
+        _map(), _report([(_EXEC_CMD, 0, _EXEC_OUTPUT)]),
     )
     assert out.done_flag is True
     assert out.progress["tests"] is True
 
 
 def test_done_flag_also_flips_progress_tests_empty_output():
-    out = parse_v1_maintainer_reply("", _map(), _report([(_COLLECT, 0, "collected 3 items")]))
+    out = parse_v1_maintainer_reply("", _map(), _report([(_EXEC_CMD, 0, _EXEC_OUTPUT)]))
     assert out.done_flag is True
     assert out.progress["tests"] is True
 
 
 def test_progress_tests_untouched_when_not_done():
-    # no collect-only => done_flag stays False => tests stays False;
+    # no execution pass => done_flag stays False => tests stays False;
     # a stray LLM-proposed progress is still ignored (narrowed contract intact).
     m = _map(progress={"base": True, "system": True, "runtime": True,
                        "deps": True, "build": True, "tests": False})
@@ -67,7 +69,8 @@ def test_run_v1_terminal_map_progress_tests_matches_done_flag():
 
     class _Build:
         def run(self, task, ex, ledger, step_offset=0):
-            return TaskReport("g", "done", (CommandRecord(_COLLECT, 0, "collected 3 items"),), "ok")
+            return TaskReport("g", "done",
+                              (CommandRecord(_EXEC_CMD, 0, _EXEC_OUTPUT),), "ok")
 
     class _Maint:
         def update(self, m, report):
