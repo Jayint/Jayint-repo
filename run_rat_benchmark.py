@@ -384,6 +384,12 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
                repos_json: str, model: str = "dockeragent",
                repair_mode: str = "selfverify", repair_rounds: int = 2) -> list:
     """Build the argv for a worker child process."""
+    # Forward the arm explicitly. The scheduler parent resolved --arm into
+    # DOCKERAGENT_ENABLE_V1 before fanning out, but a child re-parses args (--arm
+    # defaults to "arm0") and RE-SETS DOCKERAGENT_ENABLE_V1="0" in its own main() —
+    # silently downgrading every worker to the legacy ReAct agent. Pass --arm so the
+    # child keeps the parent's choice (v1 stays v1).
+    arm = "v1" if os.environ.get("DOCKERAGENT_ENABLE_V1") == "1" else "arm0"
     return [
         PY, __file__,
         "--only", full_name,
@@ -395,6 +401,7 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
         "--model", model,
         "--repair-mode", repair_mode,
         "--repair-rounds", str(repair_rounds),
+        "--arm", arm,
     ]
 
 

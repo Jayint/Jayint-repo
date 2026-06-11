@@ -672,6 +672,33 @@ def test_child_cmd_includes_model_flag():
         )
 
 
+def test_child_cmd_propagates_arm_v1(monkeypatch):
+    """Worker children must carry --arm v1 when the scheduler resolved v1.
+
+    Regression: the scheduler resolves --arm into DOCKERAGENT_ENABLE_V1 before
+    fanning out, but children re-parse args (arm defaults to arm0) and RESET the
+    env var to "0" — silently downgrading every worker to legacy ReAct. _child_cmd
+    must forward the arm so the child keeps DOCKERAGENT_ENABLE_V1=1.
+    """
+    monkeypatch.setenv("DOCKERAGENT_ENABLE_V1", "1")
+    cmd = rrb._child_cmd(
+        full_name="org/testrepo", root_path="/tmp/test_root", llm="test-llm",
+        timeout=60, num_turn=3, repos_json="/tmp/repos.json",
+    )
+    assert "--arm" in cmd, "_child_cmd must forward --arm to the worker"
+    assert cmd[cmd.index("--arm") + 1] == "v1"
+
+
+def test_child_cmd_arm0_when_v1_disabled(monkeypatch):
+    """With v1 disabled in the environment, the worker arm is arm0."""
+    monkeypatch.setenv("DOCKERAGENT_ENABLE_V1", "0")
+    cmd = rrb._child_cmd(
+        full_name="org/testrepo", root_path="/tmp/test_root", llm="test-llm",
+        timeout=60, num_turn=3, repos_json="/tmp/repos.json",
+    )
+    assert cmd[cmd.index("--arm") + 1] == "arm0"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 18. Portable defaults: no hardcoded machine-specific paths
 # ─────────────────────────────────────────────────────────────────────────────
