@@ -23,9 +23,13 @@ EXTRACTOR_COMMANDS: Dict[str, str] = {
     "installed_pip": "pip list --format=freeze 2>/dev/null",
     "dpkg_packages": "dpkg -l 2>/dev/null | awk '/^ii/{print $2}'",
     "pkg_config_modules": "pkg-config --list-all 2>/dev/null",
+    # Trailing `; true` forces a zero exit: the loop's status would otherwise be the
+    # last `command -v` (non-zero whenever the final probed tool is absent), and
+    # run_extractor drops any field whose command returns non-zero — silently
+    # discarding the tools the loop already printed.
     "system_tools": (
         "for t in " + " ".join(SYSTEM_TOOL_PROBES) +
-        "; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done"
+        "; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done; true"
     ),
 }
 
