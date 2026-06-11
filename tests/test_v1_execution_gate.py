@@ -331,3 +331,89 @@ def test_shows_execution_false_for_zero_passed():
     from src.envstate.maintainer import _shows_execution
     # Zero passed does not satisfy >=1 pass requirement
     assert _shows_execution("0 passed in 0.1s") is False
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — anti-gaming: _uses_test_exclusion and gate integration
+# ---------------------------------------------------------------------------
+
+def test_uses_test_exclusion_importable():
+    """_uses_test_exclusion must be importable from maintainer."""
+    from src.envstate.maintainer import _uses_test_exclusion  # noqa
+    assert callable(_uses_test_exclusion)
+
+
+# -- _uses_test_exclusion unit tests --
+
+def test_uses_test_exclusion_ignore_eq_value():
+    """--ignore=examples (attached value) must return True."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("python -m pytest -q --ignore=examples") is True
+
+
+def test_uses_test_exclusion_ignore_space_value():
+    """--ignore examples (separate token) must return True."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("python -m pytest --ignore examples") is True
+
+
+def test_uses_test_exclusion_ignore_glob():
+    """--ignore-glob='*_slow.py' must return True."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("pytest --ignore-glob='*_slow.py'") is True
+
+
+def test_uses_test_exclusion_deselect():
+    """--deselect tests/test_x.py::test_broken must return True."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("python -m pytest -q --deselect tests/test_x.py::test_broken") is True
+
+
+def test_uses_test_exclusion_false_for_plain_pytest():
+    """Plain python -m pytest -q has no exclusion flags — must return False."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("python -m pytest -q") is False
+
+
+def test_uses_test_exclusion_false_for_path_containing_ignore_word():
+    """A path that contains the substring 'ignore' but is NOT the flag must return False.
+    e.g. 'pytest tests/test_ignore_logic.py' should not be flagged."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("pytest tests/test_ignore_logic.py") is False
+
+
+def test_uses_test_exclusion_false_for_verbose_pytest():
+    """pytest -v --tb=short is a clean run — must return False."""
+    from src.envstate.maintainer import _uses_test_exclusion
+    assert _uses_test_exclusion("pytest -v --tb=short") is False
+
+
+# -- Gate integration: exclusion-gaming rejected by _verified_test_run_passed --
+
+def test_ignore_flag_cmd_does_NOT_set_done_flag():
+    """python -m pytest -q --ignore=examples rc=0 '1 passed in 0.1s' must NOT finalize
+    (exclusion gaming rejected by the gate)."""
+    assert _done(
+        "python -m pytest -q --ignore=examples",
+        rc=0,
+        output="1 passed in 0.1s",
+    ) is False
+
+
+def test_deselect_flag_cmd_does_NOT_set_done_flag():
+    """python -m pytest -q --deselect tests/test_x.py::test_broken rc=0 '5 passed'
+    must NOT finalize."""
+    assert _done(
+        "python -m pytest -q --deselect tests/test_x.py::test_broken",
+        rc=0,
+        output="5 passed in 0.4s",
+    ) is False
+
+
+def test_clean_run_still_sets_done_flag_no_regression():
+    """python -m pytest -q rc=0 '182 passed in 4.0s' must still finalize (no regression)."""
+    assert _done(
+        "python -m pytest -q",
+        rc=0,
+        output="182 passed in 4.0s",
+    ) is True

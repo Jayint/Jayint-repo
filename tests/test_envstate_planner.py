@@ -595,5 +595,194 @@ class PrincipledPromptContractTests(unittest.TestCase):
         self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup"}))
 
 
+# ---------------------------------------------------------------------------
+# 8. Phase 2 — venv/interpreter remediation guidance in prompt
+# ---------------------------------------------------------------------------
+
+class PlannerPromptVenvRemediationTests(unittest.TestCase):
+    """Phase 2: the prompt must guide the Planner to make deps system-importable
+    rather than relying on venv-scoped wrappers like `poetry run`.
+    """
+
+    def test_prompt_mentions_system_interpreter_requirement(self):
+        """Prompt must explain that the grader uses the bare system interpreter."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "system interpreter" in lower or "bare interpreter" in lower,
+            "Prompt must mention 'system interpreter' or 'bare interpreter'",
+        )
+
+    def test_prompt_mentions_virtualenvs_create_false_or_equivalent(self):
+        """Prompt must instruct using virtualenvs.create false (or env var) before install."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertTrue(
+            "virtualenvs.create false" in PLANNER_SYSTEM_PROMPT
+            or "POETRY_VIRTUALENVS_CREATE=false" in PLANNER_SYSTEM_PROMPT,
+            "Prompt must mention 'virtualenvs.create false' or 'POETRY_VIRTUALENVS_CREATE=false'",
+        )
+
+    def test_prompt_forbids_poetry_run_wrapper_for_verification(self):
+        """Prompt must explicitly forbid `poetry run`-style wrappers for verification."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "poetry run" in lower or "venv wrapper" in lower or "do not use" in lower,
+            "Prompt must mention and forbid `poetry run` or venv-wrapper verification",
+        )
+
+    def test_prompt_says_wrapper_pass_does_not_count(self):
+        """Prompt must state that a wrapper-based pass does not count for the grader."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "does not count" in lower or "do not count" in lower
+            or "not accepted" in lower or "not satisfy" in lower
+            or "not sufficient" in lower,
+            "Prompt must state that a poetry-run/wrapper pass does not satisfy the gate",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 9. Phase 3 — runtime-service heuristic + compiled-binary build step
+# ---------------------------------------------------------------------------
+
+class PlannerPromptRuntimeServiceTests(unittest.TestCase):
+    """Phase 3: the prompt must contain a runtime-service heuristic and a
+    build-step note for compiled repos.
+    """
+
+    def test_prompt_mentions_live_service_or_running_server(self):
+        """Prompt must hypothesize that service clients need a LIVE running server."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "live service" in lower or "running server" in lower
+            or "start the server" in lower or "running daemon" in lower
+            or "server must be running" in lower,
+            "Prompt must mention that a live service / running server is required",
+        )
+
+    def test_prompt_names_at_least_one_known_service_client(self):
+        """Prompt must cite known service clients (redis, psycopg2, etc.) as signals."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        known_clients = ["redis", "psycopg2", "pymongo", "mysqlclient", "celery",
+                         "kombu", "pika", "elasticsearch"]
+        matched = [c for c in known_clients if c in lower]
+        self.assertTrue(
+            len(matched) >= 1,
+            f"Prompt must name at least one known service client; got none from {known_clients}",
+        )
+
+    def test_prompt_warns_import_success_is_not_runtime_satisfied(self):
+        """Prompt must say that import success != runtime layer satisfied."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "import" in lower and (
+                "not proof" in lower or "not sufficient" in lower
+                or "not enough" in lower or "not satisfy" in lower
+                or "does not mean" in lower or "does not prove" in lower
+            ),
+            "Prompt must warn that a successful `import X` does not prove runtime is satisfied",
+        )
+
+    def test_prompt_mentions_build_step_for_compiled_repos(self):
+        """Prompt must propose a build step (make/cmake/etc.) for compiled repos."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "makefile" in lower or "cmake" in lower or "make" in lower
+            or "compiled" in lower or "binary" in lower,
+            "Prompt must mention build step (make/cmake/compiled binary) for compiled repos",
+        )
+
+    def test_prompt_mentions_redis_server_or_start_service(self):
+        """Prompt must give a concrete example of starting a service (e.g. redis-server)."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "redis-server" in lower or "start redis" in lower
+            or "start the service" in lower or "start a service" in lower
+            or "provision the service" in lower,
+            "Prompt must give a concrete example of starting a service (redis-server etc.)",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 10. Phase 4 — done_when discipline + anti-fabrication rules
+# ---------------------------------------------------------------------------
+
+class PlannerPromptAntiFabricationTests(unittest.TestCase):
+    """Phase 4: the prompt must contain hard done_when discipline rules and
+    anti-fabrication guards.
+    """
+
+    def test_prompt_forbids_pip_show_as_done_when(self):
+        """Prompt must ban `pip show` / `pip list` / `pip install exit 0` as done_when."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "pip show" in lower or "pip list" in lower
+            or "proxy" in lower,
+            "Prompt must mention and ban `pip show`/`pip list` proxy done_when values",
+        )
+
+    def test_prompt_requires_done_when_to_be_real_pytest_command(self):
+        """Prompt must state done_when must be the real pytest execution command."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "done_when" in lower and "python -m pytest" in PLANNER_SYSTEM_PROMPT,
+            "Prompt must require done_when to be the real pytest execution command",
+        )
+
+    def test_prompt_forbids_creating_test_files(self):
+        """Prompt must explicitly forbid creating test files (e.g. test_zero.py)."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "never create" in lower or "do not create" in lower
+            or "must not create" in lower or "never write" in lower,
+            "Prompt must explicitly forbid creating test files",
+        )
+        # Must specifically mention test files context
+        self.assertTrue(
+            "test file" in lower or "test_" in lower or "test_zero" in lower,
+            "Prompt must mention test files (test_zero.py etc.) in the anti-fabrication rule",
+        )
+
+    def test_prompt_forbids_ignore_and_deselect_to_hide_tests(self):
+        """Prompt must ban --ignore / --deselect to hide pre-existing failing tests."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertTrue(
+            "--ignore" in PLANNER_SYSTEM_PROMPT or "--deselect" in PLANNER_SYSTEM_PROMPT,
+            "Prompt must mention --ignore / --deselect and forbid their use to hide tests",
+        )
+
+    def test_prompt_requires_giveup_when_no_real_test_suite(self):
+        """Prompt must instruct emitting giveup when there are no genuine test files."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "no real test" in lower or "no genuine test" in lower
+            or "no pre-existing test" in lower
+            or "giveup" in lower and "no" in lower and "test" in lower,
+            "Prompt must instruct giveup when there is no real test suite",
+        )
+
+    def test_prompt_mentions_no_real_test_suite_reason(self):
+        """Prompt must mention emitting giveup with a reason citing no real test suite."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "no_real_test_suite" in lower
+            or ("no real test suite" in lower)
+            or ("no genuine" in lower and "test" in lower),
+            "Prompt must mention no_real_test_suite as a giveup reason",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

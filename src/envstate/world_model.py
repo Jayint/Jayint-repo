@@ -169,24 +169,67 @@ def merge_map(
 
 
 
+def _build_required(repo_layout: tuple[str, ...]) -> bool:
+    """Return True when the repo needs a compile step before tests can run.
+
+    Detects (case-insensitive, by basename):
+    - Build-system files: Makefile, makefile, GNUmakefile, CMakeLists.txt,
+      configure, configure.ac, meson.build, Cargo.toml, go.mod
+    - Compiled source extensions: .c, .cc, .cpp, .cxx, .go, .rs
+
+    Pure; never mutates its argument. Returns False for empty layouts and
+    for repos whose layout contains only Python/scripted files.
+    """
+    _BUILD_FILENAMES: frozenset[str] = frozenset({
+        "makefile", "gnumakefile", "cmakelists.txt",
+        "configure", "configure.ac", "meson.build",
+        "cargo.toml", "go.mod",
+    })
+    _BUILD_EXTENSIONS: frozenset[str] = frozenset({
+        ".c", ".cc", ".cpp", ".cxx", ".go", ".rs",
+    })
+    for entry in repo_layout:
+        basename = entry.rstrip("/").rsplit("/", 1)[-1].lower()
+        if basename in _BUILD_FILENAMES:
+            return True
+        _, _, ext = basename.rpartition(".")
+        if ext and "." + ext in _BUILD_EXTENSIONS:
+            return True
+    return False
+
+
 def _derive_progress(prev: dict[str, bool], m: WorldModelMap) -> dict[str, bool]:
     """Deterministically compute layer progress from facts; monotonic vs prev.
 
     Clean-signal layers: base/runtime/deps/tests. Signal-less layers
     (system/build) are complete unless an unresolved open_problem targets
     them. OR-merged with prev so a layer never flips True->False mid-run.
+
+    Build-layer special case (Phase 3):
+      For repos where _build_required() is True (Makefile, C/Go/Rust sources, …),
+      the build layer is NOT auto-completed merely because no open_problem targets
+      it. Keeping build=False as a standing planning concern nudges the Planner to
+      emit a compile step (e.g. `make`) rather than skipping it.
+      For pure-Python repos (_build_required() is False) the signal-less logic is
+      unchanged: build is True unless a build open_problem is present.
+      Finalization is the execution gate (done_flag), not progress; this never
+      produces a false success, only a more conservative planning signal.
     """
     installed_lower = {f.name.lower() for f in m.installed}
     deps_ok = bool(m.required) and all(
         r.name.lower() in installed_lower for r in m.required
     )
     open_layers = {p.layer for p in m.open_problems if not p.out_of_scope}
+    build_required = _build_required(m.repo_layout)
+    # For build-required repos, suppress the signal-less True so the Planner
+    # is forced to propose a compile step; for pure-Python repos, keep old behaviour.
+    computed_build = ("build" not in open_layers) and not build_required
     computed = {
         "base": bool(m.base_image),
         "system": "system" not in open_layers,
         "runtime": bool(m.env.get("python_version")),
         "deps": deps_ok,
-        "build": "build" not in open_layers,
+        "build": computed_build,
         "tests": bool(m.done_flag),
     }
     return {

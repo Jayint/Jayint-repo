@@ -60,6 +60,65 @@ Your fixed objective: run the project's test suite with a bare interpreter
 with no collection or setup errors. Do NOT use venv wrappers such as
 `poetry run` — the grader uses the bare system interpreter.
 
+## Phase 2 — Venv / interpreter remediation
+
+The grader always invokes `python -m pytest` using the bare system interpreter,
+never through a venv wrapper such as `poetry run`, `pipenv run`, `hatch run`,
+`pdm run`, or a sourced virtualenv activate script.  A `poetry run pytest …
+8 passed` result does NOT count — it is not sufficient to satisfy the gate.
+
+For Poetry / Pipenv / Hatch / PDM projects the dependencies must be importable
+by the plain system interpreter:
+- Emit a precursor task that disables virtualenv creation BEFORE installing:
+  `poetry config virtualenvs.create false` (or set the env var
+  `POETRY_VIRTUALENVS_CREATE=false`), then run `poetry install`.
+- For Pipenv: `PIPENV_VENV_IN_PROJECT=true pipenv install --system` or
+  `pip install -r <(pipenv lock -r)`.
+- Verify with the bare system interpreter only: `python -m pytest -q`.
+  A wrapper-based pass does not satisfy the gate; do not use it as verification.
+
+## Phase 3 — Runtime-service heuristic and compiled-binary build step
+
+### Runtime services
+When a known service client library (redis, psycopg2, pymongo, mysqlclient,
+celery, kombu, pika, elasticsearch, etc.) appears in `required` or `installed`,
+hypothesize that the test suite needs a LIVE running server — not just the
+client library installed.  A successful `import redis` or `pip show redis` does
+NOT prove the runtime layer is satisfied; the actual server daemon must be
+running and reachable on the host/port expected by the tests.
+
+Emit a runtime-layer task to start or provision the service in the container
+before running tests.  Example: start `redis-server` in the background before
+`python -m pytest`.  Do NOT treat `import X` succeeding as proof the runtime
+layer is satisfied.
+
+### Compiled binaries (C / C++ / Go / Rust / Makefile repos)
+When `repo_layout` contains a `Makefile`, `CMakeLists.txt`, `configure` script,
+or source files with extensions `.c`, `.cpp`, `.go`, `.rs`, the testable
+artifact is a compiled binary, not just installed Python packages.  Propose the
+build step (`make`, `cmake --build`, `go build`, `cargo build`, etc.) BEFORE
+expecting tests to pass.
+
+## Phase 4 — done_when discipline and anti-fabrication rules
+
+### done_when must be the real acceptance command
+`done_when` MUST be a bare `python -m pytest -q` execution that actually
+passes — not a weaker proxy such as:
+- `pip show X` / `pip list` / `pip install … exit 0`
+- `python -c "import X"` alone
+- any venv-wrapper invocation
+
+### Never fabricate tests or game the gate
+- NEVER create or write new test files (e.g. `test_zero.py`, `test_smoke.py`)
+  to manufacture a passing run.
+- NEVER use `--ignore`, `--ignore-glob`, or `--deselect` to hide a pre-existing
+  failing or broken test in order to reach exit 0.
+- If, after inventorying the repo, there are NO genuine pre-existing test files
+  (no `test_*.py` / `*_test.py` files), OR every test-named file fails to
+  import as valid Python, emit `giveup` with a reason that states there is no
+  real test suite (`no_real_test_suite`).  Do NOT fabricate tests or game the
+  gate.
+
 ## Output
 Emit exactly one JSON object inside a ```json fenced block — nothing else:
 
@@ -67,13 +126,13 @@ Emit exactly one JSON object inside a ```json fenced block — nothing else:
 {
   "action": "task",
   "goal": "<the single sub-goal that removes the diagnosed root cause>",
-  "done_when": "<a command-checkable success criterion>",
+  "done_when": "<a bare python -m pytest -q execution that passes, not a proxy>",
   "layer": "<base | system | runtime | deps | build | tests — the layer of the root cause>",
   "facts": ["<the map evidence that justifies this task>"]
 }
 ```
 
-When no viable path remains:
+When no viable path remains (including no real test suite):
 
 ```json
 {"action": "giveup", "reason": "<the open problems that remain and why no path resolves them>"}

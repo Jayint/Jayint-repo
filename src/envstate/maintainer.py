@@ -107,18 +107,63 @@ def _shows_execution(output: str) -> bool:
     return bool(_RE_N_PASSED.search(output) or _RE_RAN_N_TESTS.search(output))
 
 
+# Exclusion flags that hide pre-existing test paths and can manufacture a
+# spurious green run (Phase 4 anti-gaming check).
+_EXCLUSION_FLAG_PREFIXES: tuple[str, ...] = (
+    "--ignore=",
+    "--ignore-glob=",
+    "--ignore-glob",
+    "--ignore",
+    "--deselect",
+)
+
+
+def _uses_test_exclusion(cmd: str) -> bool:
+    """Return True iff *cmd* contains a pytest exclusion flag that skips test paths.
+
+    Flags detected: ``--ignore``, ``--ignore=<value>``, ``--ignore-glob``,
+    ``--ignore-glob=<value>``, ``--deselect``.
+
+    Matching is done on whole tokens produced by ``shlex.split``.  A token
+    matches when it equals a bare flag (e.g. ``--ignore``) or starts with the
+    flag followed by ``=`` (e.g. ``--ignore=examples``).  This avoids false
+    positives from paths that merely contain the substring "ignore".
+
+    Falls back to whitespace split on ``ValueError`` (malformed shell quoting),
+    mirroring ``_is_collect_only_cmd``.  Never raises.
+    """
+    try:
+        tokens = shlex.split(cmd.strip())
+    except ValueError:
+        tokens = cmd.strip().split()
+    _bare_flags: frozenset[str] = frozenset({"--ignore", "--ignore-glob", "--deselect"})
+    _eq_prefixes: tuple[str, ...] = ("--ignore=", "--ignore-glob=", "--deselect=")
+    for tok in tokens:
+        if tok in _bare_flags:
+            return True
+        if any(tok.startswith(p) for p in _eq_prefixes):
+            return True
+    return False
+
+
 def _verified_test_run_passed(
     report: TaskReport,
     detector=None,
 ) -> bool:
     """Return True iff any command in *report* is a verified passing test execution.
 
-    Gate (all five conditions must hold):
+    Gate (all six conditions must hold):
       1. rec.rc == 0
       2. detector.is_test_command(rec.cmd)
       3. NOT _is_venv_wrapped(rec.cmd)
-      4. detector.analyze_test_run(rec.cmd, rec.output)["is_effective_test_run"]
-      5. _shows_execution(rec.output)
+      4. NOT _uses_test_exclusion(rec.cmd)  — Phase 4 anti-gaming guard:
+         a verification that deliberately ignores/deselects pre-existing test
+         paths is not a trustworthy success signal.  The n8n-autoscaling case
+         used ``--ignore=examples`` to hide a real SyntaxError in examples/;
+         accepting that as a pass would produce a false success.  Deliberate
+         strictness: the only trustworthy verification is a full, unfiltered run.
+      5. detector.analyze_test_run(rec.cmd, rec.output)["is_effective_test_run"]
+      6. _shows_execution(rec.output)
     """
     if detector is None:
         detector = _get_detector()
@@ -128,6 +173,8 @@ def _verified_test_run_passed(
         if not detector.is_test_command(rec.cmd):
             continue
         if _is_venv_wrapped(rec.cmd):
+            continue
+        if _uses_test_exclusion(rec.cmd):
             continue
         output = rec.output or ""
         if not detector.analyze_test_run(rec.cmd, output).get("is_effective_test_run", False):
