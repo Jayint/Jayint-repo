@@ -435,11 +435,18 @@ class TestBuildAgentStuckGuardIntegration(unittest.TestCase):
         self.assertEqual(report.status, "done")
 
     def test_preflight_rejection_does_not_trigger_stuck(self):
-        """Preflight rejections must not count toward the stuck counter."""
-        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup commands must not pipe"
+        """Preflight rejections must not count toward the stuck counter.
+
+        Uses a command that doesn't trigger the local self-check but is still
+        rejected by the sandbox as a preflight (the test sandbox mocks this).
+        """
+        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: multi-step compound not allowed"
+        # 'pip install x 2>&1 | wc -l' does NOT trigger the composition self-check
+        # (wc is not in the filter set), so it reaches the sandbox, which rejects it.
+        bad_cmd = "pip install x 2>&1 | wc -l"
         client = _fake_client_seq([
-            "Thought: bad1\nAction: pip install x | head",
-            "Thought: bad2\nAction: pip install x | head",
+            f"Thought: bad1\nAction: {bad_cmd}",
+            f"Thought: bad2\nAction: {bad_cmd}",
             "Thought: ok\nAction: pip install flask",
             "Thought: done\nFinal Answer: Success",
         ])
@@ -447,7 +454,7 @@ class TestBuildAgentStuckGuardIntegration(unittest.TestCase):
 
         def sandbox(cmd):
             sandbox_calls.append(cmd)
-            if "| head" in cmd:
+            if "wc -l" in cmd:
                 return False, preflight
             return True, "Installed flask"
 
@@ -508,16 +515,23 @@ class TestBuildAgentLedgerAppends(unittest.TestCase):
         self.assertEqual(events[1].cmd, "pip install psycopg2")
 
     def test_preflight_rejected_action_still_appended(self):
-        """Preflight rejections ARE appended to the ledger (rc=1, mutation_class=None)."""
-        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: setup"
+        """Preflight rejections ARE appended to the ledger (rc=1, mutation_class=None).
+
+        Uses a command that doesn't trigger the local self-check but is still
+        rejected by the sandbox as a preflight (the test sandbox mocks this).
+        """
+        preflight = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION: sandbox policy"
+        # 'pip install x 2>&1 | wc -l' does NOT trigger the composition self-check
+        # (wc is not in the filter set), so it reaches the sandbox, which rejects it.
+        bad_cmd = "pip install x 2>&1 | wc -l"
         client = _fake_client_seq([
-            "Thought: bad\nAction: pip install x | head",
+            f"Thought: bad\nAction: {bad_cmd}",
             "Thought: ok\nAction: pip install flask",
             "Thought: done\nFinal Answer: Success",
         ])
 
         def sandbox(cmd):
-            if "| head" in cmd:
+            if "wc -l" in cmd:
                 return False, preflight
             return True, "ok"
 
@@ -819,3 +833,258 @@ class TestBuildAgentPromptContract(unittest.TestCase):
         low = self.prompt.lower()
         self.assertIn("do not plan", low)
         self.assertIn("do not certify", low)
+
+
+# ---------------------------------------------------------------------------
+# 10. Command composition rules in system prompt (Phase 5a)
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentPromptCompositionRules(unittest.TestCase):
+    """The system prompt must teach the two sandbox composition rules up-front."""
+
+    def setUp(self):
+        from src.envstate.build_agent import BUILD_AGENT_SYSTEM_PROMPT
+        self.prompt = BUILD_AGENT_SYSTEM_PROMPT
+        self.lower = BUILD_AGENT_SYSTEM_PROMPT.lower()
+
+    def test_prompt_forbids_combining_mutation_with_probe(self):
+        """Prompt must state that one mutation per Action is required (no mutation+probe combos)."""
+        # Accept either phrasing: "one ... mutation per Action" or "ONE ... mutation per Action"
+        self.assertTrue(
+            "mutation per Action" in self.prompt or "mutation per action" in self.lower,
+            "Expected 'mutation per Action' or equivalent in BUILD_AGENT_SYSTEM_PROMPT",
+        )
+
+    def test_prompt_forbids_piping_setup_output_through_grep_head_tail(self):
+        """Prompt must explicitly forbid piping setup/test output through grep/head/tail."""
+        # The key restriction words must all appear
+        for word in ("grep", "head", "tail"):
+            self.assertIn(word, self.lower,
+                          f"Expected '{word}' mentioned in composition rules section of prompt")
+
+    def test_prompt_has_composition_rules_section(self):
+        """There must be a dedicated Command composition rules section."""
+        self.assertIn("composition", self.lower,
+                      "Expected a 'composition' rules section heading in the prompt")
+
+    def test_prompt_gives_bad_example_for_mutation_plus_probe(self):
+        """Prompt should include a concrete BAD example involving pip install + python -c."""
+        # A good concrete bad example mentions both a mutation (pip install) and a probe
+        # (python -c or import) chained together.
+        self.assertTrue(
+            ("pip install" in self.prompt and "python -c" in self.prompt),
+            "Expected a concrete mutation+probe BAD example (pip install ... python -c) in prompt",
+        )
+
+    def test_prompt_gives_redirect_alternative_to_piping(self):
+        """Prompt must suggest redirecting to a file as the alternative to piping."""
+        self.assertIn(
+            "> /tmp/",
+            self.prompt,
+            "Expected redirect-to-file example (> /tmp/...) in prompt composition rules",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 11. validate_command_composition — pure unit tests (Phase 5a)
+# ---------------------------------------------------------------------------
+
+class TestValidateCommandComposition(unittest.TestCase):
+    """validate_command_composition(cmd) returns a corrective message str or None."""
+
+    def _validate(self, cmd: str):
+        from src.envstate.build_agent import validate_command_composition
+        return validate_command_composition(cmd)
+
+    # --- Rule 1: mutation + probe chained via && / ; / || ---
+
+    def test_pip_install_then_import_check_flagged(self):
+        """pip install X && python -c 'import X' combines mutation with probe → message."""
+        result = self._validate("pip install requests && python -c 'import requests'")
+        self.assertIsNotNone(result, "Expected a corrective message for mutation+probe combo")
+        self.assertIsInstance(result, str)
+
+    def test_pip_install_then_import_via_semicolon_flagged(self):
+        """pip install X; python -c 'import X' (semicolon separator) → message."""
+        result = self._validate("pip install requests; python -c 'import requests'")
+        self.assertIsNotNone(result)
+
+    def test_apt_get_then_probe_flagged(self):
+        """apt-get install X && pip show Y combines mutation with probe → message."""
+        result = self._validate("apt-get install -y libpq-dev && pip show psycopg2")
+        self.assertIsNotNone(result)
+
+    def test_make_then_ls_flagged(self):
+        """make && ls (mutation + read) → message."""
+        result = self._validate("make && ls -la")
+        self.assertIsNotNone(result)
+
+    # --- Rule 2: piping setup/test output through grep/head/tail/sed/awk ---
+
+    def test_pytest_piped_through_grep_flagged(self):
+        """pytest 2>&1 | grep -i error pipes test output through grep → message."""
+        result = self._validate("pytest 2>&1 | grep -i error")
+        self.assertIsNotNone(result, "Expected message for piped test output through grep")
+
+    def test_pip_install_piped_through_head_flagged(self):
+        """pip install x | head -20 pipes setup output through head → message."""
+        result = self._validate("pip install x | head -20")
+        self.assertIsNotNone(result)
+
+    def test_pip_install_piped_through_tail_flagged(self):
+        result = self._validate("pip install -r requirements.txt | tail -5")
+        self.assertIsNotNone(result)
+
+    def test_pip_install_piped_through_sed_flagged(self):
+        result = self._validate("pip install x | sed 's/error/ERROR/g'")
+        self.assertIsNotNone(result)
+
+    def test_pip_install_piped_through_awk_flagged(self):
+        result = self._validate("pip install x | awk '{print $1}'")
+        self.assertIsNotNone(result)
+
+    # --- True negatives: legitimate commands must return None ---
+
+    def test_pip_install_alone_is_fine(self):
+        """pip install -r requirements.txt alone is a clean mutation → None."""
+        result = self._validate("pip install -r requirements.txt")
+        self.assertIsNone(result)
+
+    def test_cat_alone_is_fine(self):
+        """cat /tmp/out.log alone is a clean read → None."""
+        result = self._validate("cat /tmp/out.log")
+        self.assertIsNone(result)
+
+    def test_cd_then_pytest_is_fine(self):
+        """cd /app && python -m pytest -q — cd is not a mutation, pytest is not a probe → None."""
+        result = self._validate("cd /app && python -m pytest -q")
+        self.assertIsNone(result)
+
+    def test_single_pytest_is_fine(self):
+        """pytest alone (no piping) is a valid test command → None."""
+        result = self._validate("pytest tests/")
+        self.assertIsNone(result)
+
+    def test_apt_get_alone_is_fine(self):
+        """apt-get install -y libpq-dev alone → None."""
+        result = self._validate("apt-get install -y libpq-dev")
+        self.assertIsNone(result)
+
+    def test_ls_piped_grep_is_fine(self):
+        """ls | grep foo is a read-only pipeline — not a setup/test command → None."""
+        result = self._validate("ls -la | grep foo")
+        self.assertIsNone(result)
+
+    def test_cat_piped_grep_is_fine(self):
+        """cat file | grep pattern is read-only → None."""
+        result = self._validate("cat requirements.txt | grep flask")
+        self.assertIsNone(result)
+
+    def test_cd_then_pip_install_is_fine(self):
+        """cd /app && pip install -e . — cd is not a mutation → fine (treated as single mutation)."""
+        result = self._validate("cd /app && pip install -e .")
+        self.assertIsNone(result)
+
+
+# ---------------------------------------------------------------------------
+# 12. Self-check wired into BuildAgent.run (Phase 5a)
+# ---------------------------------------------------------------------------
+
+class TestBuildAgentSelfCheckIntegration(unittest.TestCase):
+    """A violating command must be intercepted (fed back as observation) rather
+    than executed — the sandbox must NOT be called for it.
+
+    This test is structurally possible because the BuildAgent loop is fully
+    unit-testable via the injected sandbox_execute callable.
+    """
+
+    def test_mutation_probe_combo_not_sent_to_sandbox(self):
+        """A mutation+probe command must be fed back to the model without sandbox execution."""
+        violating_cmd = "pip install requests && python -c 'import requests'"
+        safe_cmd = "pip install requests"
+
+        # The LLM first proposes the violating command, then (after the corrective
+        # observation) proposes a clean command and finishes.
+        client = _fake_client_seq([
+            f"Thought: install and verify\nAction: {violating_cmd}",
+            f"Thought: split them\nAction: {safe_cmd}",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return True, "Successfully installed requests"
+
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+        )
+        report = agent.run(_make_task(), sandbox, _make_ledger())
+
+        # The violating command must never reach the sandbox
+        self.assertNotIn(violating_cmd, sandbox_calls,
+                         "Violating command was sent to sandbox — self-check not wired")
+        # The clean command must have been executed
+        self.assertIn(safe_cmd, sandbox_calls)
+        self.assertEqual(report.status, "done")
+
+    def test_piped_command_not_sent_to_sandbox(self):
+        """A piped setup command must be intercepted before sandbox execution."""
+        violating_cmd = "pytest 2>&1 | grep -i error"
+        safe_cmd = "pytest tests/ > /tmp/out.log 2>&1"
+
+        client = _fake_client_seq([
+            f"Thought: run tests\nAction: {violating_cmd}",
+            f"Thought: redirect instead\nAction: {safe_cmd}",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return True, "2 passed"
+
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+        )
+        report = agent.run(_make_task(), sandbox, _make_ledger())
+
+        self.assertNotIn(violating_cmd, sandbox_calls,
+                         "Piped command was sent to sandbox — self-check not wired")
+        self.assertIn(safe_cmd, sandbox_calls)
+        self.assertEqual(report.status, "done")
+
+    def test_self_check_interception_does_not_consume_budget_step(self):
+        """An intercepted (self-check rejected) command must NOT consume a LOCAL_BUDGET step.
+
+        The corrective message is fed back as the observation for that LLM turn,
+        so the step counter must not increment (the sandbox was never called).
+        """
+        from src.envstate.build_agent import LOCAL_BUDGET, BuildAgent
+        violating_cmd = "pip install x && python -c 'import x'"
+        safe_cmd = "pip install x"
+
+        client = _fake_client_seq([
+            f"Thought: bad\nAction: {violating_cmd}",
+            f"Thought: ok\nAction: {safe_cmd}",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        sandbox_calls = []
+
+        def sandbox(cmd):
+            sandbox_calls.append(cmd)
+            return True, "ok"
+
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c",
+        )
+        report = agent.run(_make_task(), sandbox, _make_ledger())
+
+        # Only the safe command must appear in the sandbox
+        self.assertEqual(sandbox_calls, [safe_cmd])
+        self.assertEqual(report.status, "done")

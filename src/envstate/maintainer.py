@@ -275,6 +275,28 @@ Return exactly one JSON object inside a ```json fenced block — nothing else:
 }
 ```
 
+## Problem deduplication and pruning (CRITICAL)
+6. **Collapse near-duplicates**: if multiple failures share a single underlying
+   mechanism (e.g. several ``No module named 'tests.<sub>'`` errors all caused
+   by the same pytest collection topology), emit a SINGLE open_problem entry
+   with the most representative signature. Do NOT emit one entry per symptom when
+   one mechanism explains them all.
+7. **Prune stale problems**: if this cycle's transcript shows a command with
+   rc=0 whose output no longer contains a previously reported failure signature,
+   add that signature to ``resolved``. Example: an earlier ``ls: cannot access
+   /app/pyproject.toml`` that is now irrelevant (layout understood, no recurrence)
+   belongs in ``resolved``, not in ``open_problems`` as a stale duplicate.
+
+## Classification of pytest collection / import-mode errors
+A ``ModuleNotFoundError: No module named 'tests.<anything>'``, ``import file
+mismatch``, or ``error during collection`` / ``INTERNALERROR`` / ``conftest``
+error is a **test topology problem**, not a missing dependency.  Classify these
+as ``test_failure``, NOT ``language_package_missing`` — especially when all
+``pip install`` commands already exited rc=0 (no real dependency is missing).
+The distinction matters: the host auto-resolver routes ``test_failure`` to the
+``tests`` layer, while ``language_package_missing`` triggers an install loop
+that cannot fix a name-collision or conftest path error.
+
 ## Hard safety rule
 If you are tempted to write present, missing, installed, fixed, verified, or
 working as a fact, do not — just record the literal signature and let the host's
@@ -314,9 +336,62 @@ _KIND_TO_LAYER: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Phase 5b — collection-topology reclassify guard
+# ---------------------------------------------------------------------------
+
+# Patterns that identify pytest collection / import-mode topology errors.
+# These must map to layer "tests", never "deps", regardless of what kind the
+# LLM emits.  Kept deliberately narrow to avoid false-positives:
+#   - "No module named 'tests.<something>'" — sibling un-namespaced tests/ collision
+#   - "import file mismatch"                — pytest's rootdir/conftest path clash
+#   - "error during collection"             — generic pytest collection phase error
+#   - "collected 0 items"                   — nothing collected (often topology)
+#   - "INTERNALERROR"                       — pytest internal crash (always collection)
+#   - "conftest"                            — conftest import / path error
+#
+# Deliberately EXCLUDED (ordinary dependency errors, not topology):
+#   - "No module named 'fastapi'"           — real missing third-party package
+#   - "No module named 'numpy'"             — real missing dep
+#   - "pg_config executable not found"      — native build dependency
+_COLLECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # ModuleNotFoundError for a tests.* sub-package (namespace collision topology)
+    re.compile(r"No module named ['\"]tests\.", re.IGNORECASE),
+    re.compile(r"import file mismatch", re.IGNORECASE),
+    re.compile(r"error during collection", re.IGNORECASE),
+    re.compile(r"\bcollected 0 items\b", re.IGNORECASE),
+    re.compile(r"\bINTERNALERROR\b"),
+    re.compile(r"\bconftest\b", re.IGNORECASE),
+)
+
+
+def _is_collection_signature(signature: str) -> bool:
+    """Return True iff *signature* matches a pytest collection / import-mode topology error.
+
+    Conservative: only overrides toward ``tests`` for clear collection-topology
+    signatures such as ``No module named 'tests.<sub>'``, ``import file mismatch``,
+    ``INTERNALERROR``, ``conftest`` errors, and ``collected 0 items``.
+
+    Does NOT match ordinary third-party missing-package errors
+    (``No module named 'fastapi'``, ``pg_config executable not found``, etc.).
+
+    Never raises.
+    """
+    if not signature:
+        return False
+    return any(pat.search(signature) for pat in _COLLECTION_PATTERNS)
+
+
 def _layer_for(item: dict[str, Any]) -> str:
     """Derive the stack layer from the LLM's `kind` (new schema), falling back to an
-    explicit `layer` for back-compat with older replies / serialized maps."""
+    explicit `layer` for back-compat with older replies / serialized maps.
+
+    Phase 5b: if the item's signature is a collection-topology error, force
+    layer to ``tests`` regardless of what kind the LLM emitted.
+    """
+    sig = str(item.get("signature", ""))
+    if _is_collection_signature(sig):
+        return "tests"
     kind = item.get("kind")
     if kind is not None:
         return _KIND_TO_LAYER.get(str(kind), "deps")

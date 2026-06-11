@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.ledger import ActionEvent, ActionLedger
@@ -150,6 +150,159 @@ def _is_stuck(
 
 
 # ---------------------------------------------------------------------------
+# Command-composition validation (Phase 5a — pre-submission self-check)
+# ---------------------------------------------------------------------------
+
+# Tokens that indicate a shell operator separating two sub-commands.
+_CHAIN_OPS_RE = re.compile(r"\s*(?:&&|;|\|\|)\s*")
+
+# Keywords that identify a MUTATION sub-command (setup / install / build / edit).
+_MUTATION_KEYWORDS: tuple[str, ...] = (
+    "pip install",
+    "pip uninstall",
+    "apt-get install",
+    "apt-get remove",
+    "apt install",
+    "apt remove",
+    "yum install",
+    "dnf install",
+    "apk add",
+    "brew install",
+    "npm install",
+    "npm ci",
+    "yarn install",
+    "poetry install",
+    "pipenv install",
+    "make",
+    "cmake",
+    "cargo build",
+    "go build",
+    "mvn install",
+    "gradle build",
+    "python setup.py",
+    "pip install -e",
+    "pip install -r",
+)
+
+# Keywords that identify a PROBE/VERIFICATION sub-command (read-only checks).
+_PROBE_KEYWORDS: tuple[str, ...] = (
+    "python -c",
+    "python3 -c",
+    "python -m pytest",
+    "python3 -m pytest",
+    "pytest",
+    "py.test",
+    "pip show",
+    "pip list",
+    "pip check",
+    "ls ",
+    "ls\t",
+    "cat ",
+    "find ",
+    "which ",
+    "dpkg -l",
+    "dpkg -s",
+    "rpm -q",
+    "import ",
+)
+
+# Shell operators that introduce an output pipe to a filter command.
+_PIPE_FILTER_RE = re.compile(r"\|\s*(?:grep|head|tail|sed|awk)\b")
+
+# Commands whose OUTPUT we care about filtering (setup / test runners).
+_SETUP_TEST_PREFIXES: tuple[str, ...] = (
+    "pip ",
+    "pip3 ",
+    "apt-get ",
+    "apt ",
+    "yum ",
+    "dnf ",
+    "apk ",
+    "brew ",
+    "npm ",
+    "yarn ",
+    "poetry ",
+    "pipenv ",
+    "make",
+    "cmake",
+    "pytest",
+    "py.test",
+    "python -m pytest",
+    "python3 -m pytest",
+    "python setup.py",
+)
+
+# Navigation tokens that are NOT mutations (safe to chain with mutations).
+_NAV_ONLY_KEYWORDS: tuple[str, ...] = ("cd ",)
+
+
+def _is_mutation(fragment: str) -> bool:
+    """Return True when *fragment* looks like a setup/install/build mutation."""
+    stripped = fragment.strip()
+    if any(stripped.startswith(nav) for nav in _NAV_ONLY_KEYWORDS):
+        return False
+    return any(stripped.startswith(kw) or kw in stripped for kw in _MUTATION_KEYWORDS)
+
+
+def _is_probe(fragment: str) -> bool:
+    """Return True when *fragment* looks like a verification/probe/read command."""
+    stripped = fragment.strip()
+    return any(stripped.startswith(kw) or kw in stripped for kw in _PROBE_KEYWORDS)
+
+
+def _is_setup_or_test_command(cmd: str) -> bool:
+    """Return True when *cmd* starts with a setup or test-runner prefix."""
+    stripped = cmd.strip()
+    return any(stripped.startswith(p) for p in _SETUP_TEST_PREFIXES)
+
+
+def validate_command_composition(cmd: str) -> Optional[str]:
+    """Check *cmd* against the two sandbox composition rules.
+
+    Returns a short corrective message string if a rule is violated, else None.
+
+    Rule 1 — ONE mutation per Action: never combine a mutation (pip install,
+    apt-get install, make, …) with a verification/probe/read (python -c "import …",
+    pytest, pip show, ls, cat, …) in a single chained command.
+
+    Rule 2 — Never pipe setup/test output through grep/head/tail/sed/awk.
+    """
+    if not cmd or not cmd.strip():
+        return None
+
+    # Rule 2: piping setup/test output through a filter
+    if _PIPE_FILTER_RE.search(cmd) and _is_setup_or_test_command(cmd):
+        return (
+            "Command composition rule violated: do not pipe setup or test output through "
+            "grep/head/tail/sed/awk. Instead redirect to a file "
+            "(e.g. `<cmd> > /tmp/out.log 2>&1`) and read it in a SEPARATE read-only "
+            "Action (`cat /tmp/out.log`)."
+        )
+
+    # Rule 1: mutation + probe chained via && / ; / ||
+    # Split on chain operators and examine each fragment.
+    fragments = _CHAIN_OPS_RE.split(cmd)
+    if len(fragments) < 2:
+        return None  # single command — nothing to chain-check
+
+    mutations = [f for f in fragments if _is_mutation(f)]
+    probes = [f for f in fragments if _is_probe(f)]
+
+    if mutations and probes:
+        return (
+            "Command composition rule violated: do not combine a setup mutation "
+            f"(e.g. `{mutations[0].strip()[:60]}`) with a verification/probe "
+            f"(e.g. `{probes[0].strip()[:60]}`) in one Action. "
+            "Run each as a SEPARATE Action so each state change is confirmed independently.\n"
+            "BAD:  pip install requests && python -c 'import requests'\n"
+            "GOOD: Action 1: pip install requests\n"
+            "      Action 2: python -c 'import requests'"
+        )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # System prompt (Repo2Run-style env-config methodology, scoped to one Planner task)
 # ---------------------------------------------------------------------------
 
@@ -182,6 +335,41 @@ Accomplish the goal, verify the "Done when" criterion with a real command, then 
 - You have up to {LOCAL_BUDGET} commands for this task. Be economical: accomplish the
   goal in as few turns as possible, chaining confident, related steps into ONE `&&`
   line, and spend a separate turn only when you must see a command's result first.
+
+## Command composition rules (IMPORTANT — violations are rejected before execution)
+
+These two rules are enforced by the sandbox. Violating them wastes a turn.
+
+### Rule 1 — ONE mutation per Action; never combine mutation + verification
+A "mutation" changes the environment: `pip install`, `apt-get install`, `make`,
+file edits, etc.
+A "verification/probe" checks a result: `python -c "import X"`, `pytest`,
+`pip show`, `ls`, `cat`, etc.
+
+Never combine them in one chained command. Run each as a SEPARATE Action so each
+state change is confirmed independently.
+
+BAD:   pip install requests && python -c 'import requests'
+GOOD:  Action 1: pip install requests
+       Action 2: python -c 'import requests'
+
+BAD:   apt-get install -y libpq-dev && pip show psycopg2
+GOOD:  Action 1: apt-get install -y libpq-dev
+       Action 2: pip show psycopg2
+
+Note: chaining `cd /app && pip install -e .` is fine — `cd` is navigation, not a
+mutation.
+
+### Rule 2 — Never pipe setup/test output through grep/head/tail/sed/awk
+Setup and test commands must not pipe their output through filtering tools.
+If you need to inspect long output, redirect it to a file and read it separately.
+
+BAD:   pytest 2>&1 | grep -i error
+BAD:   pip install -r requirements.txt | tail -20
+GOOD:  pytest > /tmp/out.log 2>&1
+       (then in a separate Action) cat /tmp/out.log
+
+Note: read-only pipelines are fine (e.g. `ls -la | grep foo`, `cat file | grep X`).
 
 ## Response format
 Each turn, respond with exactly:
@@ -318,6 +506,24 @@ class BuildAgent:
                 ]
                 continue
             empty_responses = 0   # reset on real action
+
+            # Pre-submission self-check: reject composition rule violations
+            # before sending to the sandbox, feeding the corrective message back
+            # as the observation so the model can fix its proposal immediately
+            # without consuming a sandbox round-trip.
+            composition_error = validate_command_composition(action)
+            if composition_error:
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Observation: [FAILED — self-check, command NOT executed]\n"
+                            f"{composition_error}"
+                        ),
+                    },
+                ]
+                continue
 
             # Execute
             success, output = sandbox_execute(action)
