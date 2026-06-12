@@ -2640,13 +2640,31 @@ class ObservationPassRatioAuditHardeningTests(unittest.TestCase):
         self.assertIsNotNone(r)
         self.assertLess(r, 0.5)
 
-    def test_final_green_session_reflected(self):
+    def test_conflicting_summaries_take_conservative_lowest(self):
+        # A run that showed 600 failures is NOT certified just because a later subset is green.
         out = "==== 0 passed, 600 failed in 1s ====\n==== 500 passed, 0 failed in 2s ===="
-        self.assertAlmostEqual(self.synth.observation_pass_ratio(out), 1.0, places=4)
+        self.assertLess(self.synth.observation_pass_ratio(out), 0.5)
 
     def test_ctest_phrasing_not_counted_as_pytest(self):
         # 'N tests failed' (ctest) is not a pytest summary -> None (conservative reject)
         self.assertIsNone(self.synth.observation_pass_ratio("10% tests passed, 900 tests failed out of 1000"))
+
+    # --- 2026-06-12 CODE-audit criticals: pass-ratio gaming ---
+    def test_trailing_retry_subset_does_not_inflate_ratio(self):
+        # CRITICAL [1A]: a favourable retry-subset line after a mostly-failing summary
+        # must NOT be selected to fake ratio 1.0.
+        out = "=== 1 passed, 99 failed ===\n=== 3 passed in 1.2s ==="
+        self.assertLess(self.synth.observation_pass_ratio(out), 0.5)
+
+    def test_trailing_log_line_does_not_inflate_ratio(self):
+        # CRITICAL [1B]: a "N passed tests cached" log line after the real summary.
+        out = "=== 2 passed, 98 failed in 15s ===\nINFO cache: 51 passed tests cached"
+        self.assertLess(self.synth.observation_pass_ratio(out), 0.5)
+
+    def test_plural_failures_word_is_counted(self):
+        # CRITICAL [2]: '10 failures' (plural) must count, not be read as 0 failures.
+        self.assertAlmostEqual(self.synth.observation_pass_ratio("5 passed, 10 failures in 2.5s"),
+                               5 / 15, places=4)
 
 
 if __name__ == "__main__":

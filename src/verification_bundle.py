@@ -108,7 +108,7 @@ def _collect_effective_observed_test_commands(
         if synthesizer.is_truncated_test_output_command(command):
             continue  # truncated/piped output can't prove anything
         analysis = synthesizer.analyze_test_run(command, observation)
-        # Clean acceptance (UNCHANGED, pre-existing): a recognised effective run, OR an
+        # Clean acceptance (pre-existing semantics): a recognised effective run, OR an
         # unrecognised command (e.g. `make all`, ctest) whose output shows a genuine
         # execution signal with no failures (PHPUnit "OK (94 tests)", ctest "100% passed").
         if analysis.get("is_effective_test_run") or (

@@ -84,6 +84,11 @@ class V1FinalizeMajorityPassTests(unittest.TestCase):
         a = _make_v1_agent(ok=False, out="==== 26 passed, 33 failed in 5.0s ====")
         self.assertIsNone(a._resolve_v1_verified_test_run(done_flag=False))
 
+    def test_n_error_collection_setup_rejected(self):
+        # The narrow 'N error' (pytest collection/setup) guard stays on the v1 Tier B path.
+        a = _make_v1_agent(ok=False, out="==== 100 passed, 2 failed, 1 error in 5s ====")
+        self.assertIsNone(a._resolve_v1_verified_test_run(done_flag=False))
+
     # -- DEFERRED: env-broken runs currently accepted at a high pass-ratio ----
     # These pin the intentional gap. When the honest-diagnosis gate lands (see the
     # FUTURE-* doc) they must flip to assertIsNone.

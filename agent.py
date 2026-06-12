@@ -877,8 +877,8 @@ class DockerAgent:
           2. Build initial WorldModelMap.
           3. Instantiate Planner, BuildAgent, Maintainer with canonical signatures.
           4. Call run_v1() from src.envstate.orchestrator.
-          5. Scan ActionLedger for the collect-only command; populate
-             verified_test_commands using COLLECT_ONLY_CMD as fallback.
+          5. Run _resolve_v1_verified_test_run to confirm a genuine test execution
+             (>=1 passed) via ledger scan, done_flag, or active VERIFY_TEST_CMD re-run.
           6. On done_flag: call _auto_finalize_from_verified_tests then finalize.
 
         CLEANROOM NOTE: _verify_cleanroom_or_fail is NOT called directly from this
@@ -892,7 +892,7 @@ class DockerAgent:
         and skips the gate automatically.
         """
         import re as _re
-        from src.envstate.orchestrator import run_v1 as _run_v1_loop, COLLECT_ONLY_CMD
+        from src.envstate.orchestrator import run_v1 as _run_v1_loop
         from src.envstate.planner import Planner as _Planner
         from src.envstate.build_agent import BuildAgent as _BuildAgent
         from src.envstate.maintainer import Maintainer as _Maintainer
@@ -1186,14 +1186,6 @@ class DockerAgent:
             )
         )
         return VERIFY_TEST_CMD
-
-    def _resolve_v1_verified_collect_only(self, done_flag):
-        """Back-compat alias — delegates to _resolve_v1_verified_test_run.
-
-        Phase 1: the collect-only gate was replaced with an execution gate.
-        This alias keeps any external code that references the old name working.
-        """
-        return self._resolve_v1_verified_test_run(done_flag)
 
     def _build_v1_ledger_appender(self, ledger):
         """Return a thin closure that records (cmd, rc, stdout) into the ActionLedger.

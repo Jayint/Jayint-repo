@@ -12,6 +12,7 @@ import types
 import agent as agent_mod
 from src.envstate.ledger import ActionLedger, ActionEvent
 from src.envstate.orchestrator import COLLECT_ONLY_CMD, VERIFY_TEST_CMD
+from src.synthesizer import Synthesizer
 
 
 def _agent(sandbox_execute):
@@ -19,6 +20,7 @@ def _agent(sandbox_execute):
     a.action_ledger = ActionLedger()
     a.env_container_id = "c"
     a.sandbox = types.SimpleNamespace(execute=sandbox_execute)
+    a.synthesizer = Synthesizer()  # Tier B rc!=0 branch uses self.synthesizer
     return a
 
 

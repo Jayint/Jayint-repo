@@ -3030,31 +3030,43 @@ class Synthesizer:
         return False
 
     def observation_pass_ratio(self, observation):
-        """passed / (passed + failed + errors), or None if no countable pytest/unittest
-        summary line.
+        """passed / (passed + failed + errors), or None if no countable pass/fail summary.
 
-        Parses the LAST line that carries pass/fail/error counts, so counts from distinct
-        test sessions are never cross-multiplied (audit [8]); strips comma thousands
-        separators (audit [6]); skipped tests are excluded (mirrors compute_essr
-        effective_total). Non-pytest phrasings (e.g. ctest 'N tests failed') do not match a
-        countable summary -> None -> conservative reject."""
-        norm = self._normalize_observation_text(observation or "")
-        norm = norm.replace(",", "")  # 1,601 passed -> 1601 passed (audit [6])
+        Computed PER LINE and then reduced conservatively, hardened against the
+        2026-06-12 code audit:
+        - strips comma thousands separators so "1,000 failed" counts as 1000 (audit [6]);
+        - counts singular `failed` AND plural `failures` (so "10 failures" is not read as 0);
+        - when several summary lines disagree (rerun subsets, cached/log lines after the real
+          summary), returns the MOST CONSERVATIVE (lowest) ratio among the lines that report
+          failures -- a favourable trailing subset/log line can never inflate a mostly-failing
+          run to a pass. Only if NO line reports any failure/error is a clean 1.0 returned.
+        Skipped tests are excluded (mirrors compute_essr effective_total). Non-pytest
+        phrasings (e.g. ctest 'N tests failed') do not match -> None -> conservative reject."""
+        norm = self._normalize_observation_text(observation or "").replace(",", "")
 
-        summary_line = None
-        for line in norm.splitlines():
-            if re.search(r"\b\d+\s+(?:passed|failed|errors?)\b", line, re.IGNORECASE):
-                summary_line = line  # keep the LAST counted summary line (the final run)
-        if summary_line is None:
-            return None
-
-        def _count(word):
-            vals = [int(m) for m in re.findall(r"(\d+)\s+" + word, summary_line, re.IGNORECASE)]
+        def _n(line, word):
+            vals = [int(m) for m in re.findall(r"(\d+)\s+(?:" + word + r")\b", line, re.IGNORECASE)]
             return max(vals) if vals else 0
 
-        passed, failed, errors = _count("passed"), _count("failed"), _count("errors?")
-        denom = passed + failed + errors
-        return (passed / denom) if denom > 0 else None
+        failure_ratios = []
+        saw_clean_pass = False
+        for line in norm.splitlines():
+            passed = _n(line, r"passed")
+            failed = _n(line, r"failed|failures?")
+            errors = _n(line, r"errors?")
+            denom = passed + failed + errors
+            if denom == 0:
+                continue
+            if failed + errors > 0:
+                failure_ratios.append(passed / denom)
+            elif passed > 0:
+                saw_clean_pass = True
+
+        if failure_ratios:
+            return min(failure_ratios)
+        if saw_clean_pass:
+            return 1.0
+        return None
 
     def observation_has_ambiguous_error_signal(self, observation):
         """True iff the output reports 'N error(s)' (pytest's collection/setup error
