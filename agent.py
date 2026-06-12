@@ -1152,25 +1152,44 @@ class DockerAgent:
         except Exception as exc:
             print(f"[v1] finalize test-run verification raised: {exc}")
             return None
+        out = out or ""
         print(f"[v1] finalize test-run verification: {'PASS' if ok else 'FAIL'}")
+        # A real execution summary (>=1 passed) is required either way: this rejects
+        # collect-only / 0-passed output even when rc==0.
+        if not _shows_execution(out):
+            print("[v1] finalize test-run: output shows no execution (collect-only / 0 passed?)")
+            return None
         if not ok:
-            return None
-        # Reject a response that is only collection output (no execution summary).
-        if not _shows_execution(out or ""):
-            print(f"[v1] finalize test-run: output shows no execution (collect-only?)")
-            return None
+            # rc!=0: accept ONLY as a RepoLaunch majority-pass (Fix 3 §0.5) -- the
+            # remaining failures must be NON-environment. Any env-defect, ambiguous
+            # 'N error', or sub-majority pass-rate -> reject.
+            if self._v1_output_is_env_defect(out):
+                print("[v1] finalize test-run: rc!=0 with env-defect signal -> reject")
+                return None
+            if self.synthesizer.observation_has_ambiguous_error_signal(out):
+                print("[v1] finalize test-run: rc!=0 with ambiguous 'N error' signal -> reject")
+                return None
+            ratio = self.synthesizer.observation_pass_ratio(out)
+            if ratio is None or ratio < self.synthesizer.MIN_PASS_RATIO:
+                print(f"[v1] finalize test-run: rc!=0 sub-majority pass-ratio ({ratio}) -> reject")
+                return None
+            print(f"[v1] finalize: accepting majority-pass run (ratio={ratio:.3f}, non-env failures only)")
         self.action_ledger.append(
             ActionEvent(
                 step=len(self.action_ledger.events()),
                 cmd=VERIFY_TEST_CMD,
-                rc=0,
-                stdout=(out or "")[-400:],
+                rc=0 if ok else 1,  # m5: record the REAL rc so a partial pass cannot
+                stdout=out[-400:],  # later satisfy Path-1's rc==0 scan
                 mutation_class=None,  # verification only, not synthesized
                 container_id=getattr(self, "env_container_id", ""),
                 summary="v1 finalize test-run verification",
             )
         )
         return VERIFY_TEST_CMD
+
+    def _v1_output_is_env_defect(self, output):
+        """Delegate to the single env-defect classifier (no _COLLECTION_PATTERNS, m4)."""
+        return self.synthesizer.observation_has_env_defect_signal(output or "")
 
     def _resolve_v1_verified_collect_only(self, done_flag):
         """Back-compat alias — delegates to _resolve_v1_verified_test_run.

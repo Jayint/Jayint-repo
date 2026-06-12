@@ -105,11 +105,30 @@ def _collect_effective_observed_test_commands(
             or record.get("observation")
             or ""
         )
+        if synthesizer.is_truncated_test_output_command(command):
+            continue  # truncated/piped output can't prove anything
         analysis = synthesizer.analyze_test_run(command, observation)
+        # Clean acceptance (UNCHANGED, pre-existing): a recognised effective run, OR an
+        # unrecognised command (e.g. `make all`, ctest) whose output shows a genuine
+        # execution signal with no failures (PHPUnit "OK (94 tests)", ctest "100% passed").
         if analysis.get("is_effective_test_run") or (
             synthesizer.observation_has_effective_test_signal(observation)
             and not synthesizer.observation_has_test_failure_signal(observation)
-            and not synthesizer.is_truncated_test_output_command(command)
+        ):
+            commands.append(command)
+            continue
+        # Partial pass (RepoLaunch majority bar, Fix 3 §0.5): a run that did NOT pass
+        # cleanly finalises ONLY when the MAJORITY of tests passed and the remaining
+        # failures are non-environment (no env-defect, no ambiguous 'N error'). Requires
+        # a real `N passed` signal, so collect-only / 0-passed are never admitted here.
+        ratio = synthesizer.observation_pass_ratio(observation)
+        if (
+            synthesizer.observation_has_passing_test_signal(observation)
+            and synthesizer.observation_has_test_failure_signal(observation)
+            and not synthesizer.observation_has_env_defect_signal(observation)
+            and not synthesizer.observation_has_ambiguous_error_signal(observation)
+            and ratio is not None
+            and ratio >= synthesizer.MIN_PASS_RATIO
         ):
             commands.append(command)
     return commands

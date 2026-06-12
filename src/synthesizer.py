@@ -3013,6 +3013,17 @@ class Synthesizer:
         denom = passed + failed + errors
         return (passed / denom) if denom > 0 else None
 
+    def observation_has_ambiguous_error_signal(self, observation):
+        """True iff the output reports 'N error(s)' (pytest's collection/setup error
+        category, distinct from 'failed'). A partial-pass run reporting an error is
+        treated as a potential env/setup defect and rejected by the finalize gate --
+        conservative (Fix 3 §5.7). Backstop for env-defects whose specific cause text
+        is truncated out of the summary."""
+        if not observation:
+            return False
+        norm = self._normalize_observation_text(observation)
+        return bool(re.search(r"\b[1-9]\d*\s+errors?\b", norm, re.IGNORECASE))
+
     def observation_looks_like_help_text(self, observation):
         """Expose help-text detection for agent-reported wrapper commands."""
         return self._observation_looks_like_help_text(observation)
