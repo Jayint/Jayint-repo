@@ -115,3 +115,61 @@ class VerificationBundleLiveStampingTests(unittest.TestCase):
         }
         bundle = derive_supported_verification_bundle(run_summary, synthesizer=Synthesizer())
         self.assertEqual(bundle["test_commands"], ["pytest -q"])
+
+
+class VerificationBundleMutationPositionTests(unittest.TestCase):
+    """Tier A (Fix 3): a proven-green run is kept when only a BENIGN (non-mutating)
+    tail follows it, and dropped when a REAL env mutation follows it — keyed on
+    positional mutates_environment, not environment_revision."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def test_stale_benign_tail_accepted(self):
+        run_summary = {
+            "verification_bundle": {"runtime_preparation_commands": [], "test_commands": ["pytest -q"]},
+            "successful_actions": [
+                _action(1, "pip install -e .", "Successfully installed pkg", revision=1, mutates=True),
+                _action(2, "pytest -q", "collected 3 items\n3 passed", revision=1, mutates=False),
+                _action(3, "echo ok", "ok", revision=1, mutates=False),
+            ],
+        }
+        bundle = derive_supported_verification_bundle(run_summary, synthesizer=self.synth)
+        self.assertEqual(bundle["test_commands"], ["pytest -q"])
+
+    def test_stale_real_mutation_rejected(self):
+        run_summary = {
+            "verification_bundle": {"runtime_preparation_commands": [], "test_commands": ["pytest -q"]},
+            "successful_actions": [
+                _action(1, "pytest -q", "collected 3 items\n3 passed", revision=1, mutates=False),
+                _action(2, "pip install extra-pkg", "Successfully installed extra-pkg", revision=1, mutates=True),
+            ],
+        }
+        bundle = derive_supported_verification_bundle(run_summary, synthesizer=self.synth)
+        self.assertEqual(bundle["test_commands"], [])
+
+    def test_mcp_atlassian_benign_mkdir(self):
+        run_summary = {
+            "verification_bundle": {"runtime_preparation_commands": [], "test_commands": ["python -m pytest -q"]},
+            "successful_actions": [
+                _action(1, "python -m pytest -q", "collected 2578 items\n2578 passed in 60s", revision=1, mutates=False),
+                _action(2, "mkdir /tmp/out", "", revision=1, mutates=False),
+            ],
+        }
+        bundle = derive_supported_verification_bundle(run_summary, synthesizer=self.synth)
+        self.assertEqual(bundle["test_commands"], ["python -m pytest -q"])
+
+    def test_real_post_test_install_still_rejected_end_to_end(self):
+        """Honesty backstop: the bundle is the SINGLE place that drops a green run
+        invalidated by a later real install. (The agent-level invalidation guard was
+        intentionally NOT added — `_auto_finalize_from_verified_tests` bypasses the
+        bundle, so retaining the live group there would leak a stale pass.)"""
+        run_summary = {
+            "verification_bundle": {"runtime_preparation_commands": [], "test_commands": ["python -m pytest -q"]},
+            "successful_actions": [
+                _action(1, "python -m pytest -q", "collected 10 items\n10 passed", revision=1, mutates=False),
+                _action(2, "pip install -e .[dev]", "Successfully installed pkg-dev", revision=1, mutates=True),
+            ],
+        }
+        bundle = derive_supported_verification_bundle(run_summary, synthesizer=self.synth)
+        self.assertEqual(bundle["test_commands"], [])

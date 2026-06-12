@@ -18,17 +18,6 @@ def normalize_command_list(commands):
     return normalized
 
 
-def _final_environment_revision(run_summary: dict[str, Any]) -> int:
-    revisions = [
-        record.get("environment_revision", 0)
-        for record in (run_summary.get("successful_actions") or [])
-        if isinstance(record, dict)
-    ]
-    observed_max = max(revisions) if revisions else 0
-    declared = run_summary.get("environment_revision", 0) or 0
-    return max(observed_max, declared)
-
-
 def derive_supported_verification_bundle(
     run_summary: Optional[dict[str, Any]],
     synthesizer: Optional[Synthesizer] = None,
@@ -83,21 +72,33 @@ def _collect_observed_successful_actions(run_summary: dict[str, Any]) -> list[st
     return commands
 
 
+def _has_env_mutation_after(record_pos: int, all_records: list) -> bool:
+    """True iff any action AFTER record_pos (by list order) mutates the environment.
+
+    Uses positional order, not environment_revision, so it works on both the
+    in-agent records and the compacted scoring/replay records (which keep
+    mutates_environment but may not carry a reliable environment_revision)."""
+    for j, r in enumerate(all_records):
+        if j > record_pos and isinstance(r, dict) and r.get("mutates_environment", False):
+            return True
+    return False
+
+
 def _collect_effective_observed_test_commands(
     run_summary: dict[str, Any],
     synthesizer: Synthesizer,
 ) -> list[str]:
-    final_revision = _final_environment_revision(run_summary)
+    records = run_summary.get("successful_actions") or []
     commands = []
-    for record in run_summary.get("successful_actions") or []:
+    for idx, record in enumerate(records):
         if not isinstance(record, dict):
             continue
         command = str(record.get("command") or "").strip()
         if not command:
             continue
         # A test command only proves the FINAL environment if no env-mutating
-        # action ran after it (i.e. it was observed at the current revision).
-        if record.get("environment_revision", 0) != final_revision:
+        # action ran after it (positional, robust on compacted records).
+        if _has_env_mutation_after(idx, records):
             continue
         observation = str(
             record.get("observation_summary")
