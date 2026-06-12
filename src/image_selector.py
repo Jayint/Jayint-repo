@@ -355,7 +355,7 @@ class ImageSelector:
         SKIP_DIRS = {
             '__pycache__', 'node_modules', 'target', 'build', 'dist',
             '.git', '.venv', 'venv', '.mypy_cache', '.pytest_cache',
-            '.tox', '.eggs', '.idea', '.vscode',
+            '.tox', '.eggs', '.idea', '.vscode', 'logs',
         }
 
         for root, dirs, files in os.walk(repo_path):

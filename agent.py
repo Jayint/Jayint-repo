@@ -30,6 +30,39 @@ from dotenv import load_dotenv
 # override=True ensures .env values take precedence over system env vars
 load_dotenv(override=True)
 
+# ---------------------------------------------------------------------------
+# Repo-layout helpers (used by _run_v1 to derive the initial WorldModelMap)
+# ---------------------------------------------------------------------------
+
+_LAYOUT_SENTINELS = frozenset({
+    "------ begin repository structure ------",
+    "------ end repository structure ------",
+})
+
+
+def _is_test_entry(entry: str) -> bool:
+    """A structure line that signals a test suite exists (robust — no false
+    matches like 'latest'/'fastest'/'contest')."""
+    base = entry.rstrip("/").rsplit("/", 1)[-1].lower()
+    return (
+        base in ("test", "tests", "conftest.py")
+        or (base.startswith(("test_", "tests_")) and base.endswith(".py"))
+        or base.endswith(("_test.py", "_tests.py"))
+    )
+
+
+def _derive_repo_layout(repo_structure: str) -> tuple:
+    """First 60 context lines + every later test-named entry (depth-first walk
+    can bury tests/ deep), sentinels stripped, de-duplicated."""
+    _layout_lines = [
+        ln.strip()
+        for ln in repo_structure.splitlines()
+        if ln.strip() and ln.strip().lower() not in _LAYOUT_SENTINELS
+    ]
+    _extra_test_lines = [ln for ln in _layout_lines[60:] if _is_test_entry(ln)]
+    return tuple(dict.fromkeys(_layout_lines[:60] + _extra_test_lines[:30]))
+
+
 LOCAL_SERVICE_CONFIG_EXTENSIONS = {
     ".properties",
     ".yml",
@@ -892,10 +925,9 @@ class DockerAgent:
             except Exception:
                 pass
 
-        # Derive repo_layout tuple from the first non-empty lines of structure.txt.
-        _repo_layout: tuple = tuple(
-            ln.strip() for ln in _repo_structure.splitlines()[:20] if ln.strip()
-        )
+        # Derive repo_layout: 60 context lines + any test-named entries
+        # (depth-first os.walk can bury tests/ past a flat cap).
+        _repo_layout: tuple = _derive_repo_layout(_repo_structure)
 
         # Derive language/build_system from synthesizer attrs or fall back.
         _language = (
