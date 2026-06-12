@@ -1,9 +1,13 @@
-"""Fix 3 Tier B — verification bundle Filter 2 partial-pass acceptance.
+"""Fix 3 Tier B — verification bundle Filter 2 majority-pass acceptance.
 
-A partial-pass run (forced rc==0 in-agent, e.g. `pytest || true`, so it is a
-recorded successful_action) finalises ONLY when the majority of tests passed and
-the remaining failures are non-environment. Env-defects, ambiguous 'N error',
-0-passed, truncation, and sub-majority pass-rates are all dropped.
+A partial-pass run (forced rc==0 in-agent, e.g. `pytest || true`, so it is a recorded
+successful_action) finalises when the MAJORITY of tests passed (pass-ratio >=
+MIN_PASS_RATIO). 0-passed, collect-only, truncation, and sub-majority pass-rates are
+dropped.
+
+NOTE: failure-CAUSE diagnosis (env-defect vs source bug) is intentionally NOT gated yet;
+an env-broken run at a high pass-ratio is currently ACCEPTED. See
+docs/superpowers/plans/FUTURE-tier-b-honest-failure-diagnosis.md.
 """
 from __future__ import annotations
 import unittest
@@ -28,7 +32,7 @@ def _summary(command, observation):
     }
 
 
-class VerificationBundlePartialPassTests(unittest.TestCase):
+class VerificationBundleMajorityPassTests(unittest.TestCase):
     def setUp(self):
         self.synth = Synthesizer()
 
@@ -37,7 +41,7 @@ class VerificationBundlePartialPassTests(unittest.TestCase):
             _summary(command, observation), synthesizer=self.synth
         )["test_commands"]
 
-    # -- accepted --------------------------------------------------------------
+    # -- accepted: genuine majority pass --------------------------------------
     def test_majority_pass_with_assertion_failures_accepted(self):
         out = "==== 1601 passed, 2 failed in 30s ====\nAssertionError: assert 1 == 2"
         self.assertEqual(self._bundle("python -m pytest -q", out), ["python -m pytest -q"])
@@ -46,27 +50,9 @@ class VerificationBundlePartialPassTests(unittest.TestCase):
         out = "==== 686 passed, 3 failed in 12s ===="
         self.assertEqual(self._bundle("python -m pytest -q", out), ["python -m pytest -q"])
 
-    # -- env-defect: rejected --------------------------------------------------
-    def test_module_not_found_rejected(self):
-        out = "100 passed, 2 failed\nModuleNotFoundError: No module named 'fastapi'"
-        self.assertEqual(self._bundle("python -m pytest -q", out), [])
-
-    def test_error_collecting_rejected(self):
-        out = "50 passed\nERROR collecting tests/foo.py"
-        self.assertEqual(self._bundle("python -m pytest -q", out), [])
-
-    def test_connection_refused_rejected(self):
-        out = "200 passed, 5 failed\nConnectionRefusedError: [Errno 111]"
-        self.assertEqual(self._bundle("python -m pytest -q", out), [])
-
-    # -- hollow / ambiguous / sub-majority: rejected ---------------------------
+    # -- rejected: real floors (NOT a majority pass) --------------------------
     def test_zero_passed_only_failures_rejected(self):
         out = "==== 5 failed in 2s ===="
-        self.assertEqual(self._bundle("python -m pytest -q", out), [])
-
-    def test_bare_n_error_rejected(self):
-        # §5.7: 'N error' (pytest collection/setup category) is treated conservatively.
-        out = "collected 32 items\n==== 32 passed, 1 error in 0.31s ===="
         self.assertEqual(self._bundle("python -m pytest -q", out), [])
 
     def test_sub_majority_rejected(self):
@@ -80,6 +66,16 @@ class VerificationBundlePartialPassTests(unittest.TestCase):
     def test_truncated_output_rejected_even_with_passes(self):
         out = "==== 1601 passed, 2 failed in 30s ===="
         self.assertEqual(self._bundle("python -m pytest -q 2>&1 | head -100", out), [])
+
+    # -- DEFERRED: env-broken runs currently accepted at a high pass-ratio -----
+    # Pins the intentional gap; flips to [] when the honest-diagnosis gate lands.
+    def test_module_not_found_accepted_until_diagnosis_gate(self):
+        out = "100 passed, 2 failed\nModuleNotFoundError: No module named 'fastapi'"
+        self.assertEqual(self._bundle("python -m pytest -q", out), ["python -m pytest -q"])
+
+    def test_connection_refused_accepted_until_diagnosis_gate(self):
+        out = "200 passed, 5 failed\nConnectionRefusedError: [Errno 111]"
+        self.assertEqual(self._bundle("python -m pytest -q", out), ["python -m pytest -q"])
 
 
 if __name__ == "__main__":

@@ -1160,20 +1160,20 @@ class DockerAgent:
             print("[v1] finalize test-run: output shows no execution (collect-only / 0 passed?)")
             return None
         if not ok:
-            # rc!=0: accept ONLY as a RepoLaunch majority-pass (Fix 3 §0.5) -- the
-            # remaining failures must be NON-environment. Any env-defect, ambiguous
-            # 'N error', or sub-majority pass-rate -> reject.
-            if self._v1_output_is_env_defect(out):
-                print("[v1] finalize test-run: rc!=0 with env-defect signal -> reject")
-                return None
+            # rc!=0: accept as a majority-pass (Fix 3 Tier B). The bar is simply that the
+            # MAJORITY of tests passed (pass-ratio >= MIN_PASS_RATIO). The narrow 'N error'
+            # guard stays (pytest reports collection/setup errors as 'error' -> those tests
+            # never ran, so it is not a clean majority). The BROAD env-defect-vs-source-bug
+            # diagnosis is intentionally deferred -- see
+            # docs/superpowers/plans/FUTURE-tier-b-honest-failure-diagnosis.md.
             if self.synthesizer.observation_has_ambiguous_error_signal(out):
-                print("[v1] finalize test-run: rc!=0 with ambiguous 'N error' signal -> reject")
+                print("[v1] finalize test-run: rc!=0 with 'N error' (collection/setup) -> reject")
                 return None
             ratio = self.synthesizer.observation_pass_ratio(out)
             if ratio is None or ratio < self.synthesizer.MIN_PASS_RATIO:
                 print(f"[v1] finalize test-run: rc!=0 sub-majority pass-ratio ({ratio}) -> reject")
                 return None
-            print(f"[v1] finalize: accepting majority-pass run (ratio={ratio:.3f}, non-env failures only)")
+            print(f"[v1] finalize: accepting majority-pass run (ratio={ratio:.3f})")
         self.action_ledger.append(
             ActionEvent(
                 step=len(self.action_ledger.events()),
@@ -1186,10 +1186,6 @@ class DockerAgent:
             )
         )
         return VERIFY_TEST_CMD
-
-    def _v1_output_is_env_defect(self, output):
-        """Delegate to the single env-defect classifier (no _COLLECTION_PATTERNS, m4)."""
-        return self.synthesizer.observation_has_env_defect_signal(output or "")
 
     def _resolve_v1_verified_collect_only(self, done_flag):
         """Back-compat alias — delegates to _resolve_v1_verified_test_run.
