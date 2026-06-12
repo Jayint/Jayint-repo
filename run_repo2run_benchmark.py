@@ -15,9 +15,10 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.repo2run_dataset import load_repo2run_dataset
@@ -3210,6 +3211,18 @@ def parse_args() -> argparse.Namespace:
         help="Skip the first N instances after filtering.",
     )
     parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help=(
+            "Number of instances to evaluate in parallel. Each instance runs as "
+            "an independent agent subprocess isolated by its own workplace dir "
+            "and a unique docker image tag, so this only bounds the orchestrator. "
+            "Defaults to 1 (sequential). Tune to host cores / docker disk / LLM "
+            "rate limits."
+        ),
+    )
+    parser.add_argument(
         "--instance-regex",
         default=None,
         help="Only run instances whose instance_id or full_name matches this regex.",
@@ -3362,6 +3375,43 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+def run_instances(
+    instances: list[dict[str, Any]],
+    *,
+    concurrency: int,
+    worker: Callable[[int, dict[str, Any]], dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Run ``worker(position, instance)`` for every instance and return the
+    payloads in submit (dataset) order.
+
+    At most ``concurrency`` instances are in flight at once. Each instance is
+    fully isolated on disk (its own workplace / result / artifact dirs) and uses
+    a unique docker image tag, so they parallelise safely. The work is
+    subprocess/IO-bound — ``agent.py`` runs as a child process and docker
+    build/test calls block on IO — so threads are the right tool (the GIL is
+    released across subprocess and file IO), mirroring the RAT runner's
+    ThreadPoolExecutor scheduler.
+
+    A worker exception propagates (same fail behaviour as the sequential path).
+    """
+    total = len(instances)
+    if concurrency <= 1 or total <= 1:
+        return [
+            worker(position, instance)
+            for position, instance in enumerate(instances, start=1)
+        ]
+
+    results: list[Optional[dict[str, Any]]] = [None] * total
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        future_to_index = {
+            pool.submit(worker, position, instance): position - 1
+            for position, instance in enumerate(instances, start=1)
+        }
+        for future in as_completed(future_to_index):
+            results[future_to_index[future]] = future.result()
+    return [item for item in results if item is not None]
+
+
 def main() -> int:
     args = parse_args()
     repo_root = Path(__file__).resolve().parent
@@ -3399,11 +3449,8 @@ def main() -> int:
     print(f"Selected instances: {len(instances)}")
 
     python_executable = resolve_executable_path(args.python)
-    per_instance_results: list[dict[str, Any]] = []
-    execution_status_counter: Counter[str] = Counter()
-    paper_alignment_counter: Counter[str] = Counter()
 
-    for position, instance in enumerate(instances, start=1):
+    def _process(position: int, instance: dict[str, Any]) -> dict[str, Any]:
         instance_id = instance["instance_id"]
         safe_instance_id = sanitize_name(instance_id)
         workplace = workplaces_dir / safe_instance_id
@@ -3663,9 +3710,6 @@ def main() -> int:
             docker_build_success=dockerfile_generation_success,
             environment_build_success=environment_build_success,
         )
-        execution_status_counter[execution_status] += 1
-        paper_alignment_counter[paper_alignment] += 1
-
         payload = {
             "dataset_entry": instance,
             "agent_run": agent_run,
@@ -3707,7 +3751,18 @@ def main() -> int:
             payload=payload,
         )
         write_json(result_path, payload)
-        per_instance_results.append(payload)
+        return payload
+
+    worker_count = max(1, int(getattr(args, "concurrency", 1) or 1))
+    per_instance_results = run_instances(
+        instances, concurrency=worker_count, worker=_process
+    )
+    execution_status_counter = Counter(
+        item["execution_status"] for item in per_instance_results
+    )
+    paper_alignment_counter = Counter(
+        item["paper_alignment"] for item in per_instance_results
+    )
 
     dgsr_successes = sum(
         1 for item in per_instance_results if item["dockerfile_generation_success"]
