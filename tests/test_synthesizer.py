@@ -2562,5 +2562,92 @@ class ObservationPassRatioTests(unittest.TestCase):
         self.assertEqual(Synthesizer.MIN_PASS_RATIO, 0.5)
 
 
+class ObservationEnvDefectAuditHardeningTests(unittest.TestCase):
+    """Regression for the 2026-06-12 honesty audit: env-defect classifier must catch
+    missing native libraries, missing system binaries, and required-service-down
+    phrasings that omit the literal 'Connection refused'."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def _is_defect(self, obs):
+        return self.synth.observation_has_env_defect_signal(obs)
+
+    # missing native / system shared library (audit [1][4])
+    def test_missing_shared_object_oserror(self):
+        self.assertTrue(self._is_defect("900 passed, 12 failed\nE   OSError: libGL.so.1: cannot open shared object file"))
+
+    def test_missing_shared_object_importerror(self):
+        self.assertTrue(self._is_defect("100 passed, 2 failed\nImportError: libopenblas.so.0: cannot open shared object file: No such file or directory"))
+
+    def test_error_loading_shared_libraries(self):
+        self.assertTrue(self._is_defect("10 passed, 3 failed\nerror while loading shared libraries: libgomp.so.1"))
+
+    def test_undefined_symbol(self):
+        self.assertTrue(self._is_defect("50 passed, 5 failed\nImportError: /x/_c.so: undefined symbol: PyFoo"))
+
+    # missing system binary / build toolchain (audit [5][9][10])
+    def test_missing_pg_config_binary(self):
+        self.assertTrue(self._is_defect("50 passed, 10 failed\nsh: 1: pg_config: command not found"))
+
+    def test_missing_ffmpeg_binary(self):
+        self.assertTrue(self._is_defect("50 passed, 10 failed\nffmpeg: command not found"))
+
+    def test_missing_gcc_binary(self):
+        self.assertTrue(self._is_defect("50 passed, 10 failed\ngcc: command not found"))
+
+    def test_linker_missing_lib(self):
+        self.assertTrue(self._is_defect("20 passed, 8 failed\n/usr/bin/ld: cannot find -lpq"))
+
+    # required service down without literal 'Connection refused' (audit [2][3])
+    def test_postgres_could_not_connect(self):
+        self.assertTrue(self._is_defect("900 passed, 5 failed\nsqlalchemy.exc.OperationalError: could not connect to server"))
+
+    def test_mysql_cant_connect(self):
+        self.assertTrue(self._is_defect('9 passed, 8 failed\nMySQLdb.OperationalError: (2003, "Can\'t connect to MySQL server on \'localhost\' (111)")'))
+
+    def test_hostname_resolution_failure(self):
+        self.assertTrue(self._is_defect('200 passed, 3 failed\ncould not translate host name "db" to address: Name or service not known'))
+
+    def test_redis_connection_error(self):
+        self.assertTrue(self._is_defect("400 passed, 6 failed\nredis.exceptions.ConnectionError: Error 111 connecting to localhost:6379."))
+
+    # MUST stay non-env (no over-rejection of genuine source-bug partial passes)
+    def test_assertion_failure_still_not_env_defect(self):
+        self.assertFalse(self._is_defect("1601 passed, 2 failed\nE   AssertionError: assert 1 == 2"))
+
+    def test_internal_tests_module_still_not_env_defect(self):
+        self.assertFalse(self._is_defect("ModuleNotFoundError: No module named 'tests.test_x'"))
+
+
+class ObservationPassRatioAuditHardeningTests(unittest.TestCase):
+    """Regression for the 2026-06-12 audit: pass-ratio must not be gamed by comma
+    thousands separators (audit [6]) or cross-session count cross-multiplication (audit [8])."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def test_comma_thousands_separator_failures_counted(self):
+        # "3 passed, 1,000 failed": real ratio 3/1003 ~= 0.003, NOT 1.0
+        r = self.synth.observation_pass_ratio("==== 3 passed, 1,000 failed in 40s ====")
+        self.assertIsNotNone(r)
+        self.assertLess(r, 0.5)
+
+    def test_cross_session_counts_not_cross_multiplied(self):
+        # Final run failed; must reflect the LAST summary line, not max() across sessions.
+        out = "==== 900 passed, 100 failed in 5s ====\n==== 10 passed, 900 failed in 6s ===="
+        r = self.synth.observation_pass_ratio(out)
+        self.assertIsNotNone(r)
+        self.assertLess(r, 0.5)
+
+    def test_final_green_session_reflected(self):
+        out = "==== 0 passed, 600 failed in 1s ====\n==== 500 passed, 0 failed in 2s ===="
+        self.assertAlmostEqual(self.synth.observation_pass_ratio(out), 1.0, places=4)
+
+    def test_ctest_phrasing_not_counted_as_pytest(self):
+        # 'N tests failed' (ctest) is not a pytest summary -> None (conservative reject)
+        self.assertIsNone(self.synth.observation_pass_ratio("10% tests passed, 900 tests failed out of 1000"))
+
+
 if __name__ == "__main__":
     unittest.main()

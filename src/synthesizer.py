@@ -2974,22 +2974,52 @@ class Synthesizer:
         return False
 
     def observation_has_env_defect_signal(self, observation):
-        """True ONLY when failures indicate a BROKEN ENVIRONMENT (missing dep, collection
-        failure, missing executable, required-service down). Does NOT match AssertionError,
-        AttributeError, TypeError, or a bare 'N failed' (those are pre-existing source bugs)."""
+        """True when failures indicate a BROKEN ENVIRONMENT: a missing python dep, a
+        missing native/system shared library, a missing system binary / build toolchain,
+        a collection failure, or a required service that is down/unreachable. Does NOT
+        match AssertionError / AttributeError / TypeError / a bare 'N failed' (pre-existing
+        source bugs).
+
+        Conservative by design (Fix 3 §5.8): when a failure could be either an env defect
+        or a benign source bug we err toward env-defect=True (reject the finalize) -- a
+        broken environment certified green is the worst outcome. Hardened against the
+        2026-06-12 honesty audit (missing .so / DB-down phrasings / missing binaries)."""
         if not observation:
             return False
         norm = self._normalize_observation_text(observation)   # strips ANSI
         for pat in (
+            # --- collection / import failures ---
             r"ERROR collecting",
             r"ImportError while importing test module",
             r"error during collection",
             r"INTERNALERROR",
             r"(?:ModuleNotFoundError|ImportError):\s+No module named\s+['\"](?!tests?\.)",
             r"ImportError:\s+cannot import name",
+            # --- missing native / system shared library ---
+            r"cannot open shared object file",
+            r"error while loading shared libraries",
+            r"Library not loaded",                       # macOS dyld
+            r"undefined symbol:",
+            r"version\s+`?GLIBC[^\n]*not found",
+            # --- missing system binary / build toolchain / dev headers ---
+            r"\bcommand not found\b",                    # ANY binary: pg_config/ffmpeg/gcc/ld/...
+            r"cannot find -l\S+",                        # linker: missing -lpq etc.
+            r"fatal error:\s+\S+\.h:\s+No such file",    # missing -dev header
+            r"unable to execute '\S*(?:gcc|cc|clang)",
+            # --- required service down / unreachable ---
             r"ConnectionRefusedError",
             r"Connection refused",
-            r"(?:pytest|python|make):\s+(?:command not found|No such file)",
+            r"could not connect to\b",
+            r"can'?t connect to\b",
+            r"Is the server running\b",                  # postgres
+            r"could not translate host name",
+            r"Name or service not known",
+            r"Temporary failure in name resolution",
+            r"No route to host",
+            r"\bOperationalError\b",                      # DB driver: psycopg2/sqlalchemy/pymysql/MySQLdb
+            r"redis(?:\.\w+)*\.ConnectionError",
+            r"\bError\s+\d+\s+connecting to\b",           # redis "Error 111 connecting to"
+            r"\[Errno\s+(?:111|110|113|99)\]",            # refused/timeout/unreachable/addr-unavailable
         ):
             if re.search(pat, norm, re.IGNORECASE | re.MULTILINE):
                 return True
@@ -3000,13 +3030,26 @@ class Synthesizer:
         return False
 
     def observation_pass_ratio(self, observation):
-        """passed / (passed + failed + errors), or None if no countable summary.
+        """passed / (passed + failed + errors), or None if no countable pytest/unittest
+        summary line.
 
-        Skipped tests are excluded (mirrors compute_essr effective_total)."""
+        Parses the LAST line that carries pass/fail/error counts, so counts from distinct
+        test sessions are never cross-multiplied (audit [8]); strips comma thousands
+        separators (audit [6]); skipped tests are excluded (mirrors compute_essr
+        effective_total). Non-pytest phrasings (e.g. ctest 'N tests failed') do not match a
+        countable summary -> None -> conservative reject."""
         norm = self._normalize_observation_text(observation or "")
+        norm = norm.replace(",", "")  # 1,601 passed -> 1601 passed (audit [6])
+
+        summary_line = None
+        for line in norm.splitlines():
+            if re.search(r"\b\d+\s+(?:passed|failed|errors?)\b", line, re.IGNORECASE):
+                summary_line = line  # keep the LAST counted summary line (the final run)
+        if summary_line is None:
+            return None
 
         def _count(word):
-            vals = [int(m) for m in re.findall(r"(\d+)\s+" + word, norm, re.IGNORECASE)]
+            vals = [int(m) for m in re.findall(r"(\d+)\s+" + word, summary_line, re.IGNORECASE)]
             return max(vals) if vals else 0
 
         passed, failed, errors = _count("passed"), _count("failed"), _count("errors?")
@@ -3820,6 +3863,7 @@ class Synthesizer:
         normalized_observation = self._normalize_observation_text(observation)
         failure_patterns = [
             r"\b[1-9]\d*[ \t]+(?:failed|failures?|errors?)\b",
+            r"\b[1-9]\d*[ \t]+tests?[ \t]+failed\b",  # ctest "N tests failed" (audit [7])
             r"\b(?:failures?|errors?):\s*[1-9]\d*\b",
             r"\btests?[ \t]+run:\s*\d+,\s*failures?:\s*[1-9]\d*\b",
             r"\btests?[ \t]+run:\s*\d+,\s*failures?:\s*\d+,\s*errors?:\s*[1-9]\d*\b",
