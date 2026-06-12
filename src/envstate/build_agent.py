@@ -633,6 +633,11 @@ class BuildAgent:
             task_id=action[:40],
             cmd=action,
             rc=0 if success else 1,
+            # Store the (tail-preserving) output inline so the finalize gate
+            # (agent.py:_resolve_v1_verified_test_run Path 1) can scan it for an
+            # in-loop test pass. summary=output[:200] alone is head-truncated and
+            # drops the trailing "N passed" pytest summary.
+            stdout=_truncate_output(output),
             stdout_path=None,
             stderr_path=None,
             env_revision_before=env_revision,

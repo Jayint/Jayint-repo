@@ -112,6 +112,24 @@ def _shows_execution(output: str) -> bool:
     return bool(_RE_N_PASSED.search(clean) or _RE_RAN_N_TESTS.search(clean))
 
 
+# pytest prints a "[NNN%]" progress-completion marker ONLY when it actually
+# executed tests to completion; a pure --collect-only run prints "collected N
+# items" and never "[NNN%]". So a surviving "[100%]" is a reliable execution
+# signal even when the trailing "N passed" summary line was lost in capture
+# (observed on promptwright: 45/45 passed in-loop, only "[100%]" survived ->
+# the gate could not confirm the pass). Callers MUST already hold rc==0 and a
+# no-failure check (see _verified_test_run_passed); under those guards a 100%
+# completion == every collected test passed.
+_RE_PYTEST_COMPLETE = re.compile(r"\[\s*100%\]")
+
+
+def _shows_pytest_completion(output: str) -> bool:
+    """True iff *output* contains the pytest "[100%]" progress-completion marker."""
+    if not output:
+        return False
+    return bool(_RE_PYTEST_COMPLETE.search(_RE_ANSI.sub("", output)))
+
+
 # Exclusion flags that hide pre-existing test paths and can manufacture a
 # spurious green run (Phase 4 anti-gaming check).
 _EXCLUSION_FLAG_PREFIXES: tuple[str, ...] = (
@@ -182,9 +200,18 @@ def _verified_test_run_passed(
         if _uses_test_exclusion(rec.cmd):
             continue
         output = rec.output or ""
-        if not detector.analyze_test_run(rec.cmd, output).get("is_effective_test_run", False):
+        # A surviving pytest "[100%]" completion marker is itself proof of an
+        # effective execution that reached the end with no failures (we are past
+        # the rc==0 guard at cond 1; pytest returns rc!=0 on any failure). It
+        # therefore satisfies BOTH the effective-run check (cond 5) and the
+        # execution-evidence check (cond 6) even when the trailing "N passed"
+        # summary line was lost in output capture (the promptwright case).
+        shows_completion = _shows_pytest_completion(output)
+        if not shows_completion and not detector.analyze_test_run(
+            rec.cmd, output
+        ).get("is_effective_test_run", False):
             continue
-        if not _shows_execution(output):
+        if not (shows_completion or _shows_execution(output)):
             continue
         return True
     return False

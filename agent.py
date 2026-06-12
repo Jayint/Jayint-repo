@@ -1125,7 +1125,11 @@ class DockerAgent:
         """
         from src.envstate.orchestrator import VERIFY_TEST_CMD
         from src.envstate.ledger import ActionEvent
-        from src.envstate.maintainer import _verified_test_run_passed, _shows_execution
+        from src.envstate.maintainer import (
+            _verified_test_run_passed,
+            _shows_execution,
+            _shows_pytest_completion,
+        )
         from src.envstate.world_model import TaskReport, CommandRecord
 
         # 1. Scan ledger for a genuine rc-0 test execution (with passed output).
@@ -1156,7 +1160,7 @@ class DockerAgent:
         print(f"[v1] finalize test-run verification: {'PASS' if ok else 'FAIL'}")
         # A real execution summary (>=1 passed) is required either way: this rejects
         # collect-only / 0-passed output even when rc==0.
-        if not _shows_execution(out):
+        if not (_shows_execution(out) or _shows_pytest_completion(out)):
             print("[v1] finalize test-run: output shows no execution (collect-only / 0 passed?)")
             return None
         if not ok:

@@ -598,6 +598,33 @@ class TestBuildAgentLedgerAppends(unittest.TestCase):
         events = ledger.events()
         self.assertEqual(events[0].container_id, "my-container-123")
 
+    def test_ledger_event_stores_stdout_with_tail_summary(self):
+        """Fix 1: the ledger ActionEvent must carry the command output in
+        `stdout` (tail-preserved), so the finalize gate (Path 1,
+        agent.py:_resolve_v1_verified_test_run) can scan it for an in-loop pass.
+
+        Regression: previously only summary=output[:200] was stored and stdout
+        was left empty, so a passing in-loop `pytest` was invisible to the gate
+        (the StacklokLabs/promptwright miss)."""
+        client = _fake_client_seq([
+            "Thought: test\nAction: python -m pytest -q",
+            "Thought: done\nFinal Answer: Success",
+        ])
+        ledger = _make_ledger()
+        # Long output with the pass summary at the very END (the realistic case
+        # where head-truncation would drop it).
+        out = ("warning: deprecation\n" * 200) + "." * 45 + " [100%]\n45 passed in 0.21s\n"
+        from src.envstate.build_agent import BuildAgent
+        agent = BuildAgent(
+            client=client, model="m",
+            synthesizer=_FakeSynthesizer(), container_id="c"
+        )
+        agent.run(_make_task(), lambda cmd: (True, out), ledger)
+
+        ev = ledger.events()[0]
+        self.assertTrue(ev.stdout, "ledger event stdout must be populated")
+        self.assertIn("45 passed", ev.stdout)  # tail summary survives truncation
+
     def test_ledger_event_step_increments(self):
         """step field must increment across actions."""
         client = _fake_client_seq([
