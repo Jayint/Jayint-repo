@@ -362,6 +362,10 @@ def is_generated_apt_bootstrap_run_instruction(instruction):
 
 
 class Synthesizer:
+    # RepoLaunch "majority pass" finalize threshold (Fix 3 §0.5). Tunable single constant:
+    # a partial-pass run finalizes only if passed/(passed+failed+errors) >= this.
+    MIN_PASS_RATIO = 0.5
+
     TEST_COMMAND_PATTERNS = [
         # Python
         r"^pytest\b",
@@ -2950,6 +2954,64 @@ class Synthesizer:
     def observation_has_test_failure_signal(self, observation):
         """Expose failing test-output detection for final verification guards."""
         return self._observation_has_test_failure_signal(observation)
+
+    def observation_has_passing_test_signal(self, observation):
+        """True iff the output shows at least one test PASSED (not merely 'tests ran').
+
+        Deliberately excludes the ambiguous 'ran N tests' / 'collected N' / 'N failed'
+        signals that observation_has_effective_test_signal accepts, so a
+        '5 failed, 0 passed' or a bare '--collect-only' run is NOT a passing signal."""
+        if not observation:
+            return False
+        norm = self._normalize_observation_text(observation)
+        for pat in (
+            r"\b[1-9]\d*\s+passed\b",            # pytest
+            r"\b[1-9]\d*%\s+tests\s+passed\b",   # ctest
+            r"test result:\s+ok\.",              # cargo (all passed)
+        ):
+            if re.search(pat, norm, re.IGNORECASE | re.MULTILINE):
+                return True
+        return False
+
+    def observation_has_env_defect_signal(self, observation):
+        """True ONLY when failures indicate a BROKEN ENVIRONMENT (missing dep, collection
+        failure, missing executable, required-service down). Does NOT match AssertionError,
+        AttributeError, TypeError, or a bare 'N failed' (those are pre-existing source bugs)."""
+        if not observation:
+            return False
+        norm = self._normalize_observation_text(observation)   # strips ANSI
+        for pat in (
+            r"ERROR collecting",
+            r"ImportError while importing test module",
+            r"error during collection",
+            r"INTERNALERROR",
+            r"(?:ModuleNotFoundError|ImportError):\s+No module named\s+['\"](?!tests?\.)",
+            r"ImportError:\s+cannot import name",
+            r"ConnectionRefusedError",
+            r"Connection refused",
+            r"(?:pytest|python|make):\s+(?:command not found|No such file)",
+        ):
+            if re.search(pat, norm, re.IGNORECASE | re.MULTILINE):
+                return True
+        # "collected 0 items" + a collection error (two separate re.search; no cross-line .*)
+        if re.search(r"collected\s+0\s+items", norm, re.IGNORECASE) and \
+           re.search(r"\berror\b", norm, re.IGNORECASE):
+            return True
+        return False
+
+    def observation_pass_ratio(self, observation):
+        """passed / (passed + failed + errors), or None if no countable summary.
+
+        Skipped tests are excluded (mirrors compute_essr effective_total)."""
+        norm = self._normalize_observation_text(observation or "")
+
+        def _count(word):
+            vals = [int(m) for m in re.findall(r"(\d+)\s+" + word, norm, re.IGNORECASE)]
+            return max(vals) if vals else 0
+
+        passed, failed, errors = _count("passed"), _count("failed"), _count("errors?")
+        denom = passed + failed + errors
+        return (passed / denom) if denom > 0 else None
 
     def observation_looks_like_help_text(self, observation):
         """Expose help-text detection for agent-reported wrapper commands."""

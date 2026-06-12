@@ -2457,5 +2457,110 @@ Final answer:
         )
 
 
+class ObservationEnvDefectSignalTests(unittest.TestCase):
+    """Fix 3 §6 truth table: env-defect classifier fires ONLY on broken-environment
+    failures, never on pre-existing source/assertion bugs."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def test_module_not_found_dep_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "ModuleNotFoundError: No module named 'fastapi'"))
+
+    def test_internal_tests_module_is_not_env_defect(self):
+        # tests.* topology issue, not a missing dependency
+        self.assertFalse(self.synth.observation_has_env_defect_signal(
+            "ModuleNotFoundError: No module named 'tests.test_x'"))
+
+    def test_cannot_import_name_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "ImportError: cannot import name 'edsl' from 'edsl'"))
+
+    def test_error_collecting_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "ERROR collecting tests/foo.py"))
+
+    def test_internalerror_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "INTERNALERROR> Traceback ... conftest.py"))
+
+    def test_connection_refused_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "ConnectionRefusedError: [Errno 111] Connection refused"))
+
+    def test_command_not_found_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "pytest: command not found"))
+
+    def test_assertion_error_is_not_env_defect(self):
+        self.assertFalse(self.synth.observation_has_env_defect_signal(
+            "AssertionError: assert 1 == 2"))
+
+    def test_attribute_and_type_error_not_env_defect(self):
+        self.assertFalse(self.synth.observation_has_env_defect_signal("AttributeError: 'X' object ..."))
+        self.assertFalse(self.synth.observation_has_env_defect_signal("TypeError: unexpected keyword ..."))
+
+    def test_bare_n_failed_is_not_env_defect(self):
+        self.assertFalse(self.synth.observation_has_env_defect_signal("5 failed in 2.3s"))
+
+    def test_collected_zero_with_error_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "collected 0 items\nERROR: file or directory not found"))
+
+    def test_ansi_wrapped_module_not_found_is_env_defect(self):
+        self.assertTrue(self.synth.observation_has_env_defect_signal(
+            "\x1b[31mModuleNotFoundError: No module named 'numpy'\x1b[0m"))
+
+
+class ObservationPassingTestSignalTests(unittest.TestCase):
+    """Fix 3 §6: passing signal requires >=1 PASSED; rejects 0-passed and collect-only."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def test_n_passed_is_passing(self):
+        self.assertTrue(self.synth.observation_has_passing_test_signal("1601 passed, 2 failed in 9s"))
+
+    def test_zero_passed_is_not_passing(self):
+        # C2 hollow-pass guard: '0 passed' must NOT register as a pass.
+        self.assertFalse(self.synth.observation_has_passing_test_signal("5 failed, 0 passed"))
+
+    def test_collect_only_is_not_passing(self):
+        # C3 guard: 'collected N items' alone is not a pass.
+        self.assertFalse(self.synth.observation_has_passing_test_signal("collected 150 items"))
+
+    def test_empty_is_not_passing(self):
+        self.assertFalse(self.synth.observation_has_passing_test_signal(""))
+
+    def test_bare_failed_is_not_passing(self):
+        self.assertFalse(self.synth.observation_has_passing_test_signal("5 failed in 2.3s"))
+
+
+class ObservationPassRatioTests(unittest.TestCase):
+    """Fix 3 §6: passed/(passed+failed+errors); skips excluded; None when uncountable."""
+
+    def setUp(self):
+        self.synth = Synthesizer()
+
+    def test_high_ratio(self):
+        self.assertAlmostEqual(self.synth.observation_pass_ratio("1601 passed, 2 failed"), 1601 / 1603, places=4)
+
+    def test_minority_ratio(self):
+        self.assertAlmostEqual(self.synth.observation_pass_ratio("26 passed, 33 failed"), 26 / 59, places=4)
+
+    def test_boundary_half(self):
+        self.assertAlmostEqual(self.synth.observation_pass_ratio("5 passed, 5 failed, 0 errors"), 0.5, places=4)
+
+    def test_skips_excluded(self):
+        self.assertAlmostEqual(self.synth.observation_pass_ratio("10 passed, 2 skipped"), 1.0, places=4)
+
+    def test_uncountable_is_none(self):
+        self.assertIsNone(self.synth.observation_pass_ratio("collected 5 items"))
+
+    def test_min_pass_ratio_constant_is_half(self):
+        self.assertEqual(Synthesizer.MIN_PASS_RATIO, 0.5)
+
+
 if __name__ == "__main__":
     unittest.main()
