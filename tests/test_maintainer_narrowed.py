@@ -202,3 +202,40 @@ def test_prompt_mentions_stale_problem_pruning():
         or "rc==0" in low
         or "resolved" in low
     ), "Prompt should mention pruning stale/resolved problems"
+
+
+# ---------------------------------------------------------------------------
+# Fix 2 — ANSI-stripping in _shows_execution (Edit B)
+# ---------------------------------------------------------------------------
+
+from src.envstate.maintainer import _shows_execution  # noqa: E402
+
+
+def test_shows_execution_ansi_bold_passed():
+    """\x1b[1m5 passed\x1b[0m — ANSI-wrapped count → True."""
+    assert _shows_execution("\x1b[1m5 passed\x1b[0m") is True
+
+
+def test_shows_execution_ansi_green_passed():
+    """\x1b[32m182 passed\x1b[0m in 3.21s — green ANSI around count → True."""
+    assert _shows_execution("\x1b[32m182 passed\x1b[0m in 3.21s") is True
+
+
+def test_shows_execution_ran_n_tests():
+    """Plain unittest 'Ran 5 tests in 0.1s' → True (no ANSI needed)."""
+    assert _shows_execution("Ran 5 tests in 0.1s") is True
+
+
+def test_shows_execution_collected_only():
+    """'collected 5 items' (pure --collect-only) → False."""
+    assert _shows_execution("collected 5 items") is False
+
+
+def test_shows_execution_zero_passed():
+    """'0 passed' — N must be >= 1 → False."""
+    assert _shows_execution("0 passed") is False
+
+
+def test_shows_execution_empty_string():
+    """Empty string → False."""
+    assert _shows_execution("") is False

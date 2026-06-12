@@ -1088,3 +1088,78 @@ class TestBuildAgentSelfCheckIntegration(unittest.TestCase):
         # Only the safe command must appear in the sandbox
         self.assertEqual(sandbox_calls, [safe_cmd])
         self.assertEqual(report.status, "done")
+
+
+# ---------------------------------------------------------------------------
+# Fix 2 — _truncate_output helper (Edit A)
+# ---------------------------------------------------------------------------
+
+class TestTruncateOutput(unittest.TestCase):
+    """Unit tests for the _truncate_output module-level helper."""
+
+    def setUp(self):
+        from src.envstate.build_agent import _truncate_output, _OUTPUT_LIMIT
+        self._truncate = _truncate_output
+        self._limit = _OUTPUT_LIMIT
+
+    def test_short_output_passes_through_unchanged(self):
+        """An output shorter than _OUTPUT_LIMIT must be returned as-is."""
+        short = "a" * 100
+        self.assertEqual(self._truncate(short), short)
+
+    def test_exactly_limit_passes_through_unchanged(self):
+        """An output of exactly _OUTPUT_LIMIT chars must be returned unchanged."""
+        at_limit = "b" * self._limit
+        self.assertEqual(self._truncate(at_limit), at_limit)
+
+    def test_long_output_contains_tail_summary(self):
+        """A 100_000-char string with '544 passed' as the last line must survive truncation."""
+        noise = "x" * (100_000 - len("544 passed\n"))
+        output = noise + "544 passed\n"
+        result = self._truncate(output)
+        self.assertIn("544 passed", result,
+                      "'544 passed' in the tail must survive _truncate_output")
+
+    def test_long_output_contains_truncation_marker(self):
+        """A truncated output must contain the '...[output truncated]...' marker."""
+        output = "a" * 100_000
+        result = self._truncate(output)
+        self.assertIn("...[output truncated]...", result)
+
+    def test_long_output_total_length_bounded(self):
+        """len(result) for a 100_000-char input must be <= _OUTPUT_LIMIT + 40."""
+        output = "y" * 100_000
+        result = self._truncate(output)
+        self.assertLessEqual(len(result), self._limit + 40,
+                             f"Expected len <= {self._limit + 40}, got {len(result)}")
+
+    def test_e2e_gate_fires_when_passed_only_in_tail(self):
+        """Gate must fire when 'N passed' appears only in the tail of a long output.
+
+        This is the actual bug: head-only truncation discards the pytest summary.
+        _shows_execution(_truncate_output(out)) must be True.
+        """
+        from src.envstate.maintainer import _shows_execution
+        # 5000-char noise (all 'x'), then the summary at the very end
+        noise = "x" * 5000
+        output = noise + "\n317 passed in 4.20s"
+        result = self._truncate(output)
+        self.assertTrue(
+            _shows_execution(result),
+            "_shows_execution must return True when 'N passed' is only in the tail",
+        )
+
+    def test_e2e_gate_fires_with_ansi_wrapped_summary_in_tail(self):
+        """Gate must fire when the tail summary is ANSI-wrapped (both bugs interact).
+
+        _shows_execution(_truncate_output(out)) must be True even with ANSI colors.
+        """
+        from src.envstate.maintainer import _shows_execution
+        noise = "x" * 5000
+        # ANSI-wrapped "317 passed" as pytest emits it in color mode
+        output = noise + "\n\x1b[1m317 passed\x1b[0m in 4.20s"
+        result = self._truncate(output)
+        self.assertTrue(
+            _shows_execution(result),
+            "_shows_execution must return True for ANSI-wrapped tail summary",
+        )

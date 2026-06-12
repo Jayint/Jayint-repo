@@ -20,6 +20,21 @@ from src.envstate.world_model import CommandRecord, Task, TaskReport
 LOCAL_BUDGET: int = 8          # shell actions per task before forced "blocked"
 MAX_EMPTY_RESPONSES: int = 2   # re-prompts allowed for unparseable LLM output
 
+_OUTPUT_HEAD, _OUTPUT_TAIL = 1500, 800   # tail keeps the pytest summary; head keeps tracebacks
+_OUTPUT_LIMIT = _OUTPUT_HEAD + _OUTPUT_TAIL
+
+
+def _truncate_output(output: str) -> str:
+    """Keep the head (tracebacks/setup) AND the tail (pytest pass summary).
+    Replaces a naive head-only truncation that discarded the '=== N passed ===' line."""
+    if len(output) <= _OUTPUT_LIMIT:
+        return output
+    return (
+        output[:_OUTPUT_HEAD].rstrip()
+        + "\n...[output truncated]...\n"
+        + output[-_OUTPUT_TAIL:].lstrip()
+    )
+
 # ---------------------------------------------------------------------------
 # v0 compatibility symbols — inlined from worker.py (deleted in Task 37).
 # fullstate_worker.py, agent.py, and tests now import these from here.
@@ -529,7 +544,7 @@ class BuildAgent:
             success, output = sandbox_execute(action)
             is_preflight = output.startswith(_PREFLIGHT_REJECTION_PREFIX)
             rc = 0 if success else 1
-            record = CommandRecord(cmd=action, rc=rc, output=output[:2000])
+            record = CommandRecord(cmd=action, rc=rc, output=_truncate_output(output))
 
             # Stuck guard (before appending to history so the guard sees
             # the record from the previous cycle, not the current one)

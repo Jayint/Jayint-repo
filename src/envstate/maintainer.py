@@ -89,6 +89,10 @@ def _is_venv_wrapped(cmd: str) -> bool:
 _RE_N_PASSED = re.compile(r"\b([1-9]\d*)\s+passed\b", re.IGNORECASE)
 _RE_RAN_N_TESTS = re.compile(r"\bran\s+([1-9]\d*)\s+tests?\b", re.IGNORECASE)
 
+# ANSI escape sequence regex — strip before matching so that pytest's color
+# output (\x1b[1m5 passed\x1b[0m) does not break the \b word-boundary check.
+_RE_ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+
 
 def _shows_execution(output: str) -> bool:
     """Return True iff *output* shows a genuine test execution summary.
@@ -104,7 +108,8 @@ def _shows_execution(output: str) -> bool:
     """
     if not output:
         return False
-    return bool(_RE_N_PASSED.search(output) or _RE_RAN_N_TESTS.search(output))
+    clean = _RE_ANSI.sub("", output)
+    return bool(_RE_N_PASSED.search(clean) or _RE_RAN_N_TESTS.search(clean))
 
 
 # Exclusion flags that hide pre-existing test paths and can manufacture a
