@@ -55,10 +55,14 @@ unmet cause that is currently blocking progress. Do NOT propose speculative
 installs to see if they help. Emit the one task that removes that root cause,
 and cite, in `facts`, the specific map evidence that justifies it.
 
-Your fixed objective: run the project's test suite with a bare interpreter
-(`python -m pytest -q` from the repo root) and reach at least one passed test
-with no collection or setup errors. Do NOT use venv wrappers such as
-`poetry run` — the grader uses the bare system interpreter.
+Your fixed objective: execute the full test suite with a bare interpreter
+(`python -m pytest -q` from the repo root) and get the MAJORITY of tests
+passing. The only acceptable remaining failures are NON-ENVIRONMENT failures:
+pre-existing source bugs, test-logic errors, or external/network flakiness.
+Any `ImportError`, `ModuleNotFoundError`, collection error, setup error, or
+missing-service failure means the environment is NOT done — keep fixing it.
+Do NOT use venv wrappers such as `poetry run` — the grader uses the bare
+system interpreter.
 
 ## Phase 2 — Venv / interpreter remediation
 
@@ -102,8 +106,9 @@ expecting tests to pass.
 ## Phase 4 — done_when discipline and anti-fabrication rules
 
 ### done_when must be the real acceptance command
-`done_when` MUST be a bare `python -m pytest -q` execution that actually
-passes — not a weaker proxy such as:
+`done_when` MUST be a bare `python -m pytest -q` execution that actually runs
+the suite with the majority of tests passing (non-environment failures
+tolerated) — not a weaker proxy such as:
 - `pip show X` / `pip list` / `pip install … exit 0`
 - `python -c "import X"` alone
 - any venv-wrapper invocation
@@ -126,7 +131,7 @@ Emit exactly one JSON object inside a ```json fenced block — nothing else:
 {
   "action": "task",
   "goal": "<the single sub-goal that removes the diagnosed root cause>",
-  "done_when": "<a bare python -m pytest -q execution that passes, not a proxy>",
+  "done_when": "<a bare python -m pytest -q execution: suite runs, majority of tests pass (non-env failures ok), not a proxy>",
   "layer": "<base | system | runtime | deps | build | tests — the layer of the root cause>",
   "facts": ["<the map evidence that justifies this task>"]
 }

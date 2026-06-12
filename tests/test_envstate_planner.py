@@ -784,5 +784,55 @@ class PlannerPromptAntiFabricationTests(unittest.TestCase):
         )
 
 
+# ---------------------------------------------------------------------------
+# 11. RepoLaunch majority-pass goal (Fix 3, §8b)
+# ---------------------------------------------------------------------------
+
+class PlannerPromptMajorityPassGoalTests(unittest.TestCase):
+    """Fix 3 / §0.5: the stated objective shifts from '>=1 passed' to RepoLaunch's
+    'majority pass, only non-environment failures tolerated'."""
+
+    def test_objective_aims_for_majority_pass(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("majority", PLANNER_SYSTEM_PROMPT.lower())
+
+    def test_objective_drops_at_least_one_passed_phrasing(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertNotIn("at least one passed test", lower)
+        self.assertNotIn("reach at least one passed", lower)
+
+    def test_objective_tolerates_non_env_failures(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "non-environment" in lower or "non-env" in lower,
+            "Prompt must say non-environment failures are tolerated",
+        )
+        # Pre-existing source bugs / test-logic / network are acceptable remainders.
+        self.assertTrue(
+            "pre-existing source bug" in lower or "source bug" in lower,
+            "Prompt must name pre-existing source bugs as an acceptable remainder",
+        )
+
+    def test_objective_env_defects_mean_not_done(self):
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        # An ImportError / ModuleNotFoundError / collection error must be called
+        # out as 'environment NOT done'.
+        self.assertIn("ImportError", PLANNER_SYSTEM_PROMPT)
+        self.assertIn("ModuleNotFoundError", PLANNER_SYSTEM_PROMPT)
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "not done" in lower,
+            "Prompt must state that env-defect failures mean the environment is NOT done",
+        )
+
+    def test_done_when_still_requires_real_execution(self):
+        """done_when must remain a real pytest execution (not collect-only/proxy)."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("python -m pytest", PLANNER_SYSTEM_PROMPT)
+        self.assertNotIn("--collect-only", PLANNER_SYSTEM_PROMPT)
+
+
 if __name__ == "__main__":
     unittest.main()
