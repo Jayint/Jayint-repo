@@ -430,6 +430,21 @@ Final Answer: Success
 - Report "Final Answer: Success" only after a real command has verified "Done when".
 """
 
+# Recipe-level execution semantics (Task 18 — appended to system prompt in run_recipe).
+# Explains how the LLM should interpret the full numbered recipe seeded in the user message.
+BUILD_AGENT_RECIPE_PROMPT = """\
+
+## Recipe execution mode
+You have been given a complete ordered recipe. Your job is to execute each
+numbered step's command in sequence. Repair only local errors within the
+current step (do not redesign the recipe or reorder steps), and emit
+'Final Answer: Success' once the *current* step's command has exited 0.
+Do NOT attempt later steps until you have confirmed the current step succeeded.
+
+If a step cannot be repaired (the same failure repeats), stop and clearly
+report the blocked step — do not attempt later steps.
+"""
+
 
 # ---------------------------------------------------------------------------
 # BuildAgent
@@ -621,13 +636,20 @@ class BuildAgent:
         ledger: ActionLedger,
         step_offset: int = 0,
     ) -> TaskReport:
-        """Execute all steps of *recipe* in order, reusing the mini-ReAct loop per step.
+        """Execute all steps of *recipe* as a single unified mini-ReAct loop.
 
-        Budget for the recipe scales with the number of steps via :func:`recipe_budget`.
-        Stops and returns ``status='blocked'`` on the first step that cannot be
-        completed (local-repair within a step is allowed via the existing stuck guard
-        and budget in the per-step :meth:`run` call).  All :class:`CommandRecord` s
-        accumulated across steps are merged into the returned :class:`TaskReport`.
+        Differences from the naive per-step delegation:
+
+        - Seeds the LLM with the **full numbered recipe** in the initial user
+          message so the agent sees the complete plan from the start.
+        - Uses :func:`recipe_budget` to compute one total budget cap shared
+          across all steps (``recipe_budget(n) ≤ RECIPE_BUDGET_CAP``), rather
+          than the per-step ``LOCAL_BUDGET``.
+        - ``Final Answer: Success`` signals that the *current* step is done;
+          the loop then advances to the next step and continues.
+        - The stuck guard resets between steps (local-repair only, not global).
+        - All :class:`CommandRecord` s accumulated across every step are merged
+          into the single returned :class:`TaskReport`.
 
         :param recipe:          Ordered sequence of :class:`RecipeStep` s to execute.
         :param sandbox_execute: Callable ``(cmd) -> (ok, output)`` for shell execution.
@@ -638,38 +660,174 @@ class BuildAgent:
                                 failure reason in ``learning``.
         """
         n_steps = len(recipe.steps)
+        total_budget = recipe_budget(n_steps)
         all_commands: list[CommandRecord] = []
 
-        for step_idx, step in enumerate(recipe.steps):
-            # Wrap the RecipeStep as a Task so the existing mini-ReAct run() can
-            # execute it using the established prompt and stuck-guard logic.
-            task = Task(
-                goal=f"Execute step {step_idx + 1}/{n_steps}: {step.command}",
-                done_when=f"Command exits 0: {step.command}",
-                layer=step.kind,
-                facts=(),
-                target_node_ids=step.target_node_ids,
-            )
-            current_offset = step_offset + len(all_commands)
-            step_report = self.run(task, sandbox_execute, ledger, step_offset=current_offset)
-            all_commands.extend(step_report.commands)
+        # Seed the initial user message with the full numbered recipe so the LLM
+        # always has the complete ordered plan in view.
+        recipe_lines = "\n".join(
+            f"{i + 1}. [{s.kind}] {s.command}"
+            for i, s in enumerate(recipe.steps)
+        )
+        initial_user_content = (
+            f"Execute the following recipe ({n_steps} step{'s' if n_steps != 1 else ''}):\n"
+            f"{recipe_lines}\n\n"
+            f"Start with step 1. "
+            f"Emit 'Final Answer: Success' when the *current* step's command exits 0; "
+            f"I will then prompt you to continue with the next step."
+        )
 
-            if step_report.status != "done":
+        messages: list[dict] = [
+            {"role": "system", "content": BUILD_AGENT_SYSTEM_PROMPT + BUILD_AGENT_RECIPE_PROMPT},
+            {"role": "user", "content": initial_user_content},
+        ]
+
+        current_step_idx: int = 0
+        step_history: list[CommandRecord] = []  # stuck guard resets per step
+        env_revision: int = step_offset
+        steps_executed: int = 0
+        empty_responses: int = 0
+
+        for _budget_iter in range(total_budget):
+            text, usage, raw_response = complete_with_retry(
+                self.client,
+                self.model,
+                messages,
+                temperature=0,
+                stop=["Observation:"],
+            )
+            if self.on_usage:
+                self.on_usage(usage)
+            log_llm_exchange(
+                "build_agent_recipe", raw_response, parsed={"budget_iter": _budget_iter}
+            )
+
+            action = _extract_worker_action(text)
+            finished = _is_worker_finished(text)
+
+            if finished:
+                # Current step done — advance to the next one.
+                current_step_idx += 1
+                step_history = []  # reset stuck guard for the incoming step
+                if current_step_idx >= n_steps:
+                    # All steps complete.
+                    return TaskReport(
+                        task_goal=f"Recipe ({n_steps} steps)",
+                        status="done",
+                        commands=tuple(all_commands),
+                        learning=f"All {n_steps} recipe steps completed successfully",
+                    )
+                next_step = recipe.steps[current_step_idx]
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Step {current_step_idx} of {n_steps} complete. "
+                            f"Now execute step {current_step_idx + 1}: {next_step.command}"
+                        ),
+                    },
+                ]
+                empty_responses = 0
+                continue
+
+            # Guard: empty / unparseable response
+            if not action.strip():
+                empty_responses += 1
+                if empty_responses >= MAX_EMPTY_RESPONSES:
+                    step = recipe.steps[current_step_idx]
+                    return TaskReport(
+                        task_goal=f"Recipe ({n_steps} steps)",
+                        status="blocked",
+                        commands=tuple(all_commands),
+                        learning=(
+                            f"Recipe blocked at step {current_step_idx + 1}/{n_steps} "
+                            f"(id={step.id}): LLM returned too many unparseable responses"
+                        ),
+                    )
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your previous response did not contain a parseable "
+                            "Action line. Respond with 'Action: <command>' or "
+                            "'Final Answer: Success'."
+                        ),
+                    },
+                ]
+                continue
+            empty_responses = 0  # reset on real action
+
+            # Pre-submission self-check: reject composition rule violations.
+            composition_error = validate_command_composition(action)
+            if composition_error:
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Observation: [FAILED — self-check, command NOT executed]\n"
+                            f"{composition_error}"
+                        ),
+                    },
+                ]
+                continue
+
+            # Execute
+            success, output = sandbox_execute(action)
+            is_preflight = output.startswith(_PREFLIGHT_REJECTION_PREFIX)
+            rc = 0 if success else 1
+            record = CommandRecord(cmd=action, rc=rc, output=_truncate_output(output))
+
+            # Stuck guard checks per-step history (reset between steps).
+            if _is_stuck(step_history, action, is_preflight):
+                all_commands.append(record)
+                step = recipe.steps[current_step_idx]
                 return TaskReport(
                     task_goal=f"Recipe ({n_steps} steps)",
                     status="blocked",
                     commands=tuple(all_commands),
                     learning=(
-                        f"Recipe blocked at step {step_idx + 1}/{n_steps} "
-                        f"(id={step.id}): {step_report.learning}"
+                        f"Recipe blocked at step {current_step_idx + 1}/{n_steps} "
+                        f"(id={step.id}): stuck guard fired on '{action}'"
                     ),
                 )
 
+            step_history.append(record)
+            all_commands.append(record)
+            steps_executed += 1
+
+            self._append_ledger_event(
+                action=action,
+                success=success,
+                output=output,
+                step=step_offset + steps_executed,
+                env_revision=env_revision,
+                ledger=ledger,
+                is_preflight=is_preflight,
+            )
+            if success and not is_preflight:
+                if self.synthesizer and self.synthesizer.command_mutates_environment(action):
+                    env_revision += 1
+
+            observation_prefix = "ok" if success else "FAILED"
+            messages = messages + [
+                {"role": "assistant", "content": text},
+                {
+                    "role": "user",
+                    "content": f"Observation: [{observation_prefix}]\n{output[:1500]}",
+                },
+            ]
+
+        # Budget exhausted before all steps completed.
         return TaskReport(
             task_goal=f"Recipe ({n_steps} steps)",
-            status="done",
+            status="blocked",
             commands=tuple(all_commands),
-            learning=f"All {n_steps} recipe steps completed successfully",
+            learning=(
+                f"Recipe ran out of total budget ({total_budget} actions for {n_steps} steps)"
+            ),
         )
 
     # ------------------------------------------------------------------
