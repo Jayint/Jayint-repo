@@ -70,7 +70,7 @@ _WALK_SKIP_DIRS: frozenset[str] = frozenset({
     "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache",
     "node_modules", ".venv", "venv", "env", ".env",
     "dist", "build", "target", ".gradle", ".mvn",
-    ".eggs", "*.egg-info",
+    ".eggs",
 })
 
 
