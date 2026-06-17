@@ -1,45 +1,23 @@
-from src.envstate.contracts import goals
-from src.envstate.contracts.graph import ContractGraph
-from src.envstate.contracts.nodes import ContractStatusEvent, Edge, Node
-from src.envstate.world_model import Fact
+from src.envstate.contracts.goals import seed_backbone, BACKBONE_EDGES, GOAL_IDS, FOUNDATIONAL_IDS
 
+def test_seed_emits_seven_goals_and_four_foundational():
+    nodes, edges = seed_backbone()
+    ids = {n.id for n in nodes}
+    assert GOAL_IDS <= ids and FOUNDATIONAL_IDS <= ids
+    assert len(GOAL_IDS) == 7 and len(FOUNDATIONAL_IDS) == 4
 
-def test_seed_template_nodes_and_edges():
-    nodes, edges = goals.seed_goal_template((Fact("torch", ">=2.0"),))
-    ids_ = {n.id for n in nodes}
-    assert "verify:pytest_run" in ids_
-    assert "contract:goal:repo_tests_run" in ids_
-    assert "contract:pytest_runnable" in ids_
-    assert "contract:python_package_importable:torch" in ids_
-    goal = next(n for n in nodes if n.id == "contract:goal:repo_tests_run")
-    assert goal.data["level"] == "goal" and goal.data["required"] is True
-    deps = {e.target for e in edges if e.source == "contract:goal:repo_tests_run" and e.type == "depends_on"}
-    assert {"contract:pytest_runnable", "contract:python_package_importable:torch"} <= deps
+def test_top_goal_is_required_and_named_repo_tests_pass():
+    nodes, _ = seed_backbone()
+    top = next(n for n in nodes if n.id == "contract:goal:repo_tests_pass")
+    assert top.data["level"] == "goal" and top.data["required"] is True
 
+def test_no_per_dep_contracts_seeded():
+    nodes, _ = seed_backbone()
+    # backbone never mints python_import contracts at cold-start
+    assert not any(n.data.get("kind") == "python_import" for n in nodes)
 
-def test_readiness_false_until_goal_and_deps_satisfied():
-    nodes, edges = goals.seed_goal_template((Fact("torch", ""),))
-    g = ContractGraph(nodes=tuple(nodes), edges=tuple(edges))
-    assert goals.evaluate_goal_readiness(g) is False
-    # satisfy deps + goal
-    sat = lambda cid: ContractStatusEvent(cid, "satisfied", "envrev:004", ("cmd:010",))
-    g2 = ContractGraph(
-        nodes=g.nodes + (Node("cmd:010", "CommandExecution", {"exit_code": 0}),),
-        edges=g.edges,
-        status_events=(
-            sat("contract:pytest_runnable"),
-            sat("contract:python_package_importable:torch"),
-            sat("contract:goal:repo_tests_run"),
-        ),
-    )
-    assert goals.evaluate_goal_readiness(g2) is True
-
-
-def test_readiness_false_if_goal_satisfied_but_dep_not():
-    nodes, edges = goals.seed_goal_template((Fact("torch", ""),))
-    g = ContractGraph(
-        nodes=tuple(nodes),
-        edges=tuple(edges),
-        status_events=(ContractStatusEvent("contract:goal:repo_tests_run", "satisfied", "envrev:004", ("cmd:010",)),),
-    )
-    assert goals.evaluate_goal_readiness(g) is False
+def test_backbone_edges_wire_tests_pass_to_phases():
+    _, edges = seed_backbone()
+    pairs = {(e.source, e.target) for e in edges}
+    assert ("contract:goal:repo_tests_pass", "contract:goal:repo_imports_work") in pairs
+    assert ("contract:goal:repo_deps_installed", "contract:package_manager_available") in pairs
