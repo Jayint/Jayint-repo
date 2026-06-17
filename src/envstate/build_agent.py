@@ -11,7 +11,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.ledger import ActionEvent, ActionLedger
 from src.envstate.llm_response import complete_with_retry
-from src.envstate.world_model import CommandRecord, Task, TaskReport
+from src.envstate.world_model import CommandRecord, RecipePatch, Task, TaskReport
 
 # ---------------------------------------------------------------------------
 # Module-level constants (spec §8)
@@ -19,6 +19,23 @@ from src.envstate.world_model import CommandRecord, Task, TaskReport
 
 LOCAL_BUDGET: int = 8          # shell actions per task before forced "blocked"
 MAX_EMPTY_RESPONSES: int = 2   # re-prompts allowed for unparseable LLM output
+
+# Recipe-level budget constants (Task 18)
+LOCAL_BUDGET_BASE: int = 2         # minimum steps in any recipe sub-loop
+LOCAL_BUDGET_PER_STEP: int = 2     # additional steps budget per recipe step
+RECIPE_BUDGET_CAP: int = 16        # hard ceiling on recipe total budget
+
+
+def recipe_budget(n: int) -> int:
+    """Compute total shell-action budget for a recipe with *n* steps.
+
+    Budget scales linearly with the number of steps, capped at RECIPE_BUDGET_CAP.
+    Examples (BASE=2, PER_STEP=2, CAP=16):
+      recipe_budget(1)  = 4
+      recipe_budget(5)  = 12
+      recipe_budget(50) = 16
+    """
+    return min(LOCAL_BUDGET_BASE + LOCAL_BUDGET_PER_STEP * n, RECIPE_BUDGET_CAP)
 
 _OUTPUT_HEAD, _OUTPUT_TAIL = 1500, 800   # tail keeps the pytest summary; head keeps tracebacks
 _OUTPUT_LIMIT = _OUTPUT_HEAD + _OUTPUT_TAIL
@@ -572,7 +589,7 @@ class BuildAgent:
                 is_preflight=is_preflight,
             )
             if success and not is_preflight:
-                if self.synthesizer.command_mutates_environment(action):
+                if self.synthesizer and self.synthesizer.command_mutates_environment(action):
                     env_revision += 1
 
             # Append to LLM conversation
@@ -591,6 +608,68 @@ class BuildAgent:
             status="blocked",
             commands=tuple(history),
             learning=f"Ran out of local budget ({LOCAL_BUDGET} steps)",
+        )
+
+    # ------------------------------------------------------------------
+    # Recipe execution (Task 18)
+    # ------------------------------------------------------------------
+
+    def run_recipe(
+        self,
+        recipe: RecipePatch,
+        sandbox_execute: Callable[[str], tuple[bool, str]],
+        ledger: ActionLedger,
+        step_offset: int = 0,
+    ) -> TaskReport:
+        """Execute all steps of *recipe* in order, reusing the mini-ReAct loop per step.
+
+        Budget for the recipe scales with the number of steps via :func:`recipe_budget`.
+        Stops and returns ``status='blocked'`` on the first step that cannot be
+        completed (local-repair within a step is allowed via the existing stuck guard
+        and budget in the per-step :meth:`run` call).  All :class:`CommandRecord` s
+        accumulated across steps are merged into the returned :class:`TaskReport`.
+
+        :param recipe:          Ordered sequence of :class:`RecipeStep` s to execute.
+        :param sandbox_execute: Callable ``(cmd) -> (ok, output)`` for shell execution.
+        :param ledger:          Shared :class:`ActionLedger` for the current cycle.
+        :param step_offset:     Step counter offset for ledger alignment.
+        :returns:               :class:`TaskReport` with ``status='done'`` if all steps
+                                complete, else ``status='blocked'`` with the first
+                                failure reason in ``learning``.
+        """
+        n_steps = len(recipe.steps)
+        all_commands: list[CommandRecord] = []
+
+        for step_idx, step in enumerate(recipe.steps):
+            # Wrap the RecipeStep as a Task so the existing mini-ReAct run() can
+            # execute it using the established prompt and stuck-guard logic.
+            task = Task(
+                goal=f"Execute step {step_idx + 1}/{n_steps}: {step.command}",
+                done_when=f"Command exits 0: {step.command}",
+                layer=step.kind,
+                facts=(),
+                target_node_ids=step.target_node_ids,
+            )
+            current_offset = step_offset + len(all_commands)
+            step_report = self.run(task, sandbox_execute, ledger, step_offset=current_offset)
+            all_commands.extend(step_report.commands)
+
+            if step_report.status != "done":
+                return TaskReport(
+                    task_goal=f"Recipe ({n_steps} steps)",
+                    status="blocked",
+                    commands=tuple(all_commands),
+                    learning=(
+                        f"Recipe blocked at step {step_idx + 1}/{n_steps} "
+                        f"(id={step.id}): {step_report.learning}"
+                    ),
+                )
+
+        return TaskReport(
+            task_goal=f"Recipe ({n_steps} steps)",
+            status="done",
+            commands=tuple(all_commands),
+            learning=f"All {n_steps} recipe steps completed successfully",
         )
 
     # ------------------------------------------------------------------
@@ -631,7 +710,7 @@ class BuildAgent:
             # Rejected before execution — record but mark as non-mutating.
             mutation_class = None
             rev_after = env_revision
-        elif success and self.synthesizer.command_mutates_environment(action):
+        elif success and self.synthesizer and self.synthesizer.command_mutates_environment(action):
             mutation_class = self.synthesizer.classify_mutation(action)
             rev_after = env_revision + 1
         else:
