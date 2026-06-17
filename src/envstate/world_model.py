@@ -63,18 +63,29 @@ class WorldModelMap:
 # ---------------------------------------------------------------------------
 
 @dataclasses.dataclass(frozen=True)
+class TransitionProposal:
+    kind: str
+    target: str
+    intent: str
+    command_templates: tuple[str, ...] = ()
+
+
+@dataclasses.dataclass(frozen=True)
 class Task:
     goal: str               # one concrete sub-goal: "install project deps from pyproject"
     done_when: str          # checkable criterion: "pip install exits 0 and import works"
     layer: str              # which stack layer this targets
     facts: tuple[str, ...]  # relevant map facts handed down (so the agent does not re-discover)
+    target_node_ids: tuple[str, ...] = ()
+    transition_proposal: "TransitionProposal | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
 class PlannerDecision:
-    action: str             # "task" | "done" | "giveup"
+    action: str                       # "task" | "done" | "giveup"
     task: Task | None = None
-    reason: str = ""        # explanation for done/giveup
+    reason: str = ""                  # explanation for done/giveup
+    satisfied_goal_contract_ids: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
