@@ -603,11 +603,11 @@ class PrincipledPromptContractTests(unittest.TestCase):
 
     def test_valid_actions_includes_advisory_done(self):
         from src.envstate.planner import _VALID_ACTIONS
-        # Advisory-done (Contract Graph v1): `done` is now a valid *advisory*
-        # action; the parser still rejects a bare done, and the host gate (not
-        # the planner) certifies success.
+        # Advisory-done: `done` is a valid advisory action; host gate certifies.
+        # v2 also adds `apply_recipe_patch` for recipe-based repair.
         self.assertIn("done", _VALID_ACTIONS)
-        self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup", "done"}))
+        self.assertIn("apply_recipe_patch", _VALID_ACTIONS)
+        self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup", "done", "apply_recipe_patch"}))
 
 
 # ---------------------------------------------------------------------------

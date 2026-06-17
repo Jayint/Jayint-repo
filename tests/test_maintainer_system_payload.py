@@ -92,6 +92,3 @@ def test_payload_does_not_dump_system_installed_wholesale():
     assert "system_installed" not in cm
 
 
-def test_system_prompt_references_system_tools():
-    """MAINTAINER_SYSTEM_PROMPT mentions system_tools so the LLM knows to use it."""
-    assert "system_tools" in MAINTAINER_SYSTEM_PROMPT

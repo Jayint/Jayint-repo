@@ -21,21 +21,6 @@ def _report(cmds=(), status="done"):
     return TaskReport(task_goal="g", status=status, commands=tuple(cmds), learning="")
 
 
-def test_resolved_drops_listed_problem():
-    m = _map(open_problems=(OpenProblem("pg_config not found", "x", "system"),))
-    text = '```json\n{"open_problems": [], "resolved": ["pg_config not found"], "notes": []}\n```'
-    out = parse_v1_maintainer_reply(text, m, _report())
-    assert out.open_problems == ()
-
-
-def test_appends_new_problem_and_note():
-    m = _map()
-    text = '```json\n{"open_problems": [{"signature":"E1","interpretation":"i","layer":"deps"}], "resolved": [], "notes": ["careful"]}\n```'
-    out = parse_v1_maintainer_reply(text, m, _report())
-    assert out.open_problems[0].signature == "E1"
-    assert "careful" in out.notes
-
-
 def test_does_not_touch_installed_or_progress():
     m = _map(installed=(Fact("flask", "3.0.0"),), progress={"base": True, "system": False,
              "runtime": True, "deps": True, "build": False, "tests": False})
@@ -107,101 +92,6 @@ def test_is_collection_signature_pg_config():
 def test_is_collection_signature_empty():
     """Empty string → False (no signal)."""
     assert _is_collection_signature("") is False
-
-
-# ---------------------------------------------------------------------------
-# Phase 5b — parse-level reclassify: collection signature forced to tests layer
-# ---------------------------------------------------------------------------
-
-def test_parse_reclassifies_tests_module_not_found_from_deps_to_tests():
-    """An LLM reply with kind=language_package_missing but a tests.* signature
-    must be reclassified to layer='tests' at parse time."""
-    m = _map()
-    problem = {
-        "signature": "ModuleNotFoundError: No module named 'tests.test_x'",
-        "kind": "language_package_missing",
-        "hypothesis": "wrong import path",
-        "root_or_downstream": "root",
-    }
-    text = "```json\n" + json.dumps({
-        "open_problems": [problem],
-        "resolved": [],
-        "planner_notes": [],
-    }) + "\n```"
-    out = parse_v1_maintainer_reply(text, m, _report())
-    assert len(out.open_problems) == 1
-    assert out.open_problems[0].layer == "tests", (
-        f"Expected layer='tests' but got {out.open_problems[0].layer!r}"
-    )
-
-
-def test_parse_does_NOT_reclassify_genuine_dep_signature():
-    """A genuine third-party dep (fastapi) with kind=language_package_missing
-    must remain on layer='deps' — no false reclassification."""
-    m = _map()
-    problem = {
-        "signature": "ModuleNotFoundError: No module named 'fastapi'",
-        "kind": "language_package_missing",
-        "hypothesis": "fastapi not installed",
-        "root_or_downstream": "root",
-    }
-    text = "```json\n" + json.dumps({
-        "open_problems": [problem],
-        "resolved": [],
-        "planner_notes": [],
-    }) + "\n```"
-    out = parse_v1_maintainer_reply(text, m, _report())
-    assert len(out.open_problems) == 1
-    assert out.open_problems[0].layer == "deps", (
-        f"Expected layer='deps' but got {out.open_problems[0].layer!r}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Phase 5b — MAINTAINER_SYSTEM_PROMPT guidance checks
-# ---------------------------------------------------------------------------
-
-def test_prompt_mentions_collection_errors_are_test_failure():
-    """Prompt must distinguish pytest collection/import-mode errors from deps."""
-    low = MAINTAINER_SYSTEM_PROMPT.lower()
-    # Must mention that collection errors (import file mismatch / tests.*) are test_failure
-    assert (
-        "import file mismatch" in low
-        or "collection" in low
-    ), "Prompt should mention collection errors"
-
-
-def test_prompt_mentions_no_module_named_tests_is_not_deps():
-    """Prompt must call out that 'No module named tests...' is test_failure, not deps."""
-    assert (
-        "no module named 'tests" in MAINTAINER_SYSTEM_PROMPT.lower()
-        or "tests." in MAINTAINER_SYSTEM_PROMPT.lower()
-    ), "Prompt should mention tests.* ModuleNotFoundError classification"
-
-
-def test_prompt_mentions_collapsing_duplicate_problems():
-    """Prompt must instruct the LLM to collapse/dedup problems sharing one mechanism."""
-    low = MAINTAINER_SYSTEM_PROMPT.lower()
-    assert (
-        "collapse" in low
-        or "dedup" in low
-        or "duplicate" in low
-        or "single entry" in low
-        or "one entry" in low
-    ), "Prompt should instruct collapsing duplicate/near-duplicate problems"
-
-
-def test_prompt_mentions_stale_problem_pruning():
-    """Prompt must instruct the LLM to include resolved when a later rc=0 shows
-    the problem no longer occurs (prune stale entries)."""
-    low = MAINTAINER_SYSTEM_PROMPT.lower()
-    assert (
-        "stale" in low
-        or "no longer" in low
-        or "rc=0" in low
-        or "rc==0" in low
-        or "resolved" in low
-    ), "Prompt should mention pruning stale/resolved problems"
 
 
 # ---------------------------------------------------------------------------

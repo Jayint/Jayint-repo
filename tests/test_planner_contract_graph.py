@@ -8,13 +8,15 @@ from src.envstate.world_model import initial_map, merge_map
 
 
 def test_render_includes_graph_when_non_empty():
+    # v2: render_graph_for_planner outputs "## Repair Map" / "## Repair Frontier" sections,
+    # not "Contract Graph".  The node id must still appear in the output.
     m = merge_map(
         initial_map("img", "/r", "py", "pip", ()),
         contract_graph=ContractGraph(nodes=(Node("contract:python_package_importable:torch", "Contract",
                                                   {"level": "atomic", "description": "torch importable"}),)),
     )
     view = render_planning_view(m, {"cycles_remaining": 5})
-    assert "Contract Graph" in view and "contract:python_package_importable:torch" in view
+    assert "Repair Map" in view and "contract:python_package_importable:torch" in view
 
 
 def test_render_omits_graph_when_empty():

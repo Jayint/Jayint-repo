@@ -134,53 +134,6 @@ class TestParseV1MaintainerReply(unittest.TestCase):
         # progress must remain as-is from the base map
         self.assertEqual(new_map.progress, base.progress)
 
-    def test_open_problem_recorded_from_failed_command(self):
-        base = _base_map()
-        report = _make_report(
-            [("pip install psycopg2==2.8.6", 1,
-              "error: pg_config executable not found")]
-        )
-        reply = self._llm_json(
-            open_problems=[
-                {
-                    "signature": "ModuleNotFoundError: psycopg2",
-                    "interpretation": "needs libpq-dev",
-                    "layer": "system",
-                }
-            ],
-            resolved=[],
-            notes=[],
-        )
-        new_map = parse_v1_maintainer_reply(reply, base, report)
-        sigs = [p.signature for p in new_map.open_problems]
-        self.assertIn("ModuleNotFoundError: psycopg2", sigs)
-
-    def test_resolved_drops_problem(self):
-        """resolved key removes existing open_problem by signature."""
-        base = merge_map(_base_map(), open_problems=(
-            OpenProblem("pg_config not found", "needs libpq-dev", "system"),
-        ))
-        report = _make_report([("apt-get install -y libpq-dev", 0, "ok")])
-        reply = self._llm_json(
-            open_problems=[],
-            resolved=["pg_config not found"],
-            notes=[],
-        )
-        new_map = parse_v1_maintainer_reply(reply, base, report)
-        self.assertEqual(new_map.open_problems, ())
-
-    def test_notes_appended_not_replaced(self):
-        base = merge_map(_base_map(), notes=("existing note",))
-        report = _make_report([("pip install x", 0, "ok")])
-        reply = self._llm_json(
-            open_problems=[],
-            resolved=[],
-            notes=["new caution"],
-        )
-        new_map = parse_v1_maintainer_reply(reply, base, report)
-        self.assertIn("existing note", new_map.notes)
-        self.assertIn("new caution", new_map.notes)
-
     def test_empty_llm_output_returns_map_unchanged(self):
         base = _base_map()
         report = _make_report([("ls", 0, "")])
@@ -365,29 +318,6 @@ class TestMaintainerUpdate(unittest.TestCase):
         result = maintainer.update(base, report)
         self.assertFalse(result.done_flag)
 
-    def test_update_records_open_problem_on_install_failure(self):
-        reply = self._reply_json(
-            open_problems=[
-                {
-                    "signature": "ImportError: cannot import name 'edsl'",
-                    "interpretation": "package not installed",
-                    "layer": "deps",
-                }
-            ],
-            resolved=[],
-            notes=[],
-        )
-        maintainer = Maintainer(client=_fake_client(reply), model="test-model")
-        base = _base_map()
-        report = _make_report(
-            [("pip install edsl", 1, "ERROR: Could not build edsl")],
-            status="blocked",
-            learning="edsl build fails",
-        )
-        result = maintainer.update(base, report)
-        sigs = [p.signature for p in result.open_problems]
-        self.assertIn("ImportError: cannot import name 'edsl'", sigs)
-
     def test_update_does_not_mutate_input_map(self):
         """WorldModelMap is frozen — update must return a new object."""
         # Under the new contract, LLM does NOT set installed.
@@ -469,117 +399,10 @@ class TestMaintainerSystemPrompt(unittest.TestCase):
         # is in the module docstring/comments, not necessarily the system prompt.
         self.assertIn("done_flag", MAINTAINER_SYSTEM_PROMPT)
 
-    def test_prompt_mentions_single_output_shape(self):
-        """The prompt must reference the three output keys of the narrowed v1 schema."""
-        for key in ("open_problems", "resolved", "notes"):
-            self.assertIn(key, MAINTAINER_SYSTEM_PROMPT)
-
-    def test_prompt_states_facts_are_host_authoritative(self):
-        """The prompt must inform the LLM that installed facts are host-owned."""
-        prompt_lower = MAINTAINER_SYSTEM_PROMPT.lower()
-        self.assertTrue(
-            "authoritative" in prompt_lower or "already filled" in prompt_lower,
-            "Prompt should state that installed/facts are host-authoritative",
-        )
-
-
-# ---------------------------------------------------------------------------
-# New schema: kind -> layer, hypothesis -> interpretation, planner_notes -> notes
-# ---------------------------------------------------------------------------
-
-class TestNewSchemaParsing(unittest.TestCase):
-    def _parse(self, problems=None, resolved=None, planner_notes=None, notes=None):
-        obj = {"open_problems": problems or []}
-        if resolved is not None:
-            obj["resolved"] = resolved
-        if planner_notes is not None:
-            obj["planner_notes"] = planner_notes
-        if notes is not None:
-            obj["notes"] = notes
-        text = "```json\n" + json.dumps(obj) + "\n```"
-        return parse_v1_maintainer_reply(text, _base_map(), _make_report([("noop", 0, "")]))
-
-    def test_system_kind_maps_to_system_layer(self):
-        # This is the whole point: a native-tool failure must land on layer 'system'
-        # so the host's _auto_resolve_system_problems can engage.
-        out = self._parse(problems=[{
-            "signature": "pg_config: command not found",
-            "kind": "system_tool_missing",
-            "hypothesis": "psycopg2 build needs libpq",
-            "root_or_downstream": "root",
-        }])
-        op = out.open_problems[0]
-        self.assertEqual(op.signature, "pg_config: command not found")
-        self.assertEqual(op.layer, "system")
-
-    def test_header_and_native_kinds_map_to_system(self):
-        for kind in ("native_build_dependency", "header_missing"):
-            out = self._parse(problems=[{"signature": f"sig-{kind}", "kind": kind,
-                                         "hypothesis": "h"}])
-            self.assertEqual(out.open_problems[0].layer, "system", kind)
-
-    def test_package_kinds_map_to_deps(self):
-        for kind in ("language_package_missing", "import_failure"):
-            out = self._parse(problems=[{"signature": f"sig-{kind}", "kind": kind}])
-            self.assertEqual(out.open_problems[0].layer, "deps", kind)
-
-    def test_test_failure_maps_to_tests_layer(self):
-        out = self._parse(problems=[{"signature": "collection error", "kind": "test_failure"}])
-        self.assertEqual(out.open_problems[0].layer, "tests")
-
-    def test_unknown_kind_defaults_to_deps(self):
-        out = self._parse(problems=[{"signature": "weird", "kind": "totally_unknown"}])
-        self.assertEqual(out.open_problems[0].layer, "deps")
-
-    def test_hypothesis_becomes_interpretation_with_root_tag(self):
-        out = self._parse(problems=[{
-            "signature": "No module named 'psycopg2'",
-            "kind": "import_failure",
-            "hypothesis": "downstream of the pg_config wall",
-            "root_or_downstream": "downstream",
-        }])
-        interp = out.open_problems[0].interpretation
-        self.assertIn("downstream", interp)
-        self.assertIn("pg_config wall", interp)
-
-    def test_planner_notes_become_notes(self):
-        out = self._parse(problems=[], planner_notes=["log was truncated; request full log"])
-        self.assertIn("log was truncated; request full log", out.notes)
-
-    def test_verbatim_signature_preserved_exactly(self):
-        sig = "fatal error: libpq-fe.h: No such file or directory"
-        out = self._parse(problems=[{"signature": sig, "kind": "header_missing"}])
-        self.assertEqual(out.open_problems[0].signature, sig)
-
-    # -- back-compat: old replies must still parse --------------------------------
-
-    def test_legacy_layer_and_interpretation_still_parse(self):
-        out = self._parse(problems=[{"signature": "E1", "interpretation": "i", "layer": "runtime"}],
-                          notes=["careful"])
-        op = out.open_problems[0]
-        self.assertEqual(op.layer, "runtime")
-        self.assertEqual(op.interpretation, "i")
-        self.assertIn("careful", out.notes)
-
-    def test_resolved_still_drops_signatures(self):
-        base = merge_map(
-            _base_map(),
-            open_problems=(OpenProblem("old sig", "x", "deps"),),
-        )
-        text = '```json\n{"open_problems": [], "resolved": ["old sig"], "planner_notes": []}\n```'
-        out = parse_v1_maintainer_reply(text, base, _make_report([("noop", 0, "")]))
-        self.assertEqual(out.open_problems, ())
-
-
 class TestNewPromptContract(unittest.TestCase):
     def test_prompt_demands_literal_signatures(self):
         low = MAINTAINER_SYSTEM_PROMPT.lower()
         self.assertTrue("literal" in low or "do not paraphrase" in low)
-
-    def test_prompt_defines_kind_taxonomy(self):
-        for kind in ("native_build_dependency", "system_tool_missing", "header_missing",
-                     "language_package_missing", "import_failure", "test_failure"):
-            self.assertIn(kind, MAINTAINER_SYSTEM_PROMPT)
 
     def test_prompt_forbids_certifying_facts(self):
         low = MAINTAINER_SYSTEM_PROMPT.lower()

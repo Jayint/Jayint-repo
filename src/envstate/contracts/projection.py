@@ -95,10 +95,13 @@ def refresh_host_graph(
     # 4. host_satisfied set + done-gate goal certification
     host_satisfied: set[str] = set(host_satisfied_set(graph, world_map, events))
     if world_map.done_flag and _verified_test_command_id(events) is not None:
+        from .graph import depends_on_closure
         host_satisfied.add(goals.GOAL_TESTS_PASS)
-        # a real pass implies collect + imports + deps are satisfied
-        for nm in ("repo_tests_collect", "repo_imports_work", "repo_deps_installed"):
-            host_satisfied.add(ids.goal_contract_id(nm))
+        # a real pass implies ALL transitive deps of the goal are satisfied.
+        # Use the graph's depends_on closure to cover every dep without
+        # hard-coding a partial list (avoids regressions when new deps are added).
+        for dep_id in depends_on_closure(graph, goals.GOAL_TESTS_PASS):
+            host_satisfied.add(dep_id)
 
     return merge_map(
         world_map,
