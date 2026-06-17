@@ -63,6 +63,73 @@ def _derive_repo_layout(repo_structure: str) -> tuple:
     return tuple(dict.fromkeys(_layout_lines[:60] + _extra_test_lines[:30]))
 
 
+# Directories that are either VCS internals, large build artefacts, or
+# binary asset caches — skip them during the host-fallback walk.
+_WALK_SKIP_DIRS: frozenset[str] = frozenset({
+    ".git", ".hg", ".svn",
+    "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    "node_modules", ".venv", "venv", "env", ".env",
+    "dist", "build", "target", ".gradle", ".mvn",
+    ".eggs", "*.egg-info",
+})
+
+
+def _scan_workplace_structure(workplace: str, cap: int = 400) -> str:
+    """Walk *workplace* on the host and return a newline-delimited list of
+    repo-relative paths suitable for ``_derive_repo_layout``.
+
+    Skips ``.git`` and other large / binary directories (see
+    ``_WALK_SKIP_DIRS``).  Emits directory entries as ``dirname/`` and file
+    entries as bare relative paths.  The result is capped at *cap* lines so
+    the context budget stays bounded.
+    """
+    if not os.path.isdir(workplace):
+        return ""
+    lines: list[str] = []
+    for root, dirs, files in os.walk(workplace):
+        # Prune skip-dirs in-place so os.walk won't descend into them.
+        dirs[:] = [
+            d for d in sorted(dirs)
+            if d not in _WALK_SKIP_DIRS and not d.endswith(".egg-info")
+        ]
+        rel_root = os.path.relpath(root, workplace)
+        prefix = "" if rel_root == "." else rel_root + os.sep
+        # Emit the directory itself (except the root ".")
+        if rel_root != ".":
+            lines.append(rel_root + "/")
+            if len(lines) >= cap:
+                break
+        for fname in sorted(files):
+            lines.append(prefix + fname)
+            if len(lines) >= cap:
+                break
+        if len(lines) >= cap:
+            break
+    return "\n".join(lines)
+
+
+def _decision_target_node_ids(decision: object) -> list[str]:
+    """Return the target node IDs for a PlannerDecision.
+
+    * ``task`` decisions  → ``decision.task.target_node_ids``
+    * ``apply_recipe_patch`` decisions → flattened step targets from all steps
+    * ``done`` / ``giveup`` / ``None`` → ``[]``
+    """
+    if decision is None:
+        return []
+    task = getattr(decision, "task", None)
+    if task is not None:
+        return list(getattr(task, "target_node_ids", ()) or ())
+    recipe_patch = getattr(decision, "recipe_patch", None)
+    if recipe_patch is not None:
+        return [
+            t
+            for step in (getattr(recipe_patch, "steps", None) or ())
+            for t in (getattr(step, "target_node_ids", ()) or ())
+        ]
+    return []
+
+
 LOCAL_SERVICE_CONFIG_EXTENSIONS = {
     ".properties",
     ".yml",
@@ -927,6 +994,11 @@ class DockerAgent:
             except Exception:
                 pass
 
+        # BUG-1 host fallback: structure.txt is absent in the v1g flow; walk
+        # the cloned workplace on the host to provide real file context.
+        if not _repo_structure and os.path.isdir(self.workplace):
+            _repo_structure = _scan_workplace_structure(self.workplace)
+
         # Derive repo_layout: 60 context lines + any test-named entries
         # (depth-first os.walk can bury tests/ past a flat cap).
         _repo_layout: tuple = _derive_repo_layout(_repo_structure)
@@ -1028,13 +1100,27 @@ class DockerAgent:
                     "learning": report.learning,
                 }
 
-            # cycle 0: the grounded initial map (the Planner's first input).
+            # BUG-4 + BUG-7: cycle 0 — log the host-seeded grounded map and,
+            # when the contract-graph arm is active, also append to
+            # contract_graph.jsonl so cycle 0 is never missing from that log.
+            _cg_path = os.path.join(self.logs_dir, "setup_logs", "contract_graph.jsonl")
             try:
                 _grounded0 = apply_deterministic(world_map, _probe(), _manifest)
                 _write_cycle_record(
                     {"cycle": 0, "planner": None, "build_report": None,
                      "state_map": map_to_dict(_grounded0)}
                 )
+                if getattr(self, "enable_contract_graph", False):
+                    try:
+                        _cg_rec0 = {
+                            "cycle": 0,
+                            "decision": {"action": None, "target_node_ids": []},
+                            "contract_graph": map_to_dict(_grounded0)["contract_graph"],
+                        }
+                        with open(_cg_path, "a") as _fh0:
+                            _fh0.write(json.dumps(_cg_rec0) + "\n")
+                    except OSError:
+                        pass
             except Exception:
                 pass
 
@@ -1045,18 +1131,20 @@ class DockerAgent:
                     "build_report": _report_dict(report),
                     "state_map": map_to_dict(current_map),
                 })
+                # BUG-5: use the extracted helper so apply_recipe_patch decisions
+                # contribute their flattened step targets instead of falling back
+                # to the (always-None) task attribute.
                 if getattr(self, "enable_contract_graph", False):
                     try:
-                        cg_path = os.path.join(self.logs_dir, "setup_logs", "contract_graph.jsonl")
                         record = {
                             "cycle": cycle,
                             "decision": {
                                 "action": getattr(decision, "action", None),
-                                "target_node_ids": list(getattr(getattr(decision, "task", None), "target_node_ids", ()) or ()),
+                                "target_node_ids": _decision_target_node_ids(decision),
                             },
                             "contract_graph": map_to_dict(current_map)["contract_graph"],
                         }
-                        with open(cg_path, "a") as fh:
+                        with open(_cg_path, "a") as fh:
                             fh.write(json.dumps(record) + "\n")
                     except OSError:
                         pass
