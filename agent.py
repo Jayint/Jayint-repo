@@ -1055,6 +1055,8 @@ class DockerAgent:
                 probe=_probe,
                 manifest=_manifest,
                 on_cycle=_on_cycle,
+                exec_readonly=self.sandbox.exec_readonly,
+                enable_contract_graph=getattr(self, "enable_contract_graph", False),
             )
 
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
