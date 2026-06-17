@@ -53,6 +53,14 @@ class _StubClient:
         )
 
 
+def test_run_recipe_empty_recipe_returns_done() -> None:
+    """Empty RecipePatch (steps=()) must return status='done' without IndexError."""
+    ba = BuildAgent(client=_StubClient(), model="m", synthesizer=None, container_id="c")
+    report = ba.run_recipe(RecipePatch(steps=()), lambda cmd: (True, "ok"), ActionLedger())
+    assert report.status == "done"
+    assert report.commands == ()
+
+
 def test_recipe_budget_scales_with_steps() -> None:
     assert recipe_budget(1) < recipe_budget(5) <= recipe_budget(50)  # monotone, capped
 

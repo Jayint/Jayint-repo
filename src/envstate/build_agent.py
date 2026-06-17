@@ -660,6 +660,18 @@ class BuildAgent:
                                 failure reason in ``learning``.
         """
         n_steps = len(recipe.steps)
+
+        # Early-exit: nothing to do for an empty recipe (avoids IndexError on
+        # recipe.steps[current_step_idx] in the empty-response guard and stuck guard
+        # below when the tuple is empty).
+        if n_steps == 0:
+            return TaskReport(
+                task_goal="Recipe (0 steps)",
+                status="done",
+                commands=(),
+                learning="Empty recipe — nothing to execute",
+            )
+
         total_budget = recipe_budget(n_steps)
         all_commands: list[CommandRecord] = []
 
