@@ -1,6 +1,7 @@
 # tests/test_manifest_optional_deps.py
 """Unit tests for BUG-2: parse [project.optional-dependencies] test extras."""
 import pytest
+from pathlib import Path
 
 from src.envstate.manifest import parse_manifests
 
@@ -19,7 +20,7 @@ def _make_pyproject(extras_name: str) -> str:
     )
 
 
-def test_optional_deps_tests_key(tmp_path: pytest.TempPathFactory) -> None:
+def test_optional_deps_tests_key(tmp_path: Path) -> None:
     """[project.optional-dependencies] tests=[...] should be included in required."""
     (tmp_path / "pyproject.toml").write_text(_make_pyproject("tests"))
     r = parse_manifests(str(tmp_path))
@@ -30,7 +31,7 @@ def test_optional_deps_tests_key(tmp_path: pytest.TempPathFactory) -> None:
 
 @pytest.mark.parametrize("extra_name", _WELL_KNOWN_EXTRAS)
 def test_optional_deps_well_known_extra_keys(
-    tmp_path: pytest.TempPathFactory, extra_name: str
+    tmp_path: Path, extra_name: str
 ) -> None:
     """All well-known test/dev extra names should be parsed."""
     (tmp_path / "pyproject.toml").write_text(_make_pyproject(extra_name))
@@ -44,7 +45,7 @@ def test_optional_deps_well_known_extra_keys(
     )
 
 
-def test_optional_deps_unknown_extra_ignored(tmp_path: pytest.TempPathFactory) -> None:
+def test_optional_deps_unknown_extra_ignored(tmp_path: Path) -> None:
     """Extras with unrecognized names (e.g. 'docs') should NOT be included."""
     (tmp_path / "pyproject.toml").write_text(_make_pyproject("docs"))
     r = parse_manifests(str(tmp_path))
@@ -53,7 +54,7 @@ def test_optional_deps_unknown_extra_ignored(tmp_path: pytest.TempPathFactory) -
     assert "pytest" not in names, f"pytest should not appear for docs extra; got {names}"
 
 
-def test_optional_deps_dedup_with_main_deps(tmp_path: pytest.TempPathFactory) -> None:
+def test_optional_deps_dedup_with_main_deps(tmp_path: Path) -> None:
     """Packages declared in both dependencies and optional-dependencies are deduped."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\n'
