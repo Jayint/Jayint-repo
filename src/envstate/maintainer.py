@@ -247,7 +247,8 @@ def _is_collect_only_cmd(cmd: str) -> bool:
 MAINTAINER_SYSTEM_PROMPT = """\
 You are the State Maintainer for a Docker environment setup agent. You read the
 current Environment State Map and the latest BuildAgent TaskReport (both given as
-JSON in the next message) and propose structured updates to the map.
+JSON in the next message) and propose STRUCTURED UPDATES to the contract graph via
+a `graph_patch` object.
 
 You are NOT the build agent. You do NOT run shell commands. You do NOT certify
 that packages, tools, headers, imports, or services are present or missing — only
@@ -256,110 +257,80 @@ host sets it when a bare `python -m pytest -q` run exits 0 with at least one pas
 test — execution-aware gate, not merely pytest --collect-only).
 
 ## What you are given (read-only — never restate it as output)
-- current_map: host-certified, authoritative facts — `installed`, `required`, `missing`
-  (`required - installed`), `env` (interpreter / venv), `system_tools`,
-  `build_tools`, `os_release`, plus existing `open_problems` and `notes`.
+- current_map.contract_graph: the live contract graph (nodes and edges)
 - task_report: this cycle's transcript — `commands` (each `{cmd, rc, output}`),
   `status`, and `learning`.
 
 ## How to read the transcript
 - Failure signatures live in `commands[*].output`. Prefer commands where `rc != 0`.
+- Copy failure signatures LITERALLY — do not paraphrase.
+  Good: "pg_config executable not found"
+  Bad:  "Postgres config is missing"
 - `learning` is a weak one-line summary, NOT evidence — never infer a fact from it.
 - `status` is task-level (done/blocked), not proof the environment works.
 
-## Your job
-1. Copy each failure signature LITERALLY from the command output — do not paraphrase.
-   Good: "pg_config executable not found"
-   Bad:  "Postgres config is missing"
-   Put your reasoning in `hypothesis`; keep `signature` verbatim.
-2. Classify each problem's `kind` (the host uses this to route deterministic
-   resolution, so getting it right is what lets the host auto-clear the problem):
-     native_build_dependency | system_tool_missing | header_missing
-        -> a missing native tool / library / header
-     language_package_missing | import_failure
-        -> a missing language package / failed import
-     test_failure   -> a pytest collection or run error
-     config_missing -> a missing config the build/run needs
-     unknown        -> cannot tell from the output
-3. Mark each problem `root` or `downstream`. Example: if `pip install` fails because
-   `pg_config` is missing, then "No module named 'psycopg2'" is `downstream`.
-4. In `resolved`, list a signature ONLY when THIS cycle's output shows that exact
-   failure no longer occurs (you are reporting the transcript, not certifying the
-   environment — the host re-probes to confirm fixes).
-5. If output is truncated or ambiguous, say so in `planner_notes` and do not invent
-   missing details.
+## Your output — ONLY a graph_patch object
 
-## Output
-Return exactly one JSON object inside a ```json fenced block — nothing else:
+Return exactly one JSON object inside a ```json fenced block:
 
 ```json
 {
-  "open_problems": [
-    {
-      "signature": "literal error text from output",
-      "kind": "native_build_dependency | system_tool_missing | header_missing | language_package_missing | import_failure | test_failure | config_missing | unknown",
-      "hypothesis": "short explanation",
-      "root_or_downstream": "root | downstream | unknown"
-    }
-  ],
-  "resolved": ["<signature the transcript shows no longer occurs>"],
-  "planner_notes": ["short note for the next planning step"]
+  "graph_patch": {
+    "add_blockers": [
+      {
+        "id": "blocker:<slug-of-signature>",
+        "type": "Blocker",
+        "signature": "<VERBATIM failure text copied from command output>",
+        "kind": "<module_not_found|missing_binary|missing_system_library|version_conflict|build_failure|service_unreachable|env_var_missing|test_collection_failure|unknown>",
+        "layer": "<deps|system|runtime|build|tests|config>",
+        "root_or_downstream": "<root|downstream|unknown>",
+        "summary": "<one-line description>",
+        "evidence_refs": ["<attempt-id of the Attempt node whose command produced this failure>"],
+        "active": true
+      }
+    ],
+    "add_contracts": [
+      {
+        "id": "contract:<kind>:<subject>",
+        "type": "Contract",
+        "level": "atomic",
+        "kind": "<string>",
+        "subject": "<string>",
+        "layer": "<deps|system|runtime|build|tests|config>",
+        "description": "<string>"
+      }
+    ],
+    "add_edges": [
+      {"source": "<blocker-id>", "type": "violates", "target": "<contract-id>"},
+      {"source": "<contract-id>", "type": "depends_on", "target": "<contract-id>"}
+    ],
+    "update_blocker_classification": [
+      {"blocker_id": "<id>", "root_or_downstream": "root|downstream", "kind": "<string>", "summary": "<string>"}
+    ],
+    "update_contract_description": [
+      {"contract_id": "<id>", "description": "<string>"}
+    ],
+    "diagnostic_notes": ["<advisory note for the planner>"]
+  }
 }
 ```
 
-## Problem deduplication and pruning (CRITICAL)
-6. **Collapse near-duplicates**: if multiple failures share a single underlying
-   mechanism (e.g. several ``No module named 'tests.<sub>'`` errors all caused
-   by the same pytest collection topology), emit a SINGLE open_problem entry
-   with the most representative signature. Do NOT emit one entry per symptom when
-   one mechanism explains them all.
-7. **Prune stale problems**: if this cycle's transcript shows a command with
-   rc=0 whose output no longer contains a previously reported failure signature,
-   add that signature to ``resolved``. Example: an earlier ``ls: cannot access
-   /app/pyproject.toml`` that is now irrelevant (layout understood, no recurrence)
-   belongs in ``resolved``, not in ``open_problems`` as a stale duplicate.
-
-## Classification of pytest collection / import-mode errors
-A ``ModuleNotFoundError: No module named 'tests.<anything>'``, ``import file
-mismatch``, or ``error during collection`` / ``INTERNALERROR`` / ``conftest``
-error is a **test topology problem**, not a missing dependency.  Classify these
-as ``test_failure``, NOT ``language_package_missing`` — especially when all
-``pip install`` commands already exited rc=0 (no real dependency is missing).
-The distinction matters: the host auto-resolver routes ``test_failure`` to the
-``tests`` layer, while ``language_package_missing`` triggers an install loop
-that cannot fix a name-collision or conftest path error.
+## Rules (enforced by the host; a violation causes the ENTIRE patch to be rejected)
+1. `evidence_refs` on every Blocker MUST be non-empty and cite real Attempt node IDs
+   visible in the current `contract_graph`. A blocker with zero evidence is ungrounded
+   and WILL be rejected — list the Attempt node id(s) whose command produced the failure.
+2. Never set `status`, `outcome`, or `active` on Contract nodes — the host owns those.
+3. Never create Attempt nodes — the host creates Attempts when commands execute.
+4. Every atomic Contract added must have at least one incoming `depends_on` edge linking
+   it under a goal Contract in the backbone.
+5. Every Blocker added must have at least one outgoing `violates` edge to a Contract.
+6. Reference node ids EXACTLY as shown in the input graph.
+7. Omit `graph_patch` or use {} if there is nothing to add.
 
 ## Hard safety rule
 If you are tempted to write present, missing, installed, fixed, verified, or
 working as a fact, do not — just record the literal signature and let the host's
 probes certify reality.
-
-## Contract graph patch (additional output)
-
-Alongside the keys above, include a `graph_patch` object that adds SEMANTIC structure
-to the contract graph shown under `contract_graph` in the input. You may ONLY add:
-- `Contract` nodes (level "atomic") for obligations a failure proves are unmet, e.g.
-  {"id":"contract:python_package_importable:psycopg2","type":"Contract","level":"atomic",
-   "kind":"python_package_importable","subject":"psycopg2","predicate":"is_importable",
-   "expected":true,"description":"...","validation_state":"validator_unknown"}
-- `Validator` nodes (a read-only check that could confirm a contract).
-- edges: `violates` (Failure->Contract), `implies_contract` (Requirement->Contract),
-  `depends_on` (Contract->Contract), `verified_by` (Contract->Validator), `blocks` (OpenProblem->Contract).
-- status events with status in {"unknown","violated","repair_attempted"} citing existing node ids as evidence.
-
-You may NOT create RepoArtifact / Requirement / Capability / Failure / CommandExecution /
-EnvironmentRevision nodes (the host owns those), and you may NOT mark a contract "satisfied"
-(only host validators / passing commands do that). Reference node ids EXACTLY as shown in the
-input graph. Omit `graph_patch` or use {} if there is nothing to add.
-
-```json
-{
-  "open_problems": [...], "resolved": [...], "planner_notes": [...],
-  "graph_patch": {
-    "add_nodes": [], "add_edges": [], "add_status_events": [], "invalidate_nodes": [], "invalidate_edges": []
-  }
-}
-```
 """
 
 # ---------------------------------------------------------------------------
@@ -570,21 +541,31 @@ def parse_v1_maintainer_reply(
 
     done = current_map.done_flag or _verified_test_run_passed(report)
 
-    # ----- NEW: semantic graph patch (validated; dropped on any error) -----
+    # ----- Semantic graph patch (validated; dropped on any error) -----
+    # known_command_ids: Attempt node IDs already in the graph represent
+    # commands executed and recorded this cycle.
+    known_command_ids: frozenset[str] = frozenset(
+        n.id for n in current_map.contract_graph.nodes if n.type == "Attempt"
+    )
     new_graph = current_map.contract_graph
     patch = parse_graph_patch(parsed.get("graph_patch"))
     if not patch.is_empty():
-        errors = validate_patch(new_graph, patch, scope="maintainer")
+        errors = validate_patch(
+            new_graph, patch,
+            scope="maintainer",
+            known_command_ids=known_command_ids,
+        )
         if errors:
             if on_patch_error is not None:
-                on_patch_error(errors)
+                for e in errors:
+                    on_patch_error(e)
         else:
             new_graph = apply_patch(new_graph, patch)
 
+    # open_problems and notes are no longer written by the Maintainer;
+    # blockers live in the contract graph.  Pass only host-derived fields.
     return merge_map(
         current_map,
-        open_problems=merged,
-        notes=merged_notes,
         done_flag=done,
         progress=_progress_synced_with_done(current_map, done),
         contract_graph=new_graph,
