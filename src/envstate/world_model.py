@@ -381,7 +381,12 @@ def apply_deterministic(
         env = dict(snap.env)
         language = snap.env.get("python_version") or current.language
         system_installed = tuple(getattr(snap, "system_installed", ()))
-        import_results: tuple[tuple[str, bool], ...] = tuple(getattr(snap, "import_results", ()))
+        # Preserve current import_results when the snapshot has none: probe_env()
+        # always returns import_results=() because the sweep is driven separately
+        # (validators.build_import_sweep_command / exec_readonly), not by the extractor.
+        # Unconditionally overwriting with () would erase results written by the sweep.
+        _snap_ir: tuple[tuple[str, bool], ...] = tuple(getattr(snap, "import_results", ()))
+        import_results: tuple[tuple[str, bool], ...] = _snap_ir if _snap_ir else current.import_results
     else:
         installed = current.installed
         env = dict(current.env)
