@@ -1054,7 +1054,7 @@ class DockerAgent:
                                 "action": getattr(decision, "action", None),
                                 "target_node_ids": list(getattr(getattr(decision, "task", None), "target_node_ids", ()) or ()),
                             },
-                            "contract_graph": map_to_dict(world_map)["contract_graph"],
+                            "contract_graph": map_to_dict(current_map)["contract_graph"],
                         }
                         with open(cg_path, "a") as fh:
                             fh.write(json.dumps(record) + "\n")
