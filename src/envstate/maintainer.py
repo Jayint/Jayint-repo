@@ -518,27 +518,6 @@ def parse_v1_maintainer_reply(
             )
         return current_map
 
-    # open_problems: append new (dedup by signature)
-    new_problems = _parse_open_problems(parsed.get("open_problems") or [])
-    existing_sigs = {p.signature for p in current_map.open_problems}
-    merged = current_map.open_problems + tuple(
-        p for p in new_problems if p.signature not in existing_sigs
-    )
-
-    # resolved: drop listed signatures
-    resolved = {str(s) for s in (parsed.get("resolved") or [])}
-    if resolved:
-        merged = tuple(p for p in merged if p.signature not in resolved)
-
-    # planner_notes (new schema) → notes; back-compat with legacy "notes". Append.
-    _incoming_notes = parsed.get("planner_notes")
-    if _incoming_notes is None:
-        _incoming_notes = parsed.get("notes") or []
-    added_notes = tuple(
-        str(n) for n in _incoming_notes if str(n) not in current_map.notes
-    )
-    merged_notes = current_map.notes + added_notes
-
     done = current_map.done_flag or _verified_test_run_passed(report)
 
     # ----- Semantic graph patch (validated; dropped on any error) -----

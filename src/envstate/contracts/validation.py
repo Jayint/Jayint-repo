@@ -61,11 +61,11 @@ def validate_patch(
                             f"maintainer may not set forbidden field {field!r} on node {n.id}"
                         )
 
-        # --- 3. Grounded blockers: evidence_refs must all be known command IDs ---
+        # --- 3. Grounded blockers: evidence_refs must be non-empty and all known ---
         for n in patch.add_blockers:
             refs: list[str] = list(n.data.get("evidence_refs") or [])
             bad = [r for r in refs if r not in known_command_ids]
-            if bad:
+            if not refs or bad:
                 errors.append(
                     f"blocker {n.id!r} has ungrounded evidence_refs {bad!r}; "
                     f"every ref must be a known command id"
