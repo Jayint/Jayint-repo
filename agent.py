@@ -163,6 +163,7 @@ class DockerAgent:
         enable_fullstate_worker=False,
         fullstate_worker_prompt=False,
         enable_v1=False,
+        enable_contract_graph=False,
         enable_cleanroom=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
@@ -201,9 +202,10 @@ class DockerAgent:
         self.enable_supervisor = enable_supervisor
         self.enable_fullstate_worker = enable_fullstate_worker
         self.fullstate_worker_prompt = fullstate_worker_prompt
-        self.enable_v1 = enable_v1
+        self.enable_contract_graph = enable_contract_graph
+        self.enable_v1 = enable_v1 or enable_contract_graph
         self.enable_envstate = (
-            enable_envstate or enable_supervisor or enable_fullstate_worker or enable_v1
+            enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
         )
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
@@ -1043,6 +1045,21 @@ class DockerAgent:
                     "build_report": _report_dict(report),
                     "state_map": map_to_dict(current_map),
                 })
+                if getattr(self, "enable_contract_graph", False):
+                    try:
+                        cg_path = os.path.join(self.logs_dir, "setup_logs", "contract_graph.jsonl")
+                        record = {
+                            "cycle": cycle,
+                            "decision": {
+                                "action": getattr(decision, "action", None),
+                                "target_node_ids": list(getattr(getattr(decision, "task", None), "target_node_ids", ()) or ()),
+                            },
+                            "contract_graph": map_to_dict(world_map)["contract_graph"],
+                        }
+                        with open(cg_path, "a") as fh:
+                            fh.write(json.dumps(record) + "\n")
+                    except OSError:
+                        pass
 
             final_map, stop_reason = _run_v1_loop(
                 planner=planner,
@@ -2680,6 +2697,8 @@ if __name__ == "__main__":
     parser.add_argument("--enable-v1", action="store_true",
                         help="Use the v1 three-role orchestrator (Planner/BuildAgent/Maintainer). "
                              "Mutually exclusive with --enable-supervisor and --enable-fullstate-worker.")
+    parser.add_argument("--enable-contract-graph", action="store_true",
+                        help="v1 + contract graph reasoning layer (implies --enable-v1)")
     parser.add_argument(
         "--disable-post-synthesis-repair",
         action="store_true",
@@ -2725,6 +2744,7 @@ if __name__ == "__main__":
         enable_fullstate_worker=args.enable_fullstate_worker,
         fullstate_worker_prompt=args.fullstate_worker_prompt,
         enable_v1=args.enable_v1,
+        enable_contract_graph=args.enable_contract_graph,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,

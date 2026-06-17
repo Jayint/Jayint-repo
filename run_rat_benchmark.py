@@ -389,7 +389,12 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
     # defaults to "arm0") and RE-SETS DOCKERAGENT_ENABLE_V1="0" in its own main() —
     # silently downgrading every worker to the legacy ReAct agent. Pass --arm so the
     # child keeps the parent's choice (v1 stays v1).
-    arm = "v1" if os.environ.get("DOCKERAGENT_ENABLE_V1") == "1" else "arm0"
+    if os.environ.get("DOCKERAGENT_ENABLE_CONTRACT_GRAPH") == "1":
+        arm = "v1g"
+    elif os.environ.get("DOCKERAGENT_ENABLE_V1") == "1":
+        arm = "v1"
+    else:
+        arm = "arm0"
     return [
         PY, __file__,
         "--only", full_name,
@@ -788,10 +793,11 @@ if __name__ == "__main__":
     parser.add_argument("--model", choices=["dockeragent", "rat", "repo2run"],
                         default="dockeragent",
                         help="Which eval model to use (default: dockeragent).")
-    parser.add_argument("--arm", choices=["arm0", "v1"], default="arm0",
+    parser.add_argument("--arm", choices=["arm0", "v1", "v1g"], default="arm0",
                         help="DockerAgent variant: 'arm0' = legacy ReAct loop (default); "
                              "'v1' = three-role Planner/BuildAgent/Maintainer loop "
-                             "(sets DOCKERAGENT_ENABLE_V1=1 for the adapter).")
+                             "(sets DOCKERAGENT_ENABLE_V1=1 for the adapter); "
+                             "'v1g' = v1 + contract graph (sets DOCKERAGENT_ENABLE_CONTRACT_GRAPH=1).")
 
     # Repair-loop controls
     parser.add_argument("--repair-mode",
@@ -818,7 +824,8 @@ if __name__ == "__main__":
     os.environ["DOCKERAGENT_REPAIR_MODE"] = args.repair_mode
     # Set DOCKERAGENT_ENABLE_V1 so the adapter constructs DockerAgent(enable_v1=...)
     # in this process and any subprocess that inherits the environment.
-    os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if args.arm == "v1" else "0"
+    os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if args.arm in ("v1", "v1g") else "0"
+    os.environ["DOCKERAGENT_ENABLE_CONTRACT_GRAPH"] = "1" if args.arm == "v1g" else "0"
 
     # ── --prune ───────────────────────────────────────────────────────────────
     if args.prune:
