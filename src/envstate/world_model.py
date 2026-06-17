@@ -37,6 +37,31 @@ class OpenProblem:
 
 
 # ---------------------------------------------------------------------------
+# Dependency state + recipe types (keystone)
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class DependencyState:
+    declared: tuple[Fact, ...] = ()
+    resolved: tuple[Fact, ...] = ()          # from `python -m pip inspect`
+    package_manager: str = "pip"
+    test_framework: str = "pytest"
+
+
+@dataclasses.dataclass(frozen=True)
+class RecipeStep:
+    id: str
+    kind: str                 # AttemptKind value
+    command: str
+    target_node_ids: tuple[str, ...] = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class RecipePatch:
+    steps: tuple[RecipeStep, ...] = ()
+
+
+# ---------------------------------------------------------------------------
 # The shared map (single writer: Maintainer)
 # ---------------------------------------------------------------------------
 
@@ -56,6 +81,9 @@ class WorldModelMap:
     env: dict[str, str] = dataclasses.field(default_factory=dict)   # scalar probe facts
     system_installed: tuple[Fact, ...] = ()   # apt names + pkg-config modules + tools present
     contract_graph: ContractGraph = dataclasses.field(default_factory=ContractGraph.empty)
+    dependency_state: DependencyState | None = None
+    import_results: tuple[tuple[str, bool], ...] = ()   # (import_name, ok) from the sweep
+    host_satisfied: frozenset[str] = dataclasses.field(default_factory=frozenset)
 
 
 # ---------------------------------------------------------------------------
@@ -82,10 +110,11 @@ class Task:
 
 @dataclasses.dataclass(frozen=True)
 class PlannerDecision:
-    action: str                       # "task" | "done" | "giveup"
+    action: str                       # "task" | "done" | "giveup" | "apply_recipe_patch"
     task: Task | None = None
     reason: str = ""                  # explanation for done/giveup
     satisfied_goal_contract_ids: tuple[str, ...] = ()
+    recipe_patch: RecipePatch | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +174,9 @@ def initial_map(
         done_flag=False,
         notes=(),
         contract_graph=ContractGraph.empty(),
+        dependency_state=None,
+        import_results=(),
+        host_satisfied=frozenset(),
     )
 
 
@@ -162,6 +194,9 @@ def merge_map(
     language: str | None = None,
     system_installed: tuple[Fact, ...] | None = None,
     contract_graph: ContractGraph | None = None,
+    dependency_state: DependencyState | None = None,
+    import_results: tuple[tuple[str, bool], ...] | None = None,
+    host_satisfied: frozenset[str] | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -181,6 +216,9 @@ def merge_map(
         language=language if language is not None else current.language,
         system_installed=system_installed if system_installed is not None else current.system_installed,
         contract_graph=contract_graph if contract_graph is not None else current.contract_graph,
+        dependency_state=dependency_state if dependency_state is not None else current.dependency_state,
+        import_results=import_results if import_results is not None else current.import_results,
+        host_satisfied=host_satisfied if host_satisfied is not None else current.host_satisfied,
     )
 
 
@@ -400,6 +438,24 @@ def _open_problem_from_dict(d: dict[str, Any]) -> OpenProblem:
     )
 
 
+def _dependency_state_to_dict(ds: DependencyState) -> dict[str, Any]:
+    return {
+        "declared": [_fact_to_dict(f) for f in ds.declared],
+        "resolved": [_fact_to_dict(f) for f in ds.resolved],
+        "package_manager": ds.package_manager,
+        "test_framework": ds.test_framework,
+    }
+
+
+def _dependency_state_from_dict(d: dict[str, Any]) -> DependencyState:
+    return DependencyState(
+        declared=tuple(_fact_from_dict(f) for f in d.get("declared", [])),
+        resolved=tuple(_fact_from_dict(f) for f in d.get("resolved", [])),
+        package_manager=d.get("package_manager", "pip"),
+        test_framework=d.get("test_framework", "pytest"),
+    )
+
+
 def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
     """Serialize a WorldModelMap to a plain JSON-safe dict.
 
@@ -421,6 +477,9 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "env": dict(m.env),
         "system_installed": [_fact_to_dict(f) for f in m.system_installed],
         "contract_graph": m.contract_graph.to_dict(),
+        "dependency_state": _dependency_state_to_dict(m.dependency_state) if m.dependency_state is not None else None,
+        "import_results": [list(pair) for pair in m.import_results],
+        "host_satisfied": sorted(m.host_satisfied),
     }
 
 
@@ -429,6 +488,9 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
 
     Never mutates *d*.
     """
+    raw_ds = d.get("dependency_state")
+    raw_ir = d.get("import_results", [])
+    raw_hs = d.get("host_satisfied", [])
     return WorldModelMap(
         base_image=d["base_image"],
         workdir=d["workdir"],
@@ -446,4 +508,28 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         env=dict(d.get("env", {})),
         system_installed=tuple(_fact_from_dict(f) for f in d.get("system_installed", [])),
         contract_graph=ContractGraph.from_dict(d.get("contract_graph", {})),
+        dependency_state=_dependency_state_from_dict(raw_ds) if raw_ds is not None else None,
+        import_results=tuple((str(pair[0]), bool(pair[1])) for pair in raw_ir),
+        host_satisfied=frozenset(raw_hs),
     )
+
+
+# ---------------------------------------------------------------------------
+# Derived views over the contract graph
+# ---------------------------------------------------------------------------
+
+def derive_open_problems(graph: ContractGraph) -> tuple[OpenProblem, ...]:
+    """Return OpenProblem entries derived from active Blockers in the graph.
+
+    Only Blockers with ``active=True`` (or missing ``active``, defaulting True)
+    are included.  ``layer`` defaults to ``"deps"`` when absent.
+    """
+    out: list[OpenProblem] = []
+    for b in graph.blockers():
+        if bool(b.data.get("active", True)):
+            out.append(OpenProblem(
+                signature=b.data.get("signature", ""),
+                interpretation=b.data.get("summary", ""),
+                layer=b.data.get("layer", "deps"),
+            ))
+    return tuple(out)
