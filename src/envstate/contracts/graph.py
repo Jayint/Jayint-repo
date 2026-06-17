@@ -86,7 +86,7 @@ def _active_blocker_violates(graph: ContractGraph, contract_id: str) -> bool:
     return False
 
 
-def project_status(graph: ContractGraph, contract_id: str, host_satisfied: frozenset) -> str:
+def project_status(graph: ContractGraph, contract_id: str, host_satisfied: frozenset[str]) -> str:
     if contract_id in host_satisfied:
         return "satisfied"
     if _active_blocker_violates(graph, contract_id):
@@ -95,7 +95,7 @@ def project_status(graph: ContractGraph, contract_id: str, host_satisfied: froze
 
 
 def depends_on_closure(graph: ContractGraph, goal_id: str) -> tuple[str, ...]:
-    seen: set[str] = set()
+    seen: set[str] = {goal_id}
     stack = [goal_id]
     out: list[str] = []
     while stack:
@@ -115,7 +115,7 @@ def root_blockers(graph: ContractGraph) -> tuple[Node, ...]:
     )
 
 
-def frontier_by_layer(graph: ContractGraph, host_satisfied: frozenset) -> dict[str, tuple[str, ...]]:
+def frontier_by_layer(graph: ContractGraph, host_satisfied: frozenset[str]) -> dict[str, tuple[str, ...]]:
     out: dict[str, list[str]] = {}
     for c in graph.contracts():
         if project_status(graph, c.id, host_satisfied) != "satisfied":
@@ -123,7 +123,7 @@ def frontier_by_layer(graph: ContractGraph, host_satisfied: frozenset) -> dict[s
     return {k: tuple(v) for k, v in out.items()}
 
 
-def goal_ready(graph: ContractGraph, host_satisfied: frozenset) -> bool:
+def goal_ready(graph: ContractGraph, host_satisfied: frozenset[str]) -> bool:
     required = graph.required_goal_contracts()
     if not required:
         return False
