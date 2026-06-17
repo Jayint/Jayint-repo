@@ -156,3 +156,78 @@ def project_failures(events: Iterable[Any]) -> tuple[list[Node], list[Edge]]:
         )
         edges.append(Edge(fid, "observed_in", cmd_id))
     return nodes, edges
+
+
+def _verified_test_command_id(events: list[Any]) -> str | None:
+    """Latest rc-0 command that looks like a real test execution (for goal evidence)."""
+    for ev in reversed(events):
+        if ev.rc == 0 and "pytest" in ev.cmd and "--collect-only" not in ev.cmd:
+            return ids.command_id(ev.step)
+    return None
+
+
+def refresh_host_graph(world_map: Any, ledger: Any, snapshot: Any, exec_readonly: Any, current_revision: int, *, on_error: Any = None) -> Any:
+    """Project all host facts into world_map.contract_graph (idempotent). Returns a new map."""
+    from . import goals
+    from .apply import apply_patch
+    from .graph import ContractGraph
+    from .nodes import ContractStatusEvent
+    from .patch import GraphPatch
+    from .validation import validate_patch
+    from .validators import run_confirmed_validators
+    from ..world_model import merge_map
+
+    graph: ContractGraph = world_map.contract_graph
+    events = list(ledger.events())
+
+    artifacts = project_repo_artifacts(world_map.repo_layout)
+    req_nodes, req_edges = project_requirements(world_map.required, artifacts)
+    cmd_nodes = project_command_executions(events)
+    rev_nodes, rev_edges = project_environment_revisions(events)
+    cap_nodes = project_capabilities(world_map.installed, world_map.system_installed, current_revision)
+    fail_nodes, fail_edges = project_failures(events)
+    op_nodes = project_open_problems(world_map.open_problems)
+    goal_nodes, goal_edges = goals.seed_goal_template(world_map.required)
+
+    candidate_nodes = (
+        artifacts + req_nodes + cmd_nodes + rev_nodes + cap_nodes + fail_nodes + op_nodes + goal_nodes
+    )
+    candidate_edges = req_edges + rev_edges + fail_edges + goal_edges
+
+    # validators run against the graph AS IT WILL BE (goal/atomic contracts present)
+    pre_graph = apply_patch(
+        graph,
+        GraphPatch(
+            add_nodes=tuple(n for n in candidate_nodes if not graph.has_node(n.id)),
+        ),
+    )
+    val_nodes, val_edges, val_events = ([], [], [])
+    if exec_readonly is not None:
+        val_nodes, val_edges, val_events = run_confirmed_validators(pre_graph, exec_readonly, current_revision)
+
+    # goal satisfaction from the host done-gate
+    status_events = list(val_events)
+    test_cmd_id = _verified_test_command_id(events)
+    if world_map.done_flag and test_cmd_id is not None:
+        status_events.append(
+            ContractStatusEvent(
+                contract_id=goals.GOAL_TESTS_RUN, status="satisfied",
+                revision_id=ids.revision_id(current_revision), evidence_ids=(test_cmd_id,),
+                summary="host done-gate verified a real test run",
+            )
+        )
+
+    all_new_nodes = candidate_nodes + val_nodes
+    all_new_edges = candidate_edges + val_edges
+    existing_edge_keys = {(e.source, e.type, e.target) for e in graph.edges}
+
+    patch = GraphPatch(
+        add_nodes=tuple(n for n in all_new_nodes if not graph.has_node(n.id)),
+        add_edges=tuple(e for e in all_new_edges if (e.source, e.type, e.target) not in existing_edge_keys),
+        add_status_events=tuple(status_events),
+    )
+    errors = validate_patch(graph, patch, scope="host")
+    if errors and on_error is not None:
+        on_error(errors)
+    new_graph = apply_patch(graph, patch)
+    return merge_map(world_map, contract_graph=new_graph)
