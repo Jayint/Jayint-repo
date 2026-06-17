@@ -1,15 +1,11 @@
 # src/envstate/contracts/validators.py
-"""Read-only validator registry + host auto-run (spec §5 Validator, §7 rule 4)."""
+"""One-shot import sweep + host-satisfied set + attempt outcome derivation (spec §6.3)."""
 from __future__ import annotations
 
-from typing import Any, Callable
+import json as _json
+from typing import Any
 
-from . import ids
-from .graph import ContractGraph
-from .nodes import ContractStatusEvent, Edge, Node
-from .schema import redact_secrets
-
-ExecReadonly = Callable[[str], tuple[int, str]]
+from .graph import ContractGraph, project_status
 
 # ---------------------------------------------------------------------------
 # Distribution-name → import-name resolution (Bug 1 fix)
@@ -80,93 +76,73 @@ _DYNAMIC_IMPORT_PROBE_TMPL = (
 )
 
 
-def _build_import_command(dist_name: str) -> tuple[str, str]:
-    """Return *(shell_command, import_name)* for a python_package_importable check.
+# ---------------------------------------------------------------------------
+# One-shot import sweep command
+# ---------------------------------------------------------------------------
 
-    Resolution strategy
-    -------------------
-    1. Static map (KNOWN_IMPORT_NAMES, case-insensitive) → if found, emit a
-       simple ``python -c "import <import_name>"`` command.
-    2. General case → emit the _DYNAMIC_IMPORT_PROBE_TMPL command which
-       resolves the top-level module via ``importlib.metadata`` *inside* the
-       sandbox container, then falls back to the distribution name.
+def build_import_sweep_command(declared_dist_names: list[str]) -> str:
+    """One /bin/sh -lc-safe heredoc that imports each declared dep and prints JSON {import_name: ok}."""
+    imports = [resolve_import_name(d) for d in declared_dist_names]
+    py_list = "[" + ",".join(repr(i) for i in imports) + "]"
+    return (
+        "python - <<'_E_'\n"
+        "import importlib, json\n"
+        f"_names={py_list}\n"
+        "_res={}\n"
+        "for _n in _names:\n"
+        "    try:\n        importlib.import_module(_n); _res[_n]=True\n"
+        "    except Exception:\n        _res[_n]=False\n"
+        "print(json.dumps(_res))\n"
+        "_E_"
+    )
 
-    The contract ``subject`` (distribution name) is NEVER used as the import
-    name directly — only the resolved *import_name* makes it into the command.
-    """
-    import_name = resolve_import_name(dist_name)
-    if import_name != dist_name:
-        # Static map resolved — use a clean single-import command.
-        cmd = f'python -c "import {import_name}"'
-    else:
-        # General case: resolve dynamically inside the container.
-        cmd = _DYNAMIC_IMPORT_PROBE_TMPL.format(dist=dist_name)
-    return cmd, import_name
+
+def parse_import_sweep(stdout: str) -> tuple[tuple[str, bool], ...]:
+    """Parse the JSON output of build_import_sweep_command into (import_name, ok) pairs."""
+    try:
+        d = _json.loads(stdout.strip().splitlines()[-1])
+        return tuple((str(k), bool(v)) for k, v in d.items())
+    except Exception:
+        return ()
 
 
 # ---------------------------------------------------------------------------
-# Validator registry
+# Host satisfaction + attempt outcome derivation
 # ---------------------------------------------------------------------------
 
-# kind -> (validator kind, command template using {subject}).
-# For python_package_importable the template is retained for documentation;
-# the actual command is built by _build_import_command (see run_confirmed_validators).
-_REGISTRY: dict[str, tuple[str, str]] = {
-    "python_package_importable": ("python_import_check", 'python -c "import {subject}"'),
-    # Atomic precondition only — NOT the success gate (real execution stays the done-gate's job).
-    "pytest_runnable": ("pytest_collect_check", "python -m pytest --collect-only -q --disable-warnings"),
-}
+def host_satisfied_set(
+    graph: ContractGraph,
+    world_map: Any,
+    ledger_events: list[Any],
+) -> frozenset[str]:
+    """Contract ids the host certifies this cycle (spec §6.3)."""
+    sat: set[str] = set()
+    ok_imports = {name for name, ok in getattr(world_map, "import_results", ()) if ok}
+    for c in graph.contracts():
+        if c.data.get("kind") == "python_import":
+            subject = c.data.get("subject", "")
+            if resolve_import_name(subject) in ok_imports or subject in ok_imports:
+                sat.add(c.id)
+    # goal: repo_tests_pass is host-certified by the done-gate (handled in projection refresh)
+    return frozenset(sat)
 
 
-def run_confirmed_validators(
-    graph: ContractGraph, exec_readonly: ExecReadonly, revision: int
-) -> tuple[list[Node], list[Edge], list[ContractStatusEvent]]:
-    nodes: list[Node] = []
-    edges: list[Edge] = []
-    events: list[ContractStatusEvent] = []
-    rid = ids.revision_id(revision)
-
-    for contract in graph.nodes_by_type("Contract"):
-        if contract.data.get("level") != "atomic":
-            continue
-        kind = str(contract.data.get("kind", ""))
-        spec = _REGISTRY.get(kind)
-        if spec is None:
-            continue
-        vkind, template = spec
-        subject = str(contract.data.get("subject", ""))
-
-        if kind == "python_package_importable":
-            # Use the resolved import name so dist names like "beautifulsoup4"
-            # produce `import bs4`, not `import beautifulsoup4`.
-            cmd, import_name = _build_import_command(subject)
-        else:
-            cmd = template.format(subject=subject)
-            import_name = subject
-
-        rc, out = exec_readonly(cmd)
-
-        vid = ids.validator_id(vkind, ids.slug(subject) or subject)
-        if not graph.has_node(vid):
-            validator_data: dict[str, Any] = {
-                "kind": vkind,
-                "command_template": template,
-                "import_name": import_name,
-            }
-            nodes.append(Node(vid, "Validator", validator_data))
-            edges.append(Edge(contract.id, "verified_by", vid))
-
-        run_id = f"cmd:val:{ids.slug(vid)}:{revision:03d}"
-        nodes.append(
-            Node(run_id, "CommandExecution",
-                 {"command": redact_secrets(cmd), "exit_code": int(rc),
-                  "revision_before": rid, "revision_after": rid, "mutation_class": None})
-        )
-        status = "satisfied" if rc == 0 else "violated"
-        events.append(
-            ContractStatusEvent(
-                contract_id=contract.id, status=status, revision_id=rid,
-                evidence_ids=(run_id,), summary=redact_secrets(out[-200:]),
-            )
-        )
-    return nodes, edges, events
+def derive_attempt_outcome(
+    graph: ContractGraph,
+    attempt_id: str,
+    host_satisfied: frozenset[str],
+    step_failed: bool,
+) -> str:
+    """Return an AttemptOutcome value for the given attempt node."""
+    if step_failed:
+        return "failed"
+    node = graph.node(attempt_id)
+    targets: list[str] = (node.data.get("created_from_target_node_ids") or []) if node else []
+    if not targets:
+        return "ok"
+    statuses = [project_status(graph, t, host_satisfied) for t in targets]
+    if all(s == "satisfied" for s in statuses):
+        return "ok"
+    if any(s == "violated" for s in statuses):
+        return "ok_but_still_blocked"
+    return "ok"
