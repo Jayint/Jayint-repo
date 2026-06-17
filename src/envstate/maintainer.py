@@ -333,6 +333,33 @@ that cannot fix a name-collision or conftest path error.
 If you are tempted to write present, missing, installed, fixed, verified, or
 working as a fact, do not — just record the literal signature and let the host's
 probes certify reality.
+
+## Contract graph patch (additional output)
+
+Alongside the keys above, include a `graph_patch` object that adds SEMANTIC structure
+to the contract graph shown under `contract_graph` in the input. You may ONLY add:
+- `Contract` nodes (level "atomic") for obligations a failure proves are unmet, e.g.
+  {"id":"contract:python_package_importable:psycopg2","type":"Contract","level":"atomic",
+   "kind":"python_package_importable","subject":"psycopg2","predicate":"is_importable",
+   "expected":true,"description":"...","validation_state":"validator_unknown"}
+- `Validator` nodes (a read-only check that could confirm a contract).
+- edges: `violates` (Failure->Contract), `implies_contract` (Requirement->Contract),
+  `depends_on` (Contract->Contract), `verified_by` (Contract->Validator), `blocks` (OpenProblem->Contract).
+- status events with status in {"unknown","violated","repair_attempted"} citing existing node ids as evidence.
+
+You may NOT create RepoArtifact / Requirement / Capability / Failure / CommandExecution /
+EnvironmentRevision nodes (the host owns those), and you may NOT mark a contract "satisfied"
+(only host validators / passing commands do that). Reference node ids EXACTLY as shown in the
+input graph. Omit `graph_patch` or use {} if there is nothing to add.
+
+```json
+{
+  "open_problems": [...], "resolved": [...], "planner_notes": [...],
+  "graph_patch": {
+    "add_nodes": [], "add_edges": [], "add_status_events": [], "invalidate_nodes": [], "invalidate_edges": []
+  }
+}
+```
 """
 
 # ---------------------------------------------------------------------------
@@ -491,6 +518,7 @@ def parse_v1_maintainer_reply(
     text: str,
     current_map: WorldModelMap,
     report: TaskReport,
+    on_patch_error: Optional[Callable] = None,
 ) -> WorldModelMap:
     """Parse the narrowed Maintainer reply: open_problems + resolved + notes.
 
@@ -500,7 +528,14 @@ def parse_v1_maintainer_reply(
     gate: a real test run with >=1 passed, bare interpreter, no venv wrapper).
     On empty/unparseable input, only the structural done_flag rule (and its tests
     sync) applies.
+
+    on_patch_error — optional callable(list[str]) called with validation errors
+    if the graph_patch is rejected (the flat fields still apply).
     """
+    from src.envstate.contracts.apply import apply_patch
+    from src.envstate.contracts.patch import parse_graph_patch
+    from src.envstate.contracts.validation import validate_patch
+
     parsed = extract_json_object(text) if text else None
     if not parsed:
         new_done = current_map.done_flag or _verified_test_run_passed(report)
@@ -534,12 +569,25 @@ def parse_v1_maintainer_reply(
     merged_notes = current_map.notes + added_notes
 
     done = current_map.done_flag or _verified_test_run_passed(report)
+
+    # ----- NEW: semantic graph patch (validated; dropped on any error) -----
+    new_graph = current_map.contract_graph
+    patch = parse_graph_patch(parsed.get("graph_patch"))
+    if not patch.is_empty():
+        errors = validate_patch(new_graph, patch, scope="maintainer")
+        if errors:
+            if on_patch_error is not None:
+                on_patch_error(errors)
+        else:
+            new_graph = apply_patch(new_graph, patch)
+
     return merge_map(
         current_map,
         open_problems=merged,
         notes=merged_notes,
         done_flag=done,
         progress=_progress_synced_with_done(current_map, done),
+        contract_graph=new_graph,
     )
 
 
@@ -579,6 +627,8 @@ class Maintainer:
         (except for the structural done_flag / execution-gate check which still
         applies from the report itself).
         """
+        from src.envstate.contracts.render import serialize_graph_for_maintainer
+
         # Pre-filled authoritative facts + the required-installed gap (design §4.4),
         # so the LLM can attribute a failure to a layer and judge `resolved`.
         _installed_names = {f.name.lower() for f in current_map.installed}
@@ -617,6 +667,7 @@ class Maintainer:
                     ],
                     "done_flag": current_map.done_flag,
                     "notes": list(current_map.notes),
+                    "contract_graph": serialize_graph_for_maintainer(current_map.contract_graph),
                 },
                 "task_report": {
                     "task_goal": report.task_goal,
@@ -651,7 +702,7 @@ class Maintainer:
         if self._on_usage is not None:
             self._on_usage(usage)
 
-        new_map = parse_v1_maintainer_reply(content, current_map, report)
+        new_map = parse_v1_maintainer_reply(content, current_map, report, on_patch_error=self._log_patch_error)
 
         # Diagnostic trace (no-op unless a log path / ENVSTATE_LLM_LOG is set).
         log_llm_exchange(
@@ -664,3 +715,13 @@ class Maintainer:
             log_path=self._log_path,
         )
         return new_map
+
+    def _log_patch_error(self, errors: list) -> None:
+        """Write graph patch rejection errors to the diagnostic log (best-effort)."""
+        log_path = getattr(self, "_log_path", None) or getattr(self, "log_path", None)
+        if log_path:
+            try:
+                with open(log_path, "a") as fh:
+                    fh.write(json.dumps({"contract_graph_patch_rejected": errors}) + "\n")
+            except OSError:
+                pass
