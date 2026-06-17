@@ -1,102 +1,116 @@
-"""Validate a GraphPatch against a graph + ownership scope (spec §10)."""
+"""Validate a GraphPatch against a graph + ownership scope (spec §8)."""
 from __future__ import annotations
 
 from .graph import ContractGraph
+from .nodes import Edge
 from .patch import GraphPatch
 from .schema import (
     EDGE_RULES,
-    HOST_OWNED_NODE_TYPES,
-    MAINTAINER_NODE_TYPES,
-    VALID_NODE_TYPES,
-    VALID_STATUSES,
+    MAINTAINER_FORBIDDEN_FIELDS,
 )
 
+MAX_PROMOTIONS_PER_CYCLE: int = 8
 
-def _node_type_index(graph: ContractGraph, patch: GraphPatch) -> dict[str, str]:
+
+def _build_type_index(graph: ContractGraph, patch: GraphPatch) -> dict[str, str]:
     """Type of every node visible after the patch (existing + added)."""
-    index = {n.id: n.type for n in graph.nodes}
-    for n in list(patch.add_nodes) + list(patch.update_nodes):
+    index: dict[str, str] = {n.id: n.type for n in graph.nodes}
+    for n in list(patch.add_contracts) + list(patch.add_blockers) + list(patch.add_attempts):
         index[n.id] = n.type
     return index
 
 
-def _command_passed(graph: ContractGraph, patch: GraphPatch, node_id: str) -> bool:
-    for n in list(graph.nodes) + list(patch.add_nodes):
-        if n.id == node_id and n.type == "CommandExecution":
-            return int(n.data.get("exit_code", 1)) == 0
-    return False
+def validate_patch(
+    graph: ContractGraph,
+    patch: GraphPatch,
+    *,
+    scope: str,
+    known_command_ids: frozenset[str] = frozenset(),
+) -> list[str]:
+    """Return a list of human-readable errors; empty list == valid.
 
-
-def validate_patch(graph: ContractGraph, patch: GraphPatch, *, scope: str) -> list[str]:
-    """Return a list of human-readable errors; empty list == valid."""
+    scope="maintainer" enforces field-level ownership, grounded-blocker,
+    backbone-attachment, and no-inventory-mirror rules (spec §8).
+    scope="host" skips those checks.
+    """
     errors: list[str] = []
-    existing_ids = {n.id for n in graph.nodes}
-    new_ids: set[str] = set()
+    all_edges: list[Edge] = list(graph.edges) + list(patch.add_edges)
+    type_index = _build_type_index(graph, patch)
 
-    # --- node-level checks ---
-    for n in patch.add_nodes:
-        if n.type not in VALID_NODE_TYPES:
-            errors.append(f"unknown node type {n.type!r} for {n.id}")
-        if n.id in existing_ids or n.id in new_ids:
-            errors.append(f"duplicate node id {n.id!r}")
-        new_ids.add(n.id)
-        if scope == "maintainer" and n.type in HOST_OWNED_NODE_TYPES:
-            errors.append(f"maintainer may not create host-owned node {n.type!r} ({n.id})")
-        if scope == "maintainer" and n.type not in MAINTAINER_NODE_TYPES:
-            errors.append(f"maintainer node type {n.type!r} not allowed ({n.id})")
+    if scope == "maintainer":
+        # --- 1. Promotion limit (no inventory mirror) ---
+        if len(patch.add_contracts) > MAX_PROMOTIONS_PER_CYCLE:
+            errors.append(
+                f"too many contract promotions in one patch: "
+                f"{len(patch.add_contracts)} > MAX_PROMOTIONS_PER_CYCLE={MAX_PROMOTIONS_PER_CYCLE}; "
+                f"inventory mirror guard prevents bulk promotion"
+            )
 
-    type_index = _node_type_index(graph, patch)
+        # --- 2. add_contracts: type check + forbidden-field check ---
+        for n in patch.add_contracts:
+            if n.type != "Contract":
+                errors.append(
+                    f"maintainer may not add {n.type!r} nodes via add_contracts ({n.id}); "
+                    f"Attempt and other non-Contract types are host-only"
+                )
+            else:
+                # Maintainer may never write status/outcome/active on a Contract
+                for field in MAINTAINER_FORBIDDEN_FIELDS:
+                    if n.data.get(field) is not None:
+                        errors.append(
+                            f"maintainer may not set forbidden field {field!r} on node {n.id}"
+                        )
 
-    # --- edge-level checks ---
+        # --- 3. Grounded blockers: evidence_refs must all be known command IDs ---
+        for n in patch.add_blockers:
+            refs: list[str] = list(n.data.get("evidence_refs") or [])
+            bad = [r for r in refs if r not in known_command_ids]
+            if bad:
+                errors.append(
+                    f"blocker {n.id!r} has ungrounded evidence_refs {bad!r}; "
+                    f"every ref must be a known command id"
+                )
+
+        # --- 4. Backbone attachment for atomic contracts ---
+        in_edge_targets = {
+            e.target for e in all_edges if e.type == "depends_on" and not e.invalidated
+        }
+        for n in patch.add_contracts:
+            if n.type == "Contract" and n.data.get("level") == "atomic":
+                if n.id not in in_edge_targets:
+                    errors.append(
+                        f"atomic contract {n.id!r} is an orphan: "
+                        f"no depends_on backbone attachment under any goal"
+                    )
+
+        # --- 5. Backbone attachment for blockers (must have a violates out-edge) ---
+        violates_sources = {
+            e.source for e in all_edges if e.type == "violates" and not e.invalidated
+        }
+        for n in patch.add_blockers:
+            if n.id not in violates_sources:
+                errors.append(
+                    f"blocker {n.id!r} has no violates edge; "
+                    f"every blocker must attach to the contract backbone"
+                )
+
+    # --- Edge validity (all scopes) ---
     for e in patch.add_edges:
         if e.type not in EDGE_RULES:
             errors.append(f"unknown edge type {e.type!r}")
             continue
-        if e.source not in type_index or e.target not in type_index:
-            errors.append(f"edge endpoint missing: {e.source} -{e.type}-> {e.target}")
+        src_type = type_index.get(e.source)
+        tgt_type = type_index.get(e.target)
+        if src_type is None or tgt_type is None:
+            errors.append(
+                f"edge endpoint missing: {e.source} -{e.type}-> {e.target}"
+            )
             continue
         allowed_src, allowed_tgt = EDGE_RULES[e.type]
-        if type_index[e.source] not in allowed_src or type_index[e.target] not in allowed_tgt:
+        if src_type not in allowed_src or tgt_type not in allowed_tgt:
             errors.append(
                 f"edge type {e.type!r} not allowed between "
-                f"{type_index[e.source]} and {type_index[e.target]}"
+                f"{src_type} and {tgt_type}"
             )
-
-    # --- status-event checks ---
-    for ev in patch.add_status_events:
-        if ev.status not in VALID_STATUSES:
-            errors.append(f"invalid status {ev.status!r} for {ev.contract_id}")
-        if ev.contract_id not in type_index:
-            errors.append(f"status event for unknown contract {ev.contract_id!r}")
-        for eid in ev.evidence_ids:
-            if eid not in type_index:
-                errors.append(f"status evidence id {eid!r} points to no node")
-        # spec §7 rule 4: satisfied requires passing command / confirmed validator evidence
-        if ev.status == "satisfied":
-            ok = any(_command_passed(graph, patch, eid) for eid in ev.evidence_ids)
-            if not ok:
-                errors.append(
-                    f"contract {ev.contract_id!r} marked satisfied without passing command evidence"
-                )
-
-    # --- structural grounding (spec §10) ---
-    declared_reqs = {
-        e.target for e in (list(graph.edges) + list(patch.add_edges)) if e.type == "declares" and not e.invalidated
-    }
-    for n in patch.add_nodes:
-        if n.type == "Requirement" and n.id not in declared_reqs:
-            errors.append(f"requirement {n.id!r} has no RepoArtifact declares edge")
-    all_edges = list(graph.edges) + list(patch.add_edges)
-    transition_targets = {
-        e.source for e in all_edges if e.type == "targets" and not e.invalidated
-    }
-    # A transition that is the repair target of a contract (repaired_by edge) is also
-    # considered connected even without an explicit targets out-edge.
-    repaired_transitions = {
-        e.target for e in all_edges if e.type == "repaired_by" and not e.invalidated
-    }
-    for n in patch.add_nodes:
-        if n.type == "Transition" and n.id not in transition_targets and n.id not in repaired_transitions:
-            errors.append(f"transition {n.id!r} targets no Contract/Failure/OpenProblem")
 
     return errors
