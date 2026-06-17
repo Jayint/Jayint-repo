@@ -3762,12 +3762,21 @@ git commit -m "test(contracts): end-to-end torch scenario reaches done with sati
 ### Task 25: Full-suite green + docs
 
 **Files:**
-- Modify: `docs/HANDOFF-envmap-maintainer-planner.md` (or the current v1 handoff) — add a "Contract Graph V1" section pointing at `src/envstate/contracts/` and the `v1g` arm.
+- Modify: `docs/DESIGN-environment-state-maintainer.md` (the current v1 three-role design doc) — add a "Contract Graph V1" section pointing at `src/envstate/contracts/` and the `v1g` arm.
 - Create: `docs/DESIGN-contract-graph-v1.md` — copy the locked spec + this plan's "Design decisions locked" + the per-cycle ordering as the authoritative reference.
 
 - [ ] **Step 1: Run the entire suite**
 
-Run: `.venv/bin/python -m pytest tests/ -q`
+Run (the green-baseline gate — two modules have pre-existing, environment-specific collection
+errors and three tests are pre-existing env failures unrelated to this work, so they are excluded):
+
+```bash
+.venv/bin/python -m pytest tests/ -q -p no:cacheprovider \
+  --ignore=tests/test_docker_build.py --ignore=tests/test_run_rat_benchmark.py \
+  --deselect "tests/test_adapter_logic.py::AdapterLogicTests::test_nested_pytester_django_target_uses_null_pytest_config" \
+  --deselect "tests/test_repo2run_dataset.py::test_extract_repo2run_table15_entries_parses_expected_size_and_counts" \
+  --deselect "tests/test_repo2run_dataset.py::test_extract_repo2run_table15_entries_repairs_split_repository_names"
+```
 Expected: PASS — all new contract tests plus every pre-existing envstate/agent test (A0/A1 arms unaffected because `enable_contract_graph` defaults off).
 
 - [ ] **Step 2: Run a v1g smoke (optional, needs Docker + LLM creds)**
@@ -3780,7 +3789,7 @@ Expected: a `setup_logs/contract_graph.jsonl` is produced; `scripts/contract_gra
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/HANDOFF-envmap-maintainer-planner.md docs/DESIGN-contract-graph-v1.md
+git add docs/DESIGN-environment-state-maintainer.md docs/DESIGN-contract-graph-v1.md
 git commit -m "docs(contracts): contract graph v1 design + handoff pointers"
 ```
 
