@@ -1,38 +1,26 @@
-from src.envstate.contracts.graph import ContractGraph
-from src.envstate.contracts.nodes import ContractStatusEvent, Edge, Node
 from src.envstate.contracts.render import render_graph_for_planner, serialize_graph_for_maintainer
+from src.envstate.contracts.graph import ContractGraph
+from src.envstate.contracts.nodes import Node, Edge
 
 
-def _g():
+def _g() -> ContractGraph:
     return ContractGraph(
-        nodes=(
-            Node("contract:goal:repo_tests_run", "Contract", {"level": "goal", "required": True, "description": "tests run"}),
-            Node("contract:python_package_importable:torch", "Contract",
-                 {"level": "atomic", "subject": "torch", "description": "torch importable"}),
-            Node("failure:cmd:007", "Failure", {"summary": "ModuleNotFoundError torch", "command_id": "cmd:007"}),
-            Node("dead", "Contract", {"level": "atomic"}, invalidated=True),
-        ),
-        edges=(Edge("contract:goal:repo_tests_run", "depends_on", "contract:python_package_importable:torch"),),
-        status_events=(ContractStatusEvent("contract:python_package_importable:torch", "violated", "envrev:003", ("failure:cmd:007",)),),
-    )
+        nodes=(Node("contract:goal:repo_tests_pass", "Contract",
+                    {"level": "goal", "required": True, "layer": "tests", "kind": "tests_pass"}),
+               Node("contract:python_import:cv2", "Contract",
+                    {"level": "atomic", "layer": "deps", "kind": "python_import", "subject": "cv2"}),
+               Node("blocker:libgl", "Blocker", {"signature": "ImportError: libGL.so.1",
+                    "active": True, "root_or_downstream": "root", "summary": "libGL missing", "layer": "system"})),
+        edges=(Edge("contract:goal:repo_tests_pass", "depends_on", "contract:python_import:cv2"),
+               Edge("blocker:libgl", "violates", "contract:python_import:cv2")))
 
 
-def test_planner_view_lists_ids_statuses_and_omits_invalidated():
-    out = render_graph_for_planner(_g())
-    assert "contract:python_package_importable:torch" in out
-    assert "violated" in out
-    assert "failure:cmd:007" in out
-    assert "dead" not in out  # invalidated excluded
-    assert "Contract Graph" in out
+def test_planner_render_has_three_sections_and_root_blocker():
+    out = render_graph_for_planner(_g(), frozenset())
+    assert "Repair Map" in out and "Repair Frontier" in out
+    assert "blocker:libgl" in out and "violated" in out
 
 
-def test_planner_view_empty_graph():
-    assert "empty" in render_graph_for_planner(ContractGraph()).lower()
-
-
-def test_maintainer_view_has_active_nodes_and_latest_status():
+def test_maintainer_serializer_has_no_status_events():
     d = serialize_graph_for_maintainer(_g())
-    node_ids = {n["id"] for n in d["nodes"]}
-    assert "contract:python_package_importable:torch" in node_ids
-    assert "dead" not in node_ids
-    assert d["latest_status"]["contract:python_package_importable:torch"] == "violated"
+    assert set(d) == {"contracts", "blockers", "attempts", "edges"}

@@ -3,61 +3,87 @@ from __future__ import annotations
 
 from typing import Any
 
-from .goals import evaluate_goal_readiness
-from .graph import ContractGraph
-from .nodes import node_to_dict, edge_to_dict
+from .graph import ContractGraph, frontier_by_layer, project_status, root_blockers
+from .nodes import edge_to_dict, node_to_dict
 
 
-def render_graph_for_planner(graph: ContractGraph) -> str:
-    active = graph.active_nodes()
-    if not active:
-        return "## Contract Graph\n  (empty — no contracts derived yet)"
+def render_graph_for_planner(graph: ContractGraph, host_satisfied: frozenset[str]) -> str:
+    """Render three-section markdown for the planner: Repair Map + Repair Frontier."""
+    lines: list[str] = []
 
-    lines: list[str] = ["## Contract Graph"]
-    lines.append(f"goal_ready: {evaluate_goal_readiness(graph)}")
+    # --- Repair Map ---
+    lines.append("## Repair Map")
+    required_goals = graph.required_goal_contracts()
+    if required_goals:
+        lines.append("### Required Goals")
+        for goal in required_goals:
+            status = project_status(graph, goal.id, host_satisfied)
+            lines.append(f"  - {goal.id} — {status}")
+            # list active blockers violating this goal's deps
+            from .graph import depends_on_closure
+            deps = depends_on_closure(graph, goal.id)
+            for dep_id in deps:
+                dep_status = project_status(graph, dep_id, host_satisfied)
+                if dep_status == "violated":
+                    for e in graph.in_edges(dep_id, "violates"):
+                        b = graph.node(e.source)
+                        if b is not None and not b.invalidated and bool(b.data.get("active", True)):
+                            lines.append(
+                                f"    - blocker: {b.id} — {b.data.get('summary', '')} "
+                                f"[{b.data.get('root_or_downstream', 'unknown')}]"
+                            )
 
-    contracts = [n for n in active if n.type == "Contract"]
-    if contracts:
-        lines.append("### contracts (id — status — description)")
-        for c in contracts:
-            ev = graph.latest_status(c.id)
-            status = ev.status if ev else "unknown"
-            level = c.data.get("level", "atomic")
-            desc = c.data.get("description", "")
-            lines.append(f"  - [{level}] {c.id} — {status} — {desc}")
+    active_blockers = root_blockers(graph)
+    if active_blockers:
+        lines.append("### Active Blockers (root-first)")
+        for b in active_blockers:
+            lines.append(f"  - {b.id} — {b.data.get('summary', '')} [{b.data.get('root_or_downstream', 'unknown')}]")
 
-    failures = [n for n in active if n.type == "Failure"]
-    if failures:
-        lines.append("### failures (id — summary)")
-        for f in failures:
-            lines.append(f"  - {f.id} — {f.data.get('summary', '')}")
+    attempts = graph.attempts()
+    if attempts:
+        lines.append("### Recent Attempts (id — outcome — intent)")
+        for a in attempts:
+            outcome = a.data.get("outcome", "pending")
+            intent = a.data.get("intent", "")
+            lines.append(f"  - {a.id} — {outcome} — {intent}")
 
-    ops = [n for n in active if n.type == "OpenProblem"]
-    if ops:
-        lines.append("### open_problems (id — summary)")
-        for op in ops:
-            oos = " [out_of_scope]" if op.data.get("out_of_scope") else ""
-            lines.append(f"  - {op.id}{oos} — {op.data.get('summary', '')}")
+    # --- Repair Frontier ---
+    lines.append("## Repair Frontier")
+    frontier = frontier_by_layer(graph, host_satisfied)
+    if frontier:
+        lines.append("### Unsatisfied Contracts by Layer")
+        for layer, contract_ids in sorted(frontier.items()):
+            lines.append(f"  [{layer}]")
+            for cid in contract_ids:
+                status = project_status(graph, cid, host_satisfied)
+                lines.append(f"    - {cid} — {status}")
 
-    transitions = [n for n in active if n.type == "Transition"]
-    if transitions:
-        lines.append("### transitions already proposed (id — intent)")
-        for t in transitions:
-            lines.append(f"  - {t.id} — {t.data.get('intent', '')}")
+    rb = root_blockers(graph)
+    if rb:
+        lines.append("### Root Blockers")
+        for b in rb:
+            if b.data.get("root_or_downstream") == "root":
+                lines.append(f"  - {b.id} — {b.data.get('summary', '')}")
 
     return "\n".join(lines)
 
 
 def serialize_graph_for_maintainer(graph: ContractGraph) -> dict[str, Any]:
-    active_nodes = graph.active_nodes()
-    active_ids = {n.id for n in active_nodes}
-    latest: dict[str, str] = {}
-    for n in active_nodes:
-        if n.type == "Contract":
-            ev = graph.latest_status(n.id)
-            latest[n.id] = ev.status if ev else "unknown"
+    """Return active Contract/Blocker/Attempt dicts + active edges, no status_events."""
+    active_ids = {n.id for n in graph.active_nodes()}
+    contracts = [node_to_dict(n) for n in graph.contracts()]
+    blockers = [node_to_dict(n) for n in graph.blockers()]
+    attempts = [node_to_dict(n) for n in graph.attempts()]
+    edges = [
+        edge_to_dict(e)
+        for e in graph.edges
+        if not e.invalidated
+        and e.source in active_ids
+        and e.target in active_ids
+    ]
     return {
-        "nodes": [node_to_dict(n) for n in active_nodes],
-        "edges": [edge_to_dict(e) for e in graph.edges if not e.invalidated and e.source in active_ids and e.target in active_ids],
-        "latest_status": latest,
+        "contracts": contracts,
+        "blockers": blockers,
+        "attempts": attempts,
+        "edges": edges,
     }
