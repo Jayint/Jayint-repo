@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+from src.envstate.contracts.render import render_graph_for_planner
 from src.envstate.diagnostics import log_llm_exchange
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.llm_response import complete_with_retry
@@ -124,18 +125,49 @@ tolerated) — not a weaker proxy such as:
   real test suite (`no_real_test_suite`).  Do NOT fabricate tests or game the
   gate.
 
+## Contract Graph (when present)
+
+When a `## Contract Graph` section appears, it lists explicit obligations with stable node IDs:
+- `Contract` nodes are obligations the environment must satisfy (status: unknown/violated/repair_attempted/satisfied).
+- `Failure` and `open_problems` nodes are observed blockers.
+- `goal_ready` is true only when every required goal contract and its dependencies are satisfied.
+
+Localize your next action against a violated contract, failure, or open problem, and CITE the node IDs you target.
+
 ## Output
-Emit exactly one JSON object inside a ```json fenced block — nothing else:
+Emit exactly one JSON object inside a ```json fenced block — nothing else.
+
+To do work (repair or explore), targeting at least one graph node when a graph is present:
 
 ```json
 {
   "action": "task",
   "goal": "<the single sub-goal that removes the diagnosed root cause>",
-  "done_when": "<a bare python -m pytest -q execution: suite runs, majority of tests pass (non-env failures ok), not a proxy>",
-  "layer": "<base | system | runtime | deps | build | tests — the layer of the root cause>",
-  "facts": ["<the map evidence that justifies this task>"]
+  "done_when": "<a bare python -m pytest -q execution: suite runs, majority of tests pass>",
+  "layer": "<base | system | runtime | deps | build | tests>",
+  "facts": ["<the map/graph evidence that justifies this task>"],
+  "target_node_ids": ["<contract:... | failure:... | openproblem:... this task addresses>"],
+  "transition_proposal": {
+    "kind": "<install_python_package | install_system_package | inspect_repo | run_command | ...>",
+    "target": "<subject, e.g. torch or package_manager>",
+    "intent": "<one sentence: what this transition makes true>",
+    "command_templates": ["<candidate command(s); BuildAgent picks the concrete one>"]
+  }
 }
 ```
+
+If a `transition_proposal` is present you MUST also provide non-empty `target_node_ids` (ungrounded transitions are rejected).
+
+To finalize (ADVISORY — the host re-verifies; you cannot fake success):
+
+```json
+{
+  "action": "done",
+  "satisfied_goal_contract_ids": ["contract:goal:repo_tests_run"],
+  "rationale": "<why the required goal contracts are satisfied with evidence>"
+}
+```
+Only emit `done` when `goal_ready` is true. If the host gate disagrees, the loop continues.
 
 When no viable path remains (including no real test suite):
 
@@ -209,6 +241,10 @@ def render_planning_view(
         for note in world_map.notes:
             lines.append(f"  - {note}")
 
+    if world_map.contract_graph.active_nodes():
+        lines.append("")
+        lines.append(render_graph_for_planner(world_map.contract_graph))
+
     lines.append("")
     lines.append(f"## budget\n  cycles_remaining: {budget.get('cycles_remaining')}")
     return "\n".join(lines)
@@ -221,7 +257,7 @@ def render_planning_view(
 # The Planner may only emit `task` or `giveup`. There is no self-declared
 # `done`: the structural done_flag (a real `python -m pytest -q` with >=1 passed)
 # is the sole success stop, which closes the unverified-exit leak.
-_VALID_ACTIONS = frozenset({"task", "giveup"})
+_VALID_ACTIONS = frozenset({"task", "giveup", "done"})
 
 
 def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
@@ -230,18 +266,19 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
     Returns None when:
     - text is empty / None
     - no JSON object found
-    - action key is missing or has an unknown value (a self-declared "done" is
-      rejected here — it is not a valid action)
+    - action key is missing or has an unknown value
     - action="task" but goal / done_when / layer is missing
+    - action="task" with transition_proposal but no target_node_ids (ungrounded)
+    - action="done" but no satisfied_goal_contract_ids (bare done is invalid)
     """
+    from src.envstate.world_model import TransitionProposal
+
     obj = extract_json_object(text)
     if obj is None:
         return None
-
     action = obj.get("action")
     if action not in _VALID_ACTIONS:
         return None
-
     reason = obj.get("reason", "")
 
     if action == "task":
@@ -250,13 +287,33 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
         layer = obj.get("layer")
         if not goal or not done_when or not layer:
             return None
-        raw_facts = obj.get("facts") or []
-        facts: tuple[str, ...] = tuple(str(f) for f in raw_facts)
-        task = Task(goal=goal, done_when=done_when, layer=layer, facts=facts)
+        facts = tuple(str(f) for f in (obj.get("facts") or []))
+        target_node_ids = tuple(str(t) for t in (obj.get("target_node_ids") or []))
+
+        proposal = None
+        raw_tp = obj.get("transition_proposal")
+        if isinstance(raw_tp, dict) and raw_tp.get("kind") and raw_tp.get("target"):
+            # ungrounded transition is forbidden (spec §5/§10)
+            if not target_node_ids:
+                return None
+            proposal = TransitionProposal(
+                kind=str(raw_tp["kind"]),
+                target=str(raw_tp["target"]),
+                intent=str(raw_tp.get("intent", "")),
+                command_templates=tuple(str(c) for c in (raw_tp.get("command_templates") or [])),
+            )
+        task = Task(goal=goal, done_when=done_when, layer=layer, facts=facts,
+                    target_node_ids=target_node_ids, transition_proposal=proposal)
         return PlannerDecision(action="task", task=task, reason=reason)
 
-    # giveup
-    return PlannerDecision(action=action, task=None, reason=reason)
+    if action == "done":
+        goal_ids = tuple(str(g) for g in (obj.get("satisfied_goal_contract_ids") or []))
+        if not goal_ids:
+            return None  # a bare 'done' with no cited goal contracts is invalid
+        return PlannerDecision(action="done", reason=obj.get("rationale", reason),
+                               satisfied_goal_contract_ids=goal_ids)
+
+    return PlannerDecision(action="giveup", task=None, reason=reason)
 
 
 # ---------------------------------------------------------------------------

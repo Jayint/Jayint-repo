@@ -599,12 +599,22 @@ class BuildAgent:
 
     def _build_task_message(self, task: Task) -> str:
         facts_text = "\n".join(f"- {f}" for f in task.facts) if task.facts else "- (none)"
-        return (
-            f"Task goal: {task.goal}\n"
-            f"Done when: {task.done_when}\n"
-            f"Layer: {task.layer}\n"
-            f"Relevant facts:\n{facts_text}"
-        )
+        parts = [
+            f"Task goal: {task.goal}",
+            f"Done when: {task.done_when}",
+            f"Layer: {task.layer}",
+            f"Relevant facts:\n{facts_text}",
+        ]
+        if task.target_node_ids:
+            parts.append("Target graph nodes:\n" + "\n".join(f"- {nid}" for nid in task.target_node_ids))
+        if task.transition_proposal is not None:
+            tp = task.transition_proposal
+            cmds = ", ".join(tp.command_templates) if tp.command_templates else "(choose an appropriate command)"
+            parts.append(
+                f"Proposed transition: {tp.kind} -> {tp.target}\n"
+                f"  intent: {tp.intent}\n  candidate commands: {cmds}"
+            )
+        return "\n".join(parts)
 
     def _append_ledger_event(
         self,
@@ -628,23 +638,17 @@ class BuildAgent:
             mutation_class = None
             rev_after = env_revision
 
-        event = ActionEvent(
+        from src.envstate.ledger import make_action_event
+
+        event = make_action_event(
             step=step,
-            task_id=action[:40],
             cmd=action,
-            rc=0 if success else 1,
-            # Store the (tail-preserving) output inline so the finalize gate
-            # (agent.py:_resolve_v1_verified_test_run Path 1) can scan it for an
-            # in-loop test pass. summary=output[:200] alone is head-truncated and
-            # drops the trailing "N passed" pytest summary.
+            success=success,
             stdout=_truncate_output(output),
-            stdout_path=None,
-            stderr_path=None,
             env_revision_before=env_revision,
             env_revision_after=rev_after,
             mutation_class=mutation_class,
             container_id=self.container_id,
-            summary=output[:200],
         )
         ledger.append(event)
 

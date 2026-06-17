@@ -21,6 +21,34 @@ class ActionEvent:
     summary: str = ""
 
 
+def make_action_event(
+    *,
+    step: int,
+    cmd: str,
+    success: bool,
+    stdout: str,
+    env_revision_before: int,
+    env_revision_after: int,
+    mutation_class,
+    container_id: str,
+) -> "ActionEvent":
+    """Single construction point for host-owned CommandExecution facts."""
+    return ActionEvent(
+        step=step,
+        task_id=cmd[:40],
+        cmd=cmd,
+        rc=0 if success else 1,
+        stdout=stdout,
+        stdout_path=None,
+        stderr_path=None,
+        env_revision_before=env_revision_before,
+        env_revision_after=env_revision_after,
+        mutation_class=mutation_class,
+        container_id=container_id,
+        summary=(stdout or "")[:200],
+    )
+
+
 class ActionLedger:
     """Append-only host-generated command/event history (the one mutable container)."""
 

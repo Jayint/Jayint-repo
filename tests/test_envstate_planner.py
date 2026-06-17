@@ -128,10 +128,18 @@ class PlannerSystemPromptTests(unittest.TestCase):
         self.assertIn('"action": "task"', PLANNER_SYSTEM_PROMPT)
         self.assertIn('"action": "giveup"', PLANNER_SYSTEM_PROMPT)
 
-    def test_prompt_does_not_offer_done_action(self):
+    def test_prompt_offers_advisory_done_action(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
-        self.assertNotIn('"action": "done"', PLANNER_SYSTEM_PROMPT)
-        self.assertNotIn('"action":"done"', PLANNER_SYSTEM_PROMPT)
+        # Advisory-done (Contract Graph v1): the planner MAY now emit `done`, but
+        # the prompt must frame it as ADVISORY — the host re-verifies, so success
+        # cannot be self-declared (the anti-gaming invariant is preserved).
+        self.assertIn('"action": "done"', PLANNER_SYSTEM_PROMPT)
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertIn("advisory", lower)
+        self.assertTrue(
+            "re-verif" in lower or "host" in lower or "cannot fake" in lower,
+            "advisory done must keep the host-certifies-success framing",
+        )
 
     def test_prompt_names_environment_state_map(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
@@ -171,10 +179,12 @@ class ParsePlannerDecisionTests(unittest.TestCase):
         self.assertEqual(decision.task.layer, "deps")
         self.assertEqual(decision.task.facts, ("flask in pyproject.toml",))
 
-    def test_done_action_is_rejected(self):
+    def test_bare_done_action_is_rejected(self):
         from src.envstate.planner import parse_planner_decision
-        # `done` is no longer a valid action — only the structural done_flag
-        # may declare success, so a self-declared done parses to None.
+        # Advisory-done (Contract Graph v1): a *bare* done with no cited
+        # satisfied_goal_contract_ids is invalid and parses to None — success
+        # cannot be self-declared; the host gate certifies it. (A grounded
+        # advisory done IS parsed; see tests/test_planner_contract_graph.py.)
         self.assertIsNone(parse_planner_decision(_done_json("tests passing")))
 
     def test_parses_giveup_action(self):
@@ -512,13 +522,15 @@ class PlannerPromptIncludesMapFieldsTests(unittest.TestCase):
         self.assertIn("out_of_scope", view)
 
 
-class PlannerNoSelfDeclaredDoneTests(unittest.TestCase):
-    """The Planner has no `done` action; only the structural done_flag (checked
-    by the orchestrator) may declare success. A model that says done is ignored
-    and the planner falls back to giveup after retries.
+class PlannerBareSelfDeclaredDoneRejectedTests(unittest.TestCase):
+    """A *bare* self-declared done (no cited goal contracts) is rejected: the
+    parser returns None, the retry hook rejects it, and the planner falls back
+    to giveup. Advisory-done (Contract Graph v1) only accepts a done that cites
+    satisfied_goal_contract_ids, and even then the host gate — not the planner —
+    certifies success.
     """
 
-    def test_self_declared_done_falls_back_to_giveup(self):
+    def test_bare_self_declared_done_falls_back_to_giveup(self):
         from src.envstate.planner import Planner
         planner = Planner(client=_fake_client(_done_json("collect-only passed")),
                           model="m")
@@ -589,10 +601,13 @@ class PrincipledPromptContractTests(unittest.TestCase):
             "prompt_variant", inspect.signature(Planner.__init__).parameters
         )
 
-    def test_valid_actions_excludes_done(self):
+    def test_valid_actions_includes_advisory_done(self):
         from src.envstate.planner import _VALID_ACTIONS
-        self.assertNotIn("done", _VALID_ACTIONS)
-        self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup"}))
+        # Advisory-done (Contract Graph v1): `done` is now a valid *advisory*
+        # action; the parser still rejects a bare done, and the host gate (not
+        # the planner) certifies success.
+        self.assertIn("done", _VALID_ACTIONS)
+        self.assertEqual(_VALID_ACTIONS, frozenset({"task", "giveup", "done"}))
 
 
 # ---------------------------------------------------------------------------
