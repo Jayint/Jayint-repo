@@ -15,6 +15,11 @@ from packaging.requirements import Requirement
 
 from src.envstate.world_model import Fact
 
+# Well-known extra names whose deps are treated as required (test/dev tooling).
+_TEST_DEV_EXTRAS: frozenset[str] = frozenset(
+    {"tests", "test", "testing", "dev", "development", "ci"}
+)
+
 
 @dataclass(frozen=True)
 class ManifestResult:
@@ -121,6 +126,14 @@ def parse_manifests(workplace: str) -> ManifestResult:
             f = _req_fact(str(dep))
             if f:
                 facts.append(f)
+        opt_deps: dict = (pyproject.get("project", {}).get("optional-dependencies") or {})
+        for extra_name, specs in opt_deps.items():
+            if extra_name.lower() not in _TEST_DEV_EXTRAS:
+                continue
+            for spec in (specs or []):
+                f = _req_fact(str(spec))
+                if f:
+                    facts.append(f)
         if poetry:
             for name, val in (poetry.get("dependencies") or {}).items():
                 if name.lower() == "python":
