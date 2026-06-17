@@ -83,6 +83,19 @@ These were the open problems in the proposal doc; each is now fixed.
    signatures (no LLM call); the Maintainer promotes the rest semantically. This
    mirrors §9's matching order (deterministic signatures before LLM interpretation).
 
+8. **Recipe execution — autonomous BuildAgent, not a host-driven step engine.**
+   The RecipePatch is executed *whole* by the BuildAgent's existing mini-ReAct
+   loop (seeded with the full ordered recipe instead of one goal), not driven
+   step-by-step by the host. Per-step `Attempt.outcome` is derived from the host
+   **status projection at the recipe's validate steps** — not from attributing
+   shell commands to steps. Steps run in order; on an unrepairable failure the
+   BuildAgent stops and reports, and the next Planner cycle re-plans
+   (continue-independent-steps deferred). Budget scales with step count. See §9.4.
+   *Rationale:* the fault-localization win comes from the Planner+graph, not from
+   thinning the BuildAgent; this keeps the BuildAgent's valuable same-cycle local
+   adaptation (e.g. `libgl1` → `libgl1-mesa-glx`), is the lowest-risk change on an
+   already-large rewrite, and gives weaker models slack to recover from a bad recipe.
+
 ---
 
 ## 3. The "host" (terminology)
@@ -197,9 +210,11 @@ Maintainer's interpretation of it (deterministic host promotion has no latency).
                           obvious atomics from new signatures; PROJECT status,
                           AUTO-RESOLVE Blocker.active. (no per-dep nodes)
 3. Planner (LLM)       -> 3-section render -> RecipePatch(steps[].target_node_ids) | done | giveup
-4. Orchestrator        -> commit Attempts (addresses); BuildAgent runs steps + local repair;
-                          record command evidence in WorldModelMap
-5. Host outcome derive -> Attempt.outcome from rc + remaining violates edges; re-project status
+4. Orchestrator        -> commit Attempts (addresses); BuildAgent runs the WHOLE recipe in its
+                          mini-ReAct loop (in order, local repair within step scope, stop-and-
+                          report on unrepairable failure); record command evidence in WorldModelMap
+5. Host outcome derive -> re-project status from validate-step evidence; Attempt.outcome from the
+                          target contract's projected status (satisfied / still-violated). See §9.4
 6. Maintainer (LLM)    -> semantic graph patch only (blockers / contracts / edges / classification
                           / notes); validated scope=maintainer; no map writes; feeds next cycle
 -> repeat
@@ -253,11 +268,15 @@ current revision · `violated` if an active Blocker `violates` it · else
 
 - Planner proposes Attempts inside RecipePatch steps (`proposed_by=planner`,
   `commands`, `created_from_target_node_ids`).
-- Host commits (`addresses` edges) → BuildAgent executes → host derives outcome:
-  - `ok` = commands rc=0 **and** no active Blocker remains on the target
-  - `failed` = a command rc≠0
-  - `ok_but_still_blocked` = rc=0 **but** an active Blocker still violates the
-    target or a child contract
+- Host commits (`addresses` edges) → BuildAgent runs the recipe → host derives
+  outcome **from the target contract's re-projected status** (measured by the
+  recipe's validate steps + host probes — *not* by attributing shell commands to
+  steps; see §9.4):
+  - `ok` = the step's commands ran (no hard rc≠0) **and** the target contract
+    projects `satisfied`
+  - `failed` = a step command hard-failed and could not be locally repaired
+  - `ok_but_still_blocked` = commands ran but the target (or a child contract)
+    still projects `violated` (an active Blocker remains)
   - `pending` = proposed, not yet run
 
 ---
@@ -332,6 +351,38 @@ advisory only and never affect status, outcome, or readiness.
 - `graph.py`: `depends_on` walk from goals, root-blocker query, frontier-by-layer
   grouping, `goal_ready` (over `project_status`).
 
+### 9.4 Planner ↔ BuildAgent execution contract
+
+The RecipePatch is the Planner's authored intent; the **BuildAgent executes it
+whole** in its existing mini-ReAct loop (`build_agent.py`), *not* driven
+step-by-step by the host. Division of labour: **Planner = global recipe designer
+(authors the ordered, concrete commands); BuildAgent = local executor/debugger
+(runs them, repairs locally within step scope, does not redesign the recipe).**
+
+- **Whole-recipe, autonomous.** `BuildAgent.run` is seeded with the full ordered
+  recipe (a checklist of concrete `command`s incl. `validate`-kind checkpoint
+  steps) instead of a single `done_when`. It keeps its current latitude to fix
+  *local* execution errors (wrong package name, missing compiler/header, wheel
+  build failure) but must not invent a different strategy.
+- **In order; stop-and-report on unrepairable failure.** Steps run top-to-bottom.
+  If a step's command hard-fails and local repair can't fix it within the
+  step's budget, the BuildAgent stops and reports back; the host still projects
+  status (so any already-satisfied targets are recorded), and the **next Planner
+  cycle re-plans** from the updated graph. *Continue-independent-steps is
+  deferred* (it needs inter-step dependency tracking not worth it for v1).
+- **Outcomes via projection, not attribution.** The host does **not** map shell
+  commands to steps. Each step's `Attempt.outcome` is derived from whether its
+  `target_node_ids` project `satisfied` after the run — measured by the recipe's
+  `validate` steps + host probes (§6.6). This keeps per-step outcomes clean
+  despite whole-recipe execution.
+- **Budget scales with steps.** Replace the flat `LOCAL_BUDGET=8` with
+  `LOCAL_BUDGET_BASE + k·num_steps` (capped), with the existing
+  repeated-identical-failure stuck-guard (`build_agent.py:59-72`) as the runaway
+  backstop.
+- **Resilience note.** Whole-recipe execution + local-repair latitude + validate
+  checkpoints + next-cycle re-plan is what lets weaker models recover from a
+  partially-wrong recipe; a thin host-driven command-runner would have less slack.
+
 ---
 
 ## 10. File-by-file change map (clean break, one pass)
@@ -352,8 +403,9 @@ advisory only and never affect status, outcome, or readiness.
 | `render.py` | three-section planner render + maintainer serializer for new nodes | rewrite |
 | `world_model.py` | add `dependency_state`; `open_problems` → derived view; auto-resolvers operate on Blockers; `notes` → `diagnostic_notes` | edit |
 | `planner.py` | `RecipePatch` parser + three-section prompt + action vocab | edit |
+| `build_agent.py` | seed `run` with the whole ordered recipe (not one `done_when`); execute in order with local repair, stop-and-report on unrepairable failure; budget `LOCAL_BUDGET_BASE + k·num_steps`; keep stuck-guard; prompt: "execute the recipe, repair locally, do not redesign" (§9.4) | edit |
 | `maintainer.py` | new patch keys + prompt rewrite; stop map writes | edit |
-| `orchestrator.py` | drive multi-step `RecipePatch`/cycle; outcome-derivation call; refresh order | edit |
+| `orchestrator.py` | per cycle: commit Attempts (`addresses`) → run whole recipe via BuildAgent → derive per-step `Attempt.outcome` from re-projected target status; refresh order (Planner→BuildAgent→Maintainer-last) | edit |
 
 Also: grep `src/` for hardcoded id literals (e.g. `planner.py:166`
 `"contract:goal:repo_tests_run"`) before the rename so the cut misses no ripple
@@ -370,6 +422,11 @@ site. Note the top goal renames `repo_tests_run` → `repo_tests_pass`.
 - **Integration:** `refresh_host_graph` end-to-end on fixtures (cv2/libGL,
   psycopg2/pg_config, redis); maintainer patch apply+validate; orchestrator one
   cycle with a stub LLM.
+- **Recipe execution (§9.4):** BuildAgent runs a multi-step recipe in order;
+  stop-and-report on an unrepairable step (later steps don't run, earlier
+  satisfied targets are still recorded); budget scales with step count; outcomes
+  derive from re-projected target status, including a `ok_but_still_blocked` case
+  (commands ran, target still violated).
 - **Regression guard:** the coverage scenario — assert the import sweep surfaces
   a missing dep that lazy formation alone would miss.
 
