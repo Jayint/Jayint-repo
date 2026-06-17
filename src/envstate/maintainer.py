@@ -536,8 +536,7 @@ def parse_v1_maintainer_reply(
         )
         if errors:
             if on_patch_error is not None:
-                for e in errors:
-                    on_patch_error(e)
+                on_patch_error(errors)
         else:
             new_graph = apply_patch(new_graph, patch)
 
