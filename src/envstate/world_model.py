@@ -134,6 +134,12 @@ class TaskReport:
     status: str             # "done" | "blocked"
     commands: tuple[CommandRecord, ...]
     learning: str           # one line: what was learned / why blocked
+    # Number of leading recipe steps whose command completed successfully before
+    # the run stopped.  Set by build_agent.run_recipe so the orchestrator can
+    # attribute per-step Attempt outcomes (BUG-10).  None on reports that do not
+    # come from a recipe run (back-compat: derive_attempt_outcome falls back to
+    # the recipe-level status flag).
+    completed_steps: int | None = None
 
 
 # ---------------------------------------------------------------------------

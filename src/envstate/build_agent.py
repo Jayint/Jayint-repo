@@ -670,6 +670,7 @@ class BuildAgent:
                 status="done",
                 commands=(),
                 learning="Empty recipe — nothing to execute",
+                completed_steps=0,
             )
 
         total_budget = recipe_budget(n_steps)
@@ -728,6 +729,7 @@ class BuildAgent:
                         status="done",
                         commands=tuple(all_commands),
                         learning=f"All {n_steps} recipe steps completed successfully",
+                        completed_steps=n_steps,
                     )
                 next_step = recipe.steps[current_step_idx]
                 messages = messages + [
@@ -756,6 +758,7 @@ class BuildAgent:
                             f"Recipe blocked at step {current_step_idx + 1}/{n_steps} "
                             f"(id={step.id}): LLM returned too many unparseable responses"
                         ),
+                        completed_steps=current_step_idx,
                     )
                 messages = messages + [
                     {"role": "assistant", "content": text},
@@ -804,6 +807,7 @@ class BuildAgent:
                         f"Recipe blocked at step {current_step_idx + 1}/{n_steps} "
                         f"(id={step.id}): stuck guard fired on '{action}'"
                     ),
+                    completed_steps=current_step_idx,
                 )
 
             step_history.append(record)
@@ -840,6 +844,7 @@ class BuildAgent:
             learning=(
                 f"Recipe ran out of total budget ({total_budget} actions for {n_steps} steps)"
             ),
+            completed_steps=current_step_idx,
         )
 
     # ------------------------------------------------------------------

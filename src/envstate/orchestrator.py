@@ -183,10 +183,26 @@ def run_v1(
                 current_map = apply_deterministic(current_map, probe(), manifest)
             _host_refresh()
 
-            # Derive per-Attempt outcome from the re-projected host_satisfied set.
-            step_failed: bool = report.status != "done"
+            # Derive each Attempt's outcome from its OWN step (BUG-10).  run_recipe
+            # reports how many leading steps completed successfully via
+            # report.completed_steps; outcomes must be attributed PER-STEP, not by
+            # a single recipe-level failure flag (which mislabeled successful
+            # install steps as 'failed' the instant any later step blocked).
+            completed = report.completed_steps
             updated_nodes: list = []
-            for attempt_id in attempt_ids:
+            for i, attempt_id in enumerate(attempt_ids):
+                if completed is None:
+                    # Older/fake reports without per-step counts: preserve the
+                    # original recipe-level behavior for every attempt.
+                    step_failed = report.status != "done"
+                elif i < completed:
+                    step_failed = False           # this step's command succeeded
+                elif i == completed and report.status != "done":
+                    step_failed = True            # the step that failed/blocked
+                else:
+                    # i > completed: this step never ran — leave its committed
+                    # 'pending' outcome untouched.
+                    continue
                 outcome = _derive_outcome(
                     current_map.contract_graph,
                     attempt_id,
