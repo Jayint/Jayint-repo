@@ -1,6 +1,7 @@
+from src.envstate.contracts.goals import evaluate_goal_readiness, GOAL_TESTS_RUN
 from src.envstate.contracts.graph import ContractGraph
 from src.envstate.contracts.nodes import Node
-from src.envstate.ledger import ActionLedger
+from src.envstate.ledger import ActionEvent, ActionLedger
 from src.envstate.orchestrator import run_v1
 from src.envstate.snapshot import EnvSnapshot
 from src.envstate.world_model import (
@@ -65,3 +66,112 @@ def test_advisory_done_confirmed_when_ready():
     )
     assert reason == "planner_done"
     assert final_map.done_flag is True
+
+
+# ---------------------------------------------------------------------------
+# Bug 2 regression tests
+# ---------------------------------------------------------------------------
+
+class _DoneMaintainer:
+    """Maintainer that unconditionally sets done_flag=True on update."""
+    def update(self, m, report):
+        return merge_map(m, done_flag=True)
+
+
+class _BuildAgentWithLedger:
+    """BuildAgent that appends a real pytest event to the ledger, then returns a report."""
+    def __init__(self, cmd: str, stdout: str, rc: int = 0):
+        self._cmd = cmd
+        self._stdout = stdout
+        self._rc = rc
+
+    def run(self, task, sandbox_execute, ledger, step_offset=0):
+        ledger.append(ActionEvent(
+            step=1, cmd=self._cmd, rc=self._rc,
+            stdout=self._stdout,
+            env_revision_before=0, env_revision_after=0,
+        ))
+        return TaskReport("run tests", "done",
+                          (CommandRecord(self._cmd, self._rc, self._stdout),), "")
+
+
+def test_maintainer_done_flag_marks_goal_satisfied():
+    """run_v1 with maintainer-driven done_flag → goal contract gets satisfied.
+
+    Before the fix, _host_refresh() ran BEFORE maintainer.update(), so done_flag
+    was still False during the refresh and the goal-satisfied event was never emitted.
+    After the fix a second _host_refresh() fires AFTER maintainer.update().
+    """
+    task = Task("run tests", "pytest passes", "tests", ())
+    planner = _Planner([PlannerDecision("task", task=task),
+                        PlannerDecision("giveup", reason="stop")])
+    ledger = ActionLedger()
+
+    final_map, reason = run_v1(
+        planner,
+        _BuildAgentWithLedger("python -m pytest -q", "5 passed in 0.1s"),
+        _DoneMaintainer(),
+        _initial(),
+        ledger,
+        sandbox_execute=lambda c: (True, "5 passed in 0.1s"),
+        max_cycles=2,
+        probe=lambda: EnvSnapshot(installed=(Fact("torch", "2.1.0"),)),
+        manifest=type("M", (), {"required": (Fact("torch", ""),), "build_system": "pip"})(),
+        exec_readonly=lambda c: (0, ""),
+        enable_contract_graph=True,
+    )
+
+    assert reason == "done_flag"
+    assert final_map.done_flag is True
+
+    g = final_map.contract_graph
+    ev = g.latest_status(GOAL_TESTS_RUN)
+    assert ev is not None, "Goal contract must have a status event after maintainer sets done_flag"
+    assert ev.status == "satisfied", f"Expected 'satisfied', got {ev.status!r}"
+    assert "cmd:001" in ev.evidence_ids, (
+        f"Evidence must point to the CommandExecution node; got {ev.evidence_ids!r}"
+    )
+    assert evaluate_goal_readiness(g) is True
+
+
+def test_collect_only_does_not_satisfy_goal():
+    """rc=0 with zero tests passed (or --collect-only output) must NOT satisfy the goal.
+
+    Hardening: projection._verified_test_command_id must require >=1 passed in
+    stdout, not merely rc=0, so that a pure collection run cannot gate-crash the
+    goal-satisfied event.
+    """
+    scenarios = [
+        # (cmd, stdout) — rc=0 in both cases, but no "N passed" evidence
+        ("python -m pytest -q", "collected 3 items\n"),
+        ("pytest --collect-only -q", "collected 5 items\n"),
+    ]
+    for cmd, stdout in scenarios:
+        task = Task("run tests", "pytest passes", "tests", ())
+        planner = _Planner([PlannerDecision("task", task=task),
+                            PlannerDecision("giveup", reason="stop")])
+        ledger = ActionLedger()
+
+        final_map, _ = run_v1(
+            planner,
+            _BuildAgentWithLedger(cmd, stdout),
+            _DoneMaintainer(),
+            _initial(),
+            ledger,
+            sandbox_execute=lambda c: (True, stdout),
+            max_cycles=2,
+            probe=lambda: EnvSnapshot(installed=(Fact("torch", "2.1.0"),)),
+            manifest=type("M", (), {"required": (Fact("torch", ""),), "build_system": "pip"})(),
+            exec_readonly=lambda c: (0, ""),
+            enable_contract_graph=True,
+        )
+
+        g = final_map.contract_graph
+        ev = g.latest_status(GOAL_TESTS_RUN)
+        assert ev is None or ev.status != "satisfied", (
+            f"Goal must NOT be satisfied for cmd={cmd!r}, stdout={stdout!r}; "
+            f"got status_event={ev!r}"
+        )
+        assert evaluate_goal_readiness(g) is False, (
+            f"evaluate_goal_readiness must be False for cmd={cmd!r}"
+        )

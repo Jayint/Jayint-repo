@@ -158,6 +158,14 @@ def run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_
         # ── 3. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
 
+        # ── 3b. Post-update graph refresh ────────────────────────────────────
+        # maintainer.update() may have just set done_flag=True.  Refresh the
+        # host graph NOW so refresh_host_graph sees done_flag=True and emits
+        # the goal-satisfied ContractStatusEvent.  The pre-update call at
+        # line 148 already created CommandExecution nodes; this call is
+        # idempotent on those nodes and only adds the goal-satisfaction event.
+        _host_refresh()
+
         # ── 4. Notify caller (optional telemetry hook) ───────────────────────
         if on_cycle is not None:
             on_cycle(cycle, current_map, decision, report)

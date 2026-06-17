@@ -159,9 +159,28 @@ def project_failures(events: Iterable[Any]) -> tuple[list[Node], list[Edge]]:
 
 
 def _verified_test_command_id(events: list[Any]) -> str | None:
-    """Latest rc-0 command that looks like a real test execution (for goal evidence)."""
+    """Latest rc-0 command that looks like a real test execution (for goal evidence).
+
+    Three conditions must all hold (aligned with maintainer._verified_test_run_passed):
+      1. rc == 0
+      2. "pytest" appears in the command string
+      3. "--collect-only" is NOT in the command
+      4. stdout shows >=1 passed (via _shows_execution) OR the pytest [100%] completion
+         marker (via _shows_pytest_completion) — blocks rc=0 runs that merely collected
+         tests or ran zero tests from satisfying the goal.
+    """
+    # Lazy import to avoid a circular-import chain at module load time.
+    from src.envstate.maintainer import _shows_execution, _shows_pytest_completion  # noqa: PLC0415
+
     for ev in reversed(events):
-        if ev.rc == 0 and "pytest" in ev.cmd and "--collect-only" not in ev.cmd:
+        if ev.rc != 0:
+            continue
+        if "pytest" not in ev.cmd:
+            continue
+        if "--collect-only" in ev.cmd:
+            continue
+        stdout = getattr(ev, "stdout", "") or ""
+        if _shows_execution(stdout) or _shows_pytest_completion(stdout):
             return ids.command_id(ev.step)
     return None
 

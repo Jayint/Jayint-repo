@@ -35,7 +35,10 @@ def test_builds_grounded_graph_and_is_idempotent():
 
 def test_done_flag_marks_goal_satisfied_when_deps_satisfied():
     m = _map_with(required=(Fact("torch", ""),), installed=(Fact("torch", "2.1.0"),), done=True)
-    led = _ledger([ActionEvent(step=9, cmd="python -m pytest -q", rc=0, env_revision_before=1, env_revision_after=1)])
+    # stdout must show >=1 passed so the hardened _verified_test_command_id accepts it
+    led = _ledger([ActionEvent(step=9, cmd="python -m pytest -q", rc=0,
+                               stdout="9 passed in 0.3s",
+                               env_revision_before=1, env_revision_after=1)])
     ex = lambda cmd: (0, "")
     m1 = refresh_host_graph(m, led, EnvSnapshot(), exec_readonly=ex, current_revision=1)
     assert evaluate_goal_readiness(m1.contract_graph) is True
