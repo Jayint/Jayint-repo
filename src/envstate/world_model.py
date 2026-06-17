@@ -15,6 +15,8 @@ import json
 import re
 from typing import Any
 
+from src.envstate.contracts.graph import ContractGraph
+
 
 # ---------------------------------------------------------------------------
 # Primitive facts
@@ -53,6 +55,7 @@ class WorldModelMap:
     notes: tuple[str, ...] = ()          # durable cautions the maintainer wants kept
     env: dict[str, str] = dataclasses.field(default_factory=dict)   # scalar probe facts
     system_installed: tuple[Fact, ...] = ()   # apt names + pkg-config modules + tools present
+    contract_graph: ContractGraph = dataclasses.field(default_factory=ContractGraph.empty)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +133,7 @@ def initial_map(
         progress={layer: False for layer in _PROGRESS_LAYERS},
         done_flag=False,
         notes=(),
+        contract_graph=ContractGraph.empty(),
     )
 
 
@@ -146,6 +150,7 @@ def merge_map(
     build_system: str | None = None,
     language: str | None = None,
     system_installed: tuple[Fact, ...] | None = None,
+    contract_graph: ContractGraph | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -164,6 +169,7 @@ def merge_map(
         build_system=build_system if build_system is not None else current.build_system,
         language=language if language is not None else current.language,
         system_installed=system_installed if system_installed is not None else current.system_installed,
+        contract_graph=contract_graph if contract_graph is not None else current.contract_graph,
     )
 
 
@@ -403,6 +409,7 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "notes": list(m.notes),
         "env": dict(m.env),
         "system_installed": [_fact_to_dict(f) for f in m.system_installed],
+        "contract_graph": m.contract_graph.to_dict(),
     }
 
 
@@ -427,4 +434,5 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         notes=tuple(d.get("notes", [])),
         env=dict(d.get("env", {})),
         system_installed=tuple(_fact_from_dict(f) for f in d.get("system_installed", [])),
+        contract_graph=ContractGraph.from_dict(d.get("contract_graph", {})),
     )
