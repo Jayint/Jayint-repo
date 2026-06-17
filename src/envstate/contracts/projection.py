@@ -13,14 +13,25 @@ from .validators import host_satisfied_set
 
 
 def _verified_test_command_id(events: list[Any]) -> Any | None:
-    """Return the step id of the latest rc=0 real pytest run (not collect-only).
+    """Return the step id of the latest rc=0 real test run (not collect-only).
+
+    Generalizes to non-pytest runners (unittest, nose2, etc.) by using the same
+    is_test_command() classifier as the authoritative done-gate
+    (maintainer._verified_test_run_passed).  The '--collect-only' exclusion and
+    the execution-evidence checks (_shows_execution / _shows_pytest_completion)
+    are kept intact to preserve honesty.
 
     Lazy import of maintainer helpers to avoid circular imports at module load.
     """
-    from src.envstate.maintainer import _shows_execution, _shows_pytest_completion  # noqa: PLC0415
+    from src.envstate.maintainer import (  # noqa: PLC0415
+        _get_detector,
+        _shows_execution,
+        _shows_pytest_completion,
+    )
 
+    detector = _get_detector()
     for ev in reversed(list(events)):
-        if ev.rc != 0 or "pytest" not in ev.cmd or "--collect-only" in ev.cmd:
+        if ev.rc != 0 or not detector.is_test_command(ev.cmd) or "--collect-only" in ev.cmd:
             continue
         out = getattr(ev, "stdout", "") or ""
         if _shows_execution(out) or _shows_pytest_completion(out):

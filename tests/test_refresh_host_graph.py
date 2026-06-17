@@ -44,3 +44,51 @@ def test_done_gate_does_not_satisfy_goal_on_collect_only():
     m = merge_map(_base(), done_flag=True)
     m = refresh_host_graph(m, led, snapshot=None, exec_readonly=None, current_revision=0)
     assert m.host_satisfied == frozenset() or GOAL_TESTS_PASS not in m.host_satisfied
+
+
+def test_done_gate_certifies_goal_on_non_pytest_runner():
+    """Non-pytest runners (python -m unittest) with 'Ran N tests' output MUST certify the goal.
+
+    This is the RED test for BUG-6: the old code used ``'pytest' not in ev.cmd`` which
+    silently rejected unittest/nose2 runs.  The fix replaces that substring check with
+    detector.is_test_command() — the same authoritative classifier used by
+    maintainer._verified_test_run_passed.
+    """
+    led = _ledger([ActionEvent(
+        step=1,
+        cmd="python -m unittest discover -s tests",
+        rc=0,
+        stdout=".....\nRan 5 tests in 0.050s\n\nOK",
+        env_revision_before=0,
+        env_revision_after=0,
+        mutation_class=None,
+    )])
+    m = merge_map(_base(), done_flag=True)
+    m = refresh_host_graph(m, led, snapshot=None, exec_readonly=None, current_revision=0)
+    assert GOAL_TESTS_PASS in m.host_satisfied, (
+        "GOAL_TESTS_PASS must be certified when a real unittest run ('Ran N tests') "
+        "is in the ledger and done_flag=True; is_test_command() must recognise "
+        "non-pytest runners"
+    )
+
+
+def test_done_gate_collect_only_still_rejected_after_bug6_fix():
+    """Honesty guard: --collect-only must still be rejected even after BUG-6 generalisation.
+
+    Ensures that widening the runner classifier does not accidentally allow a
+    pytest --collect-only run to certify the goal.
+    """
+    led = _ledger([ActionEvent(
+        step=1,
+        cmd="pytest --collect-only -q",
+        rc=0,
+        stdout="collected 10 items\n",
+        env_revision_before=0,
+        env_revision_after=0,
+        mutation_class=None,
+    )])
+    m = merge_map(_base(), done_flag=True)
+    m = refresh_host_graph(m, led, snapshot=None, exec_readonly=None, current_revision=0)
+    assert GOAL_TESTS_PASS not in m.host_satisfied, (
+        "collect-only run must NOT certify the goal even after BUG-6 fix"
+    )
