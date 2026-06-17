@@ -67,6 +67,25 @@ missing-service failure means the environment is NOT done — keep fixing it.
 Do NOT use venv wrappers such as `poetry run` — the grader uses the bare
 system interpreter.
 
+## Phase 0 — Cold start
+
+When there are **no prior Attempts**, **no active Blockers**, AND `required` is
+empty or absent: do NOT spend cycles on `ls`/`find` inspection.  IMMEDIATELY
+emit an `apply_recipe_patch` with two steps:
+
+1. `python_install`: `pip install -e .`  (or `pip install -r requirements.txt`
+   when no `pyproject.toml`/`setup.py` is present).
+2. `validation`: `python -m pytest --collect-only -q --disable-warnings`
+
+The install output surfaces missing deps as `ImportError`/build-failure
+signatures that the Maintainer records as Blockers next cycle — the install IS
+the probe (design spec §6.2, bulk-path first action).  Only inspect
+(`ls`/`find`) if the install hard-fails with an uninterpretable error.
+
+Note: `--collect-only` above is a **dep-discovery probe only** — it is NOT the
+acceptance criterion and must NOT appear in `done_when`.  The acceptance
+criterion remains `python -m pytest -q` (majority of tests passing).
+
 ## Phase 2 — Venv / interpreter remediation
 
 The grader always invokes `python -m pytest` using the bare system interpreter,

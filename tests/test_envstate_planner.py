@@ -115,7 +115,18 @@ class PlannerSystemPromptTests(unittest.TestCase):
         # The new objective uses a bare interpreter execution, not --collect-only.
         self.assertIn("python -m pytest", PLANNER_SYSTEM_PROMPT)
         # Must NOT instruct the model to use collect-only as the success target.
-        self.assertNotIn("--collect-only", PLANNER_SYSTEM_PROMPT)
+        # If --collect-only appears (e.g. as a cold-start dep-discovery probe), the
+        # prompt must explicitly label it as NOT the acceptance criterion.
+        if "--collect-only" in PLANNER_SYSTEM_PROMPT:
+            lower = PLANNER_SYSTEM_PROMPT.lower()
+            self.assertTrue(
+                "dep-discovery probe" in lower
+                or "not the acceptance criterion" in lower
+                or "probe only" in lower
+                or "not a success gate" in lower,
+                "--collect-only appears in the prompt but is not labelled as a probe "
+                "(not the acceptance criterion). It must not be used as the success target.",
+            )
 
     def test_prompt_mentions_all_layers(self):
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
@@ -846,7 +857,77 @@ class PlannerPromptMajorityPassGoalTests(unittest.TestCase):
         """done_when must remain a real pytest execution (not collect-only/proxy)."""
         from src.envstate.planner import PLANNER_SYSTEM_PROMPT
         self.assertIn("python -m pytest", PLANNER_SYSTEM_PROMPT)
-        self.assertNotIn("--collect-only", PLANNER_SYSTEM_PROMPT)
+        # If --collect-only appears it must be labelled as a probe only, not done_when.
+        # The prompt must explicitly state it is NOT the acceptance criterion.
+        if "--collect-only" in PLANNER_SYSTEM_PROMPT:
+            lower = PLANNER_SYSTEM_PROMPT.lower()
+            self.assertTrue(
+                "dep-discovery probe" in lower
+                or "not the acceptance criterion" in lower
+                or "probe only" in lower,
+                "--collect-only appears but is not explicitly labelled as a probe; "
+                "done_when must remain a real pytest execution, not collect-only.",
+            )
+
+
+# ---------------------------------------------------------------------------
+# 12. Phase 0 — Cold-start directive
+# ---------------------------------------------------------------------------
+
+class PlannerPromptColdStartTests(unittest.TestCase):
+    """Phase 0 (design spec §6.2): when there are no prior Attempts, no active
+    Blockers, and required is empty/absent, the prompt must direct the Planner
+    to immediately emit an apply_recipe_patch with a pip-install step followed
+    by a --collect-only probe — not spend cycles on ls/find inspection.
+    """
+
+    def test_prompt_contains_cold_start_label(self) -> None:
+        """PLANNER_SYSTEM_PROMPT must explicitly mention 'cold start'."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("cold start", PLANNER_SYSTEM_PROMPT.lower())
+
+    def test_prompt_cold_start_mentions_pip_install_editable(self) -> None:
+        """Cold-start directive must include 'pip install -e .' as the bulk install."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("pip install -e .", PLANNER_SYSTEM_PROMPT)
+
+    def test_prompt_cold_start_mentions_collect_only_probe(self) -> None:
+        """Cold-start directive must include '--collect-only' as dep-discovery probe."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        self.assertIn("--collect-only", PLANNER_SYSTEM_PROMPT)
+
+    def test_prompt_cold_start_probe_is_not_success_gate(self) -> None:
+        """The --collect-only step must be explicitly labelled as a probe, not the
+        acceptance criterion / done_when success gate."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "dep-discovery probe" in lower
+            or "not the acceptance criterion" in lower
+            or "probe only" in lower
+            or "not a success gate" in lower,
+            "--collect-only must be labelled as a probe, not the acceptance criterion",
+        )
+
+    def test_prompt_cold_start_no_ls_find_inspection(self) -> None:
+        """Cold-start directive must say NOT to spend cycles on ls/find inspection."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "ls" in lower and ("find" in lower or "inspect" in lower),
+            "Cold-start section must mention avoiding ls/find inspection",
+        )
+
+    def test_prompt_cold_start_mentions_requires_empty_condition(self) -> None:
+        """Cold-start applies when required is empty/absent — prompt must say so."""
+        from src.envstate.planner import PLANNER_SYSTEM_PROMPT
+        lower = PLANNER_SYSTEM_PROMPT.lower()
+        self.assertTrue(
+            "required" in lower and (
+                "empty" in lower or "absent" in lower
+            ),
+            "Cold-start section must mention the 'required is empty/absent' condition",
+        )
 
 
 if __name__ == "__main__":
