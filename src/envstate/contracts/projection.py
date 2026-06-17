@@ -10,7 +10,6 @@ from .extract import extract_blocker_subject, promote_atomic_contracts
 from .graph import ContractGraph
 from .patch import GraphPatch
 from .validators import host_satisfied_set
-from ..world_model import derive_open_problems, merge_map
 
 
 def _verified_test_command_id(events: list[Any]) -> Any | None:
@@ -103,6 +102,10 @@ def refresh_host_graph(
         for dep_id in depends_on_closure(graph, goals.GOAL_TESTS_PASS):
             host_satisfied.add(dep_id)
 
+    # Lazy import to break the circular: world_model imports contracts.graph
+    # (as a submodule), which triggers contracts/__init__.py, which eagerly loads
+    # projection.py — so world_model is only partially initialized at that point.
+    from ..world_model import derive_open_problems, merge_map  # noqa: PLC0415
     return merge_map(
         world_map,
         contract_graph=graph,
