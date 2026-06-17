@@ -6,93 +6,72 @@ import re
 
 
 class NodeType(enum.Enum):
-    REPO_ARTIFACT = "RepoArtifact"
-    REQUIREMENT = "Requirement"
     CONTRACT = "Contract"
-    CAPABILITY = "Capability"
-    FAILURE = "Failure"
-    TRANSITION = "Transition"
-    VALIDATOR = "Validator"
-    COMMAND_EXECUTION = "CommandExecution"
-    ENVIRONMENT_REVISION = "EnvironmentRevision"
-    VERIFICATION_TARGET = "VerificationTarget"
-    OPEN_PROBLEM = "OpenProblem"
+    BLOCKER = "Blocker"
+    ATTEMPT = "Attempt"
 
 
 class EdgeType(enum.Enum):
-    DECLARES = "declares"                  # RepoArtifact -> Requirement
-    IMPLIES_CONTRACT = "implies_contract"  # Requirement -> Contract
-    DEPENDS_ON = "depends_on"              # Contract -> Contract
-    VIOLATES = "violates"                  # Failure -> Contract
-    REPAIRED_BY = "repaired_by"            # Contract -> Transition
-    TARGETS = "targets"                    # Transition -> Contract|Failure|OpenProblem
-    VERIFIED_BY = "verified_by"            # Contract -> Validator
-    SATISFIED_BY = "satisfied_by"          # Contract -> Capability
-    BLOCKS = "blocks"                      # OpenProblem -> Contract
-    CREATES_REVISION = "creates_revision"  # CommandExecution -> EnvironmentRevision
-    OBSERVED_IN = "observed_in"            # Failure -> CommandExecution
-    EXECUTED_AS = "executed_as"            # Transition -> CommandExecution
+    VIOLATES = "violates"        # Blocker  -> Contract
+    ADDRESSES = "addresses"      # Attempt  -> Contract
+    DEPENDS_ON = "depends_on"    # Contract -> Contract
 
 
-class ContractStatus(enum.Enum):
-    UNKNOWN = "unknown"
-    VIOLATED = "violated"
-    REPAIR_ATTEMPTED = "repair_attempted"
+class ContractStatus(enum.Enum):           # projected, never stored
     SATISFIED = "satisfied"
-    INVALIDATED = "invalidated"
-
-
-class ValidationState(enum.Enum):
-    UNKNOWN = "validator_unknown"
-    CANDIDATE = "validator_candidate"
-    CONFIRMED = "validator_confirmed"
+    VIOLATED = "violated"
+    UNKNOWN = "unknown"
 
 
 class ContractLevel(enum.Enum):
-    ATOMIC = "atomic"
     GOAL = "goal"
+    ATOMIC = "atomic"
 
 
-_NT = NodeType
-# Closed edge set (spec §6). value -> (allowed source types, allowed target types).
+class BlockerKind(enum.Enum):
+    MODULE_NOT_FOUND = "module_not_found"
+    MISSING_BINARY = "missing_binary"
+    MISSING_SYSTEM_LIBRARY = "missing_system_library"
+    VERSION_CONFLICT = "version_conflict"
+    BUILD_FAILURE = "build_failure"
+    SERVICE_UNREACHABLE = "service_unreachable"
+    ENV_VAR_MISSING = "env_var_missing"
+    TEST_COLLECTION_FAILURE = "test_collection_failure"
+    UNKNOWN = "unknown"
+
+
+class AttemptKind(enum.Enum):
+    PYTHON_INSTALL = "python_install"
+    SYSTEM_INSTALL = "system_install"
+    ENV_CONFIG = "env_config"
+    SERVICE_START = "service_start"
+    BUILD_FIX = "build_fix"
+    VALIDATION = "validation"
+    TEST_RETRY = "test_retry"
+    INSPECT = "inspect"
+    OTHER = "other"
+
+
+class AttemptOutcome(enum.Enum):
+    PENDING = "pending"
+    OK = "ok"
+    FAILED = "failed"
+    OK_BUT_STILL_BLOCKED = "ok_but_still_blocked"
+
+
+LAYERS: frozenset[str] = frozenset({"deps", "system", "runtime", "build", "tests", "config"})
+
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
-    EdgeType.DECLARES.value: (frozenset({_NT.REPO_ARTIFACT.value}), frozenset({_NT.REQUIREMENT.value})),
-    EdgeType.IMPLIES_CONTRACT.value: (frozenset({_NT.REQUIREMENT.value}), frozenset({_NT.CONTRACT.value})),
-    EdgeType.DEPENDS_ON.value: (frozenset({_NT.CONTRACT.value}), frozenset({_NT.CONTRACT.value})),
-    EdgeType.VIOLATES.value: (frozenset({_NT.FAILURE.value}), frozenset({_NT.CONTRACT.value})),
-    EdgeType.REPAIRED_BY.value: (frozenset({_NT.CONTRACT.value}), frozenset({_NT.TRANSITION.value})),
-    EdgeType.TARGETS.value: (
-        frozenset({_NT.TRANSITION.value}),
-        frozenset({_NT.CONTRACT.value, _NT.FAILURE.value, _NT.OPEN_PROBLEM.value}),
-    ),
-    EdgeType.VERIFIED_BY.value: (frozenset({_NT.CONTRACT.value}), frozenset({_NT.VALIDATOR.value})),
-    EdgeType.SATISFIED_BY.value: (frozenset({_NT.CONTRACT.value}), frozenset({_NT.CAPABILITY.value})),
-    EdgeType.BLOCKS.value: (frozenset({_NT.OPEN_PROBLEM.value}), frozenset({_NT.CONTRACT.value})),
-    EdgeType.CREATES_REVISION.value: (
-        frozenset({_NT.COMMAND_EXECUTION.value}),
-        frozenset({_NT.ENVIRONMENT_REVISION.value}),
-    ),
-    EdgeType.OBSERVED_IN.value: (frozenset({_NT.FAILURE.value}), frozenset({_NT.COMMAND_EXECUTION.value})),
-    EdgeType.EXECUTED_AS.value: (frozenset({_NT.TRANSITION.value}), frozenset({_NT.COMMAND_EXECUTION.value})),
+    # edge value -> (allowed source types, allowed target types)
+    "violates":   (frozenset({"Blocker"}),  frozenset({"Contract"})),
+    "addresses":  (frozenset({"Attempt"}),  frozenset({"Contract"})),
+    "depends_on": (frozenset({"Contract"}), frozenset({"Contract"})),
 }
 
-# Locked decision 3: host owns factual nodes; Maintainer adds only semantic nodes.
-HOST_OWNED_NODE_TYPES: frozenset[str] = frozenset(
-    {
-        _NT.REPO_ARTIFACT.value,
-        _NT.REQUIREMENT.value,
-        _NT.CAPABILITY.value,
-        _NT.FAILURE.value,
-        _NT.OPEN_PROBLEM.value,
-        _NT.COMMAND_EXECUTION.value,
-        _NT.ENVIRONMENT_REVISION.value,
-        _NT.VERIFICATION_TARGET.value,
-    }
-)
-MAINTAINER_NODE_TYPES: frozenset[str] = frozenset(
-    {_NT.CONTRACT.value, _NT.TRANSITION.value, _NT.VALIDATOR.value}
-)
-
+# Field-level ownership (replaces the old binary node partition):
+HOST_CREATABLE_NODE_TYPES: frozenset[str] = frozenset({"Contract", "Attempt"})
+MAINTAINER_CREATABLE_NODE_TYPES: frozenset[str] = frozenset({"Contract", "Blocker"})
+MAINTAINER_FORBIDDEN_FIELDS: frozenset[str] = frozenset({"status", "outcome", "active"})
 VALID_NODE_TYPES: frozenset[str] = frozenset(nt.value for nt in NodeType)
 VALID_EDGE_TYPES: frozenset[str] = frozenset(et.value for et in EdgeType)
 VALID_STATUSES: frozenset[str] = frozenset(s.value for s in ContractStatus)
