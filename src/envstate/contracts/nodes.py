@@ -22,15 +22,6 @@ class Edge:
     invalidated: bool = False
 
 
-@dataclasses.dataclass(frozen=True)
-class ContractStatusEvent:
-    contract_id: str
-    status: str  # ContractStatus value
-    revision_id: str
-    evidence_ids: tuple[str, ...] = ()
-    summary: str = ""
-
-
 def node_to_dict(n: Node) -> dict[str, Any]:
     out: dict[str, Any] = {"id": n.id, "type": n.type}
     out.update(dict(n.data))  # flatten data fields to top level (spec §5 shape)
@@ -65,21 +56,3 @@ def edge_from_dict(d: dict[str, Any]) -> Edge:
     )
 
 
-def event_to_dict(ev: ContractStatusEvent) -> dict[str, Any]:
-    return {
-        "contract_id": ev.contract_id,
-        "status": ev.status,
-        "revision_id": ev.revision_id,
-        "evidence_ids": list(ev.evidence_ids),
-        "summary": ev.summary,
-    }
-
-
-def event_from_dict(d: dict[str, Any]) -> ContractStatusEvent:
-    return ContractStatusEvent(
-        contract_id=str(d["contract_id"]),
-        status=str(d["status"]),
-        revision_id=str(d.get("revision_id", "")),
-        evidence_ids=tuple(str(x) for x in d.get("evidence_ids", [])),
-        summary=str(d.get("summary", "")),
-    )
