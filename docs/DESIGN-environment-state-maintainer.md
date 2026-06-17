@@ -294,3 +294,19 @@ Not "we added a diagnose tool + verifier + graph + memory" (four ablations, no s
 ---
 
 *Provenance: synthesized from a multi-session analysis of RAT (RunAnyThing), RepoLaunch, and DockerAgent, plus an external Codex code review that verified the §7 hooks and surfaced the §9 riskiest-assumption and the recipe-compiler must-fix.*
+
+---
+
+## 13. Contract Graph V1 (additive, opt-in)
+
+The v1 three-role system (Planner / BuildAgent / Maintainer) acquired a parallel **contract graph** reasoning layer in June 2026, implemented as `src/envstate/contracts/`. It is strictly additive: the existing `done_flag` gate, the `_resolve_v1_verified_test_run` final authority, and arms A0/A1 are bit-for-bit unchanged.
+
+**What it is:** a typed, JSON-serializable graph (`Node` / `Edge` / `ContractStatusEvent`) that rides inside `WorldModelMap.contract_graph`. The host projects facts it already owns (probe results, ledger events, manifests, `open_problems`) into grounded nodes; the Maintainer LLM contributes only semantic nodes (`Contract`, `Validator`, edges) via a validated patch. The Planner sees a `## Contract Graph` section each cycle and may emit `target_node_ids` + a `transition_proposal` alongside its task, as well as an advisory `done` that the host gate must confirm before stopping.
+
+**Why it does not violate this doc's safety invariant:** `satisfied` status events require a passing `CommandExecution` node as evidence (validated host-side before application). The Maintainer patch is validated with `validate_patch(scope="maintainer")` — on any violation the patch is silently dropped and the flat fields still apply. The only path to a `satisfied` goal contract is a passing pytest run observed by the host, exactly as before.
+
+**Entrypoint:** select `--arm v1g` in `run_repo2run_benchmark.py` or `run_rat_benchmark.py` (or set `DOCKERAGENT_ENABLE_CONTRACT_GRAPH=1`). Telemetry is written to `setup_logs/contract_graph.jsonl`.
+
+**Full design and per-cycle ordering:** see `docs/DESIGN-contract-graph-v1.md`.
+
+**Implementation:** `src/envstate/contracts/` subpackage (12 modules: `schema`, `nodes`, `graph`, `ids`, `patch`, `validation`, `apply`, `projection`, `goals`, `validators`, `render`, `__init__`). Tests: `tests/test_contracts_*.py`.
