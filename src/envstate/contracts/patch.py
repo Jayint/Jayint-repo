@@ -27,7 +27,7 @@ class GraphPatch:
                     or self.update_contracts or self.update_attempts or self.invalidate_nodes)
 
 
-def _nodes(v: Any, ntype: str) -> tuple[Node, ...]:
+def _nodes(v: Any) -> tuple[Node, ...]:
     return tuple(node_from_dict(x) for x in v if isinstance(x, dict)) if isinstance(v, list) else ()
 
 
@@ -39,8 +39,8 @@ def parse_graph_patch(d: Any) -> GraphPatch:
     if not isinstance(d, dict):
         return GraphPatch()
     return GraphPatch(
-        add_contracts=_nodes(d.get("add_contracts"), "Contract"),
-        add_blockers=_nodes(d.get("add_blockers"), "Blocker"),
+        add_contracts=_nodes(d.get("add_contracts")),
+        add_blockers=_nodes(d.get("add_blockers")),
         add_edges=tuple(edge_from_dict(x) for x in d.get("add_edges", []) if isinstance(x, dict))
                   if isinstance(d.get("add_edges"), list) else (),
         update_blocker_classification=_dicts(d.get("update_blocker_classification")),
