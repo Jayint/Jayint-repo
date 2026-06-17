@@ -22,6 +22,8 @@ from src.envstate.llm_response import complete_with_retry
 from src.envstate.world_model import (
     OpenProblem,
     PlannerDecision,
+    RecipePatch,
+    RecipeStep,
     Task,
     WorldModelMap,
 )
@@ -127,17 +129,43 @@ tolerated) — not a weaker proxy such as:
 
 ## Contract Graph (when present)
 
-When a `## Contract Graph` section appears, it lists explicit obligations with stable node IDs:
-- `Contract` nodes are obligations the environment must satisfy (status: unknown/violated/repair_attempted/satisfied).
-- `Failure` and `open_problems` nodes are observed blockers.
-- `goal_ready` is true only when every required goal contract and its dependencies are satisfied.
+When a `## Repair Map` and `## Repair Frontier` appear, they contain the contract graph rendered
+in three sections:
 
-Localize your next action against a violated contract, failure, or open problem, and CITE the node IDs you target.
+- **Repair Map / Required Goals**: goal contracts with their projected status (satisfied / violated / unknown).
+  Each violated goal lists the active blockers that violate it, tagged root or downstream.
+- **Repair Map / Active Blockers (root-first)**: all active blockers, most fundamental first.
+- **Repair Map / Recent Attempts**: prior repair steps with their outcomes (pending/ok/failed/ok_but_still_blocked).
+- **Repair Frontier / Unsatisfied Contracts by Layer**: contracts not yet satisfied, grouped by stack layer.
+- **Repair Frontier / Root Blockers**: root-level blockers that directly block unsatisfied contracts.
+
+Use the node IDs (contract:..., blocker:..., attempt:...) to anchor every step you propose.
+Every step in a `recipe_patch` MUST target at least one node ID (ungrounded steps are rejected).
 
 ## Output
 Emit exactly one JSON object inside a ```json fenced block — nothing else.
 
-To do work (repair or explore), targeting at least one graph node when a graph is present:
+**Primary work action** — a recipe (sequence of grounded steps):
+
+```json
+{
+  "action": "apply_recipe_patch",
+  "recipe_patch": {
+    "steps": [
+      {
+        "id": "s1",
+        "kind": "<python_install | system_install | env_config | service_start | build_fix | validation | test_retry | inspect | other>",
+        "command": "<the concrete shell command>",
+        "target_node_ids": ["<contract:... | blocker:... this step addresses — REQUIRED, non-empty>"]
+      }
+    ]
+  }
+}
+```
+
+Each step MUST have a non-empty `target_node_ids` list. A step without targets is rejected.
+
+Legacy work action (still accepted for back-compat):
 
 ```json
 {
@@ -146,7 +174,7 @@ To do work (repair or explore), targeting at least one graph node when a graph i
   "done_when": "<a bare python -m pytest -q execution: suite runs, majority of tests pass>",
   "layer": "<base | system | runtime | deps | build | tests>",
   "facts": ["<the map/graph evidence that justifies this task>"],
-  "target_node_ids": ["<contract:... | failure:... | openproblem:... this task addresses>"],
+  "target_node_ids": ["<contract:... | blocker:... this task addresses>"],
   "transition_proposal": {
     "kind": "<install_python_package | install_system_package | inspect_repo | run_command | ...>",
     "target": "<subject, e.g. torch or package_manager>",
@@ -243,7 +271,7 @@ def render_planning_view(
 
     if world_map.contract_graph.active_nodes():
         lines.append("")
-        lines.append(render_graph_for_planner(world_map.contract_graph))
+        lines.append(render_graph_for_planner(world_map.contract_graph, world_map.host_satisfied))
 
     lines.append("")
     lines.append(f"## budget\n  cycles_remaining: {budget.get('cycles_remaining')}")
@@ -257,7 +285,7 @@ def render_planning_view(
 # The Planner may only emit `task` or `giveup`. There is no self-declared
 # `done`: the structural done_flag (a real `python -m pytest -q` with >=1 passed)
 # is the sole success stop, which closes the unverified-exit leak.
-_VALID_ACTIONS = frozenset({"task", "giveup", "done"})
+_VALID_ACTIONS = frozenset({"task", "giveup", "done", "apply_recipe_patch"})
 
 
 def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
@@ -312,6 +340,25 @@ def parse_planner_decision(text: Optional[str]) -> Optional[PlannerDecision]:
             return None  # a bare 'done' with no cited goal contracts is invalid
         return PlannerDecision(action="done", reason=obj.get("rationale", reason),
                                satisfied_goal_contract_ids=goal_ids)
+
+    if action == "apply_recipe_patch":
+        raw_patch = obj.get("recipe_patch") or {}
+        raw_steps = raw_patch.get("steps") or [] if isinstance(raw_patch, dict) else []
+        steps: list[RecipeStep] = []
+        for raw_step in raw_steps:
+            if not isinstance(raw_step, dict):
+                return None
+            step_ids = raw_step.get("target_node_ids") or []
+            if not step_ids:
+                return None  # ungrounded step — reject the whole patch
+            steps.append(RecipeStep(
+                id=str(raw_step.get("id", "")),
+                kind=str(raw_step.get("kind", "")),
+                command=str(raw_step.get("command", "")),
+                target_node_ids=tuple(str(t) for t in step_ids),
+            ))
+        patch = RecipePatch(steps=tuple(steps))
+        return PlannerDecision(action="apply_recipe_patch", recipe_patch=patch, reason=reason)
 
     return PlannerDecision(action="giveup", task=None, reason=reason)
 
