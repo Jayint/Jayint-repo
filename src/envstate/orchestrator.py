@@ -11,19 +11,22 @@ for Arms A/B/C back-compat.
 """
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Callable, Tuple
 
-from src.envstate.contracts import ids as _cids
+from src.envstate.contracts import attempts as _attempts
 from src.envstate.contracts.apply import apply_patch as _apply_patch
-from src.envstate.contracts.goals import evaluate_goal_readiness as _graph_ready
+from src.envstate.contracts.graph import goal_ready as _graph_ready
+from src.envstate.contracts.patch import GraphPatch
 from src.envstate.contracts.projection import refresh_host_graph as _refresh_graph
-from src.envstate.contracts.transitions import commit_transition_patch, executed_as_patch
 from src.envstate.contracts.validation import validate_patch as _validate_patch
+from src.envstate.contracts.validators import derive_attempt_outcome as _derive_outcome
 from src.envstate.ledger import ActionLedger, make_action_event as _make_event
 from src.envstate.maintainer import _verified_test_run_passed as _gate_passed
 from src.envstate.world_model import (
     CommandRecord,
     PlannerDecision,
+    RecipePatch,
     TaskReport,
     WorldModelMap,
     apply_deterministic,
@@ -45,9 +48,22 @@ COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
 VERIFY_TEST_CMD: str = "python -m pytest -q"
 
 
-def run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_execute,
-           max_cycles=MAX_CYCLES, local_budget=LOCAL_BUDGET, on_cycle=None, *,
-           probe=None, manifest=None, exec_readonly=None, enable_contract_graph=False):
+def run_v1(
+    planner,
+    build_agent,
+    maintainer,
+    initial_world_map: WorldModelMap,
+    ledger: ActionLedger,
+    sandbox_execute: Executor,
+    max_cycles: int = MAX_CYCLES,
+    local_budget: int = LOCAL_BUDGET,
+    on_cycle=None,
+    *,
+    probe=None,
+    manifest=None,
+    exec_readonly=None,
+    enable_contract_graph: bool = False,
+):
     """Top-level v1 orchestrator loop.
 
     Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
@@ -62,24 +78,27 @@ def run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_
 
     New optional kwargs (both default off — every existing test and the A1 arm
     are byte-for-byte unchanged):
-      exec_readonly     — callable(cmd) -> (rc: int, out: str) for read-only probes
+      exec_readonly         — callable(cmd) -> (rc: int, out: str) for read-only probes
       enable_contract_graph — when True, runs the per-cycle host graph refresh and
                               enforces the advisory-done readiness gate (Phase 5).
     """
     current_map: WorldModelMap = initial_world_map
+    # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
+    global_step: int = 0
 
-    def _current_revision():
+    def _current_revision() -> int:
         evs = ledger.events()
         return evs[-1].env_revision_after if evs else 0
 
-    def _host_refresh():
+    def _host_refresh() -> None:
         nonlocal current_map
         if not enable_contract_graph:
             return
         from src.envstate.snapshot import EnvSnapshot
         snap = probe() if probe is not None else EnvSnapshot()
-        current_map = _refresh_graph(current_map, ledger, snap,
-                                     exec_readonly, _current_revision())
+        current_map = _refresh_graph(
+            current_map, ledger, snap, exec_readonly, _current_revision()
+        )
 
     if probe is not None and manifest is not None:
         current_map = apply_deterministic(current_map, probe(), manifest)
@@ -109,7 +128,9 @@ def run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_
             done = current_map.done_flag or _gate_passed(verify_report)
             current_map = merge_map(current_map, done_flag=done)
             _host_refresh()  # marks goal satisfied when done + deps satisfied
-            ready = (not enable_contract_graph) or _graph_ready(current_map.contract_graph)
+            ready = (not enable_contract_graph) or _graph_ready(
+                current_map.contract_graph, current_map.host_satisfied
+            )
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, verify_report)
             if current_map.done_flag and ready:
@@ -121,56 +142,120 @@ def run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_
                 on_cycle(cycle, current_map, decision, None)
             return current_map, "planner_giveup"
 
-        # ── 2. BuildAgent executes the task ──────────────────────────────────
+        # ── 2. Recipe patch branch (contract-graph arm only) ─────────────────
+        if enable_contract_graph and decision.action == "apply_recipe_patch":
+            recipe: RecipePatch | None = decision.recipe_patch
+            if recipe is None or not recipe.steps:
+                # Empty recipe — nothing to execute; let maintainer decide.
+                empty_report = TaskReport("recipe", "done", (), "empty recipe")
+                current_map = maintainer.update(current_map, empty_report)
+                _host_refresh()
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, empty_report)
+                if current_map.done_flag:
+                    return current_map, "done_flag"
+                continue
+
+            # Commit one Attempt node per step BEFORE execution.
+            attempt_ids: list[str] = []
+            graph = current_map.contract_graph
+            for step in recipe.steps:
+                attempt_patch = _attempts.commit_attempt(graph, step, proposed_by="planner")
+                errs = _validate_patch(graph, attempt_patch, scope="host")
+                if not errs:
+                    graph = _apply_patch(graph, attempt_patch)
+                # Derive the attempt id from the step (mirrors attempt_node logic).
+                node = _attempts.attempt_node(step, "planner")
+                attempt_ids.append(node.id)
+            current_map = merge_map(current_map, contract_graph=graph)
+
+            # Execute the whole recipe as a single unified run.
+            report: TaskReport = build_agent.run_recipe(
+                recipe,
+                sandbox_execute,
+                ledger,
+                step_offset=global_step,
+            )
+            global_step += len(report.commands)
+
+            # Host refresh ONCE after the recipe (before the maintainer).
+            if probe is not None and manifest is not None:
+                current_map = apply_deterministic(current_map, probe(), manifest)
+            _host_refresh()
+
+            # Derive per-Attempt outcome from the re-projected host_satisfied set.
+            step_failed: bool = report.status != "done"
+            updated_nodes: list = []
+            for attempt_id in attempt_ids:
+                outcome = _derive_outcome(
+                    current_map.contract_graph,
+                    attempt_id,
+                    current_map.host_satisfied,
+                    step_failed,
+                )
+                node = current_map.contract_graph.node(attempt_id)
+                if node is not None:
+                    new_data = {**node.data, "outcome": outcome}
+                    updated_nodes.append(dataclasses.replace(node, data=new_data))
+
+            # Write outcomes back to the graph via a host update_attempts patch.
+            if updated_nodes:
+                outcomes_patch = GraphPatch(update_attempts=tuple(updated_nodes))
+                current_map = merge_map(
+                    current_map,
+                    contract_graph=_apply_patch(current_map.contract_graph, outcomes_patch),
+                )
+
+            # ── 3. Maintainer updates the world model ─────────────────────
+            current_map = maintainer.update(current_map, report)
+
+            # ── 3b. Post-update graph refresh ─────────────────────────────
+            _host_refresh()
+
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, report)
+
+            # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
+            if current_map.done_flag:
+                return current_map, "done_flag"
+
+            continue
+
+        # ── 3. Legacy build-agent flow (action == "task") ────────────────────
         assert decision.task is not None, (
             f"PlannerDecision action='task' but .task is None (cycle {cycle})"
         )
         task = decision.task
 
-        # commit the planner's transition into the graph before execution
-        if enable_contract_graph and task.transition_proposal is not None:
-            patch = commit_transition_patch(current_map.contract_graph, task.transition_proposal, task.target_node_ids)
-            if not patch.is_empty() and not _validate_patch(current_map.contract_graph, patch, scope="host"):
-                current_map = merge_map(current_map, contract_graph=_apply_patch(current_map.contract_graph, patch))
-
-        len_before = len(ledger.events())
-        report: TaskReport = build_agent.run(
+        report = build_agent.run(
             task,
             sandbox_execute,
             ledger,
-            step_offset=(cycle - 1) * local_budget,
+            step_offset=global_step,
         )
-        new_steps = [ev.step for ev in ledger.events()[len_before:]]
+        global_step += len(report.commands)
 
-        # ── 2b. Deterministic facts (read-only probe, OFF the ledger) ─────────
+        # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
         if probe is not None and manifest is not None:
             current_map = apply_deterministic(current_map, probe(), manifest)
-        _host_refresh()  # creates CommandExecution nodes for the new commands
+        _host_refresh()  # refresh graph after commands
 
-        # link the committed transition to the commands it produced
-        if enable_contract_graph and task.transition_proposal is not None and new_steps:
-            tid = _cids.transition_id(task.transition_proposal.kind,
-                                      _cids.slug(task.transition_proposal.target) or task.transition_proposal.target)
-            ep = executed_as_patch(current_map.contract_graph, tid, new_steps)
-            if not ep.is_empty() and not _validate_patch(current_map.contract_graph, ep, scope="host"):
-                current_map = merge_map(current_map, contract_graph=_apply_patch(current_map.contract_graph, ep))
-
-        # ── 3. Maintainer updates the world model ────────────────────────────
+        # ── 4. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
 
-        # ── 3b. Post-update graph refresh ────────────────────────────────────
+        # ── 4b. Post-update graph refresh ────────────────────────────────────
         # maintainer.update() may have just set done_flag=True.  Refresh the
         # host graph NOW so refresh_host_graph sees done_flag=True and emits
-        # the goal-satisfied ContractStatusEvent.  The pre-update call at
-        # line 148 already created CommandExecution nodes; this call is
-        # idempotent on those nodes and only adds the goal-satisfaction event.
+        # the goal-satisfied ContractStatusEvent.  The pre-update call above
+        # already created CommandExecution nodes; this call is idempotent on
+        # those nodes and only adds the goal-satisfaction event.
         _host_refresh()
 
-        # ── 4. Notify caller (optional telemetry hook) ───────────────────────
+        # ── 5. Notify caller (optional telemetry hook) ───────────────────────
         if on_cycle is not None:
             on_cycle(cycle, current_map, decision, report)
 
-        # ── 5. Hard-stop on done_flag — do NOT re-enter planner ──────────────
+        # ── 6. Hard-stop on done_flag — do NOT re-enter planner ──────────────
         if current_map.done_flag:
             return current_map, "done_flag"
 
