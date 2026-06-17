@@ -15,6 +15,7 @@ from src.envstate.world_model import Fact
 
 _SNAPSHOT_FIELDS = LIGHTWEIGHT_FIELDS + (
     "which_python", "venv", "dpkg_packages", "pkg_config_modules", "system_tools", "os_release",
+    "dep_tree",
 )
 
 
@@ -22,7 +23,9 @@ _SNAPSHOT_FIELDS = LIGHTWEIGHT_FIELDS + (
 class EnvSnapshot:
     installed: tuple[Fact, ...] = ()
     env: dict[str, str] = field(default_factory=dict)
-    system_installed: tuple[Fact, ...] = ()   # NEW
+    system_installed: tuple[Fact, ...] = ()
+    import_results: tuple[tuple[str, bool], ...] = ()   # (import_name, ok); set by import sweep, not extractor
+    dep_tree: str = ""                                   # raw output of `python -m pip inspect`
 
 
 def _parse_installed(freeze_text: str) -> tuple[Fact, ...]:
@@ -67,9 +70,12 @@ def probe_env(exec_readonly: Callable[[str], tuple[int, str]]) -> EnvSnapshot:
     for name in tools:
         sys_facts.append(Fact(name=name, detail="tool"))
 
+    dep_tree = fields.get("dep_tree", "")
+
     # env: keep ONLY compact, prompt-friendly scalars; drop bulky list fields
-    bulky = {"installed_pip", "dpkg_packages", "pkg_config_modules", "system_tools"}
+    bulky = {"installed_pip", "dpkg_packages", "pkg_config_modules", "system_tools", "dep_tree"}
     env = {k: v for k, v in fields.items() if k not in bulky}
     if tools:
         env["build_tools"] = ",".join(tools)
-    return EnvSnapshot(installed=installed, env=env, system_installed=tuple(sys_facts))
+    return EnvSnapshot(installed=installed, env=env, system_installed=tuple(sys_facts),
+                       dep_tree=dep_tree)

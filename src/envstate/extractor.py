@@ -31,6 +31,7 @@ EXTRACTOR_COMMANDS: Dict[str, str] = {
         "for t in " + " ".join(SYSTEM_TOOL_PROBES) +
         "; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done; true"
     ),
+    "dep_tree": "python -m pip inspect 2>/dev/null || true",
 }
 
 # Cheap subset re-run after every env mutation (design §12 run schedule).
