@@ -1190,3 +1190,102 @@ class TestTruncateOutput(unittest.TestCase):
             _shows_execution(result),
             "_shows_execution must return True for ANSI-wrapped tail summary",
         )
+
+
+# ---------------------------------------------------------------------------
+# Fix — LLM observation parity: the build agent must feed the LLM the SAME
+# head+tail truncation it stores in the CommandRecord (_truncate_output),
+# not a head-only output[:1500] that drops the '=== N passed ===' tail line
+# the model needs to decide the step succeeded.
+# ---------------------------------------------------------------------------
+
+_HEAD_MARKER = "HEAD_TRACEBACK_MARKER_q9"
+_TAIL_MARKER = "=== 544 passed in 12.3s ==="
+
+
+def _long_output_with_head_and_tail() -> str:
+    """A >_OUTPUT_LIMIT output whose head differs from its tail, so head-only
+    truncation (output[:1500]) provably drops the tail summary line."""
+    filler = "\n".join(f"line {i} of noisy pytest collection output" for i in range(120))
+    out = f"{_HEAD_MARKER}\n{filler}\n{_TAIL_MARKER}"
+    assert len(out) > 2300, "fixture must exceed _OUTPUT_LIMIT to exercise truncation"
+    assert _TAIL_MARKER not in out[:1500], "tail must be past the head-only cutoff"
+    return out
+
+
+def _capturing_client(scripted):
+    """Fake client that records every `messages` list it is sent and replays
+    `scripted` content strings in order."""
+    captured: list = []
+    seq = list(scripted)
+
+    def fake_create(**kwargs):
+        captured.append(kwargs["messages"])
+        return _fake_response(seq.pop(0))
+
+    class _FakeCompletions:
+        def create(self, **kwargs):
+            return fake_create(**kwargs)
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    return _FakeClient(), captured
+
+
+def _observation_messages(captured) -> list:
+    """All user messages whose content is an Observation, across every captured call."""
+    obs = []
+    for messages in captured:
+        for m in messages:
+            if m["role"] == "user" and m["content"].lstrip().startswith("Observation:"):
+                obs.append(m["content"])
+    return obs
+
+
+class TestLLMObservationHeadAndTail(unittest.TestCase):
+    """The Observation fed back to the LLM must preserve BOTH head and tail of a
+    long command output (parity with the stored CommandRecord)."""
+
+    def test_run_feeds_head_and_tail_to_llm(self):
+        client, captured = _capturing_client(
+            ["Thought: run tests\nAction: pytest -q",
+             "Thought: passed\nFinal Answer: Success"]
+        )
+        long_out = _long_output_with_head_and_tail()
+        agent = _make_agent(client)
+        agent.run(_make_task(), lambda cmd: (True, long_out), _make_ledger())
+
+        obs = _observation_messages(captured)
+        self.assertTrue(obs, "expected at least one Observation message to the LLM")
+        joined = "\n".join(obs)
+        self.assertIn(_HEAD_MARKER, joined, "head of the output must reach the LLM")
+        self.assertIn(
+            _TAIL_MARKER, joined,
+            "tail pass-summary must reach the LLM (head-only output[:1500] drops it)",
+        )
+
+    def test_run_recipe_feeds_head_and_tail_to_llm(self):
+        from src.envstate.world_model import RecipePatch, RecipeStep
+        client, captured = _capturing_client(
+            ["Thought: run tests\nAction: pytest -q",
+             "Thought: passed\nFinal Answer: Success"]
+        )
+        long_out = _long_output_with_head_and_tail()
+        recipe = RecipePatch(steps=(
+            RecipeStep("s1", "validation", "pytest -q", ("contract:x",)),
+        ))
+        agent = _make_agent(client)
+        agent.run_recipe(recipe, lambda cmd: (True, long_out), _make_ledger())
+
+        obs = _observation_messages(captured)
+        self.assertTrue(obs, "expected at least one Observation message to the LLM")
+        joined = "\n".join(obs)
+        self.assertIn(_HEAD_MARKER, joined, "head of the output must reach the LLM")
+        self.assertIn(
+            _TAIL_MARKER, joined,
+            "tail pass-summary must reach the LLM (head-only output[:1500] drops it)",
+        )

@@ -613,7 +613,7 @@ class BuildAgent:
                 {"role": "assistant", "content": text},
                 {
                     "role": "user",
-                    "content": f"Observation: [{observation_prefix}]\n{output[:1500]}",
+                    "content": f"Observation: [{observation_prefix}]\n{_truncate_output(output)}",
                 },
             ]
 
@@ -832,7 +832,7 @@ class BuildAgent:
                 {"role": "assistant", "content": text},
                 {
                     "role": "user",
-                    "content": f"Observation: [{observation_prefix}]\n{output[:1500]}",
+                    "content": f"Observation: [{observation_prefix}]\n{_truncate_output(output)}",
                 },
             ]
 
