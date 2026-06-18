@@ -3,13 +3,54 @@ from __future__ import annotations
 
 from typing import Any
 
-from .graph import ContractGraph, frontier_by_layer, project_status, root_blockers
+from .graph import (
+    ContractGraph,
+    attempts_for_contract,
+    find_next_target_contracts,
+    frontier_by_layer,
+    project_status,
+    root_blockers,
+)
 from .nodes import edge_to_dict, node_to_dict
 
 
 def render_graph_for_planner(graph: ContractGraph, host_satisfied: frozenset[str]) -> str:
-    """Render three-section markdown for the planner: Repair Map + Repair Frontier."""
+    """Render planner markdown: Next Target + Repair Map + Repair Frontier + Recent Diagnoses."""
     lines: list[str] = []
+
+    # --- Next Target (advisory: the planner chooses; the host owns truth) ---
+    # The lowest actionable obligations on each required goal's path, annotated
+    # with why they're unmet and whether they've already been (in)effectively
+    # attempted — so the planner targets the root and avoids repeating fixes.
+    next_targets: list[str] = []
+    for goal in graph.required_goal_contracts():
+        for cid in find_next_target_contracts(graph, goal.id, host_satisfied):
+            if cid not in next_targets:
+                next_targets.append(cid)
+    if next_targets:
+        lines.append("## Next Target (advisory — lowest actionable obligations; you choose)")
+        for cid in next_targets[:5]:
+            node = graph.node(cid)
+            status = project_status(graph, cid, host_satisfied)
+            subject = (node.data.get("subject") if node else "") or ""
+            lines.append(f"  - {cid} [{status}]" + (f" — {subject}" if subject else ""))
+            if status == "violated":
+                for e in graph.in_edges(cid, "violates"):
+                    b = graph.node(e.source)
+                    if b is not None and not b.invalidated and bool(b.data.get("active", True)):
+                        lines.append(f"      violated by {b.id}: {b.data.get('summary', '')}")
+            else:
+                lines.append("      no diagnosed blocker yet — unmet, prerequisites satisfied")
+            atts = attempts_for_contract(graph, cid)
+            if not atts:
+                lines.append("      tried: none (untried)")
+            else:
+                last = atts[-1].data.get("outcome", "pending")
+                hint = {
+                    "ok_but_still_blocked": " — prior repair ran clean but did NOT resolve it; try a different fix",
+                    "failed": " — prior repair failed; try a different approach",
+                }.get(last, "")
+                lines.append(f"      tried: {len(atts)} attempt(s); last outcome {last}{hint}")
 
     # --- Repair Map ---
     lines.append("## Repair Map")

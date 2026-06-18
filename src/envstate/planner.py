@@ -148,9 +148,16 @@ tolerated) — not a weaker proxy such as:
 
 ## Contract Graph (when present)
 
-When a `## Repair Map`, `## Repair Frontier`, and `## Recent Diagnoses` appear, they contain the
-contract graph rendered as:
+When a `## Next Target`, `## Repair Map`, `## Repair Frontier`, and `## Recent Diagnoses` appear,
+they contain the contract graph rendered as:
 
+- **Next Target** (advisory): the lowest actionable obligations on the required goal path — each is
+  unmet with its prerequisites already satisfied, so it can be repaired now. Each line shows the
+  contract status, why it's unmet (the violating blocker, or "no diagnosed blocker yet"), and
+  whether it's already been attempted (`tried: none` vs a last outcome like `ok_but_still_blocked`).
+  Prefer targeting these roots; if you have a better-justified target, you may deviate — the host
+  owns truth, this is guidance. Do NOT repeat an attempt whose last outcome was `ok_but_still_blocked`
+  or `failed` with the same command.
 - **Repair Map / Required Goals**: goal contracts with their projected status (satisfied / violated / unknown).
   Each violated goal lists the active blockers that violate it, tagged root or downstream.
 - **Repair Map / Active Blockers (root-first)**: all active blockers, most fundamental first.

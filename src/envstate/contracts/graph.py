@@ -134,3 +134,66 @@ def goal_ready(graph: ContractGraph, host_satisfied: frozenset[str]) -> bool:
             if project_status(graph, dep, host_satisfied) != "satisfied":
                 return False
     return True
+
+
+def _prereqs_satisfied(graph: ContractGraph, contract_id: str, host_satisfied: frozenset[str]) -> bool:
+    """True iff every contract this one depends_on is already satisfied."""
+    for e in graph.out_edges(contract_id, "depends_on"):
+        if project_status(graph, e.target, host_satisfied) != "satisfied":
+            return False
+    return True
+
+
+def _is_actionable_contract(node: Node) -> bool:
+    """Directly repairable obligations: atomic contracts, or goals carrying a
+    concrete `check` command (e.g. repo_tests_pass).  Pure aggregator goals
+    (`check=""`) are satisfied derivatively and are not repair targets."""
+    return node.data.get("level") == "atomic" or bool(node.data.get("check"))
+
+
+def find_next_target_contracts(
+    graph: ContractGraph, goal_id: str, host_satisfied: frozenset[str]
+) -> tuple[str, ...]:
+    """The actionable repair frontier for a goal.
+
+    Returns contract ids on ``goal_id``'s depends_on path that are NOT satisfied
+    and whose own prerequisites are ALL satisfied — i.e. the lowest obligations
+    the planner can act on right now.  "Unsatisfied" means ``violated`` OR
+    ``unknown`` (blockers are sparse, so many genuinely-unmet contracts project
+    ``unknown`` rather than ``violated`` — both belong on the frontier).
+
+    Ordered ``violated`` first (diagnosed, with a blocker), then ``unknown``,
+    then by id for determinism.
+    """
+    candidate_ids = (goal_id,) + depends_on_closure(graph, goal_id)
+    status_rank = {"violated": 0, "unknown": 1}
+    ranked: list[tuple[int, str]] = []
+    for cid in candidate_ids:
+        node = graph.node(cid)
+        if node is None or node.invalidated or node.type != "Contract":
+            continue
+        status = project_status(graph, cid, host_satisfied)
+        if status == "satisfied":
+            continue
+        if not _is_actionable_contract(node):
+            continue
+        if not _prereqs_satisfied(graph, cid, host_satisfied):
+            continue
+        ranked.append((status_rank.get(status, 2), cid))
+    ranked.sort(key=lambda t: (t[0], t[1]))
+    return tuple(cid for _, cid in ranked)
+
+
+def attempts_for_contract(graph: ContractGraph, contract_id: str) -> tuple[Node, ...]:
+    """Active Attempt nodes that `addresses` this contract, in graph order.
+
+    Empty ⇒ the contract is untried.  Their outcomes (``ok`` / ``failed`` /
+    ``ok_but_still_blocked``) tell the planner whether a prior repair was
+    effective — the signal that prevents repeating an ineffective fix.
+    """
+    out: list[Node] = []
+    for e in graph.in_edges(contract_id, "addresses"):
+        a = graph.node(e.source)
+        if a is not None and not a.invalidated and a.type == "Attempt":
+            out.append(a)
+    return tuple(out)
