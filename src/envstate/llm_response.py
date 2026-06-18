@@ -1,6 +1,35 @@
 from __future__ import annotations
+import os
+import random
 import re
+import time
 from typing import Any, Callable, Optional
+
+try:
+    from openai import (
+        APIConnectionError,
+        APIStatusError,
+        APITimeoutError,
+        InternalServerError,
+        RateLimitError,
+    )
+
+    _RETRYABLE_EXC: tuple = (
+        APITimeoutError,
+        APIConnectionError,
+        RateLimitError,
+        InternalServerError,
+    )
+except Exception:  # pragma: no cover - openai missing/old: degrade to no transport retry
+    APIStatusError = None  # type: ignore
+    _RETRYABLE_EXC = ()
+
+# Transient HTTP statuses worth retrying (timeouts / rate-limit / 5xx). 4xx
+# (bad request, auth) are fatal and must surface, not be retried into a giveup.
+_RETRYABLE_STATUS = frozenset({408, 409, 429, 500, 502, 503, 504})
+_MAX_TRANSPORT_ATTEMPTS = int(os.getenv("LLM_MAX_TRANSPORT_RETRIES", "4"))
+_TRANSPORT_BASE_DELAY = float(os.getenv("LLM_TRANSPORT_BASE_DELAY", "2.0"))
+_TRANSPORT_MAX_DELAY = float(os.getenv("LLM_TRANSPORT_MAX_DELAY", "30.0"))
 
 
 def strip_reasoning_markup(text: str | None) -> str:
@@ -93,6 +122,40 @@ _DEFAULT_RETRY_NUDGE = (
 )
 
 
+def _is_retryable_transport_error(exc: BaseException) -> bool:
+    """True for a transient transport failure worth retrying (timeout / connection
+    drop / rate-limit / 5xx). 4xx (bad request, auth) and unknown errors are fatal."""
+    if _RETRYABLE_EXC and isinstance(exc, _RETRYABLE_EXC):
+        return True
+    if APIStatusError is not None and isinstance(exc, APIStatusError):
+        return getattr(exc, "status_code", None) in _RETRYABLE_STATUS
+    return False
+
+
+def _sleep_backoff(attempt: int, base: float, cap: float) -> None:
+    """Exponential backoff with 50-100% jitter (own function so tests can stub it)."""
+    delay = min(cap, base * (2 ** attempt))
+    time.sleep(delay * (0.5 + random.random() * 0.5))
+
+
+def _create_with_backoff(client, model, messages, kwargs, *, attempts, base, cap):
+    """Call ``chat.completions.create``, retrying transient transport failures with
+    exponential backoff + jitter. Returns the response, or ``None`` when all
+    transport attempts are exhausted. Re-raises non-retryable (fatal) errors
+    immediately so real bugs (bad key, malformed request) surface."""
+    attempts = max(1, attempts)
+    for n in range(attempts):
+        try:
+            return client.chat.completions.create(model=model, messages=messages, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - classify, then retry or re-raise
+            if not _is_retryable_transport_error(exc):
+                raise
+            if n >= attempts - 1:
+                return None
+            _sleep_backoff(n, base, cap)
+    return None
+
+
 def complete_with_retry(
     client: Any,
     model: str,
@@ -100,6 +163,7 @@ def complete_with_retry(
     accept: Optional[Callable[[str], Any]] = None,
     max_attempts: int = 3,
     retry_nudge: Optional[str] = None,
+    max_transport_attempts: Optional[int] = None,
     **kwargs: Any,
 ) -> tuple[str, dict, Any]:
     """Call ``client.chat.completions.create`` with retry on empty/unacceptable responses.
@@ -111,8 +175,13 @@ def complete_with_retry(
     never mutated).  Usage counters are accumulated across all attempts.
 
     After *max_attempts* the last (text, usage, response) is returned
-    unconditionally.  Exceptions from ``create`` propagate unchanged.
-    If ``accept`` raises, that attempt is treated as not-good and retried.
+    unconditionally.  Transient transport failures (timeout / connection drop /
+    rate-limit / 5xx) are retried up to *max_transport_attempts* times with
+    exponential backoff + jitter; if they are all exhausted the call returns an
+    empty result (so the caller's existing empty-response handling runs instead of
+    the run hanging ~30 min or crashing).  Fatal errors (4xx / bad request / auth)
+    propagate unchanged.  If ``accept`` raises, that attempt is treated as
+    not-good and retried.
 
     :param client: OpenAI-compatible client with ``chat.completions.create``.
     :param model: Model identifier forwarded to every ``create`` call.
@@ -137,11 +206,20 @@ def complete_with_retry(
     current_messages = list(messages)
     last_text = ""
     last_response: Any = None
+    t_attempts = (
+        max_transport_attempts if max_transport_attempts is not None else _MAX_TRANSPORT_ATTEMPTS
+    )
 
     for attempt in range(max_attempts):
-        response = client.chat.completions.create(
-            model=model, messages=current_messages, **kwargs
+        response = _create_with_backoff(
+            client, model, current_messages, kwargs,
+            attempts=t_attempts, base=_TRANSPORT_BASE_DELAY, cap=_TRANSPORT_MAX_DELAY,
         )
+        if response is None:
+            # Transport failed after all retries → return an empty result so the
+            # caller's empty-response handling (giveup / skip the cycle) runs,
+            # instead of the run hanging or crashing mid-loop.
+            break
         text = response_text(response)
 
         # Accumulate usage (getattr-safe, mirrors maintainer.py pattern).

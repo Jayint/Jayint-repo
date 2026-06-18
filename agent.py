@@ -8,6 +8,7 @@ import shutil
 import time
 from pathlib import Path
 from openai import OpenAI
+from httpx import Timeout
 from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
@@ -341,9 +342,17 @@ class DockerAgent:
             raise ValueError("No LLM API key found. Set OPENROUTER_API_KEY, MINIMAX_API_KEY, "
                              "or OPENAI_API_KEY in environment variables (.env).")
             
+        # Explicit per-attempt timeout. The SDK default (600s x 2 silent retries)
+        # let a hung deepseek-v4-flash request block ~30 min and leave the sandbox
+        # paused. We cap each attempt (read=LLM_READ_TIMEOUT, default 120s) and
+        # disable the SDK's internal retries — complete_with_retry owns the
+        # transient-failure backoff/retry instead.
+        _read_timeout = float(os.getenv("LLM_READ_TIMEOUT", "120"))
         self.client = OpenAI(
             api_key=api_key,
-            base_url=base_url if base_url else None
+            base_url=base_url if base_url else None,
+            timeout=Timeout(connect=10.0, read=_read_timeout, write=30.0, pool=10.0),
+            max_retries=0,
         )
 
         # OpenRouter provider pinning. When talking to OpenRouter (detected via
