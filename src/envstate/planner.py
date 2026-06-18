@@ -148,8 +148,8 @@ tolerated) — not a weaker proxy such as:
 
 ## Contract Graph (when present)
 
-When a `## Repair Map` and `## Repair Frontier` appear, they contain the contract graph rendered
-in three sections:
+When a `## Repair Map`, `## Repair Frontier`, and `## Recent Diagnoses` appear, they contain the
+contract graph rendered as:
 
 - **Repair Map / Required Goals**: goal contracts with their projected status (satisfied / violated / unknown).
   Each violated goal lists the active blockers that violate it, tagged root or downstream.
@@ -157,6 +157,9 @@ in three sections:
 - **Repair Map / Recent Attempts**: prior repair steps with their outcomes (pending/ok/failed/ok_but_still_blocked).
 - **Repair Frontier / Unsatisfied Contracts by Layer**: contracts not yet satisfied, grouped by stack layer.
 - **Repair Frontier / Root Blockers**: root-level blockers that directly block unsatisfied contracts.
+- **Recent Diagnoses**: the Maintainer's rolling natural-language advisories — root-cause hypotheses,
+  what a repair changed, what to try next (most recent last). Treat as guidance, not certified fact;
+  the host still owns the projected statuses above.
 
 Use the node IDs (contract:..., blocker:..., attempt:...) to anchor every step you propose.
 Every step in a `recipe_patch` MUST target at least one node ID (ungrounded steps are rejected).

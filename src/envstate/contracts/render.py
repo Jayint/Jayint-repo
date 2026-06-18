@@ -65,6 +65,16 @@ def render_graph_for_planner(graph: ContractGraph, host_satisfied: frozenset[str
             if b.data.get("root_or_downstream") == "root":
                 lines.append(f"  - {b.id} — {b.data.get('summary', '')}")
 
+    # --- Recent Diagnoses ---
+    # The Maintainer's rolling NL advisories (root-cause hypotheses, what a repair
+    # changed, what to try next).  Stored capped on the graph; surfaced here so the
+    # planner actually sees them instead of them dead-ending in graph state.
+    notes = graph.diagnostic_notes
+    if notes:
+        lines.append("## Recent Diagnoses (Maintainer advisories — most recent last)")
+        for note in notes:
+            lines.append(f"  - {note}")
+
     return "\n".join(lines)
 
 
