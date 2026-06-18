@@ -92,3 +92,92 @@ def test_done_gate_collect_only_still_rejected_after_bug6_fix():
     assert GOAL_TESTS_PASS not in m.host_satisfied, (
         "collect-only run must NOT certify the goal even after BUG-6 fix"
     )
+
+
+# ---------------------------------------------------------------------------
+# Blocker retirement / status reconciliation against fresh host evidence
+# (fixes the frozen-blocker thrash: installed/imported dep or collect-only rc=0
+#  must retire the corresponding blocker and advance the projected status).
+# ---------------------------------------------------------------------------
+from src.envstate.contracts.graph import ContractGraph
+from src.envstate.contracts.nodes import Node, Edge
+from src.envstate.contracts import ids
+
+
+def _map_with_import_blocker(installed=(), import_results=()):
+    contract = Node("contract:python_import:email-validator", "Contract",
+                    {"level": "atomic", "kind": "python_import",
+                     "subject": "email-validator", "layer": "deps"})
+    blocker = Node("blocker:missing-email-validator", "Blocker",
+                   {"signature": "ImportError: email-validator is not installed",
+                    "kind": "module_not_found", "active": True,
+                    "summary": "email-validator missing", "root_or_downstream": "root"})
+    g = ContractGraph(
+        nodes=(contract, blocker),
+        edges=(Edge("contract:goal:repo_imports_work", "depends_on",
+                    "contract:python_import:email-validator"),
+               Edge("blocker:missing-email-validator", "violates",
+                    "contract:python_import:email-validator")))
+    return merge_map(_base(), contract_graph=g, installed=installed,
+                     import_results=import_results)
+
+
+def _active(m, bid):
+    n = m.contract_graph.node(bid)
+    return bool(n.data.get("active", True)) if n else None
+
+
+def test_retires_import_blocker_when_dep_installed():
+    m = _map_with_import_blocker(installed=(Fact("email-validator", "2.3.0"),))
+    out = refresh_host_graph(m, _ledger([]), snapshot=None, exec_readonly=None, current_revision=0)
+    assert _active(out, "blocker:missing-email-validator") is False
+    assert "contract:python_import:email-validator" in out.host_satisfied
+
+
+def test_retires_import_blocker_via_import_results_underscore():
+    m = _map_with_import_blocker(import_results=(("email_validator", True),))
+    out = refresh_host_graph(m, _ledger([]), snapshot=None, exec_readonly=None, current_revision=0)
+    assert _active(out, "blocker:missing-email-validator") is False
+
+
+def test_keeps_import_blocker_when_dep_absent():
+    out = refresh_host_graph(_map_with_import_blocker(), _ledger([]), snapshot=None,
+                             exec_readonly=None, current_revision=0)
+    assert _active(out, "blocker:missing-email-validator") is True
+
+
+def _map_with_collection_blocker():
+    blocker = Node("blocker:collection-errors", "Blocker",
+                   {"signature": "Interrupted: 8 errors during collection",
+                    "kind": "test_collection_failure", "active": True,
+                    "summary": "collection broken", "root_or_downstream": "root"})
+    g = ContractGraph(nodes=(blocker,),
+                      edges=(Edge("blocker:collection-errors", "violates",
+                                  "contract:goal:repo_tests_collect"),))
+    return merge_map(_base(), contract_graph=g)
+
+
+def _collect_led(rc):
+    return _ledger([ActionEvent(step=1, cmd="python -m pytest --collect-only -q", rc=rc,
+                                stdout="collected 42 items", env_revision_before=0,
+                                env_revision_after=0, mutation_class=None)])
+
+
+def test_collection_pass_retires_collection_blocker_and_satisfies_collect():
+    out = refresh_host_graph(_map_with_collection_blocker(), _collect_led(0), snapshot=None,
+                             exec_readonly=None, current_revision=0)
+    assert _active(out, "blocker:collection-errors") is False
+    assert ids.goal_contract_id("repo_tests_collect") in out.host_satisfied
+
+
+def test_collection_fail_keeps_collection_blocker():
+    out = refresh_host_graph(_map_with_collection_blocker(), _collect_led(1), snapshot=None,
+                             exec_readonly=None, current_revision=0)
+    assert _active(out, "blocker:collection-errors") is True
+
+
+def test_collection_pass_does_not_satisfy_repo_tests_pass():
+    # honesty: collect-only success must NOT certify the real-execution goal
+    out = refresh_host_graph(_map_with_collection_blocker(), _collect_led(0), snapshot=None,
+                             exec_readonly=None, current_revision=0)
+    assert GOAL_TESTS_PASS not in out.host_satisfied
