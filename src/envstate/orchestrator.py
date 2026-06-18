@@ -142,32 +142,39 @@ def run_v1(
                 on_cycle(cycle, current_map, decision, None)
             return current_map, "planner_giveup"
 
-        # ── 2. Recipe patch branch (contract-graph arm only) ─────────────────
-        if enable_contract_graph and decision.action == "apply_recipe_patch":
+        # ── 2. Recipe patch branch ───────────────────────────────────────────
+        # The planner's prompt is recipe-based, so it emits apply_recipe_patch
+        # regardless of the contract-graph flag.  Recipe EXECUTION therefore runs
+        # in both arms; only the GRAPH BOOKKEEPING (attempt tracking, outcome
+        # write-back, host graph render/blockers) is gated on enable_contract_graph
+        # (BUG-11).  With the graph off this is just: run the commands, refresh
+        # deterministic facts, run the maintainer, and honor the honest done-gate.
+        if decision.action == "apply_recipe_patch":
             recipe: RecipePatch | None = decision.recipe_patch
             if recipe is None or not recipe.steps:
                 # Empty recipe — nothing to execute; let maintainer decide.
                 empty_report = TaskReport("recipe", "done", (), "empty recipe")
                 current_map = maintainer.update(current_map, empty_report)
-                _host_refresh()
+                _host_refresh()  # self-no-ops when the graph is off
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, empty_report)
                 if current_map.done_flag:
                     return current_map, "done_flag"
                 continue
 
-            # Commit one Attempt node per step BEFORE execution.
+            # Commit one Attempt node per step BEFORE execution (graph only).
             attempt_ids: list[str] = []
-            graph = current_map.contract_graph
-            for step in recipe.steps:
-                attempt_patch = _attempts.commit_attempt(graph, step, proposed_by="planner")
-                errs = _validate_patch(graph, attempt_patch, scope="host")
-                if not errs:
-                    graph = _apply_patch(graph, attempt_patch)
-                # Derive the attempt id from the step (mirrors attempt_node logic).
-                node = _attempts.attempt_node(step, "planner")
-                attempt_ids.append(node.id)
-            current_map = merge_map(current_map, contract_graph=graph)
+            if enable_contract_graph:
+                graph = current_map.contract_graph
+                for step in recipe.steps:
+                    attempt_patch = _attempts.commit_attempt(graph, step, proposed_by="planner")
+                    errs = _validate_patch(graph, attempt_patch, scope="host")
+                    if not errs:
+                        graph = _apply_patch(graph, attempt_patch)
+                    # Derive the attempt id from the step (mirrors attempt_node logic).
+                    node = _attempts.attempt_node(step, "planner")
+                    attempt_ids.append(node.id)
+                current_map = merge_map(current_map, contract_graph=graph)
 
             # Execute the whole recipe as a single unified run.
             report: TaskReport = build_agent.run_recipe(
@@ -188,39 +195,41 @@ def run_v1(
             # report.completed_steps; outcomes must be attributed PER-STEP, not by
             # a single recipe-level failure flag (which mislabeled successful
             # install steps as 'failed' the instant any later step blocked).
-            completed = report.completed_steps
-            updated_nodes: list = []
-            for i, attempt_id in enumerate(attempt_ids):
-                if completed is None:
-                    # Older/fake reports without per-step counts: preserve the
-                    # original recipe-level behavior for every attempt.
-                    step_failed = report.status != "done"
-                elif i < completed:
-                    step_failed = False           # this step's command succeeded
-                elif i == completed and report.status != "done":
-                    step_failed = True            # the step that failed/blocked
-                else:
-                    # i > completed: this step never ran — leave its committed
-                    # 'pending' outcome untouched.
-                    continue
-                outcome = _derive_outcome(
-                    current_map.contract_graph,
-                    attempt_id,
-                    current_map.host_satisfied,
-                    step_failed,
-                )
-                node = current_map.contract_graph.node(attempt_id)
-                if node is not None:
-                    new_data = {**node.data, "outcome": outcome}
-                    updated_nodes.append(dataclasses.replace(node, data=new_data))
+            # Graph-only bookkeeping — skipped entirely when the graph is off.
+            if enable_contract_graph:
+                completed = report.completed_steps
+                updated_nodes: list = []
+                for i, attempt_id in enumerate(attempt_ids):
+                    if completed is None:
+                        # Older/fake reports without per-step counts: preserve the
+                        # original recipe-level behavior for every attempt.
+                        step_failed = report.status != "done"
+                    elif i < completed:
+                        step_failed = False           # this step's command succeeded
+                    elif i == completed and report.status != "done":
+                        step_failed = True            # the step that failed/blocked
+                    else:
+                        # i > completed: this step never ran — leave its committed
+                        # 'pending' outcome untouched.
+                        continue
+                    outcome = _derive_outcome(
+                        current_map.contract_graph,
+                        attempt_id,
+                        current_map.host_satisfied,
+                        step_failed,
+                    )
+                    node = current_map.contract_graph.node(attempt_id)
+                    if node is not None:
+                        new_data = {**node.data, "outcome": outcome}
+                        updated_nodes.append(dataclasses.replace(node, data=new_data))
 
-            # Write outcomes back to the graph via a host update_attempts patch.
-            if updated_nodes:
-                outcomes_patch = GraphPatch(update_attempts=tuple(updated_nodes))
-                current_map = merge_map(
-                    current_map,
-                    contract_graph=_apply_patch(current_map.contract_graph, outcomes_patch),
-                )
+                # Write outcomes back to the graph via a host update_attempts patch.
+                if updated_nodes:
+                    outcomes_patch = GraphPatch(update_attempts=tuple(updated_nodes))
+                    current_map = merge_map(
+                        current_map,
+                        contract_graph=_apply_patch(current_map.contract_graph, outcomes_patch),
+                    )
 
             # ── 3. Maintainer updates the world model ─────────────────────
             current_map = maintainer.update(current_map, report)
