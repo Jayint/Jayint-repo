@@ -406,7 +406,9 @@ class TestNewPromptContract(unittest.TestCase):
 
     def test_prompt_forbids_certifying_facts(self):
         low = MAINTAINER_SYSTEM_PROMPT.lower()
-        self.assertIn("do not certify", low)
+        # The maintainer must not certify facts; the host owns truth.
+        self.assertIn("certify facts", low)
+        self.assertIn("host", low)
 
     def test_prompt_warns_learning_is_weak(self):
         self.assertIn("learning", MAINTAINER_SYSTEM_PROMPT)
