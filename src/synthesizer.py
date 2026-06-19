@@ -2731,6 +2731,18 @@ class Synthesizer:
         """
         self._record_setup_instruction(command)
 
+    def add_env_instruction(self, name: str, value: str) -> None:
+        """Prepend an `ENV name="value"` line so it persists across every RUN layer
+        and into the runtime container (DROPPED_ENV). Unlike `RUN export`, a
+        Dockerfile ENV survives layer boundaries and the final image's runtime env."""
+        if not name:
+            return
+        safe = str(value).replace("\\", "\\\\").replace("$", "$$").replace('"', '\\"')
+        instruction = f'ENV {name}="{safe}"'
+        if instruction in self.instructions:
+            return
+        self.instructions.insert(0, instruction)
+
     def build_fallback_recipe(self, recipe_input=None, error=None):
         """Create a conservative recipe from existing rule-based recorded instructions."""
         recipe_input = recipe_input or {}

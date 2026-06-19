@@ -153,3 +153,76 @@ def build_pin_instructions(
         f"printf '%s\\n' {quoted} > {pin_path}",
         f"pip install -r {pin_path}",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Test-required env-var capture (DROPPED_ENV)
+# ---------------------------------------------------------------------------
+
+# NAME=VALUE token: NAME is a POSIX shell identifier; VALUE is the rest up to
+# whitespace OR a quoted run. Conservative: only the explicit assignments the
+# agent issued are captured — never the ambient process environment.
+_RE_ASSIGN = re.compile(r"""(?P<name>[A-Za-z_][A-Za-z0-9_]*)=(?P<val>'[^']*'|"[^"]*"|[^\s;&|]*)""")
+# Leading `export` (possibly chained) before assignments.
+_RE_EXPORT_STMT = re.compile(r"(?:^|[;&]|\|\|)\s*export\s+(?P<rest>[^;&|]+)")
+# A var referenced in a command (`$X` or `${X}`) — keeps only test-relevant exports.
+_RE_VAR_REF = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
+
+# Never bake these — shell/build incidentals or secrets, not test config.
+_ENV_DENYLIST = {
+    "PATH", "PWD", "OLDPWD", "HOME", "SHLVL", "TERM", "USER", "HOSTNAME", "_",
+    "LS_COLORS", "LANG", "LC_ALL", "SHELL", "TMPDIR", "PS1", "PS2", "VIRTUAL_ENV",
+}
+
+
+def _strip_quotes(v: str) -> str:
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+        return v[1:-1]
+    return v
+
+
+def extract_env_vars_from_ledger(ledger, *, extra_commands=()):
+    """Return ordered, de-duplicated (NAME, VALUE) env assignments the agent issued.
+
+    Captures ONLY explicit assignments (never the ambient environment):
+      * `export NAME=VALUE` (standalone or chained) in rc==0 ledger commands;
+      * inline `NAME=VALUE` prefixes on a recorded command (e.g.
+        `DJANGO_SETTINGS_MODULE=cfg pytest -q`), from extra_commands (pass the
+        verified test command(s)) and from rc==0 ledger commands.
+    Last assignment to a NAME wins; first-appearance order preserved. Denylisted
+    incidentals dropped. A var is kept only if it is also referenced (`$NAME`) OR
+    appears as an inline prefix on a command — filters throwaway scratch vars.
+    """
+    assigns, order, referenced, prefix_required = {}, [], set(), set()
+
+    def _record(name, val):
+        if not name or name in _ENV_DENYLIST:
+            return
+        val = _strip_quotes(val)
+        if name not in assigns:
+            order.append(name)
+        assigns[name] = val
+
+    rc0_cmds = [e.cmd for e in ledger.events() if e.rc == 0]
+    for cmd in list(rc0_cmds) + list(extra_commands or ()):
+        if not cmd:
+            continue
+        for ref in _RE_VAR_REF.findall(cmd):
+            referenced.add(ref)
+        for m in _RE_EXPORT_STMT.finditer(cmd):
+            for a in _RE_ASSIGN.finditer(m.group("rest")):
+                _record(a.group("name"), a.group("val"))
+        stripped = cmd.strip()
+        while True:
+            a = _RE_ASSIGN.match(stripped)
+            if not a or "=" not in stripped[: a.end()]:
+                break
+            _record(a.group("name"), a.group("val"))
+            prefix_required.add(a.group("name"))
+            stripped = stripped[a.end():].lstrip()
+
+    out = []
+    for name in order:
+        if name in referenced or name in prefix_required:
+            out.append((name, assigns[name]))
+    return out
