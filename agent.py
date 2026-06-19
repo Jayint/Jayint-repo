@@ -1245,6 +1245,7 @@ class DockerAgent:
             _verified_test_run_passed,
             _shows_execution,
             _shows_pytest_completion,
+            _all_skipped,
         )
         from src.envstate.world_model import TaskReport, CommandRecord
 
@@ -1289,8 +1290,8 @@ class DockerAgent:
         print(f"[v1] finalize test-run verification: {'PASS' if ok else 'FAIL'}")
         # A real execution summary (>=1 passed) is required either way: this rejects
         # collect-only / 0-passed output even when rc==0.
-        if not (_shows_execution(out) or _shows_pytest_completion(out)):
-            print("[v1] finalize test-run: output shows no execution (collect-only / 0 passed?)")
+        if _all_skipped(out) or not (_shows_execution(out) or _shows_pytest_completion(out)):
+            print("[v1] finalize test-run: no real pass (collect-only / all-skipped / 0 passed?)")
             return None
         if not ok:
             # rc!=0: accept as a majority-pass (Fix 3 Tier B). The bar is simply that the
@@ -1329,12 +1330,14 @@ class DockerAgent:
         no countable summary => None). passed_ge1 mirrors the host gate's
         >=1-passed requirement.
         """
-        from src.envstate.maintainer import _shows_execution, _shows_pytest_completion
+        from src.envstate.maintainer import _shows_execution, _shows_pytest_completion, _all_skipped
         out = output or ""
         ratio = self.synthesizer.observation_pass_ratio(out)
         if ratio is not None:
             self.in_build_pass_rate = round(float(ratio), 4)
-        self.in_build_passed_ge1 = bool(_shows_execution(out) or _shows_pytest_completion(out))
+        self.in_build_passed_ge1 = bool(
+            (_shows_execution(out) or _shows_pytest_completion(out)) and not _all_skipped(out)
+        )
 
     def _build_v1_ledger_appender(self, ledger):
         """Return a thin closure that records (cmd, rc, stdout) into the ActionLedger.

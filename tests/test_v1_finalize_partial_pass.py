@@ -136,6 +136,14 @@ class V1InBuildPassSignalTests(unittest.TestCase):
         self.assertIsNone(a.in_build_pass_rate)
         self.assertIs(a.in_build_passed_ge1, False)
 
+    def test_all_skipped_path3_rejected_and_no_fake_signal(self):
+        # rc==0 all-skipped run reaching Path 3 must be REJECTED and must NOT
+        # stamp a pass signal (honesty invariant; zero tests passed).
+        a = _make_v1_agent(ok=True, out="tests/x.py sssss [100%]\n\n===== 5 skipped in 0.10s =====\n")
+        assert a._resolve_v1_verified_test_run(done_flag=False) is None
+        assert a.in_build_pass_rate is None
+        assert a.in_build_passed_ge1 is False
+
     def test_done_flag_with_passing_ledger_event_records_signal_no_rerun(self):
         # done_flag fired in-loop: recover the real pass signal from the ledger
         # (no sandbox re-run). A genuine rc-0 passing event is caught by the
