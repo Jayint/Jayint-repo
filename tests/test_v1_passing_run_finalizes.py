@@ -60,3 +60,25 @@ def test_shows_pytest_completion_helper():
     assert _shows_pytest_completion("\x1b[32m. \x1b[0m[100%]") is True
     assert _shows_pytest_completion("collected 5 items") is False
     assert _shows_pytest_completion("") is False
+
+
+# An all-skipped run prints "[100%]" too (rc==0), but zero tests actually pass.
+# Closing this Gate-1 hole must NOT regress promptwright (all-passed, summary lost).
+PYTEST_ALL_SKIPPED = "s" * 5 + " " * 20 + "[100%]\n\n===== 5 skipped in 0.03s =====\n"
+PYTEST_MIXED_PASS_SKIP = ".s.s." + " [100%]\n\n3 passed, 2 skipped in 0.10s\n"
+
+
+def test_all_skipped_run_rejected_despite_completion_marker():
+    assert _verified_test_run_passed(_report(PYTEST_ALL_SKIPPED, rc=0)) is False
+
+
+def test_all_skipped_helper():
+    from src.envstate.maintainer import _all_skipped
+    assert _all_skipped(PYTEST_ALL_SKIPPED) is True
+    assert _all_skipped("3 passed, 2 skipped in 0.1s") is False
+    assert _all_skipped("45 passed in 0.2s") is False
+    assert _all_skipped("") is False
+
+
+def test_mixed_pass_and_skip_still_passes():
+    assert _verified_test_run_passed(_report(PYTEST_MIXED_PASS_SKIP, rc=0)) is True

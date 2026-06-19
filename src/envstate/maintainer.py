@@ -130,6 +130,26 @@ def _shows_pytest_completion(output: str) -> bool:
     return bool(_RE_PYTEST_COMPLETE.search(_RE_ANSI.sub("", output)))
 
 
+# pytest prints "[100%]" even when every collected test was SKIPPED (rc==0).
+# An all-skipped run is zero real passes and must NOT satisfy the done-gate.
+_RE_N_SKIPPED = re.compile(r"\b([1-9]\d*)\s+skipped\b", re.IGNORECASE)
+
+
+def _all_skipped(output: str) -> bool:
+    """True iff *output* shows a pytest run that skipped >=1 test and passed none.
+
+    Guards the "[100%]" completion branch: pytest prints "[100%]" for an
+    all-skipped run too, so "[100%]" alone is NOT proof of a real pass. Returns
+    True only when a skipped-count summary survives and no "N passed" (N>=1) does.
+    """
+    if not output:
+        return False
+    clean = _RE_ANSI.sub("", output)
+    has_skipped = bool(_RE_N_SKIPPED.search(clean))
+    has_passed = bool(_RE_N_PASSED.search(clean))
+    return has_skipped and not has_passed
+
+
 # Exclusion flags that hide pre-existing test paths and can manufacture a
 # spurious green run (Phase 4 anti-gaming check).
 _EXCLUSION_FLAG_PREFIXES: tuple[str, ...] = (
@@ -210,6 +230,10 @@ def _verified_test_run_passed(
         if not shows_completion and not detector.analyze_test_run(
             rec.cmd, output
         ).get("is_effective_test_run", False):
+            continue
+        if _all_skipped(output):
+            # "[100%]" with a skipped-only summary and zero real passes is not a
+            # success (closes the all-skipped Gate-1 hole, e.g. pynitrokey).
             continue
         if not (shows_completion or _shows_execution(output)):
             continue
