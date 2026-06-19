@@ -169,10 +169,19 @@ _RE_EXPORT_STMT = re.compile(r"(?:^|[;&]|\|\|)\s*export\s+(?P<rest>[^;&|]+)")
 _RE_VAR_REF = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
 
 # Never bake these — shell/build incidentals or secrets, not test config.
+# PYTHONPATH is denylisted: a stale absolute path the agent set (e.g. /app) breaks
+# imports in the rebuilt image, which clones the repo to a different path (e.g. /testbed).
 _ENV_DENYLIST = {
     "PATH", "PWD", "OLDPWD", "HOME", "SHLVL", "TERM", "USER", "HOSTNAME", "_",
     "LS_COLORS", "LANG", "LC_ALL", "SHELL", "TMPDIR", "PS1", "PS2", "VIRTUAL_ENV",
+    "PYTHONPATH",
 }
+
+# Names that look like credentials are never baked into the image (secret leak).
+_RE_SECRET_NAME = re.compile(
+    r"SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|ACCESS_?KEY|PRIVATE_?KEY|CREDENTIAL",
+    re.IGNORECASE,
+)
 
 
 def _strip_quotes(v: str) -> str:
@@ -196,7 +205,7 @@ def extract_env_vars_from_ledger(ledger, *, extra_commands=()):
     assigns, order, referenced, prefix_required = {}, [], set(), set()
 
     def _record(name, val):
-        if not name or name in _ENV_DENYLIST:
+        if not name or name in _ENV_DENYLIST or _RE_SECRET_NAME.search(name):
             return
         val = _strip_quotes(val)
         if name not in assigns:

@@ -67,6 +67,41 @@ def test_last_assignment_wins_and_order():
     assert result == [("A", "3"), ("B", "2")], result
 
 
+def test_secret_named_vars_not_baked():
+    """Credential-looking var names are never baked (secret-leak guard), but benign
+    test config (DJANGO_SETTINGS_MODULE) and a referenced DATABASE_URL are kept."""
+    result = extract_env_vars_from_ledger(
+        ActionLedger(),
+        extra_commands=[
+            "OPENAI_API_KEY=sk-xxx pytest -q",
+            "DJANGO_SETTINGS_MODULE=cfg pytest -q",
+            "GITHUB_TOKEN=ghp_zzz pytest -q",
+            "DB_PASSWORD=hunter2 pytest -q",
+            "AWS_SECRET_ACCESS_KEY=abc/def pytest -q",
+            "DATABASE_URL=postgres://localhost/db pytest -q",
+        ],
+    )
+    names = [n for n, _ in result]
+    assert "DJANGO_SETTINGS_MODULE" in names, result   # the real motivating var, kept
+    assert "DATABASE_URL" in names, result             # benign + referenced, kept
+    for secret in ("OPENAI_API_KEY", "GITHUB_TOKEN", "DB_PASSWORD", "AWS_SECRET_ACCESS_KEY"):
+        assert secret not in names, (secret, result)
+
+
+def test_pythonpath_not_baked():
+    """A stale absolute PYTHONPATH must never be baked (breaks imports in the rebuilt
+    image that clones to a different path). Covered for both inline-prefix and export+ref."""
+    ledger = ActionLedger()
+    ledger.append(_event(1, "export PYTHONPATH=/app", 0, None))
+    ledger.append(_event(2, "echo $PYTHONPATH", 0, None))
+    result = extract_env_vars_from_ledger(
+        ledger,
+        extra_commands=["PYTHONPATH=/app pytest -q"],
+    )
+    names = [n for n, _ in result]
+    assert "PYTHONPATH" not in names, result
+
+
 def test_add_env_instruction_escapes_and_prepends():
     """$ -> $$, " -> \\", \\ -> \\\\ ; prepended; idempotent."""
     synth = Synthesizer()
