@@ -1057,6 +1057,7 @@ class DockerAgent:
 
         configuration_success = False
         run_error = None
+        self._final_installed = ()  # populated after _run_v1_loop; always defined even on exception path
 
         try:
             # ── 4. Run the v1 loop ────────────────────────────────────────────
@@ -1173,6 +1174,10 @@ class DockerAgent:
                 enable_contract_graph=getattr(self, "enable_contract_graph", False),
             )
 
+            # Capture the live pip closure for the pin layer (used later in
+            # _finalize_supervisor_artifacts → build_pin_instructions).
+            self._final_installed = tuple(getattr(final_map, "installed", ()) or ())
+
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
 
             # ── 5. Verify the execution gate genuinely passed (design §2, Phase 1) ─
@@ -1191,9 +1196,7 @@ class DockerAgent:
                 or bool(self.verification_bundle)
             )
             if configuration_success:
-                configuration_success = self._finalize_supervisor_artifacts(
-                    configuration_success
-                )
+                configuration_success = self._v1_finalize_and_keep_success(configuration_success)
 
         except Exception as exc:
             run_error = str(exc)
@@ -1206,14 +1209,7 @@ class DockerAgent:
                     "[v1 Auto Finalization] Transient LLM failure after a verified "
                     "test collection command. Generating Dockerfile from recorded evidence."
                 )
-                try:
-                    configuration_success = self._finalize_supervisor_artifacts(
-                        configuration_success
-                    )
-                except Exception as synth_exc:
-                    configuration_success = False
-                    run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
-                    print(f"[v1 Warning] Auto-finalization synthesis failed: {synth_exc}")
+                configuration_success = self._v1_finalize_and_keep_success(configuration_success)
 
         finally:
             # Restore env var scope (same pattern as _run_supervisor).
@@ -1336,12 +1332,87 @@ class DockerAgent:
 
         return _appender
 
+    def _v1_finalize_and_keep_success(self, gate_passed):
+        """Run the artifact step for its side effects (Dockerfile, memories) but NEVER
+        let it change run-success. Success is the host-certified test gate alone."""
+        if not gate_passed:
+            return False
+        try:
+            ok = self._finalize_supervisor_artifacts(gate_passed)
+            if not ok:
+                print("[v1] artifact synthesis returned False; run still counts as success (test gate passed).")
+        except Exception as synth_exc:
+            print(f"[v1 Warning] artifact synthesis raised; run still counts as success: {synth_exc}")
+        return True
+
+    def _resolve_project_name(self):
+        """Best-effort: read project name from pyproject.toml or setup.cfg under self.workplace.
+
+        Returns the name string (str) or None.  Never raises.
+        """
+        try:
+            import glob as _glob
+            _wp = getattr(self, "workplace", None) or ""
+            if not _wp:
+                return None
+
+            # Search pyproject.toml up to 2 levels deep (handles monorepos shallowly).
+            for _pp in _glob.glob(os.path.join(_wp, "pyproject.toml")) + _glob.glob(
+                os.path.join(_wp, "*", "pyproject.toml")
+            ):
+                try:
+                    try:
+                        import tomllib as _tomllib
+                    except ImportError:
+                        import tomli as _tomllib  # type: ignore[no-redef]
+                    with open(_pp, "rb") as _f:
+                        _data = _tomllib.load(_f)
+                    # [project] table (PEP 517/518)
+                    _name = (_data.get("project") or {}).get("name")
+                    if _name:
+                        return str(_name)
+                    # [tool.poetry] table
+                    _name = ((_data.get("tool") or {}).get("poetry") or {}).get("name")
+                    if _name:
+                        return str(_name)
+                except Exception:
+                    pass
+
+            # setup.cfg [metadata] name
+            for _sc in _glob.glob(os.path.join(_wp, "setup.cfg")) + _glob.glob(
+                os.path.join(_wp, "*", "setup.cfg")
+            ):
+                try:
+                    import configparser as _cp
+                    _cfg = _cp.ConfigParser()
+                    _cfg.read(_sc)
+                    _name = _cfg.get("metadata", "name", fallback=None)
+                    if _name:
+                        return str(_name).strip()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return None
+
     def _finalize_supervisor_artifacts(self, configuration_success):
         """Synthesize the recipe, write the Dockerfile, and generate memories — the
         same success-artifact path the legacy run() uses (agent.py:1043-1052)."""
         if not self._synthesize_final_build_recipe():
             print("[Warning] Build recipe synthesis failed. No Dockerfile will be generated.")
             return False
+        # Append the pip-closure pin layer as the last two RUN instructions so
+        # the produced Dockerfile can reproduce the exact sandbox pip state.
+        try:
+            from src.envstate.synthesis import build_pin_instructions
+            _pin_cmds = build_pin_instructions(
+                getattr(self, "_final_installed", ()),
+                project_name=self._resolve_project_name(),
+            )
+            for _cmd in _pin_cmds:
+                self.synthesizer.add_build_instruction(_cmd)
+        except Exception as _pin_exc:
+            print(f"[v1] pin layer skipped: {_pin_exc}")
         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
         _dockerfile_path = os.path.join(self.workplace, "Dockerfile")
@@ -2665,6 +2736,11 @@ class DockerAgent:
             "build_recipe": getattr(self, "build_recipe", None),
             "build_recipe_source": getattr(self, "build_recipe_source", None),
             "build_recipe_error": getattr(self, "build_recipe_error", None),
+            "installed": [
+                f"{f.name}=={f.detail}"
+                for f in getattr(self, "_final_installed", ())
+                if getattr(f, "name", "") and getattr(f, "detail", "")
+            ],
             "self_verify_result": getattr(self, "self_verify_result", None),
             "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,

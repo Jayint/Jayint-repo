@@ -2558,8 +2558,8 @@ class ObservationPassRatioTests(unittest.TestCase):
     def test_uncountable_is_none(self):
         self.assertIsNone(self.synth.observation_pass_ratio("collected 5 items"))
 
-    def test_min_pass_ratio_constant_is_half(self):
-        self.assertEqual(Synthesizer.MIN_PASS_RATIO, 0.5)
+    def test_min_pass_ratio_constant(self):
+        self.assertEqual(Synthesizer.MIN_PASS_RATIO, 0.8)
 
 
 class ObservationEnvDefectAuditHardeningTests(unittest.TestCase):

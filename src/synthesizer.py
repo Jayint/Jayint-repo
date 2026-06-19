@@ -362,9 +362,11 @@ def is_generated_apt_bootstrap_run_instruction(instruction):
 
 
 class Synthesizer:
-    # RepoLaunch "majority pass" finalize threshold (Fix 3 §0.5). Tunable single constant:
+    # RepoLaunch partial-pass finalize threshold (Fix 3 §0.5). Tunable single constant:
     # a partial-pass run finalizes only if passed/(passed+failed+errors) >= this.
-    MIN_PASS_RATIO = 0.5
+    # Raised 0.5 -> 0.8: a partial-pass (rc!=0) run is only accepted as a working env
+    # when a STRONG majority (>=80%) of tests passed (tolerates <=20% failures).
+    MIN_PASS_RATIO = 0.8
 
     TEST_COMMAND_PATTERNS = [
         # Python
@@ -2718,6 +2720,16 @@ class Synthesizer:
         self.instructions = []
         for command in self.build_recipe.get("build_commands") or []:
             self._record_setup_instruction(command)
+
+    def add_build_instruction(self, command: str) -> None:
+        """Append a single build command as the last instruction.
+
+        Uses the same path as apply_build_recipe (i.e. _record_setup_instruction)
+        so the command is formatted, filtered for read-only no-ops, and deduplicated
+        exactly like any other recipe command.  Intended for post-recipe pin layers
+        that must render as the last RUN in the Dockerfile.
+        """
+        self._record_setup_instruction(command)
 
     def build_fallback_recipe(self, recipe_input=None, error=None):
         """Create a conservative recipe from existing rule-based recorded instructions."""
