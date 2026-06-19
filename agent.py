@@ -1393,6 +1393,22 @@ class DockerAgent:
                     pass
         except Exception:
             pass
+
+        # Fallback: derive the project name from the repo URL basename. Robust to repos
+        # whose pyproject.toml has no [project]/[tool.poetry] table and no setup.cfg, and
+        # to a pyproject.toml that is only synthesized inside the container. Without this,
+        # _resolve_project_name returns None and build_pin_instructions cannot exclude the
+        # project's own package from the pinned closure (e.g. a non-existent proxy_pool==1.0.0
+        # leaks in and breaks the pin install).
+        try:
+            _url = getattr(self, "repo_url", None) or ""
+            _basename = _url.rstrip("/").split("/")[-1]
+            if _basename.endswith(".git"):
+                _basename = _basename[:-4]
+            if _basename:
+                return _basename
+        except Exception:
+            pass
         return None
 
     def _finalize_supervisor_artifacts(self, configuration_success):
