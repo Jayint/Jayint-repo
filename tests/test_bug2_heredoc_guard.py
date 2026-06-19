@@ -199,6 +199,43 @@ def test_bit_shift_redirect_is_not_treated_as_heredoc():
     )
 
 
+def test_terminated_heredoc_body_survives_into_recipe():
+    """A1 proxy_pool repro: a terminated heredoc extracted by the build agent must
+    flow through to the recipe intact — one command, body + terminator preserved.
+
+    Before A1, _extract_worker_action applied .splitlines()[0] and recorded only the
+    opener (`cat > /app/pyproject.toml << 'EOF'`), which build_commands_from_ledger
+    then DROPS as an unterminated heredoc — bucket-C loss. With A1 the full heredoc is
+    recorded and kept verbatim.
+    """
+    from src.envstate.build_agent import _extract_worker_action
+
+    content = (
+        "Thought: write the project file\n"
+        "Action: ```bash\n"
+        "cat > /app/pyproject.toml << 'EOF'\n"
+        "[project]\n"
+        'name = "proxy_pool"\n'
+        "EOF\n"
+        "```"
+    )
+    action = _extract_worker_action(content)
+    # Extraction must preserve the full heredoc, not the truncated opener.
+    assert "[project]" in action and "EOF" in action, (
+        f"extraction lost the heredoc body/terminator; action={repr(action)}"
+    )
+
+    ledger = ActionLedger()
+    # Same mutation_class the file's other file-write tests use.
+    ledger.append(_event(1, action, 0, "file_or_env_change"))
+
+    cmds = build_commands_from_ledger(ledger)
+
+    assert len(cmds) == 1, f"expected exactly one command (no greedy accumulation); cmds={cmds}"
+    assert "[project]" in cmds[0], f"heredoc body lost on the way to the recipe; cmds={cmds}"
+    assert "EOF" in cmds[0], f"heredoc terminator lost on the way to the recipe; cmds={cmds}"
+
+
 def test_is_unterminated_heredoc_helper_matrix():
     """Direct coverage of the helper's contract."""
     # Broken single-line openers -> True (unterminated)

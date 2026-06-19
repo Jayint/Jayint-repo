@@ -106,6 +106,80 @@ class TestExtractWorkerAction(unittest.TestCase):
         out = self._extract("Action: echo hello\nworld")
         self.assertEqual(out, "echo hello")
 
+    # --- A1: terminated-heredoc preservation (must NOT truncate to line 1) ---
+
+    def test_terminated_heredoc_fenced_preserves_body(self):
+        """A fenced multi-line heredoc must be returned whole (body + terminator),
+        not truncated to the opener line."""
+        content = (
+            "Thought: write the project file\n"
+            "Action: ```bash\n"
+            "cat > /app/pyproject.toml << 'EOF'\n"
+            "[project]\n"
+            'name = "x"\n'
+            "EOF\n"
+            "```"
+        )
+        out = self._extract(content)
+        self.assertIn("[project]", out, "heredoc body must be preserved")
+        self.assertIn("EOF", out, "heredoc terminator must be preserved")
+        self.assertIn("\n", out, "result must be the full multi-line command")
+        self.assertTrue(out.startswith("cat > /app/pyproject.toml << 'EOF'"))
+
+    def test_terminated_heredoc_plain_preserves_body(self):
+        """A plain (unfenced) multi-line heredoc must be returned whole."""
+        content = (
+            "Thought: write the project file\n"
+            "Action: cat > /app/pyproject.toml << 'EOF'\n"
+            "[project]\n"
+            'name = "x"\n'
+            "EOF"
+        )
+        out = self._extract(content)
+        self.assertIn("[project]", out, "heredoc body must be preserved")
+        self.assertIn("EOF", out, "heredoc terminator must be preserved")
+        self.assertIn("\n", out, "result must be the full multi-line command")
+
+    def test_single_line_heredoc_open_still_truncates(self):
+        """A single-line heredoc opener (no body/newline) is NOT terminated and
+        stays exactly as-is (no widening)."""
+        content = "Thought: oops\nAction: cat > /app/p.toml << 'EOF'"
+        out = self._extract(content)
+        self.assertEqual(out, "cat > /app/p.toml << 'EOF'")
+
+
+class TestIsTerminatedHeredoc(unittest.TestCase):
+    """Predicate gating both the extraction widening and the composition-validation
+    bypass at the two call sites."""
+
+    def _pred(self, body: str) -> bool:
+        from src.envstate.build_agent import _is_terminated_heredoc
+        return _is_terminated_heredoc(body)
+
+    def test_true_for_multiline_heredoc(self):
+        self.assertTrue(self._pred("cat > f << 'EOF'\n[project]\nEOF"))
+
+    def test_true_even_when_body_contains_shell_metachars(self):
+        """Composition-guard non-regression: a heredoc body legitimately contains
+        `import sys` and `x && y`; the predicate must still be True so the call-site
+        bypass (`None if _is_terminated_heredoc(action) else validate_...`) skips
+        validate_command_composition for it."""
+        body = "cat > /app/s.py << 'EOF'\nimport sys\nx && y\nEOF"
+        self.assertTrue(self._pred(body))
+
+    def test_false_for_single_line_opener(self):
+        self.assertFalse(self._pred("cat > f << 'EOF'"))
+
+    def test_false_for_no_heredoc(self):
+        self.assertFalse(self._pred("pip install -e .\necho done"))
+
+    def test_false_for_empty(self):
+        self.assertFalse(self._pred(""))
+
+    def test_false_for_bit_shift(self):
+        """`<<` as an arithmetic shift (digit delimiter) is NOT a heredoc."""
+        self.assertFalse(self._pred("echo $((1 << 4))\necho next"))
+
 
 class TestIsWorkerFinished(unittest.TestCase):
     def _finished(self, content: str) -> bool:

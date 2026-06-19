@@ -110,6 +110,41 @@ _TOOLCALL_CMD_RE = re.compile(
 # (agent.py:194-197, sandbox.py:700-707, sandbox.py:823-825).
 _PREFLIGHT_REJECTION_PREFIX = "[SYSTEM] COMMAND REJECTED BEFORE EXECUTION"
 
+# A heredoc operator (`<< DELIM` / `<<-DELIM`, optionally quoted). The leading-letter
+# anchor on the delimiter means arithmetic shifts ($((1 << 4))) never match. Mirrors
+# synthesis._RE_HEREDOC_OP (kept local to avoid importing synthesis in this hot path).
+_RE_HEREDOC_OP = re.compile(r"<<-?\s*['\"]?[A-Za-z_]\w*")
+
+
+def _is_terminated_heredoc(body: str) -> bool:
+    """True when *body* is a MULTI-LINE command that opens a heredoc and carries a
+    body+terminator (i.e. contains a newline after a `<< DELIM` operator). Used to
+    preserve the full multi-line action instead of truncating to line 1. A single-line
+    `<< DELIM` opener (no newline) is NOT terminated and stays truncated."""
+    return bool(body) and "\n" in body and bool(_RE_HEREDOC_OP.search(body))
+
+
+def _reconstruct_plain_heredoc(content: str, action_start: int) -> str:
+    """Rebuild a full plain (unfenced) heredoc command from the raw LLM *content*.
+
+    _ACTION_RE is line-bounded (no DOTALL), so for an `Action: cat > f << 'EOF'`
+    followed by a body+terminator it captures only the opener line. This recovers the
+    body and terminator from *content* (starting at *action_start*), cutting at the
+    matching delimiter line so trailing Thought/Observation text is never swallowed.
+    Returns the single opener line unchanged when no terminator follows."""
+    tail = re.sub(r"^\s*Action:[ \t]*", "", content[action_start:])
+    op = _RE_HEREDOC_OP.search(tail.splitlines()[0] if tail else "")
+    if not op:
+        return tail.splitlines()[0] if tail else ""
+    delim = re.search(r"([A-Za-z_]\w*)\s*$", op.group(0)).group(1)
+    lines = tail.splitlines()
+    kept = [lines[0]]
+    for line in lines[1:]:
+        kept.append(line)
+        if line.strip() == delim:
+            break
+    return "\n".join(kept)
+
 
 def _extract_worker_action(content: str) -> str:
     """Extract Action line from LLM content (mirrors worker.py verbatim).
@@ -123,14 +158,30 @@ def _extract_worker_action(content: str) -> str:
     # fence header on multi-line fences).
     fenced_match = _ACTION_FENCED_RE.search(content or "")
     if fenced_match:
-        return fenced_match.group(1).strip().splitlines()[0].strip()
+        body = fenced_match.group(1).strip()
+        if _is_terminated_heredoc(body):
+            return body
+        return body.splitlines()[0].strip()
 
     match = _ACTION_RE.search(content or "")
     if match:
         action = match.group(1).strip()
         action = re.sub(r"^```[a-zA-Z]*\n?", "", action)
         action = re.sub(r"\n?```$", "", action).strip()
-        return action.splitlines()[0].strip() if action else ""
+        if not action:
+            return ""
+        # _ACTION_RE is line-bounded (no DOTALL): a multi-line heredoc is captured as
+        # its opener only. If the opener carries a `<< DELIM`, recover the body +
+        # terminator from the raw content so the recorded+executed command actually
+        # writes the file (parity with the fenced branch). Non-heredoc actions are
+        # untouched and still truncate to line 1.
+        if "\n" not in action and _RE_HEREDOC_OP.search(action):
+            full = _reconstruct_plain_heredoc(content or "", match.start())
+            if _is_terminated_heredoc(full):
+                return full
+        if _is_terminated_heredoc(action):
+            return action
+        return action.splitlines()[0].strip()
     tc_match = _TOOLCALL_CMD_RE.search(content or "")
     if tc_match:
         action = tc_match.group(1).strip()
@@ -558,7 +609,13 @@ class BuildAgent:
             # before sending to the sandbox, feeding the corrective message back
             # as the observation so the model can fix its proposal immediately
             # without consuming a sandbox round-trip.
-            composition_error = validate_command_composition(action)
+            # Heredoc bodies legitimately contain `;`, `&&`, `import `, `cat ` etc.;
+            # composition rules govern SHELL command chaining, not heredoc text. Skip the
+            # self-check for a terminated heredoc to avoid a false Rule 1/Rule 2 rejection.
+            composition_error = (
+                None if _is_terminated_heredoc(action)
+                else validate_command_composition(action)
+            )
             if composition_error:
                 messages = messages + [
                     {"role": "assistant", "content": text},
@@ -775,7 +832,13 @@ class BuildAgent:
             empty_responses = 0  # reset on real action
 
             # Pre-submission self-check: reject composition rule violations.
-            composition_error = validate_command_composition(action)
+            # Heredoc bodies legitimately contain `;`, `&&`, `import `, `cat ` etc.;
+            # composition rules govern SHELL command chaining, not heredoc text. Skip the
+            # self-check for a terminated heredoc to avoid a false Rule 1/Rule 2 rejection.
+            composition_error = (
+                None if _is_terminated_heredoc(action)
+                else validate_command_composition(action)
+            )
             if composition_error:
                 messages = messages + [
                     {"role": "assistant", "content": text},
