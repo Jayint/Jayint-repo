@@ -259,6 +259,10 @@ class DockerAgent:
         self.failed_actions = []
         self.verification_source = None
         self.verification_bundle = None
+        # A2: real in-sandbox test-pass signal, sourced ONLY from a genuine pytest
+        # run (never fabricated). Populated by _resolve_v1_verified_test_run.
+        self.in_build_pass_rate = None   # float in [0,1] from observation_pass_ratio, or None
+        self.in_build_passed_ge1 = False # True iff a real run showed >=1 passed
         self.build_recipe = None
         self.build_recipe_source = None
         self.build_recipe_error = None
@@ -1256,10 +1260,23 @@ class DockerAgent:
                     learning="",
                 )
                 if _verified_test_run_passed(mini_report):
+                    self._record_v1_in_build_pass_signal(stdout)
                     return ev.cmd
 
-        # 2. Structural done_flag already fired in-loop — trust it.
+        # 2. Structural done_flag already fired in-loop — trust it, but recover the
+        #    REAL pass signal from the ledger (no re-run; honest defaults if none).
         if done_flag:
+            for ev in reversed(self.action_ledger.events()):
+                stdout = getattr(ev, "stdout", "") or ""
+                mini = TaskReport(
+                    task_goal="",
+                    status="done",
+                    commands=(CommandRecord(cmd=ev.cmd, rc=ev.rc, output=stdout),),
+                    learning="",
+                )
+                if _verified_test_run_passed(mini):
+                    self._record_v1_in_build_pass_signal(stdout)
+                    break
             return VERIFY_TEST_CMD
 
         # 3. Gate never reached in-loop: actively verify with execution command.
@@ -1290,6 +1307,7 @@ class DockerAgent:
                 print(f"[v1] finalize test-run: rc!=0 sub-majority pass-ratio ({ratio}) -> reject")
                 return None
             print(f"[v1] finalize: accepting majority-pass run (ratio={ratio:.3f})")
+        self._record_v1_in_build_pass_signal(out)
         self.action_ledger.append(
             ActionEvent(
                 step=len(self.action_ledger.events()),
@@ -1302,6 +1320,21 @@ class DockerAgent:
             )
         )
         return VERIFY_TEST_CMD
+
+    def _record_v1_in_build_pass_signal(self, output: str) -> None:
+        """Record the real in-sandbox pass signal from a genuine test-run output.
+
+        Honest: ratio comes from synthesizer.observation_pass_ratio (a clean
+        'N passed' with no failures => 1.0; mixed => passed/(passed+failed+errors);
+        no countable summary => None). passed_ge1 mirrors the host gate's
+        >=1-passed requirement.
+        """
+        from src.envstate.maintainer import _shows_execution, _shows_pytest_completion
+        out = output or ""
+        ratio = self.synthesizer.observation_pass_ratio(out)
+        if ratio is not None:
+            self.in_build_pass_rate = round(float(ratio), 4)
+        self.in_build_passed_ge1 = bool(_shows_execution(out) or _shows_pytest_completion(out))
 
     def _build_v1_ledger_appender(self, ledger):
         """Return a thin closure that records (cmd, rc, stdout) into the ActionLedger.
@@ -2748,6 +2781,8 @@ class DockerAgent:
             "failed_actions": self._compact_action_records(getattr(self, "failed_actions", [])),
             "verification_source": self.verification_source,
             "verification_bundle": self.verification_bundle,
+            "in_build_pass_rate": getattr(self, "in_build_pass_rate", None),
+            "in_build_passed_ge1": bool(getattr(self, "in_build_passed_ge1", False)),
             "benchmark_evaluation_target": self.benchmark_evaluation_target,
             "build_recipe": getattr(self, "build_recipe", None),
             "build_recipe_source": getattr(self, "build_recipe_source", None),

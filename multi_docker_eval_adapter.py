@@ -938,6 +938,8 @@ RUN git clone {repo_url} /testbed
                 None,
             )
             result["logs"]["verification_source"] = getattr(agent, "verification_source", None)
+            result["logs"]["in_build_pass_rate"] = getattr(agent, "in_build_pass_rate", None)
+            result["logs"]["in_build_passed_ge1"] = bool(getattr(agent, "in_build_passed_ge1", False))
             result["logs"]["memory_stats"] = getattr(agent, "memory_stats", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch

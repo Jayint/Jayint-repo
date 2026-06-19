@@ -47,6 +47,10 @@ def _make_v1_agent(ok, out):
     a.sandbox = _FakeSandbox(ok, out)
     a.action_ledger = _FakeLedger()
     a.env_container_id = ""
+    # __new__ bypasses __init__, so the A2 in-build signal attrs don't exist yet.
+    # Initialise them to the same honest defaults __init__ uses.
+    a.in_build_pass_rate = None
+    a.in_build_passed_ge1 = False
     return a
 
 
@@ -105,6 +109,58 @@ class V1FinalizeMajorityPassTests(unittest.TestCase):
             out="200 passed, 5 failed\nsqlalchemy.exc.OperationalError: could not connect to server",
         )
         self.assertEqual(a._resolve_v1_verified_test_run(done_flag=False), VERIFY_TEST_CMD)
+
+
+class V1InBuildPassSignalTests(unittest.TestCase):
+    """A2: the REAL in-sandbox pass signal (in_build_pass_rate / in_build_passed_ge1)
+    is recorded ONLY from a genuine test-run output that fired the gate, never
+    fabricated. A rejected run leaves both fields at their honest defaults."""
+
+    def test_clean_pass_records_ratio_1_and_ge1(self):
+        a = _make_v1_agent(ok=True, out="==== 50 passed in 3.2s ====")
+        a._resolve_v1_verified_test_run(done_flag=False)
+        self.assertEqual(a.in_build_pass_rate, 1.0)
+        self.assertIs(a.in_build_passed_ge1, True)
+
+    def test_majority_pass_records_real_ratio(self):
+        a = _make_v1_agent(ok=False, out="==== 1601 passed, 2 failed in 30.1s ====")
+        a._resolve_v1_verified_test_run(done_flag=False)
+        self.assertIs(a.in_build_passed_ge1, True)
+        self.assertIsNotNone(a.in_build_pass_rate)
+        self.assertLess(abs(a.in_build_pass_rate - 1601 / 1603), 1e-3)
+
+    def test_rejected_run_leaves_signal_unset(self):
+        # honesty: a 0-passed run is rejected and NOTHING is recorded.
+        a = _make_v1_agent(ok=False, out="==== 5 failed, 0 passed in 1.0s ====")
+        self.assertIsNone(a._resolve_v1_verified_test_run(done_flag=False))
+        self.assertIsNone(a.in_build_pass_rate)
+        self.assertIs(a.in_build_passed_ge1, False)
+
+    def test_done_flag_with_passing_ledger_event_records_signal_no_rerun(self):
+        # done_flag fired in-loop: recover the real pass signal from the ledger
+        # (no sandbox re-run). A genuine rc-0 passing event is caught by the
+        # ledger scan and its signal recorded.
+        from src.envstate.ledger import ActionEvent
+
+        a = _make_v1_agent(ok=False, out="SANDBOX MUST NOT RUN")
+        a.action_ledger.append(
+            ActionEvent(step=1, cmd="python -m pytest -q", rc=0,
+                        stdout="==== 50 passed in 3.2s ===="))
+        result = a._resolve_v1_verified_test_run(done_flag=True)
+        self.assertIn(result, ("python -m pytest -q", VERIFY_TEST_CMD))
+        self.assertEqual(a.sandbox.calls, [])  # never re-ran the container
+        self.assertEqual(a.in_build_pass_rate, 1.0)
+        self.assertIs(a.in_build_passed_ge1, True)
+
+    def test_done_flag_without_passing_event_leaves_signal_unset_no_rerun(self):
+        # done_flag set but no genuine passing run in the ledger -> honest:
+        # the signal stays unset and we do NOT re-run the sandbox to fabricate one.
+        a = _make_v1_agent(ok=True, out="SANDBOX MUST NOT RUN")
+        result = a._resolve_v1_verified_test_run(done_flag=True)
+        self.assertEqual(result, VERIFY_TEST_CMD)
+        self.assertEqual(a.sandbox.calls, [])
+        self.assertIsNone(a.in_build_pass_rate)
+        self.assertIs(a.in_build_passed_ge1, False)
 
 
 if __name__ == "__main__":
