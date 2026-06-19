@@ -1318,6 +1318,25 @@ RUN python one.py
         self.assertIn("cat > two.py", instructions[0])
         self.assertIn("PYEOF", instructions[0])
 
+    def test_persists_run_summary_into_durable_output_dir(self):
+        import json, tempfile, shutil as _sh, os as _os
+        output_dir = tempfile.mkdtemp()
+        workplace = tempfile.mkdtemp()
+        adapter = MultiDockerEvalAdapter(output_dir=output_dir)
+        _os.makedirs(workplace, exist_ok=True)
+        with open(_os.path.join(workplace, "agent_run_summary.json"), "w") as f:
+            json.dump({"token_usage": {"total": {"input_tokens": 5}}}, f)
+        adapter._persist_run_summary_to_output(workplace, "owner__name__1")
+        persisted = _os.path.join(output_dir, "owner__name__1.run_summary.json")
+        assert _os.path.exists(persisted)
+        with open(persisted) as f:
+            assert json.load(f)["token_usage"]["total"]["input_tokens"] == 5
+        # missing-source is a no-op, not an error
+        _sh.rmtree(workplace)
+        _os.makedirs(workplace, exist_ok=True)
+        adapter._persist_run_summary_to_output(workplace, "missing__case")
+        assert not _os.path.exists(_os.path.join(output_dir, "missing__case.run_summary.json"))
+
 
 if __name__ == "__main__":
     unittest.main()

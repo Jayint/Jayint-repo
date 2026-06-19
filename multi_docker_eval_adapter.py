@@ -30,6 +30,7 @@ import argparse
 import base64
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -980,6 +981,7 @@ RUN git clone {repo_url} /testbed
             self._save_result(instance_id, result)
             
         finally:
+            self._persist_run_summary_to_output(workplace, instance_id)
             # 保留临时目录供查看（如需清理，取消下面注释）
             print(f"\n[Workplace Preserved] {workplace}")
             print(f"To inspect: ls -la {workplace}")
@@ -3269,6 +3271,20 @@ exit 1
         with open(output_file, "w") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         print(f"\nResult saved to: {output_file}")
+
+    def _persist_run_summary_to_output(self, workplace: str, instance_id: str) -> None:
+        """Copy the agent-written agent_run_summary.json into the durable output
+        dir so per-phase token/step accounting survives the next run, which
+        rmtree's the workplace. Best-effort: never raises into finalize."""
+        try:
+            src = Path(workplace) / "agent_run_summary.json"
+            if not src.exists():
+                return
+            dst = self.output_dir / f"{instance_id}.run_summary.json"
+            shutil.copyfile(src, dst)
+            print(f"[DockerAgent] Run summary persisted to: {dst}")
+        except Exception as e:
+            print(f"  Warning: Failed to persist agent_run_summary.json: {e}")
     
     def process_dataset(self, dataset_path: str, 
                        base_image: str = "auto",
