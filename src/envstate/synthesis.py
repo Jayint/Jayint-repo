@@ -23,6 +23,29 @@ _RE_PYTHON_C_WRITE = re.compile(
 _PYTEST_RE = re.compile(r"^\s*(?:python[0-9.]*\s+-m\s+)?pytest\b")
 _READONLY_PREFIXES = ("ls ", "grep ", "find ", "head ", "tail ")
 
+# A heredoc operator: `<<` (optionally `<<-`), optional quote, then a delimiter word
+# that starts with a letter/underscore.  The leading-letter anchor means arithmetic
+# bit-shifts like `$((1 << 4))` never match (the token after `<<` is a digit).
+_RE_HEREDOC_OP = re.compile(r"<<-?\s*['\"]?[A-Za-z_]\w*")
+
+
+def _is_unterminated_heredoc(cmd: str) -> bool:
+    """True for a SINGLE-LINE command bearing a heredoc operator (``<< DELIM``).
+
+    The build agent records only the first line of a multi-line action
+    (build_agent.py:_extract_worker_action plain/fenced branches apply
+    ``.splitlines()[0]``), so a heredoc like ``cat > f << 'EOF'\\n<body>\\nEOF`` is
+    stored as the orphan opener ``cat > f << 'EOF'`` — body and terminator gone. Such a
+    command is structurally unreplayable: emitted as a Dockerfile ``RUN``, the eval
+    adapter's heredoc parser waits for a terminator that never arrives and greedily
+    swallows every following ``RUN`` into one no-op script (Bug 2 "no-op recipe"). A
+    genuinely multi-line heredoc keeps its body and terminator, contains a newline, and
+    is therefore NOT matched here — only the broken single-line opener is.
+    """
+    if not cmd or "\n" in cmd:
+        return False
+    return bool(_RE_HEREDOC_OP.search(cmd))
+
 
 def _is_source_file_edit(cmd: str) -> bool:
     """Return True if cmd's primary action writes or edits a file.
@@ -37,6 +60,10 @@ def _is_source_file_edit(cmd: str) -> bool:
     if _PYTEST_RE.match(s):
         return False
     if s.startswith(_READONLY_PREFIXES):
+        return False
+    # A body-less heredoc-open (truncated at record time) is not a replayable edit —
+    # drop it regardless of target path (see _is_unterminated_heredoc / Bug 2).
+    if _is_unterminated_heredoc(s):
         return False
     # printf/echo/cat/tee only when it genuinely writes stdout to a real file:
     if _RE_WRITE_PREFIX.match(s) and _RE_FILE_WRITE.search(s):
@@ -69,6 +96,13 @@ def build_commands_from_ledger(ledger: ActionLedger, distill=None) -> List[str]:
     commands: List[str] = []
     for event in ledger.events():
         if event.rc != 0:
+            continue
+        if _is_unterminated_heredoc(event.cmd):
+            # Broken single-line heredoc-open (body+terminator stripped at record time).
+            # Drop BEFORE the mutation_class branch: classify_mutation tags `cat > f <<`
+            # as 'file_or_env_change', which would otherwise keep it and collapse the
+            # recipe at eval time (Bug 2). Covers both the v1 ledger-appender path
+            # (mutation_class=None) and the build_agent path (mutation_class set).
             continue
         if not event.mutation_class and not _is_source_file_edit(event.cmd):
             continue  # read-only or test command
