@@ -2737,7 +2737,7 @@ class Synthesizer:
         Dockerfile ENV survives layer boundaries and the final image's runtime env."""
         if not name:
             return
-        safe = str(value).replace("\\", "\\\\").replace("$", "$$").replace('"', '\\"')
+        safe = str(value).replace("\\", "\\\\").replace("$", "\\$").replace('"', '\\"')
         instruction = f'ENV {name}="{safe}"'
         if instruction in self.instructions:
             return

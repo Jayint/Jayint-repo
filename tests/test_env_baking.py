@@ -103,13 +103,89 @@ def test_pythonpath_not_baked():
 
 
 def test_add_env_instruction_escapes_and_prepends():
-    """$ -> $$, " -> \\", \\ -> \\\\ ; prepended; idempotent."""
+    r"""$ -> \$, " -> \", \ -> \\ ; prepended; idempotent.
+
+    The literal-`$` escape in a Dockerfile ENV is `\$` (verified on real Docker:
+    `ENV X="a\$b"` stores `a$b`). `$$` is docker-COMPOSE syntax and would store the
+    two `$`s as empty-variable expansions (`ENV X="a$$b"` stores `ab`)."""
     synth = Synthesizer()
     synth.add_env_instruction("X", 'a$b "c" \\d')
-    assert synth.instructions[0] == 'ENV X="a$$b \\"c\\" \\\\d"', synth.instructions[0]
+    assert synth.instructions[0] == 'ENV X="a\\$b \\"c\\" \\\\d"', synth.instructions[0]
     # idempotent: adding the identical instruction again keeps exactly one
     synth.add_env_instruction("X", 'a$b "c" \\d')
-    assert synth.instructions.count('ENV X="a$$b \\"c\\" \\\\d"') == 1, synth.instructions
+    assert synth.instructions.count('ENV X="a\\$b \\"c\\" \\\\d"') == 1, synth.instructions
+
+
+def test_add_env_instruction_dollar_uses_backslash_not_double_dollar():
+    """A `$`-bearing value escapes to `\\$` (Dockerfile literal), NEVER `$$`
+    (docker-compose syntax that Docker stores as empty expansions)."""
+    synth = Synthesizer()
+    synth.add_env_instruction("Y", "a$b")
+    rendered = synth.instructions[0]
+    assert "$$" not in rendered, rendered
+    assert "\\$" in rendered, rendered
+    assert rendered == 'ENV Y="a\\$b"', rendered
+
+
+class _RecordingSynth:
+    """Records the (name, value) pairs passed to add_env_instruction."""
+
+    def __init__(self):
+        self.calls = []
+
+    def add_env_instruction(self, name, value):
+        self.calls.append((name, value))
+
+
+def _make_bare_agent(synth, ledger, verified_cmds=None, verified_cmd=None):
+    """DockerAgent via __new__ (bypass __init__), wired with the minimal attrs
+    that _bake_test_env_vars reads. Mirrors the fakes in test_v1_finalize_partial_pass."""
+    from agent import DockerAgent
+
+    a = DockerAgent.__new__(DockerAgent)
+    a.synthesizer = synth
+    a.action_ledger = ledger
+    a.verified_test_commands = verified_cmds if verified_cmds is not None else []
+    a.verified_test_command = verified_cmd
+    return a
+
+
+def test_bake_test_env_vars_wires_extract_to_add_env():
+    """_bake_test_env_vars feeds extract_env_vars_from_ledger output into the
+    synthesizer's add_env_instruction (export + referenced => baked)."""
+    ledger = ActionLedger()
+    ledger.append(_event(1, "export DJANGO_SETTINGS_MODULE=cfg.settings", 0, None))
+    ledger.append(_event(2, "echo $DJANGO_SETTINGS_MODULE", 0, None))
+    synth = _RecordingSynth()
+    agent = _make_bare_agent(synth, ledger)
+    agent._bake_test_env_vars()
+    assert synth.calls == [("DJANGO_SETTINGS_MODULE", "cfg.settings")], synth.calls
+
+
+def test_bake_test_env_vars_uses_inline_prefix_from_verified_commands():
+    """Inline `NAME=VALUE cmd` prefixes from verified_test_command(s) are baked."""
+    synth = _RecordingSynth()
+    agent = _make_bare_agent(
+        synth,
+        ActionLedger(),
+        verified_cmds=["DJANGO_SETTINGS_MODULE=cfg pytest -q"],
+        verified_cmd=None,
+    )
+    agent._bake_test_env_vars()
+    assert synth.calls == [("DJANGO_SETTINGS_MODULE", "cfg")], synth.calls
+
+
+def test_bake_test_env_vars_best_effort_never_raises():
+    """A failure inside the helper degrades gracefully (no exception escapes)."""
+    class _BoomSynth:
+        def add_env_instruction(self, name, value):
+            raise RuntimeError("boom")
+
+    ledger = ActionLedger()
+    ledger.append(_event(1, "export DJANGO_SETTINGS_MODULE=cfg.settings", 0, None))
+    ledger.append(_event(2, "echo $DJANGO_SETTINGS_MODULE", 0, None))
+    agent = _make_bare_agent(_BoomSynth(), ledger)
+    agent._bake_test_env_vars()  # must not raise
 
 
 def test_generate_dockerfile_contains_env():

@@ -1465,18 +1465,7 @@ class DockerAgent:
                 self.synthesizer.add_build_instruction(_cmd)
         except Exception as _pin_exc:
             print(f"[v1] pin layer skipped: {_pin_exc}")
-        # DROPPED_ENV: bake test-required env vars the agent set (export / inline
-        # prefix) into the image so the rebuilt seed reproduces the working env.
-        try:
-            from src.envstate.synthesis import extract_env_vars_from_ledger
-            _extra = list(getattr(self, "verified_test_commands", None) or [])
-            if getattr(self, "verified_test_command", None):
-                _extra.append(self.verified_test_command)
-            if self.action_ledger is not None:
-                for _n, _v in extract_env_vars_from_ledger(self.action_ledger, extra_commands=_extra):
-                    self.synthesizer.add_env_instruction(_n, _v)
-        except Exception as _env_exc:
-            print(f"[v1] env-bake skipped: {_env_exc}")
+        self._bake_test_env_vars()
         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
         _dockerfile_path = os.path.join(self.workplace, "Dockerfile")
@@ -1487,6 +1476,21 @@ class DockerAgent:
             return False
         self._maybe_generate_long_term_memories(configuration_success)
         return True
+
+    def _bake_test_env_vars(self) -> None:
+        """DROPPED_ENV: bake test-required env vars the agent set (export / inline
+        prefix) into the image so the rebuilt seed reproduces the working env.
+        Best-effort: a failure degrades to today's behavior (Dockerfile still built)."""
+        try:
+            from src.envstate.synthesis import extract_env_vars_from_ledger
+            extra = list(getattr(self, "verified_test_commands", None) or [])
+            if getattr(self, "verified_test_command", None):
+                extra.append(self.verified_test_command)
+            if self.action_ledger is not None:
+                for name, value in extract_env_vars_from_ledger(self.action_ledger, extra_commands=extra):
+                    self.synthesizer.add_env_instruction(name, value)
+        except Exception as env_exc:
+            print(f"[v1] env-bake skipped: {env_exc}")
 
     def _verify_cleanroom_or_fail(self, dockerfile_path: str = "", build_context: str = "") -> bool:
         """Return True if clean-room verification passes (or is disabled).
@@ -1750,19 +1754,7 @@ class DockerAgent:
                 if self._synthesize_final_build_recipe():
                     # 生成 Dockerfile 到 workplace 目录
                     dockerfile_path = os.path.join(self.workplace, "Dockerfile")
-                    # DROPPED_ENV: bake test-required env vars the agent set (export /
-                    # inline prefix) into the image so the rebuilt seed reproduces the
-                    # working env.
-                    try:
-                        from src.envstate.synthesis import extract_env_vars_from_ledger
-                        _extra = list(getattr(self, "verified_test_commands", None) or [])
-                        if getattr(self, "verified_test_command", None):
-                            _extra.append(self.verified_test_command)
-                        if self.action_ledger is not None:
-                            for _n, _v in extract_env_vars_from_ledger(self.action_ledger, extra_commands=_extra):
-                                self.synthesizer.add_env_instruction(_n, _v)
-                    except Exception as _env_exc:
-                        print(f"[v1] env-bake skipped: {_env_exc}")
+                    self._bake_test_env_vars()
                     self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
                     self._self_verify_and_repair(dockerfile_path)
                     self._maybe_generate_long_term_memories(configuration_success)
@@ -1787,19 +1779,7 @@ class DockerAgent:
                 try:
                     if self._synthesize_final_build_recipe():
                         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
-                        # DROPPED_ENV: bake test-required env vars the agent set
-                        # (export / inline prefix) into the image so the rebuilt seed
-                        # reproduces the working env.
-                        try:
-                            from src.envstate.synthesis import extract_env_vars_from_ledger
-                            _extra = list(getattr(self, "verified_test_commands", None) or [])
-                            if getattr(self, "verified_test_command", None):
-                                _extra.append(self.verified_test_command)
-                            if self.action_ledger is not None:
-                                for _n, _v in extract_env_vars_from_ledger(self.action_ledger, extra_commands=_extra):
-                                    self.synthesizer.add_env_instruction(_n, _v)
-                        except Exception as _env_exc:
-                            print(f"[v1] env-bake skipped: {_env_exc}")
+                        self._bake_test_env_vars()
                         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
                         self._self_verify_and_repair(dockerfile_path)
                         self._maybe_generate_long_term_memories(configuration_success)
