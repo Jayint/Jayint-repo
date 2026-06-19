@@ -147,6 +147,27 @@ class TestExtractWorkerAction(unittest.TestCase):
         out = self._extract(content)
         self.assertEqual(out, "cat > /app/p.toml << 'EOF'")
 
+    def test_missing_terminator_plain_heredoc_returns_opener_only(self):
+        """A plain heredoc whose terminator the model never emitted (it ran on into
+        Thought/Action text) must collapse to the OPENER LINE ALONE — never the
+        multi-line body. Reconstructing the body without a terminator (a) swallows
+        the trailing Thought/Observation/Action text and (b) leaks an unterminated
+        multi-line heredoc into the recipe (Bug 2). Returning the bare opener keeps
+        it single-line so synthesis._is_unterminated_heredoc drops it (pre-A1)."""
+        content = (
+            "Action: cat > /app/p.toml << 'EOF'\n"
+            "[project]\n"
+            'name = "x"\n'
+            "Thought: done writing\n"
+            "Action: ls -la\n"
+        )
+        out = self._extract(content)
+        self.assertEqual(out, "cat > /app/p.toml << 'EOF'")
+        # Nothing after the opener may be swallowed.
+        self.assertNotIn("Thought:", out)
+        self.assertNotIn("ls -la", out)
+        self.assertNotIn("[project]", out)
+
 
 class TestIsTerminatedHeredoc(unittest.TestCase):
     """Predicate gating both the extraction widening and the composition-validation

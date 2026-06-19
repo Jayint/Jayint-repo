@@ -236,6 +236,46 @@ def test_terminated_heredoc_body_survives_into_recipe():
     assert "EOF" in cmds[0], f"heredoc terminator lost on the way to the recipe; cmds={cmds}"
 
 
+def test_missing_terminator_heredoc_dropped_from_recipe():
+    """A1 review repro: when the model never closes a plain heredoc (it ran on into
+    Thought/Action text), _extract_worker_action must yield the bare single-line
+    opener, which build_commands_from_ledger then DROPS — proving the Bug-2 "no-op
+    recipe" regression is closed.
+
+    Without the A1-review fix, _reconstruct_plain_heredoc swallowed every trailing
+    line into a multi-line body; that body HAS a newline, so _is_unterminated_heredoc
+    returned False and the unterminated heredoc survived into the recipe as a RUN whose
+    eval-time parser greedily consumes the following RUNs.
+    """
+    from src.envstate.build_agent import _extract_worker_action
+
+    content = (
+        "Action: cat > /app/p.toml << 'EOF'\n"
+        "[project]\n"
+        'name = "x"\n'
+        "Thought: done writing\n"
+        "Action: ls -la\n"
+    )
+    action = _extract_worker_action(content)
+    # The opener alone, single line — nothing swallowed.
+    assert action == "cat > /app/p.toml << 'EOF'", f"unexpected action={action!r}"
+
+    ledger = ActionLedger()
+    # rc==0; use the same mutation_class classify_mutation would tag a `cat > f <<` with.
+    ledger.append(_event(1, action, 0, "file_or_env_change"))
+    ledger.append(_event(2, "pip install -e .", 0, "language_package_install"))
+
+    cmds = build_commands_from_ledger(ledger)
+
+    # The unterminated heredoc-open must be DROPPED from the recipe.
+    assert action not in cmds, f"unterminated heredoc-open must be dropped; cmds={cmds}"
+    assert not any("<<" in c for c in cmds), (
+        f"no heredoc operator may reach the recipe; cmds={cmds}"
+    )
+    # The real install must survive.
+    assert "pip install -e ." in cmds, f"real install must survive; cmds={cmds}"
+
+
 def test_is_unterminated_heredoc_helper_matrix():
     """Direct coverage of the helper's contract."""
     # Broken single-line openers -> True (unterminated)

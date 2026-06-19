@@ -139,10 +139,18 @@ def _reconstruct_plain_heredoc(content: str, action_start: int) -> str:
     delim = re.search(r"([A-Za-z_]\w*)\s*$", op.group(0)).group(1)
     lines = tail.splitlines()
     kept = [lines[0]]
+    found = False
     for line in lines[1:]:
         kept.append(line)
         if line.strip() == delim:
+            found = True
             break
+    if not found:
+        # No terminator: keep the opener alone (single line) so it stays unterminated
+        # and synthesis._is_unterminated_heredoc drops it (pre-A1 behavior). Returning
+        # the multi-line body leaks an unterminated heredoc into the recipe (Bug 2)
+        # and swallows trailing Thought/Observation/Action text.
+        return lines[0]
     return "\n".join(kept)
 
 
