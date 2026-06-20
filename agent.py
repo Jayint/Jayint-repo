@@ -170,6 +170,10 @@ class DockerAgent:
         # the DOCKERAGENT_REQUIRE_TEST_EXECUTION env var, mirroring DOCKERAGENT_ENABLE_V1.
         self.require_test_execution = bool(require_test_execution) or \
             os.getenv("DOCKERAGENT_REQUIRE_TEST_EXECUTION", "0").lower() in ("1", "true", "yes")
+        # Set when a finalization is rejected specifically because tests weren't executed
+        # (collection-only under require_test_execution); the loop turns it into corrective
+        # feedback instead of counting it toward the invalid-bundle giveup limit.
+        self._finalize_rejected_for_execution = False
         self.memory_path = memory_path
         self.memory_embedding_model = memory_embedding_model
         self.command_timeout_seconds = command_timeout_seconds
@@ -830,6 +834,37 @@ class DockerAgent:
                         if self._finalize_verification_from_agent_report(raw_llm_output):
                             configuration_success = True
                             break
+                        elif self._finalize_rejected_for_execution:
+                            # Run-tests goal: the bundle was rejected because tests were only
+                            # collected, not executed. Feed that back as corrective guidance so the
+                            # agent runs them for real, and do NOT count it toward the giveup limit.
+                            self._finalize_rejected_for_execution = False
+                            print("[Run-Tests Goal] Rejected collect-only finalization; instructing "
+                                  "the agent to actually run the test suite.")
+                            observation = (
+                                "[SYSTEM] Your Verification Bundle was REJECTED: its test command only "
+                                "COLLECTS tests (e.g. `pytest --collect-only`), which does NOT execute "
+                                "them. You MUST actually RUN the test suite as your next Action — e.g. "
+                                "`pytest -q` (or `poetry run pytest -q`, or the project's documented test "
+                                "command) — so the tests execute. Do NOT declare success and do NOT re-run "
+                                "`--collect-only` until the tests have actually run. After they execute, "
+                                "report that executing command in the Verification Bundle."
+                            )
+                            if self.enable_observation_compression:
+                                self._record_agent_step(
+                                    step_id=step + 1,
+                                    thought=thought or "",
+                                    action="",
+                                    assistant_content=raw_llm_output,
+                                    success=False,
+                                    observation=observation,
+                                    prompt_observation=observation,
+                                    mutates_environment=False,
+                                    env_revision_before=self._environment_revision,
+                                    env_revision_after=self._environment_revision,
+                                    planner_usage=usage_info,
+                                )
+                            continue
                         else:
                             print("[Warning] Agent claimed success but did not provide a valid Verification Bundle.")
                             (
@@ -1732,6 +1767,7 @@ class DockerAgent:
         if not self.verified_test_commands:
             return False
         if self.require_test_execution and not self._real_in_sandbox_test_executed():
+            self._finalize_rejected_for_execution = True
             print("[Verification Bundle] Rejected: require_test_execution is on and no real "
                   "test execution was observed (collection-only is not acceptable). Run the "
                   "full test suite and fix failures before declaring success.")
@@ -1770,6 +1806,7 @@ class DockerAgent:
             return False
 
         if self.require_test_execution and not self._real_in_sandbox_test_executed():
+            self._finalize_rejected_for_execution = True
             print("[Verification Bundle] Rejected: require_test_execution is on and the agent has "
                   "not executed the test suite in-sandbox (collection-only does not count). Run the "
                   "tests for real and fix failures before declaring success.")
