@@ -79,6 +79,35 @@ def pass_rate_of(result: Optional[Dict[str, Any]]) -> float:
     return passed / effective_total if effective_total > 0 else 0.0
 
 
+_COLLECT_ONLY_RE = re.compile(r"\s*--collect-only\b")
+_FORCED_FULL_SUITE_FALLBACK = "python -m pytest -q --disable-warnings"
+
+
+def strip_collect_only(command: Optional[str]) -> str:
+    """Remove the ``--collect-only`` flag so a verification command becomes an executing run."""
+    if not command:
+        return ""
+    return _COLLECT_ONLY_RE.sub("", command).strip()
+
+
+def derive_forced_test_command(
+    candidates: Optional[list],
+    fallback: str = _FORCED_FULL_SUITE_FALLBACK,
+) -> str:
+    """Choose a real (executing) test command for the RAT-style forced final run.
+
+    Takes the agent's candidate test commands (verified first), strips ``--collect-only`` so a
+    collect-only verification becomes an actual run, and returns the first usable one. Falls back
+    to a full-suite ``python -m pytest`` when no candidate yields an executing command.
+    """
+    for c in candidates or []:
+        if c and isinstance(c, str) and c.strip():
+            stripped = strip_collect_only(c)
+            if stripped:
+                return stripped
+    return fallback
+
+
 def select_best_attempt(attempts: Optional[list]) -> Optional[Dict[str, Any]]:
     """Pick the RAT-comparable run among captured in-sandbox test attempts.
 

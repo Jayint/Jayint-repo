@@ -3,7 +3,13 @@
 The pass_rate formula must match compute_essr.official_pass_rate exactly
 (passed / (total_tests - skipped)) so the in-build number is comparable to cleanroom.
 """
-from src.pytest_summary import parse_pytest_summary, pass_rate_of, select_best_attempt
+from src.pytest_summary import (
+    parse_pytest_summary,
+    pass_rate_of,
+    select_best_attempt,
+    strip_collect_only,
+    derive_forced_test_command,
+)
 
 
 def test_pytest_all_passed():
@@ -137,3 +143,28 @@ def test_select_best_tiebreaks_by_pass_rate_then_step():
 def test_select_best_empty_is_none():
     assert select_best_attempt([]) is None
     assert select_best_attempt(None) is None
+
+
+def test_strip_collect_only():
+    assert strip_collect_only("pytest --collect-only -q --disable-warnings") == "pytest -q --disable-warnings"
+    assert strip_collect_only("pytest -q") == "pytest -q"
+    assert strip_collect_only("") == ""
+    assert strip_collect_only(None) == ""
+
+
+def test_derive_forced_command_strips_collect_only_from_verified():
+    # The exact smoke case: collect-only verified command -> a real executing run.
+    cmd = derive_forced_test_command(["pytest --collect-only -q --disable-warnings"])
+    assert cmd == "pytest -q --disable-warnings"
+
+
+def test_derive_forced_command_prefers_first_usable_candidate():
+    cmd = derive_forced_test_command([None, "", "pytest tests/ -q", "python -m pytest"])
+    assert cmd == "pytest tests/ -q"
+
+
+def test_derive_forced_command_falls_back_to_full_suite():
+    assert derive_forced_test_command([]) == "python -m pytest -q --disable-warnings"
+    assert derive_forced_test_command(None) == "python -m pytest -q --disable-warnings"
+    # A candidate that is only --collect-only collapses to empty -> fallback.
+    assert derive_forced_test_command(["--collect-only"]) == "python -m pytest -q --disable-warnings"

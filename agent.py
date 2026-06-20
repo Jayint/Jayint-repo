@@ -14,7 +14,12 @@ from src.image_selector import ImageSelector
 from src.verification_bundle import derive_supported_verification_bundle
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.memory_manager import LongTermMemoryManager
-from src.pytest_summary import parse_pytest_summary, pass_rate_of, select_best_attempt
+from src.pytest_summary import (
+    parse_pytest_summary,
+    pass_rate_of,
+    select_best_attempt,
+    derive_forced_test_command,
+)
 from src.observation_compressor import (
     AgentStep,
     ObservationCompressor,
@@ -985,6 +990,9 @@ class DockerAgent:
                     run_error = f"{run_error}; auto-finalization synthesis failed: {synth_exc}"
                     print(f"[Warning] Auto-finalization synthesis failed: {synth_exc}")
         finally:
+            # P0: force a real in-build test run (RAT-faithful) while the container is alive,
+            # if the agent never executed tests live. Must precede write_run_summary + close.
+            self._force_final_in_sandbox_test_run()
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
 
@@ -1624,7 +1632,7 @@ class DockerAgent:
         print(f"[Recorded Test Command] {action}")
         print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
 
-    def _capture_in_sandbox_test_result(self, step_index, command, observation, success):
+    def _capture_in_sandbox_test_result(self, step_index, command, observation, success, forced=False):
         """Parse the live-container test summary and track the RAT-comparable best run.
 
         Measurement only — does NOT affect the agent's success definition, verification
@@ -1644,12 +1652,43 @@ class DockerAgent:
             "step_index": step_index,
             "command": command,
             "success": bool(success),
+            "forced": bool(forced),
             "pass_rate": round(pass_rate_of(parsed), 4),
             "effective_total": max(effective_total, 0),
             "result": parsed,
         }
         self.in_sandbox_test_attempts.append(attempt)
         self.best_in_sandbox_test_result = select_best_attempt(self.in_sandbox_test_attempts)
+
+    def _force_final_in_sandbox_test_run(self):
+        """RAT-faithful in-build measurement (P0): if the agent never executed tests in the
+        live container (e.g. it satisfied its done-gate with `pytest --collect-only`), run one
+        real test command here — while the sandbox is still alive — so the built-environment
+        pass rate is captured. Measurement only, best-effort, never breaks finalize.
+
+        Skipped when the agent already executed tests live (a real run was captured), so it
+        adds at most one extra run per repo and only where it's needed.
+        """
+        try:
+            best = self.best_in_sandbox_test_result
+            if best and (best.get("effective_total", 0) or 0) > 0:
+                return  # agent already ran tests in-sandbox — nothing to force
+            candidates = [self.verified_test_command]
+            candidates += list(self.verified_test_commands or [])
+            candidates += list(self.successful_test_commands or [])
+            cmd = derive_forced_test_command(candidates)
+            print(f"[In-Build Metric] No live test execution captured; forcing one for "
+                  f"measurement: {cmd}")
+            success, observation = self.sandbox.execute(cmd)
+            self._capture_in_sandbox_test_result(9999, cmd, observation, success, forced=True)
+            best = self.best_in_sandbox_test_result
+            if best:
+                print(f"[In-Build Metric] Forced run captured pass_rate={best.get('pass_rate')} "
+                      f"over {best.get('effective_total')} tests.")
+            else:
+                print("[In-Build Metric] Forced run produced no parseable test summary.")
+        except Exception as e:
+            print(f"[In-Build Metric] Forced final test run failed (non-fatal): {e}")
 
     def _observation_contains_final_success_bundle(self, observation):
         if not observation:
