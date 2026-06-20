@@ -783,7 +783,17 @@ RUN git clone {repo_url} /testbed
             # 运行 agent 配置环境
             agent.run(max_steps=max_steps, keep_container=False)
             accepted_verification = getattr(agent, "verification_source", None) == "agent_report"
-            
+
+            # RAT-style in-build (live-container) test result — captured unconditionally,
+            # BEFORE the Dockerfile-generation branches, so it is recorded even when the agent
+            # gives up or no Dockerfile is produced. Scored by scripts/score_in_sandbox.py.
+            result["logs"]["best_in_sandbox_test_result"] = getattr(
+                agent, "best_in_sandbox_test_result", None
+            )
+            result["logs"]["in_sandbox_test_attempts"] = getattr(
+                agent, "in_sandbox_test_attempts", []
+            ) or []
+
             # 记录 platform override（用于后续评估框架构建镜像时使用正确平台）
             if hasattr(agent, 'platform_override') and agent.platform_override:
                 result["platform"] = agent.platform_override

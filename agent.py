@@ -14,6 +14,7 @@ from src.image_selector import ImageSelector
 from src.verification_bundle import derive_supported_verification_bundle
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 from src.memory_manager import LongTermMemoryManager
+from src.pytest_summary import parse_pytest_summary, pass_rate_of, select_best_attempt
 from src.observation_compressor import (
     AgentStep,
     ObservationCompressor,
@@ -140,6 +141,10 @@ class DockerAgent:
         self.verified_test_commands = []
         self.verified_runtime_preparation_commands = []
         self.test_run_attempts = []
+        # RAT-style in-build (live-container) test capture — measurement only, no effect on
+        # the agent's success definition or Dockerfile synthesis. See src/pytest_summary.py.
+        self.in_sandbox_test_attempts = []
+        self.best_in_sandbox_test_result = None
         self.successful_actions = []
         self.failed_actions = []
         self.verification_source = None
@@ -890,7 +895,13 @@ class DockerAgent:
                 prompt_observation = self._prepare_observation_for_prompt(observation)
                 
                 print(f"\n[Observation]\n{observation if observation.strip() else '(No output)'}")
-                
+
+                # Capture the live-container test result (RAT-style in-build measurement).
+                # Runs for real commands regardless of exit code, since a full-suite run with
+                # failures (rc!=0) is the partial-credit case RAT scores.
+                if not is_rollback_action and not is_memory_retrieval_action:
+                    self._capture_in_sandbox_test_result(step + 1, action, observation, success)
+
                 # 3. Synthesize if successful
                 mutates_environment = False
                 accepted_observation_final = False
@@ -1613,6 +1624,33 @@ class DockerAgent:
         print(f"[Recorded Test Command] {action}")
         print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
 
+    def _capture_in_sandbox_test_result(self, step_index, command, observation, success):
+        """Parse the live-container test summary and track the RAT-comparable best run.
+
+        Measurement only — does NOT affect the agent's success definition, verification
+        bundle, or Dockerfile synthesis. Captures every test command (passing or failing)
+        whose output yields a parseable pytest/unittest summary, so the build-agent
+        environment success rate can be scored exactly like RAT scores its live container
+        (scripts/score_in_sandbox.py), independently of the cleanroom rebuild.
+        """
+        if not command or not self.synthesizer.is_test_command(command):
+            return
+        parsed = parse_pytest_summary(observation)
+        if not parsed:
+            return
+        summary = parsed.get("summary", {}) or {}
+        effective_total = (summary.get("total_tests", 0) or 0) - (summary.get("skipped", 0) or 0)
+        attempt = {
+            "step_index": step_index,
+            "command": command,
+            "success": bool(success),
+            "pass_rate": round(pass_rate_of(parsed), 4),
+            "effective_total": max(effective_total, 0),
+            "result": parsed,
+        }
+        self.in_sandbox_test_attempts.append(attempt)
+        self.best_in_sandbox_test_result = select_best_attempt(self.in_sandbox_test_attempts)
+
     def _observation_contains_final_success_bundle(self, observation):
         if not observation:
             return False
@@ -1859,6 +1897,8 @@ class DockerAgent:
             "verified_runtime_preparation_commands": self.verified_runtime_preparation_commands,
             "successful_test_commands": self.successful_test_commands,
             "test_run_attempts": self.test_run_attempts,
+            "best_in_sandbox_test_result": self.best_in_sandbox_test_result,
+            "in_sandbox_test_attempts": self.in_sandbox_test_attempts,
             "successful_actions": self._compact_action_records(
                 getattr(self, "successful_actions", [])
             ),
