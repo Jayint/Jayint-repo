@@ -164,7 +164,9 @@ def test_derive_forced_command_prefers_first_usable_candidate():
 
 
 def test_derive_forced_command_falls_back_to_full_suite():
-    assert derive_forced_test_command([]) == "python -m pytest -q --disable-warnings"
-    assert derive_forced_test_command(None) == "python -m pytest -q --disable-warnings"
+    # Fallback uses the `pytest` console script (the invocation the agent uses), not
+    # `python -m pytest` (which can resolve to a python without pytest).
+    assert derive_forced_test_command([]) == "pytest -q --disable-warnings"
+    assert derive_forced_test_command(None) == "pytest -q --disable-warnings"
     # A candidate that is only --collect-only collapses to empty -> fallback.
-    assert derive_forced_test_command(["--collect-only"]) == "python -m pytest -q --disable-warnings"
+    assert derive_forced_test_command(["--collect-only"]) == "pytest -q --disable-warnings"

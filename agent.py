@@ -1673,20 +1673,33 @@ class DockerAgent:
             best = self.best_in_sandbox_test_result
             if best and (best.get("effective_total", 0) or 0) > 0:
                 return  # agent already ran tests in-sandbox — nothing to force
+            # Candidate commands, best first: verified commands, then the agent's actually-
+            # executed test commands (most recent first). The latter covers the common case
+            # where the agent only ran `pytest --collect-only` — that command IS recorded in
+            # successful_actions, and stripping --collect-only turns it into a real run with
+            # the project's correct invocation/cwd (poetry/env/path all preserved).
             candidates = [self.verified_test_command]
             candidates += list(self.verified_test_commands or [])
             candidates += list(self.successful_test_commands or [])
+            history = list(getattr(self, "successful_actions", []) or []) + \
+                list(getattr(self, "failed_actions", []) or [])
+            hist_cmds = [r.get("command") for r in history
+                         if isinstance(r, dict) and r.get("command")]
+            test_cmds = [c for c in hist_cmds if self.synthesizer.is_test_command(c)]
+            candidates += list(reversed(test_cmds))
             cmd = derive_forced_test_command(candidates)
             print(f"[In-Build Metric] No live test execution captured; forcing one for "
                   f"measurement: {cmd}")
             success, observation = self.sandbox.execute(cmd)
             self._capture_in_sandbox_test_result(9999, cmd, observation, success, forced=True)
             best = self.best_in_sandbox_test_result
-            if best:
+            if best and (best.get("effective_total", 0) or 0) > 0:
                 print(f"[In-Build Metric] Forced run captured pass_rate={best.get('pass_rate')} "
                       f"over {best.get('effective_total')} tests.")
             else:
-                print("[In-Build Metric] Forced run produced no parseable test summary.")
+                tail = (observation or "")[-600:].replace("\n", " | ")
+                print(f"[In-Build Metric] Forced run produced no parseable test summary. "
+                      f"cmd={cmd!r} rc_ok={success} tail={tail!r}")
         except Exception as e:
             print(f"[In-Build Metric] Forced final test run failed (non-fatal): {e}")
 

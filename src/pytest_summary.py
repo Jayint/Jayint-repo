@@ -80,7 +80,7 @@ def pass_rate_of(result: Optional[Dict[str, Any]]) -> float:
 
 
 _COLLECT_ONLY_RE = re.compile(r"\s*--collect-only\b")
-_FORCED_FULL_SUITE_FALLBACK = "python -m pytest -q --disable-warnings"
+_FORCED_FULL_SUITE_FALLBACK = "pytest -q --disable-warnings"
 
 
 def strip_collect_only(command: Optional[str]) -> str:
