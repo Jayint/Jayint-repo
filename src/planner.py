@@ -21,6 +21,7 @@ class Planner:
         completion_reserve_tokens: int = None,
         history_token_budget: int = None,
         enable_long_term_memory: bool = False,
+        require_test_execution: bool = False,
         benchmark_evaluation_target: Optional[Dict[str, Any]] = None,
     ):
         self.client = client
@@ -44,6 +45,7 @@ class Planner:
         )
         self.history_token_budget = history_token_budget
         self.enable_long_term_memory = enable_long_term_memory
+        self.require_test_execution = require_test_execution
         self.benchmark_evaluation_target = benchmark_evaluation_target or {}
         
         # Create log directory if specified
@@ -158,6 +160,30 @@ class Planner:
         ])
 
         self.system_prompt = "\n\n".join(prompt_sections)
+
+        if self.require_test_execution:
+            # Goal override: flip the objective from Repo2Run collect-only to RAT-style
+            # execute-and-pass. Prepended so it takes precedence over the collection guidance
+            # in the sections above. Paired with a host-side gate that rejects collection-only
+            # finalization, so the agent cannot declare success without a real test run.
+            self.system_prompt = (
+                "================ CRITICAL GOAL OVERRIDE — READ FIRST, SUPERSEDES EVERYTHING BELOW ================\n"
+                "Your objective is to make the repository's TEST SUITE EXECUTE AND PASS in the configured\n"
+                "environment — NOT merely to collect tests.\n"
+                "- You MUST actually RUN the tests (e.g. `pytest -q`, `poetry run pytest`, or the project's\n"
+                "  documented test command). `pytest --collect-only` is NOT acceptable as proof; a Verification\n"
+                "  Bundle whose test command only collects tests will be REJECTED by the host.\n"
+                "- Wherever any instruction below says collection success is sufficient, or that you do NOT need\n"
+                "  to run or pass the tests, that guidance is OVERRIDDEN — ignore it. Run the full suite and fix\n"
+                "  the real causes of failures (install missing dependencies, configure and start required\n"
+                "  services, set required runtime configuration) so the tests execute and pass.\n"
+                "- Final proof = the test suite executed and passed. If some tests genuinely cannot pass after\n"
+                "  real environment configuration (e.g. they require external secrets), make as many pass as the\n"
+                "  environment allows and report the EXECUTING test command (never a collection-only command) in\n"
+                "  the Verification Bundle.\n"
+                "===============================================================================================\n\n"
+                + self.system_prompt
+            )
 
     def plan(self, repo_url=None, last_observation=None, manage_history=True):
         """

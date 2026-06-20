@@ -23,8 +23,12 @@ class Sandbox:
         apt_http_timeout_seconds=120,
         apt_https_timeout_seconds=120,
         docker_client_timeout_seconds=None,
+        require_test_execution=False,
     ):
         self.client = docker.from_env(timeout=docker_client_timeout_seconds)
+        # When on, failed test commands are nudged toward fixing failures (run-and-pass),
+        # not toward retreating to `pytest --collect-only`. See agent.require_test_execution.
+        self.require_test_execution = require_test_execution
         self.base_image = base_image
         self.workdir = workdir
         self.volumes = volumes  # Mapping of {local_path: {'bind': container_path, 'mode': 'rw'}}
@@ -591,6 +595,24 @@ class Sandbox:
         目的：阻止 LLM 以"核心功能通过"为由自我合理化，绕过 No Excuses Rule。
         """
         if exit_code == 0:
+            return ""
+
+        # Run-tests goal: a failed test command means fix the failures, not retreat to
+        # collection. Return a single coherent message and skip the collect-only variants.
+        if self.require_test_execution:
+            if (
+                re.search(r'([1-9]\d*)\s+(failed|errors?)', output, re.IGNORECASE)
+                or self._command_classifier.observation_has_test_failure_signal(output)
+                or re.search(r'^\s*(?:FAILED|ERROR)\s+\S+', output, re.MULTILINE)
+                or re.search(r'Failed:\s+([1-9]\d*)', output)
+            ):
+                return (
+                    "[SYSTEM] ⚠️  TEST FAILURE DETECTED. You CANNOT output 'Final Answer: Success' "
+                    "from a failed test run. Your goal is to make the test suite EXECUTE and PASS: "
+                    "diagnose and fix the real cause (install missing dependencies, configure and "
+                    "start required services, set required runtime config). Do NOT retreat to "
+                    "`--collect-only`, and do NOT claim success from a failed or collection-only run.\n\n"
+                )
             return ""
 
         # TAP 格式失败：run_all 输出的 "Failed: N"

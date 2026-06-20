@@ -132,6 +132,7 @@ class DockerAgent:
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
+        require_test_execution=False,
     ):
         self.repo_url = repo_url
         self.model = model
@@ -162,6 +163,12 @@ class DockerAgent:
         self._current_verification_group = []
         self.enable_observation_compression = enable_observation_compression
         self.enable_long_term_memory = enable_long_term_memory
+        # Goal mode: when on, the agent must actually EXECUTE the test suite (not just
+        # `pytest --collect-only`) to declare success — RAT-style, for fair in-build comparison.
+        # Off by default (preserves the collect-only Repo2Run baseline); enable per-run via
+        # the DOCKERAGENT_REQUIRE_TEST_EXECUTION env var, mirroring DOCKERAGENT_ENABLE_V1.
+        self.require_test_execution = bool(require_test_execution) or \
+            os.getenv("DOCKERAGENT_REQUIRE_TEST_EXECUTION", "0").lower() in ("1", "true", "yes")
         self.memory_path = memory_path
         self.memory_embedding_model = memory_embedding_model
         self.command_timeout_seconds = command_timeout_seconds
@@ -316,6 +323,7 @@ class DockerAgent:
             benchmark_evaluation_target=self.benchmark_evaluation_target,
             log_dir=setup_log_dir,
             enable_long_term_memory=self.enable_long_term_memory,
+            require_test_execution=self.require_test_execution,
         )
         self.synthesizer = Synthesizer(base_image=base_image)
         self.observation_compressor = None
@@ -1046,6 +1054,7 @@ class DockerAgent:
             platform=platform_override,  # Use linux/amd64 if ARM64 issues detected
             seed_dir=self.workplace,
             command_timeout_seconds=self.command_timeout_seconds,
+            require_test_execution=self.require_test_execution,
         )
 
     def _is_explicit_rollback_action(self, action):
@@ -1711,8 +1720,19 @@ class DockerAgent:
             and re.search(r"^\s*Final Answer:\s*Success\b", observation, re.IGNORECASE | re.MULTILINE)
         )
 
+    def _real_in_sandbox_test_executed(self):
+        """True iff the agent actually executed a test suite in-sandbox (a parseable run with
+        >0 effective tests was captured) — i.e. not merely `pytest --collect-only`."""
+        best = self.best_in_sandbox_test_result
+        return bool(best and (best.get("effective_total", 0) or 0) > 0)
+
     def _auto_finalize_from_verified_tests(self, source):
         if not self.verified_test_commands:
+            return False
+        if self.require_test_execution and not self._real_in_sandbox_test_executed():
+            print("[Verification Bundle] Rejected: require_test_execution is on and no real "
+                  "test execution was observed (collection-only is not acceptable). Run the "
+                  "full test suite and fix failures before declaring success.")
             return False
 
         self.verification_source = source
@@ -1745,6 +1765,12 @@ class DockerAgent:
     def _finalize_verification_from_agent_report(self, raw_llm_output, source="agent_report"):
         bundle = self._extract_verification_bundle(raw_llm_output)
         if not bundle:
+            return False
+
+        if self.require_test_execution and not self._real_in_sandbox_test_executed():
+            print("[Verification Bundle] Rejected: require_test_execution is on and the agent has "
+                  "not executed the test suite in-sandbox (collection-only does not count). Run the "
+                  "tests for real and fix failures before declaring success.")
             return False
 
         runtime_commands = self._normalize_command_list(
