@@ -5,6 +5,7 @@ import argparse
 import subprocess
 import shutil
 import time
+import traceback
 from pathlib import Path
 from openai import OpenAI
 from src.sandbox import Sandbox
@@ -977,6 +978,7 @@ class DockerAgent:
         except Exception as e:
             run_error = str(e)
             print(f"An error occurred during execution: {e}")
+            traceback.print_exc()
             if self._is_transient_llm_error(e) and self._auto_finalize_from_verified_tests(
                 source="auto_after_transient_error"
             ):

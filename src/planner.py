@@ -226,6 +226,16 @@ class Planner:
         # endpoints do not reliably honor stop sequences, so keep only the
         # executable single-step ReAct message in history.
         content = response.choices[0].message.content
+        if not content:
+            # Some OpenRouter providers (deepseek-v4-flash, minimax) return content=None and put
+            # the text in `reasoning`/`reasoning_content`. Fall back so downstream parsing never
+            # sees None (which raises "expected string or bytes-like object" and aborts the step).
+            _msg = response.choices[0].message
+            content = (
+                getattr(_msg, "reasoning", None)
+                or getattr(_msg, "reasoning_content", None)
+                or ""
+            )
         thought = self._extract_thought(content)
         action = self._extract_tag(content, "Action")
         final_answer = self.extract_final_answer(content)
