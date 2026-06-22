@@ -406,3 +406,21 @@ extraction-loop guard); bit-shift not treated as heredoc; helper matrix; recipe 
 Bug 2, the seed keeps the real installs (pip/python-c) and drops the 4 broken heredoc-opens → no eval-adapter
 collapse. Pending VM re-smoke on proxy_pool (decode recipe: terminated, no embedded RUN, installs execute,
 repair_rounds drops, closure excludes project) before the 50-repo run.
+
+### RE-SMOKE RESULT (proxy_pool, run-20260619-154217) — both fixes VERIFIED; deeper issue isolated
+- BUG 2 fixed (verified): agent Dockerfile is now **8 well-formed RUNs** (was 1 collapsed base64 blob). No
+  unterminated heredoc, no `RUN` swallowed. The recipe is legible and the runner repair loop now engages
+  PRODUCTIVELY (targeted incremental fixes: add missing `version`, add setuptools/wheel) — vs the old monolithic
+  no-op it could not touch.
+- BUG 1 fixed (verified): pin closure excludes `proxy_pool` (no `proxy_pool==`/`proxy-pool==` in the printf line).
+- STILL build_failed (NOT a regression — old 084304 was also build_failed): proxy_pool's working pyproject fix was a
+  heredoc `cat > /app/pyproject.toml << 'PYEOF'` (cyc2). Recorded truncated → dropped by the Bug-2 guard (a body-less
+  heredoc can't be replayed). Seed lacks the pyproject patch; proxy_pool's raw pyproject has a `[project]` table
+  missing `version` → real eval error `project must contain ['version']` → `pip install -e .` aborts the build.
+  Repair (2 rounds: sed version + setuptools) did not fully recover it within the bound.
+- ROOT = the flagged DEEPER issue: recording truncation (`_extract_worker_action` `.splitlines()[0]`) loses heredoc
+  bodies entirely. The synthesis guard correctly avoids the catastrophic collapse but cannot RECOVER lost content.
+  For repos whose ESSENTIAL setup is a heredoc (pyproject/config creation — a common LLM pattern), the seed is
+  well-formed but INCOMPLETE and leans on the repair loop. Fixing the recording = changing what EXECUTES in-container
+  (behavioral, broad blast radius) → OUT of the recording/synthesis-only scope; needs a user decision (gate on 50-run
+  attribution data: how big is bucket C "synthesizer dropped a verified-working env").

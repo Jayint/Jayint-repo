@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnvGraph-Port Dependency/Environment Graph — Initial vs Runtime</title>
+<script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f7f9; --ink:#172033; --muted:#5d6878; --panel:#fff; --border:#d9dee7;
+    --expected:#b7791f; --expected-bg:#fef7df;
+    --satisfied:#15803d; --satisfied-bg:#e7f6f4;
+    --violated:#c62828; --violated-bg:#fff0e8;
+    --neutral:#5d6878; --neutral-bg:#eef1f5;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body)}
+  header{padding:16px 22px;border-bottom:1px solid var(--border);background:var(--panel)}
+  h1{margin:0 0 4px;font-size:19px}
+  .sub{margin:0;color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  button{font:600 13px var(--body);padding:7px 14px;border:1px solid var(--border);
+    background:#fff;border-radius:7px;cursor:pointer;color:var(--ink)}
+  button.active{background:#172033;color:#fff;border-color:#172033}
+  .phase-note{margin-left:8px;color:var(--muted);font-size:12px}
+  main{display:grid;grid-template-columns:1fr 340px;gap:0;height:calc(100vh - 132px)}
+  #cy{width:100%;height:100%;background:
+    linear-gradient(#eef1f5 1px,transparent 1px),
+    linear-gradient(90deg,#eef1f5 1px,transparent 1px);
+    background-size:26px 26px;background-color:#fbfcfe}
+  aside{border-left:1px solid var(--border);background:var(--panel);padding:16px;overflow:auto}
+  aside h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .hint{color:var(--muted);font-size:13px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  td{padding:4px 6px;border-bottom:1px solid #eef1f5;vertical-align:top}
+  td.k{color:var(--muted);width:118px;font-family:var(--mono)}
+  td.v{font-family:var(--mono);word-break:break-word}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600;font-size:11px}
+  .legend{padding:10px 22px;background:var(--panel);border-top:1px solid var(--border);
+    display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.2)}
+  .shp{font-family:var(--mono);font-size:11px;color:var(--ink)}
+  code{font-family:var(--mono);background:#eef1f5;padding:1px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>EnvGraph-Port — Dependency / Environment Graph</h1>
+  <p class="sub">Repo <code>acme</code>: requirements declare requests / psycopg2 / numpy; code imports requests, psycopg2, cv2 (undeclared), numpy. Toggle the two snapshots and click any node to see its attribute vector.</p>
+  <div class="controls">
+    <button id="btn-initial" class="active" onclick="show('initial')">① Initial — static seed</button>
+    <button id="btn-runtime" onclick="show('runtime')">② Runtime — after execution append</button>
+    <button onclick="relayout()">↻ Re-layout</button>
+    <span class="phase-note" id="phase-note"></span>
+  </div>
+</header>
+
+<main>
+  <div id="cy"></div>
+  <aside>
+    <h2>Node inspector</h2>
+    <div id="panel" class="hint">Click a node to inspect its static + runtime attributes.</div>
+  </aside>
+</main>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--expected-bg);border-color:var(--expected)"></i> expected (hypothesis)</span>
+  <span><i class="dot" style="background:var(--satisfied-bg);border-color:var(--satisfied)"></i> satisfied (execution-grounded)</span>
+  <span><i class="dot" style="background:var(--violated-bg);border-color:var(--violated)"></i> violated</span>
+  <span><i class="dot" style="background:var(--neutral-bg);border-color:var(--neutral)"></i> unknown / structural</span>
+  &nbsp;|&nbsp;
+  <span class="shp">▭ Project/Config/File</span>
+  <span class="shp">◯ ExternalPackage</span>
+  <span class="shp">▱ SystemLib</span>
+  <span class="shp">◆ Blocker</span>
+  <span class="shp">▷ Attempt</span>
+</div>
+
+<script>
+// ---- attribute keys shown in the inspector, in order ----
+const FIELDS = ["type","status","source","declared","imported","version_spec","syslib_hint",
+  "installed","importable","build_ok","present","diagnosis","outcome","kind","layer","evidence_refs","summary"];
+
+// ================= INITIAL (static seed) =================
+const INITIAL = {
+  nodes:[
+    n("env:project","acme","Project","expected",{source:"static",summary:"Repository root being set up."}),
+    n("config:req","requirements.txt","Config","expected",{source:"static",kind:"requirements",summary:"Declares requests>=2.31, psycopg2, numpy."}),
+    n("file:app","src/app.py","File","expected",{source:"static",summary:"imports requests, psycopg2"}),
+    n("file:vision","src/vision.py","File","expected",{source:"static",summary:"imports cv2, numpy"}),
+    n("pkg:requests","requests","ExternalPackage","expected",{source:"static",layer:"deps",declared:"true",imported:"true",version_spec:">=2.31",installed:"unknown",importable:"unknown",build_ok:"unknown",summary:"declared AND imported; expect clean install."}),
+    n("pkg:numpy","numpy","ExternalPackage","expected",{source:"static",layer:"deps",declared:"true",imported:"true",installed:"unknown",importable:"unknown",build_ok:"unknown",summary:"declared AND imported; expect clean install."}),
+    n("pkg:psycopg2","psycopg2","ExternalPackage","expected",{source:"static",layer:"deps",declared:"true",imported:"true",syslib_hint:"libpq-dev",installed:"unknown",importable:"unknown",build_ok:"unknown",summary:"PRIOR warns source build needs libpq-dev."}),
+    n("pkg:cv2","cv2","ExternalPackage","expected",{source:"static",layer:"deps",declared:"false",imported:"true",syslib_hint:"libGL.so.1",installed:"unknown",importable:"unknown",build_ok:"unknown",diagnosis:"module_not_found (imported but NOT declared)",summary:"STATIC DIFF flags this pre-run: used_in_code=true AND declared=false."}),
+    n("syslib:libpq","libpq-dev","SystemLib","unknown",{source:"prior",layer:"system",present:"unknown",summary:"PRIOR: psycopg2 source build needs pg_config/libpq headers."}),
+    n("syslib:libgl","libGL.so.1","SystemLib","unknown",{source:"prior",layer:"system",present:"unknown",summary:"PRIOR: opencv runtime needs the native OpenGL shared object."}),
+  ],
+  edges:[
+    e("env:project","config:req","project_contains"),
+    e("env:project","file:app","project_contains"),
+    e("env:project","file:vision","project_contains"),
+    e("config:req","pkg:requests","declares"),
+    e("config:req","pkg:psycopg2","declares"),
+    e("config:req","pkg:numpy","declares"),
+    e("file:app","pkg:requests","file_imports"),
+    e("file:app","pkg:psycopg2","file_imports"),
+    e("file:vision","pkg:cv2","file_imports (undeclared)"),
+    e("file:vision","pkg:numpy","file_imports"),
+    e("pkg:psycopg2","syslib:libpq","needs (prior)"),
+    e("pkg:cv2","syslib:libgl","needs (prior)"),
+  ]
+};
+
+// ================= RUNTIME (after execution append) =================
+const RUNTIME = {
+  nodes:[
+    n("env:project","acme","Project","violated",{source:"static",summary:"Setup not green (2 deps blocked)."}),
+    n("config:req","requirements.txt","Config","expected",{source:"static",kind:"requirements"}),
+    n("file:app","src/app.py","File","expected",{source:"static"}),
+    n("file:vision","src/vision.py","File","expected",{source:"static"}),
+    n("pkg:requests","requests","ExternalPackage","satisfied",{source:"runtime",layer:"deps",declared:"true",imported:"true",version_spec:">=2.31",installed:"true",importable:"true",build_ok:"true",diagnosis:"none",evidence_refs:"pip_install#1, import_sweep#1",summary:"Clean. Static hypothesis confirmed by runtime."}),
+    n("pkg:numpy","numpy","ExternalPackage","satisfied",{source:"runtime",layer:"deps",declared:"true",imported:"true",installed:"true",importable:"true",build_ok:"true",diagnosis:"none",evidence_refs:"pip_install#1, import_sweep#1",summary:"Clean."}),
+    n("pkg:psycopg2","psycopg2","ExternalPackage","violated",{source:"runtime",layer:"deps",declared:"true",imported:"true",syslib_hint:"libpq-dev",installed:"false",importable:"false",build_ok:"false",diagnosis:"build_failure -> missing_system_library (libpq / pg_config)",evidence_refs:"pip_install#1 (fatal error: libpq-fe.h: No such file)",summary:"PRIOR confirmed by runtime: wheel build needs libpq-dev."}),
+    n("pkg:cv2","cv2","ExternalPackage","violated",{source:"runtime",layer:"deps",declared:"false",imported:"true",syslib_hint:"libGL.so.1",installed:"true",importable:"false",build_ok:"true",diagnosis:"missing_system_library (installed via opencv-python, import fails on libGL.so.1)",evidence_refs:"pip_install_opencv#1, import_sweep#1 (ImportError: libGL.so.1)",summary:"Static flagged undeclared; runtime resolved it past install to a system-lib fault."}),
+    n("syslib:libpq","libpq-dev","SystemLib","violated",{source:"runtime",layer:"system",present:"false",evidence_refs:"system_tools#1 (pg_config not found)",summary:"Absent -> blocks psycopg2 build."}),
+    n("syslib:libgl","libGL.so.1","SystemLib","violated",{source:"runtime",layer:"system",present:"false",evidence_refs:"ldconfig#1 (libGL.so.1 absent)",summary:"Absent -> blocks cv2 import."}),
+    n("blocker:libpq","psycopg2-build-needs-libpq","Blocker","violated",{source:"runtime",kind:"missing_system_library",layer:"system",outcome:"active",summary:"psycopg2 wheel build failed: libpq-fe.h not found."}),
+    n("blocker:libgl","cv2-import-needs-libGL","Blocker","violated",{source:"runtime",kind:"missing_system_library",layer:"system",outcome:"active",summary:"cv2 installs but import fails on libGL.so.1."}),
+    n("att:bulk","pip install -r requirements.txt","Attempt","neutral",{source:"runtime",kind:"python_install",layer:"deps",outcome:"ok_but_still_blocked",summary:"requests/numpy OK; psycopg2 build failed."}),
+    n("att:opencv","pip install opencv-python","Attempt","neutral",{source:"runtime",kind:"python_install",layer:"deps",outcome:"ok_but_still_blocked",summary:"cv2 installed; import still fails (libGL)."}),
+    n("att:aptlibpq","apt-get install -y libpq-dev","Attempt","neutral",{source:"runtime",kind:"system_install",layer:"system",outcome:"pending",summary:"Proposed repair: install libpq-dev, then reinstall psycopg2."}),
+    n("att:aptlibgl","apt-get install -y libgl1","Attempt","neutral",{source:"runtime",kind:"system_install",layer:"system",outcome:"pending",summary:"Proposed repair: install libgl1, then re-run import cv2."}),
+  ],
+  edges:[
+    e("env:project","config:req","project_contains"),
+    e("env:project","file:app","project_contains"),
+    e("env:project","file:vision","project_contains"),
+    e("config:req","pkg:requests","declares"),
+    e("config:req","pkg:psycopg2","declares"),
+    e("config:req","pkg:numpy","declares"),
+    e("file:app","pkg:requests","file_imports"),
+    e("file:app","pkg:psycopg2","file_imports"),
+    e("file:vision","pkg:cv2","file_imports (undeclared)"),
+    e("file:vision","pkg:numpy","file_imports"),
+    e("pkg:psycopg2","syslib:libpq","needs"),
+    e("pkg:cv2","syslib:libgl","needs"),
+    e("blocker:libpq","syslib:libpq","violates"),
+    e("blocker:libgl","syslib:libgl","violates"),
+    e("att:bulk","pkg:requests","addresses"),
+    e("att:bulk","pkg:numpy","addresses"),
+    e("att:bulk","pkg:psycopg2","addresses"),
+    e("att:opencv","pkg:cv2","addresses"),
+    e("att:aptlibpq","syslib:libpq","addresses"),
+    e("att:aptlibgl","syslib:libgl","addresses"),
+  ]
+};
+
+function n(id,label,type,status,extra){return {data:Object.assign({id,label,type,status},extra||{})};}
+function e(s,t,label){return {data:{id:s+"->"+t+":"+label,source:s,target:t,label}};}
+
+const PHASE_NOTE={
+  initial:"Static pass only — every dependency is a HYPOTHESIS (amber). cv2 is already flagged: imported but not declared.",
+  runtime:"Execution evidence appended onto the SAME nodes — status projected green/red; Blockers + Attempts added. Diagnosis is read off the attribute vector."
+};
+
+const STYLE=[
+  {selector:'node',style:{
+    'label':'data(label)','font-size':11,'text-valign':'center','text-halign':'center',
+    'text-wrap':'wrap','text-max-width':110,'width':'label','height':'label',
+    'padding':'10px','border-width':2,'color':'#172033','text-outline-width':0,
+    'shape':'round-rectangle','background-opacity':1
+  }},
+  {selector:'node[type="ExternalPackage"]',style:{'shape':'ellipse'}},
+  {selector:'node[type="SystemLib"]',style:{'shape':'round-tag'}},
+  {selector:'node[type="Blocker"]',style:{'shape':'diamond','width':46,'height':46}},
+  {selector:'node[type="Attempt"]',style:{'shape':'round-pentagon'}},
+  // status colors
+  {selector:'node[status="expected"]',style:{'background-color':'#fef7df','border-color':'#b7791f'}},
+  {selector:'node[status="satisfied"]',style:{'background-color':'#e7f6f4','border-color':'#15803d'}},
+  {selector:'node[status="violated"]',style:{'background-color':'#fff0e8','border-color':'#c62828'}},
+  {selector:'node[status="unknown"]',style:{'background-color':'#eef1f5','border-color':'#5d6878'}},
+  {selector:'node[status="neutral"]',style:{'background-color':'#eef3ff','border-color':'#3b5bdb'}},
+  {selector:'node:selected',style:{'border-width':4,'border-color':'#111'}},
+  {selector:'edge',style:{
+    'label':'data(label)','font-size':9,'color':'#5d6878','curve-style':'bezier',
+    'width':1.4,'line-color':'#9aa6b6','target-arrow-color':'#9aa6b6','target-arrow-shape':'triangle',
+    'text-rotation':'autorotate','text-background-color':'#fbfcfe','text-background-opacity':1,'text-background-padding':2
+  }},
+  {selector:'edge[label="violates"]',style:{'line-color':'#c2410c','target-arrow-color':'#c2410c','width':2}},
+  {selector:'edge[label="addresses"]',style:{'line-color':'#0f766e','target-arrow-color':'#0f766e','width':2,'line-style':'dashed'}},
+  {selector:'edge[label="declares"]',style:{'line-color':'#2f6fd6','target-arrow-color':'#2f6fd6'}},
+];
+
+let cy, current='initial';
+function elements(g){return [...g.nodes, ...g.edges];}
+function layoutOpts(){return {name:'cose',animate:true,padding:30,nodeRepulsion:9000,idealEdgeLength:90,nodeOverlap:20};}
+
+function render(){
+  const g = current==='initial'?INITIAL:RUNTIME;
+  cy = cytoscape({container:document.getElementById('cy'),elements:elements(g),style:STYLE,layout:layoutOpts()});
+  cy.on('tap','node',evt=>inspect(evt.target.data()));
+  cy.on('tap',evt=>{if(evt.target===cy){document.getElementById('panel').innerHTML='<span class="hint">Click a node to inspect its static + runtime attributes.</span>';}});
+  document.getElementById('phase-note').textContent=PHASE_NOTE[current];
+}
+function show(which){
+  current=which;
+  document.getElementById('btn-initial').classList.toggle('active',which==='initial');
+  document.getElementById('btn-runtime').classList.toggle('active',which==='runtime');
+  if(cy)cy.destroy();
+  render();
+  document.getElementById('panel').innerHTML='<span class="hint">Click a node to inspect its static + runtime attributes.</span>';
+}
+function relayout(){if(cy)cy.layout(layoutOpts()).run();}
+
+function inspect(d){
+  const color={expected:'var(--expected)',satisfied:'var(--satisfied)',violated:'var(--violated)',unknown:'var(--neutral)',neutral:'#3b5bdb'}[d.status]||'var(--neutral)';
+  const bg={expected:'var(--expected-bg)',satisfied:'var(--satisfied-bg)',violated:'var(--violated-bg)',unknown:'var(--neutral-bg)',neutral:'#eef3ff'}[d.status]||'var(--neutral-bg)';
+  let rows=`<div style="margin-bottom:10px"><b style="font-size:15px">${d.label}</b><br>
+    <span class="pill" style="color:${color};background:${bg}">${d.status}${d.outcome?' · '+d.outcome:''}</span></div><table>`;
+  for(const k of FIELDS){
+    if(d[k]===undefined||d[k]===''||k==='status'||k==='outcome')continue;
+    let v=d[k];
+    if((k==='declared'||k==='imported'||k==='installed'||k==='importable'||k==='build_ok'||k==='present')){
+      const sym=v==='true'?'✓':v==='false'?'✗':'?';v=sym+' '+v;
+    }
+    rows+=`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;
+  }
+  rows+='</table>';
+  document.getElementById('panel').innerHTML=rows;
+}
+
+if(window.cytoscape){render();}
+else{document.getElementById('cy').innerHTML='<p style="padding:20px;color:#c62828">Could not load cytoscape from CDN (offline?). The graph data is still in this file under INITIAL / RUNTIME; the GraphML files are docs/envgraph_port_*.graphml.</p>';}
+</script>
+</body>
+</html>

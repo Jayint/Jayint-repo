@@ -2,6 +2,7 @@ import os
 import re
 import copy
 import json
+import shlex
 import argparse
 import subprocess
 import shutil
@@ -1448,23 +1449,24 @@ class DockerAgent:
         return None
 
     def _finalize_supervisor_artifacts(self, configuration_success):
-        """Synthesize the recipe, write the Dockerfile, and generate memories — the
-        same success-artifact path the legacy run() uses (agent.py:1043-1052)."""
-        if not self._synthesize_final_build_recipe():
+        """Synthesize the recipe, write the Dockerfile, and generate memories.
+
+        Tier-1 synthesizer fidelity: instead of replaying the agent's edit/install
+        trajectory, synthesize from achieved state — irreducible commands (apt/build)
+        from the ledger, captured FINAL file content (Fix 1), and the pinned closure +
+        one project install (Fix 2). generate_dockerfile validates RUN bodies (Fix 3).
+        """
+        if not self._synthesize_final_build_recipe(drop_replayed_state=True):
             print("[Warning] Build recipe synthesis failed. No Dockerfile will be generated.")
             return False
-        # Append the pip-closure pin layer as the last two RUN instructions so
-        # the produced Dockerfile can reproduce the exact sandbox pip state.
-        try:
-            from src.envstate.synthesis import build_pin_instructions
-            _pin_cmds = build_pin_instructions(
-                getattr(self, "_final_installed", ()),
-                project_name=self._resolve_project_name(),
-            )
-            for _cmd in _pin_cmds:
-                self.synthesizer.add_build_instruction(_cmd)
-        except Exception as _pin_exc:
-            print(f"[v1] pin layer skipped: {_pin_exc}")
+        # Fix 1: rebuild the instruction list as the irreducible commands INTERLEAVED
+        # with each edited file's captured FINAL content, in trajectory order — so a
+        # build step that ran after an edit sees the edited file. A file we cannot
+        # capture replays its edit command instead of being dropped (HIGH-2 safety net).
+        self._emit_interleaved_state_recipe()
+        # Fix 2: the captured closure is authoritative — frozen deps + one project
+        # install (the project is excluded from the pin by name).
+        self._emit_closure_recipe()
         self._bake_test_env_vars()
         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
         self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
@@ -1476,6 +1478,94 @@ class DockerAgent:
             return False
         self._maybe_generate_long_term_memories(configuration_success)
         return True
+
+    def _rebuild_file_path(self, path: str, workdir: str) -> str:
+        """Translate a sandbox path to the rebuild path. The repo is COPY'd to WORKDIR
+        in the rebuilt image (same as the sandbox workdir), so a workdir-absolute path
+        becomes repo-relative; other absolute paths are written as-is."""
+        wd = (workdir or "/app").rstrip("/")
+        if path == wd:
+            return "."
+        if path.startswith(wd + "/"):
+            return path[len(wd) + 1:]
+        return path
+
+    def _capture_final_file_state(self) -> dict:
+        """Fix 1 + HIGH 2: read each edited file's FINAL bytes from the live container,
+        losslessly and via a non-login shell. Returns ``{sandbox_path: content}``.
+
+        A file we cannot read (missing/permission), that is oversize, or that looks
+        binary is OMITTED from the result — the caller then replays that file's original
+        edit command(s) (build_ordered_recipe_ops), so an edit is never silently lost.
+        Raw bytes are decoded with ``surrogateescape`` and re-encoded with the same
+        codec at emit time, so any byte sequence round-trips exactly."""
+        from src.envstate.file_capture import DEFAULT_MAX_FILE_BYTES, FileStateCapturer
+        if self.action_ledger is None:
+            return {}
+        max_bytes = DEFAULT_MAX_FILE_BYTES
+
+        def _read(path: str):
+            try:
+                rc, raw = self.sandbox.read_file_bytes(path, max_bytes)
+            except Exception as exc:  # never let a bad read crash finalize
+                print(f"[v1] file-capture read error for {path}: {exc} (will replay edit)")
+                return None
+            if rc != 0:
+                print(f"[v1] file-capture miss rc={rc} for {path} (will replay edit)")
+                return None
+            if len(raw) > max_bytes:
+                print(f"[v1] file-capture miss (oversize) for {path} (will replay edit)")
+                return None
+            return raw.decode("utf-8", "surrogateescape")
+
+        return FileStateCapturer(_read, max_bytes=max_bytes).capture(self.action_ledger)
+
+    def _emit_interleaved_state_recipe(self) -> None:
+        """Fix 1 ordering: replace the recipe instructions with the irreducible commands
+        interleaved with captured FINAL file writes, in trajectory order (so a build step
+        after an edit sees final content; uncaptured edits are replayed — HIGH 2).
+        Best-effort: a failure degrades to the recipe already on the synthesizer (caught
+        honestly by clean-room verify)."""
+        try:
+            from src.envstate.file_capture import build_ordered_recipe_ops
+            if self.action_ledger is None:
+                return
+            workdir = getattr(self.sandbox, "workdir", "/app")
+            captured = self._capture_final_file_state()
+            ops = build_ordered_recipe_ops(
+                self.action_ledger,
+                captured,
+                distill=self.synthesizer._extract_recordable_setup_commands,
+            )
+            # This is now the authoritative ordering for the Dockerfile body; it
+            # supersedes the (non-interleaved) instructions left by
+            # _synthesize_final_build_recipe. The closure recipe + env vars are added by
+            # the caller afterwards.
+            self.synthesizer.instructions = []
+            for op in ops:
+                if op[0] == "run":
+                    self.synthesizer.add_build_instruction(op[1])
+                else:
+                    _, path, content = op
+                    rebuild_path = self._rebuild_file_path(path, workdir)
+                    self.synthesizer.add_file_write_instruction(rebuild_path, content)
+                    print(f"[v1] captured final content for {rebuild_path} ({len(content)} chars)")
+        except Exception as cap_exc:
+            print(f"[v1] interleaved state recipe skipped: {cap_exc}")
+
+    def _emit_closure_recipe(self) -> None:
+        """Fix 2: emit the frozen pip closure + exactly one project install."""
+        try:
+            from src.envstate.recipe import build_closure_recipe
+            for cmd in build_closure_recipe(
+                getattr(self, "_final_installed", ()),
+                project_name=self._resolve_project_name(),
+                ledger=self.action_ledger,
+                project_root=getattr(self, "workplace", None),
+            ):
+                self.synthesizer.add_build_instruction(cmd)
+        except Exception as recipe_exc:
+            print(f"[v1] closure recipe skipped: {recipe_exc}")
 
     def _bake_test_env_vars(self) -> None:
         """DROPPED_ENV: bake test-required env vars the agent set (export / inline
@@ -1919,14 +2009,25 @@ class DockerAgent:
         self.memory_stats["retrieval_hits"] += len(results)
         return self.memory_manager.format_retrieval_results(results)
 
-    def _synthesize_final_build_recipe(self):
+    def _synthesize_final_build_recipe(self, drop_replayed_state=False):
+        """Assemble the Dockerfile build commands from the ActionLedger.
+
+        ``drop_replayed_state`` (v1g finalize, Tier 1): drop replayed file-edit and
+        package-install commands so the captured file content (Fix 1) and the pinned
+        closure + one project install (Fix 2) become the single sources of truth.
+        Only the irreducible commands (apt, build steps, env) survive as RUN steps. In
+        this mode an empty irreducible list is valid (the file/closure layers are added
+        by the caller afterwards), so we always apply and return True.
+        """
         if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
             from src.envstate.synthesis import build_commands_from_ledger
             ledger_commands = build_commands_from_ledger(
                 self.action_ledger,
                 distill=self.synthesizer._extract_recordable_setup_commands,
+                drop_file_edits=drop_replayed_state,
+                drop_package_installs=drop_replayed_state,
             )
-            if ledger_commands:
+            if ledger_commands or drop_replayed_state:
                 # Only build_commands become Dockerfile RUN steps. The verification
                 # bundle (runtime_prep + test_commands) is already set on self by
                 # _auto_finalize_from_verified_tests / the agent-report finalizer and

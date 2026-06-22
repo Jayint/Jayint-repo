@@ -262,6 +262,15 @@ def build_dockerfile_pip_bootstrap_env_instructions(
     ]
 
 
+def _strip_leading_run_token(command):
+    """Defensive (Fix 3): drop a stray leading ``RUN `` so a full instruction handed to
+    a resilient wrapper can never embed a literal ``RUN`` inside the wrapped body."""
+    stripped = (command or "").strip()
+    if stripped[:4].upper() == "RUN " or stripped.upper() == "RUN":
+        return stripped[4:].strip()
+    return stripped
+
+
 def build_resilient_pip_install_run_instruction(
     command,
     max_attempts=DEFAULT_PIP_INSTALL_REPLAY_ATTEMPTS,
@@ -272,7 +281,7 @@ def build_resilient_pip_install_run_instruction(
 
     attempts = max(1, int(max_attempts or DEFAULT_PIP_INSTALL_REPLAY_ATTEMPTS))
     delay = max(0, int(retry_delay_seconds or DEFAULT_PIP_INSTALL_RETRY_DELAY_SECONDS))
-    quoted_command = _quote_shell_single(command.strip())
+    quoted_command = _quote_shell_single(_strip_leading_run_token(command))
 
     return (
         "RUN JAYINT_PIP_ATTEMPT=1; "
@@ -328,7 +337,7 @@ def build_resilient_apt_install_run_instruction(
 
     attempts = max(1, int(max_attempts or DEFAULT_APT_INSTALL_REPLAY_ATTEMPTS))
     delay = max(0, int(retry_delay_seconds or DEFAULT_APT_INSTALL_RETRY_DELAY_SECONDS))
-    replay_command = _normalize_apt_install_replay_command(command)
+    replay_command = _normalize_apt_install_replay_command(_strip_leading_run_token(command))
     quoted_command = _quote_shell_single(replay_command)
 
     return (
@@ -2731,6 +2740,30 @@ class Synthesizer:
         """
         self._record_setup_instruction(command)
 
+    def add_file_write_instruction(self, path: str, content: str) -> None:
+        """Append ONE deterministic write of `content` to `path` (Fix 1).
+
+        The agent's final file state is captured (file_capture.FileStateCapturer) and
+        written here via a base64 payload, sidestepping heredoc/quoting hazards: the
+        content is never interpreted by the shell. Idempotent on (path, content).
+
+        Encodes with ``surrogateescape`` so a file captured byte-losslessly (raw bytes
+        decoded with the same codec) round-trips to its EXACT original bytes — a
+        mostly-UTF-8 file with a few odd bytes is never baked corrupted (HIGH 2)."""
+        if not path:
+            return
+        encoded = base64.b64encode((content or "").encode("utf-8", "surrogateescape")).decode("ascii")
+        parent = os.path.dirname(path)
+        guard = f"mkdir -p {self._shell_single_quote(parent)} && " if parent else ""
+        command = (
+            f"{guard}printf '%s' {self._shell_single_quote(encoded)} "
+            f"| base64 -d > {self._shell_single_quote(path)}"
+        )
+        instruction = f"RUN {command}"
+        if instruction in self.instructions:
+            return
+        self.instructions.append(instruction)
+
     def add_env_instruction(self, name: str, value: str) -> None:
         """Prepend an `ENV name="value"` line so it persists across every RUN layer
         and into the runtime container (DROPPED_ENV). Unlike `RUN export`, a
@@ -4026,9 +4059,15 @@ class Synthesizer:
             content.extend(apt_bootstrap_instructions)
             content.append("")
         content.extend(self._render_instruction_for_dockerfile(instruction) for instruction in self.instructions)
-        
+
+        rendered = "\n".join(content)
+        # Fix 3: final safety gate — guarantee one logical command per RUN. Repairs a
+        # RUN-concatenation; rejects (raises) genuine corruption it cannot fix.
+        from src.envstate.dockerfile_validate import validate_and_repair
+        rendered = validate_and_repair(rendered)
+
         with open(file_path, "w") as f:
-            f.write("\n".join(content))
-        
+            f.write(rendered)
+
         print(f"Dockerfile successfully generated at {file_path}")
-        return "\n".join(content)
+        return rendered

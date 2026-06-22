@@ -23,6 +23,77 @@ _RE_PYTHON_C_WRITE = re.compile(
 _PYTEST_RE = re.compile(r"^\s*(?:python[0-9.]*\s+-m\s+)?pytest\b")
 _READONLY_PREFIXES = ("ls ", "grep ", "find ", "head ", "tail ")
 
+# Package-install detector (Fix 2). Anchored on the first MEANINGFUL command segment
+# (navigation/prep prefixes like `cd`/`mkdir`/`export` are skipped) so a project install
+# such as `cd /app && pip install -e .` is detected, while an apt-led compound
+# (`apt-get install ... && pip install ...`) is NOT treated as a python package install —
+# apt stays an irreducible system step (Fix 3 path).
+_RE_OP_SPLIT = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+_RE_NAV_PREP_PREFIX = re.compile(r"^(?:cd|pushd|popd|mkdir|install|export)\b")
+_PACKAGE_INSTALL_PATTERNS = (
+    re.compile(r"^(?:pip|pip2|pip3)\s+install\b"),
+    re.compile(r"^(?:python|python2|python3)\s+-m\s+pip\s+install\b"),
+    re.compile(r"^uv\s+pip\s+install\b"),
+    re.compile(r"^uv\s+(?:add|sync)\b"),
+    re.compile(r"^poetry\s+(?:install|add)\b"),
+    re.compile(r"^pipenv\s+install\b"),
+    re.compile(r"^(?:conda|mamba)\s+install\b"),
+)
+
+
+def _is_package_install_command(cmd: str) -> bool:
+    """True when the first meaningful command segment is a python package install.
+
+    Covers pip/pip3/python -m pip, poetry, uv (pip/add/sync), pipenv, conda/mamba.
+    Deliberately excludes apt/apt-get (system packages, kept as irreducible steps)."""
+    if not cmd:
+        return False
+    for segment in _RE_OP_SPLIT.split(cmd.strip()):
+        seg = re.sub(r"^sudo\s+", "", segment.strip())
+        if not seg:
+            continue
+        is_install = any(pat.match(seg) for pat in _PACKAGE_INSTALL_PATTERNS)
+        if not is_install and _RE_NAV_PREP_PREFIX.match(seg):
+            continue  # navigation/prep prefix — look at the next segment
+        return is_install
+    return False
+
+
+# Split a compound on top-level separators while KEEPING the operators (so the
+# surviving segments can be rejoined). Quote-awareness is overkill here: package
+# install/apt segments never embed `&&`/`;` inside quotes in practice.
+_RE_OP_SPLIT_KEEP = re.compile(r"\s*(&&|\|\||;|\|)\s*")
+
+
+def _segment_is_python_package_install(segment: str) -> bool:
+    seg = re.sub(r"^sudo\s+", "", (segment or "").strip())
+    if not seg:
+        return False
+    return any(pat.match(seg) for pat in _PACKAGE_INSTALL_PATTERNS)
+
+
+def _strip_python_package_installs_from_compound(cmd: str) -> str:
+    """Drop python package-install segments from a compound, keeping the rest.
+
+    ``apt-get install -y libpq-dev && pip install psycopg2`` -> ``apt-get install -y
+    libpq-dev`` (MEDIUM 2). Tier-1 makes the pinned closure the single source of truth,
+    so a replayed (unversioned) ``pip install`` smuggled inside an apt-led compound must
+    not survive. A standalone package install collapses to ``""`` (the caller drops it).
+    The whole-event package-install case is handled earlier; this only ever runs on
+    commands whose LEADING meaningful segment is not a package install.
+    """
+    if not cmd or not cmd.strip():
+        return ""
+    parts = _RE_OP_SPLIT_KEEP.split(cmd.strip())
+    segments = parts[0::2]
+    if len(segments) <= 1:
+        return cmd.strip()  # not a compound — leave it untouched
+    kept = [s.strip() for s in segments if s.strip() and not _segment_is_python_package_install(s)]
+    # `&&` is the safe chaining operator for the surviving setup/build steps; the
+    # dropped segments were package installs, so reconstructing the exact original
+    # separators is unnecessary.
+    return " && ".join(kept)
+
 # A heredoc operator: `<<` (optionally `<<-`), optional quote, then a delimiter word
 # that starts with a letter/underscore.  The leading-letter anchor means arithmetic
 # bit-shifts like `$((1 << 4))` never match (the token after `<<` is a digit).
@@ -75,7 +146,13 @@ def _is_source_file_edit(cmd: str) -> bool:
     return False
 
 
-def build_commands_from_ledger(ledger: ActionLedger, distill=None) -> List[str]:
+def build_commands_from_ledger(
+    ledger: ActionLedger,
+    distill=None,
+    *,
+    drop_file_edits: bool = False,
+    drop_package_installs: bool = False,
+) -> List[str]:
     """Authoritative, order-preserving build-command extraction (design §15).
 
     Includes only successful (rc==0) env-mutating commands, in trajectory order.
@@ -86,6 +163,15 @@ def build_commands_from_ledger(ledger: ActionLedger, distill=None) -> List[str]:
     rc==0 commands with mutation_class=None that look like file edits (printf/echo
     redirects, sed -i, python -c open/write) are also kept — these patch repo source
     in-container and must persist in the rebuilt seed image.
+
+    Tier-1 fidelity opt-ins (used by the v1g finalize path; default off so the legacy
+    path and existing callers are unchanged):
+      * ``drop_file_edits`` — omit file-edit commands; the achieved file *content* is
+        captured and emitted separately (Fix 1, ``file_capture``), so replaying the
+        edit *commands* (which accumulate superseded/corrupting edits) is wrong.
+      * ``drop_package_installs`` — omit python package installs; the captured pip
+        closure plus one project install are the single source of truth (Fix 2,
+        ``recipe.build_closure_recipe``).
 
     `distill`, if given (e.g. Synthesizer._extract_recordable_setup_commands), is
     applied to each kept command and must return a list of 0+ distilled command
@@ -106,10 +192,21 @@ def build_commands_from_ledger(ledger: ActionLedger, distill=None) -> List[str]:
             continue
         if not event.mutation_class and not _is_source_file_edit(event.cmd):
             continue  # read-only or test command
-        if distill is not None:
-            commands.extend(distill(event.cmd))
-        else:
-            commands.append(event.cmd)
+        if drop_file_edits and _is_source_file_edit(event.cmd):
+            continue  # captured as final content elsewhere (Fix 1)
+        if drop_package_installs and _is_package_install_command(event.cmd):
+            continue  # closure is the single source of truth (Fix 2)
+        produced = distill(event.cmd) if distill is not None else [event.cmd]
+        if drop_package_installs:
+            # MEDIUM 2: a kept apt-led compound (or a distill-split unit) must not smuggle
+            # a replayed unversioned pip install — strip package-install segments. A unit
+            # that collapses to "" was a standalone install and is dropped.
+            produced = [
+                stripped
+                for stripped in (_strip_python_package_installs_from_compound(c) for c in produced)
+                if stripped
+            ]
+        commands.extend(c for c in produced if c)
     return commands
 
 

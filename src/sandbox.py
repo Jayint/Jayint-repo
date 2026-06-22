@@ -183,6 +183,31 @@ class Sandbox:
             exit_code = -1
         return exit_code, output or ""
 
+    def read_file_bytes(self, path, max_bytes):
+        """Read a file's RAW bytes from the live container, capped at ``max_bytes``.
+
+        Used by Tier-1 file capture (Fix 1) to capture the achieved file state
+        losslessly. Deliberately uses a NON-login shell-free exec (``head -c`` via the
+        argv form, no ``/bin/sh -lc``) so profile / MOTD / conda-init banners cannot
+        pollute the bytes. Reads ``max_bytes + 1`` so the caller can detect oversize and
+        fall back to replaying the edit instead of truncating. Returns ``(rc, bytes)``;
+        rc != 0 means the file is unreadable (missing / permission) and the caller must
+        replay the edit rather than drop it.
+        """
+        limit = int(max_bytes) + 1
+        result = self.container.exec_run(
+            ["head", "-c", str(limit), "--", path], workdir=self.workdir
+        )
+        output = result.output
+        if output is None:
+            output = b""
+        elif not isinstance(output, (bytes, bytearray)):
+            output = str(output).encode("utf-8", "surrogateescape")
+        exit_code = result.exit_code
+        if exit_code is None:
+            exit_code = -1
+        return exit_code, bytes(output)
+
     def execute(self, command):
         """
         Executes a bash command.
