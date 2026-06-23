@@ -6,6 +6,7 @@ from typing import Any
 
 from . import goals, ids
 from .apply import apply_patch
+from .depgraph_seed import seed_contracts_from_depgraph
 from .extract import extract_blocker_subject, promote_atomic_contracts
 from .graph import ContractGraph, depends_on_closure
 from .patch import GraphPatch
@@ -140,6 +141,11 @@ def refresh_host_graph(
     pre_graph = apply_patch(graph, GraphPatch(add_contracts=tuple(add_nodes)))
     promoted = promote_atomic_contracts(pre_graph, sigs)
     add_nodes += [n for n in promoted if not graph.has_node(n.id)]
+
+    # 2b. proactive atomic seeding from the certified depgraph (off-state: no dep_graph -> skip)
+    if world_map.dep_graph is not None:
+        seeded = seed_contracts_from_depgraph(pre_graph, world_map.dep_graph)
+        add_nodes += [n for n in seeded if not graph.has_node(n.id)]
 
     graph = apply_patch(graph, GraphPatch(add_contracts=tuple(add_nodes), add_edges=tuple(add_edges)))
 
