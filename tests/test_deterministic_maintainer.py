@@ -3,12 +3,12 @@ from __future__ import annotations
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))  # shim: import python_deps/src.envstate
 
-from src.envstate.deterministic_maintainer import build_blocker_patch
+from src.envstate.deterministic_maintainer import build_blocker_patch, maintain, DeterministicMaintainer
 from src.envstate.contracts.graph import ContractGraph
 from src.envstate.contracts.apply import apply_patch
 from src.envstate.contracts.patch import GraphPatch
 from src.envstate.contracts.ids import contract_id, blocker_id
-from src.envstate.world_model import TaskReport, CommandRecord, derive_open_problems
+from src.envstate.world_model import TaskReport, CommandRecord, derive_open_problems, initial_map
 from src.envstate.contracts.projection import _auto_resolve_blockers
 
 
@@ -101,8 +101,6 @@ def test_partial_state_emits_blocker_for_existing_contract():
 # ---------------------------------------------------------------------------
 # Task 2: maintain() + DeterministicMaintainer
 # ---------------------------------------------------------------------------
-from src.envstate.deterministic_maintainer import maintain, DeterministicMaintainer
-from src.envstate.world_model import initial_map
 
 
 def _base_map():
@@ -129,7 +127,7 @@ def test_maintain_does_not_touch_owned_fields():
     m = _base_map()
     out = maintain(m, _report("x", 1, "pg_config: command not found"))
     for f in ("installed", "required", "env", "system_installed", "base_image",
-              "workdir", "language", "build_system", "repo_layout", "dep_advisory"):
+              "workdir", "language", "build_system", "repo_layout", "dep_advisory", "dep_graph"):
         assert getattr(out, f) == getattr(m, f)
 
 

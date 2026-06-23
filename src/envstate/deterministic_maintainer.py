@@ -7,6 +7,8 @@ Attempts/outcomes are NOT handled here — the orchestrator already does that.
 """
 from __future__ import annotations
 
+import logging
+
 from .contracts import ids
 from .contracts.apply import apply_patch
 from .contracts.extract import CONTRACT_LAYERS, extract_blocker_match
@@ -16,6 +18,8 @@ from .contracts.patch import GraphPatch
 from .contracts.validation import validate_patch
 from .maintainer import _progress_synced_with_done, _verified_test_run_passed
 from .world_model import TaskReport, WorldModelMap, merge_map
+
+logger = logging.getLogger(__name__)
 
 
 def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
@@ -73,8 +77,11 @@ def maintain(current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
     graph = current_map.contract_graph
     patch = build_blocker_patch(graph, report)
     if not patch.is_empty():
+        # host scope: blockers carry empty evidence_refs, which scope="maintainer" would reject
         errors = validate_patch(graph, patch, scope="host")
-        if not errors:
+        if errors:
+            logger.warning("deterministic maintain: dropping invalid host patch: %s", errors)
+        else:
             graph = apply_patch(graph, patch)
     return merge_map(
         current_map,
