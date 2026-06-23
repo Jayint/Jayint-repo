@@ -96,3 +96,44 @@ def test_partial_state_emits_blocker_for_existing_contract():
     assert len(patch2.add_blockers) == 1             # blocker still emitted
     assert len(patch2.add_edges) == 1                # violates edge emitted
     assert patch2.add_edges[0].type == "violates"
+
+
+# ---------------------------------------------------------------------------
+# Task 2: maintain() + DeterministicMaintainer
+# ---------------------------------------------------------------------------
+from src.envstate.deterministic_maintainer import maintain, DeterministicMaintainer
+from src.envstate.world_model import initial_map
+
+
+def _base_map():
+    return initial_map(base_image="python:3.11", workdir="/repo", language="python 3.11",
+                       build_system="pip", repo_layout=("tests/",))
+
+
+def test_maintain_adds_blocker_to_contract_graph():
+    m = _base_map()
+    out = maintain(m, _report("x", 1, "pg_config: command not found"))
+    assert out.contract_graph.node(contract_id("binary", "pg_config")) is not None
+
+
+def test_maintain_passes_through_done_gate():
+    # A real passing pytest run flips done_flag via _verified_test_run_passed.
+    m = _base_map()
+    passing = TaskReport("t", "done",
+        (CommandRecord("python -m pytest -q", 0, "5 passed in 0.1s"),), "")
+    out = maintain(m, passing)
+    assert out.done_flag is True
+
+
+def test_maintain_does_not_touch_owned_fields():
+    m = _base_map()
+    out = maintain(m, _report("x", 1, "pg_config: command not found"))
+    for f in ("installed", "required", "env", "system_installed", "base_image",
+              "workdir", "language", "build_system", "repo_layout", "dep_advisory"):
+        assert getattr(out, f) == getattr(m, f)
+
+
+def test_adapter_update_is_drop_in():
+    m = _base_map()
+    out = DeterministicMaintainer().update(m, _report("x", 1, "pg_config: command not found"))
+    assert out.contract_graph.node(contract_id("binary", "pg_config")) is not None

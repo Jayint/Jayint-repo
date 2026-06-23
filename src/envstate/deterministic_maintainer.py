@@ -8,11 +8,14 @@ Attempts/outcomes are NOT handled here — the orchestrator already does that.
 from __future__ import annotations
 
 from .contracts import ids
+from .contracts.apply import apply_patch
 from .contracts.extract import CONTRACT_LAYERS, extract_blocker_match
 from .contracts.graph import ContractGraph
 from .contracts.nodes import Edge, Node
 from .contracts.patch import GraphPatch
-from .world_model import TaskReport
+from .contracts.validation import validate_patch
+from .maintainer import _progress_synced_with_done, _verified_test_run_passed
+from .world_model import TaskReport, WorldModelMap, merge_map
 
 
 def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
@@ -59,3 +62,30 @@ def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
         add_edges=tuple(edges),
         diagnostic_notes=notes,
     )
+
+
+def maintain(current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+    """Deterministic drop-in for Maintainer.update: extract blockers + done-gate.
+
+    Attempts/outcomes are handled by the orchestrator, not here.
+    """
+    done = current_map.done_flag or _verified_test_run_passed(report)
+    graph = current_map.contract_graph
+    patch = build_blocker_patch(graph, report)
+    if not patch.is_empty():
+        errors = validate_patch(graph, patch, scope="host")
+        if not errors:
+            graph = apply_patch(graph, patch)
+    return merge_map(
+        current_map,
+        done_flag=done,
+        progress=_progress_synced_with_done(current_map, done),
+        contract_graph=graph,
+    )
+
+
+class DeterministicMaintainer:
+    """Duck-typed stand-in for Maintainer (exposes .update)."""
+
+    def update(self, current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+        return maintain(current_map, report)
