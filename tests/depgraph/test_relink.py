@@ -126,3 +126,83 @@ def test_certified_import_links_graceful_on_command_failure(fake_executor):
     graph = DepGraph().with_node(_imp("dateutil")).with_node(_pkg("python-dateutil", "2.9.0"))
     out = certified_import_links(graph, fake_executor)
     assert out.edges == ()
+
+
+def test_certified_import_links_drops_superseded_ghost(fake_executor, make_result_fixture):
+    # The identity-fallback ghost `pkg:dateutil` (unresolved placeholder: version
+    # None, MISSING) is superseded once the relink certifies the real provider
+    # `pkg:python-dateutil`. The ghost (and its dangling edge) must be removed.
+    imp = _imp("dateutil")
+    ghost = Node(
+        id=package_id("dateutil", None),
+        type=NodeType.PACKAGE,
+        name="dateutil",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        state=State.MISSING,
+        version=None,
+    )
+    real = _pkg("python-dateutil", "2.9.0.post0")
+    graph = (
+        DepGraph()
+        .with_node(imp)
+        .with_node(ghost)
+        .with_node(real)
+        .with_edge(Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile"))
+    )
+    fake_executor.responses = {
+        "packages_distributions": make_result_fixture(
+            stdout='{"dateutil": ["python-dateutil"]}'
+        )
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    deps = {d.id for d in out.requires_of(imp.id)}
+    assert package_id("python-dateutil", "2.9.0.post0") in deps  # real provider linked
+    assert out.get(package_id("dateutil", None)) is None  # ghost removed
+    assert all(e.dst != package_id("dateutil", None) for e in out.edges)  # dangling edge gone
+
+
+def test_certified_import_links_keeps_ghost_without_replacement(fake_executor, make_result_fixture):
+    # A ghost whose import has NO certified provider must be KEPT (its misleading
+    # fix is cleared upstream in resolve, but the node is not dropped here).
+    imp = _imp("widget")
+    ghost = Node(
+        id=package_id("widget", None), type=NodeType.PACKAGE, name="widget",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version=None,
+    )
+    graph = DepGraph().with_node(imp).with_node(ghost).with_edge(
+        Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile")
+    )
+    fake_executor.responses = {
+        "packages_distributions": make_result_fixture(stdout='{"other": ["something"]}')
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    assert out.get(package_id("widget", None)) is not None  # kept: no certified replacement
+
+
+def test_drop_ghost_never_removes_a_certified_target(fake_executor, make_result_fixture):
+    # Pathological: pkg:foo is ghost-shaped (version None, MISSING) for import:foo,
+    # but is ALSO the certified provider of import:bar. Dropping import:foo's ghost
+    # must NOT remove pkg:foo (it is a protected certified target).
+    imp_foo = _imp("foo")
+    imp_bar = _imp("bar")
+    weird = Node(
+        id=package_id("foo", None), type=NodeType.PACKAGE, name="foo",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version=None,
+    )
+    realfoo = _pkg("realfoo", "1.0")
+    graph = DepGraph().with_node(imp_foo).with_node(imp_bar).with_node(weird).with_node(realfoo)
+    fake_executor.responses = {
+        # import:foo -> pkg:realfoo (certified) triggers the foo-ghost drop attempt;
+        # import:bar -> pkg:foo (certified) makes pkg:foo a protected target.
+        "packages_distributions": make_result_fixture(stdout='{"foo": ["realfoo"], "bar": ["foo"]}')
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    assert out.get(package_id("foo", None)) is not None  # protected, not dropped
+    assert any(d.id == package_id("foo", None) for d in out.requires_of(imp_bar.id))

@@ -171,6 +171,28 @@ def test_with_edge_returns_new_graph():
     assert graph.edges == ()  # original untouched (immutability)
 
 
+def test_without_node_removes_node_and_touching_edges():
+    imp = make_node("import:x", NodeType.IMPORT, "x", Layer.NAMING)
+    ghost = make_node("pkg:ghost", NodeType.PACKAGE, "ghost", Layer.PIP)
+    real = make_node("pkg:real", NodeType.PACKAGE, "real", Layer.PIP)
+    graph = (
+        DepGraph()
+        .with_node(imp)
+        .with_node(ghost)
+        .with_node(real)
+        .with_edge(Edge(src="import:x", dst="pkg:ghost", relation=EdgeType.REQUIRES))
+        .with_edge(Edge(src="import:x", dst="pkg:real", relation=EdgeType.REQUIRES))
+    )
+
+    out = graph.without_node("pkg:ghost")
+
+    assert out.get("pkg:ghost") is None
+    assert out.get("pkg:real") is not None
+    assert all(e.src != "pkg:ghost" and e.dst != "pkg:ghost" for e in out.edges)
+    assert any(e.dst == "pkg:real" for e in out.edges)  # untouched edge kept
+    assert graph.get("pkg:ghost") is not None  # original untouched (immutability)
+
+
 def test_edge_rules_allow_legal_requires():
     imp = make_node("import:cv2", NodeType.IMPORT, "cv2", Layer.NAMING)
     pkg = make_node("pkg:opencv-python", NodeType.PACKAGE, "opencv-python", Layer.PIP)

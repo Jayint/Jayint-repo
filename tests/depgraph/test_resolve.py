@@ -1199,3 +1199,33 @@ def test_link_imports_to_packages_reconciles_manifest_sourced_packages():
 
     # idempotent: a second pass adds nothing
     assert len(link_imports_to_packages(out).edges) == len(out.edges)
+
+
+def test_resolved_package_node_keeps_pip_fix():
+    from python_deps.depgraph.resolve import _package_node
+
+    n = _package_node("python-dateutil", "2.9.0.post0")
+    assert n.fix_candidates == ("pip:python-dateutil",)
+    assert n.chosen_fix == "pip:python-dateutil"
+
+
+def test_unresolved_placeholder_has_no_confident_fix():
+    # A resolver-MISSING placeholder (an identity-fallback root uv could not
+    # resolve) must NOT prescribe ``pip:<name>`` -- that name is exactly what
+    # failed to resolve, so the fix would fail (or install a squatter).
+    from python_deps.depgraph.resolve import _missing_package_node
+    from python_deps.depgraph.schema import State
+
+    n = _missing_package_node("dateutil", None, "WARNING: Package(s) not found: dateutil\n")
+    assert n.state is State.MISSING
+    assert n.chosen_fix is None
+    assert n.fix_candidates == ()
+    assert "not found" in (n.evidence or "")
+
+
+def test_conflict_placeholder_has_no_confident_fix():
+    from python_deps.depgraph.resolve import _conflict_package_node
+
+    n = _conflict_package_node("foo", "conflict evidence")
+    assert n.chosen_fix is None
+    assert n.fix_candidates == ()

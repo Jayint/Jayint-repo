@@ -243,6 +243,17 @@ class DepGraph:
                 f"{dst_node.type.value!r} ({edge.dst!r})"
             )
 
+    def without_node(self, node_id: str) -> "DepGraph":
+        """Remove ``node_id`` and every edge that touches it.  Returns a NEW graph.
+
+        Used to drop a node that has been superseded (e.g. an unresolved
+        identity-fallback placeholder once the relink certifies the real
+        provider).  A no-op for an unknown id.
+        """
+        nodes = tuple(n for n in self.nodes if n.id != node_id)
+        edges = tuple(e for e in self.edges if e.src != node_id and e.dst != node_id)
+        return replace(self, nodes=nodes, edges=edges)
+
     def requires_of(self, node_id: str) -> tuple[Node, ...]:
         """Successor nodes reachable from ``node_id`` via a requires edge."""
         out = []

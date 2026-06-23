@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType
+from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType, State
 from python_deps.import_mapping import (
     normalize_package_name,
     top_level_import_name,
@@ -88,18 +88,53 @@ def import_to_package_edges(
     return edges
 
 
+def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> DepGraph:
+    """Remove identity-fallback ghost packages superseded by a certified link.
+
+    When the relink certifies ``import:X -> pkg:realname``, the unresolved
+    identity-fallback placeholder ``pkg:X`` (version None, MISSING — the root
+    ``uv`` could not resolve) is a phantom duplicate of an already-resolved need,
+    and (pre-fix) a trap carrying a ``pip:X`` fix that cannot work. Drop it (and
+    its dangling edges) so the graph holds only the real, certified provider.
+    Returns a NEW graph.
+    """
+    new = graph
+    # Never drop ANY certified target (not just the current edge's) -- a
+    # version-None placeholder could, pathologically, be another import's
+    # certified provider; dropping it would orphan that link.
+    protected = {edge.dst for edge in certified_edges}
+    for edge in certified_edges:
+        imp = new.get(edge.src)
+        if imp is None or imp.type is not NodeType.IMPORT:
+            continue
+        imp_canon = normalize_package_name(top_level_import_name(imp.name))
+        for node in list(new.nodes):
+            if (
+                node.type is NodeType.PACKAGE
+                and node.id not in protected
+                and node.version is None
+                and node.state is State.MISSING
+                and normalize_package_name(node.name) == imp_canon
+            ):
+                new = new.without_node(node.id)
+    return new
+
+
 def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     """Stage 4a: add certified Import->Package edges from the container.
 
     Runs ``packages_distributions()`` in the (post-install) container and links
-    every Import to its certified provider Package. On command failure the graph
-    is returned unchanged — never worse than the pre-install heuristic alone.
+    every Import to its certified provider Package, then drops any unresolved
+    identity-fallback ghost package the certified link supersedes. On command
+    failure the graph is returned unchanged — never worse than the pre-install
+    heuristic alone.
     """
     result = executor.run(PACKAGES_DIST_CMD)
     if not result.ok:
         return graph
     dist_map = parse_packages_distributions(result.stdout)
+    edges = import_to_package_edges(graph, dist_map)
     new = graph
-    for edge in import_to_package_edges(graph, dist_map):
+    for edge in edges:
         new = new.with_edge(edge)
-    return new
+    return _drop_superseded_ghosts(new, edges)

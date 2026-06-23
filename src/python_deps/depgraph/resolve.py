@@ -224,8 +224,16 @@ def _package_node(
     version: str | None,
     *,
     provenance: str = "uv.lock",
+    resolvable: bool = True,
 ) -> Node:
-    """A resolver-discovered ``Package`` node (unknown until host-certified)."""
+    """A resolver-discovered ``Package`` node (unknown until host-certified).
+
+    ``resolvable=False`` marks an UNRESOLVED placeholder (a root ``uv`` could not
+    resolve, or a conflict): it carries NO ``pip:<name>`` fix, because that name
+    is exactly what failed to resolve — prescribing ``pip install <name>`` would
+    fail (or install a squatter). "No known fix" is the honest signal.
+    """
+    fix = f"pip:{name}" if resolvable else None
     return Node(
         id=package_id(name, version),
         type=NodeType.PACKAGE,
@@ -234,8 +242,8 @@ def _package_node(
         discovered_by=DiscoveredBy.RESOLVER,
         version=version,
         check_command=f"python -m pip show {name}",
-        fix_candidates=(f"pip:{name}",),
-        chosen_fix=f"pip:{name}",
+        fix_candidates=(fix,) if resolvable else (),
+        chosen_fix=fix,
         provenance=provenance,
     )
 
@@ -567,7 +575,7 @@ def parse_resolver_error(stderr: str) -> ResolverDiagnosis:
 # --------------------------------------------------------------------------- #
 def _missing_package_node(name: str, version: str | None, evidence: str) -> Node:
     return replace(
-        _package_node(name, version, provenance="uv lock (unresolved)"),
+        _package_node(name, version, provenance="uv lock (unresolved)", resolvable=False),
         state=State.MISSING,
         evidence=evidence,
     )
@@ -575,7 +583,7 @@ def _missing_package_node(name: str, version: str | None, evidence: str) -> Node
 
 def _conflict_package_node(name: str, evidence: str) -> Node:
     return replace(
-        _package_node(name, None, provenance="uv lock (conflict)"),
+        _package_node(name, None, provenance="uv lock (conflict)", resolvable=False),
         state=State.UNKNOWN,
         evidence=evidence,
     )
