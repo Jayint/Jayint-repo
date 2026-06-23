@@ -262,3 +262,27 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     assert (TEST_NODE_ID, package_id("pytest", "8.0.0")) in req  # test dep off Test
     # certifi now has a parent (no longer orphaned at the top of the layer)
     assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
+
+
+def test_build_invokes_certified_relink_stage(tmp_path):
+    """Stage 4a is wired: build runs the packages_distributions probe in the
+    container, and it runs BEFORE the import probe."""
+    from conftest import FakeExecutor  # type: ignore
+
+    (tmp_path / "app.py").write_text("import dateutil\n")
+    # Permissive executor: every command 'succeeds' with empty output, so the
+    # pipeline runs end-to-end without crashing and we can inspect .calls.
+    executor = FakeExecutor(default=_r(returncode=0))
+
+    build_dep_graph(str(tmp_path), executor, host_executor=executor, target_python="3.11")
+
+    relink_calls = [i for i, c in enumerate(executor.calls) if "packages_distributions" in c]
+    assert relink_calls, "build_dep_graph must invoke the Stage 4a relink probe"
+    relink_idx = relink_calls[0]
+    import_idx = next(
+        (i for i, c in enumerate(executor.calls) if 'python -c "import dateutil"' in c),
+        10**9,
+    )
+    # Stage 4a must run before the import probe so its certified edges exist when
+    # import_probe attributes gaps to owning packages.
+    assert relink_idx < import_idx

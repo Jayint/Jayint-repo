@@ -34,6 +34,7 @@ from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
 from python_deps.depgraph.ids import TEST_NODE_ID, project_id
 from python_deps.depgraph.probe import import_probe, install_closure
+from python_deps.depgraph.relink import certified_import_links
 from python_deps.depgraph.resolve import (
     DEFAULT_TARGET_PLATFORM,
     link_imports_to_packages,
@@ -227,6 +228,8 @@ def build_dep_graph(
     # import-probe (run-time gaps -> SystemLib); predictions reconcile in place.
     pre_probe_ids = {n.id for n in graph.nodes}
     graph = install_closure(graph, container_executor)
+    # Stage 4a — certified Import->Package relink (packages_distributions, CONTAINER).
+    graph = certified_import_links(graph, container_executor)
     graph = import_probe(graph, container_executor)
     probe_ids = {n.id for n in graph.nodes} - pre_probe_ids
     graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
