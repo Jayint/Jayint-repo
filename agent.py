@@ -277,7 +277,7 @@ class DockerAgent:
         self.enable_supervisor = enable_supervisor
         self.enable_fullstate_worker = enable_fullstate_worker
         self.fullstate_worker_prompt = fullstate_worker_prompt
-        self.enable_contract_graph = enable_contract_graph
+        self.enable_contract_graph = enable_contract_graph or enable_deterministic_maintainer
         # Phase-0 dep-graph advisory (shadow): renders a host-certified dependency
         # view into the planner prompt. Advisory only; implies v1 (it needs the
         # three-role planner path). Composes with --enable-contract-graph (v1g).
@@ -3119,7 +3119,8 @@ if __name__ == "__main__":
                              "--enable-contract-graph.")
     parser.add_argument("--enable-deterministic-maintainer", action="store_true",
                         help="Replace the LLM Maintainer with a deterministic host module "
-                             "(verbatim-signature blockers + correct layers; implies --enable-v1).")
+                             "(verbatim-signature blockers + correct layers; implies "
+                             "--enable-v1 and --enable-contract-graph).")
     parser.add_argument(
         "--disable-post-synthesis-repair",
         action="store_true",

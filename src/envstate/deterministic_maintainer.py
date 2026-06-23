@@ -1,8 +1,8 @@
 """Deterministic Maintainer (Change B): blocker extraction + done-gate, no LLM.
 
 Replaces the LLM Maintainer's graph-patch step with verbatim-signature blockers
-carrying the correct layer, so the existing auto-resolve machinery
-(_auto_resolve_blockers / _auto_resolve_system_problems) fires after a fix.
+carrying the correct layer, so the existing host machinery (_auto_resolve_blockers
+→ derive_open_problems) fires after a fix.
 Attempts/outcomes are NOT handled here — the orchestrator already does that.
 """
 from __future__ import annotations
@@ -31,6 +31,8 @@ def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
     seen: set[str] = set()
 
     for rec in report.commands:
+        if getattr(rec, "rc", 0) == 0:
+            continue
         for raw in (rec.output or "").splitlines():
             line = raw.strip()
             if not line:

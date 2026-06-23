@@ -142,3 +142,29 @@ def test_env_flag_recognized():
     # The wiring contract: when the flag is on, the Maintainer object exposes the
     # deterministic .update. We assert the adapter is usable as a Maintainer stand-in.
     assert hasattr(DeterministicMaintainer(), "update")
+
+
+# ---------------------------------------------------------------------------
+# Finding 1: rc filter — rc=0 commands must not produce blockers
+# ---------------------------------------------------------------------------
+
+
+def test_passing_command_output_does_not_produce_blockers():
+    # An rc=0 command whose output merely *mentions* a failure-shaped line must
+    # NOT create a blocker (parity with projection._failure_signatures rc!=0 filter).
+    report = _report("pytest -q", 0, "test_help PASSED: 'pg_config: command not found' handled")
+    patch = build_blocker_patch(ContractGraph.empty(), report)
+    assert patch.add_blockers == () and patch.add_contracts == ()
+
+
+def test_only_failing_command_in_mixed_report_yields_blocker():
+    # Mixed report: one passing command + one failing command. Only the failing
+    # command's signature becomes a blocker.
+    report = TaskReport("t", "blocked", (
+        CommandRecord("pip install foo", 0, "Successfully installed foo"),
+        CommandRecord("pip install psycopg2", 1, "Error: pg_config: command not found"),
+    ), "")
+    patch = build_blocker_patch(ContractGraph.empty(), report)
+    assert len(patch.add_blockers) == 1
+    assert len(patch.add_contracts) == 1
+    assert patch.add_blockers[0].data["layer"] == "system"
