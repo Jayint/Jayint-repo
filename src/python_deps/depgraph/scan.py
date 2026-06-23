@@ -20,6 +20,7 @@ plugin imports are not visible here.  This stage never sets ``state`` beyond
 
 from __future__ import annotations
 
+import os
 import re
 
 from python_deps.import_graph import scan_imports
@@ -64,6 +65,34 @@ def _in_scope_files(source_files: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(f for f in source_files if not _is_excluded_path(f))
 
 
+# Dirs never worth walking for local-name detection (vcs/build/venv noise).
+_SKIP_WALK_DIRS: frozenset[str] = frozenset(
+    {".git", ".hg", ".svn", "__pycache__", ".mypy_cache", ".pytest_cache"}
+) | _EXCLUDED_SEGMENTS
+
+
+def _local_module_names(repo_path: str) -> frozenset[str]:
+    """Names defined *inside* the repo — packages (dirs with ``__init__.py``) and
+    top-level module files (``*.py`` stems), found anywhere (incl. nested under
+    ``tests/``).
+
+    ``scan_imports`` only treats root/``src`` modules as project-local, so test
+    fixture sub-packages (e.g. flask's ``blueprintapp``/``site_package`` under
+    ``tests/``) leak through as "external" and become bogus PyPI roots.  A name
+    that resolves to a local file/dir is never a distribution the environment must
+    install.
+    """
+    names: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(repo_path):
+        dirnames[:] = [d for d in dirnames if d.lower() not in _SKIP_WALK_DIRS]
+        if "__init__.py" in filenames:
+            names.add(os.path.basename(dirpath))
+        for fname in filenames:
+            if fname.endswith(".py") and fname != "__init__.py":
+                names.add(fname[:-3])
+    return frozenset(names)
+
+
 def _import_check_command(name: str) -> str:
     return f'python -c "import {name}"'
 
@@ -102,11 +131,20 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
     dropped (their classification is reused from ``scan_imports``).
     """
     findings, _project_local, _errors = scan_imports(repo_path)
+    local_names = _local_module_names(repo_path)
 
     graph = DepGraph().with_node(_build_test_node())
 
     for finding in findings:
         if finding.classification != "external":
+            continue
+        name = finding.import_name
+        # Typing-only / private modules (e.g. ``_typeshed``) are not installable.
+        if name.startswith("_"):
+            continue
+        # In-repo packages/modules (incl. nested test fixtures like flask's
+        # ``blueprintapp``) are local, not PyPI distributions — drop them.
+        if name in local_names:
             continue
         # Scope to project source + tests: drop imports seen ONLY in
         # examples/docs/build (they pull non-project / non-PyPI names).

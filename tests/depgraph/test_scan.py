@@ -119,3 +119,29 @@ def test_scan_scopes_out_examples_and_docs(tmp_path: Path) -> None:
     assert "pytest" in names  # tests kept
     assert "blueprintapp" not in names  # examples dropped
     assert "sphinx_only" not in names  # docs dropped
+
+
+def test_scan_drops_local_fixture_packages_and_typing(tmp_path: Path) -> None:
+    """In-repo fixture packages (nested under tests/) and typing-only modules are
+    not external PyPI deps and must not become Import nodes."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text(
+        "import requests\n"
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n    import _typeshed\n",
+        encoding="utf-8",
+    )
+    # a local fixture package nested under tests/ (flask's blueprintapp pattern)
+    fixtures = tmp_path / "tests" / "test_apps" / "blueprintapp"
+    fixtures.mkdir(parents=True)
+    (fixtures / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tests" / "test_x.py").write_text(
+        "import blueprintapp\nimport requests\n", encoding="utf-8"
+    )
+
+    graph = scan_to_nodes(str(tmp_path))
+    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
+
+    assert "requests" in names  # real external dep kept
+    assert "blueprintapp" not in names  # local fixture package dropped
+    assert "_typeshed" not in names  # typing-only dropped
