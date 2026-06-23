@@ -102,3 +102,27 @@ def test_edge_builder_skips_existing_edge():
     )
     edges = import_to_package_edges(graph, {"yaml": ["PyYAML"]})
     assert edges == []
+
+
+from python_deps.depgraph.relink import certified_import_links
+
+
+def test_certified_import_links_adds_edge(fake_executor, make_result_fixture):
+    graph = DepGraph().with_node(_imp("dateutil")).with_node(_pkg("python-dateutil", "2.9.0"))
+    fake_executor.responses = {
+        "packages_distributions": make_result_fixture(
+            stdout='{"dateutil": ["python-dateutil"]}'
+        )
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    deps = out.requires_of(import_id("dateutil"))
+    assert any(d.id == package_id("python-dateutil", "2.9.0") for d in deps)
+
+
+def test_certified_import_links_graceful_on_command_failure(fake_executor):
+    # Empty FakeExecutor -> command returns rc 127 (not ok) -> graph unchanged.
+    graph = DepGraph().with_node(_imp("dateutil")).with_node(_pkg("python-dateutil", "2.9.0"))
+    out = certified_import_links(graph, fake_executor)
+    assert out.edges == ()

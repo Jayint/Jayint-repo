@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 
+from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType
 from python_deps.import_mapping import (
     normalize_package_name,
@@ -85,3 +86,20 @@ def import_to_package_edges(
                 )
             )
     return edges
+
+
+def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
+    """Stage 4a: add certified Import->Package edges from the container.
+
+    Runs ``packages_distributions()`` in the (post-install) container and links
+    every Import to its certified provider Package. On command failure the graph
+    is returned unchanged — never worse than the pre-install heuristic alone.
+    """
+    result = executor.run(PACKAGES_DIST_CMD)
+    if not result.ok:
+        return graph
+    dist_map = parse_packages_distributions(result.stdout)
+    new = graph
+    for edge in import_to_package_edges(graph, dist_map):
+        new = new.with_edge(edge)
+    return new
