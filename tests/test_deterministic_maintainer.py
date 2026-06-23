@@ -1,0 +1,84 @@
+# tests/test_deterministic_maintainer.py
+from __future__ import annotations
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))  # shim: import python_deps/src.envstate
+
+from src.envstate.deterministic_maintainer import build_blocker_patch
+from src.envstate.contracts.graph import ContractGraph
+from src.envstate.contracts.apply import apply_patch
+from src.envstate.contracts.ids import contract_id, blocker_id
+from src.envstate.world_model import TaskReport, CommandRecord, derive_open_problems
+from src.envstate.contracts.projection import _auto_resolve_blockers
+
+
+def _report(cmd, rc, output, learning=""):
+    return TaskReport("t", "blocked", (CommandRecord(cmd, rc, output),), learning)
+
+
+def test_pg_config_failure_builds_system_layer_blocker_and_contract():
+    report = _report("pip install psycopg2", 1, "Error: pg_config: command not found")
+    patch = build_blocker_patch(ContractGraph.empty(), report)
+    g = apply_patch(ContractGraph.empty(), patch)
+
+    c = g.node(contract_id("binary", "pg_config"))
+    assert c is not None
+    assert c.data["subject"] == "pg_config"      # verbatim, not paraphrased
+    assert c.data["layer"] == "system"
+    assert c.data["level"] == "atomic"
+
+    b = g.node(blocker_id("pg_config: command not found"))
+    assert b is not None
+    assert b.data["layer"] == "system"           # explicit — the bug was "deps"
+    assert b.data["active"] is True
+    assert "command not found" in b.data["signature"]   # verbatim
+
+
+def test_emitted_blocker_retires_via_existing_auto_resolve():
+    # THE correctness test: after apt install lands pg_config in `present`,
+    # the existing _auto_resolve_blockers must retire the blocker.
+    report = _report("pip install psycopg2", 1, "Error: pg_config: command not found")
+    g = apply_patch(ContractGraph.empty(), build_blocker_patch(ContractGraph.empty(), report))
+    updated, satisfied = _auto_resolve_blockers(g, present={"pg-config"}, collection_ok=False)
+    assert contract_id("binary", "pg_config") in satisfied   # contract now satisfied
+    assert any(not n.data.get("active", True) for n in updated)  # blocker retired
+
+
+def test_emitted_blocker_populates_open_problems_with_system_layer():
+    report = _report("pip install psycopg2", 1, "Error: pg_config: command not found")
+    g = apply_patch(ContractGraph.empty(), build_blocker_patch(ContractGraph.empty(), report))
+    problems = derive_open_problems(g)
+    assert any(p.layer == "system" and "command not found" in p.signature for p in problems)
+
+
+def test_soname_failure_is_system_layer():
+    report = _report("python -c 'import cv2'", 1,
+                     "ImportError: libGL.so.1: cannot open shared object file")
+    g = apply_patch(ContractGraph.empty(), build_blocker_patch(ContractGraph.empty(), report))
+    c = g.node(contract_id("system_library", "libGL.so.1"))
+    assert c is not None and c.data["layer"] == "system"
+
+
+def test_module_not_found_is_deps_layer():
+    report = _report("pytest", 1, "ModuleNotFoundError: No module named 'requests'")
+    g = apply_patch(ContractGraph.empty(), build_blocker_patch(ContractGraph.empty(), report))
+    c = g.node(contract_id("python_import", "requests"))
+    assert c is not None and c.data["layer"] == "deps"   # deps is correct for pip imports
+
+
+def test_idempotent_existing_nodes_skipped():
+    report = _report("x", 1, "pg_config: command not found")
+    g = apply_patch(ContractGraph.empty(), build_blocker_patch(ContractGraph.empty(), report))
+    patch2 = build_blocker_patch(g, report)   # same failure, graph already has the nodes
+    assert patch2.add_contracts == () and patch2.add_blockers == ()
+
+
+def test_learning_preserved_as_diagnostic_note():
+    report = _report("x", 1, "pg_config: command not found", learning="psycopg2 needs libpq-dev")
+    patch = build_blocker_patch(ContractGraph.empty(), report)
+    assert any("psycopg2 needs libpq-dev" in n for n in patch.diagnostic_notes)
+
+
+def test_no_signature_no_blockers():
+    report = _report("echo ok", 0, "all good")
+    patch = build_blocker_patch(ContractGraph.empty(), report)
+    assert patch.add_blockers == () and patch.add_contracts == ()
