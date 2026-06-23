@@ -8,35 +8,11 @@ Attempts/outcomes are NOT handled here — the orchestrator already does that.
 from __future__ import annotations
 
 from .contracts import ids
-from .contracts.extract import _RULES
+from .contracts.extract import CONTRACT_LAYERS, extract_blocker_match
 from .contracts.graph import ContractGraph
 from .contracts.nodes import Edge, Node
 from .contracts.patch import GraphPatch
 from .world_model import TaskReport
-
-# blocker kind (from extract._RULES) -> contract kind
-_CONTRACT_KIND = {
-    "module_not_found": "python_import",
-    "missing_binary": "binary",
-    "missing_system_library": "system_library",
-}
-# contract kind -> obligation layer (mirrors extract.py:48)
-_LAYER = {"python_import": "deps", "binary": "system", "system_library": "system"}
-
-
-def _extract(line: str) -> tuple[str | None, str, str]:
-    """Return (subject, blocker_kind, matched_text) for the first rule that fires.
-
-    ``matched_text`` is the regex group(0) — the verbatim portion of the line
-    that triggered the rule.  Used as the canonical blocker signature / id so
-    the id is stable regardless of surrounding context (e.g. "Error: pg_config:
-    command not found" → matched_text = "pg_config: command not found").
-    """
-    for pat, kind, _ in _RULES:
-        m = pat.search(line)
-        if m:
-            return m.group(1), kind, m.group(0)
-    return None, "unknown", ""
 
 
 def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
@@ -52,11 +28,11 @@ def build_blocker_patch(graph: ContractGraph, report: TaskReport) -> GraphPatch:
             line = raw.strip()
             if not line:
                 continue
-            subject, bkind, sig = _extract(line)
-            ckind = _CONTRACT_KIND.get(bkind)
-            if subject is None or ckind is None:
+            match = extract_blocker_match(line)
+            if match is None:
                 continue
-            layer = _LAYER[ckind]
+            subject, bkind, ckind, sig = match
+            layer = CONTRACT_LAYERS[ckind]
             cid = ids.contract_id(ckind, subject)
             bid = ids.blocker_id(sig)
             if cid not in seen and not graph.has_node(cid):

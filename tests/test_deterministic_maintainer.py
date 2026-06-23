@@ -6,6 +6,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))  # 
 from src.envstate.deterministic_maintainer import build_blocker_patch
 from src.envstate.contracts.graph import ContractGraph
 from src.envstate.contracts.apply import apply_patch
+from src.envstate.contracts.patch import GraphPatch
 from src.envstate.contracts.ids import contract_id, blocker_id
 from src.envstate.world_model import TaskReport, CommandRecord, derive_open_problems
 from src.envstate.contracts.projection import _auto_resolve_blockers
@@ -82,3 +83,16 @@ def test_no_signature_no_blockers():
     report = _report("echo ok", 0, "all good")
     patch = build_blocker_patch(ContractGraph.empty(), report)
     assert patch.add_blockers == () and patch.add_contracts == ()
+
+
+def test_partial_state_emits_blocker_for_existing_contract():
+    report = _report("x", 1, "pg_config: command not found")
+    # graph already has the contract but no blocker
+    only_contract = build_blocker_patch(ContractGraph.empty(), report)
+    contract_node = next(n for n in only_contract.add_contracts)
+    g = apply_patch(ContractGraph.empty(), GraphPatch(add_contracts=(contract_node,)))
+    patch2 = build_blocker_patch(g, report)
+    assert patch2.add_contracts == ()                # contract already present -> skipped
+    assert len(patch2.add_blockers) == 1             # blocker still emitted
+    assert len(patch2.add_edges) == 1                # violates edge emitted
+    assert patch2.add_edges[0].type == "violates"

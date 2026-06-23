@@ -16,6 +16,24 @@ _RULES = [
 ]
 
 
+CONTRACT_LAYERS: dict[str, str] = {
+    "python_import": "deps",
+    "binary": "system",
+    "system_library": "system",
+}
+
+
+def extract_blocker_match(line: str) -> tuple[str, str, str, str] | None:
+    """Return (subject, blocker_kind, contract_kind, matched_text) for the
+    first rule that fires, else None.  matched_text is group(0) — the
+    verbatim portion of the line that triggered the rule."""
+    for pat, bkind, ckind in _RULES:
+        m = pat.search(line)
+        if m:
+            return m.group(1), bkind, ckind, m.group(0)
+    return None
+
+
 def extract_blocker_subject(signature: str) -> tuple[str | None, str]:
     if not signature:
         return None, "unknown"
@@ -45,7 +63,7 @@ def promote_atomic_contracts(graph: object, signatures: list[str]) -> list[Node]
         if cid in seen or graph.has_node(cid):  # type: ignore[union-attr]
             continue
         seen.add(cid)
-        layer = {"python_import": "deps", "binary": "system", "system_library": "system"}[ckind]
+        layer = CONTRACT_LAYERS[ckind]
         out.append(Node(cid, "Contract", {"level": "atomic", "kind": ckind, "subject": subject,
             "layer": layer, "check": "", "source_refs": [f"signature:{sig[:60]}"],
             "evidence_refs": [], "description": f"{ckind} obligation: {subject}.", "metadata": {}}))
