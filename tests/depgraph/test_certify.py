@@ -99,6 +99,33 @@ def test_certify_missing_on_nonzero_with_stderr_evidence(
     assert "No module named 'cv2'" in (node.evidence or "")
 
 
+def test_certify_preserves_discovery_evidence_on_empty_check_stderr(
+    fake_executor, make_result_fixture
+):
+    # A probe-discovered node carries the real failure (the ImportError line) as
+    # evidence; certifying it MISSING must NOT clobber that with the empty stderr
+    # of a presence check like `ldconfig -p | grep ...` (which prints nothing).
+    node = Node(
+        id=syslib_id("libxcb.so.1"),
+        type=NodeType.SYSTEM_LIB,
+        name="libxcb.so.1",
+        layer=Layer.SYSTEM,
+        discovered_by=DiscoveredBy.PROBE,
+        state=State.MISSING,
+        check_command="ldconfig -p | grep libxcb.so.1",
+        evidence="ImportError: libxcb.so.1: cannot open shared object file: No such file or directory",
+    )
+    graph = DepGraph().with_node(node)
+    fake_executor.responses = {"ldconfig": make_result_fixture(returncode=1, stderr="")}
+
+    out = certify(graph, node.id, fake_executor, cycle=4)
+
+    n = out.get(node.id)
+    assert n.state is State.MISSING
+    # the discovery evidence survives certification (not overwritten with "")
+    assert "libxcb.so.1: cannot open shared object file" in (n.evidence or "")
+
+
 def test_certify_no_check_command_stays_unknown(fake_executor):
     node = Node(
         id=import_id("dynamic"),

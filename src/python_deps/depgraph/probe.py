@@ -295,6 +295,8 @@ def _make_tool_node(tool: str, stderr: str, command: str) -> Node:
         check_command=check,
         evidence=_first_line_with(stderr, tool),
         fix_candidates=(f"apt:{apt}",) if apt else (),
+        chosen_fix=f"apt:{apt}" if apt else None,
+        provenance="probe (observed)",
     )
     return node.with_attempt(
         Attempt(command=command, outcome="failed", check=check)
@@ -315,6 +317,8 @@ def _make_syslib_node(soname: str, stderr: str, command: str, apt: str | None = 
         check_command=check,
         evidence=_first_line_with(stderr, soname),
         fix_candidates=(f"apt:{apt}",) if apt else (),
+        chosen_fix=f"apt:{apt}" if apt else None,
+        provenance="probe (observed)",
     )
     return node.with_attempt(
         Attempt(command=command, outcome="failed", check=check)

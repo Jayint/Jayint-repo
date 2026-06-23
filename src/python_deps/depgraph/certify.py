@@ -59,7 +59,14 @@ def certify(
     if result.ok:
         updated = node.with_state(State.SATISFIED, cycle=cycle)
     else:
-        updated = node.with_state(State.MISSING, evidence=result.stderr, cycle=cycle)
+        # Preserve the node's DISCOVERY evidence (the real build/import failure the
+        # probe captured) — only fall back to the check's stderr when there is no
+        # prior evidence. A presence check like ``ldconfig -p | grep`` or
+        # ``command -v`` prints nothing on failure, so writing its empty stderr
+        # would otherwise clobber the diagnostic line that explains WHY the need
+        # exists. (design 3.1: certify owns ``state``, not the evidence of need.)
+        evidence = node.evidence or result.stderr or None
+        updated = node.with_state(State.MISSING, evidence=evidence, cycle=cycle)
     return graph.with_node(updated)
 
 

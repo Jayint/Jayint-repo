@@ -106,6 +106,33 @@ def test_install_closure_records_attempt_on_packages(fake_executor, make_result_
     assert "psycopg2==2.9.9" in node.attempts[0].command
 
 
+def test_make_syslib_node_is_self_contained():
+    # A probe-discovered SystemLib must carry chosen_fix, provenance, and evidence
+    # so an agent can diagnose+fix it without traversing to the import node.
+    from python_deps.depgraph.probe import _make_syslib_node
+
+    node = _make_syslib_node(
+        "libxcb.so.1",
+        "ImportError: libxcb.so.1: cannot open shared object file",
+        'python -c "import cv2"',
+        apt="libxcb1",
+    )
+    assert node.fix_candidates == ("apt:libxcb1",)
+    assert node.chosen_fix == "apt:libxcb1"
+    assert node.provenance  # records that this was probe-observed
+    assert "libxcb.so.1" in (node.evidence or "")
+
+
+def test_make_tool_node_is_self_contained():
+    from python_deps.depgraph.probe import _make_tool_node
+
+    node = _make_tool_node(
+        "pg_config", "Error: pg_config executable not found.", "python -m pip install psycopg2"
+    )
+    assert node.chosen_fix == "apt:libpq-dev"
+    assert node.provenance
+
+
 def test_failed_build_packages_parses_pip_patterns():
     from python_deps.depgraph.probe import _failed_build_packages
 
