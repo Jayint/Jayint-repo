@@ -8,7 +8,13 @@ CURATED_IMPORT_TO_PACKAGE = {
     "bs4": "beautifulsoup4",
     "cv2": "opencv-python",
     "django_filters": "django-filter",
+    "fitz": "PyMuPDF",
+    "image": "Pillow",
+    "lxml": "lxml",
+    "mysqldb": "mysqlclient",
+    "openssl": "pyOpenSSL",
     "pil": "Pillow",
+    "psycopg2": "psycopg2",
     "sklearn": "scikit-learn",
     "yaml": "PyYAML",
 }
