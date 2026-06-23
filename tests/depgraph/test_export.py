@@ -92,12 +92,14 @@ def test_export_is_well_formed_xml():
     assert doc.documentElement.tagName == "graphml"
 
 
-def test_export_key_schema_matches_sample():
+def test_export_key_schema_supersets_sample():
+    # The enriched export is backward compatible: it preserves every original
+    # sample key (so the existing viewer still works) and ADDS new keys.
     xml_text = to_graphml(_sample_graph())
     exported = _key_attr_names(xml_text)
     sample = _key_attr_names(_SAMPLE.read_text())
 
-    expected = {
+    original = {
         "label",
         "type",
         "layer",
@@ -108,8 +110,10 @@ def test_export_key_schema_matches_sample():
         "evidence",
         "relation",
     }
-    assert exported == expected
-    assert exported == sample
+    assert original <= exported  # every original key preserved
+    assert sample <= exported  # viewer-compatible superset
+    # the uv-enrichment additions
+    assert {"build_from_source", "marker", "constraint"} <= exported
 
 
 def test_export_round_trips_nodes_and_edges():
@@ -226,5 +230,160 @@ def test_export_omits_empty_fields():
     assert "d5" not in keys  # check_command
     assert "d6" not in keys  # fix
     assert "d7" not in keys  # evidence
+    assert "d8" not in keys  # build_from_source (None -> omitted)
     # required identity fields are still present
     assert {"d0", "d1", "d2", "d3", "d4"} <= keys
+
+
+def _data_map(node_elem):
+    return {
+        d.getAttribute("key"): (d.firstChild.nodeValue if d.firstChild else "")
+        for d in node_elem.getElementsByTagName("data")
+    }
+
+
+def test_export_node_carries_build_from_source():
+    pkg = Node(
+        id=package_id("numpy", "1.26.4"),
+        type=NodeType.PACKAGE,
+        name="numpy",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="1.26.4",
+        build_from_source=True,
+    )
+    graph = DepGraph().with_node(pkg)
+    doc = minidom.parseString(to_graphml(graph))
+    data = _data_map(doc.getElementsByTagName("node")[0])
+    assert data["d8"] == "true"
+
+
+def test_export_edge_carries_marker():
+    parent = Node(
+        id=package_id("pkg-a", "1.0"),
+        type=NodeType.PACKAGE,
+        name="pkg-a",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="1.0",
+    )
+    child = Node(
+        id=package_id("pkg-b", "2.0"),
+        type=NodeType.PACKAGE,
+        name="pkg-b",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="2.0",
+    )
+    graph = (
+        DepGraph()
+        .with_node(parent)
+        .with_node(child)
+        .with_edge(
+            Edge(
+                src=parent.id,
+                dst=child.id,
+                relation=EdgeType.REQUIRES,
+                marker="python_version < '3.11'",
+            )
+        )
+    )
+    doc = minidom.parseString(to_graphml(graph))
+    edge = doc.getElementsByTagName("edge")[0]
+    data = _data_map(edge)
+    assert data["e0"] == "requires"
+    assert data["e1"] == "python_version < '3.11'"
+
+
+def test_export_build_from_source_false_emits_false():
+    # build_from_source=False must emit d8="false" (distinct from omitted/None).
+    pkg = Node(
+        id=package_id("numpy", "1.26.4"),
+        type=NodeType.PACKAGE,
+        name="numpy",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="1.26.4",
+        build_from_source=False,
+    )
+    graph = DepGraph().with_node(pkg)
+    doc = minidom.parseString(to_graphml(graph))
+    assert _data_map(doc.getElementsByTagName("node")[0])["d8"] == "false"
+
+
+def test_export_fix_joins_multiple_candidates():
+    node = Node(
+        id=syslib_id("libGL.so.1"),
+        type=NodeType.SYSTEM_LIB,
+        name="libGL.so.1",
+        layer=Layer.SYSTEM,
+        discovered_by=DiscoveredBy.PROBE,
+        state=State.MISSING,
+        fix_candidates=("apt:libgl1", "apt:libglx-mesa0"),
+    )
+    graph = DepGraph().with_node(node)
+    doc = minidom.parseString(to_graphml(graph))
+    assert _data_map(doc.getElementsByTagName("node")[0])["d6"] == (
+        "apt:libgl1; apt:libglx-mesa0"
+    )
+
+
+def test_export_constraint_single_bound():
+    edge = Edge(
+        src="pkg:a",
+        dst="pkg:b",
+        relation=EdgeType.CONFLICTS_WITH,
+        data={"package": "pkg", "src_bound": "<2.0"},
+    )
+    graph = DepGraph(edges=(edge,))
+    doc = minidom.parseString(to_graphml(graph))
+    assert _data_map(doc.getElementsByTagName("edge")[0])["e2"] == "pkg: <2.0"
+
+
+def test_export_constraint_no_package_key():
+    edge = Edge(
+        src="pkg:a",
+        dst="pkg:b",
+        relation=EdgeType.CONFLICTS_WITH,
+        data={"src_bound": "<2.0", "dst_bound": ">=2.0"},
+    )
+    graph = DepGraph(edges=(edge,))
+    doc = minidom.parseString(to_graphml(graph))
+    assert _data_map(doc.getElementsByTagName("edge")[0])["e2"] == "<2.0 vs >=2.0"
+
+
+def test_export_conflicts_with_edge_carries_constraint():
+    a = Node(
+        id=package_id("pkg-a", None),
+        type=NodeType.PACKAGE,
+        name="pkg-a",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+    )
+    b = Node(
+        id=package_id("pkg-b", None),
+        type=NodeType.PACKAGE,
+        name="pkg-b",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+    )
+    graph = (
+        DepGraph()
+        .with_node(a)
+        .with_node(b)
+        .with_edge(
+            Edge(
+                src=a.id,
+                dst=b.id,
+                relation=EdgeType.CONFLICTS_WITH,
+                origin="resolver",
+                data={"package": "urllib3", "src_bound": "<2.0", "dst_bound": ">=2.0"},
+            )
+        )
+    )
+    doc = minidom.parseString(to_graphml(graph))
+    edge = doc.getElementsByTagName("edge")[0]
+    data = _data_map(edge)
+    assert data["e0"] == "conflicts_with"
+    assert "urllib3" in data["e2"]
+    assert "<2.0" in data["e2"] and ">=2.0" in data["e2"]

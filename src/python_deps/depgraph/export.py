@@ -1,10 +1,20 @@
 """GraphML export — render a ``DepGraph`` for the existing HTML viewer.
 
-Emits the SAME key schema as ``docs/sample-dependency-graph.graphml`` so the
-output drops straight into ``docs/sample-dependency-graph-visualization.html``:
+Supersets the key schema of ``docs/sample-dependency-graph.graphml``: the
+original keys (``d0..d7`` + ``e0``) are preserved byte-for-byte so the output
+still drops straight into ``docs/sample-dependency-graph-visualization.html``,
+and the uv-enrichment adds backward-compatible keys the viewer ignores when
+unknown:
 
-    node keys: label, type, layer, state, discovered_by, check, fix, evidence
-    edge key : relation
+    node keys: label, type, layer, state, discovered_by, check, fix, evidence,
+               build_from_source (d8)
+    edge keys: relation (e0), marker (e1), constraint (e2)
+
+``build_from_source`` surfaces native-build risk; ``marker`` carries a
+conditional-dependency marker on a ``requires`` edge; ``constraint`` carries the
+version bounds on a ``conflicts_with`` edge (so conflicts are diagnosable).
+Predicted-vs-observed is already visible via ``discovered_by`` (resolver = a
+prediction, probe = an observation).
 
 The ``fix`` value prefers ``chosen_fix`` and falls back to the joined
 ``fix_candidates`` (the viewer shows a single provider string).  Empty fields are
@@ -15,9 +25,10 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape, quoteattr
 
-from python_deps.depgraph.schema import DepGraph, Node, NodeType
+from python_deps.depgraph.schema import DepGraph, Edge, Node, NodeType
 
-# (key-id, attr.name) — ids/order mirror docs/sample-dependency-graph.graphml.
+# (key-id, attr.name) — d0..d7 ids/order mirror docs/sample-dependency-graph.graphml;
+# d8 is the backward-compatible native-risk addition.
 _NODE_KEYS: tuple[tuple[str, str], ...] = (
     ("d0", "label"),
     ("d1", "type"),
@@ -27,8 +38,14 @@ _NODE_KEYS: tuple[tuple[str, str], ...] = (
     ("d5", "check"),
     ("d6", "fix"),
     ("d7", "evidence"),
+    ("d8", "build_from_source"),
 )
-_EDGE_KEY: tuple[str, str] = ("e0", "relation")
+# e0 mirrors the sample; e1/e2 are the backward-compatible enrichment additions.
+_EDGE_KEYS: tuple[tuple[str, str], ...] = (
+    ("e0", "relation"),
+    ("e1", "marker"),
+    ("e2", "constraint"),
+)
 
 
 def _label(node: Node) -> str:
@@ -48,6 +65,13 @@ def _fix_value(node: Node) -> str:
     return ""
 
 
+def _build_from_source_value(node: Node) -> str:
+    """``"true"``/``"false"`` when known, else ``""`` (omitted)."""
+    if node.build_from_source is None:
+        return ""
+    return "true" if node.build_from_source else "false"
+
+
 def _node_data(node: Node) -> dict[str, str]:
     return {
         "d0": _label(node),
@@ -58,6 +82,27 @@ def _node_data(node: Node) -> dict[str, str]:
         "d5": node.check_command or "",
         "d6": _fix_value(node),
         "d7": node.evidence or "",
+        "d8": _build_from_source_value(node),
+    }
+
+
+def _constraint_value(edge: Edge) -> str:
+    """Version-bound summary for a conflict edge (empty when absent)."""
+    data = edge.data or {}
+    src_bound = data.get("src_bound")
+    dst_bound = data.get("dst_bound")
+    if not src_bound and not dst_bound:
+        return ""
+    pkg = data.get("package")
+    bounds = " vs ".join(b for b in (src_bound, dst_bound) if b)
+    return f"{pkg}: {bounds}" if pkg else bounds
+
+
+def _edge_data(edge: Edge) -> dict[str, str]:
+    return {
+        "e0": edge.relation.value,
+        "e1": edge.marker or "",
+        "e2": _constraint_value(edge),
     }
 
 
@@ -72,10 +117,11 @@ def to_graphml(graph: DepGraph) -> str:
             f'  <key id="{key_id}" for="node" '
             f'attr.name="{attr_name}" attr.type="string"/>'
         )
-    lines.append(
-        f'  <key id="{_EDGE_KEY[0]}" for="edge" '
-        f'attr.name="{_EDGE_KEY[1]}" attr.type="string"/>'
-    )
+    for key_id, attr_name in _EDGE_KEYS:
+        lines.append(
+            f'  <key id="{key_id}" for="edge" '
+            f'attr.name="{attr_name}" attr.type="string"/>'
+        )
     lines.append('  <graph edgedefault="directed">')
 
     for node in graph.nodes:
@@ -88,9 +134,15 @@ def to_graphml(graph: DepGraph) -> str:
         lines.append("    </node>")
 
     for edge in graph.edges:
+        data = _edge_data(edge)
+        parts = [
+            f'<data key="{key_id}">{escape(data[key_id])}</data>'
+            for key_id, _ in _EDGE_KEYS
+            if data[key_id]
+        ]
         lines.append(
             f"    <edge source={quoteattr(edge.src)} target={quoteattr(edge.dst)}>"
-            f'<data key="{_EDGE_KEY[0]}">{escape(edge.relation.value)}</data></edge>'
+            f"{''.join(parts)}</edge>"
         )
 
     lines.append("  </graph>")

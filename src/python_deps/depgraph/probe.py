@@ -26,6 +26,7 @@ The certification invariant (design 3.1) holds: nothing here flips a node to
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 from python_deps.failure_classifier import NATIVE_LIBRARY_RE
 
@@ -49,6 +50,12 @@ from python_deps.depgraph.tables import (
     apt_for_tool,
 )
 
+# Timeout (seconds) for the one bulk closure install. A cold install of a large
+# closure (downloads + any from-source build) routinely exceeds the executor's
+# 300s default; a false timeout would mark the install failed and cascade the
+# whole graph to MISSING at certification, so give it generous headroom.
+INSTALL_TIMEOUT = 900
+
 # A wheel-build failure prints the distribution being built; used to attribute a
 # build-time toolchain gap to the package that triggered it.
 _WHEEL_FOR_RE = re.compile(r"[Bb]uilding wheel for ([A-Za-z0-9_.][A-Za-z0-9_.-]*)")
@@ -61,14 +68,23 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
 
     Returns a new graph with a ``Tool`` node + ``requires`` edge for every
     recognised build-time gap, and an install ``Attempt`` recorded on every
-    ``Package`` node.
+    installed ``Package`` node.
+
+    Resolver-diagnosed ``MISSING`` packages (unresolvable / conflict placeholders
+    with no real version) are excluded from the bulk install: adding one makes the
+    single ``pip install`` fail and poisons the whole closure (every good package
+    would then certify ``MISSING``), defeating per-root resilience.
     """
-    packages = [n for n in graph.nodes if n.type is NodeType.PACKAGE]
+    packages = [
+        n
+        for n in graph.nodes
+        if n.type is NodeType.PACKAGE and n.state is not State.MISSING
+    ]
     if not packages:
         return graph
 
     command = "python -m pip install " + " ".join(_spec(p) for p in _sorted(packages))
-    result = executor.run(command)
+    result = executor.run(command, timeout=INSTALL_TIMEOUT)
     outcome = "succeeded" if result.ok else "failed"
 
     new = graph
@@ -83,11 +99,27 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
     stderr = result.stderr or ""
     owners = _build_owners(packages, stderr)
     for tool in _tool_gaps(stderr):
-        node = _make_tool_node(tool, stderr, command)
-        new = new.with_node(node)
+        check = _tool_check(tool)
+        evidence = _first_line_with(stderr, tool)
+        apt = apt_for_tool(tool)
+        predicted_id = tool_id(apt) if apt else None
+        reconciled = (
+            _reconcile_predicted(
+                new, predicted_id, check=check, evidence=evidence, command=command
+            )
+            if predicted_id
+            else None
+        )
+        if reconciled is not None:
+            node_id = reconciled.id
+            new = new.with_node(reconciled)
+        else:
+            node = _make_tool_node(tool, stderr, command)
+            node_id = node.id
+            new = new.with_node(node)
         for src in owners:
             new = new.with_edge(
-                Edge(src=src, dst=node.id, relation=EdgeType.REQUIRES, origin="probe")
+                Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
             )
     return new
 
@@ -120,13 +152,61 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             continue
 
         soname = match.group("library")
-        node = _make_syslib_node(soname, result.stderr or "", command)
-        new = new.with_node(node)
+        stderr = result.stderr or ""
+        check = f"ldconfig -p | grep {soname}"
+        evidence = _first_line_with(stderr, soname)
+        apt = apt_for_soname(soname)
+        predicted_id = syslib_id(apt) if apt else None
+        reconciled = (
+            _reconcile_predicted(
+                new, predicted_id, check=check, evidence=evidence, command=command
+            )
+            if predicted_id
+            else None
+        )
+        if reconciled is not None:
+            node_id = reconciled.id
+            new = new.with_node(reconciled)
+        else:
+            node = _make_syslib_node(soname, stderr, command)
+            node_id = node.id
+            new = new.with_node(node)
         for src in _edge_sources(target):
             new = new.with_edge(
-                Edge(src=src, dst=node.id, relation=EdgeType.REQUIRES, origin="probe")
+                Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
             )
     return new
+
+
+# --------------------------------------------------------------------------- #
+# Prediction reconciliation                                                    #
+# --------------------------------------------------------------------------- #
+def _reconcile_predicted(
+    graph: DepGraph,
+    predicted_id: str,
+    *,
+    check: str,
+    evidence: str,
+    command: str,
+) -> Node | None:
+    """Reconcile an observed gap with a resolver *prediction* of the same id.
+
+    When the resolver pre-emitted a predicted ``Tool``/``SystemLib`` (seed stage)
+    for the apt package that provides this observed gap, return a NEW node that
+    keeps the predicted node's id + discovery origin (``discovered_by`` stays
+    RESOLVER per the spec) but adopts the real observed ``check_command`` /
+    ``evidence`` and records the failing probe attempt.  ``state`` is left for the
+    host certifier to flip — discovery never certifies (design 3.1).
+
+    Returns ``None`` when there is no matching prediction (caller then creates a
+    fresh probe-discovered node), so existing observed-only behavior is preserved.
+    """
+    predicted = graph.get(predicted_id)
+    if predicted is None or predicted.discovered_by is not DiscoveredBy.RESOLVER:
+        return None
+    return replace(predicted, check_command=check, evidence=evidence).with_attempt(
+        Attempt(command=command, outcome="failed", check=check)
+    )
 
 
 # --------------------------------------------------------------------------- #

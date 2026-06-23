@@ -55,9 +55,13 @@ class FakeExecutor:
         self.responses: dict[str, CommandResult] = dict(responses or {})
         self.default: CommandResult | None = default
         self.calls: list[str] = []
+        # Per-call timeouts, parallel to ``calls`` (lets tests assert that a slow
+        # stage like the bulk closure install asks for enough headroom).
+        self.timeouts: list[int] = []
 
     def run(self, command: str, *, timeout: int = 300) -> CommandResult:
         self.calls.append(command)
+        self.timeouts.append(timeout)
         matches = [key for key in self.responses if key in command]
         if matches:
             best = max(matches, key=len)

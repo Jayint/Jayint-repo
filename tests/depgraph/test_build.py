@@ -1,11 +1,20 @@
 """Task 8 — end-to-end orchestrator (``build.py``).
 
-``build_dep_graph`` wires stages 1->5 (scan -> map -> resolve -> seed -> install
+``build_dep_graph`` wires the pipeline (scan -> map -> resolve -> seed -> install
 -> probe -> certify) over a tiny fixture repo, driven entirely by a
 ``FakeExecutor`` (no Docker/network/uv).  The canned outputs below model a repo
 that imports ``cv2`` (needs libGL.so.1), ``PIL`` (clean), and ``psycopg2`` (build
 fails: pg_config missing), so the run exercises every node type:
 Test / Import / Package / SystemLib / Tool.
+
+Resolution is HOST-side and install/probe/certify are CONTAINER-side; the unit
+test injects the SAME ``FakeExecutor`` for both (``host_executor=`` kwarg).
+
+Native gaps here all reconcile with a resolver *prediction* (opencv-python and
+psycopg2 are both in ``PACKAGE_TO_SYSTEM_DEPS``): the observed ``libGL.so.1`` /
+``pg_config`` gaps merge into the predicted apt-keyed nodes ``syslib:libgl1`` /
+``tool:libpq-dev`` (no duplicate soname/tool node), which therefore keep their
+RESOLVER discovery origin while gaining the real check + a probe attempt.
 """
 
 from __future__ import annotations
@@ -85,8 +94,13 @@ def _make_executor():
     )
 
 
+def _build(tmp_path):
+    ex = _make_executor()
+    return build_dep_graph(_make_repo(tmp_path), ex, host_executor=ex)
+
+
 def test_build_produces_all_node_types(tmp_path):
-    graph = build_dep_graph(_make_repo(tmp_path), _make_executor())
+    graph = _build(tmp_path)
 
     # Test goal node.
     assert graph.get(TEST_NODE_ID) is not None
@@ -99,13 +113,16 @@ def test_build_produces_all_node_types(tmp_path):
     assert graph.get(package_id("numpy", "1.26.4")) is not None
     assert graph.get(package_id("Pillow", "10.3.0")) is not None
     assert graph.get(package_id("psycopg2", "2.9.9")) is not None
-    # Probe-discovered SystemLib + Tool.
-    assert graph.get(syslib_id("libGL.so.1")) is not None
-    assert graph.get(tool_id("pg_config")) is not None
+    # SystemLib + Tool — the observed gaps reconcile into the apt-keyed
+    # predictions (no duplicate soname/tool node is created).
+    assert graph.get(syslib_id("libgl1")) is not None
+    assert graph.get(tool_id("libpq-dev")) is not None
+    assert graph.get(syslib_id("libGL.so.1")) is None
+    assert graph.get(tool_id("pg_config")) is None
 
 
 def test_build_requires_topology(tmp_path):
-    graph = build_dep_graph(_make_repo(tmp_path), _make_executor())
+    graph = _build(tmp_path)
 
     edges = {(e.src, e.dst) for e in graph.edges}
     # Test -> Imports
@@ -119,16 +136,16 @@ def test_build_requires_topology(tmp_path):
         package_id("opencv-python", "4.9.0.80"),
         package_id("numpy", "1.26.4"),
     ) in edges
-    # Package -> SystemLib / Tool (probe)
+    # Package -> SystemLib / Tool (predicted at resolve, reconciled by probe)
     assert (
         package_id("opencv-python", "4.9.0.80"),
-        syslib_id("libGL.so.1"),
+        syslib_id("libgl1"),
     ) in edges
-    assert (package_id("psycopg2", "2.9.9"), tool_id("pg_config")) in edges
+    assert (package_id("psycopg2", "2.9.9"), tool_id("libpq-dev")) in edges
 
 
 def test_build_certified_states(tmp_path):
-    graph = build_dep_graph(_make_repo(tmp_path), _make_executor())
+    graph = _build(tmp_path)
 
     assert graph.get(package_id("opencv-python", "4.9.0.80")).state is State.SATISFIED
     assert graph.get(package_id("numpy", "1.26.4")).state is State.SATISFIED
@@ -139,13 +156,30 @@ def test_build_certified_states(tmp_path):
     assert graph.get(import_id("cv2")).state is State.MISSING
     assert graph.get(import_id("psycopg2")).state is State.MISSING
 
-    assert graph.get(syslib_id("libGL.so.1")).state is State.MISSING
-    assert graph.get(tool_id("pg_config")).state is State.MISSING
+    assert graph.get(syslib_id("libgl1")).state is State.MISSING
+    assert graph.get(tool_id("libpq-dev")).state is State.MISSING
     assert graph.get(TEST_NODE_ID).state is State.MISSING
 
 
+def test_build_reconciled_predictions_keep_resolver_origin(tmp_path):
+    graph = _build(tmp_path)
+
+    libgl1 = graph.get(syslib_id("libgl1"))
+    libpq = graph.get(tool_id("libpq-dev"))
+    # discovery origin is preserved across reconciliation (spec: discovered_by
+    # stays the discovery origin; only the certifier flips state).
+    assert libgl1.discovered_by is DiscoveredBy.RESOLVER
+    assert libpq.discovered_by is DiscoveredBy.RESOLVER
+    # but the observed check + probe attempt prove the probe reconciled them.
+    assert libgl1.check_command == "ldconfig -p | grep libGL.so.1"
+    assert libpq.check_command == "command -v pg_config"
+    assert libgl1.fix_candidates == ("apt:libgl1",)
+    assert libpq.fix_candidates == ("apt:libpq-dev",)
+    assert any(a.outcome == "failed" for a in libgl1.attempts)
+
+
 def test_build_discovered_by_stamping(tmp_path):
-    graph = build_dep_graph(_make_repo(tmp_path), _make_executor())
+    graph = _build(tmp_path)
 
     assert graph.get(import_id("cv2")).discovered_by is DiscoveredBy.STATIC_SCAN
     assert graph.get(TEST_NODE_ID).discovered_by is DiscoveredBy.GOAL
@@ -153,30 +187,27 @@ def test_build_discovered_by_stamping(tmp_path):
         graph.get(package_id("numpy", "1.26.4")).discovered_by
         is DiscoveredBy.RESOLVER
     )
-    assert graph.get(syslib_id("libGL.so.1")).discovered_by is DiscoveredBy.PROBE
-    assert graph.get(tool_id("pg_config")).discovered_by is DiscoveredBy.PROBE
 
 
 def test_build_discovered_cycle_per_stage(tmp_path):
-    graph = build_dep_graph(_make_repo(tmp_path), _make_executor())
+    graph = _build(tmp_path)
 
     # stage 1 (scan): Test + Imports
     assert graph.get(TEST_NODE_ID).discovered_cycle == 1
     assert graph.get(import_id("cv2")).discovered_cycle == 1
-    # stage 2 (resolver): Packages
+    # stage 2 (resolver): Packages and predicted native nodes
     assert graph.get(package_id("numpy", "1.26.4")).discovered_cycle == 2
-    # stage 3 (probe): SystemLib + Tool
-    assert graph.get(syslib_id("libGL.so.1")).discovered_cycle == 3
-    assert graph.get(tool_id("pg_config")).discovered_cycle == 3
+    # predicted-then-reconciled nodes keep the resolver discovery cycle (2)
+    assert graph.get(syslib_id("libgl1")).discovered_cycle == 2
+    assert graph.get(tool_id("libpq-dev")).discovered_cycle == 2
 
 
 def test_build_empty_repo_yields_only_test_node(tmp_path):
     (tmp_path / "app.py").write_text("import os\nimport sys\n")
     from conftest import FakeExecutor  # type: ignore
 
-    graph = build_dep_graph(
-        str(tmp_path), FakeExecutor(default=_r(returncode=1, stderr="x"))
-    )
+    ex = FakeExecutor(default=_r(returncode=1, stderr="x"))
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)
 
     assert graph.get(TEST_NODE_ID) is not None
     assert [n for n in graph.nodes if n.type is NodeType.IMPORT] == []

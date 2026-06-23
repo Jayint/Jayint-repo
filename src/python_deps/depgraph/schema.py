@@ -12,7 +12,8 @@ the originals are never changed (repo immutability rule).
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, replace
+import types
+from dataclasses import dataclass, field, replace
 
 
 class NodeType(enum.Enum):
@@ -27,7 +28,7 @@ class NodeType(enum.Enum):
 class EdgeType(enum.Enum):
     REQUIRES = "requires"
     ALTERNATIVE_TO = "alternative_to"  # reserved; not emitted in this plan
-    CONFLICTS_WITH = "conflicts_with"  # reserved; not emitted in this plan
+    CONFLICTS_WITH = "conflicts_with"  # emitted by the resolver (uv unsat core)
 
 
 class State(enum.Enum):
@@ -61,6 +62,11 @@ EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
         frozenset({"Test", "Import", "Package"}),
         frozenset({"Import", "Package", "SystemLib", "Tool", "Runtime"}),
+    ),
+    # Resolver-discovered version conflicts join two Packages (uv unsat core).
+    "conflicts_with": (
+        frozenset({"Package"}),
+        frozenset({"Package"}),
     ),
 }
 
@@ -98,6 +104,14 @@ class Node:
     provenance: str | None = None
     discovered_cycle: int = 0
     certified_cycle: int | None = None
+    # uv-resolution enrichment (native-build risk + targeting provenance).
+    # All default-safe so existing construction is unaffected.
+    build_from_source: bool | None = None
+    artifact: str | None = None  # chosen wheel/sdist filename
+    hash: str | None = None
+    resolved_python: str | None = None
+    resolved_platform: str | None = None
+    exclude_newer: str | None = None  # uv resolve cutoff (reproducibility)
 
     def with_state(
         self,
@@ -139,6 +153,12 @@ class Node:
             "provenance": self.provenance,
             "discovered_cycle": self.discovered_cycle,
             "certified_cycle": self.certified_cycle,
+            "build_from_source": self.build_from_source,
+            "artifact": self.artifact,
+            "hash": self.hash,
+            "resolved_python": self.resolved_python,
+            "resolved_platform": self.resolved_platform,
+            "exclude_newer": self.exclude_newer,
         }
 
 
@@ -148,6 +168,17 @@ class Edge:
     dst: str
     relation: EdgeType = EdgeType.REQUIRES
     origin: str | None = None  # "scan" | "resolver" | "probe" | "runtime"
+    marker: str | None = None  # conditional-dep marker on a `requires` edge
+    # Auxiliary relation data (e.g. conflict version bounds on conflicts_with).
+    data: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # frozen=True only blocks attribute rebinding, not in-place dict mutation.
+        # Wrap data in a read-only view so `frozen` actually means immutable; a
+        # plain dict passed in is snapshotted (copy then freeze) so later edits to
+        # the caller's dict cannot leak into a stored edge.
+        if not isinstance(self.data, types.MappingProxyType):
+            object.__setattr__(self, "data", types.MappingProxyType(dict(self.data)))
 
     def key(self) -> tuple[str, str, str]:
         return (self.src, self.dst, self.relation.value)
@@ -158,6 +189,8 @@ class Edge:
             "dst": self.dst,
             "relation": self.relation.value,
             "origin": self.origin,
+            "marker": self.marker,
+            "data": dict(self.data),
         }
 
 
@@ -187,8 +220,8 @@ class DepGraph:
     def _validate_edge(self, edge: Edge) -> None:
         rule = EDGE_RULES.get(edge.relation.value)
         if rule is None:
-            # Reserved relations (alternative_to / conflicts_with) carry no
-            # type constraints in this plan.
+            # Unconstrained reserved relations (e.g. alternative_to) carry no
+            # type rule; conflicts_with IS constrained via EDGE_RULES above.
             return
         allowed_src, allowed_dst = rule
         src_node = self.get(edge.src)

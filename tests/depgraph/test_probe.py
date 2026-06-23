@@ -279,6 +279,254 @@ def test_import_probe_native_risk_package_probed_by_name(fake_executor, make_res
     assert any(d.id == syslib_id("libpq.so.5") for d in deps)
 
 
+def _predicted_syslib(apt: str) -> Node:
+    return Node(
+        id=syslib_id(apt),
+        type=NodeType.SYSTEM_LIB,
+        name=apt,
+        layer=Layer.SYSTEM,
+        discovered_by=DiscoveredBy.RESOLVER,  # a prediction
+        state=State.UNKNOWN,
+        check_command=f"dpkg -s {apt}",
+        fix_candidates=(f"apt:{apt}",),
+    )
+
+
+def _predicted_tool(apt: str) -> Node:
+    return Node(
+        id=tool_id(apt),
+        type=NodeType.TOOL,
+        name=apt,
+        layer=Layer.TOOLCHAIN,
+        discovered_by=DiscoveredBy.RESOLVER,  # a prediction
+        state=State.UNKNOWN,
+        check_command=f"dpkg -s {apt}",
+        fix_candidates=(f"apt:{apt}",),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Reconciliation: probe observation merges into a resolver prediction          #
+# --------------------------------------------------------------------------- #
+def test_import_probe_reconciles_predicted_syslib(fake_executor, make_result_fixture):
+    # opencv predicted libgl1 (apt-keyed); probe observes libGL.so.1 (soname).
+    pkg = _package("opencv-python", "4.9.0.80")
+    imp = _import("cv2")
+    predicted = _predicted_syslib("libgl1")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_node(predicted)
+        .with_edge(Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver"))
+        .with_edge(Edge(src=pkg.id, dst=predicted.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "import cv2": make_result_fixture(
+            returncode=1,
+            stderr="ImportError: libGL.so.1: cannot open shared object file",
+        )
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    # No duplicate observed node — the prediction is reconciled in place.
+    assert out.get(syslib_id("libGL.so.1")) is None
+    node = out.get(syslib_id("libgl1"))
+    assert node is not None
+    assert node.discovered_by is DiscoveredBy.RESOLVER  # discovery origin kept
+    assert node.check_command == "ldconfig -p | grep libGL.so.1"  # real check
+    assert "libGL.so.1" in (node.evidence or "")
+    assert node.attempts and node.attempts[-1].outcome == "failed"
+    # single requires edge from the owning package (deduped)
+    libs = [d for d in out.requires_of(pkg.id) if d.id == syslib_id("libgl1")]
+    assert len(libs) == 1
+
+
+def test_install_closure_reconciles_predicted_tool(fake_executor, make_result_fixture):
+    # psycopg2 predicted libpq-dev (apt-keyed); build observes pg_config (tool).
+    pkg = _package("psycopg2", "2.9.9")
+    predicted = _predicted_tool("libpq-dev")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(predicted)
+        .with_edge(Edge(src=pkg.id, dst=predicted.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1, stderr="Error: pg_config executable not found."
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    assert out.get(tool_id("pg_config")) is None  # no duplicate observed node
+    node = out.get(tool_id("libpq-dev"))
+    assert node is not None
+    assert node.discovered_by is DiscoveredBy.RESOLVER
+    assert node.check_command == "command -v pg_config"
+    assert "pg_config" in (node.evidence or "")
+    tools = [d for d in out.requires_of(pkg.id) if d.id == tool_id("libpq-dev")]
+    assert len(tools) == 1
+
+
+def test_reconcile_skips_non_resolver_prediction(fake_executor, make_result_fixture):
+    # A pre-existing node at the predicted id but discovered_by=PROBE is NOT a
+    # resolver prediction: reconciliation is skipped and a fresh observed node is
+    # created instead (the guard at _reconcile_predicted).
+    pkg = _package("psycopg2", "2.9.9")
+    stale = Node(
+        id=tool_id("libpq-dev"),
+        type=NodeType.TOOL,
+        name="libpq-dev",
+        layer=Layer.TOOLCHAIN,
+        discovered_by=DiscoveredBy.PROBE,  # not a prediction
+        state=State.MISSING,
+    )
+    graph = DepGraph().with_node(pkg).with_node(stale)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1, stderr="Error: pg_config executable not found."
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    observed = out.get(tool_id("pg_config"))
+    assert observed is not None
+    assert observed.discovered_by is DiscoveredBy.PROBE
+    # the stale PROBE node was left untouched (no in-place reconcile)
+    assert out.get(tool_id("libpq-dev")).discovered_by is DiscoveredBy.PROBE
+
+
+def test_install_closure_wheel_for_attribution_beats_fallback(
+    fake_executor, make_result_fixture
+):
+    # "Building wheel for X" attributes the build-time gap to X, NOT to the
+    # native-risk fallback set (psycopg2).
+    target = _package("somepkg", "1.0")
+    native = _package("psycopg2", "2.9.9")  # native-risk fallback candidate
+    graph = DepGraph().with_node(target).with_node(native)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr="Building wheel for somepkg\n  Error: pg_config executable not found.",
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    tool = tool_id("pg_config")
+    assert any(d.id == tool for d in out.requires_of(target.id))
+    assert not any(d.id == tool for d in out.requires_of(native.id))
+
+
+def test_import_probe_syslib_falls_back_to_import_node(
+    fake_executor, make_result_fixture
+):
+    # An Import node with a native-lib failure and NO owning Package: the requires
+    # edge originates from the Import id (the _edge_sources fallback).
+    imp = _import("cv2")
+    graph = DepGraph().with_node(imp)
+    fake_executor.responses = {
+        "import cv2": make_result_fixture(
+            returncode=1,
+            stderr="ImportError: libGL.so.1: cannot open shared object file",
+        )
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    syslib = syslib_id("libGL.so.1")
+    assert out.get(syslib) is not None
+    assert any(d.id == syslib for d in out.requires_of(imp.id))
+
+
+def test_install_closure_no_packages_returns_input(fake_executor):
+    # No Package nodes -> early return of the same graph object (no executor call).
+    graph = DepGraph().with_node(_import("cv2"))
+    out = install_closure(graph, fake_executor)
+    assert out is graph
+    assert fake_executor.calls == []
+
+
+def test_install_closure_excludes_resolver_missing_packages(
+    fake_executor, make_result_fixture
+):
+    # A resolver-diagnosed MISSING package (unresolvable / conflict placeholder,
+    # no real version) must NOT be added to the bulk `pip install` — including it
+    # makes the single command fail and poisons the whole closure (every good
+    # package then certifies MISSING). It must be installed without the bad one.
+    from dataclasses import replace
+
+    good = _package("requests", "2.31.0")
+    bad = replace(
+        _package("does-not-exist-zzz", ""), state=State.MISSING, version=None,
+        evidence="not found in the package registry",
+    )
+    graph = DepGraph().with_node(good).with_node(bad)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(returncode=0, stdout="Successfully installed")
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    install_calls = [c for c in fake_executor.calls if "pip install" in c]
+    assert len(install_calls) == 1
+    assert "requests==2.31.0" in install_calls[0]
+    assert "does-not-exist-zzz" not in install_calls[0]
+    # The good package still records its (successful) install attempt; the missing
+    # node is left untouched (no spurious install attempt).
+    assert out.get(good.id).attempts and out.get(good.id).attempts[0].outcome == "succeeded"
+    assert out.get(bad.id).attempts == ()
+    assert out.get(bad.id).state is State.MISSING
+
+
+def test_install_closure_uses_generous_timeout(fake_executor, make_result_fixture):
+    # A cold install of a large closure can exceed the 300s default and FALSE-fail,
+    # which then certifies the whole graph MISSING (breaks honest certification).
+    # The bulk install must therefore ask for generous headroom.
+    from python_deps.depgraph.probe import INSTALL_TIMEOUT
+
+    pkg = _package("requests", "2.31.0")
+    graph = DepGraph().with_node(pkg)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(returncode=0, stdout="Successfully installed")
+    }
+
+    install_closure(graph, fake_executor)
+
+    install_calls = [
+        i for i, c in enumerate(fake_executor.calls) if "pip install" in c
+    ]
+    assert install_calls, "expected a pip install call"
+    assert fake_executor.timeouts[install_calls[0]] == INSTALL_TIMEOUT
+    assert INSTALL_TIMEOUT >= 600
+
+
+def test_import_probe_probes_each_name_once(fake_executor, make_result_fixture):
+    # An Import node and a native-risk Package of the SAME name dedup to one probe.
+    pkg = _package("psycopg2", "2.9.9")
+    imp = _import("psycopg2")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_edge(
+            Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver")
+        )
+    )
+    fake_executor.responses = {
+        "import psycopg2": make_result_fixture(returncode=0, stdout="")
+    }
+
+    import_probe(graph, fake_executor)
+
+    probes = [c for c in fake_executor.calls if 'import psycopg2' in c]
+    assert len(probes) == 1
+
+
 def test_probe_returns_new_graph_originals_unchanged(fake_executor, make_result_fixture):
     pkg = _package("opencv-python", "4.9.0.80")
     imp = _import("cv2")

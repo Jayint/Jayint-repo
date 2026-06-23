@@ -249,3 +249,138 @@ def test_slug_sanitizes_whitespace_and_keeps_safe_chars():
     assert ids.slug("  hello world ") == "hello-world"
     assert ids.slug("opencv-python==4.9.0.80") == "opencv-python==4.9.0.80"
     assert ids.slug("a/b:c") == "a-b-c"
+
+
+# --- uv-enrichment schema additions ---
+
+
+def test_node_native_risk_fields_default_none():
+    node = make_node("pkg:numpy", NodeType.PACKAGE, "numpy", Layer.PIP)
+    assert node.build_from_source is None
+    assert node.artifact is None
+    assert node.hash is None
+    assert node.resolved_python is None
+    assert node.resolved_platform is None
+
+
+def test_node_native_risk_fields_round_trip():
+    node = Node(
+        id="pkg:opencv-python==4.9.0.80",
+        type=NodeType.PACKAGE,
+        name="opencv-python",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="4.9.0.80",
+        build_from_source=True,
+        artifact="opencv-python-4.9.0.80.tar.gz",
+        hash="sha256:deadbeef",
+        resolved_python="3.11",
+        resolved_platform="aarch64-manylinux_2_28",
+    )
+    nd = node.to_dict()
+    assert nd["build_from_source"] is True
+    assert nd["artifact"] == "opencv-python-4.9.0.80.tar.gz"
+    assert nd["hash"] == "sha256:deadbeef"
+    assert nd["resolved_python"] == "3.11"
+    assert nd["resolved_platform"] == "aarch64-manylinux_2_28"
+
+
+def test_node_native_risk_fields_immutable_via_replace():
+    from dataclasses import replace
+
+    node = make_node("pkg:numpy", NodeType.PACKAGE, "numpy", Layer.PIP)
+    updated = replace(node, build_from_source=False)
+    assert updated.build_from_source is False
+    assert node.build_from_source is None  # original untouched
+
+
+def test_edge_marker_and_data_default():
+    edge = Edge(src="a", dst="b")
+    assert edge.marker is None
+    assert edge.data == {}
+
+
+def test_edge_marker_and_data_round_trip():
+    edge = Edge(
+        src="pkg:pandas",
+        dst="pkg:numpy",
+        relation=EdgeType.REQUIRES,
+        origin="resolver",
+        marker="python_version >= '3.9'",
+    )
+    ed = edge.to_dict()
+    assert ed["marker"] == "python_version >= '3.9'"
+    assert ed["data"] == {}
+
+
+def test_edge_data_is_per_instance_not_shared():
+    e1 = Edge(src="a", dst="b")
+    e2 = Edge(src="c", dst="d")
+    assert e1.data is not e2.data
+
+
+def test_conflicts_with_allowed_package_to_package():
+    a = make_node("pkg:flask", NodeType.PACKAGE, "flask", Layer.PIP)
+    b = make_node("pkg:werkzeug", NodeType.PACKAGE, "werkzeug", Layer.PIP)
+    graph = DepGraph().with_node(a).with_node(b)
+    edge = Edge(
+        src="pkg:flask",
+        dst="pkg:werkzeug",
+        relation=EdgeType.CONFLICTS_WITH,
+        origin="resolver",
+        data={"constraint_src": "werkzeug<2.0", "constraint_dst": "werkzeug>=2.1"},
+    )
+    out = graph.with_edge(edge)
+    assert len(out.edges) == 1
+    stored = out.edges[0]
+    assert stored.relation is EdgeType.CONFLICTS_WITH
+    assert stored.data["constraint_dst"] == "werkzeug>=2.1"
+    assert stored.to_dict()["relation"] == "conflicts_with"
+
+
+def test_edge_data_is_read_only():
+    # frozen=True must mean immutable: in-place mutation of data is rejected so a
+    # caller cannot silently corrupt an edge stored in a frozen DepGraph.
+    edge = Edge(src="a", dst="b", data={"k": "v"})
+    with pytest.raises(TypeError):
+        edge.data["k"] = "mutated"
+    assert edge.data["k"] == "v"
+
+
+def test_edge_data_snapshots_caller_dict():
+    # A plain dict passed in is copied, so later edits to the caller's dict do not
+    # leak into the stored edge.
+    src = {"k": "v"}
+    edge = Edge(src="a", dst="b", data=src)
+    src["k"] = "changed"
+    assert edge.data["k"] == "v"
+
+
+def test_node_exclude_newer_round_trips():
+    node = Node(
+        id="pkg:numpy==1.26.4",
+        type=NodeType.PACKAGE,
+        name="numpy",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version="1.26.4",
+        exclude_newer="2024-01-01",
+    )
+    assert node.exclude_newer == "2024-01-01"
+    assert node.to_dict()["exclude_newer"] == "2024-01-01"
+
+
+def test_node_exclude_newer_defaults_none():
+    node = make_node("pkg:numpy", NodeType.PACKAGE, "numpy", Layer.PIP)
+    assert node.exclude_newer is None
+    assert node.to_dict()["exclude_newer"] is None
+
+
+def test_conflicts_with_rejects_non_package_endpoint():
+    imp = make_node("import:cv2", NodeType.IMPORT, "cv2", Layer.NAMING)
+    pkg = make_node("pkg:opencv-python", NodeType.PACKAGE, "opencv-python", Layer.PIP)
+    graph = DepGraph().with_node(imp).with_node(pkg)
+    with pytest.raises(ValueError):
+        graph.with_edge(
+            Edge(src="import:cv2", dst="pkg:opencv-python", relation=EdgeType.CONFLICTS_WITH)
+        )
