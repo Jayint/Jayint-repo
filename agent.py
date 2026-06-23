@@ -1038,6 +1038,7 @@ class DockerAgent:
         # measures advice quality, not pre-installed deps. ANY failure degrades to
         # "" and the run proceeds exactly as if the feature were off.
         _dep_advisory = ""
+        _dep_graph = None  # set-once; consumed by refresh_host_graph's seed adapter
         if (
             getattr(self, "enable_dep_graph", False)
             and _base_image
@@ -1086,6 +1087,7 @@ class DockerAgent:
             except Exception as _e:  # advisory must never break a run
                 print(f"[dep-graph] advisory: unavailable ({_e})")
                 _dep_advisory = ""
+                _dep_graph = None
 
         world_map = initial_map(
             base_image=_base_image,
@@ -1094,6 +1096,7 @@ class DockerAgent:
             build_system=_build_system,
             repo_layout=_repo_layout,
             dep_advisory=_dep_advisory,
+            dep_graph=_dep_graph,
         )
 
         # ── 3. Instantiate collaborators with canonical signatures ─────────────
