@@ -774,6 +774,7 @@ RUN git clone {repo_url} /testbed
             _enable_contract_graph = os.environ.get("DOCKERAGENT_ENABLE_CONTRACT_GRAPH", "").lower() in ("1", "true", "yes", "on")
             # Phase-0 dep-graph advisory (--arm v1gd). Implies v1.
             _enable_dep_graph = os.environ.get("DOCKERAGENT_ENABLE_DEP_GRAPH", "").lower() in ("1", "true", "yes", "on")
+            _enable_det_maint = os.environ.get("DOCKERAGENT_DETERMINISTIC_MAINTAINER", "").lower() in ("1", "true", "yes", "on")
 
             agent = DockerAgent(
                 repo_url=repo_url,
@@ -793,6 +794,7 @@ RUN git clone {repo_url} /testbed
                 enable_v1=_enable_v1,
                 enable_contract_graph=_enable_contract_graph,
                 enable_dep_graph=_enable_dep_graph,
+                enable_deterministic_maintainer=_enable_det_maint,
             )
             
             # base_commit 已在 DockerAgent.__init__ 中完成 checkout

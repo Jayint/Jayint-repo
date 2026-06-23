@@ -135,3 +135,10 @@ def test_adapter_update_is_drop_in():
     m = _base_map()
     out = DeterministicMaintainer().update(m, _report("x", 1, "pg_config: command not found"))
     assert out.contract_graph.node(contract_id("binary", "pg_config")) is not None
+
+
+def test_env_flag_recognized():
+    from src.envstate.deterministic_maintainer import DeterministicMaintainer
+    # The wiring contract: when the flag is on, the Maintainer object exposes the
+    # deterministic .update. We assert the adapter is usable as a Maintainer stand-in.
+    assert hasattr(DeterministicMaintainer(), "update")

@@ -234,6 +234,7 @@ class DockerAgent:
         enable_v1=False,
         enable_contract_graph=False,
         enable_dep_graph=False,
+        enable_deterministic_maintainer=False,
         enable_cleanroom=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
@@ -281,7 +282,8 @@ class DockerAgent:
         # view into the planner prompt. Advisory only; implies v1 (it needs the
         # three-role planner path). Composes with --enable-contract-graph (v1g).
         self.enable_dep_graph = enable_dep_graph
-        self.enable_v1 = enable_v1 or enable_contract_graph or enable_dep_graph
+        self.enable_deterministic_maintainer = enable_deterministic_maintainer
+        self.enable_v1 = enable_v1 or enable_contract_graph or enable_dep_graph or enable_deterministic_maintainer
         self.enable_envstate = (
             enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
         )
@@ -1106,12 +1108,16 @@ class DockerAgent:
             on_usage=lambda usage: self._record_supervisor_path_usage("worker", usage),
             log_path=_llm_log_path,
         )
-        maintainer = _Maintainer(
-            self.client,
-            self.model,
-            on_usage=lambda usage: self._record_supervisor_path_usage("reflection", usage),
-            log_path=_llm_log_path,
-        )
+        if getattr(self, "enable_deterministic_maintainer", False):
+            from src.envstate.deterministic_maintainer import DeterministicMaintainer
+            maintainer = DeterministicMaintainer()
+        else:
+            maintainer = _Maintainer(
+                self.client,
+                self.model,
+                on_usage=lambda usage: self._record_supervisor_path_usage("reflection", usage),
+                log_path=_llm_log_path,
+            )
         build_agent = _BuildAgent(
             self.client,
             self.model,
@@ -3111,6 +3117,9 @@ if __name__ == "__main__":
                              "scratch container and render it as an advisory section in the planner "
                              "prompt (advisory only; implies --enable-v1). Composes with "
                              "--enable-contract-graph.")
+    parser.add_argument("--enable-deterministic-maintainer", action="store_true",
+                        help="Replace the LLM Maintainer with a deterministic host module "
+                             "(verbatim-signature blockers + correct layers; implies --enable-v1).")
     parser.add_argument(
         "--disable-post-synthesis-repair",
         action="store_true",
@@ -3158,6 +3167,7 @@ if __name__ == "__main__":
         enable_v1=args.enable_v1,
         enable_contract_graph=args.enable_contract_graph,
         enable_dep_graph=args.enable_dep_graph,
+        enable_deterministic_maintainer=args.enable_deterministic_maintainer,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
