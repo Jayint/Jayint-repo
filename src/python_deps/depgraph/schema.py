@@ -168,7 +168,7 @@ class Edge:
     src: str
     dst: str
     relation: EdgeType = EdgeType.REQUIRES
-    origin: str | None = None  # "scan" | "resolver" | "probe" | "runtime"
+    origin: str | None = None  # "scan"|"resolver"|"probe"|"runtime"|"project"|"certified"|"reconcile"
     marker: str | None = None  # conditional-dep marker on a `requires` edge
     # Auxiliary relation data (e.g. conflict version bounds on conflicts_with).
     data: dict = field(default_factory=dict)
