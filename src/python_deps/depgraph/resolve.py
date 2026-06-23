@@ -38,6 +38,7 @@ from dataclasses import dataclass, replace
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.ids import package_id
 from python_deps.depgraph.schema import (
+    DepGraph,
     DiscoveredBy,
     Edge,
     EdgeType,
@@ -46,6 +47,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
+from python_deps.import_mapping import map_import_to_package
 
 # Locked decision 1: the 'uv' binary, invoked (never imported) via the Executor.
 # Resolution happens HOST-side (cross-platform resolve needs no container
@@ -819,6 +821,43 @@ def _import_edges(
             )
         )
     return edges
+
+
+def link_imports_to_packages(graph: DepGraph) -> DepGraph:
+    """Connect every Import node to its resolved Package by canonical dist name.
+
+    Complements :func:`_import_edges`, which only links imports that were
+    themselves resolver roots.  A manifest-declared dependency seeds a Package via
+    a root with ``import_id=None`` (see ``roots.select_roots``), so its scanned
+    Import node would otherwise be orphaned from the Package — breaking the
+    symptom->owner walk.  This pass links any Import whose mapped distribution
+    matches a Package node, regardless of how the root was sourced.  ``_canon``
+    collapses ``_``/``-``/``.`` so e.g. ``charset_normalizer`` matches
+    ``charset-normalizer`` even via the identity fallback.
+    """
+    canon_to_pkg = {
+        _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
+    }
+    existing = {
+        (e.src, e.dst) for e in graph.edges if e.relation is EdgeType.REQUIRES
+    }
+    new = graph
+    for node in graph.nodes:
+        if node.type is not NodeType.IMPORT:
+            continue
+        dist = map_import_to_package(node.name).package_name
+        pkg_id = canon_to_pkg.get(_canon(dist))
+        if pkg_id is None or (node.id, pkg_id) in existing:
+            continue
+        new = new.with_edge(
+            Edge(
+                src=node.id,
+                dst=pkg_id,
+                relation=EdgeType.REQUIRES,
+                origin="reconcile",
+            )
+        )
+    return new
 
 
 def _merge(

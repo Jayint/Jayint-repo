@@ -30,7 +30,11 @@ from dataclasses import replace
 from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
 from python_deps.depgraph.probe import import_probe, install_closure
-from python_deps.depgraph.resolve import DEFAULT_TARGET_PLATFORM, resolve_closure
+from python_deps.depgraph.resolve import (
+    DEFAULT_TARGET_PLATFORM,
+    link_imports_to_packages,
+    resolve_closure,
+)
 from python_deps.depgraph.roots import select_roots
 from python_deps.depgraph.scan import scan_to_nodes
 from python_deps.depgraph.schema import DepGraph
@@ -115,6 +119,11 @@ def build_dep_graph(
         graph = graph.with_node(node)
     for edge in pkg_edges:
         graph = graph.with_edge(edge)
+
+    # Stage 3a — reconcile: link EVERY Import to its resolved Package (covers
+    # manifest-declared deps whose root carried import_id=None, which would
+    # otherwise leave the scanned Import node orphaned from its Package).
+    graph = link_imports_to_packages(graph)
 
     # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
     graph = seed_predicted_native(graph)

@@ -1155,3 +1155,47 @@ def test_req_name_strips_specifier_for_matching():
     assert _req_name("numpy>=2,<3") == "numpy"
     assert _req_name("requests[security]==2.32.3") == "requests"
     assert _req_name("flask") == "flask"
+
+
+def test_link_imports_to_packages_reconciles_manifest_sourced_packages():
+    """Regression: manifest-declared deps (root import_id=None) must still link
+    their scanned Import node to the resolved Package (the orphaned-import bug)."""
+    from python_deps.depgraph.resolve import link_imports_to_packages
+    from python_deps.depgraph.schema import (
+        DepGraph,
+        DiscoveredBy,
+        EdgeType,
+        Layer,
+        Node,
+        NodeType,
+    )
+
+    imp = Node(
+        id="import:certifi", type=NodeType.IMPORT, name="certifi",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+    )
+    # underscore import vs hyphen distribution must match via canonicalization
+    imp2 = Node(
+        id="import:charset_normalizer", type=NodeType.IMPORT,
+        name="charset_normalizer", layer=Layer.NAMING,
+        discovered_by=DiscoveredBy.STATIC_SCAN,
+    )
+    pkg = Node(
+        id="pkg:certifi==2026.1.1", type=NodeType.PACKAGE, name="certifi",
+        version="2026.1.1", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+    )
+    pkg2 = Node(
+        id="pkg:charset-normalizer==3.4.7", type=NodeType.PACKAGE,
+        name="charset-normalizer", version="3.4.7", layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+    )
+    graph = DepGraph().with_node(imp).with_node(imp2).with_node(pkg).with_node(pkg2)
+    assert not [e for e in graph.edges if e.relation is EdgeType.REQUIRES]
+
+    out = link_imports_to_packages(graph)
+    req = {(e.src, e.dst) for e in out.edges if e.relation is EdgeType.REQUIRES}
+    assert ("import:certifi", "pkg:certifi==2026.1.1") in req
+    assert ("import:charset_normalizer", "pkg:charset-normalizer==3.4.7") in req
+
+    # idempotent: a second pass adds nothing
+    assert len(link_imports_to_packages(out).edges) == len(out.edges)
