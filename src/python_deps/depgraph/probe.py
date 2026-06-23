@@ -50,6 +50,7 @@ from python_deps.depgraph.tables import (
     apt_for_tool,
 )
 from python_deps.depgraph.apt_resolve import resolve_soname_apt
+from python_deps.import_mapping import normalize_package_name
 
 # Timeout (seconds) for the one bulk closure install. A cold install of a large
 # closure (downloads + any from-source build) routinely exceeds the executor's
@@ -57,11 +58,23 @@ from python_deps.depgraph.apt_resolve import resolve_soname_apt
 # whole graph to MISSING at certification, so give it generous headroom.
 INSTALL_TIMEOUT = 900
 
+# Bounded rounds of "drop the build-failing packages, reinstall the survivors" so a
+# single un-buildable package cannot starve the whole closure (and the probe/relink).
+MAX_INSTALL_ROUNDS = 3
+
 # A wheel-build failure prints the distribution being built; used to attribute a
 # build-time toolchain gap to the package that triggered it.
 _WHEEL_FOR_RE = re.compile(r"[Bb]uilding wheel for ([A-Za-z0-9_.][A-Za-z0-9_.-]*)")
 # A legal Python module name (so we never shell ``import opencv-python``).
 _MODULE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Stable pip "this distribution's wheel build failed" summaries (pip 21+). Used to
+# drop only the un-buildable packages and reinstall the rest.
+_FAILED_WHEEL_RE = re.compile(r"Failed building wheel for ([A-Za-z0-9_.][A-Za-z0-9_.-]*)")
+_COULD_NOT_BUILD_RE = re.compile(r"Could not build wheels for ([A-Za-z0-9_.,\s-]+?),?\s+which")
+_FAILED_TO_BUILD_RE = re.compile(
+    r"Failed to build installable wheels for some pyproject\.toml based projects "
+    r"\(([A-Za-z0-9_.,\s-]+)\)"
+)
 
 
 def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
@@ -122,6 +135,62 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
             new = new.with_edge(
                 Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
             )
+
+    # Salvage the survivors: a single un-buildable package (e.g. an off-platform
+    # optional dep) aborts the all-or-nothing bulk install and leaves the whole
+    # closure uninstalled, starving the import probe and the relink. Drop the
+    # build-failing packages and reinstall the rest.
+    new = _reinstall_survivors(new, packages, stderr, executor)
+    return new
+
+
+def _failed_build_packages(stderr: str) -> set[str]:
+    """Canonical (PEP 503) names of distributions whose wheel build FAILED.
+
+    Parses the stable pip failure summaries so the un-buildable packages can be
+    dropped and the rest reinstalled. Returns an empty set when no build failure
+    can be attributed (the caller then changes nothing — never worse than today).
+    """
+    names: set[str] = set()
+    for match in _FAILED_WHEEL_RE.finditer(stderr):
+        names.add(match.group(1))
+    for pattern in (_COULD_NOT_BUILD_RE, _FAILED_TO_BUILD_RE):
+        for match in pattern.finditer(stderr):
+            names.update(part.strip() for part in match.group(1).split(",") if part.strip())
+    return {normalize_package_name(name) for name in names}
+
+
+def _reinstall_survivors(
+    graph: DepGraph, packages: list[Node], stderr: str, executor: Executor
+) -> DepGraph:
+    """Reinstall the closure minus the packages whose build failed.
+
+    Bounded rounds (in case a survivor then fails too). Returns a NEW graph with a
+    succeeded/failed install ``Attempt`` recorded on the survivors; the dropped
+    packages stay uninstalled (host certify leaves them ``MISSING``). A no-op when
+    no build failure is attributable or there are no survivors to retry.
+    """
+    failed = _failed_build_packages(stderr)
+    survivors = [p for p in packages if normalize_package_name(p.name) not in failed]
+    if not failed or not survivors or len(survivors) == len(packages):
+        return graph
+
+    new = graph
+    for _round in range(MAX_INSTALL_ROUNDS):
+        command = "python -m pip install " + " ".join(_spec(p) for p in _sorted(survivors))
+        result = executor.run(command, timeout=INSTALL_TIMEOUT)
+        attempt = Attempt(command=command, outcome="succeeded" if result.ok else "failed")
+        for pkg in survivors:
+            new = new.with_node(new.get(pkg.id).with_attempt(attempt))
+        if result.ok:
+            break
+        more_failed = _failed_build_packages(result.stderr or "")
+        next_survivors = [
+            p for p in survivors if normalize_package_name(p.name) not in more_failed
+        ]
+        if not more_failed or not next_survivors or len(next_survivors) == len(survivors):
+            break  # no further progress
+        survivors = next_survivors
     return new
 
 

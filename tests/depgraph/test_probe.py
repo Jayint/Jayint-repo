@@ -106,6 +106,118 @@ def test_install_closure_records_attempt_on_packages(fake_executor, make_result_
     assert "psycopg2==2.9.9" in node.attempts[0].command
 
 
+def test_failed_build_packages_parses_pip_patterns():
+    from python_deps.depgraph.probe import _failed_build_packages
+
+    assert _failed_build_packages("Failed building wheel for picamera\n") == {"picamera"}
+    assert _failed_build_packages(
+        "ERROR: Could not build wheels for psycopg2, pymssql, which is required\n"
+    ) == {"psycopg2", "pymssql"}
+    assert _failed_build_packages(
+        "ERROR: Failed to build installable wheels for some pyproject.toml "
+        "based projects (lxml, pyzbar)\n"
+    ) == {"lxml", "pyzbar"}
+    # names are canonicalized (PEP 503) so they match Package node names
+    assert _failed_build_packages("Failed building wheel for Py_Cool.Lib\n") == {"py-cool-lib"}
+    assert _failed_build_packages("some generic resolution error") == set()
+
+
+def test_install_closure_drops_build_failing_package_and_reinstalls_survivors(
+    fake_executor, make_result_fixture
+):
+    # A multi-package closure where ONE package (picamera) cannot build must not
+    # starve the survivors: drop it and reinstall numpy + opencv-python so the
+    # downstream probe/relink see real installed packages.
+    numpy = _package("numpy", "2.0.0")
+    opencv = _package("opencv-python", "4.9.0.80")
+    picamera = _package("picamera", "1.13")
+    graph = DepGraph().with_node(numpy).with_node(opencv).with_node(picamera)
+    fake_executor.responses = {
+        # the bulk install (which includes picamera) fails on picamera's build
+        "picamera": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "Building wheel for picamera (setup.py): started\n"
+                "      error: this package requires a Raspberry Pi\n"
+                "Failed building wheel for picamera\n"
+                "ERROR: Could not build wheels for picamera, which is required\n"
+            ),
+        ),
+    }
+    # the survivor reinstall (no picamera) succeeds
+    fake_executor.default = make_result_fixture(returncode=0, stdout="Successfully installed")
+
+    out = install_closure(graph, fake_executor)
+
+    install_cmds = [c for c in fake_executor.calls if "pip install" in c]
+    assert len(install_cmds) == 2  # bulk (failed) + survivor reinstall
+    retry = install_cmds[1]
+    assert "numpy==2.0.0" in retry and "opencv-python==4.9.0.80" in retry
+    assert "picamera" not in retry
+    # survivors ended up installed; the build-failing package did not
+    assert any(a.outcome == "succeeded" for a in out.get(opencv.id).attempts)
+    assert any(a.outcome == "succeeded" for a in out.get(numpy.id).attempts)
+    assert all(a.outcome == "failed" for a in out.get(picamera.id).attempts)
+
+
+class _SeqExecutor:
+    """Executor returning canned results by call order (the substring FakeExecutor
+    can't distinguish a command from a subset-command across reinstall rounds)."""
+
+    def __init__(self, results):
+        self.results = list(results)
+        self.calls = []
+
+    def run(self, command, *, timeout=300):
+        self.calls.append(command)
+        return self.results[min(len(self.calls) - 1, len(self.results) - 1)]
+
+
+def test_install_closure_reinstalls_across_multiple_rounds(make_result_fixture):
+    # Round 0 (all 3) fails on Bravo_Pkg; round 1 (alpha+charlie) then fails on
+    # charlie; round 2 (alpha) succeeds. Exercises the bounded multi-round retry
+    # AND node-name normalization (node `Bravo_Pkg` matched by canonical `bravo-pkg`).
+    alpha = _package("alpha", "1.0")
+    bravo = _package("Bravo_Pkg", "1.0")
+    charlie = _package("charlie", "1.0")
+    graph = DepGraph().with_node(alpha).with_node(bravo).with_node(charlie)
+    ex = _SeqExecutor([
+        make_result_fixture(returncode=1, stderr="Failed building wheel for bravo-pkg\n"),
+        make_result_fixture(returncode=1, stderr="Failed building wheel for charlie\n"),
+        make_result_fixture(returncode=0, stdout="Successfully installed"),
+    ])
+
+    out = install_closure(graph, ex)
+
+    install_cmds = [c for c in ex.calls if "pip install" in c]
+    assert len(install_cmds) == 3  # bulk + two survivor rounds
+    final = install_cmds[-1]
+    assert "alpha==1.0" in final
+    assert "Bravo_Pkg" not in final and "charlie" not in final
+    assert any(a.outcome == "succeeded" for a in out.get(alpha.id).attempts)
+    assert all(a.outcome == "failed" for a in out.get(bravo.id).attempts)
+    assert all(a.outcome == "failed" for a in out.get(charlie.id).attempts)
+
+
+def test_install_closure_single_failing_package_no_retry(fake_executor, make_result_fixture):
+    # When the ONLY package fails to build there are no survivors -> no retry,
+    # and the existing build-tool-gap discovery still fires (no regression).
+    psy = _package("psycopg2", "2.9.9")
+    graph = DepGraph().with_node(psy)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr="Failed building wheel for psycopg2\nError: pg_config executable not found.\n",
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    install_cmds = [c for c in fake_executor.calls if "pip install" in c]
+    assert len(install_cmds) == 1  # only package failed -> nothing to retry
+    assert out.get(tool_id("pg_config")) is not None  # tool gap still surfaced
+
+
 def test_install_closure_clean_install_no_tool_nodes(fake_executor, make_result_fixture):
     pkg = _package("requests", "2.31.0")
     graph = DepGraph().with_node(pkg)
