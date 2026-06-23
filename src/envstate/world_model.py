@@ -13,9 +13,14 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.envstate.contracts.graph import ContractGraph
+
+if TYPE_CHECKING:
+    # Imported only for type-checking to avoid a runtime import cycle
+    # (python_deps depends on nothing here; this stays a string annotation).
+    from python_deps.depgraph.schema import DepGraph
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +89,15 @@ class WorldModelMap:
     dependency_state: DependencyState | None = None
     import_results: tuple[tuple[str, bool], ...] = ()   # (import_name, ok) from the sweep
     host_satisfied: frozenset[str] = dataclasses.field(default_factory=frozenset)
+    # Phase-0 dep-graph advisory: a static, host-certified rendering built once in
+    # a scratch container and spliced into the planner prompt. "" when the feature
+    # is off or the build failed (graceful degradation). Advisory only — never
+    # consulted by control/done/synthesis; the depgraph writes nowhere else.
+    dep_advisory: str = ""
+    # The built DepGraph object itself, carried in-process so a later seed adapter
+    # can project contract nodes from it. None when the feature is off or the build
+    # failed. Not serialized (map_to_dict/from_dict) — it is consumed in-process only.
+    dep_graph: "DepGraph | None" = None
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +172,8 @@ def initial_map(
     build_system: str,
     repo_layout: tuple[str, ...],
     required: tuple[Fact, ...] = (),
+    dep_advisory: str = "",
+    dep_graph: "DepGraph | None" = None,
 ) -> WorldModelMap:
     """Return a fresh WorldModelMap at cycle 0.
 
@@ -183,6 +199,8 @@ def initial_map(
         dependency_state=None,
         import_results=(),
         host_satisfied=frozenset(),
+        dep_advisory=dep_advisory,
+        dep_graph=dep_graph,
     )
 
 
@@ -203,6 +221,7 @@ def merge_map(
     dependency_state: DependencyState | None = None,
     import_results: tuple[tuple[str, bool], ...] | None = None,
     host_satisfied: frozenset[str] | None = None,
+    dep_advisory: str | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -225,6 +244,7 @@ def merge_map(
         dependency_state=dependency_state if dependency_state is not None else current.dependency_state,
         import_results=import_results if import_results is not None else current.import_results,
         host_satisfied=host_satisfied if host_satisfied is not None else current.host_satisfied,
+        dep_advisory=dep_advisory if dep_advisory is not None else current.dep_advisory,
     )
 
 
@@ -494,6 +514,7 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "dependency_state": _dependency_state_to_dict(m.dependency_state) if m.dependency_state is not None else None,
         "import_results": [list(pair) for pair in m.import_results],
         "host_satisfied": sorted(m.host_satisfied),
+        "dep_advisory": m.dep_advisory,
     }
 
 
@@ -525,6 +546,7 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         dependency_state=_dependency_state_from_dict(raw_ds) if raw_ds is not None else None,
         import_results=tuple((str(pair[0]), bool(pair[1])) for pair in raw_ir),
         host_satisfied=frozenset(raw_hs),
+        dep_advisory=str(d.get("dep_advisory", "")),
     )
 
 
