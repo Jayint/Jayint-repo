@@ -38,3 +38,7 @@ def syslib_id(soname: str) -> str:
 
 def tool_id(tool: str) -> str:
     return f"tool:{tool}"
+
+
+def project_id(name: str) -> str:
+    return f"project:{slug(name)}"

@@ -25,10 +25,14 @@ stage returns a NEW immutable graph; this function only ever rebinds ``graph``.
 
 from __future__ import annotations
 
+import os
+import re
+import tomllib
 from dataclasses import replace
 
 from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
+from python_deps.depgraph.ids import TEST_NODE_ID, project_id
 from python_deps.depgraph.probe import import_probe, install_closure
 from python_deps.depgraph.resolve import (
     DEFAULT_TARGET_PLATFORM,
@@ -37,8 +41,19 @@ from python_deps.depgraph.resolve import (
 )
 from python_deps.depgraph.roots import select_roots
 from python_deps.depgraph.scan import scan_to_nodes
-from python_deps.depgraph.schema import DepGraph
+from python_deps.depgraph.schema import (
+    DepGraph,
+    DiscoveredBy,
+    Edge,
+    EdgeType,
+    Layer,
+    Node,
+    NodeType,
+    State,
+)
 from python_deps.depgraph.seed import seed_predicted_native
+from python_deps.evidence import collect_python_dependency_evidence
+from python_deps.import_mapping import normalize_package_name
 
 # discovered_cycle stamps, one per discovery stage (design 5.2 example uses 3 for
 # probe-discovered SystemLibs).
@@ -65,6 +80,79 @@ def _restamp(graph: DepGraph, node_ids: set[str], cycle: int) -> DepGraph:
         if node is not None:
             new = new.with_node(replace(node, discovered_cycle=cycle))
     return new
+
+
+def _canon(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _project_name(repo_path: str) -> str:
+    """Project name from ``[project].name`` in pyproject.toml, else dir basename."""
+    pyproject = os.path.join(repo_path, "pyproject.toml")
+    try:
+        with open(pyproject, "rb") as fh:
+            data = tomllib.load(fh)
+        name = (data.get("project") or {}).get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    except (OSError, tomllib.TOMLDecodeError):
+        pass
+    return os.path.basename(repo_path.rstrip("/\\")) or "project"
+
+
+def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
+    """Add a Project hub node and connect declared direct deps to it.
+
+    The repo under test is otherwise only reachable through the Test->Import
+    chain, so its declared direct dependencies have no shared parent (e.g.
+    ``certifi`` had no incoming Package->Package edge).  This node makes "what
+    does the project directly require" a single explorable subtree:
+
+    * ``Test --requires--> Project``
+    * ``Project --requires--> <runtime declared dep Package>``  (kind=dependency)
+    * ``Test --requires--> <test/optional declared dep Package>`` (kind=optional)
+
+    Runtime vs test classification reuses ``evidence`` (kind ``dependency`` vs
+    ``optional_dependency``); no new parsing.  Transitive deps still hang off
+    their parents, and Import->Package reconciliation is unchanged.
+    """
+    name = _project_name(repo_path)
+    proj_id = project_id(name)
+    graph = graph.with_node(
+        Node(
+            id=proj_id,
+            type=NodeType.PROJECT,
+            name=name,
+            layer=Layer.PIP,
+            discovered_by=DiscoveredBy.STATIC_SCAN,
+            state=State.UNKNOWN,
+            provenance=os.path.join(repo_path, "pyproject.toml"),
+        )
+    )
+    graph = graph.with_edge(
+        Edge(src=TEST_NODE_ID, dst=proj_id, relation=EdgeType.REQUIRES, origin="project")
+    )
+
+    canon_to_pkg = {
+        _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
+    }
+    evidence = collect_python_dependency_evidence(repo_path)
+    for req in evidence.declared_dependencies:
+        if getattr(req, "kind", "dependency") == "constraint":
+            continue
+        pkg_id = canon_to_pkg.get(_canon(normalize_package_name(req.name)))
+        if pkg_id is None:
+            continue
+        # runtime deps hang off the Project; test/optional deps off the Test goal.
+        src = (
+            TEST_NODE_ID
+            if getattr(req, "kind", "dependency") == "optional_dependency"
+            else proj_id
+        )
+        graph = graph.with_edge(
+            Edge(src=src, dst=pkg_id, relation=EdgeType.REQUIRES, origin="project")
+        )
+    return graph
 
 
 def _detect_target_platform(container_executor: Executor) -> str:
@@ -124,6 +212,11 @@ def build_dep_graph(
     # manifest-declared deps whose root carried import_id=None, which would
     # otherwise leave the scanned Import node orphaned from its Package).
     graph = link_imports_to_packages(graph)
+
+    # Stage 3a' — Project hub: connect declared direct deps to a Project node so
+    # the package layer is fully connected (runtime deps off Project, test deps
+    # off the Test goal).
+    graph = _add_project_node(graph, repo_path)
 
     # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
     graph = seed_predicted_native(graph)

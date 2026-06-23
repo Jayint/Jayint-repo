@@ -97,3 +97,25 @@ def test_no_external_imports_yields_only_test_node(tmp_path: Path) -> None:
     assert graph.get(TEST_NODE_ID) is not None
     assert all(n.type is NodeType.TEST for n in graph.nodes)
     assert graph.edges == ()
+
+
+def test_scan_scopes_out_examples_and_docs(tmp_path: Path) -> None:
+    """Imports seen ONLY under examples/docs/build are dropped; src/tests kept."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import requests\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_app.py").write_text("import pytest\n", encoding="utf-8")
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "demo.py").write_text(
+        "import blueprintapp\n", encoding="utf-8"
+    )
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "conf.py").write_text("import sphinx_only\n", encoding="utf-8")
+
+    graph = scan_to_nodes(str(tmp_path))
+    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
+
+    assert "requests" in names  # src kept
+    assert "pytest" in names  # tests kept
+    assert "blueprintapp" not in names  # examples dropped
+    assert "sphinx_only" not in names  # docs dropped

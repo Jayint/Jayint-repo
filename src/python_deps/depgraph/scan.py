@@ -20,6 +20,8 @@ plugin imports are not visible here.  This stage never sets ``state`` beyond
 
 from __future__ import annotations
 
+import re
+
 from python_deps.import_graph import scan_imports
 
 from .ids import TEST_NODE_ID, import_id
@@ -36,6 +38,30 @@ from .schema import (
 
 TEST_NODE_NAME = "repo_tests_pass"
 TEST_CHECK_COMMAND = "python -m pytest -q"
+
+# Directory segments whose imports are NOT part of "running the repo properly":
+# examples/docs/build artifacts pull in non-project deps (and sometimes non-PyPI
+# example names) that wrongly inflate — and can collapse — the resolver closure.
+# Scope the scan to project source + tests; an import survives if it appears in at
+# least one non-excluded file.
+_EXCLUDED_SEGMENTS: frozenset[str] = frozenset(
+    {
+        "examples", "example", "docs", "doc", "build", "dist", "samples",
+        "sample", "benchmarks", "benchmark", "bench", "scripts", "script",
+        ".github", ".tox", "node_modules", "site-packages", ".venv", "venv",
+    }
+)
+
+
+def _is_excluded_path(path: str) -> bool:
+    """True when every meaningful segment routes through an excluded directory."""
+    segments = {seg.lower() for seg in re.split(r"[\\/]+", path) if seg}
+    return bool(segments & _EXCLUDED_SEGMENTS)
+
+
+def _in_scope_files(source_files: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep only source files that are not under an excluded directory."""
+    return tuple(f for f in source_files if not _is_excluded_path(f))
 
 
 def _import_check_command(name: str) -> str:
@@ -82,8 +108,14 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
     for finding in findings:
         if finding.classification != "external":
             continue
+        # Scope to project source + tests: drop imports seen ONLY in
+        # examples/docs/build (they pull non-project / non-PyPI names).
+        in_scope = _in_scope_files(finding.source_files)
+        if finding.source_files and not in_scope:
+            continue
+        provenance_files = in_scope or finding.source_files
         graph = graph.with_node(
-            _build_import_node(finding.import_name, finding.source_files)
+            _build_import_node(finding.import_name, provenance_files)
         )
         graph = graph.with_edge(
             Edge(

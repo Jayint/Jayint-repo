@@ -18,6 +18,7 @@ from dataclasses import dataclass, field, replace
 
 class NodeType(enum.Enum):
     TEST = "Test"
+    PROJECT = "Project"  # the repo under test; hub for its declared direct deps
     IMPORT = "Import"
     PACKAGE = "Package"
     SYSTEM_LIB = "SystemLib"
@@ -60,8 +61,8 @@ class Layer(enum.Enum):
 # relation -> (allowed src node-type values, allowed dst node-type values)
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
-        frozenset({"Test", "Import", "Package"}),
-        frozenset({"Import", "Package", "SystemLib", "Tool", "Runtime"}),
+        frozenset({"Test", "Project", "Import", "Package"}),
+        frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime"}),
     ),
     # Resolver-discovered version conflicts join two Packages (uv unsat core).
     "conflicts_with": (

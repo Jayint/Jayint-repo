@@ -212,3 +212,53 @@ def test_build_empty_repo_yields_only_test_node(tmp_path):
     assert graph.get(TEST_NODE_ID) is not None
     assert [n for n in graph.nodes if n.type is NodeType.IMPORT] == []
     assert [n for n in graph.nodes if n.type is NodeType.PACKAGE] == []
+
+
+def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
+    """Project node: runtime declared deps hang off Project; test/optional deps
+    hang off the Test goal; certifi gains a parent (the no-parent observation)."""
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.ids import project_id
+    from python_deps.depgraph.schema import (
+        DepGraph,
+        DiscoveredBy,
+        Edge,
+        EdgeType,
+        Layer,
+        Node,
+    )
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\n'
+        'name = "myproj"\n'
+        'dependencies = ["certifi>=2020"]\n'
+        '[project.optional-dependencies]\n'
+        'test = ["pytest>=7"]\n'
+    )
+    test_node = Node(
+        id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL,
+    )
+    certifi = Node(
+        id=package_id("certifi", "2026.1.1"), type=NodeType.PACKAGE,
+        name="certifi", version="2026.1.1", layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+    )
+    pytest_pkg = Node(
+        id=package_id("pytest", "8.0.0"), type=NodeType.PACKAGE, name="pytest",
+        version="8.0.0", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+    )
+    graph = DepGraph().with_node(test_node).with_node(certifi).with_node(pytest_pkg)
+
+    out = _add_project_node(graph, str(tmp_path))
+    pid = project_id("myproj")
+
+    proj = out.get(pid)
+    assert proj is not None and proj.type is NodeType.PROJECT
+
+    req = {(e.src, e.dst) for e in out.edges if e.relation is EdgeType.REQUIRES}
+    assert (TEST_NODE_ID, pid) in req  # Test -> Project
+    assert (pid, package_id("certifi", "2026.1.1")) in req  # runtime dep off Project
+    assert (TEST_NODE_ID, package_id("pytest", "8.0.0")) in req  # test dep off Test
+    # certifi now has a parent (no longer orphaned at the top of the layer)
+    assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
