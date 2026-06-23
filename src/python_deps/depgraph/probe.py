@@ -49,6 +49,7 @@ from python_deps.depgraph.tables import (
     apt_for_soname,
     apt_for_tool,
 )
+from python_deps.depgraph.apt_resolve import resolve_soname_apt
 
 # Timeout (seconds) for the one bulk closure install. A cold install of a large
 # closure (downloads + any from-source build) routinely exceeds the executor's
@@ -155,7 +156,7 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
         stderr = result.stderr or ""
         check = f"ldconfig -p | grep {soname}"
         evidence = _first_line_with(stderr, soname)
-        apt = apt_for_soname(soname)
+        apt, _apt_source = resolve_soname_apt(soname, executor)
         predicted_id = syslib_id(apt) if apt else None
         reconciled = (
             _reconcile_predicted(
@@ -168,7 +169,7 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             node_id = reconciled.id
             new = new.with_node(reconciled)
         else:
-            node = _make_syslib_node(soname, stderr, command)
+            node = _make_syslib_node(soname, stderr, command, apt=apt)
             node_id = node.id
             new = new.with_node(node)
         for src in _edge_sources(target):
@@ -231,8 +232,9 @@ def _make_tool_node(tool: str, stderr: str, command: str) -> Node:
     )
 
 
-def _make_syslib_node(soname: str, stderr: str, command: str) -> Node:
-    apt = apt_for_soname(soname)
+def _make_syslib_node(soname: str, stderr: str, command: str, apt: str | None = None) -> Node:
+    if apt is None:
+        apt = apt_for_soname(soname)
     check = f"ldconfig -p | grep {soname}"
     node = Node(
         id=syslib_id(soname),

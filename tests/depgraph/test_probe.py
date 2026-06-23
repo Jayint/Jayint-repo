@@ -547,3 +547,27 @@ def test_probe_returns_new_graph_originals_unchanged(fake_executor, make_result_
     assert out is not graph
     assert graph.get(syslib_id("libGL.so.1")) is None  # original untouched
     assert len(graph.get(imp.id).attempts) == 0
+
+
+def test_import_probe_unknown_soname_uses_apt_file_fallback(fake_executor, make_result_fixture):
+    # An import whose runtime gap is a soname NOT in the curated table.
+    imp = _import("widget")
+    graph = DepGraph().with_node(imp)
+    fake_executor.responses = {
+        'python -c "import widget"': make_result_fixture(
+            returncode=1,
+            stderr="ImportError: libwidget.so.3: cannot open shared object file",
+        ),
+        "sysconfig": make_result_fixture(stdout="x86_64-linux-gnu\n"),
+        "apt-file search": make_result_fixture(
+            stdout="libwidget3: /usr/lib/x86_64-linux-gnu/libwidget.so.3\n"
+        ),
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    lib = out.get(syslib_id("libwidget.so.3"))
+    assert lib is not None
+    assert lib.type is NodeType.SYSTEM_LIB
+    assert lib.state is State.MISSING
+    assert lib.fix_candidates == ("apt:libwidget3",)
