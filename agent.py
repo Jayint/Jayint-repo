@@ -233,6 +233,7 @@ class DockerAgent:
         fullstate_worker_prompt=False,
         enable_v1=False,
         enable_contract_graph=False,
+        enable_dep_graph=False,
         enable_cleanroom=False,
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
@@ -276,7 +277,11 @@ class DockerAgent:
         self.enable_fullstate_worker = enable_fullstate_worker
         self.fullstate_worker_prompt = fullstate_worker_prompt
         self.enable_contract_graph = enable_contract_graph
-        self.enable_v1 = enable_v1 or enable_contract_graph
+        # Phase-0 dep-graph advisory (shadow): renders a host-certified dependency
+        # view into the planner prompt. Advisory only; implies v1 (it needs the
+        # three-role planner path). Composes with --enable-contract-graph (v1g).
+        self.enable_dep_graph = enable_dep_graph
+        self.enable_v1 = enable_v1 or enable_contract_graph or enable_dep_graph
         self.enable_envstate = (
             enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
         )
@@ -1025,12 +1030,68 @@ class DockerAgent:
         )
         _build_system = getattr(self.synthesizer, "build_system", "") or "unknown"
 
+        # ── 2b. Phase-0 dep-graph advisory (gated, build-once, scratch container) ──
+        # Off by default. The depgraph is built in its OWN throwaway DockerExecutor
+        # (NOT the live sandbox), so the agent's container is untouched and the A/B
+        # measures advice quality, not pre-installed deps. ANY failure degrades to
+        # "" and the run proceeds exactly as if the feature were off.
+        _dep_advisory = ""
+        if (
+            getattr(self, "enable_dep_graph", False)
+            and _base_image
+            and os.path.isdir(self.workplace)
+        ):
+            try:
+                import sys as _sys
+                # python_deps.* uses bare-prefix imports, so src/ must be on the
+                # path. Guarded insert avoids duplication; only runs when the flag
+                # is on, so off-state sys.path is unchanged.
+                _src_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "src"
+                )
+                if _src_dir not in _sys.path:
+                    _sys.path.insert(0, _src_dir)
+                from python_deps.depgraph.advise import build_advisory_for_repo
+                from python_deps.depgraph.export import to_graphml
+                from python_deps.depgraph.schema import NodeType as _NT, State as _St
+
+                _dep_advisory, _dep_graph = build_advisory_for_repo(
+                    self.workplace, _base_image
+                )
+                # Stats/artifact are best-effort and kept INSIDE a guard so a
+                # failure here can never clobber a successfully-built advisory.
+                if _dep_graph is not None:
+                    try:
+                        _gpath = os.path.join(self.logs_dir, "dep_graph.graphml")
+                        with open(_gpath, "w", encoding="utf-8") as _gf:
+                            _gf.write(to_graphml(_dep_graph))
+                        _n_front = sum(
+                            1
+                            for n in _dep_graph.nodes
+                            if n.state is _St.MISSING and n.type is not _NT.TEST
+                        )
+                        _n_sat = sum(
+                            1 for n in _dep_graph.nodes if n.state is _St.SATISFIED
+                        )
+                        print(
+                            f"[dep-graph] advisory: {_n_front} frontier / "
+                            f"{_n_sat} satisfied"
+                        )
+                    except Exception:
+                        pass
+                else:
+                    print("[dep-graph] advisory: unavailable (build returned no graph)")
+            except Exception as _e:  # advisory must never break a run
+                print(f"[dep-graph] advisory: unavailable ({_e})")
+                _dep_advisory = ""
+
         world_map = initial_map(
             base_image=_base_image,
             workdir=_workdir,
             language=_language,
             build_system=_build_system,
             repo_layout=_repo_layout,
+            dep_advisory=_dep_advisory,
         )
 
         # ── 3. Instantiate collaborators with canonical signatures ─────────────
@@ -3045,6 +3106,11 @@ if __name__ == "__main__":
                              "Mutually exclusive with --enable-supervisor and --enable-fullstate-worker.")
     parser.add_argument("--enable-contract-graph", action="store_true",
                         help="v1 + contract graph reasoning layer (implies --enable-v1)")
+    parser.add_argument("--enable-dep-graph", action="store_true",
+                        help="Phase-0 shadow: build a host-certified dependency graph once in a "
+                             "scratch container and render it as an advisory section in the planner "
+                             "prompt (advisory only; implies --enable-v1). Composes with "
+                             "--enable-contract-graph.")
     parser.add_argument(
         "--disable-post-synthesis-repair",
         action="store_true",
@@ -3091,6 +3157,7 @@ if __name__ == "__main__":
         fullstate_worker_prompt=args.fullstate_worker_prompt,
         enable_v1=args.enable_v1,
         enable_contract_graph=args.enable_contract_graph,
+        enable_dep_graph=args.enable_dep_graph,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
