@@ -1292,6 +1292,10 @@ class DockerAgent:
                 os.environ.pop("ENVSTATE_LLM_LOG", None)
             else:
                 os.environ["ENVSTATE_LLM_LOG"] = _prev_llm_log
+            # arm0 captures successful_actions live; the v1 loop records only into
+            # the ActionLedger, so backfill here (before the summary is written, on
+            # both the success and exception paths) or the synthesizer replays nothing.
+            self._backfill_successful_actions_from_ledger()
             self._write_run_summary(configuration_success, run_error)
             self.sandbox.close(keep_alive=keep_container)
 
@@ -2719,6 +2723,62 @@ class DockerAgent:
         self.verified_test_command = self.verified_test_commands[-1]
         print(f"[Recorded Test Command] {action}")
         print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
+
+    def _backfill_successful_actions_from_ledger(self):
+        """Derive ``self.successful_actions`` from the v1 ActionLedger post-hoc.
+
+        The arm0 ReAct loop records each successful command live via
+        ``_record_successful_action``; the v1 three-role loop executes commands
+        inside the BuildAgent (appending only to ``self.action_ledger``) and never
+        calls it, so ``self.successful_actions`` stayed empty and the Dockerfile
+        synthesizer had no trajectory to replay — every working v1 environment was
+        lost at synthesis. Rebuild the records from the authoritative ledger,
+        mirroring the arm0 record shape (see ``_record_successful_action``) and
+        re-deriving the classifier flags via the synthesizer (the v1 ledger
+        appender stores ``mutation_class=None``).
+
+        Honesty: rc==0 only; classify-don't-filter (read-only/test commands are
+        kept and tagged so the consumer can filter); collect-only stays
+        ``is_effective_test_run=False``; unterminated heredoc openers (A1
+        recording truncation) are dropped. ``verified_test_command`` is untouched
+        (owned by ``_resolve_v1_verified_test_run``). Idempotent and best-effort:
+        a no-op when already populated, and never raises (runs in the finally
+        path before the run summary is written).
+        """
+        try:
+            from src.envstate.synthesis import _is_unterminated_heredoc
+
+            if self.successful_actions:
+                return
+            ledger = getattr(self, "action_ledger", None)
+            syn = getattr(self, "synthesizer", None)
+            if ledger is None or syn is None:
+                return
+            revision = getattr(self, "_environment_revision", 0)
+            for ev in ledger.events():
+                if ev.rc != 0:
+                    continue
+                cmd = ev.cmd or ""
+                if not cmd.strip() or _is_unterminated_heredoc(cmd):
+                    continue
+                obs = ev.stdout or ""
+                mutates = syn.command_mutates_environment(cmd)
+                if mutates:
+                    revision += 1
+                self.successful_actions.append({
+                    "step_index": ev.step,
+                    "command": cmd,
+                    "observation": obs,
+                    "environment_revision": revision,
+                    "mutates_environment": mutates,
+                    "is_readonly": syn.is_readonly_command(cmd),
+                    "is_runtime_service": syn.is_runtime_service_command(cmd),
+                    "is_runtime_healthcheck": syn.is_runtime_healthcheck_command(cmd),
+                    "observed_test_signal": syn.observation_has_effective_test_signal(obs),
+                    "test_analysis": syn.analyze_test_run(cmd, obs),
+                })
+        except Exception as exc:  # never break the run summary on a capture error
+            print(f"[v1] successful_actions backfill skipped: {exc}")
 
     def _observation_contains_final_success_bundle(self, observation):
         if not observation:
