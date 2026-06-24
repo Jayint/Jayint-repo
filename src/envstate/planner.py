@@ -302,6 +302,14 @@ def render_planning_view(
         lines.append("")
         lines.append(render_graph_for_planner(world_map.contract_graph, world_map.host_satisfied))
 
+    # Phase-0 dep-graph advisory (read-only): a host-certified dependency view
+    # built once in a scratch container. Empty when the feature is off, so the
+    # off-state prompt is byte-identical to before.
+    if world_map.dep_advisory:
+        lines.append("")
+        lines.append("## dependency_graph (advisory — host-certified, read-only)")
+        lines.append(world_map.dep_advisory)
+
     lines.append("")
     lines.append(f"## budget\n  cycles_remaining: {budget.get('cycles_remaining')}")
     return "\n".join(lines)
