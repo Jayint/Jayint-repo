@@ -211,6 +211,8 @@ def build_agent_command(
         command.append("--enable-v1")
     if getattr(args, "enable_contract_graph", False):
         command.append("--enable-contract-graph")
+    if getattr(args, "enable_dep_graph", False):
+        command.append("--enable-dep-graph")
 
     return command
 
@@ -3161,6 +3163,12 @@ _ARM_PRESETS: dict[str, dict] = {
         "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True, "enable_cleanroom": True,
         "max_steps": 12, "_label": "armV1g_contract_graph",
     },
+    "v1gd": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
+        "enable_dep_graph": True, "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gd_dep_graph",
+    },
 }
 
 
@@ -3320,7 +3328,7 @@ def parse_args() -> argparse.Namespace:
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "v1", "v1g"],
+        choices=["0", "v1", "v1g", "v1gd"],
         default=None,
         help=(
             "Ablation arm shorthand. "
