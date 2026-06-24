@@ -92,16 +92,22 @@ def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> Dep
     """Remove identity-fallback ghost packages superseded by a certified link.
 
     When the relink certifies ``import:X -> pkg:realname``, the unresolved
-    identity-fallback placeholder ``pkg:X`` (version None, MISSING — the root
-    ``uv`` could not resolve) is a phantom duplicate of an already-resolved need,
-    and (pre-fix) a trap carrying a ``pip:X`` fix that cannot work. Drop it (and
-    its dangling edges) so the graph holds only the real, certified provider.
-    Returns a NEW graph.
+    placeholder ``pkg:X`` (MISSING — the identity-fallback root ``uv`` could not
+    resolve) is a phantom duplicate of an already-resolved need, and (pre-fix) a
+    trap carrying a ``pip:X`` fix that cannot work. Drop it (and its dangling
+    edges) so the graph holds only the real, certified provider. Returns a NEW
+    graph.
+
+    The placeholder is identified by ``state is MISSING`` (+ name match + not a
+    certified target), NOT by ``version is None``: an unresolvable root can carry
+    a version — a ``no version of X==Y`` registry miss, or a sdist that ``Failed
+    to build X==Y`` (P0). Those versioned ghosts are equally superseded once the
+    real provider is certified, so the drop must not hinge on the version field.
     """
     new = graph
-    # Never drop ANY certified target (not just the current edge's) -- a
-    # version-None placeholder could, pathologically, be another import's
-    # certified provider; dropping it would orphan that link.
+    # Never drop ANY certified target (not just the current edge's) -- a missing
+    # placeholder could, pathologically, be another import's certified provider;
+    # dropping it would orphan that link.
     protected = {edge.dst for edge in certified_edges}
     for edge in certified_edges:
         imp = new.get(edge.src)
@@ -112,7 +118,6 @@ def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> Dep
             if (
                 node.type is NodeType.PACKAGE
                 and node.id not in protected
-                and node.version is None
                 and node.state is State.MISSING
                 and normalize_package_name(node.name) == imp_canon
             ):

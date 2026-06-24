@@ -118,7 +118,7 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
         apt = apt_for_tool(tool)
         predicted_id = tool_id(apt) if apt else None
         reconciled = (
-            _reconcile_predicted(
+            reconcile_predicted(
                 new, predicted_id, check=check, evidence=evidence, command=command
             )
             if predicted_id
@@ -228,7 +228,7 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
         apt, _apt_source = resolve_soname_apt(soname, executor)
         predicted_id = syslib_id(apt) if apt else None
         reconciled = (
-            _reconcile_predicted(
+            reconcile_predicted(
                 new, predicted_id, check=check, evidence=evidence, command=command
             )
             if predicted_id
@@ -251,7 +251,7 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
 # --------------------------------------------------------------------------- #
 # Prediction reconciliation                                                    #
 # --------------------------------------------------------------------------- #
-def _reconcile_predicted(
+def reconcile_predicted(
     graph: DepGraph,
     predicted_id: str,
     *,
@@ -347,6 +347,9 @@ def _probe_targets(graph: DepGraph) -> dict[str, dict]:
             p.id for p in graph.requires_of(imp.id) if p.type is NodeType.PACKAGE
         )
 
+    # NATIVE_RISK_PACKAGES now scopes the dlopen BACKSTOP only: DT_NEEDED run-time
+    # gaps are covered authoritatively by Stage 4.5 (ldd_probe); this list just
+    # picks packages worth import-probing for dlopen'd libs not in their NEEDED list.
     for pkg in (n for n in graph.nodes if n.type is NodeType.PACKAGE):
         if pkg.name not in NATIVE_RISK_PACKAGES:
             continue

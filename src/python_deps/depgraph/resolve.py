@@ -219,6 +219,72 @@ def _select_applicable_packages(
     return selected
 
 
+def _prune_to_applicable(
+    nodes: list[Node],
+    edges: list[Edge],
+    seed_specs: list[tuple[str, str | None]],
+    env: dict[str, str],
+) -> tuple[list[Node], list[Edge]]:
+    """Keep only packages reachable from the project's direct deps via edges whose
+    markers apply under ``env``.
+
+    A ``uv.lock`` is a UNIVERSAL lock: it lists packages needed across the whole
+    ``requires-python`` range, including marker-gated ones (e.g. ``audioop-lts``
+    pulled only under ``python_full_version >= '3.13'``). On a 3.11 target such a
+    package is not part of the environment and has no installable distribution
+    there, so installing it collapses the whole closure. Prune any node not
+    reachable through marker-applicable edges from the direct deps.
+
+    Conservative: an unknown/unevaluable marker (``_marker_applies`` -> ``None``)
+    is treated as APPLICABLE (kept), so only definitely-false markers prune. If
+    the roots cannot be determined, all nodes are kept (no-op).
+    """
+    if not nodes:
+        return nodes, edges
+
+    canon_to_id: dict[str, str] = {}
+    for n in nodes:
+        canon_to_id.setdefault(_canon(n.name), n.id)
+
+    adj: dict[str, list[str]] = {}
+    has_incoming: set[str] = set()
+    for e in edges:
+        has_incoming.add(e.dst)
+        if e.marker is None or _marker_applies(e.marker, env) is not False:
+            adj.setdefault(e.src, []).append(e.dst)
+
+    # Seeds: applicable project direct deps, plus any node with no incoming edge
+    # at all (a genuine root uv listed). A node whose only incoming edges are
+    # marker-false is NOT a seed (it has incoming edges) -> correctly prunable.
+    seeds: set[str] = set()
+    for dep_name, marker in seed_specs:
+        if marker is not None and _marker_applies(marker, env) is False:
+            continue
+        nid = canon_to_id.get(_canon(dep_name))
+        if nid is not None:
+            seeds.add(nid)
+    for n in nodes:
+        if n.id not in has_incoming:
+            seeds.add(n.id)
+    if not seeds:
+        return nodes, edges
+
+    keep: set[str] = set()
+    stack = list(seeds)
+    while stack:
+        nid = stack.pop()
+        if nid in keep:
+            continue
+        keep.add(nid)
+        for nxt in adj.get(nid, ()):
+            if nxt not in keep:
+                stack.append(nxt)
+
+    kept_nodes = [n for n in nodes if n.id in keep]
+    kept_edges = [e for e in edges if e.src in keep and e.dst in keep]
+    return kept_nodes, kept_edges
+
+
 def _package_node(
     name: str,
     version: str | None,
@@ -281,19 +347,31 @@ def parse_uv_lock(
     nodes: list[Node] = []
     entries: list[tuple[dict, Node]] = []
     canon_to_id: dict[str, str] = {}
+    # The project's direct deps (from the local root entry) seed marker-reachability.
+    seed_specs: list[tuple[str, str | None]] = []
     for pkg in raw_packages:
         name = pkg.get("name")
         if not name:
             continue
         if _is_local_source(pkg.get("source", {})):
+            for dep in pkg.get("dependencies", []):
+                dep_name = dep.get("name")
+                if dep_name:
+                    seed_specs.append((dep_name, dep.get("marker")))
             continue
         node = _package_node(name, pkg.get("version"))
         nodes.append(node)
         entries.append((pkg, node))
         canon_to_id[_canon(name)] = node.id
 
-    edges: list[Edge] = []
-    seen: set[tuple[str, str]] = set()
+    # Dedup edges by (src, dst), MERGING markers: a parent may list the same child
+    # under several markers (e.g. version-fork markers ``numpy<3.12`` / ``>=3.12``
+    # that collapse to one node after fork-dedup). The child is then needed under
+    # the UNION of those markers, so differing markers collapse to unconditional
+    # (None) — otherwise keeping just the first marker would wrongly prune a child
+    # that IS applicable via a later edge.
+    edge_marker: dict[tuple[str, str], str | None] = {}
+    edge_order: list[tuple[str, str]] = []
     for pkg, node in entries:
         for dep in pkg.get("dependencies", []):
             dep_name = dep.get("name")
@@ -303,18 +381,30 @@ def parse_uv_lock(
             if child_id is None or child_id == node.id:
                 continue
             key = (node.id, child_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            edges.append(
-                Edge(
-                    src=node.id,
-                    dst=child_id,
-                    relation=EdgeType.REQUIRES,
-                    origin="resolver",
-                    marker=dep.get("marker"),
-                )
-            )
+            marker = dep.get("marker")
+            if key not in edge_marker:
+                edge_marker[key] = marker
+                edge_order.append(key)
+            elif edge_marker[key] != marker:
+                edge_marker[key] = None  # union of distinct markers -> unconditional
+    edges: list[Edge] = [
+        Edge(
+            src=src,
+            dst=dst,
+            relation=EdgeType.REQUIRES,
+            origin="resolver",
+            marker=edge_marker[(src, dst)],
+        )
+        for (src, dst) in edge_order
+    ]
+
+    # Prune packages reachable only through markers that don't hold for the target
+    # (a universal lock lists deps for the whole requires-python range). Only when a
+    # target is given, mirroring the fork-dedup above (legacy no-op without one).
+    if target_python is not None:
+        nodes, edges = _prune_to_applicable(
+            nodes, edges, seed_specs, _python_marker_env(target_python)
+        )
     return nodes, edges
 
 
@@ -483,6 +573,26 @@ _PY_IMPOSER_BEFORE_RE = re.compile(
 _PY_IMPOSER_AFTER_RE = re.compile(
     r"and you require ([A-Za-z0-9][A-Za-z0-9._-]*)"
 )
+# An sdist whose metadata BUILD fails (old/broken setup.py, missing build deps).
+# uv prints ``× Failed to build `factory==1.2```; this is NOT a version conflict
+# or a registry miss, so without recognizing it the diagnosis is empty and the
+# drop-retry loop can never attribute/drop the offending root -> whole-closure
+# collapse (P0). The distribution name is never line-wrapped (uv wraps only at
+# whitespace, and there is none inside ``name==version``).
+_BUILD_FAILURE_RE = re.compile(
+    r"Failed to build\s+`?([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s`]+)"
+)
+# A root with NO usable version: every release yanked ("all versions of X cannot
+# be used"), or a requires-python the target lacks ("X==V cannot be used"). uv's
+# universal conclusion for a fundamentally-unsatisfiable package is "<dist>[==V]
+# cannot be used"; it is neither a registry miss, a build failure, nor a version
+# tug-of-war (which says "unsatisfiable", never "cannot be used"), so it was
+# previously unattributable -> whole-closure collapse (RATBench mcp-atlassian +
+# docling). uv WRAPS "cannot\n      be used", so match whitespace runs inside the
+# phrase too (same reason the other diagnostic regexes use ``\s+``).
+_UNUSABLE_RE = re.compile(
+    r"\b([A-Za-z0-9][A-Za-z0-9._-]*)(?:==[^\s]+)?\s+cannot\s+be\s+used"
+)
 
 
 def _excerpt(text: str, needle_start: int, width: int = 200) -> str:
@@ -515,6 +625,15 @@ def parse_resolver_error(stderr: str) -> ResolverDiagnosis:
     for m in _NO_VERSION_RE.finditer(text):
         _add_missing(m.group(1), m.group(2), m.start())
     for m in _NO_VERSION_PLAIN_RE.finditer(text):
+        _add_missing(m.group(1), None, m.start())
+    # A build failure makes the root unresolvable in this environment; surface it
+    # as a missing package (with the build error as evidence) so the drop-retry
+    # loop attributes and drops it instead of collapsing the entire closure.
+    for m in _BUILD_FAILURE_RE.finditer(text):
+        _add_missing(m.group(1), m.group(2), m.start())
+    # A package uv concludes "cannot be used" (all-yanked, or requires a Python the
+    # target lacks) is likewise unresolvable; attribute it so its root is dropped.
+    for m in _UNUSABLE_RE.finditer(text):
         _add_missing(m.group(1), None, m.start())
 
     constraints: list[VersionConstraint] = []

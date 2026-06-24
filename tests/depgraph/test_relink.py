@@ -164,6 +164,71 @@ def test_certified_import_links_drops_superseded_ghost(fake_executor, make_resul
     assert all(e.dst != package_id("dateutil", None) for e in out.edges)  # dangling edge gone
 
 
+def test_certified_import_links_drops_superseded_versioned_ghost(fake_executor, make_result_fixture):
+    # P1: a low-trust identity-fallback root whose sdist FAILED TO BUILD (or hit a
+    # `no version of X==Y`) is surfaced as a MISSING placeholder carrying a VERSION
+    # (e.g. `factory==1.2`), unlike the registry-miss case (version None). It is
+    # still a superseded duplicate once the relink certifies the real provider
+    # (`import factory` -> `factory-boy`), and must be dropped too — the old
+    # `version is None` guard left these naming-poison ghosts polluting the graph.
+    imp = _imp("factory")
+    ghost = Node(
+        id=package_id("factory", "1.2"),
+        type=NodeType.PACKAGE,
+        name="factory",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        state=State.MISSING,
+        version="1.2",
+    )
+    real = _pkg("factory-boy", "3.3.3")
+    graph = (
+        DepGraph()
+        .with_node(imp)
+        .with_node(ghost)
+        .with_node(real)
+        .with_edge(Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile"))
+    )
+    fake_executor.responses = {
+        "packages_distributions": make_result_fixture(stdout='{"factory": ["factory-boy"]}')
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    deps = {d.id for d in out.requires_of(imp.id)}
+    assert package_id("factory-boy", "3.3.3") in deps  # real provider linked
+    assert out.get(package_id("factory", "1.2")) is None  # versioned ghost removed
+    assert all(e.dst != package_id("factory", "1.2") for e in out.edges)  # dangling edge gone
+
+
+def test_certified_import_links_keeps_versioned_missing_without_replacement(
+    fake_executor, make_result_fixture
+):
+    # Safety: a VERSIONED missing package whose import has NO certified provider
+    # must be KEPT (it is a genuine unresolved/undeclared signal, not a superseded
+    # duplicate). Guards against the relaxed guard over-dropping.
+    imp = _imp("strawberry")
+    miss = Node(
+        id=package_id("strawberry", "3.0"),
+        type=NodeType.PACKAGE,
+        name="strawberry",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        state=State.MISSING,
+        version="3.0",
+    )
+    graph = DepGraph().with_node(imp).with_node(miss).with_edge(
+        Edge(src=imp.id, dst=miss.id, relation=EdgeType.REQUIRES, origin="reconcile")
+    )
+    fake_executor.responses = {
+        "packages_distributions": make_result_fixture(stdout='{"other": ["something"]}')
+    }
+
+    out = certified_import_links(graph, fake_executor)
+
+    assert out.get(package_id("strawberry", "3.0")) is not None  # kept: no certified replacement
+
+
 def test_certified_import_links_keeps_ghost_without_replacement(fake_executor, make_result_fixture):
     # A ghost whose import has NO certified provider must be KEPT (its misleading
     # fix is cleared upstream in resolve, but the node is not dropped here).

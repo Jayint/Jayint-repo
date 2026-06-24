@@ -264,6 +264,62 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
 
 
+_LDD_CLOSURE = """\
+numpy==1.26.4
+    # via opencv-python
+opencv-python==4.9.0.80
+    # via -r -
+"""
+
+_CV2_SO_BUILD = (
+    "/usr/local/lib/python3.11/dist-packages/cv2/cv2.cpython-311-x86_64-linux-gnu.so"
+)
+
+
+def test_build_ldd_probe_reconciles_seed_prediction(tmp_path):
+    """Stage 4.5 is LIVE in the pipeline: when install AND import both succeed,
+    ldd_probe (not import_probe) discovers ``libGL.so.1`` from the installed
+    binary and reconciles it into the seed's apt-keyed prediction
+    ``syslib:libgl1`` — one node per soname, RESOLVER origin retained, the
+    observed ldconfig check adopted. Proves ldd↔seed reconcile end-to-end."""
+    import json
+
+    from conftest import FakeExecutor  # type: ignore
+
+    (tmp_path / "app.py").write_text("import cv2\n")
+    ex = FakeExecutor(
+        responses={
+            "uv pip compile": _r(stdout=_LDD_CLOSURE),
+            "pip install": _r(returncode=0),  # install SUCCEEDS
+            # EXT_SO_MAP_CMD (matched by the unique "locate_file" substring).
+            "locate_file": _r(stdout=json.dumps({"opencv-python": [_CV2_SO_BUILD]})),
+            "ldd ": _r(stdout=f"{_CV2_SO_BUILD}:\n\tlibGL.so.1 => not found\n"),
+            "apt-cache show libgl1": _r(stdout="Package: libgl1\n"),
+        },
+        default=_r(returncode=0),  # every other command 'succeeds' inertly
+    )
+
+    graph = build_dep_graph(
+        str(tmp_path), ex, host_executor=ex, exclude_newer="2024-01-01"
+    )
+
+    # Stage 4.5 actually ran (a bare `ldd <path>` was issued in the pipeline).
+    assert any(c.startswith("ldd ") for c in ex.calls)
+
+    libgl1 = graph.get(syslib_id("libgl1"))
+    assert libgl1 is not None
+    assert libgl1.discovered_by is DiscoveredBy.RESOLVER  # seed origin retained
+    assert graph.get(syslib_id("libGL.so.1")) is None  # one node per soname
+    # The observed ldd check replaced the seed's `dpkg -s` check — proving it was
+    # ldd_probe (not import_probe; `import cv2` succeeded) that reconciled here.
+    assert libgl1.check_command == "ldconfig -p | grep libGL.so.1"
+    assert libgl1.fix_candidates == ("apt:libgl1",)
+    assert (
+        package_id("opencv-python", "4.9.0.80"),
+        syslib_id("libgl1"),
+    ) in {(e.src, e.dst) for e in graph.edges}
+
+
 def test_build_invokes_certified_relink_stage(tmp_path):
     """Stage 4a is wired: build runs the packages_distributions probe in the
     container, and it runs BEFORE the import probe."""

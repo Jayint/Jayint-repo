@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from python_deps.import_mapping import normalize_package_name
 
-# .so soname -> apt package.
+# Fast offline cache: known soname -> apt package.  apt-file fills misses at runtime
+# (option B lazy install).  Do NOT delete entries — they short-circuit executor calls.
 NATIVE_LIB_TO_APT: dict[str, str] = {
     # opencv runtime chain (the canonical cv2 import-time native gap).
     "libGL.so.1": "libgl1",

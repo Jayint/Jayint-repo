@@ -513,7 +513,7 @@ def test_install_closure_reconciles_predicted_tool(fake_executor, make_result_fi
 def test_reconcile_skips_non_resolver_prediction(fake_executor, make_result_fixture):
     # A pre-existing node at the predicted id but discovered_by=PROBE is NOT a
     # resolver prediction: reconciliation is skipped and a fresh observed node is
-    # created instead (the guard at _reconcile_predicted).
+    # created instead (the guard at reconcile_predicted).
     pkg = _package("psycopg2", "2.9.9")
     stale = Node(
         id=tool_id("libpq-dev"),
@@ -697,6 +697,7 @@ def test_import_probe_unknown_soname_uses_apt_file_fallback(fake_executor, make_
             returncode=1,
             stderr="ImportError: libwidget.so.3: cannot open shared object file",
         ),
+        "command -v apt-file": make_result_fixture(returncode=0),
         "sysconfig": make_result_fixture(stdout="x86_64-linux-gnu\n"),
         "apt-file search": make_result_fixture(
             stdout="libwidget3: /usr/lib/x86_64-linux-gnu/libwidget.so.3\n"

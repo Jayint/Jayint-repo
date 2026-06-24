@@ -9,6 +9,7 @@ Wires the pipeline of
     3. resolve   uv.lock closure (HOST)      -> Package nodes/edges   (cycle 2)
     3b. seed     predicted native nodes      -> Tool/SystemLib        (cycle 2)
     4. probe     install + import (CONTAINER)-> SystemLib/Tool nodes  (cycle 3)
+    4.5 ldd      ldd ext .so (CONTAINER)     -> run-time SystemLib     (cycle 3)
     5. certify   host check_commands (CONTAINER) -> node ``state``    (cycle 4)
 
 **Executor split (spec "Architecture change"):** resolution is HOST-side — ``uv``
@@ -30,9 +31,12 @@ import re
 import tomllib
 from dataclasses import replace
 
+from python_deps.depgraph.apt_verify import reconcile_apt_names
 from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
 from python_deps.depgraph.ids import TEST_NODE_ID, project_id
+from python_deps.depgraph.ldd_probe import ldd_probe
+from python_deps.depgraph.pins import compute_exclude_newer
 from python_deps.depgraph.probe import import_probe, install_closure
 from python_deps.depgraph.relink import certified_import_links
 from python_deps.depgraph.resolve import (
@@ -194,6 +198,13 @@ def build_dep_graph(
     # Stage 2 — manifest-first, scan-gap-filled, filtered resolver roots.
     roots = select_roots(repo_path, graph)
 
+    # Stage 2a — anchor the resolve cutoff to the project's pinned era (HOST,
+    # PyPI). A pinned old root (opencv-python==4.9.0.80) otherwise lets uv pull an
+    # ABI-incompatible latest transitive dep (numpy 2.x); resolving as-of the pin
+    # era keeps the closure compatible. Unset/unpinned -> None -> resolve latest.
+    if exclude_newer is None:
+        exclude_newer = compute_exclude_newer(roots)
+
     # Stage 3 — HOST-side uv resolve, targeted at the container.
     platform = target_platform or _detect_target_platform(container_executor)
     pkg_nodes, pkg_edges = resolve_closure(
@@ -220,6 +231,8 @@ def build_dep_graph(
     graph = _add_project_node(graph, repo_path)
 
     # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
+    # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail
+    # hint); Stage 4.5 ldd_probe is the authoritative run-time native-lib source.
     graph = seed_predicted_native(graph)
     resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
@@ -228,11 +241,25 @@ def build_dep_graph(
     # import-probe (run-time gaps -> SystemLib); predictions reconcile in place.
     pre_probe_ids = {n.id for n in graph.nodes}
     graph = install_closure(graph, container_executor)
+    # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
+    # package's extension .so files and surface ``=> not found`` sonames as
+    # SystemLib nodes (DT_NEEDED ground truth). Runs after install (needs the
+    # built .so) and before relink/import-probe. The curated table (Stage 3b) is
+    # demoted to a proactive fallback; ldd is the source of truth here.
+    graph = ldd_probe(graph, container_executor)
     # Stage 4a — certified Import->Package relink (packages_distributions, CONTAINER).
     graph = certified_import_links(graph, container_executor)
+    # import_probe is now the dlopen BACKSTOP only: DT_NEEDED gaps are covered by
+    # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
+    # never appear in the binary's NEEDED list.
     graph = import_probe(graph, container_executor)
     probe_ids = {n.id for n in graph.nodes} - pre_probe_ids
     graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
+
+    # Stage 4b — release-aware apt-name reconciliation against the TARGET image:
+    # remap stale predicted/table names (e.g. libglib2.0-0 -> libglib2.0-0t64)
+    # so the fix-candidate is correct for the actual base image.
+    graph = reconcile_apt_names(graph, container_executor)
 
     # Stage 5 — host certification in the container (layer-ordered; flips state).
     graph = certify_all(graph, container_executor, cycle=_CERTIFY_CYCLE)

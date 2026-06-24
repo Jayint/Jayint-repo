@@ -18,6 +18,7 @@ from python_deps.depgraph.resolve import (
     DEFAULT_TARGET_PLATFORM,
     UV_BIN,
     _diagnosis_to_graph,
+    _offending_root_names,
     native_risk_from_lock,
     parse_resolver_error,
     parse_uv_lock,
@@ -315,6 +316,68 @@ def test_parse_uv_lock_without_target_python_keeps_all_versions():
     assert len(numpys) == 2
 
 
+# A package included ONLY via a marker-gated edge (the real markitdown case:
+# `audioop-lts`, a Python-3.13 stdlib backport pulled by SpeechRecognition under
+# `python_full_version >= '3.13'`). On a 3.11 target it is NOT part of the
+# environment and has no installable distribution there — keeping it as a node
+# made the whole install collapse. It must be pruned for 3.11, kept for 3.13.
+CONDITIONAL_LOCK = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "speechrecognition" },
+]
+
+[[package]]
+name = "speechrecognition"
+version = "3.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+    { name = "audioop-lts", marker = "python_full_version >= '3.13'" },
+]
+wheels = [
+    { url = "https://x/SpeechRecognition-3.17.0-py3-none-any.whl", hash = "sha256:sr" },
+]
+
+[[package]]
+name = "typing-extensions"
+version = "4.12.2"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://x/typing_extensions-4.12.2-py3-none-any.whl", hash = "sha256:te" },
+]
+
+[[package]]
+name = "audioop-lts"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://x/audioop_lts-0.2.2-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:al" },
+]
+"""
+
+
+def test_parse_uv_lock_prunes_conditional_dep_below_marker():
+    # Target 3.11: audioop-lts (only reachable via `python>='3.13'`) is pruned;
+    # the unconditional deps stay.
+    nodes, _edges = parse_uv_lock(CONDITIONAL_LOCK, target_python="3.11")
+    names = {n.name for n in nodes}
+    assert "audioop-lts" not in names
+    assert {"speechrecognition", "typing-extensions"} <= names
+
+
+def test_parse_uv_lock_keeps_conditional_dep_when_marker_holds():
+    # Target 3.13: the marker holds, so audioop-lts IS part of the environment.
+    nodes, _edges = parse_uv_lock(CONDITIONAL_LOCK, target_python="3.13")
+    assert "audioop-lts" in {n.name for n in nodes}
+
+
 def test_native_risk_forked_lock_uses_target_python_version():
     # Target 3.11 -> risk keyed to numpy reflects the 2.4.6 wheel, not 2.5.0.
     risk = native_risk_from_lock(FORKED_LOCK, LINUX_ARM, target_python="3.11")
@@ -451,6 +514,107 @@ def test_parse_error_clean_stderr_is_empty_diagnosis():
     assert diag.missing == ()
     assert diag.conflicts == ()
     assert diag.python_incompat is None
+
+
+# Real `uv lock` (uv 0.10.4) output when a root's sdist metadata build fails (an
+# old Py2-only setup.py: `factory==1.2` raises NameError on Python 3).  This is
+# NOT a version conflict or registry miss, so without explicit handling the
+# diagnosis is empty and the offending root can never be attributed/dropped — the
+# whole closure collapses (P0).  uv prints the failing dist on the `Failed to
+# build` header and (wrapped) on the `help:` line.
+BUILD_FAILURE_STDERR = (
+    "Using CPython 3.11.14\n"
+    "  × Failed to build `factory==1.2`\n"
+    "  ├─▶ The build backend returned an error\n"
+    "  ╰─▶ Call to `setuptools.build_meta:__legacy__.build_wheel` failed (exit\n"
+    "      status: 1)\n"
+    "\n"
+    "      [stderr]\n"
+    "      Traceback (most recent call last):\n"
+    "      NameError: name 'file' is not defined. Did you mean: 'filter'?\n"
+    "\n"
+    "      hint: This usually indicates a problem with the package or the build\n"
+    "      environment.\n"
+    "  help: `factory` (v1.2) was included because `depgraph-resolve-root` (v0.0.0)\n"
+    "        depends on `factory`\n"
+)
+
+
+def test_parse_error_build_failure_is_attributed_as_missing():
+    """A root whose sdist fails to BUILD must be surfaced (so the drop-retry can
+    attribute and drop it), not silently ignored. P0 regression."""
+    diag = parse_resolver_error(BUILD_FAILURE_STDERR)
+    names = {m.name: m.version for m in diag.missing}
+    assert names == {"factory": "1.2"}
+    assert "Failed to build" in diag.missing[0].evidence
+    # and it must be reported as an offending root so the loop drops it.
+    assert "factory" in _offending_root_names(diag)
+
+
+def test_parse_error_build_failure_emits_missing_node():
+    """The build-failed dist becomes a MISSING package node carrying the build
+    error as evidence (so the graph records WHY it was dropped)."""
+    diag = parse_resolver_error(BUILD_FAILURE_STDERR)
+    nodes, _edges = _diagnosis_to_graph(diag)
+    factory = next(n for n in nodes if n.name == "factory")
+    assert factory.state is State.MISSING
+    assert "Failed to build" in factory.evidence
+
+
+# Real `uv lock` output (RATBench: sooperset/mcp-atlassian) when a root resolves
+# only to a YANKED, empty release: uv concludes "all versions of X cannot be
+# used". Not a conflict/registry-miss/build-fail -> previously unattributable.
+YANKED_STDERR = (
+    "Using CPython 3.11.14\n"
+    "  × No solution found when resolving dependencies:\n"
+    "  ╰─▶ Because atlassian==0.0.0 was yanked (reason: empty release) and only\n"
+    "      atlassian==0.0.0 is available, we can conclude that all versions of\n"
+    "      atlassian cannot be used.\n"
+    "      And because your project depends on atlassian, we can conclude that your\n"
+    "      project's requirements are unsatisfiable.\n"
+)
+
+# Real `uv lock` output (RATBench: docling) when a root requires a Python the
+# target lacks: "X==V cannot be used" — and uv WRAPS "cannot\n      be used"
+# across a line, so the matcher must tolerate whitespace runs inside the phrase.
+REQUIRES_PYTHON_UNUSABLE_STDERR = (
+    "Using CPython 3.11.14\n"
+    "  × No solution found when resolving dependencies for split (markers:\n"
+    "  │ python_full_version == '3.11.*'):\n"
+    "  ╰─▶ Because the requested Python version (>=3.11) does not\n"
+    "      satisfy Python>=3.12,<3.13 and nemotron-ocr==2.0.0 depends on\n"
+    "      Python>=3.12,<3.13, we can conclude that nemotron-ocr==2.0.0 cannot\n"
+    "      be used.\n"
+    "      And because only nemotron-ocr<=2.0.0 is available and your project\n"
+    "      depends on nemotron-ocr>=2.0.0, we can conclude that your project's\n"
+    "      requirements are unsatisfiable.\n"
+)
+
+
+def test_parse_error_yanked_root_cannot_be_used():
+    """A root with only a yanked release ("all versions of X cannot be used") is
+    attributed so the drop-retry can drop it (RATBench mcp-atlassian)."""
+    diag = parse_resolver_error(YANKED_STDERR)
+    assert "atlassian" in {m.name for m in diag.missing}
+    assert "atlassian" in _offending_root_names(diag)
+
+
+def test_parse_error_requires_python_unusable_root_wrapped():
+    """A root requiring an incompatible Python ("X==V cannot be used") is
+    attributed even when uv wraps "cannot\\n be used" across a line (docling)."""
+    diag = parse_resolver_error(REQUIRES_PYTHON_UNUSABLE_STDERR)
+    assert "nemotron-ocr" in {m.name for m in diag.missing}
+    assert "nemotron-ocr" in _offending_root_names(diag)
+
+
+def test_parse_error_version_conflict_not_misread_as_unusable():
+    """Regression: a genuine version tug-of-war says "unsatisfiable" but never
+    "cannot be used", so the new matcher must NOT manufacture a spurious missing
+    (which would wrongly drop a conflict root instead of recording the edge)."""
+    diag = parse_resolver_error(UV_0_10_CONFLICT_STDERR)
+    # urllib3 is the no-satisfiable-version shared package (a real missing), but
+    # neither root (requests/your project) is attributed as "cannot be used".
+    assert "requests" not in {m.name for m in diag.missing}
 
 
 # --------------------------------------------------------------------------- #
@@ -721,6 +885,61 @@ def test_resolve_closure_per_root_resilience_drops_bad_root(tmp_path):
     es = _edge_set(edges)
     assert ("import:cv2", by_name["opencv-python"].id) in es
     # Two lock attempts: full set (fail) then good-root-only (succeed).
+    assert stub._lock_calls == 2
+
+
+class _BuildFailStub:
+    """Lock fails the first time with an sdist BUILD failure (not a conflict),
+    then succeeds once the build-failing root is dropped."""
+
+    def __init__(self, workdir, good_lock, build_fail_stderr):
+        self.workdir = workdir
+        self.good_lock = good_lock
+        self.build_fail_stderr = build_fail_stderr
+        self.calls = []
+        self._lock_calls = 0
+
+    def run(self, command, *, timeout=300):
+        self.calls.append(command)
+        if "uv lock" in command:
+            self._lock_calls += 1
+            if self._lock_calls == 1:
+                return CommandResult(command, 1, "", self.build_fail_stderr)
+            with open(
+                os.path.join(self.workdir, "uv.lock"), "w", encoding="utf-8"
+            ) as fh:
+                fh.write(self.good_lock)
+            return CommandResult(command, 0, "", "")
+        return CommandResult(command, 127, "", "no fake")
+
+
+def test_resolve_closure_drops_build_failing_root_not_collapse(tmp_path):
+    """P0: a root whose sdist FAILS TO BUILD must be dropped so the rest of the
+    closure still resolves — not collapse the whole graph to empty.
+
+    Mirrors the real Wagtail/pydantic/fastapi failure: `factory`/`pyodide`/
+    `strawberry` fail to build, and previously the empty diagnosis made the loop
+    give up and return zero packages."""
+    stub = _BuildFailStub(str(tmp_path), GOOD_LOCK, BUILD_FAILURE_STDERR)
+    roots = [("import:cv2", "opencv-python"), (None, "factory")]
+
+    nodes, _edges = resolve_closure(
+        roots,
+        stub,
+        target_python="3.11",
+        target_platform=LINUX_X86,
+        project_dir=str(tmp_path),
+    )
+    by_name = _node_by_name(nodes)
+
+    # The real closure still resolves (NOT a collapse) ...
+    assert "opencv-python" in by_name
+    assert "numpy" in by_name
+    # ... and the build-failing root is surfaced as MISSING with the build error.
+    assert "factory" in by_name
+    assert by_name["factory"].state is State.MISSING
+    assert "Failed to build" in by_name["factory"].evidence
+    # Two lock attempts: full set (build-fail) then survivor-only (succeed).
     assert stub._lock_calls == 2
 
 
