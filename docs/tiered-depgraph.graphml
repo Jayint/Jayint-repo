@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tiered-layer execution-strategy example: cv2 + psycopg2 on python:3.11-slim.
+     Illustrates DESIGN-tiered-layer-execution-strategy.md:
+       (A) build-stack layers L0..L5 as vertical tiers
+       (B) maturity ladder on the Test node (Installable/Testable/Runnable)
+       (C) the runtime axis as an orthogonal side-lane (NOT a vertical layer)
+     End-state shown = doc worked example step 4: L0-L4 host-certified (env built),
+     the only red is on the runtime axis (DATABASE_URL) -> Tier-1 STOP + report. -->
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0"  for="node" attr.name="label"         attr.type="string"/>
+  <key id="d1"  for="node" attr.name="type"          attr.type="string"/>
+  <key id="d2"  for="node" attr.name="layer"         attr.type="string"/>
+  <key id="d3"  for="node" attr.name="state"         attr.type="string"/>
+  <key id="d4"  for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5"  for="node" attr.name="check"         attr.type="string"/>
+  <key id="d6"  for="node" attr.name="fix"           attr.type="string"/>
+  <key id="d7"  for="node" attr.name="evidence"      attr.type="string"/>
+  <key id="d8"  for="node" attr.name="build_from_source" attr.type="string"/>
+  <key id="d9"  for="node" attr.name="col"           attr.type="string"/>
+  <key id="d10" for="node" attr.name="maturity"      attr.type="string"/>
+  <key id="d11" for="node" attr.name="note"          attr.type="string"/>
+  <key id="e0"  for="edge" attr.name="relation"      attr.type="string"/>
+  <key id="e1"  for="edge" attr.name="marker"        attr.type="string"/>
+  <key id="e2"  for="edge" attr.name="effect"        attr.type="string"/>
+  <graph edgedefault="directed">
+
+    <!-- ===================== L5 tests / app (the goal) ===================== -->
+    <node id="test:repo_tests_pass">
+      <data key="d0">repo_tests_pass</data>
+      <data key="d1">Test</data>
+      <data key="d2">tests</data>
+      <data key="d3">missing</data>
+      <data key="d4">goal</data>
+      <data key="d5">python -m pytest -q</data>
+      <data key="d9">2</data>
+      <data key="d10">Installable ✓ · Testable ✓ · Runnable ✗</data>
+      <data key="d11">Tier-1 STOP: build stack (L0-L4) host-certified, so the environment IS built. The only remaining failure is on the runtime axis -> NOT an env fault. Report "needs DATABASE_URL", do not loop.</data>
+      <data key="d7">collected 214 items
+14 errored: KeyError: 'DATABASE_URL'  (imports succeed; DB-backed tests cannot connect)</data>
+    </node>
+
+    <!-- ===================== L4 import / naming ===================== -->
+    <node id="import:cv2">
+      <data key="d0">cv2</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import cv2"</data>
+      <data key="d9">0</data>
+      <data key="d11">import name != distribution name (cv2 -> opencv-python). Naming-layer failures route to the import->distribution mapping actuator, never to pip/apt.</data>
+    </node>
+    <node id="import:numpy">
+      <data key="d0">numpy</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import numpy"</data>
+      <data key="d9">2</data>
+    </node>
+    <node id="import:psycopg2">
+      <data key="d0">psycopg2</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import psycopg2"</data>
+      <data key="d9">4</data>
+    </node>
+
+    <!-- ===================== L3 pip / packages ===================== -->
+    <node id="pkg:opencv-python==4.11.0.86">
+      <data key="d0">opencv-python==4.11.0.86</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show opencv-python</data>
+      <data key="d6">pip:opencv-python</data>
+      <data key="d8">false</data>
+      <data key="d9">0</data>
+    </node>
+    <node id="pkg:numpy==2.2.4">
+      <data key="d0">numpy==2.2.4</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show numpy</data>
+      <data key="d6">pip:numpy</data>
+      <data key="d8">false</data>
+      <data key="d9">2</data>
+    </node>
+    <node id="pkg:psycopg2==2.9.10">
+      <data key="d0">psycopg2==2.9.10</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show psycopg2</data>
+      <data key="d6">pip:psycopg2</data>
+      <data key="d8">true</data>
+      <data key="d9">4</data>
+      <data key="d11">Source build (build_from_source=true) -> pulls in TOOLCHAIN deps (pg_config, gcc, Python.h) that a wheel would not. Discovery order != execution order: toolchain is discovered here but executed (apt) before this pip install.</data>
+    </node>
+    <node id="pkg:opencv-python-headless==4.11.0.86">
+      <data key="d0">opencv-python-headless</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">unknown</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show opencv-python-headless</data>
+      <data key="d6">pip:opencv-python-headless</data>
+      <data key="d8">false</data>
+      <data key="d9">-1</data>
+      <data key="d11">Cheaper cross-layer alternative (§3.5 cost lever): swapping to the headless wheel at the PIP layer RETRACTS the system-layer libGL.so.1 need entirely — one higher/cheaper fix deletes lower/expensive apt work.</data>
+    </node>
+
+    <!-- ===================== L2' toolchain (build-time deps) ===================== -->
+    <node id="tool:pg_config">
+      <data key="d0">pg_config</data>
+      <data key="d1">Tool</data>
+      <data key="d2">toolchain</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">probe</data>
+      <data key="d5">command -v pg_config</data>
+      <data key="d6">apt-get install -y libpq-dev</data>
+      <data key="d9">4</data>
+      <data key="d7">Error: pg_config executable not found.  (seen on the FIRST psycopg2 source build, pre-apt)</data>
+      <data key="d11">toolchain layer -> apt actuator (build dep). Layer ordering guarantees this apt runs BEFORE the psycopg2 pip install, so the first real build lands.</data>
+    </node>
+    <node id="tool:gcc">
+      <data key="d0">gcc</data>
+      <data key="d1">Tool</data>
+      <data key="d2">toolchain</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">probe</data>
+      <data key="d5">command -v gcc</data>
+      <data key="d6">apt-get install -y gcc</data>
+      <data key="d9">2.6</data>
+    </node>
+
+    <!-- ===================== L2 system (shared libs) ===================== -->
+    <node id="sys:libGL.so.1">
+      <data key="d0">libGL.so.1</data>
+      <data key="d1">SystemLib</data>
+      <data key="d2">system</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">probe</data>
+      <data key="d5">ldconfig -p | grep -q libGL.so.1</data>
+      <data key="d6">apt-get install -y libgl1</data>
+      <data key="d9">0</data>
+      <data key="d7">ImportError: libGL.so.1: cannot open shared object file: No such file or directory  (pre-apt; the classic "pip install libGL" wrong-actuator trap)</data>
+      <data key="d11">system layer -> apt actuator. Without the layer key the agent sees an ImportError and wrongly tries `pip install libGL`. With it: route to apt, never pip.</data>
+    </node>
+    <node id="sys:libpq.so.5">
+      <data key="d0">libpq.so.5</data>
+      <data key="d1">SystemLib</data>
+      <data key="d2">system</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">probe</data>
+      <data key="d5">ldconfig -p | grep -q libpq.so.5</data>
+      <data key="d6">apt-get install -y libpq5</data>
+      <data key="d9">4</data>
+    </node>
+
+    <!-- ===================== L1 interpreter ===================== -->
+    <node id="interp:python==3.11">
+      <data key="d0">python 3.11</data>
+      <data key="d1">Interpreter</data>
+      <data key="d2">interpreter</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python --version</data>
+      <data key="d9">2</data>
+    </node>
+
+    <!-- ===================== L0 base / OS image (substrate) ===================== -->
+    <node id="base:python:3.11-slim">
+      <data key="d0">python:3.11-slim</data>
+      <data key="d1">Base</data>
+      <data key="d2">base</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">goal</data>
+      <data key="d9">2</data>
+      <data key="d11">L0 substrate: base image + distro + glibc. Today an unmodeled assumption (§7 next step #4) — modeling it makes the bottom of the stack and the certification scope explicit.</data>
+    </node>
+
+    <!-- ===================== runtime axis (orthogonal, NOT a layer) ===================== -->
+    <node id="runtime:DATABASE_URL">
+      <data key="d0">DATABASE_URL</data>
+      <data key="d1">Runtime</data>
+      <data key="d2">runtime</data>
+      <data key="d3">missing</data>
+      <data key="d4">runtime</data>
+      <data key="d5">python -c "import os; assert os.environ['DATABASE_URL']"</data>
+      <data key="d6">report (unprovisionable from build) — do NOT loop</data>
+      <data key="d9">0</data>
+      <data key="d7">KeyError: 'DATABASE_URL'</data>
+      <data key="d11">Orthogonal axis: a fully built L0-L4 env still fails here. Folding this into the vertical stack would manufacture false certainty at the env-vs-bug boundary, so it hangs off the Test goal with a positive STOP state.</data>
+    </node>
+    <node id="runtime:postgres">
+      <data key="d0">postgres service</data>
+      <data key="d1">Runtime</data>
+      <data key="d2">runtime</data>
+      <data key="d3">missing</data>
+      <data key="d4">runtime</data>
+      <data key="d6">start service (out of build scope)</data>
+      <data key="d9">1</data>
+    </node>
+
+    <!-- ===================== edges ===================== -->
+    <!-- requires: goal -> imports -->
+    <edge source="test:repo_tests_pass" target="import:cv2"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="import:numpy"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="import:psycopg2"><data key="e0">requires</data></edge>
+
+    <!-- requires: imports -> pip distributions (naming -> pip) -->
+    <edge source="import:cv2" target="pkg:opencv-python==4.11.0.86"><data key="e0">requires</data></edge>
+    <edge source="import:numpy" target="pkg:numpy==2.2.4"><data key="e0">requires</data></edge>
+    <edge source="import:psycopg2" target="pkg:psycopg2==2.9.10"><data key="e0">requires</data></edge>
+
+    <!-- requires: pip -> pip -->
+    <edge source="pkg:opencv-python==4.11.0.86" target="pkg:numpy==2.2.4"><data key="e0">requires</data></edge>
+
+    <!-- requires: pip -> system (cross-layer, runtime shared lib) -->
+    <edge source="pkg:opencv-python==4.11.0.86" target="sys:libGL.so.1"><data key="e0">requires</data></edge>
+    <edge source="pkg:psycopg2==2.9.10" target="sys:libpq.so.5"><data key="e0">requires</data></edge>
+
+    <!-- requires: pip -> toolchain (cross-layer, BUILD-time) -->
+    <edge source="pkg:psycopg2==2.9.10" target="tool:pg_config"><data key="e0">requires</data><data key="e1">build-time</data></edge>
+    <edge source="pkg:psycopg2==2.9.10" target="tool:gcc"><data key="e0">requires</data><data key="e1">build-time</data></edge>
+
+    <!-- requires: pip -> interpreter -->
+    <edge source="pkg:numpy==2.2.4" target="interp:python==3.11"><data key="e0">requires</data></edge>
+
+    <!-- requires: lower layers rest on the L0 base -->
+    <edge source="interp:python==3.11" target="base:python:3.11-slim"><data key="e0">requires</data></edge>
+    <edge source="sys:libGL.so.1" target="base:python:3.11-slim"><data key="e0">requires</data></edge>
+    <edge source="sys:libpq.so.5" target="base:python:3.11-slim"><data key="e0">requires</data></edge>
+    <edge source="tool:pg_config" target="base:python:3.11-slim"><data key="e0">requires</data></edge>
+
+    <!-- alternative_to / conflicts_with / retracts: the cross-layer cost lever (§3.5) -->
+    <edge source="pkg:opencv-python-headless==4.11.0.86" target="pkg:opencv-python==4.11.0.86"><data key="e0">alternative_to</data></edge>
+    <edge source="pkg:opencv-python-headless==4.11.0.86" target="pkg:opencv-python==4.11.0.86"><data key="e0">conflicts_with</data></edge>
+    <edge source="pkg:opencv-python-headless==4.11.0.86" target="sys:libGL.so.1"><data key="e0">retracts</data><data key="e2">deletes the libGL apt need</data></edge>
+
+    <!-- runtime axis: orthogonal needs hanging off the goal -->
+    <edge source="test:repo_tests_pass" target="runtime:DATABASE_URL"><data key="e0">requires</data></edge>
+    <edge source="runtime:DATABASE_URL" target="runtime:postgres"><data key="e0">requires</data></edge>
+
+  </graph>
+</graphml>
