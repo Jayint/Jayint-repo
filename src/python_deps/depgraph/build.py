@@ -28,8 +28,12 @@ from __future__ import annotations
 
 import os
 import re
-import tomllib
 from dataclasses import replace
+
+try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
+    import tomli as tomllib
 
 from python_deps.depgraph.apt_verify import reconcile_apt_names
 from python_deps.depgraph.certify import certify_all
