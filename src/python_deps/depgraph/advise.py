@@ -18,7 +18,8 @@ import re
 
 from python_deps.depgraph.build import build_dep_graph
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType, State
+from python_deps.depgraph.emit import partition
+from python_deps.depgraph.schema import DepGraph, EdgeType, Layer, Node, NodeType, State
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,106 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
         lines.append(f"SATISFIED (summary): {summary}")
 
     if len(lines) == 1:  # header only — nothing worth telling the planner
+        return ""
+    return "\n".join(lines)
+
+
+_PLANNER_HEADER = (
+    "[DEPENDENCY GRAPH - unified * host-certified in live container]"
+    "  (authoritative for deps/system/toolchain; build/tests/config -> open_problems)"
+)
+
+
+def _chain_to_goal(graph: DepGraph, node: Node, limit: int = 6) -> str:
+    """Render the transitive required_by chain up to a Project/Test root.
+
+    'lxml <- app <- repo_tests_pass'. Picks one predecessor per hop (the first by
+    name) — enough to show the planner why the node matters. Cycle-guarded.
+    """
+    chain = [node.name]
+    seen = {node.id}
+    cur = node
+    for _ in range(limit):
+        preds = [p for p in graph.required_by(cur.id) if p.id not in seen]
+        if not preds:
+            break
+        cur = sorted(preds, key=lambda p: p.name)[0]
+        chain.append(cur.name)
+        seen.add(cur.id)
+        if cur.type is NodeType.TEST:
+            break
+    return " <- ".join(chain)
+
+
+def _conflict_note(graph: DepGraph, node: Node) -> str | None:
+    for e in graph.edges:
+        if e.relation is EdgeType.CONFLICTS_WITH and node.id in (e.src, e.dst):
+            other = e.dst if e.src == node.id else e.src
+            other_node = graph.get(other)
+            other_name = other_node.name if other_node else other
+            summary = e.data.get("summary") if e.data else None
+            detail = f" ({summary})" if summary else ""
+            return f"conflict: {node.name} vs {other_name}{detail}"
+    return None
+
+
+def _platform_note(node: Node) -> str | None:
+    if node.resolved_python or node.resolved_platform:
+        return f"resolved for: {node.resolved_python or '?'} / {node.resolved_platform or '?'}"
+    return None
+
+
+def render_depgraph_planner(
+    graph: DepGraph, changed_ids: frozenset[str] = frozenset()
+) -> str:
+    """Unified planner-facing render: certified counts + a rich frontier packet.
+
+    The FRONTIER is derived from ``partition(graph).frontier`` — only actionable
+    installable nodes appear; un-resolvable Import/Runtime nodes are excluded
+    (R1: frontier scoping).
+    """
+    if not graph.nodes:
+        return ""
+
+    lines = [_PLANNER_HEADER]
+
+    goal = next((n for n in graph.nodes if n.type is NodeType.TEST), None)
+    if goal is not None:
+        lines.append(f"GOAL     {goal.name:24} {goal.state.value}")
+
+    satisfied = [n for n in graph.nodes if n.state is State.SATISFIED]
+    if satisfied:
+        counts: dict[str, int] = {}
+        for n in satisfied:
+            counts[n.layer.value] = counts.get(n.layer.value, 0) + 1
+        summary = " * ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+        lines.append(f"CERTIFIED  {summary}   (host-checked in live container)")
+
+    frontier = sorted(
+        partition(graph).frontier,
+        key=lambda n: (_LAYER_RANK.get(n.layer, 9), n.name),
+    )
+    if frontier:
+        lines.append("")
+        lines.append("FRONTIER (graph could not auto-resolve - your call):")
+        for n in frontier:
+            mark = "  (re-checked this cycle)" if n.id in changed_ids else ""
+            lines.append(f"  {n.layer.value.upper():9} {n.name}   [{n.type.value}]  MISSING{mark}")
+            ev = _best_evidence_line(n.evidence)
+            if ev:
+                lines.append(f"            evidence: {ev}")
+            lines.append(f"            chain: {_chain_to_goal(graph, n)}")
+            conflict = _conflict_note(graph, n)
+            if conflict:
+                lines.append(f"            {conflict}")
+            plat = _platform_note(n)
+            if plat:
+                lines.append(f"            {plat}")
+            if n.attempts:
+                hist = "; ".join(f"{a.command} -> {a.outcome}" for a in n.attempts[-4:])
+                lines.append(f"            attempts: {hist}")
+
+    if len(lines) == 1:
         return ""
     return "\n".join(lines)
 

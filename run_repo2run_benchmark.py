@@ -213,6 +213,8 @@ def build_agent_command(
         command.append("--enable-contract-graph")
     if getattr(args, "enable_dep_graph", False):
         command.append("--enable-dep-graph")
+    if getattr(args, "enable_dep_emit", False):
+        command.append("--enable-dep-emit")
 
     return command
 
@@ -3169,6 +3171,12 @@ _ARM_PRESETS: dict[str, dict] = {
         "enable_dep_graph": True, "enable_cleanroom": True,
         "max_steps": 12, "_label": "armV1gd_dep_graph",
     },
+    "v1gde": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
+        "enable_dep_graph": True, "enable_dep_emit": True, "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gde_dep_emit",
+    },
 }
 
 
@@ -3328,14 +3336,15 @@ def parse_args() -> argparse.Namespace:
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "v1", "v1g", "v1gd"],
+        choices=["0", "v1", "v1g", "v1gd", "v1gde"],
         default=None,
         help=(
             "Ablation arm shorthand. "
             "0=bare ReAct (no EnvState flags, --steps 180); "
             "v1=three-role orchestrator Planner/BuildAgent/Maintainer "
             "(--enable-v1 --enable-cleanroom --steps 12); "
-            "v1g=v1 + contract graph reasoning layer (--enable-contract-graph). "
+            "v1g=v1 + contract graph reasoning layer (--enable-contract-graph); "
+            "v1gde=v1gd + graph-first emit (--enable-dep-emit). "
             "Overrides the individual --enable-* flags and --max-steps when set. "
             "Outputs land under <output-root>/arm{0,v1,v1g}_<label>/."
         ),

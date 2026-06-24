@@ -774,6 +774,8 @@ RUN git clone {repo_url} /testbed
             _enable_contract_graph = os.environ.get("DOCKERAGENT_ENABLE_CONTRACT_GRAPH", "").lower() in ("1", "true", "yes", "on")
             # Phase-0 dep-graph advisory (--arm v1gd). Implies v1.
             _enable_dep_graph = os.environ.get("DOCKERAGENT_ENABLE_DEP_GRAPH", "").lower() in ("1", "true", "yes", "on")
+            # Graph-first emit: certify closure + escalate frontier (--arm v1gde). Implies dep_graph.
+            _enable_dep_emit = os.environ.get("DOCKERAGENT_ENABLE_DEP_EMIT", "").lower() in ("1", "true", "yes", "on")
             _enable_det_maint = os.environ.get("DOCKERAGENT_DETERMINISTIC_MAINTAINER", "").lower() in ("1", "true", "yes", "on")
 
             agent = DockerAgent(
@@ -794,6 +796,7 @@ RUN git clone {repo_url} /testbed
                 enable_v1=_enable_v1,
                 enable_contract_graph=_enable_contract_graph,
                 enable_dep_graph=_enable_dep_graph,
+                enable_dep_emit=_enable_dep_emit,
                 enable_deterministic_maintainer=_enable_det_maint,
             )
             

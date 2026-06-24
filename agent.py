@@ -234,6 +234,7 @@ class DockerAgent:
         enable_v1=False,
         enable_contract_graph=False,
         enable_dep_graph=False,
+        enable_dep_emit=False,
         enable_deterministic_maintainer=False,
         enable_cleanroom=False,
         memory_path=None,
@@ -281,9 +282,11 @@ class DockerAgent:
         # Phase-0 dep-graph advisory (shadow): renders a host-certified dependency
         # view into the planner prompt. Advisory only; implies v1 (it needs the
         # three-role planner path). Composes with --enable-contract-graph (v1g).
-        self.enable_dep_graph = enable_dep_graph
+        self.enable_dep_emit: bool = bool(enable_dep_emit)
+        # emit needs the graph built; turning emit on implies dep_graph on.
+        self.enable_dep_graph = enable_dep_graph or self.enable_dep_emit
         self.enable_deterministic_maintainer = enable_deterministic_maintainer
-        self.enable_v1 = enable_v1 or enable_contract_graph or enable_dep_graph or enable_deterministic_maintainer
+        self.enable_v1 = enable_v1 or enable_contract_graph or self.enable_dep_graph or enable_dep_emit or enable_deterministic_maintainer
         self.enable_envstate = (
             enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
         )
@@ -1247,6 +1250,7 @@ class DockerAgent:
                 on_cycle=_on_cycle,
                 exec_readonly=self.sandbox.exec_readonly,
                 enable_contract_graph=getattr(self, "enable_contract_graph", False),
+                enable_dep_emit=getattr(self, "enable_dep_emit", False),
             )
 
             # Capture the live pip closure for the pin layer (used later in
@@ -3180,6 +3184,9 @@ if __name__ == "__main__":
                              "scratch container and render it as an advisory section in the planner "
                              "prompt (advisory only; implies --enable-v1). Composes with "
                              "--enable-contract-graph.")
+    parser.add_argument("--enable-dep-emit", action="store_true",
+                        help="Graph-first: emit the certified closure + escalate the frontier "
+                             "(implies --enable-dep-graph and --enable-v1).")
     parser.add_argument("--enable-deterministic-maintainer", action="store_true",
                         help="Replace the LLM Maintainer with a deterministic host module "
                              "(verbatim-signature blockers + correct layers; implies "
@@ -3231,6 +3238,7 @@ if __name__ == "__main__":
         enable_v1=args.enable_v1,
         enable_contract_graph=args.enable_contract_graph,
         enable_dep_graph=args.enable_dep_graph,
+        enable_dep_emit=args.enable_dep_emit,
         enable_deterministic_maintainer=args.enable_deterministic_maintainer,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,

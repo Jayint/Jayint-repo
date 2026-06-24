@@ -1,0 +1,79 @@
+from python_deps.depgraph.emit import partition
+from python_deps.depgraph.schema import (
+    DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
+)
+
+
+def _pkg(name, *, state=State.MISSING, version="1.0", bfs=None):
+    return Node(id=f"pkg:{name}", type=NodeType.PACKAGE, name=name, layer=Layer.PIP,
+                discovered_by=DiscoveredBy.RESOLVER, state=state, version=version,
+                check_command=f'python -c "import {name}"', build_from_source=bfs)
+
+
+def _tool(name, *, state=State.MISSING, apt="build-essential"):
+    return Node(id=f"tool:{name}", type=NodeType.TOOL, name=name, layer=Layer.TOOLCHAIN,
+                discovered_by=DiscoveredBy.PROBE, state=state,
+                check_command=f"command -v {name}",
+                fix_candidates=(f"apt:{apt}",), chosen_fix=f"apt:{apt}")
+
+
+def test_partition_buckets_basic():
+    g = DepGraph(nodes=(
+        _pkg("flask", state=State.SATISFIED),     # certified
+        _pkg("numpy"),                            # emittable (resolved, has version)
+        _pkg("ghost", version=None),              # frontier (unresolved)
+        _tool("gcc"),                             # emittable (single apt fix)
+    ))
+    p = partition(g)
+    assert {n.name for n in p.certified} == {"flask"}
+    assert {n.name for n in p.emittable} == {"numpy", "gcc"}
+    assert {n.name for n in p.frontier} == {"ghost"}
+
+
+def test_partition_conflict_pair_is_frontier():
+    g = DepGraph(
+        nodes=(_pkg("fastavro"), _pkg("avro")),
+        edges=(Edge(src="pkg:fastavro", dst="pkg:avro", relation=EdgeType.CONFLICTS_WITH),),
+    )
+    p = partition(g)
+    assert {n.name for n in p.frontier} == {"fastavro", "avro"}
+    assert p.emittable == ()
+
+
+def test_partition_build_from_source_waits_for_toolchain():
+    lxml = _pkg("lxml", bfs=True)
+    libxml = Node(id="syslib:libxml2", type=NodeType.SYSTEM_LIB, name="libxml2.so.2",
+                  layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+                  check_command="ldconfig -p | grep libxml2",
+                  fix_candidates=("apt:libxml2-dev",), chosen_fix="apt:libxml2-dev")
+    g = DepGraph(
+        nodes=(lxml, libxml),
+        edges=(Edge(src="pkg:lxml", dst="syslib:libxml2", relation=EdgeType.REQUIRES),),
+    )
+    # toolchain MISSING -> lxml is frontier, libxml is emittable
+    p = partition(g)
+    assert {n.name for n in p.emittable} == {"libxml2.so.2"}
+    assert {n.name for n in p.frontier} == {"lxml"}
+    # toolchain SATISFIED -> lxml becomes emittable
+    g2 = g.with_node(libxml.with_state(State.SATISFIED))
+    p2 = partition(g2)
+    assert "lxml" in {n.name for n in p2.emittable}
+
+
+def test_partition_ignores_non_installable_types():
+    g = DepGraph(nodes=(
+        Node(id="test:goal", type=NodeType.TEST, name="repo_tests_pass", layer=Layer.TESTS,
+             discovered_by=DiscoveredBy.GOAL, state=State.MISSING),
+        Node(id="imp:foo", type=NodeType.IMPORT, name="foo", layer=Layer.NAMING,
+             discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING),
+    ))
+    p = partition(g)
+    assert p.certified == () and p.emittable == () and p.frontier == ()
+
+
+def test_partition_unversioned_package_is_frontier():
+    # R6: version=None means unresolved -> LLM's call -> must land in frontier, not emittable
+    g = DepGraph(nodes=(_pkg("requests", version=None),))
+    p = partition(g)
+    assert {n.name for n in p.frontier} == {"requests"}
+    assert p.emittable == ()

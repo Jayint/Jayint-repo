@@ -222,6 +222,7 @@ def merge_map(
     import_results: tuple[tuple[str, bool], ...] | None = None,
     host_satisfied: frozenset[str] | None = None,
     dep_advisory: str | None = None,
+    dep_graph: "DepGraph | None" = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -245,6 +246,7 @@ def merge_map(
         import_results=import_results if import_results is not None else current.import_results,
         host_satisfied=host_satisfied if host_satisfied is not None else current.host_satisfied,
         dep_advisory=dep_advisory if dep_advisory is not None else current.dep_advisory,
+        dep_graph=dep_graph if dep_graph is not None else current.dep_graph,
     )
 
 

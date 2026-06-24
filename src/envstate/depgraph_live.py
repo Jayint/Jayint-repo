@@ -1,0 +1,112 @@
+"""Live integration glue: drive the dependency graph against the running agent
+container. Re-certify each node via host checks (CERTIFY) and run the emit drain
+loop (EMIT). Mutations go through build_agent.run_recipe; certification through a
+read-only executor — keeping the host-owns-truth invariant (certify.py).
+
+This is the ONLY module allowed to bridge python_deps.depgraph (pure) and
+src.envstate (the agent loop).
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable
+
+from python_deps.depgraph.certify import certify_all
+from python_deps.depgraph.emit import build_recipe, partition, topo_order
+from python_deps.depgraph.executor import CommandResult
+from python_deps.depgraph.schema import Attempt
+from src.envstate.world_model import RecipePatch, RecipeStep
+
+if TYPE_CHECKING:
+    from python_deps.depgraph.schema import DepGraph
+
+
+class _ReadonlyExecAdapter:
+    """Adapt the orchestrator's ``exec_readonly`` callable to the Executor protocol.
+
+    ``certify_all`` only needs ``run(cmd).ok`` and ``.stderr``; check_commands are
+    read-only presence checks (``command -v`` / ``ldconfig -p | grep`` /
+    ``python -c import``), so the read-only path is the correct executor.
+    """
+
+    def __init__(self, exec_readonly: Callable[[str], tuple[int, str]]) -> None:
+        self._f = exec_readonly
+
+    def run(self, command: str, *, timeout: int = 300) -> CommandResult:
+        rc, out = self._f(command)
+        return CommandResult(command=command, returncode=rc, stdout=out, stderr=out)
+
+
+def certify_refresh(graph, exec_readonly, cycle: int):
+    """Re-flip every node's state via a host check in the live container.
+
+    No-op (returns the input) when the graph is empty/None or no read-only
+    executor is available — so the feature degrades gracefully.
+    """
+    if graph is None or not graph.nodes or exec_readonly is None:
+        return graph
+    return certify_all(graph, _ReadonlyExecAdapter(exec_readonly), cycle=cycle)
+
+
+def emit_drain(
+    graph,
+    build_agent,
+    sandbox_execute,
+    ledger,
+    exec_readonly,
+    *,
+    step_offset: int,
+    cycle: int,
+    max_drain: int = 4,
+):
+    """Drain the certifiable closure: emit -> run -> re-certify, repeat.
+
+    Each pass emits the current emittable set (apt then pip), runs it through the
+    real ``build_agent.run_recipe`` (D4: repair is a free safety layer), records
+    an emit Attempt per target node, then re-certifies against the live container.
+    Certifying a toolchain unlocks the build-from-source package that needs it, so
+    the next pass picks it up (D5). Bounded by ``max_drain``.
+
+    Returns ``(new_graph, reports, steps_consumed)``.
+    """
+    reports: list = []
+    steps_consumed = 0
+    new = graph
+    if new is None or not new.nodes:
+        return new, reports, steps_consumed
+
+    for _ in range(max_drain):
+        part = partition(new)
+        if not part.emittable:
+            break
+        ordered = topo_order(new, part.emittable)
+        emit_steps = build_recipe(new, ordered)
+        if not emit_steps:
+            break
+
+        recipe = RecipePatch(steps=tuple(
+            RecipeStep(
+                id=f"emit-{cycle}-{i}",
+                kind=s.kind,
+                command=s.command,
+                target_node_ids=s.target_node_ids,
+            )
+            for i, s in enumerate(emit_steps)
+        ))
+        report = build_agent.run_recipe(
+            recipe, sandbox_execute, ledger, step_offset=step_offset + steps_consumed
+        )
+        reports.append(report)
+        steps_consumed += len(report.commands)
+
+        outcome = "succeeded" if report.status == "done" else "failed"
+        for s in emit_steps:
+            for nid in s.target_node_ids:
+                node = new.get(nid)
+                if node is not None:
+                    new = new.with_node(
+                        node.with_attempt(Attempt(command=s.command, outcome=outcome, cycle=cycle))
+                    )
+
+        new = certify_refresh(new, exec_readonly, cycle)
+
+    return new, reports, steps_consumed

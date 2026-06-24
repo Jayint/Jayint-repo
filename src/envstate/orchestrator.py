@@ -63,6 +63,7 @@ def run_v1(
     manifest=None,
     exec_readonly=None,
     enable_contract_graph: bool = False,
+    enable_dep_emit: bool = False,
 ):
     """Top-level v1 orchestrator loop.
 
@@ -100,11 +101,40 @@ def run_v1(
             current_map, ledger, snap, exec_readonly, _current_revision()
         )
 
+    def _dep_emit_phase(cycle: int) -> None:
+        nonlocal current_map, global_step
+        if not enable_dep_emit or current_map.dep_graph is None:
+            return
+        if exec_readonly is None:                      # R3(c): no certify path -> no emit
+            return
+        from python_deps.depgraph.schema import NodeType, State
+        from src.envstate.world_model import Fact
+        from src.envstate.depgraph_live import certify_refresh, emit_drain
+        from python_deps.depgraph.advise import render_depgraph_planner
+        graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
+        graph, _reports, steps = emit_drain(
+            graph, build_agent, sandbox_execute, ledger, exec_readonly,
+            step_offset=global_step, cycle=cycle,
+        )
+        global_step += steps
+        # Fold emit-certified packages into installed so the synthesizer's closure
+        # recipe includes them even when the planner finalizes immediately.
+        sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
+                    if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
+        have = {f.name for f in current_map.installed}
+        installed = current_map.installed + tuple(f for f in sat if f.name not in have)
+        advisory = render_depgraph_planner(graph)
+        current_map = merge_map(
+            current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
+        )
+
     if probe is not None and manifest is not None:
         current_map = apply_deterministic(current_map, probe(), manifest)
     _host_refresh()
 
     for cycle in range(1, max_cycles + 1):
+        # ── 0. Graph-first: certify + emit the certified closure ────────────
+        _dep_emit_phase(cycle)
         # ── 1. Planner decides what to do next ──────────────────────────────
         decision: PlannerDecision = planner.decide(current_map)
 
