@@ -9,7 +9,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate.depgraph_live import certify_refresh  # noqa: E402
+from src.envstate.depgraph_live import certify_refresh, ensure_python_shim  # noqa: E402
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy  # noqa: E402
 
 
@@ -36,3 +36,23 @@ def test_certify_refresh_noop_when_disabled_or_empty():
     g = DepGraph(nodes=(_pkg("flask"),))
     assert certify_refresh(g, None, cycle=0) is g          # no executor
     assert certify_refresh(None, lambda c: (0, ""), 0) is None  # no graph
+
+
+def test_ensure_python_shim_emits_idempotent_symlink():
+    # Fix #5: symlink python->python3 so `python -m pip show` certifies on a
+    # python3-only base (else installs never certify and the drain re-emits forever).
+    calls = []
+
+    def sandbox_execute(cmd):
+        calls.append(cmd)
+        return True, ""
+
+    ensure_python_shim(sandbox_execute)
+    assert len(calls) == 1
+    cmd = calls[0]
+    assert "command -v python" in cmd          # idempotent: no-op when python exists
+    assert "ln -sf" in cmd and "python3" in cmd  # else symlink python -> python3
+
+
+def test_ensure_python_shim_noop_and_safe_without_executor():
+    ensure_python_shim(None)  # must not raise

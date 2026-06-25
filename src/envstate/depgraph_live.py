@@ -47,6 +47,28 @@ def certify_refresh(graph, exec_readonly, cycle: int):
     return certify_all(graph, _ReadonlyExecAdapter(exec_readonly), cycle=cycle)
 
 
+def ensure_python_shim(sandbox_execute) -> None:
+    """Symlink ``python`` -> ``python3`` in the live container when ``python`` is absent.
+
+    The depgraph's check_commands invoke a bare ``python`` (e.g. ``python -m pip
+    show <pkg>``). On a python3-only base that exits 127, so a successfully-installed
+    node never certifies and the drain re-emits the same closure every cycle (the
+    e2e-smoke certify loop). This idempotent shim (a no-op when ``python`` already
+    resolves) normalizes the container to the standard python:3.x layout. Runs
+    through the MUTATING ``sandbox_execute`` so the symlink persists; best-effort,
+    never raises.
+    """
+    if sandbox_execute is None:
+        return
+    try:
+        sandbox_execute(
+            "command -v python >/dev/null 2>&1 || "
+            'ln -sf "$(command -v python3)" /usr/local/bin/python'
+        )
+    except Exception:  # noqa: BLE001 — best-effort; must never break the loop
+        pass
+
+
 def emit_drain(
     graph,
     build_agent,

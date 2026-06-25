@@ -109,8 +109,11 @@ def run_v1(
             return
         from python_deps.depgraph.schema import NodeType, State
         from src.envstate.world_model import Fact
-        from src.envstate.depgraph_live import certify_refresh, emit_drain
+        from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
         from python_deps.depgraph.advise import render_depgraph_planner
+        # Make a bare `python` resolve to python3 before any check runs, else a
+        # python3-only base fails every `python -m pip show` and nothing certifies.
+        ensure_python_shim(sandbox_execute)
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         graph, _reports, steps = emit_drain(
             graph, build_agent, sandbox_execute, ledger, exec_readonly,
