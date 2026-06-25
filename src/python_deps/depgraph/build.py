@@ -175,12 +175,40 @@ def _detect_target_platform(container_executor: Executor) -> str:
     return _ARCH_TO_PLATFORM.get(arch, DEFAULT_TARGET_PLATFORM)
 
 
+# Minor-version token in a ``Python 3.13.14`` banner.
+_PY_VER_RE = re.compile(r"(\d+\.\d+)")
+# Last-resort interpreter version when the container probe yields nothing.
+_DEFAULT_TARGET_PYTHON = "3.11"
+
+
+def _detect_target_python(
+    container_executor: Executor, default: str = _DEFAULT_TARGET_PYTHON
+) -> str:
+    """Probe the container's interpreter minor version (e.g. ``"3.13"``).
+
+    Mirrors :func:`_detect_target_platform`: the resolve MUST target the python the
+    container actually runs, or it pins versions that have no wheel for that
+    interpreter (observed: a 3.11-resolved ``pyarrow==2.0.0`` cannot build on a 3.13
+    container). Tries ``python3`` then ``python``, reading both streams (``--version``
+    historically printed to stderr). Falls back to ``default`` when nothing parses,
+    so a fake/empty executor preserves the legacy 3.11 target.
+    """
+    for cmd in ("python3 --version", "python --version"):
+        result = container_executor.run(cmd)
+        if not result.ok:
+            continue
+        m = _PY_VER_RE.search((result.stdout or "") + " " + (result.stderr or ""))
+        if m:
+            return m.group(1)
+    return default
+
+
 def build_dep_graph(
     repo_path: str,
     container_executor: Executor,
     *,
     host_executor: Executor | None = None,
-    target_python: str = "3.11",
+    target_python: str | None = None,
     target_platform: str | None = None,
     exclude_newer: str | None = None,
 ) -> DepGraph:
@@ -188,10 +216,13 @@ def build_dep_graph(
 
     ``container_executor`` runs install/probe/certify inside the target container;
     ``host_executor`` (default :class:`LocalSubprocessExecutor`) runs the
-    host-side ``uv`` resolve.  ``target_platform`` defaults to the container's arch
-    (detected once via ``uname -m``).  See the module docstring for the staged
-    pipeline.  Returns the final immutable ``DepGraph``; certificates produced
-    here are provisional (scratch-container scope) per design section 4.6.
+    host-side ``uv`` resolve.  ``target_python`` and ``target_platform`` BOTH
+    default to the container's actual interpreter/arch (detected once via
+    ``python3 --version`` / ``uname -m``) so the resolved closure is installable on
+    the real target — a hardcoded python would pin wheels for the wrong interpreter.
+    See the module docstring for the staged pipeline.  Returns the final immutable
+    ``DepGraph``; certificates produced here are provisional (scratch-container
+    scope) per design section 4.6.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -210,6 +241,8 @@ def build_dep_graph(
         exclude_newer = compute_exclude_newer(roots)
 
     # Stage 3 — HOST-side uv resolve, targeted at the container.
+    if target_python is None:
+        target_python = _detect_target_python(container_executor)
     platform = target_platform or _detect_target_platform(container_executor)
     pkg_nodes, pkg_edges = resolve_closure(
         roots,
