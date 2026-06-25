@@ -93,3 +93,28 @@ def test_emit_drain_unlocks_build_from_source_across_passes():
     assert new.get("syslib:libxml2").state is State.SATISFIED
     assert new.get("pkg:lxml").state is State.SATISFIED
     assert len(ba.recipes) == 2            # pass 1: apt; pass 2: pip (after toolchain certified)
+
+
+class _FailingBuildAgent:
+    def __init__(self):
+        self.recipes = []
+
+    def run_recipe(self, recipe, sandbox_execute, ledger, step_offset=0):
+        self.recipes.append(recipe)
+        cmds = [CommandRecord(s.command, 1, "boom") for s in recipe.steps]
+        return TaskReport("emit", "blocked", tuple(cmds), "failed", completed_steps=0)
+
+
+def test_emit_drain_stops_re_emitting_after_backoff():
+    # Fix #3: a perpetually-failing emit must stop after MAX_EMIT_ATTEMPTS passes
+    # instead of re-emitting up to max_drain (=4) — and the node ends on the frontier.
+    from python_deps.depgraph.emit import MAX_EMIT_ATTEMPTS, partition
+
+    g = DepGraph(nodes=(_pkg("doomed"),))
+    ba = _FailingBuildAgent()
+    new, reports, steps = emit_drain(
+        g, ba, lambda c: (False, "fail"), ActionLedger(), lambda c: (1, "no"),
+        step_offset=0, cycle=1,
+    )
+    assert len(ba.recipes) == MAX_EMIT_ATTEMPTS          # backoff, not a max_drain loop
+    assert "pkg:doomed" in {n.id for n in partition(new).frontier}

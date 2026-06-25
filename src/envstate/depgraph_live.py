@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from python_deps.depgraph.certify import certify_all
-from python_deps.depgraph.emit import build_recipe, partition, topo_order
+from python_deps.depgraph.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
 from python_deps.depgraph.executor import CommandResult
 from python_deps.depgraph.schema import Attempt
 from src.envstate.world_model import RecipePatch, RecipeStep
@@ -103,8 +103,13 @@ def emit_drain(
             for nid in s.target_node_ids:
                 node = new.get(nid)
                 if node is not None:
+                    # check=EMIT_ATTEMPT_TAG lets partition's backoff count failed
+                    # emits and demote a doomed node to the frontier (no re-emit loop).
                     new = new.with_node(
-                        node.with_attempt(Attempt(command=s.command, outcome=outcome, cycle=cycle))
+                        node.with_attempt(Attempt(
+                            command=s.command, outcome=outcome, cycle=cycle,
+                            check=EMIT_ATTEMPT_TAG,
+                        ))
                     )
 
         new = certify_refresh(new, exec_readonly, cycle)

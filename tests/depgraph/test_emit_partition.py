@@ -1,6 +1,8 @@
-from python_deps.depgraph.emit import partition
+import dataclasses
+
+from python_deps.depgraph.emit import MAX_EMIT_ATTEMPTS, partition
 from python_deps.depgraph.schema import (
-    DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
+    Attempt, DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )
 
 
@@ -77,3 +79,24 @@ def test_partition_unversioned_package_is_frontier():
     p = partition(g)
     assert {n.name for n in p.frontier} == {"requests"}
     assert p.emittable == ()
+
+
+def test_partition_demotes_repeatedly_failed_emit_to_frontier():
+    # Fix #3: a resolved package that has failed to emit MAX_EMIT_ATTEMPTS times must
+    # stop being emittable and escalate to the frontier (no infinite re-emit loop).
+    fails = tuple(
+        Attempt(command="python3 -m pip install --break-system-packages numpy==1.0",
+                outcome="failed", check="emit", cycle=c)
+        for c in range(MAX_EMIT_ATTEMPTS)
+    )
+    looped = dataclasses.replace(_pkg("numpy"), attempts=fails)
+    # one short of the cap is still emittable; at the cap it is demoted
+    nearly = dataclasses.replace(_pkg("numpy"), attempts=fails[:1])
+
+    p = partition(DepGraph(nodes=(looped,)))
+    assert {n.name for n in p.frontier} == {"numpy"}
+    assert p.emittable == ()
+
+    if MAX_EMIT_ATTEMPTS > 1:
+        p2 = partition(DepGraph(nodes=(nearly,)))
+        assert {n.name for n in p2.emittable} == {"numpy"}

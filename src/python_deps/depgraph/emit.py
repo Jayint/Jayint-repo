@@ -28,6 +28,20 @@ _INSTALLABLE: tuple[NodeType, ...] = (
     NodeType.TOOL,
 )
 
+# Emit attempts are tagged with this sentinel in Attempt.check (set by
+# depgraph_live.emit_drain). A node that fails to emit this many times stops being
+# emittable and is escalated to the FRONTIER for the LLM — without this, the drain
+# re-emits the same doomed closure every cycle (observed: 12 identical attempts).
+EMIT_ATTEMPT_TAG = "emit"
+MAX_EMIT_ATTEMPTS = 2
+
+
+def _failed_emit_attempts(node: Node) -> int:
+    return sum(
+        1 for a in node.attempts
+        if a.check == EMIT_ATTEMPT_TAG and a.outcome == "failed"
+    )
+
 
 @dataclass(frozen=True)
 class Partition:
@@ -59,6 +73,8 @@ def _is_emittable(graph: DepGraph, node: Node, conflicted: set[str]) -> bool:
         return False
     if node.id in conflicted:
         return False
+    if _failed_emit_attempts(node) >= MAX_EMIT_ATTEMPTS:
+        return False               # repeatedly failed to emit -> the LLM's call
     if node.type is NodeType.PACKAGE:
         if not node.version:           # unresolved -> the LLM's call
             return False
@@ -179,9 +195,13 @@ def build_recipe(graph: DepGraph, ordered: tuple[Node, ...]) -> tuple[EmitStep, 
 
     if packages:
         specs = " ".join(_pip_spec(n) for n in packages)
+        # python3 (not `python`): real agent bases often ship only python3 (a bare
+        # `python` exits 127). --break-system-packages: those bases are usually
+        # PEP-668 externally-managed, which otherwise blocks a system pip install.
+        # Both are no-ops on a clean python image, so this stays portable.
         steps.append(EmitStep(
             kind="python_install",
-            command="python -m pip install " + specs,
+            command="python3 -m pip install --break-system-packages " + specs,
             target_node_ids=tuple(n.id for n in packages),
         ))
     return tuple(steps)

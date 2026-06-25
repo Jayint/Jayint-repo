@@ -22,7 +22,9 @@ def test_build_recipe_apt_then_pip_pinned():
     steps = build_recipe(g, ordered)
     assert [s.kind for s in steps] == ["system_install", "python_install"]
     assert steps[0].command == "apt-get update && apt-get install -y build-essential"
-    assert steps[1].command == "python -m pip install numpy==1.26.4 lxml==5.1.0"
+    assert steps[1].command == (
+        "python3 -m pip install --break-system-packages numpy==1.26.4 lxml==5.1.0"
+    )
     assert steps[1].target_node_ids == ("pkg:numpy", "pkg:lxml")
 
 
