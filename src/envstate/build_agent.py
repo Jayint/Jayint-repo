@@ -549,6 +549,8 @@ class BuildAgent:
         sandbox_execute: Callable[[str], tuple[bool, str]],
         ledger: ActionLedger,
         step_offset: int = 0,
+        check: str | None = None,
+        budget: int = LOCAL_BUDGET,
     ) -> TaskReport:
         """Mini-ReAct loop capped at LOCAL_BUDGET shell actions.
 
@@ -566,7 +568,20 @@ class BuildAgent:
         empty_responses = 0
         steps_executed = 0
 
-        for _step in range(LOCAL_BUDGET):
+        for _step in range(budget):
+            # Scheduler mode: the host check is the only done-signal. Probe it at
+            # the top of each iteration, before any LLM call, and finalize the
+            # instant it passes.
+            if check is not None:
+                ok, _out = sandbox_execute(check)
+                if ok:
+                    return TaskReport(
+                        task_goal=task.goal,
+                        status="done",
+                        commands=tuple(history),
+                        learning=f"host check satisfied: {check}",
+                    )
+
             text, usage, raw_response = complete_with_retry(
                 self.client,
                 self.model,
@@ -581,7 +596,10 @@ class BuildAgent:
             action = _extract_worker_action(text)
             finished = _is_worker_finished(text)
 
-            if finished:
+            # When a host check is active it is the only done-signal: the LLM's
+            # self-declaration ("Final Answer: Success") MUST NOT finalize
+            # (anti-hollow-success). Only the top-of-loop host check finalizes.
+            if finished and check is None:
                 return TaskReport(
                     task_goal=task.goal,
                     status="done",
@@ -687,7 +705,7 @@ class BuildAgent:
             task_goal=task.goal,
             status="blocked",
             commands=tuple(history),
-            learning=f"Ran out of local budget ({LOCAL_BUDGET} steps)",
+            learning=f"Ran out of local budget ({budget} steps)",
         )
 
     # ------------------------------------------------------------------

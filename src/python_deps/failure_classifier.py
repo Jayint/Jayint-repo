@@ -164,3 +164,54 @@ def _excerpt(text: str, start: int, max_chars: int = 500) -> str:
         start = 0
     excerpt = text[start:start + max_chars].strip()
     return re.sub(r"\s+", " ", excerpt)
+
+
+# ---------------------------------------------------------------------------
+# Runtime sub-parsers (Task 1 & 2 — runtime_classify.py consumers)
+# ---------------------------------------------------------------------------
+
+# Env-var names are ALL_CAPS or UPPER_with_underscores (at least one uppercase
+# letter; no purely lowercase keys to avoid false-positive dict lookups).
+_CONFIG_KEYERROR_RE = re.compile(
+    r"""KeyError:\s*['"]([A-Z][A-Z0-9_]*)['"]"""
+)
+
+# pydantic v1: field name on its own line before "field required"
+# pydantic v2: field name on its own line before "Field required [type=missing"
+_CONFIG_PYDANTIC_RE = re.compile(
+    r"^([A-Z][A-Z0-9_]+)\n\s+(?:field required|Field required)",
+    re.MULTILINE,
+)
+
+
+def classify_config_error(command: str, output: str) -> str | None:
+    """Return the env-var name if ``output`` looks like a missing config error, else None."""
+    text = output or ""
+    m = _CONFIG_KEYERROR_RE.search(text)
+    if m:
+        return m.group(1)
+    m = _CONFIG_PYDANTIC_RE.search(text)
+    if m:
+        return m.group(1)
+    return None
+
+
+_TOOL_COMMAND_NOT_FOUND_RE = re.compile(
+    r"(?:^|[\s/])([A-Za-z0-9_.-]+):\s+(?:command not found|not found)",
+    re.MULTILINE,
+)
+_TOOL_FILENOTFOUNDERROR_RE = re.compile(
+    r"FileNotFoundError:.*?['\"]([A-Za-z0-9_.-]+)['\"]"
+)
+
+
+def classify_tool_error(command: str, output: str) -> str | None:
+    """Return the tool name if ``output`` looks like a missing executable, else None."""
+    text = output or ""
+    m = _TOOL_COMMAND_NOT_FOUND_RE.search(text)
+    if m:
+        return m.group(1)
+    m = _TOOL_FILENOTFOUNDERROR_RE.search(text)
+    if m:
+        return m.group(1)
+    return None

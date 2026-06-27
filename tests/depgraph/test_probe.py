@@ -688,6 +688,76 @@ def test_probe_returns_new_graph_originals_unchanged(fake_executor, make_result_
     assert len(graph.get(imp.id).attempts) == 0
 
 
+class _ContentExecutor:
+    """Fails any `pip install` whose command contains a build-failing spec.
+    A package that re-pulls the failing one (a requirer) therefore also fails,
+    naming the failing wheel in stderr — modelling pip's transitive re-pull."""
+
+    def __init__(self, make_result, fail_substrings, fail_stderr):
+        self.calls = []
+        self._mk = make_result
+        self._fail = list(fail_substrings)
+        self._stderr = fail_stderr
+
+    def run(self, command, *, timeout=300):
+        self.calls.append(command)
+        if "pip install" in command and any(s in command for s in self._fail):
+            return self._mk(returncode=1, stderr=self._stderr)
+        return self._mk(returncode=0, stdout="Successfully installed")
+
+
+def test_survivor_salvage_drops_direct_requirer_of_failed_build(make_result_fixture):
+    # requirer --requires--> failing (un-buildable). Dropping `failing` alone leaves
+    # `requirer`, which re-pulls it. The salvage must drop BOTH and install `clean`.
+    clean = _package("clean-pkg", "1.0")
+    failing = _package("failing-pkg", "1.0")
+    requirer = _package("requirer-pkg", "1.0")
+    graph = (
+        DepGraph().with_node(clean).with_node(failing).with_node(requirer)
+        .with_edge(Edge(src=requirer.id, dst=failing.id,
+                        relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    ex = _ContentExecutor(
+        make_result_fixture,
+        fail_substrings=["failing-pkg", "requirer-pkg"],   # requirer re-pulls failing
+        fail_stderr="Failed building wheel for failing-pkg\n",
+    )
+
+    out = install_closure(graph, ex)
+
+    install_cmds = [c for c in ex.calls if "pip install" in c]
+    final = install_cmds[-1]
+    assert "clean-pkg==1.0" in final
+    assert "failing-pkg" not in final and "requirer-pkg" not in final
+    assert any(a.outcome == "succeeded" for a in out.get(clean.id).attempts)
+
+
+def test_survivor_salvage_drops_transitive_requirer_chain(make_result_fixture):
+    # grand --requires--> mid --requires--> failing. ALL of mid+grand must be dropped.
+    clean = _package("clean-pkg", "1.0")
+    failing = _package("failing-pkg", "1.0")
+    mid = _package("mid-pkg", "1.0")
+    grand = _package("grand-pkg", "1.0")
+    graph = (
+        DepGraph().with_node(clean).with_node(failing).with_node(mid).with_node(grand)
+        .with_edge(Edge(src=mid.id, dst=failing.id, relation=EdgeType.REQUIRES, origin="resolver"))
+        .with_edge(Edge(src=grand.id, dst=mid.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    ex = _ContentExecutor(
+        make_result_fixture,
+        fail_substrings=["failing-pkg", "mid-pkg", "grand-pkg"],  # all re-pull failing
+        fail_stderr="Failed building wheel for failing-pkg\n",
+    )
+
+    out = install_closure(graph, ex)
+
+    final = [c for c in ex.calls if "pip install" in c][-1]
+    assert "clean-pkg==1.0" in final
+    for dropped in ("failing-pkg", "mid-pkg", "grand-pkg"):
+        assert dropped not in final
+    assert any(a.outcome == "succeeded" for a in out.get(clean.id).attempts)
+
+
 def test_import_probe_unknown_soname_uses_apt_file_fallback(fake_executor, make_result_fixture):
     # An import whose runtime gap is a soname NOT in the curated table.
     imp = _import("widget")

@@ -59,3 +59,26 @@ def test_frontier_excludes_non_installable_imports():
     # IMPORT is non-installable; partition().frontier excludes it -> not in FRONTIER
     assert "FRONTIER" not in out
     assert "foo" not in out
+
+
+def test_runtime_config_and_service_nodes_surface_in_planner():
+    """C1: RUNTIME CONFIG + SERVICE nodes must appear in render_depgraph_planner output."""
+    test_node = Node(
+        id="test:goal", type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL, state=State.MISSING,
+    )
+    config_node = Node(
+        id="config:DATABASE_URL", type=NodeType.CONFIG, name="DATABASE_URL",
+        layer=Layer.CONFIG, discovered_by=DiscoveredBy.RUNTIME, state=State.UNKNOWN,
+        evidence="KeyError: 'DATABASE_URL'",
+    )
+    service_node = Node(
+        id="service:postgres", type=NodeType.SERVICE, name="postgres",
+        layer=Layer.CONFIG, discovered_by=DiscoveredBy.RUNTIME, state=State.UNKNOWN,
+        evidence="psycopg2.OperationalError: could not connect to server",
+    )
+    g = DepGraph(nodes=(test_node, config_node, service_node))
+    out = render_depgraph_planner(g)
+    assert "RUNTIME-DISCOVERED" in out
+    assert "DATABASE_URL" in out
+    assert "postgres" in out

@@ -8,6 +8,7 @@ CURATED_IMPORT_TO_PACKAGE = {
     "bs4": "beautifulsoup4",
     "cv2": "opencv-python",
     "django_filters": "django-filter",
+    "factory": "factory-boy",
     "fitz": "PyMuPDF",
     "image": "Pillow",
     "lxml": "lxml",
@@ -16,6 +17,7 @@ CURATED_IMPORT_TO_PACKAGE = {
     "pil": "Pillow",
     "psycopg2": "psycopg2",
     "sklearn": "scikit-learn",
+    "socketio": "python-socketio",
     "yaml": "PyYAML",
 }
 

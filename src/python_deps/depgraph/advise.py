@@ -19,7 +19,7 @@ import re
 from python_deps.depgraph.build import build_dep_graph
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.emit import partition
-from python_deps.depgraph.schema import DepGraph, EdgeType, Layer, Node, NodeType, State
+from python_deps.depgraph.schema import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ _LAYER_RANK: dict[Layer, int] = {
     Layer.TOOLCHAIN: 2,
     Layer.PIP: 3,
     Layer.NAMING: 4,
+    Layer.CONFIG: 5,
     Layer.RUNTIME: 5,
     Layer.TESTS: 6,
 }
@@ -134,7 +135,12 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
             if nb:
                 lines.append(f"            needed by: {', '.join(nb)}")
             if n.fix_candidates:
-                lines.append(f"            fix-candidate: {', '.join(n.fix_candidates)}")
+                marker = "  (value needed)" if any(
+                    f.endswith("=?") for f in n.fix_candidates
+                ) else ""
+                lines.append(
+                    f"            fix-candidate: {', '.join(n.fix_candidates)}{marker}"
+                )
             attempts = _recent_attempts(n)
             if attempts:
                 lines.append(f"            attempts: {attempts}")
@@ -147,6 +153,23 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
         summary = " * ".join(f"{k} {v}" for k, v in sorted(counts.items()))
         lines.append("")
         lines.append(f"SATISFIED (summary): {summary}")
+
+    services = sorted(
+        (n for n in graph.nodes if n.type is NodeType.SERVICE), key=lambda n: n.name
+    )
+    if services:
+        lines.append("")
+        lines.append("SERVICES (declared — reachability NOT certified here):")
+        for n in services:
+            conf = n.data.get("service_confidence", "inferred")
+            fix = n.fix_candidates[0] if n.fix_candidates else "?"
+            line = f"  {n.name:10} [{conf}]   fix: {fix}"
+            bound = n.data.get("bound_config")
+            if bound:
+                line += f"   addresses: {bound}"
+            if conf == "inferred":
+                line += "   (may be mocked — agent's call)"
+            lines.append(line)
 
     if len(lines) == 1:  # header only — nothing worth telling the planner
         return ""
@@ -248,6 +271,23 @@ def render_depgraph_planner(
                 hist = "; ".join(f"{a.command} -> {a.outcome}" for a in n.attempts[-4:])
                 lines.append(f"            attempts: {hist}")
 
+    frontier_ids = {n.id for n in frontier}
+    runtime_nodes = sorted(
+        (n for n in graph.nodes
+         if n.discovered_by is DiscoveredBy.RUNTIME and n.id not in frontier_ids),
+        key=lambda n: (_LAYER_RANK.get(n.layer, 9), n.name),
+    )
+    if runtime_nodes:
+        lines.append("")
+        lines.append("RUNTIME-DISCOVERED (observed this run — not in the static frontier):")
+        for n in runtime_nodes:
+            lines.append(
+                f"  {n.layer.value.upper():9} {n.name}   [{n.type.value}]  {n.state.value}"
+            )
+            ev = _best_evidence_line(n.evidence)
+            if ev:
+                lines.append(f"            evidence: {ev}")
+
     if len(lines) == 1:
         return ""
     return "\n".join(lines)
@@ -258,6 +298,7 @@ def build_advisory_for_repo(
     base_image: str,
     *,
     host_executor: Executor | None = None,
+    target_python: str | None = None,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
 
@@ -275,7 +316,9 @@ def build_advisory_for_repo(
 
         host = host_executor or LocalSubprocessExecutor()
         with DockerExecutor(base_image) as scratch:
-            graph = build_dep_graph(repo_path, scratch, host_executor=host)
+            graph = build_dep_graph(
+                repo_path, scratch, host_executor=host, target_python=target_python
+            )
         return render_dep_graph_advisory(graph), graph
     except Exception as exc:  # noqa: BLE001 — advisory must never break a run
         logger.warning("dep-graph advisory unavailable: %s", exc)

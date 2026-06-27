@@ -342,3 +342,38 @@ def test_build_invokes_certified_relink_stage(tmp_path):
     # Stage 4a must run before the import probe so its certified edges exist when
     # import_probe attributes gaps to owning packages.
     assert relink_idx < import_idx
+
+
+def test_build_includes_config_nodes(tmp_path):
+    """scan_config is wired: CONFIG node for os.environ read appears in graph."""
+    from conftest import FakeExecutor  # type: ignore
+    from python_deps.depgraph.schema import NodeType
+
+    # minimal repo that reads an env var its code needs
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "app"\nversion = "0"\n')
+    pkg = tmp_path / "app"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    (pkg / "settings.py").write_text("import os\nSECRET_KEY = os.environ['SECRET_KEY']\n")
+
+    ex = FakeExecutor(default=_r(returncode=1, stderr="x"))
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex, target_python="3.11")
+    config_names = {n.name for n in graph.nodes if n.type is NodeType.CONFIG}
+    assert "SECRET_KEY" in config_names
+
+
+def test_build_includes_service_nodes(tmp_path):
+    from conftest import FakeExecutor  # type: ignore
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "app"\nversion = "0"\n')
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "__init__.py").write_text("")
+    (tmp_path / "app" / "db.py").write_text("import psycopg2\n")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  test:\n    services:\n      postgres:\n        image: postgres:14\n")
+
+    from python_deps.depgraph.build import build_dep_graph
+    from python_deps.depgraph.schema import NodeType
+    ex = FakeExecutor(default=_r(returncode=1, stderr="x"))
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex, target_python="3.11")
+    assert "postgres" in {n.name for n in graph.nodes if n.type is NodeType.SERVICE}

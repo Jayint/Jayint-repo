@@ -75,6 +75,43 @@ def _parse_requirements_txt(workplace: str, filename: str, seen: set[str]) -> li
     return facts
 
 
+def _load_pyproject(workplace: str) -> dict | None:
+    """Parse ``pyproject.toml`` to a dict, or ``None`` when absent/malformed."""
+    raw = _read_text(os.path.join(workplace, "pyproject.toml"))
+    if raw is None:
+        return None
+    try:
+        return tomllib.loads(raw)
+    except Exception:
+        return None
+
+
+def read_requires_python(workplace: str) -> str | None:
+    """Return the project's declared python constraint as a RAW spec string.
+
+    Prefers PEP 621 ``[project].requires-python`` (e.g. ``">=3.10,<3.13"``);
+    falls back to poetry's ``[tool.poetry.dependencies].python`` (e.g. ``"^3.10"``).
+    Returns ``None`` when neither is declared. Interpreting the string (caret
+    normalization, picking a concrete minor) is choose_python_minor's job, not
+    this reader's. Pure, never raises.
+    """
+    pyproject = _load_pyproject(workplace)
+    if not pyproject:
+        return None
+    pep621 = pyproject.get("project", {}).get("requires-python")
+    if isinstance(pep621, str) and pep621.strip():
+        return pep621.strip()
+    poetry_py = (
+        pyproject.get("tool", {})
+        .get("poetry", {})
+        .get("dependencies", {})
+        .get("python")
+    )
+    if isinstance(poetry_py, str) and poetry_py.strip():
+        return poetry_py.strip()
+    return None
+
+
 def parse_manifests(workplace: str) -> ManifestResult:
     build_system = "unknown"
     facts: list[Fact] = []

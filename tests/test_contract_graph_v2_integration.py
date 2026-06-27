@@ -115,6 +115,8 @@ class _BuildAgentWithLedger:
         sandbox_execute: object,
         ledger: ActionLedger,
         step_offset: int = 0,
+        check=None,
+        budget=None,
     ) -> TaskReport:
         ledger.append(ActionEvent(
             step=1,

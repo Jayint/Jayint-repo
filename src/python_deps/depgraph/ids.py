@@ -42,3 +42,15 @@ def tool_id(tool: str) -> str:
 
 def project_id(name: str) -> str:
     return f"project:{slug(name)}"
+
+
+def config_id(name: str) -> str:
+    return f"config:{name}"
+
+
+def service_id(name: str) -> str:
+    return f"service:{name}"
+
+
+def runtime_id(minor: str) -> str:
+    return f"runtime:python-{minor}"

@@ -223,3 +223,45 @@ def test_certify_all_certifies_each_node(make_result_fixture):
     assert out.get(package_id("numpy", "1.26.4")).state is State.SATISFIED
     assert out.get(package_id("numpy", "1.26.4")).certified_cycle == 5
     assert out.get(import_id("numpy")).state is State.MISSING
+
+
+# --- Task 4: certify Config-layer nodes ---
+
+def test_certify_all_certifies_config_nodes():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.certify import certify_all
+
+    class FakeResult:
+        def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
+    class FakeExecutor:
+        def run(self, cmd):
+            # printenv of a set var returns rc 0; everything else rc 0 too here.
+            return FakeResult(ok=cmd.startswith("printenv DJANGO_SETTINGS_MODULE"))
+
+    cfg = Node(id="config:DJANGO_SETTINGS_MODULE", type=NodeType.CONFIG,
+               name="DJANGO_SETTINGS_MODULE", layer=Layer.CONFIG,
+               discovered_by=DiscoveredBy.STATIC_SCAN,
+               check_command="printenv DJANGO_SETTINGS_MODULE")
+    g = DepGraph().with_node(cfg)
+    out = certify_all(g, FakeExecutor())
+    assert out.get("config:DJANGO_SETTINGS_MODULE").state is State.SATISFIED
+
+
+def test_certify_skips_service_nodes():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.certify import certify
+
+    class FakeResult:
+        def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
+    class FakeExecutor:
+        def __init__(self): self.calls = []
+        def run(self, cmd): self.calls.append(cmd); return FakeResult(ok=True)
+
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
+               check_command="pg_isready -h postgres -p 5432")
+    g = DepGraph().with_node(svc)
+    ex = FakeExecutor()
+    out = certify(g, "service:postgres", ex)
+    assert out.get("service:postgres").state is State.UNKNOWN  # never certified
+    assert ex.calls == []  # the probe was never run in the scratch container

@@ -137,3 +137,58 @@ def emit_drain(
         new = certify_refresh(new, exec_readonly, cycle)
 
     return new, reports, steps_consumed
+
+
+def repair_failed_nodes(
+    graph,
+    build_agent,
+    sandbox_execute,
+    ledger,
+    exec_readonly,
+    *,
+    step_offset: int,
+    cycle: int,
+    repaired_ids: set,
+    max_repair: int = 3,
+    budget: int = 5,
+):
+    """Host-first repair of reciped nodes the batch wave could not certify.
+
+    For each failed reciped node not already in ``repaired_ids`` (capped at
+    ``max_repair`` per call), frame a one-node ``Task`` and run a bounded
+    host-first repair: ``BuildAgent.run`` with ``check=node.check_command`` and
+    ``budget=budget`` — the LLM only proposes commands, the HOST check is the
+    stop. Re-certify after each. One repair per node per run (cross-cycle memory
+    lives in the caller's ``repaired_ids`` set).
+
+    Returns ``(new_graph, steps_consumed, repaired_count)``.
+    """
+    from python_deps.depgraph.emit import failed_reciped_nodes
+    from src.envstate.world_model import Task
+
+    steps = 0
+    repaired = 0
+    new = graph
+    for node in failed_reciped_nodes(new):
+        if repaired >= max_repair:
+            break
+        if node.id in repaired_ids:
+            continue
+        repaired_ids.add(node.id)
+        task = Task(
+            goal=f"Make the host check `{node.check_command}` succeed for "
+                 f"{node.type.name} '{node.name}'. A batched install left it unsatisfied; "
+                 f"read the error and provide whatever it needs (e.g. a system library).",
+            done_when=node.check_command,
+            layer=getattr(node.layer, "name", "pip").lower(),
+            facts=(f"node: {node.id}",),
+            target_node_ids=(node.id,),
+        )
+        report = build_agent.run(
+            task, sandbox_execute, ledger, step_offset=step_offset + steps,
+            check=node.check_command, budget=budget,
+        )
+        steps += len(report.commands)
+        repaired += 1
+        new = certify_refresh(new, exec_readonly, cycle)   # HOST flips state, not the LLM
+    return new, steps, repaired

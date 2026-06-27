@@ -68,7 +68,7 @@ def test_run_v1_terminal_map_progress_tests_matches_done_flag():
                     if self.n == 1 else PlannerDecision(action="done"))
 
     class _Build:
-        def run(self, task, ex, ledger, step_offset=0):
+        def run(self, task, ex, ledger, step_offset=0, check=None, budget=None):
             return TaskReport("g", "done",
                               (CommandRecord(_EXEC_CMD, 0, _EXEC_OUTPUT),), "ok")
 

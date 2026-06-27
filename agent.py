@@ -32,6 +32,46 @@ from dotenv import load_dotenv
 # override=True ensures .env values take precedence over system env vars
 load_dotenv(override=True)
 
+
+def _apply_runtime_pin(enable_runtime_pin, workplace, base_image):
+    """Return the RuntimeBaseDecision for this repo, or None when the pin is off,
+    the base/workplace are unusable, or resolution raises. The decision carries the
+    pinned base (.base_image), chosen minor (.minor), and provenance (.reason). The
+    run must proceed exactly as if off on any failure — never raises."""
+    import os
+    if not enable_runtime_pin or not base_image or not os.path.isdir(workplace or ""):
+        return None
+    try:
+        from src.envstate.runtime_base import resolve_runtime_base
+        return resolve_runtime_base(workplace, base_image)
+    except Exception as exc:  # noqa: BLE001 — pin must never break a run
+        print(f"[runtime-pin] unavailable ({exc}); keeping {base_image}")
+        return None
+
+
+def _runtime_pin_summary(final_dep_graph, decision, original_base):
+    """A/B record for the run summary. `certified` is read from the LIVE final
+    graph (certify_refresh ran it in the agent container) — NOT the scratch graph,
+    whose certify would be tautological. None-safe; returns None when the pin was
+    off (no decision)."""
+    if decision is None:
+        return None
+    certified = None
+    if final_dep_graph is not None:
+        from python_deps.depgraph.ids import runtime_id
+        node = final_dep_graph.get(runtime_id(decision.minor))
+        if node is not None:
+            certified = node.state.value  # "satisfied" | "missing" | "unknown"
+    return {
+        "required": decision.minor,
+        "reason": decision.reason,
+        "original_base": original_base,
+        "pinned_base": decision.base_image,
+        "base_changed": decision.base_image != original_base,
+        "certified": certified,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Repo-layout helpers (used by _run_v1 to derive the initial WorldModelMap)
 # ---------------------------------------------------------------------------
@@ -235,6 +275,9 @@ class DockerAgent:
         enable_contract_graph=False,
         enable_dep_graph=False,
         enable_dep_emit=False,
+        enable_runtime_feedback=False,
+        enable_graph_scheduler=False,
+        enable_runtime_pin=False,
         enable_deterministic_maintainer=False,
         enable_cleanroom=False,
         memory_path=None,
@@ -282,10 +325,26 @@ class DockerAgent:
         # Phase-0 dep-graph advisory (shadow): renders a host-certified dependency
         # view into the planner prompt. Advisory only; implies v1 (it needs the
         # three-role planner path). Composes with --enable-contract-graph (v1g).
-        self.enable_dep_emit: bool = bool(enable_dep_emit)
+        # Graph scheduler (DECIDE=graph, EXECUTE=agent, CERTIFY=host). It needs the
+        # dep graph built + certified each cycle, so it implies enable_dep_emit (which
+        # runs certify_refresh to populate the frontier). The deterministic emit drain
+        # is suppressed inside the orchestrator under this flag, not here.
+        self.enable_graph_scheduler: bool = bool(enable_graph_scheduler)
+        self.enable_runtime_feedback: bool = bool(enable_runtime_feedback) or self.enable_graph_scheduler
+        self.enable_dep_emit: bool = bool(enable_dep_emit) or self.enable_runtime_feedback or self.enable_graph_scheduler
         # emit needs the graph built; turning emit on implies dep_graph on.
         self.enable_dep_graph = enable_dep_graph or self.enable_dep_emit
-        self.enable_deterministic_maintainer = enable_deterministic_maintainer
+        # Graph scheduler keeps OBSERVE fully deterministic: the dep_graph is updated by
+        # the deterministic runtime-feedback (_runtime_ingest_phase) and done_flag by the
+        # deterministic maintainer — so imply it and drop the redundant LLM Maintainer
+        # ("reflection", ~65% of run tokens). This implication is applied AFTER the
+        # contract-graph line above (which reads the RAW enable_deterministic_maintainer
+        # param), so it does NOT force enable_contract_graph on: under the scheduler, done
+        # stays the pure two-oracle (dep-graph frontier + tests), not a contract-graph gate.
+        self.enable_deterministic_maintainer = bool(enable_deterministic_maintainer) or self.enable_graph_scheduler
+        # Runtime-tier base pin: orthogonal to the graph arms — rewrites the base
+        # image's python BEFORE the sandbox is built. Independent toggle (no implies).
+        self.enable_runtime_pin: bool = bool(enable_runtime_pin)
         self.enable_v1 = enable_v1 or enable_contract_graph or self.enable_dep_graph or enable_dep_emit or enable_deterministic_maintainer
         self.enable_envstate = (
             enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
@@ -445,6 +504,22 @@ class DockerAgent:
             self.language_handler = None
             self.repo_docs = ""
         
+        # 4b. Runtime-tier pin (gated): rewrite the base image's python to the
+        # project's requires-python BEFORE the sandbox is built. self.base_image is
+        # read back at the scratch-graph build (line ~1020); the decision + the pre-pin
+        # base are stored for the run-summary metric (Task 3.2).
+        self._runtime_pin_decision = _apply_runtime_pin(
+            getattr(self, "enable_runtime_pin", False), self.workplace, base_image
+        )
+        if self._runtime_pin_decision is not None:
+            self._runtime_pin_original_base = base_image
+            if self._runtime_pin_decision.base_image != base_image:
+                print(f"[runtime-pin] base {base_image} -> "
+                      f"{self._runtime_pin_decision.base_image} "
+                      f"({self._runtime_pin_decision.reason})")
+            base_image = self._runtime_pin_decision.base_image
+        self.base_image = base_image
+
         # 5. Setup Sandbox with a copied workspace so rollback restores repo state too.
         self.sandbox = self._create_sandbox(
             base_image=base_image,
@@ -494,6 +569,13 @@ class DockerAgent:
             enable_long_term_memory=self.enable_long_term_memory,
         )
         self.synthesizer = Synthesizer(base_image=base_image)
+        # Guard the seam's ordering assumption: the Synthesizer (just constructed)
+        # must inherit the pinned base, or the emitted Dockerfile diverges from the
+        # live container. Warn loudly if a future refactor reorders this.
+        if getattr(self, "_runtime_pin_decision", None) is not None and \
+                getattr(self.synthesizer, "base_image", None) != base_image:
+            print("[runtime-pin] WARNING: synthesizer.base_image != pinned base; "
+                  "emitted Dockerfile may diverge from the live container")
         self.observation_compressor = None
         if self.enable_observation_compression:
             os.makedirs(compression_log_dir, exist_ok=True)
@@ -1061,8 +1143,13 @@ class DockerAgent:
                 from python_deps.depgraph.export import to_graphml
                 from python_deps.depgraph.schema import NodeType as _NT, State as _St
 
+                _req_minor = (
+                    self._runtime_pin_decision.minor
+                    if getattr(self, "_runtime_pin_decision", None) is not None
+                    else None
+                )
                 _dep_advisory, _dep_graph = build_advisory_for_repo(
-                    self.workplace, _base_image
+                    self.workplace, _base_image, target_python=_req_minor
                 )
                 # Stats/artifact are best-effort and kept INSIDE a guard so a
                 # failure here can never clobber a successfully-built advisory.
@@ -1136,6 +1223,7 @@ class DockerAgent:
         configuration_success = False
         run_error = None
         self._final_installed = ()  # populated after _run_v1_loop; always defined even on exception path
+        self._final_dep_graph = None  # populated after _run_v1_loop; read by _bake_test_env_vars
 
         try:
             # ── 4. Run the v1 loop ────────────────────────────────────────────
@@ -1251,11 +1339,14 @@ class DockerAgent:
                 exec_readonly=self.sandbox.exec_readonly,
                 enable_contract_graph=getattr(self, "enable_contract_graph", False),
                 enable_dep_emit=getattr(self, "enable_dep_emit", False),
+                enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
+                enable_graph_scheduler=getattr(self, "enable_graph_scheduler", False),
             )
 
             # Capture the live pip closure for the pin layer (used later in
             # _finalize_supervisor_artifacts → build_pin_instructions).
             self._final_installed = tuple(getattr(final_map, "installed", ()) or ())
+            self._final_dep_graph = getattr(final_map, "dep_graph", None)
 
             print(f"[v1] Loop finished: stop_reason={stop_reason!r}")
 
@@ -1648,14 +1739,27 @@ class DockerAgent:
     def _bake_test_env_vars(self) -> None:
         """DROPPED_ENV: bake test-required env vars the agent set (export / inline
         prefix) into the image so the rebuilt seed reproduces the working env.
+        Then bake known-value Config-tier vars the agent did NOT set (static hints
+        from .env.example / package defaults), so a required var with a knowable
+        value persists in the rebuilt image. Ledger (runtime truth) takes precedence.
         Best-effort: a failure degrades to today's behavior (Dockerfile still built)."""
         try:
             from src.envstate.synthesis import extract_env_vars_from_ledger
             extra = list(getattr(self, "verified_test_commands", None) or [])
             if getattr(self, "verified_test_command", None):
                 extra.append(self.verified_test_command)
+            already: set[str] = set()
             if self.action_ledger is not None:
                 for name, value in extract_env_vars_from_ledger(self.action_ledger, extra_commands=extra):
+                    self.synthesizer.add_env_instruction(name, value)
+                    already.add(name)
+            # Config-tier bake runs AFTER the ledger bake and imports separately, so a
+            # failure in the (newer) config path can never suppress the proven ledger
+            # bake — by here those ENV lines are already on the synthesizer.
+            graph = getattr(self, "_final_dep_graph", None)
+            if graph is not None:
+                from src.envstate.synthesis import bakeable_config_env
+                for name, value in bakeable_config_env(graph, exclude=frozenset(already)):
                     self.synthesizer.add_env_instruction(name, value)
         except Exception as env_exc:
             print(f"[v1] env-bake skipped: {env_exc}")
@@ -3086,6 +3190,12 @@ class DockerAgent:
             },
             "error": run_error,
         }
+        if getattr(self, "_runtime_pin_decision", None) is not None:
+            summary["runtime_pin"] = _runtime_pin_summary(
+                getattr(self, "_final_dep_graph", None),
+                self._runtime_pin_decision,
+                getattr(self, "_runtime_pin_original_base", None),
+            )
         if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
             summary["action_ledger"] = self.action_ledger.to_list()
         # §4.4 optional instrumentation: persist orchestrator result + envstate block
@@ -3187,6 +3297,15 @@ if __name__ == "__main__":
     parser.add_argument("--enable-dep-emit", action="store_true",
                         help="Graph-first: emit the certified closure + escalate the frontier "
                              "(implies --enable-dep-graph and --enable-v1).")
+    parser.add_argument("--enable-runtime-feedback", action="store_true",
+                        help="Runtime feedback: classify ledger failures and append "
+                             "discovered requirements to the live dep-graph each cycle "
+                             "(implies --enable-dep-graph and --enable-v1).")
+    parser.add_argument("--enable-graph-scheduler", action="store_true",
+                        help="Graph schedules the agent (DECIDE=graph, EXECUTE=agent, CERTIFY=host).")
+    parser.add_argument("--enable-runtime-pin", action="store_true",
+                        help="Pin the base image's python to the project's requires-python "
+                             "before building the container (Runtime tier; default off).")
     parser.add_argument("--enable-deterministic-maintainer", action="store_true",
                         help="Replace the LLM Maintainer with a deterministic host module "
                              "(verbatim-signature blockers + correct layers; implies "
@@ -3239,6 +3358,9 @@ if __name__ == "__main__":
         enable_contract_graph=args.enable_contract_graph,
         enable_dep_graph=args.enable_dep_graph,
         enable_dep_emit=args.enable_dep_emit,
+        enable_runtime_feedback=args.enable_runtime_feedback,
+        enable_graph_scheduler=args.enable_graph_scheduler,
+        enable_runtime_pin=args.enable_runtime_pin,
         enable_deterministic_maintainer=args.enable_deterministic_maintainer,
         enable_cleanroom=args.enable_cleanroom,
         memory_path=args.memory_path,

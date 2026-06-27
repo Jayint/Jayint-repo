@@ -11,6 +11,11 @@ The Planner NEVER runs shell commands.
 NAMING NOTE: src/planner.py (root-level) is the Arm-0 bare-ReAct planner.
 This module is src/envstate/planner.py — entirely separate.
 """
+# DEPRECATED (2026-06-26): The strategic LLM Planner is retained but dormant under
+# the graph-scheduled architecture (enable_graph_scheduler). run_v1 routes around
+# planner.decide when the flag is on; strategy now lives in graph topology. Kept
+# for possible reuse (ambiguous-frontier ordering, whole-repo give-up). Do not
+# delete. See docs/superpowers/specs/2026-06-26-graph-scheduled-agent-architecture-design.md.
 from __future__ import annotations
 
 from typing import Any, Callable, Optional

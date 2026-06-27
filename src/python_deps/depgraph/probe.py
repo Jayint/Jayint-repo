@@ -26,6 +26,7 @@ The certification invariant (design 3.1) holds: nothing here flips a node to
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import replace
 
 from python_deps.failure_classifier import NATIVE_LIBRARY_RE
@@ -160,18 +161,52 @@ def _failed_build_packages(stderr: str) -> set[str]:
     return {normalize_package_name(name) for name in names}
 
 
+def _requirers_of_failed(
+    graph: DepGraph, packages: list[Node], failed: set[str]
+) -> set[str]:
+    """Package node ids that TRANSITIVELY require any failed-build package.
+
+    Reinstalling such a package re-pulls the un-buildable dependency (its own
+    install_requires), so the survivor salvage must drop them too — otherwise
+    each round re-introduces the failure and the loop never converges. BFS over
+    package->package ``requires`` edges, reversed (dst failed -> drop its srcs).
+    """
+    pkg_ids = {p.id for p in packages}
+    by_name = {normalize_package_name(p.name): p.id for p in packages}
+    failed_ids = {by_name[name] for name in failed if name in by_name}
+
+    requirers: dict[str, set[str]] = defaultdict(set)
+    for edge in graph.edges:
+        if (edge.relation is EdgeType.REQUIRES
+                and edge.src in pkg_ids and edge.dst in pkg_ids):
+            requirers[edge.dst].add(edge.src)
+
+    drop: set[str] = set()
+    frontier = set(failed_ids)
+    while frontier:
+        nxt: set[str] = set()
+        for fid in frontier:
+            for src in requirers.get(fid, ()):
+                if src not in drop and src not in failed_ids:
+                    drop.add(src)
+                    nxt.add(src)
+        frontier = nxt
+    return drop
+
+
 def _reinstall_survivors(
     graph: DepGraph, packages: list[Node], stderr: str, executor: Executor
 ) -> DepGraph:
-    """Reinstall the closure minus the packages whose build failed.
-
-    Bounded rounds (in case a survivor then fails too). Returns a NEW graph with a
-    succeeded/failed install ``Attempt`` recorded on the survivors; the dropped
-    packages stay uninstalled (host certify leaves them ``MISSING``). A no-op when
-    no build failure is attributable or there are no survivors to retry.
+    """Reinstall the closure minus packages whose build failed AND anything that
+    transitively requires them (a requirer re-pulls the un-buildable dep). Bounded
+    rounds. Returns a NEW graph; a no-op when nothing is attributable/droppable.
     """
     failed = _failed_build_packages(stderr)
-    survivors = [p for p in packages if normalize_package_name(p.name) not in failed]
+    drop_ids = _requirers_of_failed(graph, packages, failed)
+    survivors = [
+        p for p in packages
+        if normalize_package_name(p.name) not in failed and p.id not in drop_ids
+    ]
     if not failed or not survivors or len(survivors) == len(packages):
         return graph
 
@@ -185,8 +220,10 @@ def _reinstall_survivors(
         if result.ok:
             break
         more_failed = _failed_build_packages(result.stderr or "")
+        more_drop = _requirers_of_failed(graph, packages, more_failed)
         next_survivors = [
-            p for p in survivors if normalize_package_name(p.name) not in more_failed
+            p for p in survivors
+            if normalize_package_name(p.name) not in more_failed and p.id not in more_drop
         ]
         if not more_failed or not next_survivors or len(next_survivors) == len(survivors):
             break  # no further progress

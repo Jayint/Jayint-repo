@@ -170,3 +170,67 @@ def test_best_evidence_line_helper() -> None:
     assert _best_evidence_line(tb) == "ModuleNotFoundError: no 'x'"
     # falls back to last line when nothing looks like an error
     assert _best_evidence_line("just a note\nsecond line") == "second line"
+
+
+# --- Task 11: CONFIG tier in advisory ---
+
+def test_advisory_renders_missing_config_node_with_value_needed():
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
+    )
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+
+    cfg = Node(id="config:SECRET_KEY", type=NodeType.CONFIG, name="SECRET_KEY",
+               layer=Layer.CONFIG, discovered_by=DiscoveredBy.STATIC_SCAN,
+               state=State.MISSING, check_command="printenv SECRET_KEY",
+               fix_candidates=("env:SECRET_KEY=?",))
+    out = render_dep_graph_advisory(DepGraph().with_node(cfg))
+    assert "SECRET_KEY" in out
+    assert "CONFIG" in out
+    assert "value needed" in out
+
+
+def test_advisory_config_with_derived_value_has_no_marker():
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
+    )
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+
+    cfg = Node(id="config:DEBUG", type=NodeType.CONFIG, name="DEBUG",
+               layer=Layer.CONFIG, discovered_by=DiscoveredBy.STATIC_SCAN,
+               state=State.MISSING, check_command="printenv DEBUG",
+               fix_candidates=("env:DEBUG=False",))
+    out = render_dep_graph_advisory(DepGraph().with_node(cfg))
+    assert "value needed" not in out
+
+
+# --- Task 9: SERVICES tier in advisory ---
+
+def _svc(name, confidence, **data):
+    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy, State
+    d = {"service_confidence": confidence}; d.update(data)
+    return Node(id=f"service:{name}", type=NodeType.SERVICE, name=name, layer=Layer.SERVICES,
+                discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
+                fix_candidates=(f"service:{name}:16",), data=d)
+
+
+def test_advisory_renders_services_block():
+    from python_deps.depgraph.schema import DepGraph
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+    g = (DepGraph()
+         .with_node(_svc("postgres", "confirmed", bound_config="DATABASE_URL"))
+         .with_node(_svc("redis", "inferred", inducing_package="celery")))
+    out = render_dep_graph_advisory(g)
+    assert "SERVICES" in out
+    assert "postgres" in out and "confirmed" in out
+    assert "addresses: DATABASE_URL" in out
+    assert "redis" in out and "may be mocked" in out
+
+
+def test_advisory_no_services_block_when_none():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+    pkg = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests", layer=Layer.PIP,
+               discovered_by=DiscoveredBy.RESOLVER, state=State.SATISFIED)
+    out = render_dep_graph_advisory(DepGraph().with_node(pkg))
+    assert "SERVICES" not in out

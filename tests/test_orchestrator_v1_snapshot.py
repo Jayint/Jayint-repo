@@ -21,7 +21,7 @@ class _Planner:
 
 
 class _Build:
-    def run(self, task, ex, ledger, step_offset=0):
+    def run(self, task, ex, ledger, step_offset=0, check=None, budget=None):
         return TaskReport(task_goal="g", status="done", commands=(), learning="")
 
 

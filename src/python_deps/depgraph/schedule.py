@@ -1,0 +1,94 @@
+"""Pure scheduling layer: select and frame the next actionable obligation.
+
+The DECIDE role's "what & when". Given a host-certified DepGraph, pick the MISSING
+obligations whose every dependency is already SATISFIED and that carry a host
+check_command (the agent's stop condition), ordered deps-before-dependents.
+
+PURE: must not import from src.envstate. Depends only on the depgraph schema and
+emit helpers.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from python_deps.depgraph.schema import DepGraph, Node, NodeType, State, EdgeType
+from python_deps.depgraph.emit import topo_order
+
+
+def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:
+    """True when every node this one REQUIRES is SATISFIED."""
+    for edge in graph.edges:
+        if edge.src == node.id and edge.relation is EdgeType.REQUIRES:
+            dep = graph.get(edge.dst)
+            if dep is None or dep.state is not State.SATISFIED:
+                return False
+    return True
+
+
+def _is_actionable(graph: DepGraph, node: Node) -> bool:
+    # Lazy import to avoid any circular dependency: schedule.py must stay PURE
+    # (no src.envstate imports), and emit.py is a pure sibling in this package.
+    from python_deps.depgraph.emit import _is_emittable, _conflicted_ids
+    return (
+        node.state is State.MISSING
+        and node.type is not NodeType.SERVICE     # services flow through the sufficiency branch in v1
+        and node.type is not NodeType.CONFIG       # config is advisory-only (tier 6); its `printenv X`
+                                                   # check is unsatisfiable in a fresh-shell exec, and a
+                                                   # genuinely-required var is set reactively via the
+                                                   # discover-task (tests certify SUFFICIENT). See
+                                                   # docs/.../2026-06-26-unified-executor-loop-delta.md §9.
+        and bool(node.check_command)              # the agent needs a host stop condition
+        and _dependencies_satisfied(graph, node)
+        and not _is_emittable(graph, node, _conflicted_ids(graph))  # deterministic prefix handles these
+    )
+
+
+def scheduler_frontier(graph: DepGraph) -> tuple[Node, ...]:
+    """Actionable MISSING obligations, topologically ordered (deps first)."""
+    actionable = [n for n in graph.nodes if _is_actionable(graph, n)]
+    if not actionable:
+        return ()
+    return tuple(topo_order(graph, tuple(actionable)))   # topo_order returns tuple[Node, ...]
+
+
+@dataclass(frozen=True)
+class ObligationPacket:
+    """The agent's problem statement for one obligation — assembled from the graph."""
+    node_id: str
+    node_type: str
+    tier: int
+    layer: str
+    goal: str
+    evidence: str
+    check_command: str
+    depends_on: tuple[str, ...] = ()
+    blocks: tuple[str, ...] = ()
+    certified_context: tuple[str, ...] = ()
+
+
+def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
+    depends_on = tuple(
+        e.dst for e in graph.edges
+        if e.src == node.id and e.relation is EdgeType.REQUIRES
+    )
+    blocks = tuple(
+        e.src for e in graph.edges
+        if e.dst == node.id and e.relation is EdgeType.REQUIRES
+    )
+    certified_context = tuple(n.id for n in graph.nodes if n.state is State.SATISFIED)
+    goal = (
+        f"Satisfy obligation '{node.name}' ({node.type.value}, tier {node.tier}): "
+        f"make the host check `{node.check_command}` succeed."
+    )
+    return ObligationPacket(
+        node_id=node.id,
+        node_type=node.type.value,
+        tier=node.tier,
+        layer=node.layer.value,
+        goal=goal,
+        evidence=node.evidence or "",
+        check_command=node.check_command or "",
+        depends_on=depends_on,
+        blocks=blocks,
+        certified_context=certified_context,
+    )

@@ -73,6 +73,8 @@ class FakeBuildAgent:
         sandbox_execute: Callable[[str], tuple[bool, str]],
         ledger: ActionLedger,
         step_offset: int = 0,
+        check=None,
+        budget: int | None = None,
     ) -> TaskReport:
         assert self._queue, "FakeBuildAgent.run called more times than expected"
         return self._queue.pop(0)

@@ -406,3 +406,97 @@ def test_conflicts_with_rejects_non_package_endpoint():
         graph.with_edge(
             Edge(src="import:cv2", dst="pkg:opencv-python", relation=EdgeType.CONFLICTS_WITH)
         )
+
+
+# --- Task 1: new env-tier NodeTypes, Layer.CONFIG, config_id ---
+
+from python_deps.depgraph.schema import NodeType, Layer
+
+
+def test_new_environment_node_types_exist():
+    assert NodeType.PLATFORM.value == "Platform"
+    assert NodeType.SERVICE.value == "Service"
+    assert NodeType.CONFIG.value == "Config"
+    assert NodeType.DATA_ASSET.value == "DataAsset"
+
+
+def test_config_layer_exists():
+    assert Layer.CONFIG.value == "config"
+
+
+def test_config_id_format():
+    assert ids.config_id("DJANGO_SETTINGS_MODULE") == "config:DJANGO_SETTINGS_MODULE"
+
+
+# --- Task 2: Node.tier auto-derived from type ---
+
+def test_tier_auto_derived_from_type():
+    pkg = make_node("pkg:x", NodeType.PACKAGE, "x", Layer.PIP)
+    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
+    syslib = make_node("syslib:libGL.so.1", NodeType.SYSTEM_LIB, "libGL.so.1", Layer.SYSTEM)
+    assert pkg.tier == 4
+    assert cfg.tier == 6
+    assert syslib.tier == 2
+
+
+def test_goal_nodes_have_tier_zero():
+    test_node = make_node("test:repo_tests_pass", NodeType.TEST, "repo_tests_pass", Layer.TESTS)
+    assert test_node.tier == 0
+
+
+def test_explicit_tier_is_respected():
+    from python_deps.depgraph.schema import Node
+    n = Node(id="config:X", type=NodeType.CONFIG, name="X", layer=Layer.CONFIG,
+             discovered_by=DiscoveredBy.STATIC_SCAN, tier=3)
+    assert n.tier == 3
+
+
+def test_to_dict_includes_tier():
+    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
+    assert cfg.to_dict()["tier"] == 6
+
+
+# --- Task 3: requires edges into new env-tier node types ---
+
+def test_requires_edge_into_config_is_allowed():
+    from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
+    proj = make_node("project:app", NodeType.PROJECT, "app", Layer.PIP)
+    cfg = make_node("config:SECRET_KEY", NodeType.CONFIG, "SECRET_KEY", Layer.CONFIG)
+    g = DepGraph().with_node(proj).with_node(cfg)
+    g = g.with_edge(Edge(src="project:app", dst="config:SECRET_KEY",
+                         relation=EdgeType.REQUIRES, origin="project"))
+    assert any(e.dst == "config:SECRET_KEY" for e in g.edges)
+
+
+def test_requires_edge_from_config_is_rejected():
+    from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
+    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
+    pkg = make_node("pkg:y", NodeType.PACKAGE, "y", Layer.PIP)
+    g = DepGraph().with_node(cfg).with_node(pkg)
+    with pytest.raises(ValueError):
+        g.with_edge(Edge(src="config:X", dst="pkg:y", relation=EdgeType.REQUIRES))
+
+
+# --- Task 1 (services slice): Layer.SERVICES, service_id, Node.data ---
+
+
+def test_service_layer_and_id():
+    from python_deps.depgraph.schema import Layer
+    assert Layer.SERVICES.value == "services"
+    assert ids.service_id("postgres") == "service:postgres"
+
+
+def test_node_data_defaults_empty_and_frozen():
+    n = make_node("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES)
+    assert dict(n.data) == {}
+    import types as _t
+    assert isinstance(n.data, _t.MappingProxyType)
+
+
+def test_node_data_roundtrips_and_serializes():
+    from python_deps.depgraph.schema import Node
+    n = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+             layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
+             data={"service_confidence": "confirmed", "port": 5432})
+    assert n.data["service_confidence"] == "confirmed"
+    assert n.to_dict()["data"] == {"service_confidence": "confirmed", "port": 5432}

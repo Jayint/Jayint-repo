@@ -105,6 +105,35 @@ def partition(graph: DepGraph) -> Partition:
     return Partition(tuple(certified), tuple(emittable), tuple(frontier))
 
 
+def _is_reciped(node: Node) -> bool:
+    """A node the deterministic recipe layer can install (mirrors _is_emittable's
+    type/fix test, minus the attempt cap — a backed-off node is still 'reciped')."""
+    if node.type is NodeType.PACKAGE:
+        return bool(node.version)
+    if node.type in (NodeType.SYSTEM_LIB, NodeType.TOOL):
+        return bool(node.chosen_fix) and node.chosen_fix.startswith("apt:")
+    return False
+
+
+def failed_reciped_nodes(graph: DepGraph) -> tuple[Node, ...]:
+    """Reciped, host-checkable nodes still MISSING after a drain whose deps are
+    SATISFIED — the spec's `isolate`. Excludes CONFIG/SERVICE (advisory) and
+    nodes with no check_command (no host stop condition)."""
+    from python_deps.depgraph.schedule import _dependencies_satisfied
+    out = []
+    for n in graph.nodes:
+        if n.state is not State.MISSING:
+            continue
+        if not n.check_command:
+            continue
+        if not _is_reciped(n):
+            continue
+        if not _dependencies_satisfied(graph, n):
+            continue
+        out.append(n)
+    return tuple(out)
+
+
 # Bottom-up execution rank (matches certify._LAYER_ORDER / advise._LAYER_RANK).
 _LAYER_RANK: dict[Layer, int] = {
     Layer.INTERPRETER: 0,
@@ -205,3 +234,17 @@ def build_recipe(graph: DepGraph, ordered: tuple[Node, ...]) -> tuple[EmitStep, 
             target_node_ids=tuple(n.id for n in packages),
         ))
     return tuple(steps)
+
+
+def next_deterministic_wave(graph: DepGraph) -> tuple[EmitStep, ...]:
+    """The current topological wave: the emittable frontier collapsed to ≤2 batch
+    EmitSteps (apt + pip), deps-before-dependents. Empty when nothing is emittable.
+
+    A batch IS a wave: partition() only surfaces nodes whose REQUIRES-deps
+    are already SATISFIED, and already excludes backoff-capped / conflicting nodes.
+    """
+    part = partition(graph)
+    if not part.emittable:
+        return ()
+    ordered = topo_order(graph, part.emittable)
+    return build_recipe(graph, ordered)

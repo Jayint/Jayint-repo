@@ -332,3 +332,38 @@ def extract_env_vars_from_ledger(ledger, *, extra_commands=()):
         if name in referenced or name in prefix_required:
             out.append((name, assigns[name]))
     return out
+
+
+def bakeable_config_env(graph, *, exclude: frozenset = frozenset()) -> list[tuple[str, str]]:
+    """CONFIG nodes with a KNOWN value -> (VAR, value) pairs to bake as image ENV.
+
+    Source = each Config-tier node's ``chosen_fix`` of the form ``env:VAR=value``
+    (value != "?"), as built by config_scan._config_node. Applies the SAME secret +
+    incidental denylist as the ledger path (_RE_SECRET_NAME / _ENV_DENYLIST), so
+    credentials and shell incidentals are never baked. ``exclude`` drops vars the
+    caller already baked (the ledger/runtime source takes precedence). First
+    occurrence of a var wins; read-only (the frozen graph is never mutated).
+    """
+    # Local import keeps synthesis.py decoupled from the depgraph package. Safe: this
+    # function is only ever called when a dep_graph exists, which implies the
+    # enable_dep_graph arm already put src/ on sys.path (agent.py constructor cascade).
+    from python_deps.depgraph.schema import NodeType
+
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for node in graph.nodes:
+        if node.type is not NodeType.CONFIG:
+            continue
+        fix = node.chosen_fix or ""
+        if not fix.startswith("env:") or "=" not in fix:
+            continue
+        var, _, value = fix[len("env:"):].partition("=")
+        if not var or value == "?" or value == "":
+            continue
+        if var in seen or var in exclude:
+            continue
+        if var in _ENV_DENYLIST or _RE_SECRET_NAME.search(var):
+            continue
+        seen.add(var)
+        out.append((var, _strip_quotes(value)))
+    return out

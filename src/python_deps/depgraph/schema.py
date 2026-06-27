@@ -24,6 +24,29 @@ class NodeType(enum.Enum):
     SYSTEM_LIB = "SystemLib"
     TOOL = "Tool"
     RUNTIME = "Runtime"
+    PLATFORM = "Platform"      # tier 1
+    SERVICE = "Service"        # tier 5
+    CONFIG = "Config"          # tier 6
+    DATA_ASSET = "DataAsset"   # tier 6
+
+
+# Provider-stack tier per node type; goal types (Test/Project/Import) map to 0
+# (they are the demand side, not a tier). See design §3.1/§3.2.
+TYPE_TO_TIER: dict["NodeType", int] = {
+    NodeType.PLATFORM: 1,
+    NodeType.SYSTEM_LIB: 2,
+    NodeType.TOOL: 2,
+    NodeType.RUNTIME: 3,
+    NodeType.PACKAGE: 4,
+    NodeType.SERVICE: 5,
+    NodeType.CONFIG: 6,
+    NodeType.DATA_ASSET: 6,
+}
+
+
+def tier_for_type(node_type: "NodeType") -> int:
+    """Provider tier for ``node_type``; 0 for goal nodes (Test/Project/Import)."""
+    return TYPE_TO_TIER.get(node_type, 0)
 
 
 class EdgeType(enum.Enum):
@@ -56,13 +79,16 @@ class Layer(enum.Enum):
     NAMING = "naming"
     RUNTIME = "runtime"
     TESTS = "tests"
+    CONFIG = "config"
+    SERVICES = "services"
 
 
 # relation -> (allowed src node-type values, allowed dst node-type values)
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
         frozenset({"Test", "Project", "Import", "Package"}),
-        frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime"}),
+        frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime",
+                   "Platform", "Service", "Config", "DataAsset"}),
     ),
     # Resolver-discovered version conflicts join two Packages (uv unsat core).
     "conflicts_with": (
@@ -95,6 +121,7 @@ class Node:
     name: str
     layer: Layer
     discovered_by: DiscoveredBy
+    tier: int = 0  # 0 = derive from type in __post_init__ (goal nodes stay 0)
     state: State = State.UNKNOWN
     version: str | None = None
     check_command: str | None = None
@@ -113,6 +140,16 @@ class Node:
     resolved_python: str | None = None
     resolved_platform: str | None = None
     exclude_newer: str | None = None  # uv resolve cutoff (reproducibility)
+    data: dict = field(default_factory=dict)  # general per-node metadata bag
+
+    def __post_init__(self) -> None:
+        # Derive tier from type when left at the 0 sentinel. Idempotent for goal
+        # nodes (tier_for_type returns 0 for them). frozen=True blocks rebinding,
+        # so set through object.__setattr__.
+        if self.tier == 0:
+            object.__setattr__(self, "tier", tier_for_type(self.type))
+        if not isinstance(self.data, types.MappingProxyType):
+            object.__setattr__(self, "data", types.MappingProxyType(dict(self.data)))
 
     def with_state(
         self,
@@ -143,6 +180,7 @@ class Node:
             "type": self.type.value,
             "name": self.name,
             "layer": self.layer.value,
+            "tier": self.tier,
             "discovered_by": self.discovered_by.value,
             "state": self.state.value,
             "version": self.version,
@@ -160,6 +198,7 @@ class Node:
             "resolved_python": self.resolved_python,
             "resolved_platform": self.resolved_platform,
             "exclude_newer": self.exclude_newer,
+            "data": dict(self.data),
         }
 
 

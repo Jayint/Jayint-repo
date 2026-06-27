@@ -215,6 +215,12 @@ def build_agent_command(
         command.append("--enable-dep-graph")
     if getattr(args, "enable_dep_emit", False):
         command.append("--enable-dep-emit")
+    if getattr(args, "enable_runtime_feedback", False):
+        command.append("--enable-runtime-feedback")
+    if getattr(args, "enable_graph_scheduler", False):
+        command.append("--enable-graph-scheduler")
+    if getattr(args, "enable_runtime_pin", False):
+        command.append("--enable-runtime-pin")
 
     return command
 
@@ -3177,6 +3183,29 @@ _ARM_PRESETS: dict[str, dict] = {
         "enable_dep_graph": True, "enable_dep_emit": True, "enable_cleanroom": True,
         "max_steps": 12, "_label": "armV1gde_dep_emit",
     },
+    "v1gder": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
+        "enable_dep_graph": True, "enable_dep_emit": True, "enable_runtime_feedback": True,
+        "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gder_runtime_feedback",
+    },
+    "v1gs": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
+        "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
+        "enable_runtime_feedback": True,
+        "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gs_graph_scheduler",
+    },
+    "v1gsp": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
+        "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
+        "enable_runtime_feedback": True, "enable_runtime_pin": True,
+        "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gsp_runtime_pin",
+    },
 }
 
 
@@ -3336,7 +3365,7 @@ def parse_args() -> argparse.Namespace:
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "v1", "v1g", "v1gd", "v1gde"],
+        choices=["0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp"],
         default=None,
         help=(
             "Ablation arm shorthand. "
@@ -3344,7 +3373,8 @@ def parse_args() -> argparse.Namespace:
             "v1=three-role orchestrator Planner/BuildAgent/Maintainer "
             "(--enable-v1 --enable-cleanroom --steps 12); "
             "v1g=v1 + contract graph reasoning layer (--enable-contract-graph); "
-            "v1gde=v1gd + graph-first emit (--enable-dep-emit). "
+            "v1gde=v1gd + graph-first emit (--enable-dep-emit); "
+            "v1gs=graph-scheduled agent (--enable-graph-scheduler). "
             "Overrides the individual --enable-* flags and --max-steps when set. "
             "Outputs land under <output-root>/arm{0,v1,v1g}_<label>/."
         ),

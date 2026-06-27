@@ -60,6 +60,8 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
+from python_deps.depgraph.config_scan import scan_config
+from python_deps.depgraph.service_scan import scan_services
 from python_deps.depgraph.seed import seed_predicted_native
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
@@ -244,6 +246,26 @@ def build_dep_graph(
     if target_python is None:
         target_python = _detect_target_python(container_executor)
     platform = target_platform or _detect_target_platform(container_executor)
+
+    # Runtime-tier obligation: the container must run the targeted python minor.
+    # Certified later by a host check (rc 0 iff sys.version_info matches); discovery
+    # here never implies SATISFIED.
+    from python_deps.depgraph.ids import runtime_id as _runtime_id
+    _maj, _min = target_python.split(".")[:2]
+    _rt_check = f'python3 -c "import sys; sys.exit(0 if sys.version_info[:2]==({_maj},{_min}) else 1)"'
+    graph = graph.with_node(
+        Node(
+            id=_runtime_id(target_python),
+            type=NodeType.RUNTIME,
+            name=f"python {target_python}",
+            layer=Layer.RUNTIME,
+            discovered_by=DiscoveredBy.STATIC_SCAN,
+            state=State.UNKNOWN,
+            version=target_python,
+            check_command=_rt_check,
+            resolved_python=target_python,
+        )
+    )
     pkg_nodes, pkg_edges = resolve_closure(
         roots,
         host_executor,
@@ -271,6 +293,14 @@ def build_dep_graph(
     # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail
     # hint); Stage 4.5 ldd_probe is the authoritative run-time native-lib source.
     graph = seed_predicted_native(graph)
+    # Stage 3c — Config tier (tier 6): project- and package-induced env-var needs
+    # appended to the same graph (design 2026-06-25 six-tier model). Static; the
+    # existing certify pass (Stage 5) certifies their `printenv` presence.
+    graph = scan_config(repo_path, graph)
+    # Stage 3d — Service tier (tier 5): confidence-annotated SERVICE nodes appended
+    # to the same graph (design 2026-06-25-services-tier-design.md). Discovery only;
+    # services are NOT certified here (certify skip-guard keeps them UNKNOWN).
+    graph = scan_services(repo_path, graph)
     resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 

@@ -18,16 +18,18 @@ rule).
 from __future__ import annotations
 
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.schema import DepGraph, Layer, State
+from python_deps.depgraph.schema import DepGraph, Layer, NodeType, State
 
-# Execution layer priority (design section 6).  Runtime is out of scope for this
-# plan and is intentionally omitted from the certification walk.
+# Execution layer priority (design section 6). Runtime joins the walk first: the
+# interpreter minor is the platform floor every later layer assumes.
 _LAYER_ORDER: tuple[Layer, ...] = (
+    Layer.RUNTIME,
     Layer.INTERPRETER,
     Layer.SYSTEM,
     Layer.TOOLCHAIN,
     Layer.PIP,
     Layer.NAMING,
+    Layer.CONFIG,
     Layer.TESTS,
 )
 
@@ -53,6 +55,11 @@ def certify(
     """
     node = graph.get(node_id)
     if node is None or not node.check_command:
+        return graph
+    # Services are certified by reachability against a RUNNING instance, which the
+    # single scratch container cannot provide (design §3.3). Live certification is
+    # the future runner-level action layer; here they stay UNKNOWN.
+    if node.type is NodeType.SERVICE:
         return graph
 
     result = executor.run(node.check_command)
