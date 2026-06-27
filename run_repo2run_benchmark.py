@@ -2427,6 +2427,26 @@ def filter_runtime_preparation_commands(commands: list[str]) -> list[str]:
     return filtered
 
 
+def compose_in_image_service_commands(run_summary: Optional[dict[str, Any]]) -> list[str]:
+    """Root-wrapped start/wait/createdb(fatal) lines for confirmed in-image
+    services, read from the agent's handoff field. Prepended to runtime_commands
+    so they run in the same shell as the tests (design §8.3). Empty when absent."""
+    if not isinstance(run_summary, dict):
+        return []
+    services = run_summary.get("confirmed_in_image_services") or []
+    out: list[str] = []
+    for svc in services:
+        if not isinstance(svc, dict):
+            continue
+        if svc.get("start"):
+            out.append(svc["start"])
+        if svc.get("wait"):
+            out.append(svc["wait"])
+        if svc.get("createdb"):  # FATAL — never `|| true`
+            out.append(svc["createdb"])
+    return out
+
+
 def derive_repo2run_collect_commands(
     workspace_root: Path,
     run_summary: Optional[dict[str, Any]] = None,
@@ -2435,6 +2455,7 @@ def derive_repo2run_collect_commands(
     runtime_commands = filter_runtime_preparation_commands(
         normalize_command_list(supported_bundle.get("runtime_preparation_commands"))
     )
+    runtime_commands = compose_in_image_service_commands(run_summary) + runtime_commands
     agent_verified_choice = select_repo2run_collect_commands_from_run_summary(run_summary)
     if agent_verified_choice is not None:
         commands, source = agent_verified_choice
@@ -2449,6 +2470,7 @@ def derive_verification_commands(run_summary: Optional[dict[str, Any]]) -> tuple
     supported_bundle = derive_supported_verification_bundle(run_summary)
 
     runtime_commands = normalize_command_list(supported_bundle.get("runtime_preparation_commands"))
+    runtime_commands = compose_in_image_service_commands(run_summary) + runtime_commands
     test_commands = normalize_command_list(supported_bundle.get("test_commands"))
     source = "supported_verification_bundle"
     if not test_commands:
@@ -2821,7 +2843,10 @@ def should_add_postgres_host_alias(
     workspace_root: Optional[Path],
     runtime_commands: list[str],
     test_commands: list[str],
+    run_summary: Optional[dict[str, Any]] = None,
 ) -> bool:
+    if isinstance(run_summary, dict) and run_summary.get("confirmed_in_image_services"):
+        return True
     combined_commands = "\n".join([*(runtime_commands or []), *(test_commands or [])]).lower()
     if re.search(r"\b(?:pg_ctlcluster|postgres|psql)\b", combined_commands):
         return True
