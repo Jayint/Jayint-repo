@@ -101,6 +101,45 @@ def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
                 out[kind] = {"image": image or "", "port": _port_of(entry), "source": source}
 
 
+def _env_pairs(entry: dict):
+    """Yield (KEY, VALUE) from a compose/CI service `environment:` (list or map form)."""
+    env = entry.get("environment")
+    if isinstance(env, dict):
+        for k, v in env.items():
+            if v is not None:
+                yield str(k), str(v)
+    elif isinstance(env, list):
+        for item in env:
+            s = str(item)
+            if "=" in s:
+                k, v = s.split("=", 1)
+                yield k.strip(), v.strip()
+
+
+def _bindings_from_yaml_doc(doc, out: dict[str, dict]) -> None:
+    """Merge service-URL env bindings from a parsed compose/CI doc into `out` (first wins)."""
+    if not isinstance(doc, dict):
+        return
+    blocks = []
+    if isinstance(doc.get("services"), dict):
+        blocks.append(doc["services"])
+    for job in (doc.get("jobs") or {}).values() if isinstance(doc.get("jobs"), dict) else []:
+        if isinstance(job, dict) and isinstance(job.get("services"), dict):
+            blocks.append(job["services"])
+    for block in blocks:
+        for _svc_name, entry in block.items():
+            entry = entry if isinstance(entry, dict) else {}
+            for key, value in _env_pairs(entry):
+                hit = service_from_url(value)
+                if not hit:
+                    continue
+                kind, host, port = hit
+                if kind in out:
+                    continue
+                out[kind] = {"var": key, "url": value, "host": host, "port": port,
+                             "db": service_db_from_url(value) or "postgres"}
+
+
 def _load_yaml(path: str):
     if yaml is None:
         return None
@@ -140,6 +179,22 @@ def scan_ci_services(repo_path: str) -> tuple[dict[str, dict], bool]:
     return out, present
 
 
+def scan_env_bindings(repo_path: str) -> dict[str, dict]:
+    """Discover `KEY=<service-url>` bindings from compose + CI `environment:` blocks."""
+    out: dict[str, dict] = {}
+    for fname in os.listdir(repo_path) if os.path.isdir(repo_path) else []:
+        low = fname.lower()
+        if (low.startswith("docker-compose") or low.startswith("compose.")) and \
+                low.endswith((".yml", ".yaml")):
+            _bindings_from_yaml_doc(_load_yaml(os.path.join(repo_path, fname)), out)
+    wf_dir = os.path.join(repo_path, ".github", "workflows")
+    if os.path.isdir(wf_dir):
+        for fname in os.listdir(wf_dir):
+            if fname.lower().endswith((".yml", ".yaml")):
+                _bindings_from_yaml_doc(_load_yaml(os.path.join(wf_dir, fname)), out)
+    return out
+
+
 # Ordered (signature regex -> kind). First match wins.
 _ERROR_SIGNATURES: tuple[tuple[object, str], ...] = (
     (_re.compile(r"could not connect to server|psycopg2\.OperationalError|connection to server at", _re.I), "postgres"),
@@ -165,7 +220,8 @@ def _service_node(kind: str, *, confidence: str, discovered_by: DiscoveredBy,
     image, port = service_defaults(kind) if kind in KNOWN_SERVICE_KINDS else (f"{kind}:latest", None)
     data = {"service_confidence": confidence, "image": extra.get("image") or image,
             "host": extra.get("host") or kind, "port": extra.get("port") or port}
-    data.update({k: v for k, v in extra.items() if k in ("bound_config", "inducing_package", "bound_config_url")})
+    data.update({k: v for k, v in extra.items()
+                 if k in ("bound_config", "inducing_package", "bound_config_url", "db")})
     p = data["port"]
     return Node(
         id=service_id(kind), type=NodeType.SERVICE, name=kind, layer=Layer.SERVICES,
@@ -182,6 +238,7 @@ def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
     compose = scan_compose_services(repo_path)
     ci, ci_present = scan_ci_services(repo_path)
     confirmed: dict[str, dict] = {**compose, **ci}           # CI wins on conflict
+    env_bindings = scan_env_bindings(repo_path)
 
     packages = [n for n in graph.nodes if n.type is NodeType.PACKAGE]
     project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
@@ -216,6 +273,11 @@ def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
             extra["bound_config"] = binding["bound_config"]
         if binding and binding.get("bound_config_url"):
             extra["bound_config_url"] = binding["bound_config_url"]
+        env_binding = env_bindings.get(kind)
+        if env_binding:                          # compose `environment:` is authoritative
+            extra["bound_config"] = env_binding["var"]
+            extra["bound_config_url"] = env_binding["url"]
+            extra["db"] = env_binding["db"]
         node = _service_node(kind, confidence="confirmed",
                              discovered_by=DiscoveredBy.STATIC_SCAN,
                              evidence=meta.get("source", "ci/compose"), extra=extra)
