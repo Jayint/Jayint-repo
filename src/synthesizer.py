@@ -3813,6 +3813,12 @@ class Synthesizer:
             r"^mongod\b.*\b--fork\b",
             r"^apache2ctl\s+start\b",
             r"^nginx\b(?:\s|$)",
+            # In-image Postgres provisioning runs at RUNTIME (in the eval wrapper),
+            # not baked into the image (a RUN-layer daemon dies before CMD). Match
+            # the bare form and the as-postgres-user wrapped forms (runuser/su).
+            r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)pg_ctlcluster\b.*\bstart\b",
+            r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)createdb\b",
+            r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)createuser\b",
         )
         return any(re.search(pattern, normalized_command) for pattern in service_patterns)
 

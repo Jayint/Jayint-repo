@@ -75,7 +75,9 @@ class SynthesizerTests(unittest.TestCase):
             [],
         )
 
-    def test_normalize_build_recipe_keeps_verified_runtime_and_coalesces_postgres_setup(self):
+    def test_normalize_build_recipe_keeps_verified_runtime_and_drops_pg_ctlcluster_from_build(self):
+        # Since Task 8: pg_ctlcluster is runtime-only — it must NOT appear in baked
+        # build_commands. The eval wrapper runs it at container start instead.
         synthesizer = Synthesizer()
         recipe = {
             "build_commands": [
@@ -102,16 +104,20 @@ class SynthesizerTests(unittest.TestCase):
 
         normalized = synthesizer.normalize_build_recipe(recipe, recipe_input=recipe_input)
 
+        # runtime_preparation_commands still carries the pg_ctlcluster start
         self.assertEqual(
             normalized["runtime_preparation_commands"],
             ["pg_ctlcluster 17 main start"],
         )
-        self.assertTrue(
-            any(
-                "pg_ctlcluster 17 main start && su - postgres" in command
-                for command in normalized["build_commands"]
-            )
+        # genuine BUILD commands must survive normalization (guards against a
+        # wholesale command-drop regression masking the negative assertion below)
+        self.assertIn("pip install poetry", normalized["build_commands"])
+        self.assertIn("poetry install --with test", normalized["build_commands"])
+        # pg_ctlcluster must NOT be baked into any build command (runtime-only since Task 8)
+        self.assertFalse(
+            any("pg_ctlcluster" in command for command in normalized["build_commands"])
         )
+        # test commands must not leak into build_commands
         self.assertFalse(
             any("poetry run pytest" in command for command in normalized["build_commands"])
         )
@@ -2665,6 +2671,25 @@ class ObservationPassRatioAuditHardeningTests(unittest.TestCase):
         # CRITICAL [2]: '10 failures' (plural) must count, not be read as 0 failures.
         self.assertAlmostEqual(self.synth.observation_pass_ratio("5 passed, 10 failures in 2.5s"),
                                5 / 15, places=4)
+
+
+class RuntimeServiceSegmentTests(unittest.TestCase):
+    """Tests for _is_runtime_service_segment — Postgres provisioning commands."""
+
+    def test_pg_ctlcluster_and_createdb_are_runtime_only(self):
+        # Use __new__ because _is_runtime_service_segment is a pure string predicate
+        s = Synthesizer.__new__(Synthesizer)
+        # pg_ctlcluster start — bare and runuser-wrapped forms must be runtime-only
+        self.assertTrue(s._is_runtime_service_segment("runuser -u postgres -- pg_ctlcluster 15 main start"))
+        self.assertTrue(s._is_runtime_service_segment("pg_ctlcluster 15 main start"))
+        # createdb — runuser and su wrapper forms must be runtime-only
+        self.assertTrue(s._is_runtime_service_segment("runuser -u postgres -- createdb appdb"))
+        self.assertTrue(s._is_runtime_service_segment('su - postgres -c "createdb appdb"'))
+        # createuser — bare and runuser-wrapped forms must be runtime-only
+        self.assertTrue(s._is_runtime_service_segment("createuser testuser"))
+        self.assertTrue(s._is_runtime_service_segment("runuser -u postgres -- createuser testuser"))
+        # apt install must remain a BUILD command (NOT runtime-only)
+        self.assertFalse(s._is_runtime_service_segment("apt-get install -y postgresql"))
 
 
 if __name__ == "__main__":
