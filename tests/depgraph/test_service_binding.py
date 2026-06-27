@@ -146,8 +146,14 @@ def test_attach_adds_binding_node_and_edge_when_enabled():
     assert bnode.type is NodeType.CONFIG
     assert bnode.data.get("binding") is True
     assert bnode.chosen_fix == "env:DB_STRING=postgresql://postgres:postgres@127.0.0.1:5432/appdb"
+    # The binding now certifies the env var the app reads is genuinely SET (not
+    # just that some DB is reachable): it must require `test -n "$DB_STRING"`
+    # FIRST, so the obligation cannot close until the agent runs the profile.d
+    # export. The certify runs via a login shell (`sh -lc`) which sources
+    # /etc/profile.d, so $DB_STRING resolves iff the agent wrote the bind_profile.
     assert bnode.check_command == \
-        'psql "postgresql://postgres:postgres@127.0.0.1:5432/appdb" -c "select 1"'
+        'test -n "$DB_STRING" && psql "postgresql://postgres:postgres@127.0.0.1:5432/appdb" -c "select 1"'
+    assert bnode.check_command.startswith('test -n "$DB_STRING"')
     assert bnode.data["bind_recipe"]["var"] == "DB_STRING"
     assert "ALTER USER postgres PASSWORD" in bnode.data["bind_recipe"]["alter_user"]
     assert "/etc/profile.d/zz_service_bind.sh" in bnode.data["bind_recipe"]["bind_profile"]
@@ -184,8 +190,13 @@ class _PsqlExec:
 
 
 def test_binding_certifies_satisfied_only_when_psql_connects():
+    # The check_command is now `test -n "$DB_STRING" && psql ... select 1`; the
+    # fake keys on `"psql" in command` so it still drives the flip, but the real
+    # certify (login shell) additionally requires $DB_STRING to be exported.
     g = attach_in_image_provisioning(_confirmed_pg_graph(), enabled=True)
     bid = config_id("DB_STRING")
+    assert "psql" in g.get(bid).check_command
+    assert 'test -n "$DB_STRING"' in g.get(bid).check_command
     sat = certify(g, bid, _PsqlExec(ok=True), 0)
     assert sat.get(bid).state is State.SATISFIED
     miss = certify(g, bid, _PsqlExec(ok=False), 0)

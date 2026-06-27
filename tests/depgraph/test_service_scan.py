@@ -231,6 +231,11 @@ def test_recipe_is_root_safe_and_version_resolved():
     assert "|| true" not in r["createdb"]             # FATAL
     r2 = postgres_start_recipe(5432, None)
     assert r2["createdb"] is None                     # no name -> no createdb line
+    # The default `postgres` DB ALWAYS exists, so `createdb postgres` would fail;
+    # since createdb composes as FATAL (no `|| true`) it would fail the eval
+    # rebuild. Skip it for the default db.
+    r3 = postgres_start_recipe(5432, "postgres")
+    assert r3["createdb"] is None                     # default db -> no createdb line
 
 
 def test_attach_disabled_is_noop():

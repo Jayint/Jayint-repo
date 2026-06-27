@@ -358,7 +358,7 @@ def postgres_start_recipe(port: int, db: str | None) -> dict:
         f"for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p {port} && break; "
         "sleep 1; done"
     )
-    createdb = f"runuser -u postgres -- createdb {db}" if db else None
+    createdb = f"runuser -u postgres -- createdb {db}" if (db and db != "postgres") else None
     return {
         "system_package": "postgresql",
         "start": start,
@@ -424,7 +424,7 @@ def attach_in_image_provisioning(graph: DepGraph, *, enabled: bool) -> DepGraph:
             bnode = Node(
                 id=config_id(var), type=NodeType.CONFIG, name=var, layer=Layer.CONFIG,
                 discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
-                check_command=f'psql "{probe_url}" -c "select 1"',
+                check_command=f'test -n "${var}" && psql "{probe_url}" -c "select 1"',
                 fix_candidates=(f"env:{var}={app_url}",), chosen_fix=f"env:{var}={app_url}",
                 evidence=f"bind {var} to in-image postgres", provenance="service binding",
                 data={"binding": True, "bind_recipe": {
