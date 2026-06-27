@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re as _re
+from dataclasses import replace
 from urllib.parse import urlparse
 
 try:  # PyYAML is available; degrade gracefully if ever absent.
@@ -18,7 +19,7 @@ try:  # PyYAML is available; degrade gracefully if ever absent.
 except ImportError:  # pragma: no cover
     yaml = None
 
-from python_deps.depgraph.ids import service_id
+from python_deps.depgraph.ids import service_id, syslib_id
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State, Edge, EdgeType
 from python_deps.depgraph.service_tables import services_for_package, service_defaults, KNOWN_SERVICE_KINDS, BROKER_CAPABLE_KINDS
 
@@ -241,4 +242,81 @@ def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
         new = new.with_node(_service_node(kind, confidence="inferred",
                             discovered_by=DiscoveredBy.RESOLVER, evidence=ev, extra=meta))
 
+    return new
+
+
+def service_db_from_url(value: str) -> str | None:
+    """The database name from a service URL path (``postgres://h/appdb`` -> ``appdb``)."""
+    if not value or "://" not in value:
+        return None
+    try:
+        path = urlparse(value).path
+    except ValueError:
+        return None
+    name = (path or "").lstrip("/").strip()
+    return name or None
+
+
+def postgres_start_recipe(port: int, db: str | None) -> dict:
+    """Root-safe, runtime-version-resolved in-image Postgres start recipe.
+
+    The cluster version is resolved at runtime from ``/etc/postgresql`` so no
+    static ``<ver>`` (or base-image lookup) is needed; the daemon runs as the
+    ``postgres`` user (the container is uid 0 and Postgres refuses to run as root).
+    """
+    start = (
+        'PG_VER="$(ls /etc/postgresql 2>/dev/null | head -1)"; '
+        'runuser -u postgres -- pg_ctlcluster "$PG_VER" main start'
+    )
+    wait = (
+        f"for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p {port} && break; "
+        "sleep 1; done"
+    )
+    createdb = f"runuser -u postgres -- createdb {db}" if db else None
+    return {
+        "system_package": "postgresql",
+        "start": start,
+        "wait": wait,
+        "createdb": createdb,                    # FATAL when present (no `|| true`)
+        "certify": f"pg_isready -h 127.0.0.1 -p {port}",
+        "port": port,
+        "db": db,
+    }
+
+
+def attach_in_image_provisioning(graph: DepGraph, *, enabled: bool) -> DepGraph:
+    """Promote each CONFIRMED postgres SERVICE to an in-image obligation.
+
+    Adds a ``SystemLib(postgresql)`` prereq (emit bakes ``apt install postgresql``),
+    a ``Service->SystemLib`` requires edge, rewrites the service ``check_command``
+    to a loopback probe, and attaches ``data["start_recipe"]``. ``enabled=False``
+    returns the graph unchanged (off-state byte-identity). NEW graph.
+    """
+    if not enabled:
+        return graph
+    new = graph
+    for svc in [n for n in graph.nodes if n.type is NodeType.SERVICE]:
+        if svc.name != "postgres" or svc.data.get("service_confidence") != "confirmed":
+            continue
+        port = svc.data.get("port") or 5432
+        db = svc.data.get("db") or service_db_from_url(svc.data.get("bound_config_url", ""))
+        recipe = postgres_start_recipe(port, db)
+        sysl_id = syslib_id("postgresql")
+        if new.get(sysl_id) is None:
+            new = new.with_node(Node(
+                id=sysl_id, type=NodeType.SYSTEM_LIB, name="postgresql",
+                layer=Layer.SYSTEM, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, check_command="command -v pg_ctlcluster",
+                fix_candidates=("apt:postgresql",), chosen_fix="apt:postgresql",
+                evidence="in-image server for confirmed service postgres",
+                provenance="service provision",
+            ))
+        # Rewrite the service node: loopback probe + recipe in data.
+        new_data = dict(svc.data)
+        new_data["start_recipe"] = recipe
+        new = new.with_node(replace(
+            svc, check_command=recipe["certify"], data=new_data,
+        ))
+        new = new.with_edge(Edge(src=svc.id, dst=sysl_id,
+                                 relation=EdgeType.REQUIRES, origin="service"))
     return new

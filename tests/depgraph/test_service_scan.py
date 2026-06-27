@@ -71,9 +71,9 @@ def test_classify_service_errors():
 
 from python_deps.depgraph.service_scan import scan_services
 from python_deps.depgraph.schema import (
-    DepGraph, Node, NodeType, Layer, DiscoveredBy, EdgeType,
+    DepGraph, Node, NodeType, Layer, DiscoveredBy, EdgeType, State,
 )
-from python_deps.depgraph.ids import service_id, package_id, project_id, config_id
+from python_deps.depgraph.ids import service_id, syslib_id, package_id, project_id, config_id
 
 
 def _graph(pkgs=("psycopg2",), configs=()):
@@ -195,3 +195,69 @@ def test_confirmed_service_without_config_url_has_no_binding(tmp_path):
     node = g.get(service_id("postgres"))
     assert node.data["service_confidence"] == "confirmed"
     assert node.data.get("bound_config") is None
+
+
+from python_deps.depgraph.service_scan import (
+    attach_in_image_provisioning, postgres_start_recipe, service_db_from_url,
+)
+
+
+def _confirmed_pg_graph(port=5432, db=None):
+    data = {"service_confidence": "confirmed", "image": "postgres:14",
+            "host": "postgres", "port": port}
+    if db:
+        data["db"] = db
+    svc = Node(id=service_id("postgres"), type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
+               state=State.UNKNOWN,
+               check_command=f"pg_isready -h postgres -p {port}",
+               data=data)
+    return DepGraph().with_node(svc)
+
+
+def test_service_db_from_url():
+    assert service_db_from_url("postgres://u:p@db:5432/appdb") == "appdb"
+    assert service_db_from_url("postgresql://h/only_db") == "only_db"
+    assert service_db_from_url("postgres://h:5432/") is None
+    assert service_db_from_url("not-a-url") is None
+
+
+def test_recipe_is_root_safe_and_version_resolved():
+    r = postgres_start_recipe(5432, "appdb")
+    assert "runuser -u postgres" in r["start"]
+    assert "/etc/postgresql" in r["start"]            # runtime version resolution
+    assert "pg_isready -h 127.0.0.1 -p 5432" == r["certify"]
+    assert "createdb" in r["createdb"] and "appdb" in r["createdb"]
+    assert "|| true" not in r["createdb"]             # FATAL
+    r2 = postgres_start_recipe(5432, None)
+    assert r2["createdb"] is None                     # no name -> no createdb line
+
+
+def test_attach_disabled_is_noop():
+    g = _confirmed_pg_graph()
+    assert attach_in_image_provisioning(g, enabled=False) is g or \
+        attach_in_image_provisioning(g, enabled=False).to_dict() == g.to_dict()
+
+
+def test_attach_adds_systemlib_edge_loopback_and_recipe():
+    g = attach_in_image_provisioning(_confirmed_pg_graph(db="appdb"), enabled=True)
+    sysl = g.get(syslib_id("postgresql"))
+    assert sysl is not None and sysl.type is NodeType.SYSTEM_LIB
+    assert sysl.chosen_fix == "apt:postgresql"
+    assert any(e.src == service_id("postgres") and e.dst == syslib_id("postgresql")
+               and e.relation is EdgeType.REQUIRES for e in g.edges)
+    svc = g.get(service_id("postgres"))
+    assert svc.check_command == "pg_isready -h 127.0.0.1 -p 5432"   # loopback rewrite
+    assert svc.data["start_recipe"]["system_package"] == "postgresql"
+    assert "127.0.0.1" in svc.data["start_recipe"]["certify"]
+
+
+def test_attach_skips_inferred_service():
+    data = {"service_confidence": "inferred", "host": "postgres", "port": 5432}
+    svc = Node(id=service_id("postgres"), type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER,
+               state=State.UNKNOWN, check_command="pg_isready -h postgres -p 5432",
+               data=data)
+    g = attach_in_image_provisioning(DepGraph().with_node(svc), enabled=True)
+    assert g.get(syslib_id("postgresql")) is None          # inferred not promoted
+    assert g.get(service_id("postgres")).check_command == "pg_isready -h postgres -p 5432"
