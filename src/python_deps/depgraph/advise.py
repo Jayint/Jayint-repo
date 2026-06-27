@@ -170,6 +170,13 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
             if conf == "inferred":
                 line += "   (may be mocked — agent's call)"
             lines.append(line)
+            recipe = n.data.get("start_recipe")
+            if recipe:
+                lines.append(f"            needs (System): {recipe.get('system_package','')}")
+                if recipe.get("start"):
+                    lines.append(f"            start: {recipe['start']}")
+                if recipe.get("createdb"):
+                    lines.append(f"            then: {recipe['createdb']}")
 
     if len(lines) == 1:  # header only — nothing worth telling the planner
         return ""

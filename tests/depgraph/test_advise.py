@@ -234,3 +234,30 @@ def test_advisory_no_services_block_when_none():
                discovered_by=DiscoveredBy.RESOLVER, state=State.SATISFIED)
     out = render_dep_graph_advisory(DepGraph().with_node(pkg))
     assert "SERVICES" not in out
+
+
+# --- Task 7: render in-image start recipe in SERVICES advisory block ---
+
+def test_advisory_renders_provisioning_recipe():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,
+               fix_candidates=("service:postgres:16",),
+               data={"service_confidence": "confirmed",
+                     "start_recipe": {"system_package": "postgresql", "start": "START_CMD"}})
+    out = render_dep_graph_advisory(DepGraph().with_node(svc))
+    assert "needs (System): postgresql" in out
+    assert "START_CMD" in out
+
+
+def test_advisory_advisory_only_service_unchanged():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+    svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER, state=State.UNKNOWN,
+               fix_candidates=("service:redis:7",),
+               data={"service_confidence": "inferred"})
+    out = render_dep_graph_advisory(DepGraph().with_node(svc))
+    assert "needs (System)" not in out
+    assert "may be mocked" in out
