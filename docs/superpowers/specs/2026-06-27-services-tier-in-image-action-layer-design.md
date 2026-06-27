@@ -1,23 +1,26 @@
 # Services Tier — In-Image Action Layer (LLM-driven, host-certified)
 
 **Date:** 2026-06-27
-**Status:** Design v1 — **in-image provisioning slice** (the deferred §8 action layer, in-image first). Sidecars stay deferred (§12).
+**Status:** Design **v2** — **in-image provisioning slice** (the deferred §8 action layer, in-image first). Sidecars stay deferred (§12).
 **Branch:** john-planner-v3
-**Arm:** new sub-arm **`v1gsps`** (graph-scheduler + service-provision), default **off**, built on `v1gs`.
+**Arm:** new sub-arm **`v1gsps`** (service-provision), default **off**, layered on **`v1gsp`** (which already includes `v1gs` graph-scheduler + runtime-pin — so the feature is tested on the validated arm). The name reads `v1gsp` + `s` and is consistent with that layering.
 **Extends:**
-- `docs/superpowers/specs/2026-06-25-services-tier-design.md` — the discovery/advisory slice (already landed in `15799d5`). This spec builds its deferred §8 action layer.
+- `docs/superpowers/specs/2026-06-25-services-tier-design.md` — the discovery/advisory slice (landed in `15799d5`). This spec builds its deferred §8 action layer.
 - `docs/superpowers/specs/2026-06-25-six-tier-environment-world-model-design.md` — Services is tier 5; this is the first tier-5 *certification* (not just representation).
 
-> **Scope of this spec.** Promote a **confirmed** SERVICE node from passive advisory (UNKNOWN, certify-skip-guarded, off-frontier) to a **scheduled, host-certified obligation** the LLM satisfies **in-image** (a daemon started inside the agent's own container), certified by an in-container reachability probe, and reproduced in the scored eval by composing the start into the test-execution wrapper. **In-image only. No separate-container sidecar, no shared `--network` — those need eval-harness rework and stay deferred (§12).** Validated on **Postgres** (the `fastapi-template` case); the mechanism is kind-generic but only Postgres is hardened in this slice.
+> **v2 changelog (after a 4-reviewer adversarial pass).** v1 was philosophically sound but under-specified against the real code. v2 closes the code-verified blockers: the **second** SERVICE exclusion in `schedule.py` (not just the certify skip-guard); the `pg_isready` **loopback** probe site; **`EDGE_RULES` legality** of the cross-tier edge; **Postgres-as-root** rejection; the **graph→eval handoff channel** (the md2pdf/pyads divergence); **`createdb`-fatal + done-branch-requires-certified-service** (closes a hollow-0.2 path); **arm-gated `_LAYER_ORDER`** (off-state byte-identity); the **`chosen_fix` field collision**; the **`_is_runtime_service_segment` recognizer gap** (`pg_ctlcluster` unmatched); and a **Phase D split**. Sections changed: §3, §4 (+ new §4.5), §5, §7, §8, §9, §10, §13, §14, §16.
+
+> **Scope of this spec.** Promote a **confirmed** SERVICE node from passive advisory (UNKNOWN, certify-skip-guarded, scheduler-excluded, off-frontier) to a **scheduled, host-certified obligation** the LLM satisfies **in-image** (a daemon started inside the agent's own container), certified by an in-container reachability probe against **loopback**, and reproduced in the scored eval by composing the start into the test-execution wrapper via an **explicit handoff field** (never a text heuristic). **In-image only. No separate-container sidecar, no shared `--network`.** Validated on **Postgres** (the `fastapi-template` case); the mechanism is kind-generic but only Postgres is hardened in this slice.
 
 ---
 
 ## 1. Problem
 
-The discovery slice reads CI/compose intently — `scan_ci_services` (`.github/workflows/*.yml` `services:`), `scan_compose_services` (`docker-compose*.yml`), `service_from_url`, and the `package→service` table — and surfaces a confidence-annotated SERVICE node plus an advisory block (`advise.py:157-172`). But the block self-declares *"reachability NOT certified here"* and is read-only prompt text. There is **no path that starts a service**:
+The discovery slice reads CI/compose intently — `scan_ci_services` (`.github/workflows/*.yml` `services:`), `scan_compose_services` (`docker-compose*.yml`), `service_from_url`, and the `package→service` table — and surfaces a confidence-annotated SERVICE node plus an advisory block (`advise.py:157-172`). But the block self-declares *"reachability NOT certified here"* and is read-only prompt text. There is **no path that starts a service**, and there are now **three** independent gates proving it:
 
 - `certify.py:62-63` skip-guards SERVICE nodes (`if node.type is NodeType.SERVICE: return graph`) — they stay UNKNOWN.
 - `certify.py:25-34` — `Layer.SERVICES` is absent from `_LAYER_ORDER`, so `certify_all` never probes them.
+- `schedule.py:34` — `_is_actionable` returns `False` for `NodeType.SERVICE` (`and node.type is not NodeType.SERVICE  # services flow through the sufficiency branch in v1`), so the scheduler frontier never surfaces one.
 - `emit.py:120-121` excludes SERVICE from the emittable set.
 
 Concrete cost (10-repo honest A/B): `fastapi-template` has 1 DB-free unit test + 4 Postgres-requiring integration tests. `v1gsp` ran the full suite → 3 ERROR (no DB) → correctly refused (honest 0.0). `radical` "passed" it **hollowly** via collect-only (real run 0.2), which the honest scorer zeroes. So neither arm clears it, and the gap is a **missing feature** (provisioning), not a regression. This slice builds that feature the philosophy-consistent way.
@@ -29,14 +32,14 @@ Concrete cost (10-repo honest A/B): `fastapi-template` has 1 DB-free unit test +
 The separation of powers is unchanged:
 
 - **Graph = WHAT/WHEN** — a confirmed service is a tier-5 obligation; the scheduler puts it on the frontier (MISSING) once its system prereq is installed.
-- **LLM = HOW** — the LLM starts the daemon, guided by a per-base-image **start recipe** carried in the advisory/fix-candidate. It cannot self-finalize.
-- **Host = WHETHER** — only an in-container `pg_isready` against a **live** instance flips Service → SATISFIED. The test suite remains the sufficiency oracle.
+- **LLM = HOW** — the LLM starts the daemon, guided by a per-base-image **start recipe** carried in node `data` (not `chosen_fix` — §7). It cannot self-finalize.
+- **HOST = WHETHER** — only an in-container `pg_isready` against a **live** instance flips Service → SATISFIED. The test suite remains the sufficiency oracle.
 
-The *only* change from the discovery slice: a confirmed service stops being inert. We do **not** add an LLM-declared or action-implied success path, do **not** weaken any done-gate, and do **not** re-implement compose in a deterministic emitter (that would collapse HOW into the graph and re-build the most-solved part of the tier — see §10).
+The *only* change from the discovery slice: a confirmed service stops being inert. We do **not** add an LLM-declared or action-implied success path, do **not** weaken any done-gate, and do **not** re-implement compose in a deterministic emitter (that would collapse HOW into the graph and re-build the most-solved part of the tier — see §10/§15).
 
 **Why LLM-driven start over a deterministic emit recipe** (the decision this spec encodes):
-1. Service-start is genuinely heterogeneous across base images / versions (`service postgresql start` vs `pg_ctlcluster <ver> main start` vs `pg_ctl -D … start`, plus `initdb`, `createdb`, auth, env). A fixed recipe is brittle; a host-certified LLM loop adapts.
-2. The defensible novelty (design §10) is *inferring the need* and certifying it as a cross-tier node — not orchestrating containers. Deterministic emit spends effort on the commodity part.
+1. Service-start is genuinely heterogeneous across base images / versions (`service postgresql start` vs `pg_ctlcluster <ver> main start` vs `pg_ctl -D … start`, plus `initdb`, `createdb`, auth, env, **and the as-`postgres`-user requirement** — §7). A fixed recipe is brittle; a host-certified LLM loop adapts.
+2. The defensible novelty (design §10/§15) is *inferring the need* and certifying it as a cross-tier node — not orchestrating containers.
 3. **Falsifiable beats brittle:** an LLM start that the host *certifies* turns the spec's "in-image is fragile" objection into a self-correcting loop — `pg_isready` fails → obligation stays MISSING → bounded retry → honest give-up.
 
 ---
@@ -44,173 +47,218 @@ The *only* change from the discovery slice: a confirmed service stops being iner
 ## 3. Scope
 
 **In scope:**
-- Certify confirmed in-image services (real `pg_isready`/`nc -z` probe, run in the live agent container).
+- Certify confirmed in-image services (real `pg_isready`/`nc -z` probe **against loopback**, run in the live agent container).
 - Schedule a confirmed service as a frontier obligation, gated behind its System prereq (`apt install postgresql`).
-- A per-base-image **start recipe** rendered into the advisory and attached as the service node's fix-candidate.
-- Eval reproduction: install baked into the Dockerfile; start + wait + `createdb` composed into the test-execution wrapper.
+- A per-base-image **start recipe** (root-aware, version-resolved) rendered into the advisory and attached to the service node's `data["start_recipe"]`.
+- Eval reproduction via an explicit **handoff field** (§8): install baked into the Dockerfile; start + wait + `createdb` composed into the test-execution wrapper.
 - Validated on Postgres + `fastapi-template`.
 
 **Out of scope (deferred — §12):** separate-container sidecars / shared `--network`; multi-service ordering (`Service→Service`); non-Postgres kinds hardened (mechanism admits them; only Postgres proven); the verify-sub-suite fallback (`pytest -m unit`) — see §11.
 
----
-
-## 4. The promotion — four mechanics
-
-All four are gated behind `v1gsps` (§9); off ⇒ byte-identical.
-
-**4.1 Real `check_command` that runs.** A confirmed Postgres service's `check_command` is `pg_isready -h 127.0.0.1 -p <port>` (other kinds: `nc -z 127.0.0.1 <port>`). Host = 127.0.0.1 because this is **in-image** — the daemon runs in the same container; the discovery slice's `host=<kind>` (e.g. `postgres`) is the *sidecar* addressing and is overridden to loopback for in-image certification, matching the eval's `--add-host postgres:127.0.0.1`.
-
-**4.2 `Layer.SERVICES` enters `_LAYER_ORDER`** (`certify.py:25-34`), positioned **after** PIP/SYSTEM/TOOLCHAIN and before TESTS — a service can only be probed once its client driver + server binary are installed, and tests run after it's up.
-
-**4.3 Lift the certify skip-guard for *confirmed* services only.** `certify.py:62-63` becomes: skip-guard remains for `service_confidence == "inferred"` (still UNKNOWN — may be mocked), but a **confirmed** in-image service is certified by running its probe. Certification happens **in the live agent container** (see §6) — this resolves the original F1 objection (the scratch *probe* container is destroyed before tests, but the build-agent's persistent container is exactly where start + probe co-exist).
-
-**4.4 Scheduling.** Once promoted, a confirmed service that is not yet SATISFIED is an actionable MISSING node on the scheduler frontier (`schedule.py:scheduler_frontier` / `graph_scheduler.py`), **requires-blocked** by its System prereq node (§5). The frontier carries the start recipe (§7) so the bounded LLM executor has the HOW.
+**In-image departs from the discovery slice's closure model — state it explicitly.** The discovery spec (§2) treated the server as a *closure sink* that "runs in its own image, does not consume our pip/apt closure" — that was the **sidecar** assumption. **In-image inverts it:** we `apt install postgresql`, so the server binary **does** consume our apt closure and becomes a real **System-tier obligation** in our graph. §5's cross-tier edge follows directly from this departure.
 
 ---
 
-## 5. Cross-tier chain — the necessary structure
+## 4. The promotion — mechanics
 
-The slice introduces a real tier-2→tier-5→tier-6 causal chain in one graph:
+All gated behind `v1gsps` (§9); off ⇒ byte-identical.
+
+**4.1 Real `check_command` that runs, against loopback.** A confirmed Postgres service is certified by `pg_isready -h 127.0.0.1 -p <port>` (other kinds: `nc -z 127.0.0.1 <port>`). **The loopback override has a named site:** the discovery slice's `_service_node` stores `data["host"]` = the CI service name (e.g. `"postgres"`) and bakes it into `check_command`. The certify path (§6) **rewrites the probe host to `127.0.0.1` at certification time** — it does *not* use the stored `check_command` verbatim, and does *not* mutate `data["host"]` (which stays `"postgres"` for advisory/handoff fidelity). Concretely: the SERVICE branch of `certify` builds its probe string from `(kind, port)` with host pinned to loopback, because in-image the daemon shares the container's loopback. This is why §1's stored `pg_isready -h postgres …` never runs as-is.
+
+**4.2 `Layer.SERVICES` enters `_LAYER_ORDER` — arm-gated, not module-level.** `_LAYER_ORDER` is a module-level tuple in `certify.py`; adding SERVICES to it unconditionally would make *every* arm (`v1gsp`, `v1gs`) iterate SERVICE nodes and break off-state byte-identity (Red-team A8). Instead, `certify_all` takes the layer order as a **parameter** (or reads an arm-gated constant): under `v1gsps` the order includes `Layer.SERVICES` (positioned **after** PIP/SYSTEM/TOOLCHAIN, before TESTS — a service is probed only once its client driver + server binary exist, and before tests run); off-arm it is the existing tuple, unchanged.
+
+**4.3 Lift the certify skip-guard for *confirmed* services only.** `certify.py:62-63` becomes conditional: the skip-guard **remains** for `data["service_confidence"] == "inferred"` (still UNKNOWN — may be mocked) and for any arm other than `v1gsps`; a **confirmed** in-image service under `v1gsps` is certified by running its loopback probe (§4.1).
+
+**4.4 Scheduling — lift the SERVICE exclusion too.** Certification alone is insufficient: `schedule.py:34`'s `_is_actionable` independently excludes every SERVICE node. Under `v1gsps`, that exclusion is relaxed to skip **only inferred** services: a **confirmed** service with `state=MISSING` and its System prereq SATISFIED (§5) becomes frontier-eligible, carrying `data["start_recipe"]` (§7) as the HOW. Off-arm, the exclusion is unchanged. See §4.5.
+
+**4.5 Existing blocking invariants to lift (enumerated so no phase rediscovers them mid-task).**
+- **`schedule.py:34`** — `_is_actionable`'s `and node.type is not NodeType.SERVICE`. Relax to confirmed-only **under the arm** (Phase B). Off-arm byte-identical.
+- **`certify.py:25-34`** — `_LAYER_ORDER` excludes SERVICES; parameterize/arm-gate (Phase A, §4.2).
+- **`certify.py:62-63`** — universal SERVICE skip-guard; make confirmed-only under the arm (Phase A, §4.3).
+- **`sandbox.py` container launch** — no `extra_hosts`. The agent's live container needs `postgres → 127.0.0.1` so the *tests'* configured hostname resolves to the in-image daemon (the probe itself uses loopback directly — §4.1). `extra_hosts` must be set at `containers.run(...)` time, so the arm flag threads into `Sandbox.__init__`/`_setup_initial_container` (Phase E). Off-arm: never injected.
+
+---
+
+## 5. Cross-tier chain — the necessary structure (and its schema change)
+
+The slice introduces a real tier-2 → tier-5 → tier-6 causal chain in one graph:
 
 ```
-System(postgresql-server: apt install postgresql)   ── requires ──▶  Service(postgres: start + pg_isready)   ── requires ──▶  Test
-            (tier 2, certified by `dpkg -s` / `command -v pg_ctl`)        (tier 5, certified by pg_isready)             (tier 6)
+SystemLib(postgresql: apt install)   ◀── requires ──  Service(postgres: start + pg_isready)   ◀── requires ──  Test
+   (tier 2, certified by `dpkg -s`/`command -v pg_ctl`)        (tier 5, certified by loopback pg_isready)         (tier 6)
 ```
 
-- A confirmed Postgres service **requires** a System/Tool node for the server binary (`postgresql` apt package). That node is certified by the existing System-tier path (presence check), and its install is emitted/baked normally.
-- The Service obligation is **blocked-by** the System node: the scheduler will not surface "start postgres" until `pg_ctl`/`pg_ctlcluster` exists. This is honest topological ordering, not a heuristic.
-- The Test is **blocked-by** the Service (a confirmed service already carries the `Package→Service` / `anchor→Service` requires edge from the discovery slice; the Test/Project consumes it transitively).
+**EDGE_RULES legality — the schema change this requires.** Today `schema.py` `EDGE_RULES["requires"]` allows sources `{Test, Project, Import, Package}` only; `Service` is **not** a permitted `requires` source, so `Service → SystemLib` would raise `ValueError` at `with_edge`/`_validate_edge`. **Decision (Model A):** add `Service` to the `requires` **source** set, making `Service → SystemLib`/`Service → Tool` legal. This is semantically justified by the in-image closure departure (§3): in-image, a service genuinely *requires* its server binary installed in our closure. The change is one line in `EDGE_RULES` + a schema test; it does not loosen any other relation (Service is added only as a *source*, only for `requires`).
 
-This is the six-tier "tier-agnostic certification across cross-tier chains" claim made concrete — a tier-2 obligation gating a tier-5 obligation gating the tests, all certified by `check_command`.
+- The confirmed Postgres service **requires** the `SystemLib(postgresql)` node (server binary). That node certifies via the existing System-tier presence check and installs via normal emit (baked into the Dockerfile — §8).
+- `_dependencies_satisfied` (`schedule.py`) walks `requires`; with the edge present, the Service obligation is **not** frontier-eligible until `SystemLib(postgresql)` is SATISFIED. This is the honest topological gate (Red-team A3: without the edge, the gate silently doesn't exist and Postgres could be scheduled before `pg_ctl`).
+- The Test is **blocked-by** the Service via the discovery slice's existing `Package→Service` / `anchor→Service` edge consumed transitively. **Caveat (Red-team A7):** this edge must **not** convert the scheduler's `run_tests()` done-check into a hard graph gate — `run_tests()` is the sufficiency oracle; a suite that passes while a confirmed service is UNSATISFIED (it mocked the DB) is a valid result. The scheduler promotes a confirmed service to the frontier **only when `run_tests()` fails AND the service is MISSING** (§10), never speculatively.
+
+*(Model B considered — no schema change; instead draw the legal `Test → SystemLib(postgresql)` and rely on `_LAYER_ORDER` tier ordering for sequencing. Rejected: tier order governs certify order, not the scheduler frontier, so it gives no edge-level gate that the service-start waits for the install. Model A's explicit edge is the clean guarantee.)*
 
 ---
 
 ## 6. Certification timing — in the live agent container (F1 resolved)
 
-The discovery spec deferred certification because the `sleep infinity` **scratch probe** container used by `build_dep_graph` is destroyed before any test-run container exists (review F1) — you cannot certify reachability against a service that nothing has started in a throwaway container.
+The discovery spec deferred certification because the `sleep infinity` **scratch probe** container used by `build_dep_graph` is destroyed before any test-run container exists (review F1).
 
-In-image dissolves this: the **build-agent runs its action loop in a persistent container** (the live executor behind `depgraph_live` / `build_agent`). The LLM starts the daemon there; the host certifies `pg_isready` **in that same container, in a later cycle**, exactly like any other runtime-feedback re-certification. No new container, no network. Concretely:
+In-image dissolves this: the **build-agent runs its action loop in a persistent container** (the live executor behind `depgraph_live`/`build_agent`). The LLM starts the daemon there; the host certifies `pg_isready` **in that same container, on a later cycle** (the existing re-certify-on-next-cycle pattern — `_dep_emit_phase` → `certify_refresh` runs before the executor each cycle, so the flip to SATISFIED lands the cycle *after* the LLM starts it). Verified feasibility points:
 
-- Certification of SERVICE nodes runs on the **live/host executor** path (the same executor that re-certifies after the agent acts), **not** inside `build_dep_graph`'s scratch resolve. `build_dep_graph` keeps SERVICE nodes UNKNOWN; the live certify cycle flips confirmed ones once started.
-- This keeps `build_dep_graph` pure and side-effect-free (it never starts a service), and localizes all actuation to the agent loop where the persistent container lives.
+- A daemon started by a mutating `sandbox_execute` call **persists** across subsequent `exec_run`/`exec_readonly` calls — they exec into the *same* container PID namespace, so the read-only `pg_isready` probe reaches the daemon.
+- `build_dep_graph` stays pure: it never starts or certifies a service. All actuation + certification live in the agent loop's persistent container.
+- **Rollback caveat:** `_restore_last_success_container` replaces the container and replays runtime commands; the replayed start must use the as-`postgres`-user form (§7) or it fails silently as root. The replay recognizer must also match `pg_ctlcluster` (§8, Feasibility I3).
 
 ---
 
-## 7. The "how to start" recipe (advisory → fix-candidate, not a committed action)
+## 7. The "how to start" recipe (root-aware, version-resolved; in `data`, not `chosen_fix`)
 
-For the detected base-image family and the detected service, the advisory renders a **start recipe** and the same recipe is attached as the service node's `chosen_fix`/fix-candidate so the bounded executor sees it as the HOW for the obligation. For Postgres on a debian-slim base (the common case):
+For the detected base-image family and detected service, a **start recipe** is rendered into the advisory and stored on the service node as **`data["start_recipe"]`** — *not* `chosen_fix`. (`chosen_fix` carries the `service:<image>` string parsed by `_is_emittable`/`_is_reciped`; overwriting it with shell text breaks those — Architecture I4. The scheduler's `packet_to_task` renders `data["start_recipe"]` into the obligation's facts.)
+
+For Postgres on a debian-slim base (the common case):
 
 ```
 SERVICES (provision in-image — host certifies reachability):
   postgres  [confirmed: .github/workflows/ci.yml services.postgres]  port 5432  addresses: DATABASE_URL
-    needs (System): postgresql            # tier-2 prereq, scheduled first
-    start (candidates, agent adapts):
-      service postgresql start            # sysv path
-      pg_ctlcluster <ver> main start      # cluster path (init-less slim)
-    prepare: createdb <db>  ; ensure trust/peer auth for the configured user
-    certify (host runs): pg_isready -h 127.0.0.1 -p 5432
+    needs (System): postgresql                       # tier-2 prereq, scheduled first (§5 requires edge)
+    start (candidates, agent adapts — MUST run as the postgres user):
+      runuser -u postgres -- pg_ctlcluster <ver> main start     # init-less slim; preferred
+      su - postgres -c "pg_ctlcluster <ver> main start"          # equivalent
+      service postgresql start                                   # sysv path (still drops to postgres internally)
+    prepare:  runuser -u postgres -- createdb <db>               # <db> from DATABASE_URL path; FATAL on failure
+    certify (host runs):  pg_isready -h 127.0.0.1 -p 5432
 ```
 
-The recipe is a **hint**: the LLM picks/adapts (base images differ; some need `initdb` first, some ship a cluster). The host certifies the outcome, not the command. This preserves LLM = HOW and avoids hard-coding a brittle canonical recipe. The recipe text is derived from the detected base family (from the Runtime tier / `ImageSelector` choice) + the service kind; unknown families fall back to the generic `service <kind> start` + probe.
+Three hard requirements the recipe encodes (each a code-verified review finding):
 
-**Connectability vs correctness.** In scope for "the service is usable": server reachable (`pg_isready`), the **bound database exists** (`createdb`), and auth lets the configured user connect (trust/peer for local). Out of scope (the suite's job): schema migrations, seed data, credentials/SSL correctness. The Service certifies *reachable + connectable*; the tests certify *correct* (§ necessary-vs-sufficient).
+- **Run as the `postgres` user (Feasibility C1).** The sandbox runs as uid 0 (`sandbox.py` launches with no `user=`); Postgres refuses to start as root. Every start/`createdb`/`psql` candidate is wrapped in `runuser -u postgres --` / `su - postgres -c`.
+- **Resolve `<ver>` (Feasibility C2).** `pg_ctlcluster` needs the major version (15 on bookworm-slim, 13 on bullseye). Resolve from the Runtime-tier base image (`runtime_base`/`ImageSelector` choice — §16 Q1 is now closed as a lookup, not a design question); if the base family is unknown, fall back to `service postgresql start` (which discovers the cluster) + the probe, and let the LLM adapt.
+- **Preflight: separate actions (Feasibility I5).** The agent issues **start**, **wait/verify**, and **createdb** as *distinct* obligations/actions — the sandbox's compound-setup preflight rejects a single command that bundles multiple setup mutations. (The eval *wrapper*, §8, is outside preflight and may chain them.)
+
+The recipe is a **hint**: the host certifies the outcome, not the command. This preserves LLM = HOW.
+
+**Connectability vs correctness.** In scope: server reachable (`pg_isready`), the **bound database exists** (`createdb`, fatal — §8), and local trust/peer auth lets the configured user connect. Out of scope (the suite's job): schema migrations, seed data, credentials/SSL. The Service certifies *reachable + connectable*; the tests certify *correct*.
 
 ---
 
-## 8. Eval reproduction — install baked, start composed into the test wrapper
+## 8. Eval reproduction — explicit handoff field, install baked, start composed into the wrapper
 
-A daemon started in a Dockerfile `RUN` layer dies before `CMD`; each `RUN` is its own process. So slice 1 splits provisioning across the two places the scored eval actually runs code:
+A daemon started in a Dockerfile `RUN` layer dies before `CMD`. So provisioning splits across the two places the scored eval actually runs code, **driven by an explicit field — never a text heuristic** (this is the highest-danger gap, Red-team A2):
 
-1. **Install → Dockerfile (persistent).** `apt-get install -y postgresql` (+ client) bakes into the synthesized Dockerfile as a normal System-tier install layer. Reuse the existing `_coalesce_postgres_build_configuration_commands` (`synthesizer.py:1282-1327`) and `_is_runtime_service_segment` (`synthesizer.py:3807-3817`) recognizers so the install/setup commands the agent ran are coalesced into the image build.
-2. **Start + wait + createdb → the test-execution wrapper (live during the scored run).** The start/`pg_isready`/`createdb` sequence is prepended to the test command in the **same shell** as pytest, extending the existing `TEST_EXECUTION_SHELL_WRAPPER` and the `--add-host postgres:127.0.0.1` alias (`run_repo2run_benchmark.py:2872-2884`, `should_add_postgres_host_alias` at `:2820-2847`). Shape:
+**8.1 The handoff field (closes the graph→eval divergence).** At finalization the agent writes to `run_summary`:
 
-```sh
-# (eval test wrapper, when a confirmed in-image service is present)
-service postgresql start || pg_ctlcluster <ver> main start
-for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 5432 && break; sleep 1; done
-createdb <db> 2>/dev/null || true
-python -m pytest -q        # the scored command
+```json
+"confirmed_in_image_services": [
+  {"kind": "postgres", "port": 5432, "db": "<from DATABASE_URL>", "ver": "15",
+   "start_cmd": "runuser -u postgres -- pg_ctlcluster 15 main start"}
+]
 ```
 
-This is what closes the synthesizer-fidelity gap for service repos — the same class of gap that lost md2pdf/pyads (configured-in-sandbox but not reproduced in the fresh eval). The in-sandbox host-certified result and the scored eval now run the *same* start sequence.
+The eval harness reads **this field** (not `should_add_postgres_host_alias`'s regex) to decide what to inject. The field is written **only** when the world-model carries a confirmed service that was **certified SATISFIED** in-sandbox (the agent actually stood it up). Absent the field, the eval is byte-identical to today.
 
-The wrapper augmentation fires **only** when the world-model/graph carries a confirmed, SATISFIED in-image service (i.e. the agent actually stood it up and the host certified it) — never speculatively, so non-service repos are byte-identical.
+**8.2 Install → Dockerfile (persistent).** `apt-get install -y postgresql` (+ client) bakes in via the **normal System-tier emit path** for the `SystemLib(postgresql)` node — *not* via the postgres coalescer. (Clarification vs v1, Feasibility I3 / Red-team A5: `_coalesce_postgres_build_configuration_commands` is for build-time cluster setup we are **not** doing; **no daemon and no `createdb` at build time** — they'd die between layers. The apt install is the only Dockerfile-baked piece.)
 
-**Hostname parity (in-sandbox ↔ eval).** A repo's `DATABASE_URL` typically names the CI service hostname (e.g. `postgres:5432`), not `127.0.0.1`. The eval already aliases it via `--add-host postgres:127.0.0.1`. For the agent's in-sandbox run to behave identically, the **agent's live container must carry the same alias** (an `/etc/hosts` entry `127.0.0.1 postgres`, added when a confirmed in-image service is present). The certify probe still targets `127.0.0.1` directly (§4.1); the alias only exists so the *tests'* configured hostname resolves to the in-image daemon in both runs.
+**8.3 Start + wait + createdb → the test-execution wrapper (live during the scored run).** Read from the handoff field, the eval composes, in the *same* bash session as pytest (extending `build_test_execution_script`'s `runtime_commands` and `TEST_EXECUTION_SHELL_WRAPPER`, `run_repo2run_benchmark.py`):
+
+```sh
+runuser -u postgres -- pg_ctlcluster 15 main start      # from start_cmd; runs as postgres
+for i in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 5432 && break; sleep 1; done
+runuser -u postgres -- createdb <db>                    # FATAL — no `|| true` (Red-team A1)
+python -m pytest -q                                     # the scored command
+```
+
+- **`createdb` is fatal** (no `|| true`): a missing-DB failure must make the wrapper exit non-zero so the eval counts a failure, never a silent green. `<db>` is inferred from the bound `DATABASE_URL` path component (recorded in the handoff field), so wrapper-`<db>` and app-`<db>` match.
+- The eval also adds `--add-host postgres:127.0.0.1` (the existing `run_repo2run_benchmark.py:2876` mechanism), **driven by the handoff field** so the tests' `postgres` hostname resolves to the in-image daemon. (`_is_runtime_service_segment` must be **extended to match `pg_ctlcluster`** — Feasibility I3 — so the start command is recognized as a runtime, not build-time, segment.)
+
+**8.4 Hostname parity (in-sandbox ↔ eval).** A repo's `DATABASE_URL` typically names the CI hostname (`postgres:5432`), not `127.0.0.1`. Both containers carry the alias: the agent's live sandbox via `extra_hosts={"postgres":"127.0.0.1"}` at launch (§4.5, Phase E); the eval via `--add-host` (§8.3). The certify probe targets `127.0.0.1` directly (§4.1); the alias only exists so the *tests'* configured hostname resolves in both runs.
+
+This is what closes the synthesizer-fidelity gap for service repos (the class that lost md2pdf/pyads).
 
 ---
 
 ## 9. Off-state byte-identity + the arm
 
-- New env flag `DOCKERAGENT_ENABLE_SERVICE_PROVISION` → arm label **`v1gsps`**, default **off**, layered on `v1gs` (obligations only exist when the graph drives construction). Distinct sub-arm (not folded into `v1gsp`) so it A/B's cleanly against `v1gsp`.
-- **Off ⇒ byte-identical:** no SERVICE node is ever promoted, certified, scheduled, or started; `_LAYER_ORDER` excludes SERVICES; the skip-guard stays universal; the eval wrapper is unaugmented. Verified by an off-state snapshot test (the project's standing discipline).
+- New env flag `DOCKERAGENT_ENABLE_SERVICE_PROVISION` → arm label **`v1gsps`**, default **off**, layered on `v1gsp`. Add it to the arm ladder and the child-process arm-detection block (`run_rat_benchmark.py`) as a Phase-E task. Distinct sub-arm (not folded into `v1gsp`) so it A/B's cleanly against `v1gsp`.
+- **Off ⇒ byte-identical across every touch-point** (enumerated so the snapshot test covers them all):
+  - `certify.py` — `_LAYER_ORDER` excludes SERVICES off-arm (§4.2); skip-guard universal off-arm (§4.3).
+  - `schedule.py` — SERVICE exclusion intact off-arm (§4.4).
+  - `advise.py` — render unchanged (the discovery advisory block is the same; no start-recipe lines off-arm).
+  - `sandbox.py` — no `extra_hosts` off-arm (§4.5).
+  - `run_repo2run_benchmark.py` — no handoff field is written off-arm, so the wrapper/`--add-host` path is unchanged (§8). The pre-existing `should_add_postgres_host_alias` heuristic is **left as-is** off-arm (it already fires today on text; this slice does not change it — it adds a *field-driven* path that supersedes it on-arm).
+  - `synthesizer.py` — the `_is_runtime_service_segment` extension is inert unless a `pg_ctlcluster` command is present (only on-arm provisioning emits one).
 - **On:** §4–§8 active.
 
 ---
 
-## 10. Necessary-vs-sufficient & anti-hollow (the safeguard)
+## 10. Necessary-vs-sufficient & anti-hollow (the safeguard, hardened in v2)
 
-- `pg_isready` certifies **reachability + connectability** — *necessary*, not *sufficient*. A reachable-but-unmigrated DB still fails tests; the suite is the sufficiency oracle. This matches the Config tier's presence-vs-value discipline.
-- **Only the host probe flips state.** The LLM proposing/running a start command never sets SATISFIED; an action that "looks like" it started a DB never implies success. If the probe fails, the node stays MISSING. This is the anti-hollow invariant, unchanged.
-- **Falsifiable backoff:** a confirmed service that can't be certified after the bounded executor's attempts leaves the frontier non-empty; the existing host-grounded give-up gate (host-grounded `diverged` + no actionable frontier + nothing emittable) fires an **honest failure** — no hollow success, no collect-only laundering. In-image genuinely impossible (truly needs a separate container) ⇒ honest refusal, exactly as today, plus the advisory recorded *why*.
+- `pg_isready` certifies **reachability + connectability** — *necessary*, not *sufficient*. The suite is the sufficiency oracle. Only the host probe flips state; no action "looking like" a started DB implies success.
+- **Done-branch requires the certified service (new in v2, closes Red-team A1/A6).** For a repo where a confirmed in-image service was **promoted**, the scheduler may accept `done` only if that service is **certified SATISFIED** (host-probed reachable) — not on `run_tests()` alone. This converts the dangerous "postgres never came up, but the 1 pre-existing unit test passed → live, non-zeroed 0.2" into an **honest give-up**. (For repos where no service was promoted — e.g. an inferred/mocked DB the suite stubs — `run_tests()` remains the sole oracle, §5 caveat.)
+- **`createdb` fatal (§8.3)** removes the `|| true` path that could let DB-dependent tests skip into a false green.
+- **Acknowledged out-of-scope gap:** the honest scorer does not zero a *mixed* "1 passed + N skipped" run (only all-skip/collect-only). This slice does **not** fix that scorer gap; it *avoids triggering it* via the certify-gate above (we don't claim done unless the service is genuinely up) — so a real service-repo can't ride its one pre-existing unit test to a hollow number.
+- **Falsifiable backoff:** a confirmed service that can't be certified after the bounded executor's attempts leaves the frontier non-empty; the existing host-grounded give-up gate fires an **honest failure** — no hollow success, no collect-only laundering.
 
 ---
 
 ## 11. Why the verify-sub-suite is NOT bundled
 
-`pytest -m unit` (run only DB-free tests) was floated as a cheaper way to bank `fastapi-template`'s single unit test *without* a database. It is **out of scope here**: if this slice stands Postgres up, **all 5** tests pass — strictly better than 1. The sub-suite fallback is for the genuinely-unprovisionable case (e.g. a service that only a real sidecar can supply) and is a separate slice (it also belongs to the verify-command-discovery work flagged in the multi-language provider-seam handoff). Keeping them separate keeps this spec to one implementation plan.
+`pytest -m unit` was floated as a cheaper way to bank `fastapi-template`'s single unit test *without* a database. **Out of scope here:** if this slice stands Postgres up, **all 5** tests pass — strictly better than 1. The sub-suite fallback is for the genuinely-unprovisionable case (a service only a real sidecar can supply) and is a separate slice (it also belongs to the verify-command-discovery work in the multi-language provider-seam handoff). Keeping them separate keeps this spec to one implementation plan.
 
 ---
 
 ## 12. Non-goals (YAGNI)
 
-- **No separate-container sidecar / shared `--network`** — needs eval-harness rework; the design's §8 "compose-up / docker run + network-attach" stays deferred. In-image is the slice.
+- **No separate-container sidecar / shared `--network`** — needs eval-harness rework; the design's §8 "compose-up / docker run + network-attach" stays deferred.
+- **No build-time daemon or build-time `createdb`** — a `RUN`-layer daemon dies before `CMD`; all start/createdb happens at runtime in the wrapper (§8.2).
 - **No `Service→Service` ordering** (kafka→zookeeper) — schema permits it; discovery/scheduling deferred.
 - **No non-Postgres hardening** — redis/mongo fall out of the kind-generic mechanism but are not proven in slice 1.
 - **No service correctness** (migrations, seed data, credentials, SSL) — the suite's job. Only reachable + bound-DB-exists + connectable auth.
 - **No verify-sub-suite** (§11).
-- **No new `State` value, no LLM-declared success, no done-gate weakening** — the certification invariant is preserved verbatim.
+- **No new `State` value, no LLM-declared success, no done-gate weakening** — the certification invariant is preserved verbatim (and §10 *strengthens* the service-repo done-gate).
 
 ---
 
 ## 13. Testing strategy (TDD)
 
 **Unit (pure, no Docker):**
-- `certify` runs the probe and flips a **confirmed** in-image Postgres service to SATISFIED on probe-ok / MISSING on probe-fail; **inferred** services stay UNKNOWN (skip-guard retained). `Layer.SERVICES` present in `_LAYER_ORDER` only affects confirmed nodes.
-- Scheduler frontier includes a confirmed MISSING service **only after** its System prereq is SATISFIED (cross-tier blocking, §5); excludes it while the prereq is MISSING.
-- Start-recipe render: confirmed service renders the `needs (System)` + `start (candidates)` + `certify` lines for the detected base family; generic fallback for unknown families; inferred services keep the "may be mocked" advisory and get **no** start recipe.
-- Synthesizer composes the start/wait/createdb sequence into the test-execution wrapper **only** when a confirmed SATISFIED in-image service is present; absent otherwise.
-- Eval wrapper construction (`run_repo2run_benchmark.py`): start+probe prepended in the same shell as pytest; `--add-host` alias present; non-service repo wrapper unchanged.
+- **Certify:** a **confirmed** Postgres service's certify builds a **loopback** probe (`-h 127.0.0.1`) regardless of `data["host"]="postgres"`, and flips SATISFIED on probe-ok / MISSING on probe-fail; **inferred** services stay UNKNOWN (skip-guard retained); off-arm, all SERVICE nodes stay UNKNOWN and `_LAYER_ORDER` excludes SERVICES.
+- **Schema:** `EDGE_RULES` now admits `Service → SystemLib` (`requires`); `Service` as a `requires` source does not enable any other illegal relation.
+- **Scheduler:** with the §4.4 lift, a confirmed MISSING service appears on the frontier **only after** `SystemLib(postgresql)` is SATISFIED (the §5 edge), and **only when `run_tests()` failed**; inferred services never appear; off-arm the frontier is unchanged (SERVICE excluded).
+- **Recipe:** render is root-wrapped (`runuser -u postgres`), `<ver>` resolved from the base family with a generic fallback, stored in `data["start_recipe"]` (not `chosen_fix`); inferred services keep "may be mocked" and get no recipe.
+- **Synthesizer:** `_is_runtime_service_segment` matches `pg_ctlcluster … start`; `apt install postgresql` bakes into build commands; no daemon/`createdb` is baked.
+- **Eval wrapper:** when `run_summary["confirmed_in_image_services"]` is present, the start/wait/`createdb` block (root-wrapped, `createdb` fatal — no `|| true`) is prepended in the same shell as pytest and `--add-host` is added; absent the field, the wrapper + `--add-host` path is byte-identical.
+- **Anti-hollow done-gate:** for a promoted-service repo, `done` is rejected unless the service node is SATISFIED; a non-service repo's done-gate is unchanged.
 
-**Off-state invariant:** `v1gsps` off ⇒ byte-identical world-model + advisory + Dockerfile + eval wrapper (snapshot test).
+**Off-state invariant:** `v1gsps` off ⇒ byte-identical across all §9 touch-points (snapshot test spanning world-model, advisory, Dockerfile, eval wrapper, certify, schedule, sandbox launch).
 
-**e2e validation:** `fastapi-template` on `v1gsps` — full suite goes 0 → pass once Postgres is certified up; the honest scorer (fresh rebuild) reproduces it (proves §8 fidelity). Regression check: `v1gsp` repos (wafw00f, memU, duckdb, pyads, looplive) stay green and byte-identical under `v1gsps`-off; and unchanged under `v1gsps`-on for repos with no confirmed service.
+**e2e validation:** `fastapi-template` on `v1gsps` — full suite goes 0 → pass once Postgres is certified up; the honest scorer (fresh rebuild) reproduces it via the handoff field (proves §8 fidelity). Regression: `v1gsp` repos (wafw00f, memU, duckdb, pyads, looplive) stay green and byte-identical under `v1gsps`-off, and unchanged under `v1gsps`-on for repos with no confirmed service (esp. an *inferred/mocked* DB repo must NOT gain a blocking obligation).
 
 ---
 
 ## 14. Phasing (for the implementation plan)
 
-| Phase | Scope |
-|---|---|
-| **A — certify** | `Layer.SERVICES` in `_LAYER_ORDER`; confirmed-only skip-guard lift; in-image loopback host; live-executor certification wiring (§4, §6). |
-| **B — schedule** | System-prereq `requires` edge for confirmed services; frontier surfaces the blocked obligation; start recipe as fix-candidate (§5, §7). |
-| **C — recipe render** | advisory start-recipe block (base-family aware, generic fallback) (§7). |
-| **D — eval fidelity** | synthesizer install-bake reuse + test-wrapper start composition; eval `--add-host` + start prepend (§8). |
-| **E — arm + off-state** | `DOCKERAGENT_ENABLE_SERVICE_PROVISION` / `v1gsps`; off-state byte-identity snapshot (§9). |
-| **F — e2e** | fastapi-template validation + v1gsp regression (§13). |
+| Phase | Scope | Files |
+|---|---|---|
+| **A — certify** | loopback-rewrite probe (§4.1); `_LAYER_ORDER` arm-gated/parameterized (§4.2); skip-guard confirmed-only (§4.3); **`EDGE_RULES` add `Service` source + draw `Service→SystemLib` edge** (§5). | `certify.py`, `schema.py`, `service_scan.py` |
+| **B — schedule** | lift `schedule.py:34` SERVICE exclusion (confirmed-only, arm-gated, prereq-blocked, only-when-tests-fail) (§4.4, §5); `data["start_recipe"]` → obligation facts. | `schedule.py`, `graph_scheduler.py` |
+| **C — recipe render** | root-wrapped, `<ver>`-resolved, base-family start recipe + advisory block; generic fallback (§7). | `advise.py`, `service_scan.py`/recipe module |
+| **D1 — synthesizer** | `apt install postgresql` → build commands; extend `_is_runtime_service_segment` for `pg_ctlcluster`; ensure start/`createdb` are runtime-only (§8.2). | `synthesizer.py` |
+| **D2 — eval harness** | read `run_summary["confirmed_in_image_services"]`; compose start/wait/`createdb` (root-wrapped, `createdb` fatal) into the wrapper; field-driven `--add-host` (§8.1/§8.3). | `run_repo2run_benchmark.py`, `multi_docker_eval_adapter.py` |
+| **E — arm + sandbox + off-state** | `DOCKERAGENT_ENABLE_SERVICE_PROVISION`/`v1gsps` (+ arm ladder + child-proc detection); `sandbox.py` `extra_hosts` arm-gated; write the handoff field at finalization; off-state byte-identity snapshot (§9). | `agent.py`, `run_rat_benchmark.py`, `sandbox.py`, `multi_docker_eval_adapter.py` |
+| **F — e2e** | fastapi-template validation + done-branch-requires-certified-service check + v1gsp regression (§13). | VM run |
 
-Each phase ends with an independently testable deliverable; A–C are pure-unit, D touches synthesizer+eval, E is the flag, F is the VM run.
+A–C are pure-unit; D1/D2 are split because they live in different files with different reviewers/failure-modes (Scope I4); E threads the arm flag + sandbox + handoff write; F is the VM run.
 
 ---
 
 ## 15. Novelty — scoped honestly
 
-Standing up + health-probing a service ≈ testcontainers/compose; this slice does **not** claim that. What survives as the contribution: an agent that **infers a service requirement, represents it as a certified cross-tier obligation, drives an LLM to satisfy it in-image, and lets the host falsify the result** — with no human-written fixture/compose file, and with anti-hollow-success preserved end-to-end. The actuation is where representation becomes value (the discovery slice's reviewers were right that advisory alone doesn't move the agent); this is that step, kept inside the separation of powers.
+Standing up + health-probing a service ≈ testcontainers/compose; this slice does **not** claim that. The contribution: an agent that **infers a service requirement, represents it as a certified cross-tier obligation, drives an LLM to satisfy it in-image, and lets the host falsify the result** — with no human-written fixture/compose file, and with anti-hollow-success preserved end-to-end (and *strengthened* for service repos, §10). Actuation is where representation becomes value; this is that step, kept inside the separation of powers.
 
 ---
 
 ## 16. Open questions
 
-1. **Recipe source for the base family.** The start recipe needs the base-image family (debian/alpine/rhel) to pick `service` vs `pg_ctlcluster` vs `initdb`. Provisionally derive it from the Runtime-tier base image (`ImageSelector` choice / `runtime_base`); if unavailable, emit the generic `service <kind> start` + probe and let the LLM adapt. Confirm this is enough vs. detecting the family explicitly.
-2. **`createdb`/auth depth.** Provisionally: ensure server reachable + bound DB exists + trust/peer auth for the local user. If a repo's `DATABASE_URL` names a specific user/password, do we create that role, or rely on trust auth + the test's own fixture? Lean: trust auth + `createdb <db>`; roles are the suite's fixture unless a confirmed CI `services.env` declares them.
-3. **Multi-service repos in-image.** If a confirmed repo needs Postgres *and* Redis in-image, slice 1 starts both as independent obligations (no ordering). Confirm independent-start is acceptable for the proof (ingestr-style ordered topologies stay deferred, §12).
+1. ~~Base-family recipe source~~ **Resolved** (was an open question, is a lookup): derive `<ver>` + family from the Runtime-tier base image (`runtime_base`/`ImageSelector`); generic `service postgresql start` + probe fallback when unknown. (§7.)
+2. **`createdb`/auth depth.** Resolved for connectability: `createdb <db>` (fatal) + local trust/peer auth for the configured user; migrations/seed are the suite's job. **Still open:** if a repo's `DATABASE_URL` names a non-default role/password, do we `CREATE ROLE`, or rely on trust auth + the suite's own fixture? Lean: trust auth + `createdb`; create a role only when a confirmed CI `services.env` declares it.
+3. **Multi-service repos in-image.** Slice 1 starts each confirmed service as an independent obligation (no ordering). Confirm independent-start is acceptable for the proof (ordered topologies stay deferred, §12).
+4. **EDGE_RULES change acceptance.** §5 adds `Service` as a `requires` source (Model A). Confirm this is the preferred model over Model B (legal `Test→SystemLib` + tier ordering, no schema change but a weaker scheduling guarantee).
