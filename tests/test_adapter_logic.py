@@ -1337,6 +1337,34 @@ RUN python one.py
         adapter._persist_run_summary_to_output(workplace, "missing__case")
         assert not _os.path.exists(_os.path.join(output_dir, "missing__case.run_summary.json"))
 
+    def test_skips_eval_when_agent_config_failed_even_if_repo_dockerfile_exists(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+        with tempfile.TemporaryDirectory() as tmp:
+            # Write a repo-own Dockerfile (e.g. ingestr's multi-stage Go Dockerfile).
+            # A regression that laundered it would be detectable via this line.
+            dockerfile = Path(tmp) / "Dockerfile"
+            dockerfile.write_text(
+                "FROM golang:1.21 AS builder\nRUN go run ./cmd/genregistry\n",
+                encoding="utf-8",
+            )
+            agent = SimpleNamespace(configuration_success=False)
+            self.assertFalse(adapter._agent_authored_dockerfile(agent, dockerfile))
+
+    def test_evaluates_when_configuration_succeeded(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+        with tempfile.TemporaryDirectory() as tmp:
+            dockerfile = Path(tmp) / "Dockerfile"
+            dockerfile.write_text("FROM python:3.11\nRUN pip install -e .\n", encoding="utf-8")
+            agent = SimpleNamespace(configuration_success=True)
+            self.assertTrue(adapter._agent_authored_dockerfile(agent, dockerfile))
+
+    def test_skips_eval_when_no_dockerfile(self):
+        adapter = MultiDockerEvalAdapter(output_dir=tempfile.mkdtemp())
+        with tempfile.TemporaryDirectory() as tmp:
+            # No Dockerfile written — path does not exist.
+            agent = SimpleNamespace(configuration_success=True)
+            self.assertFalse(adapter._agent_authored_dockerfile(agent, Path(tmp) / "Dockerfile"))
+
 
 if __name__ == "__main__":
     unittest.main()

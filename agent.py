@@ -310,6 +310,7 @@ class DockerAgent:
         # run (never fabricated). Populated by _resolve_v1_verified_test_run.
         self.in_build_pass_rate = None   # float in [0,1] from observation_pass_ratio, or None
         self.in_build_passed_ge1 = False # True iff a real run showed >=1 passed
+        self.configuration_success = False
         self.build_recipe = None
         self.build_recipe_source = None
         self.build_recipe_error = None
@@ -3220,6 +3221,7 @@ class DockerAgent:
 
     def _write_run_summary(self, configuration_success, run_error=None):
         """Persist structured run metadata so the adapter does not need to parse markdown logs."""
+        self.configuration_success = configuration_success
         summary = self._build_run_summary(configuration_success, run_error=run_error)
         try:
             with open(self.run_summary_path, "w", encoding="utf-8") as f:

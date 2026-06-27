@@ -665,6 +665,15 @@ RUN git clone {repo_url} /testbed
         if not text:
             return text
         return self._AGENT_ROOT_WORKDIR_PATTERN.sub("/testbed", text)
+
+    def _agent_authored_dockerfile(self, agent, dockerfile_path) -> bool:
+        """True only when the agent actually authored the Dockerfile this run.
+
+        A failed configuration run writes no Dockerfile; the path may still exist as
+        the repo's OWN clone-leftover Dockerfile. Scoring that would launder a failed
+        run into a success, so we require configuration_success.
+        """
+        return bool(dockerfile_path.exists()) and bool(getattr(agent, "configuration_success", False))
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "auto",
@@ -823,12 +832,12 @@ RUN git clone {repo_url} /testbed
             # 2. 提取 Dockerfile（复用 Agent 的配置指令）
             print("\n[Step 2/4] Extracting Dockerfile...")
             dockerfile_path = Path(workplace) / "Dockerfile"
-            if dockerfile_path.exists():
+            if self._agent_authored_dockerfile(agent, dockerfile_path):
                 original_dockerfile = dockerfile_path.read_text()
                 base_image_line, agent_run_instructions = self._extract_agent_dockerfile_instructions(
                     original_dockerfile
                 )
-                
+
                 if not base_image_line:
                     print("✗ No FROM Dockerfile: missing FROM instruction")
                     result["logs"]["error"] = "Invalid Dockerfile: missing FROM instruction"
@@ -837,7 +846,7 @@ RUN git clone {repo_url} /testbed
                         self._prepare_agent_run_instruction_for_eval(instr, index + 1)
                         for index, instr in enumerate(agent_run_instructions)
                     ]
-                    
+
                     dockerfile_content = self._build_eval_dockerfile(
                         base_image_line=base_image_line,
                         repo_url=repo_url,
@@ -847,8 +856,13 @@ RUN git clone {repo_url} /testbed
                     result["dockerfile"] = dockerfile_content
                     print(f"✓ Dockerfile generated with {len(agent_run_instructions)} agent instructions")
             else:
-                print("✗ Dockerfile not found")
-                result["logs"]["error"] = "Dockerfile generation failed"
+                if dockerfile_path.exists():
+                    print("✗ Agent did not author a Dockerfile (configuration_success=False); "
+                          "skipping eval to avoid scoring the repo's own Dockerfile")
+                    result["logs"]["error"] = "Agent configuration failed; not evaluating repo-owned Dockerfile"
+                else:
+                    print("✗ Dockerfile not found")
+                    result["logs"]["error"] = "Dockerfile generation failed"
                 result["logs"]["skip_evaluation"] = True
             
             # 3. 生成测试脚本 & 将 test_patch 注入镜像
