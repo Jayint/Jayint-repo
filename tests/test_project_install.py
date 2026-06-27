@@ -128,3 +128,33 @@ def test_ledger_bare_name_without_slash_is_not_local():
     led = ActionLedger()
     led.append(_ev("pip install -e somepkg"))   # no separator -> treated as PyPI name
     assert project_install_from_ledger(led) is None
+
+
+# --- pyads swing-repo bug: prefer successful by-name install over fabricated editable ---
+
+
+def test_resolve_prefers_successful_pypi_over_failed_editable(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'pyads'\n", encoding="utf-8")
+    led = ActionLedger()
+    led.append(_ev("pip install -e .", rc=1, step=10))    # FAILED editable (meson)
+    led.append(_ev("pip install pyads", rc=0, step=15))   # SUCCESSFUL by-name PyPI
+    out = resolve_project_install(
+        (Fact("pyads", "3.6.0"), Fact("requests", "2")), "pyads",
+        ledger=led, project_root=str(tmp_path),
+    )
+    assert out == "pip install pyads==3.6.0 --no-deps"
+
+
+def test_resolve_does_not_overmatch_unrelated_failed_install(tmp_path):
+    # A successful UNRELATED install (`bar`) must NOT trigger emitting the project pin or
+    # otherwise change behavior: with no successful by-name install of `foo`, keep the
+    # editable fallback.
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'foo'\n", encoding="utf-8")
+    led = ActionLedger()
+    led.append(_ev("pip install -e .", rc=1, step=10))    # failed editable for foo
+    led.append(_ev("pip install bar", rc=0, step=15))     # successful UNRELATED
+    out = resolve_project_install(
+        (Fact("foo", "1.0"), Fact("bar", "2")), "foo",
+        ledger=led, project_root=str(tmp_path),
+    )
+    assert out == "pip install -e . --no-deps"

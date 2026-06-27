@@ -14,6 +14,7 @@ re-resolves (and so never disturbs) the authoritative pinned closure.
 from __future__ import annotations
 
 import os
+import re
 import shlex
 from typing import List, Optional, Sequence
 
@@ -149,6 +150,56 @@ def project_install_from_ledger(ledger: Optional[ActionLedger]) -> Optional[str]
     return found
 
 
+def _closure_project_pin(installed: Sequence, project_name: Optional[str]) -> Optional[str]:
+    """`<name>==<version>` for the project from the captured closure (host pip-freeze), or None."""
+    proj = _norm(project_name)
+    if not proj:
+        return None
+    for fact in installed or ():
+        if _norm(getattr(fact, "name", "")) == proj:
+            ver = (getattr(fact, "detail", "") or "").strip()
+            name = getattr(fact, "name", "") or project_name
+            return f"{name}=={ver}" if ver else None
+    return None
+
+
+def project_installed_by_name(ledger: Optional[ActionLedger], project_name: Optional[str]) -> bool:
+    """True iff the agent SUCCESSFULLY (rc==0) installed the project BY NAME from an index
+    (e.g. `pip install pyads` / `pip install pyads==3.6.0`), as opposed to a local/editable
+    install. Anchored on the project name so an UNRELATED successful install never matches."""
+    if ledger is None:
+        return False
+    proj = _norm(project_name)
+    if not proj:
+        return False
+    for event in ledger.events():
+        if event.rc != 0:
+            continue
+        try:
+            tokens = shlex.split(event.cmd or "")
+        except ValueError:
+            continue
+        args = _install_args(tokens)
+        if args is None:
+            continue
+        skip_next = False
+        for tok in args:
+            if skip_next:
+                skip_next = False
+                continue
+            if tok in ("-r", "--requirement", "-c", "--constraint"):
+                skip_next = True
+                continue
+            if tok.startswith("-"):
+                continue
+            if _is_local_target(tok):
+                continue
+            base = re.split(r"[<>=!~\[ ]", _unquote(tok), maxsplit=1)[0]
+            if _norm(base) == proj:
+                return True
+    return False
+
+
 def _has_packaging_metadata(project_root: Optional[str]) -> bool:
     if not project_root or not os.path.isdir(project_root):
         return False
@@ -189,6 +240,17 @@ def resolve_project_install(
     ledger_cmd = project_install_from_ledger(ledger)
     if ledger_cmd:
         return _finalize(ledger_cmd)
+    # Prefer a host-verified SUCCESSFUL by-name install of the project over fabricating an
+    # editable install (the editable may have FAILED in-sandbox — e.g. pyads' meson build).
+    # Fires only when the project is in the closure (so we have its pinned version) AND a
+    # successful by-name install of THIS project is recorded (rc==0).
+    if (
+        name_in_closure(installed, project_name)
+        and project_installed_by_name(ledger, project_name)
+    ):
+        pin = _closure_project_pin(installed, project_name)
+        if pin:
+            return _finalize(f"pip install {pin}")
     if name_in_closure(installed, project_name) and _has_packaging_metadata(project_root):
         return _finalize("pip install -e .")
     if name_in_closure(installed, project_name) and project_root is None:
