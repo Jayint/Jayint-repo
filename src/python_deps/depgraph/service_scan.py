@@ -260,6 +260,16 @@ def service_db_from_url(value: str) -> str | None:
     return name or None
 
 
+def service_bind_url(scheme: str, port: int, db: str) -> str:
+    """Uniform in-image Postgres URL (Option B): our creds + loopback host, app's scheme+db.
+
+    The app's original scheme (incl. dialect suffix like ``postgresql+psycopg2``) is
+    preserved so SQLAlchemy's driver selection is unchanged; only host/credentials are
+    rewritten to the in-image instance configured by the binding obligation.
+    """
+    return f"{scheme}://postgres:postgres@127.0.0.1:{port}/{db}"
+
+
 def postgres_start_recipe(port: int, db: str | None) -> dict:
     """Root-safe, runtime-version-resolved in-image Postgres start recipe.
 
