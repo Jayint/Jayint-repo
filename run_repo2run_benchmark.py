@@ -2444,6 +2444,8 @@ def compose_in_image_service_commands(run_summary: Optional[dict[str, Any]]) -> 
             out.append(svc["wait"])
         if svc.get("createdb"):  # FATAL — never `|| true`
             out.append(svc["createdb"])
+        if svc.get("var") and svc.get("url"):  # AFTER createdb — DB up first
+            out.append(f"export {svc['var']}={shlex.quote(svc['url'])}")
     return out
 
 
