@@ -74,15 +74,24 @@ change. The §3.4 psql certify uses the base `postgresql://` scheme (psql doesn'
 dialect suffixes). Non-default `<dbname>` is `createdb`'d by the existing recipe step.
 
 ### 3.3 Dual injection (live container + eval rebuild)
-- **Live container** (so the agent's in-build pytest passes): the binding writes
-  `export <VAR>="<url>"` into `/etc/profile.d/zz_service_bind.sh`. Durable because the sandbox
-  runs every command via `exec_run(["/bin/sh","-lc", ...])` (login shell re-sources profile.d).
-  This is a deterministic emit (within the allowed emit-drain tier), executed as part of the
-  service provisioning that the recipe already drives in the live container.
+- **Live container** (so the agent's in-build pytest passes): the binding is a **scheduled
+  obligation handed to the LLM** — exactly the mechanism the service `start` uses today
+  (`start_recipe['start']` → `facts` in `packet_to_task` → LLM runs it → host checks). Its facts
+  hand the LLM two exact, host-derived commands: `ALTER USER postgres PASSWORD 'postgres'` and
+  `echo 'export <VAR>="<url>"' > /etc/profile.d/zz_service_bind.sh`. The profile.d write is durable
+  because the sandbox runs every command via `exec_run(["/bin/sh","-lc", ...])` (login shell
+  re-sources profile.d). The **host certifies** the result (§3.4) — the LLM cannot self-finalize.
+  We do **not** build a new host-emit path: none exists for the service start (only the SystemLib
+  `apt install` is host-emit), and adding a deterministic binding-emitter would be a new auto-fix
+  tier the guardrails forbid ("no deterministic tier beyond the emit-drain"). The e2e showed the
+  LLM faithfully runs exact recipe commands; if it doesn't, the psql cert stays MISSING and the
+  done-gate blocks (honest fail, never hollow).
 - **Eval rebuild** (so the fresh scored image reproduces it): reuse the existing
-  `Synthesizer.add_env_instruction` → `ENV <VAR>="<url>"`. The service-bound value takes
-  **precedence** over any original-URL value `bakeable_config_env` would otherwise bake (the
-  binding is the corrected value; a stale `.env.example`-derived URL must not win).
+  `Synthesizer.add_env_instruction` → `ENV <VAR>="<url>"`, baked in a binding pass that runs
+  **after** the ledger/config bake passes so the service-bound value takes **precedence** over any
+  original-URL value `bakeable_config_env`/the ledger would otherwise bake (the binding is the
+  corrected value; a stale `.env.example`-derived URL must not win). The eval test wrapper also
+  re-`export`s the var (`compose_in_image_service_commands`) so it's present at test time.
 
 ### 3.4 Host certifies the binding (anti-hollow)
 A new CONFIG obligation `env:<VAR>` **requires** the SERVICE node. Its `check_command` is a
@@ -94,11 +103,24 @@ is strictly stronger and is what the suite actually needs. The negative-control 
 wrong/absent binding fails this probe, so it cannot certify hollowly.
 
 ### 3.5 Graph fit & separation of powers
-- Service `SATISFIED` (up + password set) → binding node becomes **actionable**.
-- The binding value is host-derivable, so its fix is **emitted** (deterministic, like the
-  closure emit / config-bake) — the LLM is not asked to guess a URL it demonstrably flails on.
-- The **host certifies** via the psql probe. `certify` flips state only by running the
-  `check_command` — never inferred from the emit running.
+- The binding is a **CONFIG node** `env:<VAR>` with a `requires` edge **to the SERVICE node**, so
+  the scheduler certifies the service first; it becomes **actionable** only once the service is
+  `SATISFIED`. `ALTER USER` is part of the *binding* obligation (it's what makes the bound
+  credentials valid); `createdb` stays with the *service* (db existence) — the binding's psql cert
+  is the real verifier of both.
+- **Relax the CONFIG scheduler-exclusion** (`schedule.py:39`, `node.type is not NodeType.CONFIG`)
+  for binding nodes only: a binding node carries `data["binding"]=True` and a real psql
+  `check_command`, unlike the unsatisfiable `printenv X` that exclusion was written for. Gate the
+  relaxation on `allow_services` (same arm), so off-arm the frontier is unchanged.
+- The binding's **`facts` hand the LLM the exact host-derived commands** (the HOW — `ALTER USER`
+  + profile.d write, with the URL the host computed); the LLM runs them; the **host certifies**
+  via the psql probe (the WHETHER). `certify` flips state only by running the `check_command` —
+  never inferred from a command outcome or an LLM claim. This is the *same* separation-of-powers
+  as the service `start`, not a new tier.
+- **Certify reuses the existing CONFIG-layer walk** (`certify.py` — CONFIG is already in
+  `_LAYER_ORDER`): the psql `check_command` flips the node with no new certify hook. CONFIG is
+  ordered before SERVICES in `_SERVICE_LAYER_ORDER`, so the binding certifies on the *next* cycle
+  after the service is up — fine, state is revocable and the orchestrator runs multiple cycles.
 - The **done-gate already refuses `done`** until promoted obligations are `SATISFIED`; a binding
   that cannot connect blocks finalization → honest 0, never hollow.
 - Maintainer remains the sole graph writer; `DepGraph`/`Node` stay frozen.
@@ -111,19 +133,27 @@ predicate the provisioning slice already reads:
 `os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"`). No new env flag.
 
 ## 5. File structure (anticipated; the plan finalizes exact lines)
-- `src/python_deps/depgraph/service_scan.py` — compose-`environment:` binding discovery;
-  `service_bind_url(kind, port, dbname)` rewrite helper; start-recipe `alter_password` step;
-  attach a `Config(env:<VAR>)` node `requires` the service with the psql `check_command`.
-- `src/python_deps/depgraph/certify.py` / `src/envstate/depgraph_live.py` — certify the binding
-  CONFIG node live (arm-gated), same `allow_service_certify` gating already added for services.
-- `src/envstate/synthesis.py` — service-bound env value precedence in the bake (the binding
-  value overrides `bakeable_config_env`/ledger for that VAR).
-- `agent.py` — emit the live-container `profile.d` bind + password step alongside the existing
-  provisioning execution; extend `confirmed_in_image_services` with the bound `var`/`url`.
-- `run_repo2run_benchmark.py` — compose the bind `export`/`ENV` into the eval test wrapper from
-  the handoff field (alongside the existing start/wait/createdb composition).
+- `src/python_deps/depgraph/service_scan.py` — compose/CI-`environment:` binding discovery
+  (`KEY=<db-url>` per app service); `service_bind_url(scheme, port, dbname)` rewrite helper;
+  in `attach_in_image_provisioning`, attach a `Config(env:<VAR>)` node (`data["binding"]=True`,
+  psql `check_command`, `chosen_fix=env:<VAR>=<url>`, facts carrying `ALTER USER` + profile.d
+  write) with an `Edge(src=config_id, dst=service_id, REQUIRES)`.
+- `src/python_deps/depgraph/schedule.py` — relax the `node.type is not NodeType.CONFIG`
+  frontier exclusion for binding nodes (`data["binding"]`), gated on `allow_services`;
+  surface the binding recipe in the obligation packet.
+- `src/envstate/graph_scheduler.py` — render the binding obligation's `ALTER USER` + profile.d
+  facts in `packet_to_task` (same shape as the service `start` facts).
+- (Certify needs **no** change — the existing CONFIG-layer walk in `certify.py` runs the binding's
+  psql `check_command`; CONFIG is already in `_LAYER_ORDER`. Confirm the binding node isn't
+  short-circuited.)
+- `src/envstate/synthesis.py` / `agent.py` — a binding bake pass in `_bake_test_env_vars` after
+  the ledger/config passes (`add_env_instruction(var, url)`) for `ENV` precedence; extend
+  `_collect_confirmed_in_image_services` with the bound `var`/`url` keys.
+- `run_repo2run_benchmark.py` — emit `export <VAR>=<url>` in `compose_in_image_service_commands`
+  from the handoff field (lands in both collect + verification wrappers via the shared call).
 - Tests: extend `tests/test_service_provision_off_state.py` (off-state byte-identity covers the
-  new paths) + new unit tests per task (discovery, rewrite, precedence, certify gating).
+  new paths) + new unit tests per task (discovery, rewrite, frontier relaxation, bake precedence,
+  binding certify, eval export, handoff keys).
 
 ## 6. Anti-hollow guarantees (the bar every task must hold)
 1. Binding `SATISFIED` only via the psql `check_command` run by the host — never emit-implied,
