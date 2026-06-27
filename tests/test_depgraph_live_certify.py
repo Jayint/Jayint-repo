@@ -56,3 +56,18 @@ def test_ensure_python_shim_emits_idempotent_symlink():
 
 def test_ensure_python_shim_noop_and_safe_without_executor():
     ensure_python_shim(None)  # must not raise
+
+
+# --- Task 4: certify confirmed in-image services via loopback probe (arm-gated) ---
+
+def test_certify_refresh_certifies_confirmed_service_when_allowed():
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
+               state=State.UNKNOWN, check_command="pg_isready -h 127.0.0.1 -p 5432",
+               data={"service_confidence": "confirmed"})
+    g = DepGraph().with_node(svc)
+    out = certify_refresh(g, lambda cmd: (0, "accepting connections"), cycle=1,
+                          allow_service_certify=True)
+    assert out.get("service:postgres").state is State.SATISFIED
+    out_off = certify_refresh(g, lambda cmd: (0, ""), cycle=1)   # default: off
+    assert out_off.get("service:postgres").state is State.UNKNOWN

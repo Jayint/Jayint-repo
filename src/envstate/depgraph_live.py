@@ -36,15 +36,32 @@ class _ReadonlyExecAdapter:
         return CommandResult(command=command, returncode=rc, stdout=out, stderr=out)
 
 
-def certify_refresh(graph, exec_readonly, cycle: int):
+def certify_refresh(
+    graph,
+    exec_readonly,
+    cycle: int,
+    *,
+    allow_service_certify: bool | None = None,
+):
     """Re-flip every node's state via a host check in the live container.
 
     No-op (returns the input) when the graph is empty/None or no read-only
     executor is available — so the feature degrades gracefully.
+
+    When ``allow_service_certify`` is ``None`` (the default), the arm flag is
+    resolved from the environment variable ``DOCKERAGENT_ENABLE_SERVICE_PROVISION``
+    so the three existing call sites need no change.  Pass an explicit ``True``/
+    ``False`` in tests to override the env lookup.
     """
     if graph is None or not graph.nodes or exec_readonly is None:
         return graph
-    return certify_all(graph, _ReadonlyExecAdapter(exec_readonly), cycle=cycle)
+    import os
+    from python_deps.depgraph.certify import _SERVICE_LAYER_ORDER, _LAYER_ORDER
+    if allow_service_certify is None:
+        allow_service_certify = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+    order = _SERVICE_LAYER_ORDER if allow_service_certify else _LAYER_ORDER
+    return certify_all(graph, _ReadonlyExecAdapter(exec_readonly), cycle=cycle,
+                       allow_service_certify=allow_service_certify, layer_order=order)
 
 
 def ensure_python_shim(sandbox_execute) -> None:

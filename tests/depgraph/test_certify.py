@@ -265,3 +265,62 @@ def test_certify_skips_service_nodes():
     out = certify(g, "service:postgres", ex)
     assert out.get("service:postgres").state is State.UNKNOWN  # never certified
     assert ex.calls == []  # the probe was never run in the scratch container
+
+
+# --- Task 4: certify confirmed in-image services via loopback probe (arm-gated) ---
+
+def _confirmed_service(check="pg_isready -h 127.0.0.1 -p 5432"):
+    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy, State
+    return Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+                layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, check_command=check,
+                data={"service_confidence": "confirmed"})
+
+
+def test_confirmed_service_certified_when_allowed():
+    from python_deps.depgraph.schema import DepGraph, State
+    from python_deps.depgraph.certify import certify
+
+    class R:
+        def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
+    class Ex:
+        def __init__(self, ok): self.ok = ok; self.calls = []
+        def run(self, cmd): self.calls.append(cmd); return R(self.ok)
+
+    g = DepGraph().with_node(_confirmed_service())
+    ex = Ex(ok=True)
+    out = certify(g, "service:postgres", ex, allow_service_certify=True)
+    assert out.get("service:postgres").state is State.SATISFIED
+    assert ex.calls == ["pg_isready -h 127.0.0.1 -p 5432"]
+
+
+def test_confirmed_service_unknown_when_not_allowed():
+    from python_deps.depgraph.schema import DepGraph, State
+    from python_deps.depgraph.certify import certify
+
+    class Ex:
+        def __init__(self): self.calls = []
+        def run(self, cmd): self.calls.append(cmd); return type("R", (), {"ok": True, "stdout": "", "stderr": ""})()
+
+    g = DepGraph().with_node(_confirmed_service())
+    ex = Ex()
+    out = certify(g, "service:postgres", ex)         # default: not allowed
+    assert out.get("service:postgres").state is State.UNKNOWN
+    assert ex.calls == []                             # probe never run (off-state)
+
+
+def test_inferred_service_stays_unknown_even_when_allowed():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.certify import certify
+
+    class Ex:
+        def __init__(self): self.calls = []
+        def run(self, cmd): self.calls.append(cmd); return type("R", (), {"ok": True, "stdout": "", "stderr": ""})()
+
+    inferred = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+                    layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER,
+                    state=State.UNKNOWN, check_command="pg_isready -h 127.0.0.1 -p 5432",
+                    data={"service_confidence": "inferred"})
+    out = certify(DepGraph().with_node(inferred), "service:postgres", Ex(),
+                  allow_service_certify=True)
+    assert out.get("service:postgres").state is State.UNKNOWN

@@ -33,12 +33,18 @@ _LAYER_ORDER: tuple[Layer, ...] = (
     Layer.TESTS,
 )
 
+# Services join the walk LAST (after the server binary/SystemLib is installed);
+# only used on the live in-image path (arm v1gsps). Never used off-arm.
+_SERVICE_LAYER_ORDER: tuple[Layer, ...] = _LAYER_ORDER + (Layer.SERVICES,)
+
 
 def certify(
     graph: DepGraph,
     node_id: str,
     executor: Executor,
     cycle: int = 0,
+    *,
+    allow_service_certify: bool = False,
 ) -> DepGraph:
     """Run one node's ``check_command`` and write its host-certified ``state``.
 
@@ -52,15 +58,23 @@ def certify(
     revoked" (the cycle of the failing re-check).
 
     Unknown ``node_id`` returns the graph unchanged.  Returns a NEW graph.
+
+    SERVICE nodes are certified (loopback probe) only when ``allow_service_certify``
+    is True AND the node has ``data["service_confidence"] == "confirmed"`` (design
+    §4.3).  Off-arm / inferred services stay UNKNOWN — the scratch container cannot
+    host the daemon.
     """
     node = graph.get(node_id)
     if node is None or not node.check_command:
         return graph
-    # Services are certified by reachability against a RUNNING instance, which the
-    # single scratch container cannot provide (design §3.3). Live certification is
-    # the future runner-level action layer; here they stay UNKNOWN.
+    # Services are reachability-certified only on the live in-image path (arm
+    # v1gsps) and only when CONFIRMED. Off-arm / inferred: stay UNKNOWN (design
+    # §4.3). The scratch container cannot host the daemon, so the scratch
+    # certify_all call leaves allow_service_certify=False.
     if node.type is NodeType.SERVICE:
-        return graph
+        if not (allow_service_certify
+                and node.data.get("service_confidence") == "confirmed"):
+            return graph
 
     result = executor.run(node.check_command)
     if result.ok:
@@ -81,15 +95,23 @@ def certify_all(
     graph: DepGraph,
     executor: Executor,
     cycle: int = 0,
+    *,
+    allow_service_certify: bool = False,
+    layer_order: tuple[Layer, ...] = _LAYER_ORDER,
 ) -> DepGraph:
     """Certify every node in execution layer order (design section 6).
 
     Re-reads the evolving graph after each certification so revocation/ordering
     side effects compose.  Returns a NEW graph.
+
+    Pass ``allow_service_certify=True`` and ``layer_order=_SERVICE_LAYER_ORDER``
+    (via ``certify_refresh``) to also certify confirmed SERVICE nodes on the live
+    in-image path (arm v1gsps).
     """
     new = graph
-    for layer in _LAYER_ORDER:
+    for layer in layer_order:
         node_ids = [n.id for n in new.nodes if n.layer is layer]
         for node_id in node_ids:
-            new = certify(new, node_id, executor, cycle=cycle)
+            new = certify(new, node_id, executor, cycle=cycle,
+                          allow_service_certify=allow_service_certify)
     return new
