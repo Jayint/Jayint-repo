@@ -3231,6 +3231,15 @@ _ARM_PRESETS: dict[str, dict] = {
         "enable_cleanroom": True,
         "max_steps": 12, "_label": "armV1gsp_runtime_pin",
     },
+    "v1gsps": {
+        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
+        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
+        "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
+        "enable_runtime_feedback": True, "enable_runtime_pin": True,
+        "enable_service_provision": True,
+        "enable_cleanroom": True,
+        "max_steps": 12, "_label": "armV1gsps_service_provision",
+    },
 }
 
 
@@ -3390,7 +3399,7 @@ def parse_args() -> argparse.Namespace:
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp"],
+        choices=["0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps"],
         default=None,
         help=(
             "Ablation arm shorthand. "

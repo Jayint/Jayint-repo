@@ -389,7 +389,9 @@ def _child_cmd(full_name: str, root_path: str, llm: str, timeout: int, num_turn:
     # defaults to "arm0") and RE-SETS DOCKERAGENT_ENABLE_V1="0" in its own main() —
     # silently downgrading every worker to the legacy ReAct agent. Pass --arm so the
     # child keeps the parent's choice (v1 stays v1).
-    if os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_PIN") == "1":
+    if os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1":
+        arm = "v1gsps"
+    elif os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_PIN") == "1":
         arm = "v1gsp"
     elif os.environ.get("DOCKERAGENT_ENABLE_GRAPH_SCHEDULER") == "1":
         arm = "v1gs"
@@ -755,6 +757,29 @@ def parallel_main(repos_json: str, root_path: str, limit: Optional[int], offset:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Arm environment helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _apply_arm_env(arm: str) -> None:
+    """Set DOCKERAGENT_ENABLE_* env vars corresponding to *arm*.
+
+    Each arm is a cumulative superset of the previous one in the ladder:
+      arm0 < v1 < v1g < v1gd < v1gde < v1gder < v1gs < v1gsp < v1gsps
+
+    Extracted from the inline block so it can be unit-tested independently.
+    Called from the CLI section after argument parsing.
+    """
+    os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if arm in ("v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_CONTRACT_GRAPH"] = "1" if arm in ("v1g", "v1gd", "v1gde", "v1gder") else "0"
+    os.environ["DOCKERAGENT_ENABLE_DEP_GRAPH"] = "1" if arm in ("v1gd", "v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_DEP_EMIT"] = "1" if arm in ("v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK"] = "1" if arm in ("v1gder", "v1gs", "v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_GRAPH_SCHEDULER"] = "1" if arm in ("v1gs", "v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_RUNTIME_PIN"] = "1" if arm in ("v1gsp", "v1gsps") else "0"
+    os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1" if arm == "v1gsps" else "0"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CLI
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -803,7 +828,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", choices=["dockeragent", "rat", "repo2run"],
                         default="dockeragent",
                         help="Which eval model to use (default: dockeragent).")
-    parser.add_argument("--arm", choices=["arm0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp"], default="arm0",
+    parser.add_argument("--arm", choices=["arm0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps"], default="arm0",
                         help="DockerAgent variant: 'arm0' = legacy ReAct loop (default); "
                              "'v1' = three-role Planner/BuildAgent/Maintainer loop "
                              "(sets DOCKERAGENT_ENABLE_V1=1 for the adapter); "
@@ -815,7 +840,11 @@ if __name__ == "__main__":
                              "'v1gder' = v1gde + runtime feedback "
                              "(sets DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK=1); "
                              "'v1gs' = graph-scheduled agent (DECIDE=graph, EXECUTE=agent, "
-                             "CERTIFY=host; sets DOCKERAGENT_ENABLE_GRAPH_SCHEDULER=1).")
+                             "CERTIFY=host; sets DOCKERAGENT_ENABLE_GRAPH_SCHEDULER=1); "
+                             "'v1gsp' = v1gs + runtime base-image pin "
+                             "(sets DOCKERAGENT_ENABLE_RUNTIME_PIN=1); "
+                             "'v1gsps' = v1gsp + service-provision "
+                             "(sets DOCKERAGENT_ENABLE_SERVICE_PROVISION=1).")
 
     # Repair-loop controls
     parser.add_argument("--repair-mode",
@@ -840,15 +869,9 @@ if __name__ == "__main__":
     # Set DOCKERAGENT_REPAIR_MODE so the adapter reads the correct value in this process
     # and in any subprocess that inherits the environment (belt-and-suspenders with --repair-mode CLI).
     os.environ["DOCKERAGENT_REPAIR_MODE"] = args.repair_mode
-    # Set DOCKERAGENT_ENABLE_V1 so the adapter constructs DockerAgent(enable_v1=...)
-    # in this process and any subprocess that inherits the environment.
-    os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if args.arm in ("v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp") else "0"
-    os.environ["DOCKERAGENT_ENABLE_CONTRACT_GRAPH"] = "1" if args.arm in ("v1g", "v1gd", "v1gde", "v1gder") else "0"
-    os.environ["DOCKERAGENT_ENABLE_DEP_GRAPH"] = "1" if args.arm in ("v1gd", "v1gde", "v1gder", "v1gs", "v1gsp") else "0"
-    os.environ["DOCKERAGENT_ENABLE_DEP_EMIT"] = "1" if args.arm in ("v1gde", "v1gder", "v1gs", "v1gsp") else "0"
-    os.environ["DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK"] = "1" if args.arm in ("v1gder", "v1gs", "v1gsp") else "0"
-    os.environ["DOCKERAGENT_ENABLE_GRAPH_SCHEDULER"] = "1" if args.arm in ("v1gs", "v1gsp") else "0"
-    os.environ["DOCKERAGENT_ENABLE_RUNTIME_PIN"] = "1" if args.arm == "v1gsp" else "0"
+    # Set DOCKERAGENT_ENABLE_* so the adapter constructs DockerAgent with the correct
+    # feature flags in this process and any subprocess that inherits the environment.
+    _apply_arm_env(args.arm)
 
     # ── --prune ───────────────────────────────────────────────────────────────
     if args.prune:
