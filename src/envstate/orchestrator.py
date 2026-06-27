@@ -256,7 +256,16 @@ def run_v1(
                 from python_deps.depgraph.emit import partition
                 from python_deps.depgraph.schedule import scheduler_frontier
                 diverged = diverged_node_ids(pre_graph, found)
-                no_actionable = not scheduler_frontier(new_graph)
+                # Match the real scheduler call (next_decision): the give-up
+                # frontier must see Service/binding obligations on-arm, or it
+                # reports "no actionable" while a binding is genuinely pending
+                # and the agent gives up prematurely (spurious give-up).
+                _allow_services = (
+                    os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+                )
+                no_actionable = not scheduler_frontier(
+                    new_graph, allow_services=_allow_services
+                )
                 if diverged and no_actionable and not partition(new_graph).emittable:
                     _residual_giveup = (
                         f"graph-scheduler: residual not an environment obligation "

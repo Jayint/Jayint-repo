@@ -301,7 +301,9 @@ def build_dep_graph(
     # Stage 3d — Service tier (tier 5): confidence-annotated SERVICE nodes appended
     # to the same graph (design 2026-06-25-services-tier-design.md). Discovery only;
     # services are NOT certified here (certify skip-guard keeps them UNKNOWN).
-    graph = scan_services(repo_path, graph)
+    # ``bind_env`` (arm v1gsps) gates the NEW compose `environment:` DB-URL
+    # absorption so the off-state Services advisory stays byte-identical.
+    graph = scan_services(repo_path, graph, bind_env=enable_service_provision)
     # Stage 3e — Service action layer (arm v1gsps): promote confirmed services to
     # in-image obligations (SystemLib prereq + loopback probe + start recipe).
     # Off-state default keeps this byte-identical (design 2026-06-27 §4/§9).

@@ -32,10 +32,12 @@ def packet_to_task(packet: ObligationPacket) -> Task:
                          f"{packet.start_recipe['createdb']}")
     if packet.bind_recipe:
         br = packet.bind_recipe
-        facts.append("set the in-image DB credential, then re-check "
-                     f"`{packet.check_command}`: {br['alter_user']}")
-        facts.append("persist the app's DB env var for every shell "
-                     f"(login shells source it): {br['bind_profile']}")
+        if br.get("alter_user"):
+            facts.append("set the in-image DB credential, then re-check "
+                         f"`{packet.check_command}`: {br['alter_user']}")
+        if br.get("bind_profile"):
+            facts.append("persist the app's DB env var for every shell "
+                         f"(login shells source it): {br['bind_profile']}")
     return Task(
         goal=packet.goal,
         done_when=packet.check_command,

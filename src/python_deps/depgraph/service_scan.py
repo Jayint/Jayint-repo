@@ -238,12 +238,18 @@ def _service_node(kind: str, *, confidence: str, discovered_by: DiscoveredBy,
     )
 
 
-def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
-    """Append confidence-annotated SERVICE nodes (design 2026-06-25 §5). NEW graph."""
+def scan_services(repo_path: str, graph: DepGraph, *, bind_env: bool = False) -> DepGraph:
+    """Append confidence-annotated SERVICE nodes (design 2026-06-25 §5). NEW graph.
+
+    ``bind_env`` (arm ``v1gsps``, default off) gates ONLY the NEW compose/CI
+    ``environment:`` DB-URL absorption onto confirmed service nodes; off it,
+    this stage is byte-identical to the pre-binding behaviour (the always-on
+    inferred CONFIG-URL binding path below is unaffected).
+    """
     compose = scan_compose_services(repo_path)
     ci, ci_present = scan_ci_services(repo_path)
     confirmed: dict[str, dict] = {**compose, **ci}           # CI wins on conflict
-    env_bindings = scan_env_bindings(repo_path)
+    env_bindings = scan_env_bindings(repo_path) if bind_env else {}
 
     packages = [n for n in graph.nodes if n.type is NodeType.PACKAGE]
     project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)

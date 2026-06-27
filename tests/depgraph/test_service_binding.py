@@ -75,7 +75,55 @@ def test_scan_env_bindings_ignores_nonservice_urls(tmp_path):
 
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State  # noqa: E402
 from python_deps.depgraph.ids import service_id, config_id  # noqa: E402
-from python_deps.depgraph.service_scan import attach_in_image_provisioning  # noqa: E402
+from python_deps.depgraph.service_scan import (  # noqa: E402
+    attach_in_image_provisioning, scan_services,
+)
+
+
+# ---------------------------------------------------------------------------
+# Finding 1: the NEW compose/CI `environment:` env-binding absorption onto a
+# confirmed SERVICE node is ARM-GATED (`bind_env`). Off-arm it must NOT fire
+# (off-state byte-identity); on-arm it does. The pre-existing inferred
+# CONFIG-URL binding path is unaffected (always-on).
+# ---------------------------------------------------------------------------
+
+def _compose_with_env_db_url(tmp_path):
+    _write(tmp_path, "docker-compose.yml", """
+        services:
+          api:
+            depends_on: [db]
+            environment:
+              - DB_STRING=postgresql://postgres:test@db:5432/appdb
+          db:
+            image: postgres:14.5
+    """)
+    return DepGraph(nodes=(), edges=())
+
+
+def test_env_binding_not_absorbed_off_arm(tmp_path):
+    # OFF-arm (bind_env=False, the default): the confirmed postgres node carries
+    # NO env-derived bound_config_url / db. (The inferred CONFIG-URL path may
+    # still set bound_config when a CONFIG node exists; here there is none.)
+    g = _compose_with_env_db_url(tmp_path)
+    out = scan_services(str(tmp_path), g)
+    node = out.get(service_id("postgres"))
+    assert node is not None and node.data["service_confidence"] == "confirmed"
+    assert node.data.get("bound_config_url") is None
+    assert node.data.get("db") is None
+    # Default == explicit False (the env path must not fire either way).
+    assert scan_services(str(tmp_path), g, bind_env=False).to_dict() == out.to_dict()
+
+
+def test_env_binding_absorbed_on_arm(tmp_path):
+    # ON-arm (bind_env=True): the env DB-URL IS absorbed onto the confirmed node.
+    g = _compose_with_env_db_url(tmp_path)
+    out = scan_services(str(tmp_path), g, bind_env=True)
+    node = out.get(service_id("postgres"))
+    assert node is not None and node.data["service_confidence"] == "confirmed"
+    assert node.data.get("bound_config") == "DB_STRING"
+    assert node.data.get("bound_config_url") == \
+        "postgresql://postgres:test@db:5432/appdb"
+    assert node.data.get("db") == "appdb"
 
 
 def _confirmed_pg_graph():
