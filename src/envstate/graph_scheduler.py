@@ -32,12 +32,15 @@ def packet_to_task(packet: ObligationPacket) -> Task:
                          f"{packet.start_recipe['createdb']}")
     if packet.bind_recipe:
         br = packet.bind_recipe
-        if br.get("alter_user"):
-            facts.append("set the in-image DB credential, then re-check "
-                         f"`{packet.check_command}`: {br['alter_user']}")
-        if br.get("bind_profile"):
-            facts.append("persist the app's DB env var for every shell "
-                         f"(login shells source it): {br['bind_profile']}")
+        au, bp = br.get("alter_user"), br.get("bind_profile")
+        if au and bp:
+            facts.append("Run this single command to configure the in-image database "
+                         "(the host verifies it automatically afterward — do not run any check yourself): "
+                         f"{au} && {bp}")
+        elif au or bp:
+            facts.append("Run this single command to configure the in-image database "
+                         "(the host verifies it automatically afterward): "
+                         f"{au or bp}")
     return Task(
         goal=packet.goal,
         done_when=packet.check_command,

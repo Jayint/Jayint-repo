@@ -112,9 +112,12 @@ def test_packet_to_task_no_start_recipe_no_extra_facts():
 
 
 def test_packet_to_task_renders_binding_facts():
-    """A binding obligation's bind_recipe is rendered as the alter-user + profile facts."""
+    """A binding obligation is rendered as ONE atomic, &&-joined fact that runs
+    BOTH setup commands and does NOT surface the host check_command."""
     from src.envstate.graph_scheduler import packet_to_task
     from python_deps.depgraph.schedule import ObligationPacket
+    alter_user = "runuser -u postgres -- psql -c \"ALTER USER postgres PASSWORD 'postgres'\""
+    bind_profile = "echo 'export DB_STRING=...' > /etc/profile.d/zz_service_bind.sh"
     packet = ObligationPacket(
         node_id="config:DB_STRING", node_type="config", tier=6, layer="config",
         goal="bind DB_STRING",
@@ -122,12 +125,21 @@ def test_packet_to_task_renders_binding_facts():
         check_command='psql "postgresql://postgres:postgres@127.0.0.1:5432/appdb" -c "select 1"',
         bind_recipe={"var": "DB_STRING",
                      "url": "postgresql://postgres:postgres@127.0.0.1:5432/appdb",
-                     "alter_user": "runuser -u postgres -- psql -c \"ALTER USER postgres PASSWORD 'postgres'\"",
-                     "bind_profile": "echo 'export DB_STRING=...' > /etc/profile.d/zz_service_bind.sh"})
+                     "alter_user": alter_user,
+                     "bind_profile": bind_profile})
     task = packet_to_task(packet)
-    joined = "\n".join(task.facts)
-    assert "ALTER USER postgres PASSWORD" in joined
-    assert "/etc/profile.d/zz_service_bind.sh" in joined
+    binding_facts = [f for f in task.facts
+                     if "ALTER USER postgres PASSWORD" in f or "/etc/profile.d/zz_service_bind.sh" in f]
+    # (b) exactly ONE binding-related fact (not two).
+    assert len(binding_facts) == 1, f"expected one binding fact, got {binding_facts!r}"
+    fact = binding_facts[0]
+    # (a) BOTH setup commands appear in the SAME single fact, &&-joined.
+    assert "ALTER USER postgres PASSWORD" in fact
+    assert "/etc/profile.d/zz_service_bind.sh" in fact
+    assert f"{alter_user} && {bind_profile}" in fact
+    # (c) the binding fact does NOT surface the host check_command / probe.
+    assert "select 1" not in fact
+    assert "psql \"postgresql" not in fact
 
 
 def test_packet_to_task_no_bind_recipe_no_extra_facts():
