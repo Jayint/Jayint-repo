@@ -19,9 +19,14 @@ try:  # PyYAML is available; degrade gracefully if ever absent.
 except ImportError:  # pragma: no cover
     yaml = None
 
-from python_deps.depgraph.ids import service_id, syslib_id
+from python_deps.depgraph.ids import service_id, syslib_id, config_id
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State, Edge, EdgeType
 from python_deps.depgraph.service_tables import services_for_package, service_defaults, KNOWN_SERVICE_KINDS, BROKER_CAPABLE_KINDS
+
+# Binding obligation (Option B): the in-image dev credential write + profile export the
+# LLM runs (the HOW), persisted so every login shell sources the rewritten app DB var.
+BIND_PROFILE_PATH = "/etc/profile.d/zz_service_bind.sh"
+ALTER_USER_CMD = "runuser -u postgres -- psql -c \"ALTER USER postgres PASSWORD 'postgres'\""
 
 # URL scheme -> canonical service kind.
 _SCHEME_TO_KIND: dict[str, str] = {
@@ -394,4 +399,33 @@ def attach_in_image_provisioning(graph: DepGraph, *, enabled: bool) -> DepGraph:
         ))
         new = new.with_edge(Edge(src=svc.id, dst=sysl_id,
                                  relation=EdgeType.REQUIRES, origin="service"))
+
+        # Bind the app's DB env var to the in-image instance (Option B). The
+        # rewritten value keeps the app's scheme (driver fidelity); the psql
+        # check_command uses the base ``postgresql`` scheme (psql rejects dialect
+        # suffixes). The host owns truth — this node flips SATISFIED only when the
+        # host runs the psql probe (anti-hollow); the recipe is the LLM-run HOW.
+        var = svc.data.get("bound_config")
+        if var:
+            scheme = "postgresql"
+            orig = svc.data.get("bound_config_url") or ""
+            if "://" in orig:
+                scheme = orig.split("://", 1)[0]
+            bind_db = svc.data.get("db") or service_db_from_url(orig) or "postgres"
+            app_url = service_bind_url(scheme, port, bind_db)
+            probe_url = service_bind_url("postgresql", port, bind_db)
+            bind_profile = f"echo 'export {var}=\"{app_url}\"' > {BIND_PROFILE_PATH}"
+            bnode = Node(
+                id=config_id(var), type=NodeType.CONFIG, name=var, layer=Layer.CONFIG,
+                discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
+                check_command=f'psql "{probe_url}" -c "select 1"',
+                fix_candidates=(f"env:{var}={app_url}",), chosen_fix=f"env:{var}={app_url}",
+                evidence=f"bind {var} to in-image postgres", provenance="service binding",
+                data={"binding": True, "bind_recipe": {
+                    "var": var, "url": app_url,
+                    "alter_user": ALTER_USER_CMD, "bind_profile": bind_profile}},
+            )
+            new = new.with_node(bnode)
+            new = new.with_edge(Edge(src=bnode.id, dst=svc.id,
+                                     relation=EdgeType.REQUIRES, origin="service"))
     return new

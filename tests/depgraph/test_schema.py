@@ -468,13 +468,19 @@ def test_requires_edge_into_config_is_allowed():
     assert any(e.dst == "config:SECRET_KEY" for e in g.edges)
 
 
-def test_requires_edge_from_config_is_rejected():
+def test_requires_edge_from_config_to_service_is_allowed():
+    # A binding CONFIG node (config-binding feature) `requires` the SERVICE it
+    # binds to (config:<VAR> -> service:postgres): the rewritten DB var is only
+    # usable once the in-image service is up. `Config` is therefore a legal
+    # `requires` source (widened alongside `Service` in the services slice).
     from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
-    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
-    pkg = make_node("pkg:y", NodeType.PACKAGE, "y", Layer.PIP)
-    g = DepGraph().with_node(cfg).with_node(pkg)
-    with pytest.raises(ValueError):
-        g.with_edge(Edge(src="config:X", dst="pkg:y", relation=EdgeType.REQUIRES))
+    cfg = make_node("config:DB_STRING", NodeType.CONFIG, "DB_STRING", Layer.CONFIG)
+    svc = make_node("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES)
+    g = DepGraph().with_node(cfg).with_node(svc)
+    g = g.with_edge(Edge(src="config:DB_STRING", dst="service:postgres",
+                         relation=EdgeType.REQUIRES, origin="service"))
+    assert any(e.src == "config:DB_STRING" and e.dst == "service:postgres"
+               for e in g.edges)
 
 
 # --- Task 1 (services slice): Layer.SERVICES, service_id, Node.data ---
