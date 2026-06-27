@@ -36,11 +36,17 @@ def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False)
     return (
         node.state is State.MISSING
         and service_ok
-        and node.type is not NodeType.CONFIG       # config is advisory-only (tier 6); its `printenv X`
+        and (node.type is not NodeType.CONFIG      # config is advisory-only (tier 6); its `printenv X`
                                                    # check is unsatisfiable in a fresh-shell exec, and a
                                                    # genuinely-required var is set reactively via the
                                                    # discover-task (tests certify SUFFICIENT). See
                                                    # docs/.../2026-06-26-unified-executor-loop-delta.md §9.
+             or (allow_services and bool(node.data.get("binding"))))  # ...EXCEPT a service-binding
+                                                   # CONFIG node (Option B): it carries a REAL psql
+                                                   # check_command and `data["binding"]`, so when
+                                                   # services are armed it is a genuine, host-certifiable
+                                                   # obligation (its REQUIRES service gate still applies
+                                                   # via _dependencies_satisfied below).
         and bool(node.check_command)              # the agent needs a host stop condition
         and _dependencies_satisfied(graph, node)
         and not _is_emittable(graph, node, _conflicted_ids(graph))  # deterministic prefix handles these
