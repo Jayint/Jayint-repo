@@ -75,6 +75,7 @@ class ObligationPacket:
     blocks: tuple[str, ...] = ()
     certified_context: tuple[str, ...] = ()
     start_recipe: dict | None = None
+    bind_recipe: dict | None = None
 
 
 def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
@@ -103,4 +104,5 @@ def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
         blocks=blocks,
         certified_context=certified_context,
         start_recipe=node.data.get("start_recipe"),
+        bind_recipe=node.data.get("bind_recipe"),
     )

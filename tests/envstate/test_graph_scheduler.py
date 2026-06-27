@@ -109,3 +109,38 @@ def test_packet_to_task_no_start_recipe_no_extra_facts():
     task = packet_to_task(packet)
     # No fact should mention "start the service"
     assert not any("start the service" in f for f in task.facts)
+
+
+def test_packet_to_task_renders_binding_facts():
+    """A binding obligation's bind_recipe is rendered as the alter-user + profile facts."""
+    from src.envstate.graph_scheduler import packet_to_task
+    from python_deps.depgraph.schedule import ObligationPacket
+    packet = ObligationPacket(
+        node_id="config:DB_STRING", node_type="config", tier=6, layer="config",
+        goal="bind DB_STRING",
+        evidence="bind DB_STRING to in-image postgres",
+        check_command='psql "postgresql://postgres:postgres@127.0.0.1:5432/appdb" -c "select 1"',
+        bind_recipe={"var": "DB_STRING",
+                     "url": "postgresql://postgres:postgres@127.0.0.1:5432/appdb",
+                     "alter_user": "runuser -u postgres -- psql -c \"ALTER USER postgres PASSWORD 'postgres'\"",
+                     "bind_profile": "echo 'export DB_STRING=...' > /etc/profile.d/zz_service_bind.sh"})
+    task = packet_to_task(packet)
+    joined = "\n".join(task.facts)
+    assert "ALTER USER postgres PASSWORD" in joined
+    assert "/etc/profile.d/zz_service_bind.sh" in joined
+
+
+def test_packet_to_task_no_bind_recipe_no_extra_facts():
+    """Non-binding obligations (bind_recipe None) render no binding facts."""
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
+    )
+    from python_deps.depgraph.schedule import frame_obligation
+    from src.envstate.graph_scheduler import packet_to_task
+    node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.MISSING, check_command="python -c 'import requests'")
+    g = DepGraph().with_node(node)
+    task = packet_to_task(frame_obligation(g, node))
+    assert not any("ALTER USER" in f for f in task.facts)
+    assert not any("/etc/profile.d" in f for f in task.facts)
