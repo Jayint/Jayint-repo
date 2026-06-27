@@ -9,6 +9,12 @@ from src.synthesizer import Synthesizer
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
 
 
+def _service_extra_hosts():
+    if os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1":
+        return {"postgres": "127.0.0.1"}
+    return None
+
+
 class Sandbox:
     def __init__(
         self,
@@ -56,6 +62,7 @@ class Sandbox:
                 self.client.images.pull(self.current_image, platform=self.platform)
             except Exception as e:
                 print(f"[Platform] Pull failed (may already exist): {e}")
+        _extra_hosts = _service_extra_hosts()
         self.container = self.client.containers.run(
             self.current_image,
             detach=True,
@@ -63,7 +70,8 @@ class Sandbox:
             working_dir=self.workdir,
             command="/bin/bash",
             volumes=self.volumes,
-            platform=self.platform
+            platform=self.platform,
+            **({} if _extra_hosts is None else {"extra_hosts": _extra_hosts})
         )
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
@@ -381,6 +389,7 @@ class Sandbox:
             except docker.errors.DockerException:
                 pass
 
+        _extra_hosts = _service_extra_hosts()
         self.container = self.client.containers.run(
             rollback_image,
             detach=True,
@@ -388,7 +397,8 @@ class Sandbox:
             working_dir=self.workdir,
             command="/bin/bash",
             volumes=self.volumes,
-            platform=self.platform
+            platform=self.platform,
+            **({} if _extra_hosts is None else {"extra_hosts": _extra_hosts})
         )
         self.container.exec_run(f"mkdir -p {self.workdir}")
         self._replay_runtime_commands()

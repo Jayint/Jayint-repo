@@ -513,6 +513,74 @@ class SandboxAptBootstrapTests(unittest.TestCase):
         self.assertIs(sandbox.client, fake_client)
         mock_from_env.assert_called_once_with(timeout=600)
 
+    def test_extra_hosts_added_when_arm_on(self):
+        import os
+        orig = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION")
+        os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1"
+        try:
+            captured = {}
+            fake_container = FakeContainer()
+
+            class _Containers:
+                def run(self, image, **kwargs):
+                    captured.update(kwargs)
+                    return fake_container
+
+            class _Client:
+                containers = _Containers()
+
+            import src.sandbox as sb
+            s = sb.Sandbox.__new__(sb.Sandbox)
+            s.client = _Client()
+            s.current_image = "python:3.11-slim"
+            s.platform = None
+            s.workdir = "/app"
+            s.volumes = {}
+            s.seed_dir = None
+            s._bootstrap_apt_if_supported = lambda: None
+            s._register_snapshot = lambda *a: None
+            s._setup_initial_container()
+            self.assertEqual(captured.get("extra_hosts"), {"postgres": "127.0.0.1"})
+        finally:
+            if orig is None:
+                os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+            else:
+                os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = orig
+
+    def test_no_extra_hosts_off_arm(self):
+        import os
+        orig = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION")
+        os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+        try:
+            captured = {}
+            fake_container = FakeContainer()
+
+            class _Containers:
+                def run(self, image, **kwargs):
+                    captured.update(kwargs)
+                    return fake_container
+
+            class _Client:
+                containers = _Containers()
+
+            import src.sandbox as sb
+            s = sb.Sandbox.__new__(sb.Sandbox)
+            s.client = _Client()
+            s.current_image = "python:3.11-slim"
+            s.platform = None
+            s.workdir = "/app"
+            s.volumes = {}
+            s.seed_dir = None
+            s._bootstrap_apt_if_supported = lambda: None
+            s._register_snapshot = lambda *a: None
+            s._setup_initial_container()
+            self.assertNotIn("extra_hosts", captured)
+        finally:
+            if orig is None:
+                os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+            else:
+                os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = orig
+
 
 if __name__ == "__main__":
     unittest.main()
