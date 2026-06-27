@@ -3126,6 +3126,33 @@ class DockerAgent:
         self.verified_test_commands = []
         self.verified_test_command = None
 
+    def _collect_confirmed_in_image_services(self):
+        """Handoff field for the eval: confirmed services certified up in-sandbox.
+
+        Only SATISFIED confirmed services with a start_recipe — so the scored eval
+        reproduces exactly what the host certified (design §8.1). Empty off-arm."""
+        import os
+        if os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") != "1":
+            return []
+        from python_deps.depgraph.schema import NodeType, State
+        graph = getattr(self, "_final_dep_graph", None)
+        if graph is None:
+            return []
+        out = []
+        for n in graph.nodes:
+            if (n.type is NodeType.SERVICE
+                    and n.data.get("service_confidence") == "confirmed"
+                    and n.state is State.SATISFIED):
+                recipe = n.data.get("start_recipe") or {}
+                if not recipe.get("start"):
+                    continue
+                out.append({
+                    "kind": n.name, "port": recipe.get("port"), "db": recipe.get("db"),
+                    "start": recipe.get("start"), "wait": recipe.get("wait"),
+                    "createdb": recipe.get("createdb"), "certify": recipe.get("certify"),
+                })
+        return out
+
     def _build_run_summary(self, configuration_success, run_error=None):
         summary = {
             "repo_url": self.repo_url,
@@ -3198,6 +3225,9 @@ class DockerAgent:
                 self._runtime_pin_decision,
                 getattr(self, "_runtime_pin_original_base", None),
             )
+        services = self._collect_confirmed_in_image_services()
+        if services:
+            summary["confirmed_in_image_services"] = services
         if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
             summary["action_ledger"] = self.action_ledger.to_list()
         # §4.4 optional instrumentation: persist orchestrator result + envstate block
