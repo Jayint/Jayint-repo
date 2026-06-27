@@ -199,7 +199,7 @@ def run_v1(
             from python_deps.depgraph.runtime_classify import classify_observation
             events = ledger.events()
             new_events = events[_rt_mark:]
-            obs = [(e.cmd, e.stdout) for e in new_events]
+            obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
             if not obs:
                 return
             pre_graph = current_map.dep_graph
@@ -254,8 +254,10 @@ def run_v1(
                 import logging
                 from python_deps.depgraph.runtime_ingest import diverged_node_ids
                 from python_deps.depgraph.emit import partition
+                from python_deps.depgraph.schedule import scheduler_frontier
                 diverged = diverged_node_ids(pre_graph, found)
-                if (diverged or _out_of_scope) and not partition(new_graph).emittable:
+                no_actionable = not scheduler_frontier(new_graph)
+                if diverged and no_actionable and not partition(new_graph).emittable:
                     _residual_giveup = (
                         f"graph-scheduler: residual not an environment obligation "
                         f"(diverged={list(diverged)}, out_of_scope={len(_out_of_scope)})"
