@@ -71,6 +71,29 @@ def test_packet_to_task_renders_createdb_when_present():
     assert createdb_facts, "createdb command must appear in facts when present"
 
 
+def test_done_blocked_until_promoted_service_certified():
+    from python_deps.depgraph.schema import State
+    from src.envstate.graph_scheduler import next_decision
+    # service MISSING but capped (ineligible from frontier) and tests "pass"
+    # (the 1 pre-existing unit test hollow trap) -> must NOT be done
+    g = _provisioning_graph(State.MISSING, State.SATISFIED)   # helper from Task 5 test
+    handed = {"service:postgres": 3}  # at cap → ineligible, frontier empty
+    decision, _ = next_decision(g, run_tests=lambda: True, allow_services=True,
+                                handed=handed, attempt_cap=3)
+    assert decision.action != "done"
+
+    g_ok = _provisioning_graph(State.SATISFIED, State.SATISFIED)
+    decision_ok, _ = next_decision(g_ok, run_tests=lambda: True, allow_services=True)
+    assert decision_ok.action == "done"
+
+
+def test_done_unchanged_for_non_service_graph():
+    from python_deps.depgraph.schema import DepGraph
+    from src.envstate.graph_scheduler import next_decision
+    decision, _ = next_decision(DepGraph(), run_tests=lambda: True, allow_services=True)
+    assert decision.action == "done"
+
+
 def test_packet_to_task_no_start_recipe_no_extra_facts():
     """packet_to_task does not add start_recipe facts when start_recipe is None."""
     from python_deps.depgraph.schema import (

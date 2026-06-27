@@ -85,7 +85,18 @@ def next_decision(
             action="task", task=packet_to_task(frame_obligation(graph, node))
         )
         return decision, node.id
+    from python_deps.depgraph.schema import NodeType, State
     if run_tests():
+        promoted_unsatisfied = [
+            n for n in (graph.nodes if graph is not None else ())
+            if n.type is NodeType.SERVICE
+            and n.data.get("start_recipe")
+            and n.state is not State.SATISFIED
+        ]
+        if allow_services and promoted_unsatisfied:
+            # Anti-hollow: tests "passing" while a required in-image service is not
+            # host-certified up is the 1-unit-test-rides-to-0.2 trap (design §10).
+            return PlannerDecision(action="task", task=_discover_task()), None
         return PlannerDecision(
             action="done", reason="graph-scheduler: frontier clean, tests pass"
         ), None
