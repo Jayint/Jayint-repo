@@ -299,6 +299,7 @@ def build_advisory_for_repo(
     *,
     host_executor: Executor | None = None,
     target_python: str | None = None,
+    enable_service_provision: bool = False,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
 
@@ -317,7 +318,8 @@ def build_advisory_for_repo(
         host = host_executor or LocalSubprocessExecutor()
         with DockerExecutor(base_image) as scratch:
             graph = build_dep_graph(
-                repo_path, scratch, host_executor=host, target_python=target_python
+                repo_path, scratch, host_executor=host, target_python=target_python,
+                enable_service_provision=enable_service_provision,
             )
         return render_dep_graph_advisory(graph), graph
     except Exception as exc:  # noqa: BLE001 — advisory must never break a run

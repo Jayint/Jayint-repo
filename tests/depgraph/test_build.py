@@ -377,3 +377,23 @@ def test_build_includes_service_nodes(tmp_path):
     ex = FakeExecutor(default=_r(returncode=1, stderr="x"))
     graph = build_dep_graph(str(tmp_path), ex, host_executor=ex, target_python="3.11")
     assert "postgres" in {n.name for n in graph.nodes if n.type is NodeType.SERVICE}
+
+
+def test_build_attaches_provisioning_when_enabled(tmp_path):
+    from conftest import FakeExecutor  # type: ignore
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "app"\nversion = "0"\n')
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "__init__.py").write_text("")
+    (tmp_path / "app" / "db.py").write_text("import psycopg2\n")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  test:\n    services:\n      postgres:\n        image: postgres:14\n")
+
+    from python_deps.depgraph.build import build_dep_graph
+    from python_deps.depgraph.ids import syslib_id
+    ex = FakeExecutor(default=_r(returncode=1, stderr="x"))
+    g_on = build_dep_graph(str(tmp_path), ex, host_executor=ex, target_python="3.11",
+                           enable_service_provision=True)
+    assert g_on.get(syslib_id("postgresql")) is not None      # promoted
+    g_off = build_dep_graph(str(tmp_path), ex, host_executor=ex, target_python="3.11")
+    assert g_off.get(syslib_id("postgresql")) is None          # default: byte-identical

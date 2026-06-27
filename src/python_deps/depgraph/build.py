@@ -61,7 +61,7 @@ from python_deps.depgraph.schema import (
     State,
 )
 from python_deps.depgraph.config_scan import scan_config
-from python_deps.depgraph.service_scan import scan_services
+from python_deps.depgraph.service_scan import scan_services, attach_in_image_provisioning
 from python_deps.depgraph.seed import seed_predicted_native
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
@@ -213,6 +213,7 @@ def build_dep_graph(
     target_python: str | None = None,
     target_platform: str | None = None,
     exclude_newer: str | None = None,
+    enable_service_provision: bool = False,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -301,6 +302,10 @@ def build_dep_graph(
     # to the same graph (design 2026-06-25-services-tier-design.md). Discovery only;
     # services are NOT certified here (certify skip-guard keeps them UNKNOWN).
     graph = scan_services(repo_path, graph)
+    # Stage 3e — Service action layer (arm v1gsps): promote confirmed services to
+    # in-image obligations (SystemLib prereq + loopback probe + start recipe).
+    # Off-state default keeps this byte-identical (design 2026-06-27 §4/§9).
+    graph = attach_in_image_provisioning(graph, enabled=enable_service_provision)
     resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 

@@ -1150,7 +1150,8 @@ class DockerAgent:
                     else None
                 )
                 _dep_advisory, _dep_graph = build_advisory_for_repo(
-                    self.workplace, _base_image, target_python=_req_minor
+                    self.workplace, _base_image, target_python=_req_minor,
+                    enable_service_provision=os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1",
                 )
                 # Stats/artifact are best-effort and kept INSIDE a guard so a
                 # failure here can never clobber a successfully-built advisory.
