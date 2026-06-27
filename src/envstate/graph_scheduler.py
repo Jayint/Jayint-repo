@@ -24,6 +24,12 @@ def packet_to_task(packet: ObligationPacket) -> Task:
         facts.append("depends_on: " + ", ".join(packet.depends_on))
     if packet.certified_context:
         facts.append("already satisfied: " + ", ".join(packet.certified_context))
+    if packet.start_recipe and packet.start_recipe.get("start"):
+        facts.append("start the service in-image (run, then the host re-checks "
+                     f"`{packet.check_command}`): {packet.start_recipe['start']}")
+        if packet.start_recipe.get("createdb"):
+            facts.append("then create the bound database: "
+                         f"{packet.start_recipe['createdb']}")
     return Task(
         goal=packet.goal,
         done_when=packet.check_command,
@@ -55,15 +61,23 @@ def next_decision(
     run_tests: Callable[[], bool],
     handed: dict[str, int] | None = None,
     attempt_cap: int = 3,
+    *,
+    allow_services: bool | None = None,
 ) -> tuple[PlannerDecision, str | None]:
     """Decide the next action from the certified graph (no LLM).
 
     Returns (decision, chosen_obligation_id). chosen_id is the node handed to the
     agent (so the caller can bump its oscillation counter), or None for the
     done / discover-task branches.
+
+    allow_services: when None (default), resolved from env var
+    DOCKERAGENT_ENABLE_SERVICE_PROVISION; pass True/False explicitly in tests.
     """
+    import os
     handed = handed or {}
-    frontier = scheduler_frontier(graph) if graph is not None else ()
+    if allow_services is None:
+        allow_services = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+    frontier = scheduler_frontier(graph, allow_services=allow_services) if graph is not None else ()
     eligible = [n for n in frontier if handed.get(n.id, 0) < attempt_cap]
     if eligible:
         node = eligible[0]

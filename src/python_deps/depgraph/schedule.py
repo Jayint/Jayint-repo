@@ -25,13 +25,17 @@ def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:
     return True
 
 
-def _is_actionable(graph: DepGraph, node: Node) -> bool:
+def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False) -> bool:
     # Lazy import to avoid any circular dependency: schedule.py must stay PURE
     # (no src.envstate imports), and emit.py is a pure sibling in this package.
     from python_deps.depgraph.emit import _is_emittable, _conflicted_ids
+    service_ok = (
+        node.type is not NodeType.SERVICE
+        or (allow_services and node.data.get("service_confidence") == "confirmed")
+    )
     return (
         node.state is State.MISSING
-        and node.type is not NodeType.SERVICE     # services flow through the sufficiency branch in v1
+        and service_ok
         and node.type is not NodeType.CONFIG       # config is advisory-only (tier 6); its `printenv X`
                                                    # check is unsatisfiable in a fresh-shell exec, and a
                                                    # genuinely-required var is set reactively via the
@@ -43,9 +47,9 @@ def _is_actionable(graph: DepGraph, node: Node) -> bool:
     )
 
 
-def scheduler_frontier(graph: DepGraph) -> tuple[Node, ...]:
+def scheduler_frontier(graph: DepGraph, *, allow_services: bool = False) -> tuple[Node, ...]:
     """Actionable MISSING obligations, topologically ordered (deps first)."""
-    actionable = [n for n in graph.nodes if _is_actionable(graph, n)]
+    actionable = [n for n in graph.nodes if _is_actionable(graph, n, allow_services=allow_services)]
     if not actionable:
         return ()
     return tuple(topo_order(graph, tuple(actionable)))   # topo_order returns tuple[Node, ...]
@@ -64,6 +68,7 @@ class ObligationPacket:
     depends_on: tuple[str, ...] = ()
     blocks: tuple[str, ...] = ()
     certified_context: tuple[str, ...] = ()
+    start_recipe: dict | None = None
 
 
 def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
@@ -91,4 +96,5 @@ def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
         depends_on=depends_on,
         blocks=blocks,
         certified_context=certified_context,
+        start_recipe=node.data.get("start_recipe"),
     )
