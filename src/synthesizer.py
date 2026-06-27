@@ -3819,6 +3819,11 @@ class Synthesizer:
             r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)pg_ctlcluster\b.*\bstart\b",
             r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)createdb\b",
             r"(?:^|--\s+|\bpostgres\s+-c\s+\"?)createuser\b",
+            # Config-binding obligation: the ALTER USER password reset needs the
+            # server running, and the profile.d service-bind write is replaced by
+            # the ENV bake + eval-wrapper export. Both are RUNTIME, never baked.
+            r"ALTER\s+USER\s+\w+\s+(WITH\s+)?PASSWORD",
+            r"/etc/profile\.d/zz_service_bind\.sh",
         )
         return any(re.search(pattern, normalized_command) for pattern in service_patterns)
 

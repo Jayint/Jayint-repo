@@ -2691,6 +2691,23 @@ class RuntimeServiceSegmentTests(unittest.TestCase):
         # apt install must remain a BUILD command (NOT runtime-only)
         self.assertFalse(s._is_runtime_service_segment("apt-get install -y postgresql"))
 
+    def test_drops_alter_user_and_profile_bind(self):
+        # The binding obligation's ALTER USER + profile.d write are RUNTIME commands;
+        # they must NOT be baked as RUN lines (ALTER USER needs the server running;
+        # the profile.d write is replaced by the ENV bake + eval-wrapper export).
+        s = Synthesizer.__new__(Synthesizer)
+        # ALTER USER ... PASSWORD — runuser- and su-wrapped forms must be runtime-only
+        self.assertTrue(s._is_runtime_service_segment(
+            "runuser -u postgres -- psql -c \"ALTER USER postgres PASSWORD 'postgres'\""))
+        self.assertTrue(s._is_runtime_service_segment(
+            "su - postgres -c \"psql -c \\\"ALTER USER postgres PASSWORD 'postgres'\\\"\""))
+        # profile.d service-bind write must be runtime-only
+        self.assertTrue(s._is_runtime_service_segment(
+            "echo 'export DB_STRING=\"postgresql://postgres:postgres@127.0.0.1:5432/appdb\"' "
+            "> /etc/profile.d/zz_service_bind.sh"))
+        # a legitimate build line must STILL survive the baked build (NOT runtime-only)
+        self.assertFalse(s._is_runtime_service_segment("pip install poetry"))
+
 
 if __name__ == "__main__":
     unittest.main()
