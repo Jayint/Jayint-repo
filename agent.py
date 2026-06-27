@@ -3135,6 +3135,7 @@ class DockerAgent:
         if os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") != "1":
             return []
         from python_deps.depgraph.schema import NodeType, State
+        from python_deps.depgraph.ids import config_id
         graph = getattr(self, "_final_dep_graph", None)
         if graph is None:
             return []
@@ -3146,11 +3147,18 @@ class DockerAgent:
                 recipe = n.data.get("start_recipe") or {}
                 if not recipe.get("start"):
                     continue
-                out.append({
+                entry = {
                     "kind": n.name, "port": recipe.get("port"), "db": recipe.get("db"),
                     "start": recipe.get("start"), "wait": recipe.get("wait"),
                     "createdb": recipe.get("createdb"), "certify": recipe.get("certify"),
-                })
+                }
+                var = n.data.get("bound_config")
+                if var:
+                    bnode = graph.get(config_id(var))
+                    if bnode is not None and bnode.state is State.SATISFIED:
+                        entry["var"] = var
+                        entry["url"] = bnode.data.get("bind_recipe", {}).get("url")
+                out.append(entry)
         return out
 
     def _build_run_summary(self, configuration_success, run_error=None):
