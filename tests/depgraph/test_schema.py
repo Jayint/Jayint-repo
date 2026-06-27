@@ -500,3 +500,36 @@ def test_node_data_roundtrips_and_serializes():
              data={"service_confidence": "confirmed", "port": 5432})
     assert n.data["service_confidence"] == "confirmed"
     assert n.to_dict()["data"] == {"service_confidence": "confirmed", "port": 5432}
+
+
+def test_service_may_require_systemlib():
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, NodeType, Layer, DiscoveredBy, Edge, EdgeType,
+    )
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN)
+    sysl = Node(id="syslib:postgresql", type=NodeType.SYSTEM_LIB, name="postgresql",
+                layer=Layer.SYSTEM, discovered_by=DiscoveredBy.STATIC_SCAN)
+    g = DepGraph().with_node(svc).with_node(sysl)
+    # Service -> SystemLib (requires) must be legal now (in-image: the server
+    # binary IS in our apt closure — design §3/§5).
+    g2 = g.with_edge(Edge(src="service:postgres", dst="syslib:postgresql",
+                          relation=EdgeType.REQUIRES, origin="service"))
+    assert any(e.src == "service:postgres" and e.dst == "syslib:postgresql"
+               for e in g2.edges)
+
+
+def test_service_still_illegal_as_conflicts_source():
+    # Only the `requires` source set is widened; conflicts_with is unchanged.
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, NodeType, Layer, DiscoveredBy, Edge, EdgeType,
+    )
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN)
+    pkg = Node(id="pkg:psycopg2", type=NodeType.PACKAGE, name="psycopg2",
+               layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER)
+    g = DepGraph().with_node(svc).with_node(pkg)
+    import pytest
+    with pytest.raises(ValueError):
+        g.with_edge(Edge(src="service:postgres", dst="pkg:psycopg2",
+                         relation=EdgeType.CONFLICTS_WITH))

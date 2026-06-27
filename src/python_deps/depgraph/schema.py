@@ -86,7 +86,7 @@ class Layer(enum.Enum):
 # relation -> (allowed src node-type values, allowed dst node-type values)
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
-        frozenset({"Test", "Project", "Import", "Package"}),
+        frozenset({"Test", "Project", "Import", "Package", "Service"}),
         frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime",
                    "Platform", "Service", "Config", "DataAsset"}),
     ),
