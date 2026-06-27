@@ -2881,6 +2881,7 @@ def evaluate_built_image(
     timeout_seconds: int,
     workspace_root: Optional[Path] = None,
     docker_platform: Optional[str] = None,
+    run_summary: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     command_results: list[dict[str, Any]] = []
     internal_import_prefixes = (
@@ -2890,6 +2891,7 @@ def evaluate_built_image(
         workspace_root,
         runtime_commands,
         test_commands,
+        run_summary,
     )
 
     for test_command in test_commands:
@@ -3678,6 +3680,7 @@ def main() -> int:
                         timeout_seconds=args.test_timeout,
                         workspace_root=eval_build_context_path,
                         docker_platform=docker_platform,
+                        run_summary=run_summary,
                     )
 
                 attempt_success = bool(

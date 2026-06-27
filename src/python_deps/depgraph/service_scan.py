@@ -165,7 +165,7 @@ def _service_node(kind: str, *, confidence: str, discovered_by: DiscoveredBy,
     image, port = service_defaults(kind) if kind in KNOWN_SERVICE_KINDS else (f"{kind}:latest", None)
     data = {"service_confidence": confidence, "image": extra.get("image") or image,
             "host": extra.get("host") or kind, "port": extra.get("port") or port}
-    data.update({k: v for k, v in extra.items() if k in ("bound_config", "inducing_package")})
+    data.update({k: v for k, v in extra.items() if k in ("bound_config", "inducing_package", "bound_config_url")})
     p = data["port"]
     return Node(
         id=service_id(kind), type=NodeType.SERVICE, name=kind, layer=Layer.SERVICES,
@@ -200,7 +200,8 @@ def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
             if hit:
                 kind, host, port = hit
                 inferred.setdefault(kind, {})
-                inferred[kind].update({"bound_config": cfg.name, "host": host, "port": port})
+                inferred[kind].update({"bound_config": cfg.name, "host": host, "port": port,
+                                       "bound_config_url": url})
 
     new = graph
 
@@ -213,6 +214,8 @@ def scan_services(repo_path: str, graph: DepGraph) -> DepGraph:
         binding = inferred.get(kind)
         if binding and "bound_config" in binding:
             extra["bound_config"] = binding["bound_config"]
+        if binding and binding.get("bound_config_url"):
+            extra["bound_config_url"] = binding["bound_config_url"]
         node = _service_node(kind, confidence="confirmed",
                              discovered_by=DiscoveredBy.STATIC_SCAN,
                              evidence=meta.get("source", "ci/compose"), extra=extra)

@@ -261,3 +261,27 @@ def test_attach_skips_inferred_service():
     g = attach_in_image_provisioning(DepGraph().with_node(svc), enabled=True)
     assert g.get(syslib_id("postgresql")) is None          # inferred not promoted
     assert g.get(service_id("postgres")).check_command == "pg_isready -h postgres -p 5432"
+
+
+# I1 cross-task integration test: full scan→attach pipeline must propagate the DB name.
+# The confirmed postgres comes from CI; the DB name comes from a CONFIG node URL.
+# Before the fix, db is always None because scan_services never stored bound_config_url.
+def test_scan_then_attach_createdb_set_from_config_url(tmp_path):
+    """Full pipeline: CI-confirmed postgres + CONFIG URL -> createdb populated (I1 fix)."""
+    _w(tmp_path, ".github/workflows/ci.yml",
+       "jobs:\n  test:\n    services:\n      postgres:\n        image: postgres:14\n")
+    # CONFIG node whose fix candidate carries the real DB URL
+    g0 = _graph(pkgs=("psycopg2",),
+                configs=[("DATABASE_URL", "env:DATABASE_URL=postgres://db:5432/appdb")])
+    result = scan_services(str(tmp_path), g0)
+    result = attach_in_image_provisioning(result, enabled=True)
+    svc = result.get(service_id("postgres"))
+    assert svc is not None, "postgres SERVICE node missing"
+    recipe = svc.data.get("start_recipe")
+    assert recipe is not None, "start_recipe not attached"
+    createdb = recipe.get("createdb")
+    assert createdb is not None, (
+        "createdb is None — bound_config_url was not flowed through scan_services "
+        "(I1 bug: scan_services stores bound_config but not bound_config_url)"
+    )
+    assert "appdb" in createdb, f"Expected 'appdb' in createdb command, got: {createdb!r}"
