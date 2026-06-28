@@ -11,6 +11,7 @@ Provides:
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 # Put <worktree>/src on the path: this file is tests/depgraph/conftest.py.
@@ -21,6 +22,9 @@ if str(_SRC) not in sys.path:
 import pytest  # noqa: E402
 
 from python_deps.depgraph.executor import CommandResult  # noqa: E402
+from python_deps.depgraph.schema import (  # noqa: E402
+    DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
+)
 
 
 def make_result(
@@ -85,3 +89,29 @@ def make_result_fixture():
 def fake_executor():
     """An empty FakeExecutor; tests populate ``.responses`` as needed."""
     return FakeExecutor()
+
+
+# ---------------------------------------------------------------------------
+# Slice B: shared graph / node fixtures
+# ---------------------------------------------------------------------------
+
+def _syslib_missing(node_id="syslib:libpq", name="libpq",
+                    check="pkg-config --exists libpq", chosen_fix=None):
+    n = Node(id=node_id, type=NodeType.SYSTEM_LIB, name=name, layer=Layer.SYSTEM,
+             discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+             check_command=check, evidence="not found")
+    if chosen_fix is not None:
+        n = replace(n, chosen_fix=chosen_fix)
+    return n
+
+
+@pytest.fixture
+def _graph_with_evidence():
+    """(graph with one MISSING SystemLib, a known evidence id string)."""
+    return DepGraph().with_node(_syslib_missing()), "ev.1.0"
+
+
+@pytest.fixture
+def _graph_with_missing_syslib():
+    """A SystemLib node MISSING with a (wrong) chosen_fix, for apply/override tests."""
+    return DepGraph().with_node(_syslib_missing(chosen_fix="apt:libpqdev"))
