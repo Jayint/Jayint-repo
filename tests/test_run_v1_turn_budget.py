@@ -8,9 +8,15 @@ def test_turn_budget_present_and_not_in_deterministic_drain():
     assert "_repair_turns" in src
     assert "_budget_exhausted" in src
     assert "LLM turn budget exhausted" in src
-    # The deterministic emit drain must not consume the turn budget. The slice ends at
-    # the Task-4 repair block ("# Host-first repair"), so it captures exactly the
-    # emit_drain call + its step accounting — the repair-turn decrement lives AFTER
-    # the repair block and is correctly excluded.
-    emit = src[src.index("graph, _reports, steps = emit_drain"):src.index("# Host-first repair")]
+    # After the run_v1/run_v3 split both anchors live inside run_v3.
+    # The deterministic emit drain must not consume the turn budget. The slice
+    # ends at "# Host-first repair", capturing exactly the emit_drain call + its
+    # step accounting — the repair-turn decrement lives AFTER the repair block
+    # and is correctly excluded.
+    run_v3_start = src.index("def run_v3(")
+    run_v3_body = src[run_v3_start:]
+    emit = run_v3_body[
+        run_v3_body.index("graph, _reports, steps = emit_drain"):
+        run_v3_body.index("# Host-first repair")
+    ]
     assert "_repair_turns" not in emit

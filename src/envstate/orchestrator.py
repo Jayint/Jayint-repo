@@ -1,12 +1,17 @@
-"""EnvState v1 orchestrator loop.
+"""EnvState orchestrator loops.
 
-run_v1() is the new three-role loop (spec §4):
+run_v1() — three-role planner-driven loop (spec §4):
     initial_map → planner.decide → (done/giveup → break)
                 → build_agent.run → maintainer.update
                 → (done_flag → break)
                 → repeat up to max_cycles
 
-The legacy EnvStateOrchestrator class is kept below run_v1 unchanged
+run_v3() — graph-scheduler loop (no planner):
+    initial_map → dep-graph scheduler (next_decision) → build_agent.run
+                → maintainer.update → (done_flag/giveup/budget → break)
+                → repeat up to max_cycles
+
+The legacy EnvStateOrchestrator class is kept below both functions unchanged
 for Arms A/B/C back-compat.
 """
 from __future__ import annotations
@@ -50,7 +55,7 @@ class TerminationReason(enum.Enum):
     """Typed termination cause for the v3 loop.
 
     Maps 1-to-1 to the external stop_reason strings via ``_v3_stop_reason``.
-    Introduced so callers can distinguish the five logically-distinct giveup
+    Introduced so callers can distinguish the three logically-distinct giveup
     causes that previously collapsed into a single ``"planner_giveup"`` string.
     The external contract (returned strings) is unchanged.
     """
@@ -82,6 +87,10 @@ def _v3_stop_reason(reason: TerminationReason) -> str:
     return _TERMINATION_TO_STOP_REASON[reason]
 
 
+# ---------------------------------------------------------------------------
+# run_v1 — three-role planner-driven loop
+# ---------------------------------------------------------------------------
+
 def run_v1(
     planner,
     build_agent,
@@ -98,10 +107,8 @@ def run_v1(
     exec_readonly=None,
     enable_dep_emit: bool = False,
     enable_runtime_feedback: bool = False,
-    enable_graph_scheduler: bool = False,
-    graph_scheduler_attempt_cap: int = 3,
 ):
-    """Top-level v1 orchestrator loop.
+    """Top-level v1 three-role orchestrator loop (planner-driven).
 
     Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
       ``'done_flag'``     — maintainer set WorldModelMap.done_flag=True
@@ -125,20 +132,9 @@ def run_v1(
     # not yet ingested — including any written before the loop began (e.g. a
     # pre-seeded failure). _runtime_ingest_phase advances it.
     _rt_mark: int = 0
-    _residual_giveup: str | None = None   # set when a residual is non-env / divergent (spec §3 G3, §8)
-    _handed: dict[str, int] = {}       # graph-scheduler: per-obligation hand-out counts
-    _sched_stuck: int = 0              # consecutive discover cycles with no new obligations
-    _sched_last_nodes: int = -1        # dep-graph node count at the last discover cycle
-    _repaired_ids: set[str] = set()   # nodes given a host-first repair this run (one each)
-    _repair_turns: int = max_cycles      # LLM-repair budget (NOT mechanical installs)
-    _budget_exhausted: bool = False
-
-    def _current_revision() -> int:
-        evs = ledger.events()
-        return evs[-1].env_revision_after if evs else 0
 
     def _dep_emit_phase(cycle: int) -> None:
-        nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted
+        nonlocal current_map, global_step
         if not enable_dep_emit or current_map.dep_graph is None:
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
@@ -152,66 +148,28 @@ def run_v1(
         ensure_python_shim(sandbox_execute)
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Certify still runs (populating the frontier); emit_drain runs as a
-        # deterministic prefix regardless of whether the graph scheduler is active.
-        # The scheduler then receives only the irreducible residual (non-emittable MISSING
-        # nodes). global_step is advanced here only if emit_drain consumed steps, so
-        # LLM turns are NOT counted.
+        # deterministic prefix regardless of arm so the LLM only sees the
+        # irreducible non-emittable residual. global_step is advanced here only
+        # if emit_drain consumed steps, so LLM turns are NOT counted.
         graph, _reports, steps = emit_drain(
             graph, build_agent, sandbox_execute, ledger, exec_readonly,
             step_offset=global_step, cycle=cycle,
         )
         if steps:
             global_step += steps
-        # Host-first repair of reciped nodes the batch wave could not certify (the
-        # broken-bridge fix). Gated to the graph-scheduler arm so the off path and
-        # legacy arms stay byte-identical.
-        if enable_graph_scheduler:
-            from src.envstate.depgraph_live import repair_failed_nodes
-            graph, repair_steps, _repaired_n = repair_failed_nodes(
-                graph, build_agent, sandbox_execute, ledger, exec_readonly,
-                step_offset=global_step, cycle=cycle, repaired_ids=_repaired_ids,
-            )
-            if repair_steps:
-                global_step += repair_steps
-            if _repaired_n:
-                _repair_turns -= _repaired_n
-                if _repair_turns <= 0:
-                    _budget_exhausted = True
         # Fold emit-certified packages into installed so the synthesizer's closure
         # recipe includes them even when the planner finalizes immediately.
         sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
                     if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
         have = {f.name for f in current_map.installed}
         installed = current_map.installed + tuple(f for f in sat if f.name not in have)
-        # Under the graph scheduler the planner is bypassed, so the planner-facing
-        # dep_advisory render is dead work; reuse the prior advisory and skip the
-        # compute. The dep_graph + installed merge is UNCHANGED — the scheduler reads
-        # current_map.dep_graph, so it must still be merged every cycle.
-        advisory = current_map.dep_advisory if enable_graph_scheduler else render_depgraph_planner(graph)
+        advisory = render_depgraph_planner(graph)
         current_map = merge_map(
             current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
         )
 
-    def _run_tests_verified() -> bool:
-        """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
-
-        Replaces the bare ``sandbox_execute(VERIFY_TEST_CMD)[0]`` rc=0 check used by
-        the v1gs done-gate so the graph scheduler cannot finalize on a hollow pytest
-        exit-code (e.g. zero tests collected, venv-wrapped run, all-skipped).
-        """
-        ok, out = sandbox_execute(VERIFY_TEST_CMD)
-        verify_report = TaskReport(
-            "sched-verify",
-            "done" if ok else "blocked",
-            (CommandRecord(VERIFY_TEST_CMD, 0 if ok else 1, (out or "")[-2000:]),),
-            "scheduler test probe",
-        )
-        return _gate_passed(verify_report)
-
     def _runtime_ingest_phase() -> None:
-        # Gated: enable_graph_scheduler enables the divergence + out-of-scope give-up path
-        # (spec §3 G3, §8); _residual_giveup is written only inside that gate.
-        nonlocal current_map, _rt_mark, _residual_giveup
+        nonlocal current_map, _rt_mark
         if not enable_runtime_feedback or current_map.dep_graph is None:
             return
         try:
@@ -224,77 +182,15 @@ def run_v1(
             if not obs:
                 return
             pre_graph = current_map.dep_graph
-            _out_of_scope: list[tuple[str, str]] = []   # non-env diagnoses; Task 6 reads this
 
-            # Deterministic regex tier always runs; the temp-0 LLM tier is appended
-            # ONLY under the graph-scheduler arm and only when a client exists
-            # (spec §6 cascade). Off this gate the call is byte-identical to before.
+            # Deterministic regex classifier only — no LLM tier in the v1 arm.
             classifiers = (classify_observation,)
-            if enable_graph_scheduler and getattr(build_agent, "client", None) is not None:
-                from src.envstate.llm_classifier import make_llm_classifier
-                from src.envstate.llm_response import complete_with_retry
-                from src.envstate.jsonutil import extract_json_object
-
-                def _complete(messages):
-                    text, _usage, _resp = complete_with_retry(
-                        build_agent.client, build_agent.model, messages,
-                        accept=lambda t: extract_json_object(t) is not None,
-                        temperature=0, max_attempts=2,
-                    )
-                    return text
-
-                _llm = make_llm_classifier(
-                    _complete,
-                    note_out_of_scope=lambda c, r: _out_of_scope.append((c, r)),
-                )
-                # Bound LLM fan-out: spec §6 is "LLM only on the misses", but a cycle
-                # with 30 failed events would fire 30 synchronous temp-0 calls. Classify
-                # each UNIQUE error tail at most once, capped per cycle.
-                _seen_errs: set[str] = set()
-                _MAX_LLM_PER_CYCLE = 5
-
-                def _bounded_llm(cmd, out):
-                    key = (out or "")[-500:]
-                    if key in _seen_errs or len(_seen_errs) >= _MAX_LLM_PER_CYCLE:
-                        return None
-                    _seen_errs.add(key)
-                    return _llm(cmd, out)
-
-                classifiers = (classify_observation, _bounded_llm)
 
             new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
             # Advance the mark ONLY after a successful ingest call returns — so an
             # exception mid-ingest does not permanently drop those events (they are
             # re-read next cycle). (spec §11; C4 event-loss fix.)
             _rt_mark = len(events)
-            # Honest give-up (spec §3 G3 / §8): a residual that maps to an already-
-            # SATISFIED node (divergence) or that the LLM judged non-env, when the
-            # deterministic frontier is clean, is not fixable by adding nodes. Record
-            # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
-            if enable_graph_scheduler:
-                import logging
-                from python_deps.depgraph.runtime_ingest import diverged_node_ids
-                from python_deps.depgraph.emit import partition
-                from python_deps.depgraph.schedule import scheduler_frontier
-                diverged = diverged_node_ids(pre_graph, found)
-                # Match the real scheduler call (next_decision): the give-up
-                # frontier must see Service/binding obligations on-arm, or it
-                # reports "no actionable" while a binding is genuinely pending
-                # and the agent gives up prematurely (spurious give-up).
-                _allow_services = (
-                    os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
-                )
-                no_actionable = not scheduler_frontier(
-                    new_graph, allow_services=_allow_services
-                )
-                if diverged and no_actionable and not partition(new_graph).emittable:
-                    _residual_giveup = (
-                        f"graph-scheduler: residual not an environment obligation "
-                        f"(diverged={list(diverged)}, out_of_scope={len(_out_of_scope)})"
-                    )
-                    logging.getLogger(__name__).info(
-                        "residual-handler give-up: %s", _residual_giveup
-                    )
             if not found:
                 return
             advisory = render_depgraph_planner(new_graph)
@@ -321,38 +217,12 @@ def run_v1(
     for cycle in range(1, max_cycles + 1):
         # ── 0. Graph-first: certify + emit the certified closure ────────────
         _dep_emit_phase(cycle)
-        if enable_graph_scheduler and _budget_exhausted:
-            # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
-            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
         # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
         #        into the live dep-graph. Runs once per cycle before any branch so
         #        it fires regardless of which branch returns (I2 done-path fix).
         _runtime_ingest_phase()
-        if enable_graph_scheduler and _residual_giveup is not None:
-            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
-        # ── 1. Decide what to do next ───────────────────────────────────────
-        if enable_graph_scheduler:
-            from src.envstate.graph_scheduler import next_decision
-            decision, chosen = next_decision(
-                current_map.dep_graph,
-                _run_tests_verified,
-                handed=_handed,
-                attempt_cap=graph_scheduler_attempt_cap,
-            )
-            if chosen is not None:
-                _handed[chosen] = _handed.get(chosen, 0) + 1
-                _sched_stuck = 0
-            elif decision.action == "task":          # discover task → sufficiency-stuck
-                n_nodes = len(current_map.dep_graph.nodes) if current_map.dep_graph else 0
-                _sched_stuck = _sched_stuck + 1 if n_nodes <= _sched_last_nodes else 0
-                _sched_last_nodes = n_nodes
-                if _sched_stuck >= 2:                  # consecutive discover rounds revealed no new obligations (bounded anyway by max_cycles)
-                    decision = PlannerDecision(
-                        action="giveup",
-                        reason="graph-scheduler: no new obligations after 2 sufficiency rounds",
-                    )
-        else:
-            decision: PlannerDecision = planner.decide(current_map)
+        # ── 1. Planner decides what to do next ──────────────────────────────
+        decision: PlannerDecision = planner.decide(current_map)
 
         if decision.action == "done":
             if on_cycle is not None:
@@ -413,20 +283,10 @@ def run_v1(
             sandbox_execute,
             ledger,
             step_offset=global_step,
-            check=(task.done_when if enable_graph_scheduler else None),
-            budget=(5 if enable_graph_scheduler else LOCAL_BUDGET),
+            check=None,
+            budget=local_budget,
         )
-        if enable_graph_scheduler:
-            _repair_turns -= 1
-            if _repair_turns <= 0:
-                # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
-                return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
-        # Scheduler mode: a passing host check can return zero commands; floor the
-        # advance at 1 so the ledger step offset never aliases across cycles. Off the
-        # flag this is byte-identical to the legacy `+= len(report.commands)`.
-        global_step += (
-            max(len(report.commands), 1) if enable_graph_scheduler else len(report.commands)
-        )
+        global_step += len(report.commands)
 
         # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
         if probe is not None and manifest is not None:
@@ -440,6 +300,348 @@ def run_v1(
             on_cycle(cycle, current_map, decision, report)
 
         # ── 6. Hard-stop on done_flag — do NOT re-enter planner ──────────────
+        if current_map.done_flag:
+            return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
+
+    # Exhausted all cycles without termination.
+    return current_map, _v3_stop_reason(TerminationReason.MAX_CYCLES)
+
+
+# ---------------------------------------------------------------------------
+# run_v3 — graph-scheduler loop (no planner)
+# ---------------------------------------------------------------------------
+
+def run_v3(
+    build_agent,
+    maintainer,
+    initial_world_map: WorldModelMap,
+    ledger: ActionLedger,
+    sandbox_execute: Executor,
+    max_cycles: int = MAX_CYCLES,
+    on_cycle=None,
+    *,
+    probe=None,
+    manifest=None,
+    exec_readonly=None,
+    enable_dep_emit: bool = True,
+    enable_runtime_feedback: bool = True,
+    graph_scheduler_attempt_cap: int = 3,
+):
+    """Top-level v3 graph-scheduler orchestrator loop (no planner).
+
+    Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
+      ``'done_flag'``      — maintainer set WorldModelMap.done_flag=True
+      ``'planner_done'``   — scheduler returned action='done'
+      ``'planner_giveup'`` — scheduler gave up (budget/residual/stuck)
+      ``'max_cycles'``     — loop ran for max_cycles without terminating
+
+    Planner is ABSENT: ``next_decision`` from the dep-graph scheduler drives
+    every cycle. dep_emit and runtime_feedback are on by default (their params
+    are kept for caller/test compatibility — the bodies treat them as always-on
+    once the guards below are passed).
+
+    The graph scheduler replaces the three-role LLM planner with a pure-function
+    certify → emit → decide pipeline. LLM turns are bounded by ``_repair_turns``
+    (seeded to ``max_cycles``).
+    """
+    from src.envstate.graph_scheduler import next_decision
+    current_map: WorldModelMap = initial_world_map
+    # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
+    global_step: int = 0
+    # Runtime-feedback high-water mark (same semantics as in run_v1).
+    _rt_mark: int = 0
+    _residual_giveup: str | None = None   # set when a residual is non-env / divergent (spec §3 G3, §8)
+    _handed: dict[str, int] = {}          # per-obligation hand-out counts
+    _sched_stuck: int = 0                 # consecutive discover cycles with no new obligations
+    _sched_last_nodes: int = -1           # dep-graph node count at the last discover cycle
+    _repaired_ids: set[str] = set()       # nodes given a host-first repair this run (one each)
+    _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
+    _budget_exhausted: bool = False
+
+    def _run_tests_verified() -> bool:
+        """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
+
+        Replaces the bare ``sandbox_execute(VERIFY_TEST_CMD)[0]`` rc=0 check used by
+        the v1gs done-gate so the graph scheduler cannot finalize on a hollow pytest
+        exit-code (e.g. zero tests collected, venv-wrapped run, all-skipped).
+        """
+        ok, out = sandbox_execute(VERIFY_TEST_CMD)
+        verify_report = TaskReport(
+            "sched-verify",
+            "done" if ok else "blocked",
+            (CommandRecord(VERIFY_TEST_CMD, 0 if ok else 1, (out or "")[-2000:]),),
+            "scheduler test probe",
+        )
+        return _gate_passed(verify_report)
+
+    def _dep_emit_phase(cycle: int) -> None:
+        nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted
+        if not enable_dep_emit or current_map.dep_graph is None:
+            return
+        if exec_readonly is None:                      # R3(c): no certify path -> no emit
+            return
+        from python_deps.depgraph.schema import NodeType, State
+        from src.envstate.world_model import Fact
+        from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
+        from python_deps.depgraph.advise import render_depgraph_planner
+        # Make a bare `python` resolve to python3 before any check runs.
+        ensure_python_shim(sandbox_execute)
+        graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
+        # Certify still runs (populating the frontier); emit_drain runs as a
+        # deterministic prefix so the LLM only sees the irreducible residual.
+        # global_step is advanced here only if emit_drain consumed steps, so
+        # LLM turns are NOT counted.
+        graph, _reports, steps = emit_drain(
+            graph, build_agent, sandbox_execute, ledger, exec_readonly,
+            step_offset=global_step, cycle=cycle,
+        )
+        if steps:
+            global_step += steps
+        # Host-first repair of reciped nodes the batch wave could not certify (the
+        # broken-bridge fix). Only the graph-scheduler arm performs host repair.
+        from src.envstate.depgraph_live import repair_failed_nodes
+        graph, repair_steps, _repaired_n = repair_failed_nodes(
+            graph, build_agent, sandbox_execute, ledger, exec_readonly,
+            step_offset=global_step, cycle=cycle, repaired_ids=_repaired_ids,
+        )
+        if repair_steps:
+            global_step += repair_steps
+        if _repaired_n:
+            _repair_turns -= _repaired_n
+            if _repair_turns <= 0:
+                _budget_exhausted = True
+        # Fold emit-certified packages into installed so the synthesizer's closure
+        # recipe includes them even when the planner finalizes immediately.
+        sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
+                    if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
+        have = {f.name for f in current_map.installed}
+        installed = current_map.installed + tuple(f for f in sat if f.name not in have)
+        # Under the graph scheduler the planner is bypassed, so the planner-facing
+        # dep_advisory render is dead work; reuse the prior advisory and skip the
+        # compute. The dep_graph + installed merge is UNCHANGED — the scheduler reads
+        # current_map.dep_graph, so it must still be merged every cycle.
+        advisory = current_map.dep_advisory
+        current_map = merge_map(
+            current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
+        )
+
+    def _runtime_ingest_phase() -> None:
+        nonlocal current_map, _rt_mark, _residual_giveup
+        if not enable_runtime_feedback or current_map.dep_graph is None:
+            return
+        try:
+            from python_deps.depgraph.advise import render_depgraph_planner
+            from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
+            from python_deps.depgraph.runtime_classify import classify_observation
+            events = ledger.events()
+            new_events = events[_rt_mark:]
+            obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
+            if not obs:
+                return
+            pre_graph = current_map.dep_graph
+            _out_of_scope: list[tuple[str, str]] = []   # non-env diagnoses; Task 6 reads this
+
+            # Deterministic regex tier always runs; the temp-0 LLM tier is appended
+            # when a client exists (spec §6 cascade).
+            classifiers = (classify_observation,)
+            if getattr(build_agent, "client", None) is not None:
+                from src.envstate.llm_classifier import make_llm_classifier
+                from src.envstate.llm_response import complete_with_retry
+                from src.envstate.jsonutil import extract_json_object
+
+                def _complete(messages):
+                    text, _usage, _resp = complete_with_retry(
+                        build_agent.client, build_agent.model, messages,
+                        accept=lambda t: extract_json_object(t) is not None,
+                        temperature=0, max_attempts=2,
+                    )
+                    return text
+
+                _llm = make_llm_classifier(
+                    _complete,
+                    note_out_of_scope=lambda c, r: _out_of_scope.append((c, r)),
+                )
+                # Bound LLM fan-out: spec §6 is "LLM only on the misses", but a cycle
+                # with 30 failed events would fire 30 synchronous temp-0 calls. Classify
+                # each UNIQUE error tail at most once, capped per cycle.
+                _seen_errs: set[str] = set()
+                _MAX_LLM_PER_CYCLE = 5
+
+                def _bounded_llm(cmd, out):
+                    key = (out or "")[-500:]
+                    if key in _seen_errs or len(_seen_errs) >= _MAX_LLM_PER_CYCLE:
+                        return None
+                    _seen_errs.add(key)
+                    return _llm(cmd, out)
+
+                classifiers = (classify_observation, _bounded_llm)
+
+            new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
+            # Advance the mark ONLY after a successful ingest call returns — so an
+            # exception mid-ingest does not permanently drop those events (they are
+            # re-read next cycle). (spec §11; C4 event-loss fix.)
+            _rt_mark = len(events)
+            # Honest give-up (spec §3 G3 / §8): a residual that maps to an already-
+            # SATISFIED node (divergence) or that the LLM judged non-env, when the
+            # deterministic frontier is clean, is not fixable by adding nodes. Record
+            # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
+            import logging
+            from python_deps.depgraph.runtime_ingest import diverged_node_ids
+            from python_deps.depgraph.emit import partition
+            from python_deps.depgraph.schedule import scheduler_frontier
+            diverged = diverged_node_ids(pre_graph, found)
+            # Match the real scheduler call (next_decision): the give-up
+            # frontier must see Service/binding obligations on-arm, or it
+            # reports "no actionable" while a binding is genuinely pending
+            # and the agent gives up prematurely (spurious give-up).
+            _allow_services = (
+                os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+            )
+            no_actionable = not scheduler_frontier(
+                new_graph, allow_services=_allow_services
+            )
+            if diverged and no_actionable and not partition(new_graph).emittable:
+                _residual_giveup = (
+                    f"graph-scheduler: residual not an environment obligation "
+                    f"(diverged={list(diverged)}, out_of_scope={len(_out_of_scope)})"
+                )
+                logging.getLogger(__name__).info(
+                    "residual-handler give-up: %s", _residual_giveup
+                )
+            if not found:
+                return
+            advisory = render_depgraph_planner(new_graph)
+            current_map = merge_map(current_map, dep_graph=new_graph, dep_advisory=advisory)
+        except (NameError, AttributeError, ImportError, TypeError) as exc:
+            # Programming errors are always bugs, never operational. Still don't
+            # break the run (spec §11), but log LOUDLY with a traceback — a bare
+            # suppress here once hid a missing `import os` that silently disabled
+            # the runtime-feedback loop for an entire benchmark arm.
+            import logging
+            logging.getLogger(__name__).error(
+                "runtime_ingest_phase: PROGRAMMING BUG suppressed: %s", exc,
+                exc_info=True,
+            )
+        except Exception as exc:  # noqa: BLE001 — operational errors must never break the run (spec §11)
+            import logging
+            logging.getLogger(__name__).warning(
+                "runtime_ingest_phase: exception suppressed: %s", exc
+            )
+
+    if probe is not None and manifest is not None:
+        current_map = apply_deterministic(current_map, probe(), manifest)
+
+    for cycle in range(1, max_cycles + 1):
+        # ── 0. Graph-first: certify + emit the certified closure ────────────
+        _dep_emit_phase(cycle)
+        if _budget_exhausted:
+            # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
+        # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
+        #        into the live dep-graph. Runs once per cycle before any branch so
+        #        it fires regardless of which branch returns (I2 done-path fix).
+        _runtime_ingest_phase()
+        if _residual_giveup is not None:
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
+        # ── 1. Graph-scheduler decides what to do next ──────────────────────
+        decision, chosen = next_decision(
+            current_map.dep_graph,
+            _run_tests_verified,
+            handed=_handed,
+            attempt_cap=graph_scheduler_attempt_cap,
+        )
+        if chosen is not None:
+            _handed[chosen] = _handed.get(chosen, 0) + 1
+            _sched_stuck = 0
+        elif decision.action == "task":          # discover task → sufficiency-stuck
+            n_nodes = len(current_map.dep_graph.nodes) if current_map.dep_graph else 0
+            _sched_stuck = _sched_stuck + 1 if n_nodes <= _sched_last_nodes else 0
+            _sched_last_nodes = n_nodes
+            if _sched_stuck >= 2:                # consecutive discover rounds revealed no new obligations
+                return current_map, _v3_stop_reason(TerminationReason.GIVEUP_STUCK)
+
+        if decision.action == "done":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, _v3_stop_reason(TerminationReason.DONE)
+
+        if decision.action == "giveup":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
+
+        # ── 2. Recipe patch branch ───────────────────────────────────────────
+        if decision.action == "apply_recipe_patch":
+            recipe: RecipePatch | None = decision.recipe_patch
+            if recipe is None or not recipe.steps:
+                # Empty recipe — nothing to execute; let maintainer decide.
+                empty_report = TaskReport("recipe", "done", (), "empty recipe")
+                current_map = maintainer.update(current_map, empty_report)
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, empty_report)
+                if current_map.done_flag:
+                    return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
+                continue
+
+            # Execute the whole recipe as a single unified run.
+            report: TaskReport = build_agent.run_recipe(
+                recipe,
+                sandbox_execute,
+                ledger,
+                step_offset=global_step,
+            )
+            global_step += len(report.commands)
+
+            # Deterministic facts after recipe (before the maintainer).
+            if probe is not None and manifest is not None:
+                current_map = apply_deterministic(current_map, probe(), manifest)
+
+            # ── 3. Maintainer updates the world model ─────────────────────
+            current_map = maintainer.update(current_map, report)
+
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, report)
+
+            # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
+            if current_map.done_flag:
+                return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
+
+            continue
+
+        # ── 3. Graph-scheduler task branch (action == "task") ────────────────
+        assert decision.task is not None, (
+            f"PlannerDecision action='task' but .task is None (cycle {cycle})"
+        )
+        task = decision.task
+
+        report = build_agent.run(
+            task,
+            sandbox_execute,
+            ledger,
+            step_offset=global_step,
+            check=task.done_when,
+            budget=5,
+        )
+        _repair_turns -= 1
+        if _repair_turns <= 0:
+            # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
+        # Scheduler mode: a passing host check can return zero commands; floor the
+        # advance at 1 so the ledger step offset never aliases across cycles.
+        global_step += max(len(report.commands), 1)
+
+        # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
+        if probe is not None and manifest is not None:
+            current_map = apply_deterministic(current_map, probe(), manifest)
+
+        # ── 4. Maintainer updates the world model ────────────────────────────
+        current_map = maintainer.update(current_map, report)
+
+        # ── 5. Notify caller (optional telemetry hook) ───────────────────────
+        if on_cycle is not None:
+            on_cycle(cycle, current_map, decision, report)
+
+        # ── 6. Hard-stop on done_flag — do NOT re-enter scheduler ────────────
         if current_map.done_flag:
             return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
 

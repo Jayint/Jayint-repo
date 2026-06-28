@@ -109,7 +109,7 @@ def _noop_sandbox(cmd: str) -> tuple[bool, str]:
 # Import target (will fail until orchestrator.py is rewritten)
 # ---------------------------------------------------------------------------
 
-from src.envstate.orchestrator import run_v1, VERIFY_TEST_CMD  # noqa: E402
+from src.envstate.orchestrator import run_v1, run_v3, VERIFY_TEST_CMD  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +413,7 @@ class _NoopMaintainer:
 
 def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
     """With graph-scheduler on and an already-satisfied graph + passing tests,
-    run_v1 terminates via the scheduler's done path (no contract-graph needed).
+    run_v3 terminates via the scheduler's done path (no contract-graph needed).
 
     Characterization smoke for the v3 arm: dep_graph=None (clean frontier),
     sandbox_execute returns '1 passed' → _run_tests_verified returns True →
@@ -426,9 +426,9 @@ def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
     def passing_exec(cmd):
         return (True, "1 passed")
 
-    final_map, stop = run_v1(
-        _UnusedPlanner(), _NoopBuildAgent(), _NoopMaintainer(),
+    final_map, stop = run_v3(
+        _NoopBuildAgent(), _NoopMaintainer(),
         world, ActionLedger(), passing_exec, max_cycles=3,
-        enable_graph_scheduler=True, enable_dep_emit=True, enable_runtime_feedback=True,
+        enable_dep_emit=True, enable_runtime_feedback=True,
     )
     assert stop == "planner_done"

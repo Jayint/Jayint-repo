@@ -19,13 +19,20 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 
-def test_run_v1_accepts_enable_graph_scheduler():
-    from src.envstate.orchestrator import run_v1
-    sig = inspect.signature(run_v1)
-    assert "enable_graph_scheduler" in sig.parameters, (
-        "run_v1 must accept enable_graph_scheduler kwarg"
+def test_run_v3_is_graph_scheduler_arm_run_v1_lacks_it():
+    """After the split: run_v1 has no enable_graph_scheduler; run_v3 is the arm."""
+    from src.envstate.orchestrator import run_v1, run_v3
+    sig_v1 = inspect.signature(run_v1)
+    sig_v3 = inspect.signature(run_v3)
+    assert "enable_graph_scheduler" not in sig_v1.parameters, (
+        "run_v1 must NOT accept enable_graph_scheduler after the split"
     )
-    assert sig.parameters["enable_graph_scheduler"].default is False
+    # run_v3 is unconditionally the graph-scheduler arm — it has no flag either
+    assert "enable_graph_scheduler" not in sig_v3.parameters
+    # confirm the structural separation
+    assert "planner" in sig_v1.parameters
+    assert "planner" not in sig_v3.parameters
+    assert "graph_scheduler_attempt_cap" in sig_v3.parameters
 
 
 def test_docker_agent_has_enable_graph_scheduler_param():
@@ -35,8 +42,10 @@ def test_docker_agent_has_enable_graph_scheduler_param():
     assert "enable_graph_scheduler=False" in src, (
         "agent.py must define/accept enable_graph_scheduler default False"
     )
-    # The ctor must forward it down to run_v1 (the orchestrator loop).
-    assert 'enable_graph_scheduler=getattr(self, "enable_graph_scheduler", False)' in src
+    # After the run_v1/run_v3 split, the flag selects which loop to call.
+    assert 'getattr(self, "enable_graph_scheduler", False)' in src, (
+        "agent.py must use enable_graph_scheduler to dispatch to run_v1 or run_v3"
+    )
 
 
 def test_enable_graph_scheduler_implies_dep_emit_and_dep_graph():
@@ -130,9 +139,16 @@ def test_planner_deprecation_marker_is_comment_only():
 
 def test_repair_is_gated_under_graph_scheduler():
     src = (_ROOT / "src" / "envstate" / "orchestrator.py").read_text()
-    # repair_failed_nodes is only reachable under the enable_graph_scheduler guard
-    idx_guard = src.index(
-        "if enable_graph_scheduler:\n"
-        "            from src.envstate.depgraph_live import repair_failed_nodes"
+    # After the run_v1/run_v3 split: repair_failed_nodes lives in run_v3 only.
+    # The function-level dispatch in agent.py ensures only v3 can reach it.
+    run_v1_idx = src.index("def run_v1(")
+    run_v3_idx = src.index("def run_v3(")
+    # run_v1 comes before run_v3 in the file
+    assert run_v1_idx < run_v3_idx
+    run_v1_body = src[run_v1_idx:run_v3_idx]
+    assert "repair_failed_nodes" not in run_v1_body, (
+        "repair_failed_nodes must NOT appear in run_v1"
     )
-    assert idx_guard > 0
+    assert "repair_failed_nodes" in src[run_v3_idx:], (
+        "repair_failed_nodes must be present in run_v3"
+    )

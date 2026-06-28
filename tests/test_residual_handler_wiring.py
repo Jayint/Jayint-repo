@@ -23,15 +23,17 @@ _SRC = _ROOT / "src" / "envstate" / "orchestrator.py"
 def test_residual_giveup_is_gated_and_never_sets_done_flag():
     src = _SRC.read_text()
     assert "_residual_giveup" in src
-    body = src[src.index("def _runtime_ingest_phase"):]
+    # After the split, the residual logic lives in run_v3's _runtime_ingest_phase.
+    run_v3_start = src.index("def run_v3(")
+    run_v3_body = src[run_v3_start:]
+    body = run_v3_body[run_v3_body.index("def _runtime_ingest_phase"):]
     assert "diverged_node_ids" in body          # divergence detector consumed
     assert "note_out_of_scope" in body          # non-env diagnoses captured
     assert "emittable" in body                  # frontier-clean guard present
-    # the divergence give-up is gated INSIDE the ingest body (not just the run_v1 signature)
-    assert body.index("enable_graph_scheduler") < body.index("_residual_giveup")
-    # assert the SPECIFIC new loop line, not the bare 'planner_giveup' literal
-    # (which already appears 3x in the file and would pass trivially).
-    assert "if enable_graph_scheduler and _residual_giveup is not None:" in src
+    # _residual_giveup is set inside the ingest body
+    assert "_residual_giveup" in body
+    # The main loop checks it after ingest (not inside the closure)
+    assert "if _residual_giveup is not None:" in run_v3_body
     # the residual give-up block must NOT write done_flag
     blk = body[body.index("_residual_giveup"):]
     assert "done_flag" not in blk[:600]
@@ -39,22 +41,28 @@ def test_residual_giveup_is_gated_and_never_sets_done_flag():
 
 def test_llm_classifier_injected_only_under_graph_scheduler():
     src = _SRC.read_text()
-    body = src[src.index("def _runtime_ingest_phase"):]
-    # the classifier tier is referenced, and gated by the scheduler flag
-    assert "make_llm_classifier" in body
-    gate = body.index("enable_graph_scheduler")
-    inject = body.index("make_llm_classifier")
-    assert gate < inject                       # flag check precedes the LLM wiring
-    # the deterministic classifier is always present in the default tuple
-    assert "classify_observation" in body
+    # After the split, make_llm_classifier lives exclusively in run_v3's
+    # _runtime_ingest_phase (the gate is now at the function/dispatch level).
+    run_v1_start = src.index("def run_v1(")
+    run_v3_start = src.index("def run_v3(")
+    run_v1_body = src[run_v1_start:run_v3_start]
+    run_v3_body = src[run_v3_start:]
+    v3_ingest_body = run_v3_body[run_v3_body.index("def _runtime_ingest_phase"):]
+    # make_llm_classifier is in run_v3, not run_v1
+    assert "make_llm_classifier" in v3_ingest_body
+    assert "make_llm_classifier" not in run_v1_body, (
+        "make_llm_classifier must NOT appear in run_v1"
+    )
+    # the deterministic classifier is always present
+    assert "classify_observation" in v3_ingest_body
     # temperature 0 on the wrapped completion
-    assert "temperature=0" in body
+    assert "temperature=0" in v3_ingest_body
 
 
 # ── Behavioral tests (dynamic semantics) ─────────────────────────────────────
 
 from src.envstate.ledger import ActionLedger, make_action_event
-from src.envstate.orchestrator import run_v1
+from src.envstate.orchestrator import run_v1, run_v3
 from src.envstate.world_model import (
     PlannerDecision,
     Task,
@@ -211,8 +219,7 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
 
     monkeypatch.setattr(_llm_mod, "make_llm_classifier", _fake_make)
 
-    final_map, stop = run_v1(
-        planner=_ExplodingPlanner(),
+    final_map, stop = run_v3(
         build_agent=_LLMBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_no_missing_node_map(),
@@ -220,7 +227,6 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
         sandbox_execute=_sandbox_tests_pass,
         max_cycles=2,
         exec_readonly=_exec_readonly_missing,
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
     )
@@ -271,8 +277,7 @@ def test_runtime_ingest_merges_discovered_node_on_graph_arm():
     RED (missing `import os`): NameError -> merge skipped -> node absent.
     GREEN (with `import os`): node merged into final_map.dep_graph.
     """
-    final_map, _stop = run_v1(
-        planner=_ExplodingPlanner(),
+    final_map, _stop = run_v3(
         build_agent=_LLMBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_no_missing_node_map(),
@@ -280,7 +285,6 @@ def test_runtime_ingest_merges_discovered_node_on_graph_arm():
         sandbox_execute=_sandbox_tests_pass,
         max_cycles=1,
         exec_readonly=_exec_readonly_missing,
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
     )
@@ -320,8 +324,7 @@ def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
     # diverged node (the classifier returns None and does not add a graph node).
     # sandbox_execute returns passing output for VERIFY_TEST_CMD so that
     # next_decision (reached only post-fix) returns done → planner_done.
-    final_map, stop = run_v1(
-        planner=_ExplodingPlanner(),
+    final_map, stop = run_v3(
         build_agent=_LLMBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_no_missing_node_map(),
@@ -329,7 +332,6 @@ def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
         sandbox_execute=_sandbox_tests_pass,
         max_cycles=2,
         exec_readonly=_exec_readonly_missing,
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
     )

@@ -1068,7 +1068,7 @@ class DockerAgent:
         and skips the gate automatically.
         """
         import re as _re
-        from src.envstate.orchestrator import run_v1 as _run_v1_loop
+        from src.envstate.orchestrator import run_v1 as _run_v1_loop, run_v3 as _run_v3_loop
         from src.envstate.planner import Planner as _Planner
         from src.envstate.build_agent import BuildAgent as _BuildAgent
         from src.envstate.maintainer import Maintainer as _Maintainer
@@ -1329,22 +1329,37 @@ class DockerAgent:
                     except OSError:
                         pass
 
-            final_map, stop_reason = _run_v1_loop(
-                planner=planner,
-                build_agent=build_agent,
-                maintainer=maintainer,
-                initial_world_map=world_map,
-                ledger=self.action_ledger,
-                sandbox_execute=self.sandbox.execute,
-                max_cycles=max_cycles,
-                probe=_probe,
-                manifest=_manifest,
-                on_cycle=_on_cycle,
-                exec_readonly=self.sandbox.exec_readonly,
-                enable_dep_emit=getattr(self, "enable_dep_emit", False),
-                enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
-                enable_graph_scheduler=getattr(self, "enable_graph_scheduler", False),
-            )
+            if getattr(self, "enable_graph_scheduler", False):
+                final_map, stop_reason = _run_v3_loop(
+                    build_agent=build_agent,
+                    maintainer=maintainer,
+                    initial_world_map=world_map,
+                    ledger=self.action_ledger,
+                    sandbox_execute=self.sandbox.execute,
+                    max_cycles=max_cycles,
+                    probe=_probe,
+                    manifest=_manifest,
+                    on_cycle=_on_cycle,
+                    exec_readonly=self.sandbox.exec_readonly,
+                    enable_dep_emit=getattr(self, "enable_dep_emit", False),
+                    enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
+                )
+            else:
+                final_map, stop_reason = _run_v1_loop(
+                    planner=planner,
+                    build_agent=build_agent,
+                    maintainer=maintainer,
+                    initial_world_map=world_map,
+                    ledger=self.action_ledger,
+                    sandbox_execute=self.sandbox.execute,
+                    max_cycles=max_cycles,
+                    probe=_probe,
+                    manifest=_manifest,
+                    on_cycle=_on_cycle,
+                    exec_readonly=self.sandbox.exec_readonly,
+                    enable_dep_emit=getattr(self, "enable_dep_emit", False),
+                    enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
+                )
 
             # Capture the live pip closure for the pin layer (used later in
             # _finalize_supervisor_artifacts → build_pin_instructions).

@@ -20,7 +20,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from src.envstate.ledger import ActionLedger
-from src.envstate.orchestrator import run_v1
+from src.envstate.orchestrator import run_v1, run_v3
 from src.envstate.world_model import (
     PlannerDecision,
     Task,
@@ -143,19 +143,16 @@ def test_flag_off_planner_drives():
         ledger=ActionLedger(),
         sandbox_execute=_sandbox_ok,
         max_cycles=1,
-        enable_graph_scheduler=False,
     )
-    assert planner.called, "flag OFF must consult planner.decide"
+    assert planner.called, "run_v1 must consult planner.decide"
     assert stop == "planner_done"
 
 
 # ── 2. flag ON: scheduler drives, planner untouched ──────────────────────────
 
 def test_flag_on_scheduler_drives_planner_untouched():
-    planner = _ExplodingPlanner()
     build_agent = _RecordingBuildAgent()
-    run_v1(
-        planner=planner,
+    run_v3(
         build_agent=build_agent,
         maintainer=_NoopMaintainer(),
         initial_world_map=_missing_node_map(),
@@ -163,10 +160,8 @@ def test_flag_on_scheduler_drives_planner_untouched():
         sandbox_execute=_sandbox_ok,
         max_cycles=1,
         exec_readonly=lambda cmd: (1, "missing"),   # keep node MISSING -> frontier non-empty
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
     )
-    assert not planner.called, "scheduler mode must NOT call planner.decide"
     assert build_agent.tasks, "build_agent.run must be invoked with the frontier task"
     task = build_agent.tasks[0]
     assert task.target_node_ids == ("pkg:requests",)
@@ -199,9 +194,8 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
 
     monkeypatch.setattr(live, "emit_drain", _spy)
 
-    # Flag ON: drain MUST now run (emit-prefix decision).
-    run_v1(
-        planner=_ExplodingPlanner(),
+    # V3 arm (scheduler): drain MUST run (emit-prefix decision).
+    run_v3(
         build_agent=_RecordingBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_missing_node_map(),
@@ -209,12 +203,11 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
         sandbox_execute=_sandbox_ok,
         max_cycles=1,
         exec_readonly=lambda cmd: (1, "missing"),
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
     )
-    assert calls["n"] >= 1, "emit_drain MUST run under the scheduler flag (emit-prefix)"
+    assert calls["n"] >= 1, "emit_drain MUST run in run_v3 (emit-prefix)"
 
-    # Contrast: flag OFF (dep_emit on) also runs the drain — unchanged.
+    # Contrast: V1 arm (dep_emit on) also runs the drain — unchanged.
     before = calls["n"]
     run_v1(
         planner=_QueuePlanner([PlannerDecision(action="done")]),
@@ -225,17 +218,15 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
         sandbox_execute=_sandbox_ok,
         max_cycles=1,
         exec_readonly=lambda cmd: (1, "missing"),
-        enable_graph_scheduler=False,
         enable_dep_emit=True,
     )
-    assert calls["n"] > before, "emit_drain MUST run with dep_emit on and scheduler off"
+    assert calls["n"] > before, "emit_drain MUST run with dep_emit on in run_v1"
 
 
 # ── 4. stuck -> giveup ───────────────────────────────────────────────────────
 
 def test_stuck_yields_giveup_before_max_cycles():
-    final_map, stop = run_v1(
-        planner=_ExplodingPlanner(),
+    final_map, stop = run_v3(
         build_agent=_RecordingBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_no_check_node_map(),
@@ -243,7 +234,6 @@ def test_stuck_yields_giveup_before_max_cycles():
         sandbox_execute=_sandbox_fail,         # run_tests() stays red
         max_cycles=4,
         exec_readonly=lambda cmd: (1, ""),     # certify reveals nothing new
-        enable_graph_scheduler=True,
         enable_dep_emit=True,
     )
     assert stop == "planner_giveup", f"expected stuck->giveup, got {stop!r}"
