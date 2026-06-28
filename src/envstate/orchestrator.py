@@ -526,6 +526,31 @@ def run_v3(
                 "runtime_ingest_phase: exception suppressed: %s", exc
             )
 
+    # Refresh contract — why each host_refresh_facts call is necessary and not
+    # redundant with the next _dep_emit_phase certify:
+    #
+    #   host_refresh_facts  → probe() → apply_deterministic()
+    #     Updates: installed (full set), env, language, system_installed,
+    #              import_results, build_system, required, open_problems, progress.
+    #
+    #   _dep_emit_phase certify → certify_refresh() → merge_map()
+    #     Updates: dep_graph (node states) + installed (PACKAGE nodes that reached
+    #              State.SATISFIED).  Does NOT call probe(); never touches env,
+    #              language, system_installed, import_results, build_system,
+    #              required, open_problems, or progress.
+    #
+    # ① Pre-loop (here): initial_world_map may be stale from the caller; the
+    #   first cycle's _dep_emit_phase certify does NOT call probe(), so it
+    #   cannot fill in these fields.  Required.
+    #
+    # ② Post-recipe (inside apply_recipe_patch): recipe just mutated the
+    #   container.  The NEXT cycle's certify won't call probe(), and
+    #   maintainer.update in THIS cycle needs the fresh probe facts.  Required.
+    #
+    # ③ Post-task (inside task branch): same reasoning as ②.  Required.
+    #
+    # Conclusion: all three sites are the minimal set — none can be removed
+    # without leaving the maintainer or the scheduler with stale probe data.
     current_map = host_refresh_facts(current_map, probe, manifest)
 
     for cycle in range(1, max_cycles + 1):
@@ -589,7 +614,9 @@ def run_v3(
             )
             global_step += len(report.commands)
 
-            # Deterministic facts after recipe (before the maintainer).
+            # ② Probe refresh after recipe — see refresh contract above.
+            # Recipe mutated the container; next cycle's certify won't call
+            # probe(), and maintainer.update below needs fresh probe facts.
             current_map = host_refresh_facts(current_map, probe, manifest)
 
             # ── 3. Maintainer updates the world model ─────────────────────
@@ -626,7 +653,9 @@ def run_v3(
         # advance at 1 so the ledger step offset never aliases across cycles.
         global_step += max(len(report.commands), 1)
 
-        # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
+        # ③ Probe refresh after task — see refresh contract above.
+        # Task mutated the container; next cycle's certify won't call probe(),
+        # and maintainer.update below needs fresh probe facts (OFF the ledger).
         current_map = host_refresh_facts(current_map, probe, manifest)
 
         # ── 4. Maintainer updates the world model ────────────────────────────
