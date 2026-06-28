@@ -131,3 +131,28 @@ def test_render_empty_slice_does_not_crash():
         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING))
     lines = render_requirement_slice(build_requirement_slice(g, g.get("syslib:x")))
     assert lines and lines[0].startswith("target:")          # minimal but valid
+
+
+def _pip_node_with_cmd(cmd: str) -> Node:
+    """Helper: a PACKAGE node whose single failed attempt uses `cmd`."""
+    return Node(
+        id="pkg:lxml==5.0", type=NodeType.PACKAGE, name="lxml", layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="5.0",
+        check_command="python -m pip show lxml", fix_candidates=("pip:lxml",),
+        chosen_fix="pip:lxml",
+        attempts=(Attempt(command=cmd, outcome="failed"),),
+    )
+
+
+def test_requirements_file_install_yields_no_provider_id():
+    # `pip install -r requirements.txt` is NOT a single named package; provider_id must be None.
+    node = _pip_node_with_cmd("pip install -r requirements.txt")
+    pv = providers_view(node)
+    assert pv.tried_failed[0].provider_id is None
+
+
+def test_editable_install_yields_no_provider_id():
+    # `pip install -e .` is an editable install, not a single named package; must be None.
+    node = _pip_node_with_cmd("pip install -e .")
+    pv = providers_view(node)
+    assert pv.tried_failed[0].provider_id is None

@@ -44,7 +44,11 @@ def _provider_from_command(command: str) -> str | None:
         return f"apt:{toks[0]}" if len(toks) == 1 else None
     m = re.search(r"\bpip3?\s+install\b(.*)", command)
     if m:
-        toks = [t for t in m.group(1).split() if not t.startswith("-")]
+        args = m.group(1)
+        # requirements/constraints-file or editable installs are not a single named package
+        if re.search(r"(?:^|\s)(?:-r|--requirement|-c|--constraint|-e|--editable)(?:\s|=|$)", args):
+            return None
+        toks = [t for t in args.split() if not t.startswith("-")]
         return f"pip:{toks[0].split('==')[0]}" if len(toks) == 1 else None
     return None
 
