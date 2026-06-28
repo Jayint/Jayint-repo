@@ -129,6 +129,12 @@ def test_pip_provider_action_class_and_reverse_parse():
     pv = providers_view(node)
     assert next(c.action_class for c in pv.candidates if c.id == "pip:lxml") == "pip"
     assert pv.tried_failed[0].provider_id == "pip:lxml"
+
+
+def test_shell_provider_action_class_from_taxonomy():
+    # "shell" is an explicit, audited member of the canonical taxonomy (action_class.ACTION_CLASSES).
+    pv = providers_view(_syslib(fix_candidates=("shell:make",), chosen_fix="shell:make"))
+    assert next(c.action_class for c in pv.candidates if c.id == "shell:make") == "shell"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -147,11 +153,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from python_deps.depgraph.action_class import ACTION_CLASSES   # pure leaf (only imports re); no cycle
+
 
 @dataclass(frozen=True)
 class ProviderCand:
     id: str
-    action_class: str            # "apt" | "pip" | "npm" | "" (undeterminable)
+    action_class: str            # "apt" | "pip" | "npm" | "shell" (action_class.py) | "" (undeterminable)
 
 
 @dataclass(frozen=True)
@@ -169,8 +177,9 @@ class ProviderView:
 
 
 def _action_class_for(provider_id: str) -> str:
+    # Reuse the canonical provider taxonomy (apt/pip/npm/shell) — do NOT reimplement the map.
     head = provider_id.split(":", 1)[0] if ":" in provider_id else ""
-    return {"apt": "apt", "pip": "pip", "npm": "npm"}.get(head, "")
+    return head if head in ACTION_CLASSES else ""
 
 
 def _provider_from_command(command: str) -> str | None:
@@ -203,7 +212,7 @@ def providers_view(node) -> ProviderView:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/depgraph/test_req_slice.py -q`
-Expected: PASS (5 tests).
+Expected: PASS (6 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -228,6 +237,7 @@ git commit -m "feat(req-graph): providers_view — structured provider derivatio
 
 ```python
 # add to tests/depgraph/test_req_slice.py
+# (merge these two imports into the existing import block at the TOP of the file)
 from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
 from python_deps.depgraph.req_slice import build_requirement_slice, RequirementSlice, DepView
 
@@ -248,7 +258,7 @@ def _graph_with_frontier():
     g = g.with_node(Node(id="tool:pkg-config", type=NodeType.TOOL, name="pkg-config",
         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.SATISFIED,
         check_command="command -v pkg-config", chosen_fix="apt:pkg-config"))
-    # Package -> SystemLib is EDGE_RULES-legal (mirrors test_compose_script). pkg requires the syslib.
+    # Package -> SystemLib is EDGE_RULES-legal (see test_obligation_framing.py:44). pkg requires the syslib.
     g = g.with_edge(Edge(src="pkg:lxml==5.0", dst="syslib:libxml2", relation=EdgeType.REQUIRES))
     return g
 
@@ -281,7 +291,7 @@ def test_active_gate_empty_when_no_test_node():
     assert s.active_gate == ""          # no TEST node -> empty, never crashes
 ```
 
-> **Implementer note:** `DepGraph.with_edge` takes an `Edge(src=, dst=, relation=)` object (NOT kwargs on `with_edge`) and validates against `schema.EDGE_RULES` (raises on an illegal pair). `Package -> SystemLib` is known-legal (used in `tests/depgraph/test_compose_script.py`). The assertions only need: a frontier node with a reverse-dep (`required_by`) and a same-layer satisfied cohort node — so if you add more edges, confirm each pair is legal per `EDGE_RULES` or `with_edge` will raise.
+> **Implementer note:** `DepGraph.with_edge` takes an `Edge(src=, dst=, relation=)` object (NOT kwargs on `with_edge`) and validates against `schema.EDGE_RULES` (raises on an illegal pair). `Package -> SystemLib` is known-legal per `EDGE_RULES` (live example: `tests/depgraph/test_obligation_framing.py:44`, `Edge(src="pkg:psycopg2", dst="syslib:libpq", relation=EdgeType.REQUIRES)`). The assertions only need: a frontier node with a reverse-dep (`required_by`) and a same-layer satisfied cohort node — so if you add more edges, confirm each pair is legal per `EDGE_RULES` or `with_edge` will raise.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -346,7 +356,7 @@ def build_requirement_slice(graph, node) -> RequirementSlice:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/depgraph/test_req_slice.py -q`
-Expected: PASS (7 tests).
+Expected: PASS (8 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -365,7 +375,7 @@ git commit -m "feat(req-graph): build_requirement_slice — deps/unblocks/cohort
 
 **Interfaces:**
 - Consumes: `RequirementSlice` (Task 2).
-- Produces: `render_requirement_slice(slice) -> tuple[str]` — one logical fact line per element, omitting empty sections, never crashing on None/empty fields. Consumed by Task 5 (`packet_to_task`).
+- Produces: `render_requirement_slice(slice) -> tuple[str, ...]` — one logical fact line per element, omitting empty sections, never crashing on None/empty fields. Consumed by Task 5 (`packet_to_task`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -382,6 +392,7 @@ def test_render_contains_target_avoidance_and_no_crash():
     assert "apt:libxml2-dev" in blob                         # candidate/chosen surfaced
     assert "tried & FAILED" in blob and "avoid apt:libxml2dev" in blob  # the anti-ReAct signal
     assert "active gate: python -m pytest -q" in blob
+    assert "unblocks: pkg:lxml==5.0" in blob                  # reverse-REQUIRES surfaced to the agent
     assert all(isinstance(l, str) for l in lines)
 
 
@@ -402,7 +413,7 @@ Expected: FAIL — `ImportError: cannot import name 'render_requirement_slice'`.
 Append to `src/python_deps/depgraph/req_slice.py`:
 
 ```python
-def render_requirement_slice(s: RequirementSlice) -> tuple[str]:
+def render_requirement_slice(s: RequirementSlice) -> tuple[str, ...]:
     """Compact, agent-readable fact lines. Empty sections are omitted."""
     lines = [f"target: {s.node_id}  ({s.kind}, {s.layer}, {s.state})"]
     gate = f"   [active gate: {s.active_gate}]" if s.active_gate else ""
@@ -411,6 +422,9 @@ def render_requirement_slice(s: RequirementSlice) -> tuple[str]:
         lines.append(f"check: {s.check}")
     if s.deps:
         lines.append("deps: " + ", ".join(f"{d.id}={d.state}" for d in s.deps))
+    if s.unblocks:
+        # the reverse-REQUIRES the old packet computed then discarded — what this node frees up
+        lines.append("unblocks: " + ", ".join(s.unblocks))
     pv = s.providers
     if pv.candidates:
         chosen = f"  chosen={pv.chosen}" if pv.chosen else ""
@@ -435,7 +449,7 @@ def render_requirement_slice(s: RequirementSlice) -> tuple[str]:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/depgraph/test_req_slice.py -q`
-Expected: PASS (9 tests).
+Expected: PASS (10 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -645,8 +659,8 @@ Expected: only the 4 known pre-existing failures remain (`test_adapter_logic` ne
 
 - [ ] **Step 2: Prove v1 + the depgraph engine unchanged**
 
-Run: `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_graph_scheduler_wiring.py tests/depgraph -q`
-Expected: green — v1 untouched; the depgraph engine (resolve/certify/emit/block/compose) unaffected by the pure additive `req_slice` module + the defaulted packet field.
+Run: `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_graph_scheduler_wiring.py tests/test_graph_scheduler_decision.py tests/test_build_agent_task_message.py tests/depgraph -q`
+Expected: green — v1 untouched; the depgraph engine (resolve/certify/emit/block/compose) unaffected by the pure additive `req_slice` module + the defaulted packet field. The named `test_graph_scheduler_decision.py`/`test_build_agent_task_message.py` (root) + `tests/depgraph/test_obligation_framing.py` (in the `tests/depgraph` glob) are the spec §4 backward-compat safety net: they construct `ObligationPacket`/`Task` and MUST stay green because the new field is defaulted.
 
 - [ ] **Step 3: Record the result**
 
