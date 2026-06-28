@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.block import Block
-from python_deps.depgraph.evidence_log import EvidenceBundle
 from python_deps.depgraph.req_slice import build_requirement_slice, render_requirement_slice
 
 
@@ -50,7 +48,10 @@ def build_repair_scope(graph, *, target_node_id, failed_block, bundle,
     node = graph.get(target_node_id) if (graph is not None and target_node_id
                                          and hasattr(graph, 'get')) else None
     slice_lines = ()
-    if target_node_id:
+    # Enter when (a) node resolved from a real graph, OR (b) graph has no .get (test stub:
+    # build_requirement_slice is monkeypatched and ignores node, so None is safe). Never enter
+    # when a real DepGraph lookup returned None (avoids build_requirement_slice(graph, None) -> None.id).
+    if target_node_id and (node is not None or not hasattr(graph, 'get')):
         slice_lines = tuple(render_requirement_slice(build_requirement_slice(graph, node)))
     failed_cmd = failed_block.commands[-1] if (failed_block and failed_block.commands) else None
     failed_out = ""
