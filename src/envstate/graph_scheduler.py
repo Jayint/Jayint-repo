@@ -13,18 +13,24 @@ from python_deps.depgraph.schema import DepGraph
 from python_deps.depgraph.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
+from python_deps.depgraph.req_slice import render_requirement_slice
 from src.envstate.constants import VERIFY_TEST_CMD
 from src.envstate.world_model import PlannerDecision, Task
 
 
 def packet_to_task(packet: ObligationPacket) -> Task:
-    facts = []
-    if packet.evidence:
-        facts.append(f"evidence: {packet.evidence}")
-    if packet.depends_on:
-        facts.append("depends_on: " + ", ".join(packet.depends_on))
-    if packet.certified_context:
-        facts.append("already satisfied: " + ", ".join(packet.certified_context))
+    facts: list[str] = []
+    if packet.requirement_slice is not None:
+        facts.extend(render_requirement_slice(packet.requirement_slice))
+    else:
+        # back-compat: a packet without a slice keeps the old flat facts
+        if packet.evidence:
+            facts.append(f"evidence: {packet.evidence}")
+        if packet.depends_on:
+            facts.append("depends_on: " + ", ".join(packet.depends_on))
+        if packet.certified_context:
+            facts.append("already satisfied: " + ", ".join(packet.certified_context))
+    # Service action recipes are instructions, not graph structure — always kept.
     if packet.start_recipe and packet.start_recipe.get("start"):
         facts.append("start the service in-image (run, then the host re-checks "
                      f"`{packet.check_command}`): {packet.start_recipe['start']}")
