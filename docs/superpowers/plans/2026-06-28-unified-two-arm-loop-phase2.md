@@ -39,7 +39,7 @@ Expected: FAIL (the v3 assertions fail — preset still named v1gsps / intermedi
 
 - [ ] **Step 3 (GREEN):** In `run_repo2run_benchmark.py`: reduce `_ARM_PRESETS` to `"0"` (legacy, all-off), `"v1"` (the existing v1 preset), and `"v3"` (the existing `v1gsps` preset value, renamed; `_label`="armV3_graph_scheduled"). Delete the 6 intermediate keys (`v1g/v1gd/v1gde/v1gder/v1gs/v1gsp`). Update `--arm choices=["0","v1","v3"]` and its help text. Verify `grep -n "v1gsps\|v1gsp\|v1gder\|v1gde\|v1gd\b\|v1g\b\|v1gs\b" run_repo2run_benchmark.py` returns nothing.
 
-- [ ] **Step 4 (GREEN):** Fix the forwarding bug: in `build_agent_command` add a branch forwarding `enable_service_provision` (mirror how `enable_runtime_pin`/`enable_graph_scheduler` are forwarded — set the `DOCKERAGENT_ENABLE_SERVICE_PROVISION` env or the corresponding `--enable-*` flag, matching the existing pattern in that function). Confirm the v3 preset's `enable_service_provision=True` now reaches the child.
+- [ ] **Step 4 (GREEN):** Fix the forwarding bug: in `build_agent_command`, when `enable_service_provision` is truthy on the namespace, set `os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1"`. **Use env-var injection, NOT a CLI flag** — `agent.py` reads this only from `os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION")` (~:1154); there is NO `--enable-service-provision` argparse entry, so appending a CLI flag would make the child reject it. Confirm the v3 preset's `enable_service_provision=True` now sets the env var the child reads.
 
 - [ ] **Step 5:** Run the 3 test files + a repo2run import smoke:
 Run: `python3 -m pytest tests/test_graph_scheduler_flag.py tests/test_runtime_pin_flag.py tests/test_arm_v1g.py tests/test_deletions_final_verification.py tests/test_benchmark_arm_v1.py -q` → expect PASS.
@@ -106,7 +106,7 @@ def _v3_done_gate(current_map: WorldModelMap, report: TaskReport) -> WorldModelM
 and:
 ```python
 class DeterministicMaintainer:
-    def __init__(self, v3_only: bool = False):
+    def __init__(self, *, v3_only: bool = False):   # keyword-only — avoids a positional footgun
         self._v3_only = v3_only
     def update(self, current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
         if self._v3_only:
@@ -197,7 +197,7 @@ This is the largest, highest-risk task. The safety net: every existing orchestra
 
 **Interfaces:**
 - Produces: `run_v1(planner, build_agent, maintainer, initial_world_map, ledger, sandbox_execute, max_cycles=..., local_budget=..., on_cycle=None, *, probe=None, manifest=None, exec_readonly=None, enable_dep_emit=False, enable_runtime_feedback=False)` — NO `enable_graph_scheduler`/`graph_scheduler_attempt_cap`.
-- Produces: `run_v3(build_agent, maintainer, initial_world_map, ledger, sandbox_execute, max_cycles=..., on_cycle=None, *, probe=None, manifest=None, exec_readonly=None, graph_scheduler_attempt_cap=3)` — always graph-scheduler; dep_emit + runtime_feedback always on.
+- Produces: `run_v3(build_agent, maintainer, initial_world_map, ledger, sandbox_execute, max_cycles=..., on_cycle=None, *, probe=None, manifest=None, exec_readonly=None, enable_dep_emit=True, enable_runtime_feedback=True, graph_scheduler_attempt_cap=3)` — always graph-scheduler; `enable_dep_emit`/`enable_runtime_feedback` are kept as defaulted-True params for caller/test compatibility (the bodies treat them as always-on) so migrated call sites that pass them do not TypeError.
 - Shared in `_loop_common.py`: `current_revision(ledger)`, `host_refresh_facts(current_map, probe, manifest)` (the `apply_deterministic(probe())` step), and any small ledger/step helpers — each a pure function taking explicit args (no closures).
 
 - [ ] **Step 1:** Read `.superpowers/sdd/phase2-research-A-split.md` for the branch inventory and shared/arm-specific classification.
@@ -211,15 +211,19 @@ This is the largest, highest-risk task. The safety net: every existing orchestra
 if self.enable_graph_scheduler:
     final_map, stop_reason = run_v3(build_agent, maintainer, initial_map, ledger, sandbox_execute, max_cycles=max_steps, on_cycle=_on_cycle, probe=..., manifest=..., exec_readonly=..., graph_scheduler_attempt_cap=...)
 else:
-    final_map, stop_reason = run_v1(planner, build_agent, maintainer, initial_map, ledger, sandbox_execute, max_cycles=max_steps, local_budget=..., on_cycle=_on_cycle, probe=..., manifest=..., exec_readonly=..., enable_dep_emit=..., enable_runtime_feedback=...)
+    final_map, stop_reason = run_v1(planner, build_agent, maintainer, initial_map, ledger, sandbox_execute, max_cycles=max_steps, on_cycle=_on_cycle, probe=..., manifest=..., exec_readonly=..., enable_dep_emit=..., enable_runtime_feedback=...)
 ```
-(Preserve the existing argument values; only the function selection + dropped/added kwargs change. Add `from src.envstate.orchestrator import run_v3`.)
+(Preserve the EXISTING argument values from the current `agent.py` call verbatim — `local_budget` is currently NOT passed, so omit it and let `run_v1` use its `LOCAL_BUDGET` default; only the function selection + the dropped `enable_graph_scheduler`/`graph_scheduler_attempt_cap` on the v1 branch change. Add `from src.envstate.orchestrator import run_v3`.)
 
-- [ ] **Step 5 (test moves):** Move `test_graph_scheduler_flag.py`'s assertion that `enable_graph_scheduler` is a `run_v1` parameter → assert it on `run_v3` instead (and that `run_v1` no longer has it). For the 3 wiring tests that monkeypatch `"src.envstate.orchestrator.run_v1"` by string: update each to patch `run_v3` (for the v3-arm cases) or assert the dispatch picks the right function. Do not weaken — they must still verify the agent calls the loop.
+- [ ] **Step 5 (test moves — COMPLETE list; these are EXPECTED migrations, not regressions):**
+  - **(a) Signature assertion:** `test_graph_scheduler_flag.py` asserts `enable_graph_scheduler` is a `run_v1` parameter → move it to assert on `run_v3` (and that `run_v1` no longer has it).
+  - **(b) Direct `run_v1(enable_graph_scheduler=True, ...)` calls — replace with `run_v3(...)` and drop the `enable_graph_scheduler` kwarg** (keep any `enable_dep_emit=`/`enable_runtime_feedback=` kwargs — `run_v3` accepts them): `tests/test_graph_scheduler_wiring.py` (~:166, 212, 246), `tests/test_residual_handler_wiring.py` (~:223, 283, 332), `tests/test_orchestrator_v1.py:418` (the v3 smoke `test_v3_graph_scheduler_reaches_planner_done_on_clean_graph` — point it at `run_v3`).
+  - **(c) String-monkeypatch wiring tests** that patch `"src.envstate.orchestrator.run_v1"`: update each v3-arm case to patch `run_v3` (or assert dispatch selects the right function). Do not weaken — they must still verify the agent calls the loop.
+  - **(d) Source-text test:** `tests/test_run_v1_turn_budget.py` reads `orchestrator.py` source and asserts `_repair_turns`/`_budget_exhausted`/emit-repair strings are present. It should STILL PASS after the split (those vars live in `run_v3` in the same file). If it fails, the slice anchor strings moved — update its index calls; do NOT treat as a behavior regression.
 
-- [ ] **Step 6 (characterization regression):** Run the FULL orchestrator + agent-glue + scheduler suites:
-Run: `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_orchestrator_recipe.py tests/test_orchestrator_recipe_no_graph.py tests/test_graph_scheduler_flag.py tests/test_agent_v1_glue.py tests/test_run_v1_integration.py tests/test_residual_handler_wiring.py -q`
-Expected: PASS. Any failure that is NOT one of the named signature/wiring moves means the split changed behavior — STOP, report BLOCKED.
+- [ ] **Step 6 (characterization regression):** Run the FULL orchestrator + agent-glue + scheduler + wiring + budget suites:
+Run: `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_orchestrator_recipe.py tests/test_orchestrator_recipe_no_graph.py tests/test_graph_scheduler_flag.py tests/test_graph_scheduler_wiring.py tests/test_agent_v1_glue.py tests/test_run_v1_integration.py tests/test_residual_handler_wiring.py tests/test_run_v1_turn_budget.py -q`
+Expected: PASS. A failure in a file/line NAMED in Step 5 is an expected migration — make the Step-5 change. A failure ANYWHERE ELSE means the split changed behavior — STOP, report BLOCKED.
 
 - [ ] **Step 7: Commit**
 ```bash
