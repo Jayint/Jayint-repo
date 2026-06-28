@@ -40,21 +40,29 @@ rule, so **nothing ever replaced anything**. The single v3-branch codebase there
 contains all 9 arms as flag-gated paths. Concretely, in `src/envstate/orchestrator.py`:
 
 - **Dual world-model.** Env state is represented twice: the legacy `WorldModelMap`
-  (`installed`/`required`/`open_problems`/`notes`) *and* the certified `DepGraph`. In the
-  graph arm the DepGraph is the host-owned source of truth, yet the maintainer still
-  rebuilds the legacy map every cycle with its **own LLM call** (`maintainer.py:736`).
-  Those legacy fields are read in only two files (`maintainer.py`, `orchestrator.py`) —
-  the map largely feeds itself.
-- **Dead subsystems in the live loop.** `CONTRACT_GRAPH=0` in both surviving arms, so the
-  `apply_recipe_patch` contract-graph *bookkeeping*, Contract/Blocker/Attempt nodes,
-  `_derive_outcome`, attempt commit/validate/apply, the advisory-done path
-  (`orchestrator.py:344-365`), and `_graph_ready` are unreachable — ~100 dead lines.
+  (`installed`/`required`/`open_problems`/`notes`) *and* the certified `DepGraph`. In v3
+  the DepGraph is the host-owned source of truth, yet a maintainer still rebuilds the
+  legacy map every cycle. **v3 uses `DeterministicMaintainer` (no LLM)** — selected
+  because the graph-scheduler forces `enable_deterministic_maintainer` on
+  (`agent.py:345`, swapped in at `agent.py:1206`). The **LLM** maintainer
+  (`maintainer.py:736`) runs only in **v1**. In v3 the deterministic maintainer's only
+  load-bearing output is the done-gate (`_verified_test_run_passed(report)` →
+  `done_flag`); its blocker writes into `contract_graph` are **vestigial** — v3's
+  scheduler reads `dep_graph`, never `contract_graph`/`open_problems`.
+- **Dead-in-both-arms machinery.** `CONTRACT_GRAPH=0` in both surviving arms, so the
+  `apply_recipe_patch` contract-graph *bookkeeping* (attempt commit/validate/apply,
+  `_derive_outcome`), the advisory-done path (`orchestrator.py:339-365`), `_graph_ready`,
+  and the **host-graph projection** are unreachable. The latter is total: `_host_refresh()`
+  early-returns when `enable_contract_graph` is False (`orchestrator.py:112`), so all 8
+  calls + `refresh_host_graph`/`_refresh_graph` are no-ops in v1 and v3. NOTE: the
+  `contracts/` package itself is **not** dead — `ContractGraph` + blocker extraction are
+  used by both maintainers (`maintain()` calls `build_blocker_patch`; the LLM maintainer
+  serializes the graph). Only the Attempt/outcome/projection/advisory-done layer is dead.
 - **Flag-layering.** 21 `enable_graph_scheduler` / `enable_contract_graph` branches in one
   function.
 - **Scattered termination.** Stop logic spread across `_budget_exhausted`,
   `_residual_giveup`, `_repair_turns<=0`, `_sched_stuck>=2`, maintainer `done_flag`,
   `next_decision`→done, and the build-agent stuck-guard.
-- **Host-refresh sprawl.** `_host_refresh()` called 8× in one function.
 
 ### Architecture-critical fact (verified)
 
@@ -96,13 +104,19 @@ Each surviving arm produces identical decisions, ledger, and artifact before vs.
    occur all-on (v3) or all-off (v1); collapse them to a single internal `is_v3` switch.
    Keep the `--arm` vocabulary (the harness, launch scripts, and attribution tooling all
    speak "arm").
-2. **Delete the contract-graph subsystem** — unreachable at `CONTRACT_GRAPH=0`:
-   Contract/Blocker/Attempt handling, `_derive_outcome`, attempt commit/validate/apply,
-   the advisory-done path (`orchestrator.py:344-365`), `_graph_ready`, and contract-graph
-   rendering. Confirm `contract_graph` field references in telemetry/`map_to_dict` are
-   removed or made inert.
-3. **Simplify the recipe branch** (v1's execution path): keep recipe *execution*; delete
-   its contract-graph *bookkeeping* (`orchestrator.py:392-459`).
+2. **Delete the dead contract-graph machinery** — unreachable at `CONTRACT_GRAPH=0` in both
+   arms (do NOT delete the `contracts/` package; both maintainers use `ContractGraph` +
+   blocker extraction):
+   - the Attempt/outcome bookkeeping in the recipe branch (`orchestrator.py:392-459`:
+     attempt commit/validate/apply, `_derive_outcome`) — but keep recipe *execution*
+     (v1's path);
+   - the advisory-done path (`orchestrator.py:339-365`) and `_graph_ready`;
+   - the **host-graph projection**: `_host_refresh()` early-returns at
+     `orchestrator.py:112` (no-op in both arms), so remove the function, its 8 call-sites,
+     and the `refresh_host_graph`/`_refresh_graph` import.
+   Confirm the now-unused imports (`_attempts`, `_apply_patch`, `_graph_ready`,
+   `_validate_patch`, `_derive_outcome`, `_refresh_graph`, `GraphPatch`) are removed from
+   `orchestrator.py` and that no remaining v1/v3 path references them.
 4. **Rename `v1gsps` → `v3`** everywhere: arm name and `--arm` choices/help, run-names,
    the `V1GSPS_FLAGS` block in launch scripts, code comments (e.g. the "arm v1gsps"
    comments in `agent.py`), and doc references. Update any harness tooling that enumerates
@@ -118,18 +132,24 @@ Each surviving arm produces identical decisions, ledger, and artifact before vs.
 1. **Split** the loop into `run_v1()` and `run_v3()` sharing extracted helpers
    (host-certify/refresh, sandbox execute, ledger setup, probe/`apply_deterministic`).
    Each arm reads top-to-bottom as a focused function.
-2. **v3 single source of truth.** Drop the maintainer LLM call from v3; the
-   host-certified dep-graph is the only world-model. Re-source the two load-bearing legacy
-   outputs:
-   - `done_flag` ← the graph's "frontier clean AND tests pass" decision (host-certified,
-     strictly more honest than the maintainer setting it).
-   - `installed` (telemetry) ← certified PACKAGE nodes in the dep-graph.
-   **v1 keeps the maintainer and `WorldModelMap` untouched** — they are v1's core.
+2. **v3 single source of truth.** v3 has **no maintainer LLM call** — it already uses
+   `DeterministicMaintainer`. The cleanup is structural: reduce v3's maintainer to its only
+   load-bearing output (the done-gate, `_verified_test_run_passed(report)` → `done_flag`,
+   already host-evidence-based) and **stop writing the vestigial `contract_graph` blockers**
+   that v3's scheduler never reads — making `dep_graph` the sole world-model in v3.
+   Re-source the remaining legacy outputs from the certified graph: `done_flag` stays from
+   the host-evidence gate (or folds into the loop's "frontier clean AND tests pass"
+   decision); `installed` (telemetry, `agent.py:1732/3202`) ← certified PACKAGE nodes.
+   **v1 keeps its LLM maintainer, `WorldModelMap`, and `contract_graph` serialization
+   untouched** — they are v1's core.
 3. **Unify stop-signals** in v3 into a single `TerminationReason` resolved in one place,
    replacing `_budget_exhausted` / `_residual_giveup` / `_repair_turns` / `_sched_stuck`
    as independent scattered checks. "Why did the run stop?" has one answer.
-4. **Consolidate `_host_refresh()`** from 8 scattered calls to a minimal, predictable set
-   (e.g. once after each state-mutating step).
+4. **Consolidate the real dep-graph refresh points.** The dead `_host_refresh()` is already
+   gone (Phase 1). What remains in v3 is the genuine state refresh — `probe()` +
+   `apply_deterministic(...)` and the certify in `_dep_emit_phase`. Consolidate these into a
+   minimal, predictable set (e.g. once after each state-mutating step) so it is obvious when
+   graph state is fresh.
 5. **Re-baseline.** v3 behavior has changed (no maintainer call, etc.), so run a fresh
    benchmark to establish the new v3 baseline before any comparison is trusted.
 
