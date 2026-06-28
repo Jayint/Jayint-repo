@@ -47,3 +47,28 @@ def test_round_trips_through_render_parse():
                     commands=("make install",), target_node_ids=("syslib:libpq.so",)),)
     blocks = compose_script(_graph_two_waves(), manual)
     assert parse_setup_sh(render_setup_sh(blocks)) == blocks
+
+
+def _graph_two_pip():
+    g = DepGraph()
+    g = g.with_node(Node(id="pkg:aaa==1.0", type=NodeType.PACKAGE, name="aaa",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="1.0",
+        check_command="python -m pip show aaa"))
+    g = g.with_node(Node(id="pkg:zzz==1.0", type=NodeType.PACKAGE, name="zzz",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="1.0",
+        check_command="python -m pip show zzz"))
+    return g
+
+
+def test_manual_overlay_does_not_reorder_same_wave_compiled_blocks():
+    # Regression guard: the stable sort must NOT reorder two same-wave (pip) compiled
+    # blocks relative to each other when a manual block of that wave is overlaid.
+    g = _graph_two_pip()
+    compiled_ids = [b.block_id for b in compose_script(g)]
+    assert len(compiled_ids) == 2                      # both pip packages compiled
+    manual = (Block(block_id="pip.extra", wave="pip",
+                    commands=("python -m pip install extra",), target_node_ids=("pkg:aaa==1.0",)),)
+    with_manual = [b.block_id for b in compose_script(g, manual)]
+    assert "pip.extra" in with_manual
+    # removing the manual block recovers the compiled order EXACTLY (no intra-wave reorder)
+    assert [i for i in with_manual if i != "pip.extra"] == compiled_ids
