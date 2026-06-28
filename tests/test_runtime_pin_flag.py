@@ -35,8 +35,8 @@ def test_rat_benchmark_sets_env_and_arm():
     assert '"v3"' in src  # renamed v1gsps→v3 in Phase 1 Task 4
 
 
-def test_repo2run_has_v1gsp_preset_and_forward():
+def test_repo2run_has_v3_preset_and_forward():
     src = (_ROOT / "run_repo2run_benchmark.py").read_text()
-    assert '"v1gsp"' in src
+    assert '"v3"' in src
     assert '"enable_runtime_pin": True' in src
     assert "--enable-runtime-pin" in src

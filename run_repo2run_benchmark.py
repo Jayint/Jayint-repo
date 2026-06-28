@@ -221,6 +221,11 @@ def build_agent_command(
         command.append("--enable-graph-scheduler")
     if getattr(args, "enable_runtime_pin", False):
         command.append("--enable-runtime-pin")
+    # enable_service_provision: agent.py reads DOCKERAGENT_ENABLE_SERVICE_PROVISION
+    # from os.environ only (~:1154); there is NO --enable-service-provision CLI flag,
+    # so we inject the env var instead of appending a flag.
+    if getattr(args, "enable_service_provision", False):
+        os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1"
 
     return command
 
@@ -3195,54 +3200,14 @@ _ARM_PRESETS: dict[str, dict] = {
         "max_steps": 12,
         "_label": "armV1_three_role",
     },
-    "v1g": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True, "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1g_contract_graph",
-    },
-    "v1gd": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
-        "enable_dep_graph": True, "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gd_dep_graph",
-    },
-    "v1gde": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
-        "enable_dep_graph": True, "enable_dep_emit": True, "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gde_dep_emit",
-    },
-    "v1gder": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": True,
-        "enable_dep_graph": True, "enable_dep_emit": True, "enable_runtime_feedback": True,
-        "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gder_runtime_feedback",
-    },
-    "v1gs": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
-        "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
-        "enable_runtime_feedback": True,
-        "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gs_graph_scheduler",
-    },
-    "v1gsp": {
-        "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
-        "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
-        "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
-        "enable_runtime_feedback": True, "enable_runtime_pin": True,
-        "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gsp_runtime_pin",
-    },
-    "v1gsps": {
+    "v3": {
         "enable_supervisor": False, "enable_fullstate_worker": False, "fullstate_worker_prompt": False,
         "enable_envstate": False, "enable_v1": True, "enable_contract_graph": False,
         "enable_dep_graph": True, "enable_dep_emit": True, "enable_graph_scheduler": True,
         "enable_runtime_feedback": True, "enable_runtime_pin": True,
         "enable_service_provision": True,
         "enable_cleanroom": True,
-        "max_steps": 12, "_label": "armV1gsps_service_provision",
+        "max_steps": 12, "_label": "armV3_graph_scheduled",
     },
 }
 
@@ -3403,18 +3368,17 @@ def parse_args() -> argparse.Namespace:
     # ---------------------------------------------------------------------------
     parser.add_argument(
         "--arm",
-        choices=["0", "v1", "v1g", "v1gd", "v1gde", "v1gder", "v1gs", "v1gsp", "v1gsps"],
+        choices=["0", "v1", "v3"],
         default=None,
         help=(
             "Ablation arm shorthand. "
             "0=bare ReAct (no EnvState flags, --steps 180); "
             "v1=three-role orchestrator Planner/BuildAgent/Maintainer "
             "(--enable-v1 --enable-cleanroom --steps 12); "
-            "v1g=v1 + contract graph reasoning layer (--enable-contract-graph); "
-            "v1gde=v1gd + graph-first emit (--enable-dep-emit); "
-            "v1gs=graph-scheduled agent (--enable-graph-scheduler). "
+            "v3=full graph-scheduled stack (--enable-graph-scheduler --enable-runtime-pin "
+            "--enable-service-provision, --steps 12). "
             "Overrides the individual --enable-* flags and --max-steps when set. "
-            "Outputs land under <output-root>/arm{0,v1,v1g}_<label>/."
+            "Outputs land under <output-root>/arm{0,v1,v3}_<label>/."
         ),
     )
 

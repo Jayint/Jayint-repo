@@ -2,13 +2,6 @@
 import importlib
 
 
-def test_repo2run_has_v1g_preset():
-    mod = importlib.import_module("run_repo2run_benchmark")
-    presets = mod._ARM_PRESETS
-    assert "v1g" in presets
-    assert presets["v1g"]["enable_v1"] is True
-    assert presets["v1g"]["enable_contract_graph"] is True
-
 
 def test_agent_init_enables_v1_when_contract_graph_on():
     import agent as agent_mod

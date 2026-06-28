@@ -113,10 +113,10 @@ def test_run_rat_benchmark_sets_env_and_arm():
     assert '"v3"' in src  # renamed v1gs→v3 in Phase 1 Task 4
 
 
-def test_run_repo2run_has_v1gs_preset_and_forward():
+def test_run_repo2run_has_v3_preset_and_forward():
     r2r_py = _ROOT / "run_repo2run_benchmark.py"
     src = r2r_py.read_text()
-    assert '"v1gs"' in src
+    assert '"v3"' in src
     assert '"enable_graph_scheduler": True' in src
     assert "--enable-graph-scheduler" in src
 
