@@ -632,18 +632,47 @@ def run_v3(
             f"PlannerDecision action='task' but .task is None (cycle {cycle})"
         )
         task = decision.task
-
-        report = build_agent.run(
-            task,
-            sandbox_execute,
-            ledger,
-            step_offset=global_step,
-            check=task.done_when,
-            budget=SCHEDULER_TASK_BUDGET,
-        )
-        _repair_turns -= 1
-        if _repair_turns <= 0:
-            # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
+        _targets = getattr(task, "target_node_ids", ()) or ()
+        if (_targets and enable_script_materialization
+                and getattr(build_agent, "client", None) is not None):
+            from src.envstate.block_emit import block_emit
+            from python_deps.depgraph.patch_gate import compose_script
+            from python_deps.depgraph.evidence_log import EvidenceBundle
+            _g = current_map.dep_graph
+            _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()
+            _tid = _targets[0]
+            _fb = next((b.block_id for b in _blocks if _tid in b.target_node_ids), None)
+            _propose = lambda s, **k: build_agent.propose(s, exec_readonly, **k)
+            _emit = lambda g, mb: block_emit(g, sandbox_execute, exec_readonly,
+                                             ledger, cycle, manual_blocks=mb)
+            if _fb is None:
+                _out = run_structured_repair(
+                    _g, _tid, EvidenceBundle(), cycle, target_hint=_tid,
+                    propose=_propose, emit=_emit, manual_blocks=_manual_blocks,
+                    known_invalid=_known_invalid, max_repairs=MAX_REPAIRS_PER_BLOCK,
+                    repair_budget=_repair_turns)
+            else:
+                _g, _b2, _f2 = _emit(_g, _manual_blocks)
+                _out = (run_structured_repair(
+                            _g, _f2, _b2, cycle, target_hint=_tid, propose=_propose, emit=_emit,
+                            manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+                            max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns)
+                        if _f2 is not None else None)
+            if _out is not None:
+                _g = _out.graph
+                _manual_blocks = _out.manual_blocks
+                _known_invalid = set(_out.known_invalid)
+                _repair_turns -= _out.turns_spent
+                if _out.budget_exhausted:
+                    _budget_exhausted = True
+            current_map = merge_map(current_map, dep_graph=_g)
+            report = TaskReport(task.goal, "done", (), "structured-repair task")
+        else:
+            report = build_agent.run(
+                task, sandbox_execute, ledger, step_offset=global_step,
+                check=task.done_when, budget=SCHEDULER_TASK_BUDGET)
+            _repair_turns -= 1          # free-text path: one LLM unit (typed path already charged)
+        if _budget_exhausted or _repair_turns <= 0:
             return current_map, _to_stop_reason(TerminationReason.GIVEUP_BUDGET)
         # Scheduler mode: a passing host check can return zero commands; floor the
         # advance at 1 so the ledger step offset never aliases across cycles.
