@@ -21,13 +21,42 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# ── stub out external RAT-repo imports BEFORE importing run_rat_benchmark ─────
+_RAT_STUBS = [
+    "eval",
+    "eval.common",
+    "eval.common.scorers",
+    "eval.models",
+    "eval.models.dockeragent_model",
+    "eval.models.rat_model",
+    "eval.models.repo2run_model",
+    "dotenv",
+]
+for _mod in _RAT_STUBS:
+    if _mod not in sys.modules:
+        sys.modules[_mod] = MagicMock()
+
+_scorers_mock = sys.modules["eval.common.scorers"]
+_scorers_mock.success_scorer = MagicMock(return_value={"success": True})
+_scorers_mock.pytest_pass_rate_scorer = MagicMock(
+    return_value={"pytest_pass_rate": 0.8, "pass_rate_exclude_code_issues": 0.8}
+)
+_scorers_mock.pytest_collect_scorer = MagicMock(return_value={"pytest_collect_success": True})
+
+sys.modules["eval.models.dockeragent_model"].DockerAgentModel = MagicMock()
+sys.modules["dotenv"].load_dotenv = MagicMock()
+
 # ── point env vars BEFORE any import of run_rat_benchmark ────────────────────
 os.environ["RAT_ROOT"] = "/tmp/runanything/src"
 os.environ["DOCKERAGENT_ROOT"] = "/Users/john/rat-bench-integration"
 
-# Ensure both roots are importable
-sys.path.insert(0, os.environ["RAT_ROOT"])
-sys.path.insert(0, os.environ["DOCKERAGENT_ROOT"])
+# Insert repo root at the front so we import the LOCAL run_rat_benchmark.py,
+# not the copy in rat-bench-integration (which has its own unrelated edits).
+_REPO_ROOT = str(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _REPO_ROOT)
+
+# Clear any cached version so the stubs take effect.
+sys.modules.pop("run_rat_benchmark", None)
 
 import run_rat_benchmark as rrb  # noqa: E402  (must come after env setup)
 
@@ -681,6 +710,8 @@ def test_child_cmd_propagates_arm_v1(monkeypatch):
     must forward the arm so the child keeps DOCKERAGENT_ENABLE_V1=1.
     """
     monkeypatch.setenv("DOCKERAGENT_ENABLE_V1", "1")
+    # GRAPH_SCHEDULER must be absent/0 so re-derivation resolves to "v1" not "v3".
+    monkeypatch.delenv("DOCKERAGENT_ENABLE_GRAPH_SCHEDULER", raising=False)
     cmd = rrb._child_cmd(
         full_name="org/testrepo", root_path="/tmp/test_root", llm="test-llm",
         timeout=60, num_turn=3, repos_json="/tmp/repos.json",
@@ -692,11 +723,36 @@ def test_child_cmd_propagates_arm_v1(monkeypatch):
 def test_child_cmd_arm0_when_v1_disabled(monkeypatch):
     """With v1 disabled in the environment, the worker arm is arm0."""
     monkeypatch.setenv("DOCKERAGENT_ENABLE_V1", "0")
+    # GRAPH_SCHEDULER must be absent/0 so re-derivation resolves to "arm0".
+    monkeypatch.delenv("DOCKERAGENT_ENABLE_GRAPH_SCHEDULER", raising=False)
     cmd = rrb._child_cmd(
         full_name="org/testrepo", root_path="/tmp/test_root", llm="test-llm",
         timeout=60, num_turn=3, repos_json="/tmp/repos.json",
     )
     assert cmd[cmd.index("--arm") + 1] == "arm0"
+
+
+def test_child_cmd_v3_when_full_stack(monkeypatch):
+    for v in ("V1", "DEP_GRAPH", "DEP_EMIT", "RUNTIME_FEEDBACK",
+              "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION"):
+        monkeypatch.setenv(f"DOCKERAGENT_ENABLE_{v}", "1")
+    cmd = rrb._child_cmd(
+        full_name="o/r", root_path="/tmp/x", llm="deepseek-chat",
+        timeout=10, num_turn=5, repos_json="d.json", model="dockeragent",
+    )
+    assert cmd[cmd.index("--arm") + 1] == "v3"
+
+
+def test_child_cmd_v1_when_only_v1(monkeypatch):
+    monkeypatch.setenv("DOCKERAGENT_ENABLE_V1", "1")
+    for v in ("DEP_GRAPH", "DEP_EMIT", "RUNTIME_FEEDBACK",
+              "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION"):
+        monkeypatch.setenv(f"DOCKERAGENT_ENABLE_{v}", "0")
+    cmd = rrb._child_cmd(
+        full_name="o/r", root_path="/tmp/x", llm="deepseek-chat",
+        timeout=10, num_turn=5, repos_json="d.json", model="dockeragent",
+    )
+    assert cmd[cmd.index("--arm") + 1] == "v1"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
