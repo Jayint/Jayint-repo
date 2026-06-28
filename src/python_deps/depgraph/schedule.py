@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, State, EdgeType
 from python_deps.depgraph.emit import topo_order
+from python_deps.depgraph.req_slice import RequirementSlice, build_requirement_slice
 
 
 def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:
@@ -81,6 +82,7 @@ class ObligationPacket:
     certified_context: tuple[str, ...] = ()
     start_recipe: dict | None = None
     bind_recipe: dict | None = None
+    requirement_slice: RequirementSlice | None = None
 
 
 def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
@@ -110,4 +112,5 @@ def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
         certified_context=certified_context,
         start_recipe=node.data.get("start_recipe"),
         bind_recipe=node.data.get("bind_recipe"),
+        requirement_slice=build_requirement_slice(graph, node),
     )
