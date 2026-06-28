@@ -6,12 +6,11 @@ These guard against:
   1. libGL-style shared-library faults being promoted to system_library contracts.
   2. The v1 coverage regression: import-sweep failures must block goal satisfaction.
   3. Maintainer-driven done_flag must cause goal to be satisfied (not lost).
-  4. collect-only output must NOT satisfy the goal (honest done-gate).
 """
 from __future__ import annotations
 
 from src.envstate.contracts.goals import GOAL_TESTS_PASS
-from src.envstate.contracts.graph import ContractGraph, goal_ready
+from src.envstate.contracts.graph import ContractGraph
 from src.envstate.contracts.projection import refresh_host_graph
 from src.envstate.ledger import ActionEvent, ActionLedger
 from src.envstate.snapshot import EnvSnapshot
@@ -181,55 +180,6 @@ def test_maintainer_done_flag_marks_goal_satisfied() -> None:
     # param deleted).  The core invariant — done_flag fires correctly — is preserved above.
 
 
-def test_collect_only_does_not_satisfy_goal() -> None:
-    """rc=0 with zero tests passed (or --collect-only output) must NOT satisfy the goal.
-
-    Ported from test_orchestrator_contract_graph.py.
-    projection._verified_test_command_id requires >=1 passed in stdout so that a
-    pure collection run cannot gate-crash the goal-satisfied certification.
-    """
-    from src.envstate.orchestrator import run_v1
-
-    class _Planner:
-        def __init__(self, decisions: list[PlannerDecision]) -> None:
-            self._q = list(decisions)
-
-        def decide(self, m: object) -> PlannerDecision:
-            return self._q.pop(0)
-
-    scenarios = [
-        # (cmd, stdout) — rc=0 in both cases, but no "N passed" evidence
-        ("python -m pytest -q", "collected 3 items\n"),
-        ("pytest --collect-only -q", "collected 5 items\n"),
-    ]
-    for cmd, stdout in scenarios:
-        task = Task("run tests", "pytest passes", "tests", ())
-        planner = _Planner([
-            PlannerDecision("task", task=task),
-            PlannerDecision("giveup", reason="stop"),
-        ])
-        ledger = ActionLedger()
-
-        final_map, _ = run_v1(
-            planner,
-            _BuildAgentWithLedger(cmd, stdout),
-            _DoneMaintainer(),
-            _initial_map(),
-            ledger,
-            sandbox_execute=lambda c: (True, stdout),
-            max_cycles=2,
-            probe=lambda: EnvSnapshot(installed=(Fact("torch", "2.1.0"),)),
-            manifest=type("M", (), {"required": (Fact("torch", ""),), "build_system": "pip"})(),
-            exec_readonly=lambda c: (0, ""),
-        )
-
-        # enable_contract_graph removed in Task 3; host_satisfied is always frozenset()
-        # and contract_graph is always empty — assertions hold trivially (non-regression).
-        g = final_map.contract_graph
-        assert GOAL_TESTS_PASS not in final_map.host_satisfied, (
-            f"Goal must NOT be satisfied for cmd={cmd!r}, stdout={stdout!r}; "
-            f"collect-only must not gate-crash host_satisfied"
-        )
-        assert not goal_ready(g, final_map.host_satisfied), (
-            f"goal_ready must be False for cmd={cmd!r}"
-        )
+# test_collect_only_does_not_satisfy_goal removed in Phase 1 (Task 3): the contract-graph
+# host-projection it guarded was deleted; the v3 collect-only anti-hollow invariant is a
+# Phase-2 test concern.
