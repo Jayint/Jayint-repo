@@ -200,3 +200,27 @@ def compose_script(graph: DepGraph, manual_blocks: tuple[Block, ...] = ()) -> tu
     merged = list(compiled) + fresh            # compiled first -> stable sort keeps them first per wave
     merged.sort(key=lambda b: _WAVE_RANK.get(b.wave, len(_WAVE_RANK)))
     return tuple(merged)
+
+
+@dataclass(frozen=True)
+class AdmitResult:
+    accepted: bool
+    errors: tuple[str, ...]
+    graph: DepGraph
+    blocks: tuple[Block, ...]
+    manual_blocks: tuple[Block, ...]
+
+
+def admit_proposal(graph: DepGraph, proposal: PatchProposal, *,
+                   manual_blocks: tuple[Block, ...] = (),
+                   known_evidence_ids: frozenset[str]) -> AdmitResult:
+    """Pure: validate -> apply -> recompose. On reject, graph/manual_blocks unchanged and
+    errors non-empty. NEVER writes SATISFIED, NEVER runs anything."""
+    errs = validate_proposal(graph, proposal, known_evidence_ids=known_evidence_ids)
+    if errs:
+        return AdmitResult(False, tuple(errs), graph,
+                           compose_script(graph, manual_blocks), manual_blocks)
+    applied = apply_proposal(graph, proposal)
+    new_manual = manual_blocks + applied.blocks
+    return AdmitResult(True, (), applied.graph,
+                       compose_script(applied.graph, new_manual), new_manual)
