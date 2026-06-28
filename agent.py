@@ -277,6 +277,7 @@ class DockerAgent:
         enable_dep_emit=False,
         enable_runtime_feedback=False,
         enable_graph_scheduler=False,
+        enable_script_materialization=None,
         enable_runtime_pin=False,
         enable_deterministic_maintainer=False,
         enable_cleanroom=False,
@@ -349,6 +350,13 @@ class DockerAgent:
         self.enable_v1 = enable_v1 or enable_contract_graph or self.enable_dep_graph or enable_dep_emit or enable_deterministic_maintainer
         self.enable_envstate = (
             enable_envstate or enable_supervisor or enable_fullstate_worker or self.enable_v1
+        )
+        # Script-materialization (Slice A): default ON whenever the graph scheduler is on
+        # (B5 = compiled setup.sh drives execution + artifact). Independently settable OFF
+        # for the §14 B3 ablation (revert to emit_drain + ledger-replay).
+        self.enable_script_materialization = (
+            self.enable_graph_scheduler if enable_script_materialization is None
+            else bool(enable_script_materialization)
         )
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
@@ -1343,6 +1351,7 @@ class DockerAgent:
                     exec_readonly=self.sandbox.exec_readonly,
                     enable_dep_emit=getattr(self, "enable_dep_emit", False),
                     enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
+                    enable_script_materialization=self.enable_script_materialization,
                 )
             else:
                 final_map, stop_reason = _run_v1_loop(

@@ -329,6 +329,7 @@ def run_v3(
     enable_dep_emit: bool = True,
     enable_runtime_feedback: bool = True,
     graph_scheduler_attempt_cap: int = 3,
+    enable_script_materialization: bool = True,
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
