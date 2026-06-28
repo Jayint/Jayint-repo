@@ -60,3 +60,53 @@ def providers_view(node) -> ProviderView:
         for a in node.attempts if a.outcome == "failed"
     )
     return ProviderView(candidates=candidates, chosen=node.chosen_fix, tried_failed=tried)
+
+
+@dataclass(frozen=True)
+class DepView:
+    id: str
+    state: str
+
+
+@dataclass(frozen=True)
+class RequirementSlice:
+    node_id: str
+    kind: str
+    layer: str
+    state: str
+    check: str
+    evidence: str
+    deps: tuple[DepView, ...]
+    chain_to_goal: str
+    unblocks: tuple[str, ...]
+    layer_cohort_satisfied: tuple[str, ...]
+    layer_cohort_missing: tuple[str, ...]
+    conflict: str | None
+    providers: ProviderView
+    active_gate: str
+    platform: str | None
+
+
+def build_requirement_slice(graph, node) -> RequirementSlice:
+    """Pure read-time projection of `node` for the agent. Reuses advise's render helpers
+    (imported lazily to avoid module load-order coupling)."""
+    from python_deps.depgraph.advise import (
+        _chain_to_goal, _conflict_note, _best_evidence_line, _platform_note,
+    )
+    from python_deps.depgraph.schema import NodeType, State
+
+    deps = tuple(DepView(id=d.id, state=d.state.value) for d in graph.requires_of(node.id))
+    unblocks = tuple(n.id for n in graph.required_by(node.id))
+    cohort = [n for n in graph.nodes if n.layer == node.layer and n.id != node.id]
+    sat = tuple(n.id for n in cohort if n.state is State.SATISFIED)
+    miss = tuple(n.id for n in cohort if n.state is State.MISSING)
+    goal = next((n for n in graph.nodes if n.type is NodeType.TEST), None)
+    active_gate = goal.check_command if (goal and goal.check_command) else ""
+    return RequirementSlice(
+        node_id=node.id, kind=node.type.value, layer=node.layer.value, state=node.state.value,
+        check=node.check_command or "", evidence=_best_evidence_line(node.evidence) or "",
+        deps=deps, chain_to_goal=_chain_to_goal(graph, node) or "", unblocks=unblocks,
+        layer_cohort_satisfied=sat, layer_cohort_missing=miss,
+        conflict=_conflict_note(graph, node), providers=providers_view(node),
+        active_gate=active_gate, platform=_platform_note(node),
+    )

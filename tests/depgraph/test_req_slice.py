@@ -5,8 +5,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import Node, NodeType, Layer, State, DiscoveredBy, Attempt
-from python_deps.depgraph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider
+from python_deps.depgraph.schema import Node, NodeType, Layer, State, DiscoveredBy, Attempt, DepGraph, Edge, EdgeType
+from python_deps.depgraph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider, build_requirement_slice, RequirementSlice, DepView
 
 
 def _syslib(**kw):
@@ -63,3 +63,52 @@ def test_shell_provider_action_class_from_taxonomy():
     # "shell" is an explicit, audited member of the canonical taxonomy (action_class.ACTION_CLASSES).
     pv = providers_view(_syslib(fix_candidates=("shell:make",), chosen_fix="shell:make"))
     assert next(c.action_class for c in pv.candidates if c.id == "shell:make") == "shell"
+
+
+def _graph_with_frontier():
+    g = DepGraph()
+    g = g.with_node(Node(id="test:repo_tests_pass", type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL, state=State.MISSING,
+        check_command="python -m pytest -q"))
+    g = g.with_node(Node(id="pkg:lxml==5.0", type=NodeType.PACKAGE, name="lxml", layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="5.0",
+        check_command="python -m pip show lxml"))
+    g = g.with_node(Node(id="syslib:libxml2", type=NodeType.SYSTEM_LIB, name="libxml2",
+        layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+        check_command="pkg-config --exists libxml-2.0", chosen_fix="apt:libxml2-dev",
+        fix_candidates=("apt:libxml2-dev",), evidence='Dependency "libxml2" not found, tried pkgconfig',
+        attempts=(Attempt(command="apt-get install -y libxml2dev", outcome="failed"),)))
+    g = g.with_node(Node(id="tool:pkg-config", type=NodeType.TOOL, name="pkg-config",
+        layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.SATISFIED,
+        check_command="command -v pkg-config", chosen_fix="apt:pkg-config"))
+    # Package -> SystemLib is EDGE_RULES-legal (see test_obligation_framing.py:44). pkg requires the syslib.
+    g = g.with_edge(Edge(src="pkg:lxml==5.0", dst="syslib:libxml2", relation=EdgeType.REQUIRES))
+    return g
+
+
+def test_build_slice_deps_unblocks_cohort_providers_gate():
+    g = _graph_with_frontier()
+    s = build_requirement_slice(g, g.get("syslib:libxml2"))
+    assert isinstance(s, RequirementSlice)
+    assert s.node_id == "syslib:libxml2" and s.kind == "SystemLib" and s.state == "missing"
+    assert s.check == "pkg-config --exists libxml-2.0"
+    # unblocks = reverse REQUIRES (recovers the dropped `blocks`): pkg:lxml needs the syslib
+    assert "pkg:lxml==5.0" in s.unblocks
+    # layer cohort (SYSTEM): the satisfied pkg-config tool, syslib itself excluded
+    assert "tool:pkg-config" in s.layer_cohort_satisfied
+    assert s.node_id not in s.layer_cohort_satisfied and s.node_id not in s.layer_cohort_missing
+    # active gate synthesized from the TEST node's own check (no envstate import)
+    assert s.active_gate == "python -m pytest -q"
+    # providers + tried-failed carried through
+    assert s.providers.chosen == "apt:libxml2-dev"
+    assert s.providers.tried_failed and s.providers.tried_failed[0].provider_id == "apt:libxml2dev"
+    # evidence reduced to the best line (text, not an id)
+    assert "libxml2" in s.evidence
+
+
+def test_active_gate_empty_when_no_test_node():
+    g = DepGraph().with_node(Node(id="syslib:x", type=NodeType.SYSTEM_LIB, name="x",
+        layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+        check_command="pkg-config --exists x"))
+    s = build_requirement_slice(g, g.get("syslib:x"))
+    assert s.active_gate == ""          # no TEST node -> empty, never crashes
