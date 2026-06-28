@@ -7,13 +7,15 @@ manual blocks. Pure: no Docker/network/LLM."""
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, replace
 
 from python_deps.depgraph.action_class import matches_action_class
+from python_deps.depgraph.block import Block
 from python_deps.depgraph.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 from python_deps.depgraph.schema import (
-    DepGraph, NodeType, Layer, EdgeType, EDGE_RULES,
+    DepGraph, Node, Edge, NodeType, Layer, EdgeType, State, DiscoveredBy, EDGE_RULES,
 )
 
 # Node-type -> canonical id prefix (ids.py).  Types not listed accept any "<kind>:<rest>".
@@ -109,3 +111,53 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
                 errs.append(f"illegal {e.relation} destination type {type_of[e.target]!r} ({e.target!r})")
 
     return errs
+
+
+@dataclass(frozen=True)
+class ApplyResult:
+    graph: DepGraph
+    blocks: tuple[Block, ...]
+
+
+def _provider_fix(p: ProviderSpec) -> str:
+    # apt providers store the "apt:NAME" form (emit._apt_name strips the prefix);
+    # everything else stores the literal command (compile_blocks' fallback emits it,
+    # and for PACKAGE nodes compile_blocks derives the pip command from name/version).
+    return p.id if p.id.startswith("apt:") else p.command
+
+
+def _script_patch_to_block(s: ScriptPatch) -> Block:
+    return Block(
+        block_id=s.block_id, wave=s.wave, commands=s.commands,
+        target_node_ids=s.target_node_ids, provider_ids=s.provides,
+        check_commands=s.checks,
+        evidence_refs=(s.evidence_ref,) if s.evidence_ref else (),
+    )
+
+
+def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
+    g = graph
+    # 1. requirement nodes — always MISSING (never SATISFIED), promotion tag if present.
+    for r in proposal.add_requirements:
+        if g.get(r.id) is not None:
+            continue                                    # dedup no-op (validate ensured non-conflicting)
+        data = {"promotion": r.promotion} if r.promotion else {}
+        g = g.with_node(Node(
+            id=r.id, type=NodeType(r.type), name=r.name or r.id.split(":", 1)[-1],
+            layer=Layer(r.layer), discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+            check_command=r.check_command, evidence=r.evidence_ref, data=data,
+        ))
+    # 2. providers -> chosen_fix on each provided node (first writer wins).
+    for p in proposal.add_providers:
+        fix = _provider_fix(p)
+        for nid in p.provides:
+            node = g.get(nid)
+            if node is not None and node.chosen_fix is None:
+                g = g.with_node(replace(node, chosen_fix=fix))
+    # 3. edges — endpoints now exist (validate guaranteed legality; with_edge dedupes).
+    for e in proposal.add_edges:
+        g = g.with_edge(Edge(src=e.source, dst=e.target, relation=EdgeType(e.relation),
+                             data={"hard": e.hard}))
+    # 4. script_patches -> governed blocks; they NEVER mutate node state.
+    blocks = tuple(_script_patch_to_block(s) for s in proposal.script_patches)
+    return ApplyResult(graph=g, blocks=blocks)
