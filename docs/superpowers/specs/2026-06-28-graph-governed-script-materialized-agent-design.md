@@ -401,6 +401,45 @@ promotion to Active only from explicit test/CI declaration or runtime/gate failu
 no hard service/config scheduling from a single weak static clue
 ```
 
+#### 5.2.1 Handling the existing config/service detectors (decided 2026-06-28)
+
+The codebase already has battle-tested config/service detection. It is REUSED, not
+replaced; what changes is where its output lands and the special-casing around it. Three
+layers, three fates:
+
+```text
+Pure detectors  (config_scan.{scan_env_reads, parse_env_example,
+                 scan_framework_config_reads, scan_env_defaults};
+                 service_scan.{scan_compose_services, scan_ci_services,
+                 scan_env_bindings, service_from_url}; curated tables
+                 config_obligations_for_package / services_for_package)
+  -> KEEP & REUSE unchanged. These become the deterministic collector tier of §5.2:
+     the Phase-1 static_collect wraps them READ-ONLY to emit the compact evidence
+     bundle. They feed BOTH the in-container certified graph and the §5.1 pre-container
+     StaticConstraintGraph (more reuse, not less).
+
+Graph-mutating wrappers  (config_scan.scan_config / service_scan.scan_services,
+                          called in build.py::build_dep_graph)
+  -> v1: KEEP as-is.  v3: REFRAME. Instead of injecting Config/Service nodes straight
+     into the build graph, their signal flows deterministic-evidence -> LLM classifier
+     -> SOFT hint nodes (Node.data["promotion"]="hint"/"candidate", soft edges) ->
+     promotion to hard only on runtime/gate failure. Split by evidence strength per the
+     promotion policy above: curated package-induced obligations + explicit CI services
+     -> deterministic CANDIDATE; weak single-source reads -> HINT via the classifier.
+
+Scheduler carve-out  (schedule._is_actionable's hard-coded "CONFIG advisory-only
+                      except service-binding; SERVICE only if confirmed+armed")
+  -> RETIRE / GENERALIZE. It collapses into one rule: a node schedules only when its
+     inbound requirement edges are HARD (promoted); _dependencies_satisfied respects
+     Edge.data["hard"]. The bespoke special case dissolves into the soft/hard model.
+```
+
+Idempotence: the wrappers and the classifier may both surface the same var/service.
+Canonical `config_id`/`service_id` + PatchGate dedupe make this a no-op (same id ⇒ one
+node). Sequencing: Phase 1 is non-destructive (wrap only); the reframe + carve-out
+generalization land in the v3 rewrite (Phase 2) and the soft-edge work (Phase 5). Until
+then the legacy graph-mutation path keeps working (already soft via the carve-out).
+
 ### 5.3 Platform Profiles
 
 Platform is a first-class choice, not just a pre-step.
