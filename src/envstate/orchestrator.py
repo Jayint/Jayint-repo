@@ -12,6 +12,7 @@ for Arms A/B/C back-compat.
 from __future__ import annotations
 
 import dataclasses
+import os
 from typing import Any, Callable, Tuple
 
 from src.envstate.contracts import attempts as _attempts
@@ -278,7 +279,17 @@ def run_v1(
                 return
             advisory = render_depgraph_planner(new_graph)
             current_map = merge_map(current_map, dep_graph=new_graph, dep_advisory=advisory)
-        except Exception as exc:  # noqa: BLE001 — must never break the run (spec §11)
+        except (NameError, AttributeError, ImportError, TypeError) as exc:
+            # Programming errors are always bugs, never operational. Still don't
+            # break the run (spec §11), but log LOUDLY with a traceback — a bare
+            # suppress here once hid a missing `import os` that silently disabled
+            # the runtime-feedback loop for an entire benchmark arm.
+            import logging
+            logging.getLogger(__name__).error(
+                "runtime_ingest_phase: PROGRAMMING BUG suppressed: %s", exc,
+                exc_info=True,
+            )
+        except Exception as exc:  # noqa: BLE001 — operational errors must never break the run (spec §11)
             import logging
             logging.getLogger(__name__).warning(
                 "runtime_ingest_phase: exception suppressed: %s", exc

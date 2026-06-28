@@ -239,6 +239,62 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
 
 # ── Companion test: locks Edit 1 ─────────────────────────────────────────────
 
+def _ledger_with_module_not_found_event() -> ActionLedger:
+    """Ledger pre-seeded with a FAILED event the deterministic classifier maps
+    to a RUNTIME Package node (ModuleNotFoundError -> package 'requests')."""
+    ledger = ActionLedger()
+    evt = make_action_event(
+        step=1,
+        cmd="python app.py",
+        success=False,
+        stdout="ModuleNotFoundError: No module named 'requests'",
+        env_revision_before=0,
+        env_revision_after=0,
+        mutation_class=None,
+        container_id="test",
+    )
+    ledger.append(evt)
+    return ledger
+
+
+def test_runtime_ingest_merges_discovered_node_on_graph_arm():
+    """Regression: a runtime failure must be ingested AND merged into the live
+    graph on the graph-scheduler arm.
+
+    Guards a real shipped bug: `_runtime_ingest_phase` referenced `os.environ`
+    while `orchestrator.py` did not `import os`, so every cycle raised NameError
+    *before* the merge_map that writes discovered nodes back. The bare
+    `except Exception` suppressed it, so the runtime-feedback loop was silently
+    dead on v1gs/v1gsp/v1gsps and no existing test caught it (they assert the
+    ABSENCE of give-up, which the NameError also produced).
+
+    RED (missing `import os`): NameError -> merge skipped -> node absent.
+    GREEN (with `import os`): node merged into final_map.dep_graph.
+    """
+    final_map, _stop = run_v1(
+        planner=_ExplodingPlanner(),
+        build_agent=_LLMBuildAgent(),
+        maintainer=_NoopMaintainer(),
+        initial_world_map=_no_missing_node_map(),
+        ledger=_ledger_with_module_not_found_event(),
+        sandbox_execute=_sandbox_tests_pass,
+        max_cycles=1,
+        exec_readonly=_exec_readonly_missing,
+        enable_graph_scheduler=True,
+        enable_dep_emit=True,
+        enable_runtime_feedback=True,
+    )
+    merged = [
+        n for n in final_map.dep_graph.nodes
+        if n.type is NodeType.PACKAGE and n.name == "requests"
+        and n.discovered_by is DiscoveredBy.RUNTIME
+    ]
+    assert merged, (
+        "runtime-discovered Package node 'requests' was not merged into the live "
+        "graph — _runtime_ingest_phase raised before merge_map (missing import?)"
+    )
+
+
 def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
     """_out_of_scope alone (no host-grounded diverged node) must not give up.
 
