@@ -85,15 +85,20 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
                                 or (cur.check_command or None) != (r.check_command or None)):
             errs.append(f"conflicting redefinition of existing node {r.id}")
 
+    known_after = existing_ids | proposed_node_ids
     for p in proposal.add_providers:
         if not matches_action_class(p.kind, p.command):
             errs.append(f"provider {p.id} command does not match action class "
                         f"{p.kind!r}: {p.command!r}")
+        for nid in p.provides:
+            if nid not in known_after:
+                errs.append(f"provider {p.id} provides unknown node {nid!r}")
 
-    known_after = existing_ids | proposed_node_ids
     for s in proposal.script_patches:
         if not s.evidence_ref or s.evidence_ref not in known_evidence_ids:
             errs.append(f"script block {s.block_id} cites unknown/absent evidence {s.evidence_ref!r}")
+        if not s.target_node_ids:
+            errs.append(f"script block {s.block_id} has empty target_node_ids")
         for nid in s.target_node_ids:
             if nid not in known_after:
                 errs.append(f"script block {s.block_id} targets unknown node {nid!r}")

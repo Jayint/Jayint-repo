@@ -91,3 +91,21 @@ def test_rejects_illegal_edge_relation_types():
     p = PatchProposal(add_edges=(EdgeSpec(source="syslib:a.so", target="test:repo_tests_pass"),))
     errs = validate_proposal(g, p, known_evidence_ids=_EV)
     assert any("edge" in e.lower() or "source type" in e.lower() for e in errs)
+
+
+def test_empty_script_target_rejected(_graph_with_evidence):
+    g, _ = _graph_with_evidence
+    p = PatchProposal(script_patches=(ScriptPatch(
+        block_id="system.x", wave="system", commands=("apt-get install -y x",),
+        target_node_ids=(), evidence_ref="ev.1.0"),))
+    errs = validate_proposal(g, p, known_evidence_ids=frozenset({"ev.1.0"}))
+    assert any("target" in e for e in errs)
+
+
+def test_provider_provides_unknown_node_rejected(_graph_with_evidence):
+    g, _ = _graph_with_evidence
+    p = PatchProposal(add_providers=(ProviderSpec(
+        id="apt:libpq-dev", kind="apt", command="apt-get install -y libpq-dev",
+        provides=("syslib:does-not-exist",)),))
+    errs = validate_proposal(g, p, known_evidence_ids=frozenset({"ev.1.0"}))
+    assert any("does-not-exist" in e for e in errs)
