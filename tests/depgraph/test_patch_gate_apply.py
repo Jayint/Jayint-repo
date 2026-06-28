@@ -73,3 +73,18 @@ def test_adversarial_apply_never_satisfied():
     res = apply_proposal(_base(), _proposal())
     assert all(n.state is not State.SATISFIED for n in res.graph.nodes if n.id != "test:repo_tests_pass")
     assert _base().get("test:repo_tests_pass").state is State.MISSING
+
+
+def test_override_replaces_chosen_fix(_graph_with_missing_syslib):
+    g = _graph_with_missing_syslib
+    p = PatchProposal(add_providers=(ProviderSpec(
+        id="apt:libpq-dev", kind="apt", command="apt-get install -y libpq-dev",
+        provides=("syslib:libpq",), override=True),))
+    assert apply_proposal(g, p).graph.get("syslib:libpq").chosen_fix == "apt:libpq-dev"
+
+def test_no_override_keeps_first_writer(_graph_with_missing_syslib):
+    g = _graph_with_missing_syslib
+    p = PatchProposal(add_providers=(ProviderSpec(
+        id="apt:other", kind="apt", command="apt-get install -y other",
+        provides=("syslib:libpq",)),))
+    assert apply_proposal(g, p).graph.get("syslib:libpq").chosen_fix == "apt:libpqdev"

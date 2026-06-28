@@ -167,7 +167,7 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
         fix = _provider_fix(p)
         for nid in p.provides:
             node = g.get(nid)
-            if node is not None and node.chosen_fix is None:
+            if node is not None and (node.chosen_fix is None or p.override):
                 g = g.with_node(replace(node, chosen_fix=fix))
     # 3. edges — endpoints now exist (validate guaranteed legality; with_edge dedupes).
     for e in proposal.add_edges:
