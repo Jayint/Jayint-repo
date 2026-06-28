@@ -395,25 +395,36 @@ def run_v3(
         # deterministic prefix so the LLM only sees the irreducible residual.
         # global_step is advanced here only if emit_drain consumed steps, so
         # LLM turns are NOT counted.
-        graph, _reports, steps = emit_drain(
-            graph, build_agent, sandbox_execute, ledger, exec_readonly,
-            step_offset=global_step, cycle=cycle,
-        )
-        if steps:
-            global_step += steps
-        # Host-first repair of reciped nodes the batch wave could not certify (the
-        # broken-bridge fix). Only the graph-scheduler arm performs host repair.
-        from src.envstate.depgraph_live import repair_failed_nodes
-        graph, repair_steps, _repaired_n = repair_failed_nodes(
-            graph, build_agent, sandbox_execute, ledger, exec_readonly,
-            step_offset=global_step, cycle=cycle, repaired_ids=_repaired_ids,
-        )
-        if repair_steps:
-            global_step += repair_steps
-        if _repaired_n:
-            _repair_turns -= _repaired_n
-            if _repair_turns <= 0:
-                _budget_exhausted = True
+        if enable_script_materialization:
+            # Slice A: deterministic block run replaces emit_drain on v3 (design §5.1).
+            # No LLM and no host-repair here — a failed block ends the wave (Slice B adds
+            # the repair loop). compose_script handles the emittable wave; certify writes state.
+            # NOTE: global_step is intentionally not advanced here (block_emit owns no LLM
+            # turns); the repair loop's step accounting is wired in Slice B.
+            from src.envstate.block_emit import block_emit
+            graph, _bundle, _failed = block_emit(
+                graph, sandbox_execute, exec_readonly, ledger, cycle,
+            )
+        else:
+            graph, _reports, steps = emit_drain(
+                graph, build_agent, sandbox_execute, ledger, exec_readonly,
+                step_offset=global_step, cycle=cycle,
+            )
+            if steps:
+                global_step += steps
+            # Host-first repair of reciped nodes the batch wave could not certify (the
+            # broken-bridge fix). Only the graph-scheduler arm performs host repair.
+            from src.envstate.depgraph_live import repair_failed_nodes
+            graph, repair_steps, _repaired_n = repair_failed_nodes(
+                graph, build_agent, sandbox_execute, ledger, exec_readonly,
+                step_offset=global_step, cycle=cycle, repaired_ids=_repaired_ids,
+            )
+            if repair_steps:
+                global_step += repair_steps
+            if _repaired_n:
+                _repair_turns -= _repaired_n
+                if _repair_turns <= 0:
+                    _budget_exhausted = True
         # Fold emit-certified packages into installed so the synthesizer's closure
         # recipe includes them even when the planner finalizes immediately.
         sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes

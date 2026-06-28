@@ -185,6 +185,7 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
     monkeypatch.setattr(live, "emit_drain", _spy)
 
     # V3 arm (scheduler): drain MUST run (emit-prefix decision).
+    # B5 default flips run_v3 to block_emit; pin the emit_drain (B3) path under test.
     run_v3(
         build_agent=_RecordingBuildAgent(),
         maintainer=_NoopMaintainer(),
@@ -194,6 +195,7 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
         max_cycles=1,
         exec_readonly=lambda cmd: (1, "missing"),
         enable_dep_emit=True,
+        enable_script_materialization=False,
     )
     assert calls["n"] >= 1, "emit_drain MUST run in run_v3 (emit-prefix)"
 
