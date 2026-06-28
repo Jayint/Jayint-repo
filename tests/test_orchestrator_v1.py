@@ -332,6 +332,20 @@ def test_done_branch_returns_planner_done_immediately():
     assert VERIFY_TEST_CMD not in calls   # advisory path is gone
 
 
+# ---------------------------------------------------------------------------
+# TerminationReason enum maps to the correct legacy stop-reason strings
+# ---------------------------------------------------------------------------
+
+def test_termination_reason_maps_to_legacy_strings():
+    from src.envstate.orchestrator import TerminationReason, _v3_stop_reason
+    assert _v3_stop_reason(TerminationReason.DONE) == "planner_done"
+    assert _v3_stop_reason(TerminationReason.DONE_FLAG) == "done_flag"
+    assert _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL) == "planner_giveup"
+    assert _v3_stop_reason(TerminationReason.GIVEUP_BUDGET) == "planner_giveup"
+    assert _v3_stop_reason(TerminationReason.GIVEUP_STUCK) == "planner_giveup"
+    assert _v3_stop_reason(TerminationReason.MAX_CYCLES) == "max_cycles"
+
+
 class TestRunV1ReturnType:
     """run_v1 always returns a (WorldModelMap, str) tuple."""
 

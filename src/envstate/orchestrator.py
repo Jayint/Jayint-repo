@@ -11,6 +11,7 @@ for Arms A/B/C back-compat.
 """
 from __future__ import annotations
 
+import enum
 import os
 from typing import Any, Callable, Tuple
 
@@ -39,6 +40,46 @@ COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
 # Canonical execution-verify command used by the Phase-1 execution gate.
 # The gate requires a bare interpreter (no venv wrapper) and >=1 passed test.
 VERIFY_TEST_CMD: str = "python -m pytest -q"
+
+
+# ---------------------------------------------------------------------------
+# Internal termination taxonomy (v3 / graph-scheduler arm)
+# ---------------------------------------------------------------------------
+
+class TerminationReason(enum.Enum):
+    """Typed termination cause for the v3 loop.
+
+    Maps 1-to-1 to the external stop_reason strings via ``_v3_stop_reason``.
+    Introduced so callers can distinguish the five logically-distinct giveup
+    causes that previously collapsed into a single ``"planner_giveup"`` string.
+    The external contract (returned strings) is unchanged.
+    """
+    DONE            = "done"
+    DONE_FLAG       = "done_flag"
+    GIVEUP_RESIDUAL = "giveup_residual"   # LLM giveup or runtime divergence
+    GIVEUP_BUDGET   = "giveup_budget"     # LLM repair turns exhausted
+    GIVEUP_STUCK    = "giveup_stuck"      # no new graph obligations (discover rounds)
+    MAX_CYCLES      = "max_cycles"
+
+
+_TERMINATION_TO_STOP_REASON: dict[TerminationReason, str] = {
+    TerminationReason.DONE:            "planner_done",
+    TerminationReason.DONE_FLAG:       "done_flag",
+    TerminationReason.GIVEUP_RESIDUAL: "planner_giveup",
+    TerminationReason.GIVEUP_BUDGET:   "planner_giveup",
+    TerminationReason.GIVEUP_STUCK:    "planner_giveup",
+    TerminationReason.MAX_CYCLES:      "max_cycles",
+}
+
+
+def _v3_stop_reason(reason: TerminationReason) -> str:
+    """Map an internal ``TerminationReason`` to the external stop-reason string.
+
+    The returned string is identical to the literal that was previously
+    hard-coded at each return site — callers observing stop_reason strings
+    are unaffected.
+    """
+    return _TERMINATION_TO_STOP_REASON[reason]
 
 
 def run_v1(
@@ -282,13 +323,13 @@ def run_v1(
         _dep_emit_phase(cycle)
         if enable_graph_scheduler and _budget_exhausted:
             # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
-            return current_map, "planner_giveup"
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
         # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
         #        into the live dep-graph. Runs once per cycle before any branch so
         #        it fires regardless of which branch returns (I2 done-path fix).
         _runtime_ingest_phase()
         if enable_graph_scheduler and _residual_giveup is not None:
-            return current_map, "planner_giveup"
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
         # ── 1. Decide what to do next ───────────────────────────────────────
         if enable_graph_scheduler:
             from src.envstate.graph_scheduler import next_decision
@@ -316,12 +357,12 @@ def run_v1(
         if decision.action == "done":
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
-            return current_map, "planner_done"
+            return current_map, _v3_stop_reason(TerminationReason.DONE)
 
         if decision.action == "giveup":
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
-            return current_map, "planner_giveup"
+            return current_map, _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
 
         # ── 2. Recipe patch branch ───────────────────────────────────────────
         if decision.action == "apply_recipe_patch":
@@ -333,7 +374,7 @@ def run_v1(
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, empty_report)
                 if current_map.done_flag:
-                    return current_map, "done_flag"
+                    return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
                 continue
 
             # Execute the whole recipe as a single unified run.
@@ -357,7 +398,7 @@ def run_v1(
 
             # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
             if current_map.done_flag:
-                return current_map, "done_flag"
+                return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
 
             continue
 
@@ -379,7 +420,7 @@ def run_v1(
             _repair_turns -= 1
             if _repair_turns <= 0:
                 # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
-                return current_map, "planner_giveup"
+                return current_map, _v3_stop_reason(TerminationReason.GIVEUP_BUDGET)
         # Scheduler mode: a passing host check can return zero commands; floor the
         # advance at 1 so the ledger step offset never aliases across cycles. Off the
         # flag this is byte-identical to the legacy `+= len(report.commands)`.
@@ -400,10 +441,10 @@ def run_v1(
 
         # ── 6. Hard-stop on done_flag — do NOT re-enter planner ──────────────
         if current_map.done_flag:
-            return current_map, "done_flag"
+            return current_map, _v3_stop_reason(TerminationReason.DONE_FLAG)
 
     # Exhausted all cycles without termination.
-    return current_map, "max_cycles"
+    return current_map, _v3_stop_reason(TerminationReason.MAX_CYCLES)
 
 
 # ---------------------------------------------------------------------------
