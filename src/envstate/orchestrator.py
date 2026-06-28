@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 from typing import Any, Callable, Tuple
 
-from src.envstate.contracts.projection import refresh_host_graph as _refresh_graph
 from src.envstate.ledger import ActionLedger
 from src.envstate.maintainer import _verified_test_run_passed as _gate_passed
 from src.envstate.world_model import (
@@ -56,7 +55,6 @@ def run_v1(
     probe=None,
     manifest=None,
     exec_readonly=None,
-    enable_contract_graph: bool = False,
     enable_dep_emit: bool = False,
     enable_runtime_feedback: bool = False,
     enable_graph_scheduler: bool = False,
@@ -74,11 +72,9 @@ def run_v1(
     for the next planner.decide call (structural fix for the 'reached gate
     but never committed' failure mode).
 
-    New optional kwargs (both default off — every existing test and the A1 arm
+    New optional kwargs (all default off — every existing test and the A1 arm
     are byte-for-byte unchanged):
       exec_readonly         — callable(cmd) -> (rc: int, out: str) for read-only probes
-      enable_contract_graph — when True, runs the per-cycle host graph refresh and
-                              enforces the advisory-done readiness gate (Phase 5).
     """
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
@@ -99,16 +95,6 @@ def run_v1(
     def _current_revision() -> int:
         evs = ledger.events()
         return evs[-1].env_revision_after if evs else 0
-
-    def _host_refresh() -> None:
-        nonlocal current_map
-        if not enable_contract_graph:
-            return
-        from src.envstate.snapshot import EnvSnapshot
-        snap = probe() if probe is not None else EnvSnapshot()
-        current_map = _refresh_graph(
-            current_map, ledger, snap, exec_readonly, _current_revision()
-        )
 
     def _dep_emit_phase(cycle: int) -> None:
         nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted
@@ -290,7 +276,6 @@ def run_v1(
 
     if probe is not None and manifest is not None:
         current_map = apply_deterministic(current_map, probe(), manifest)
-    _host_refresh()
 
     for cycle in range(1, max_cycles + 1):
         # ── 0. Graph-first: certify + emit the certified closure ────────────
@@ -345,7 +330,6 @@ def run_v1(
                 # Empty recipe — nothing to execute; let maintainer decide.
                 empty_report = TaskReport("recipe", "done", (), "empty recipe")
                 current_map = maintainer.update(current_map, empty_report)
-                _host_refresh()  # self-no-ops when the graph is off
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, empty_report)
                 if current_map.done_flag:
@@ -361,16 +345,12 @@ def run_v1(
             )
             global_step += len(report.commands)
 
-            # Host refresh ONCE after the recipe (before the maintainer).
+            # Deterministic facts after recipe (before the maintainer).
             if probe is not None and manifest is not None:
                 current_map = apply_deterministic(current_map, probe(), manifest)
-            _host_refresh()
 
             # ── 3. Maintainer updates the world model ─────────────────────
             current_map = maintainer.update(current_map, report)
-
-            # ── 3b. Post-update graph refresh ─────────────────────────────
-            _host_refresh()
 
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, report)
@@ -410,18 +390,9 @@ def run_v1(
         # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
         if probe is not None and manifest is not None:
             current_map = apply_deterministic(current_map, probe(), manifest)
-        _host_refresh()  # refresh graph after commands
 
         # ── 4. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
-
-        # ── 4b. Post-update graph refresh ────────────────────────────────────
-        # maintainer.update() may have just set done_flag=True.  Refresh the
-        # host graph NOW so refresh_host_graph sees done_flag=True and emits
-        # the goal-satisfied ContractStatusEvent.  The pre-update call above
-        # already created CommandExecution nodes; this call is idempotent on
-        # those nodes and only adds the goal-satisfaction event.
-        _host_refresh()
 
         # ── 5. Notify caller (optional telemetry hook) ───────────────────────
         if on_cycle is not None:

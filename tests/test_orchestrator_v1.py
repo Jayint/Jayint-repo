@@ -341,3 +341,16 @@ class TestRunV1ReturnType:
         final_map, stop_reason = result
         assert isinstance(final_map, WorldModelMap)
         assert isinstance(stop_reason, str)
+
+
+# ---------------------------------------------------------------------------
+# Signature-guard: Task 3 — enable_contract_graph must be gone
+# ---------------------------------------------------------------------------
+
+import inspect
+from src.envstate.orchestrator import run_v1
+
+
+def test_run_v1_has_no_contract_graph_param():
+    params = inspect.signature(run_v1).parameters
+    assert "enable_contract_graph" not in params

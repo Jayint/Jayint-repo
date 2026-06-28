@@ -1339,7 +1339,6 @@ class DockerAgent:
                 manifest=_manifest,
                 on_cycle=_on_cycle,
                 exec_readonly=self.sandbox.exec_readonly,
-                enable_contract_graph=getattr(self, "enable_contract_graph", False),
                 enable_dep_emit=getattr(self, "enable_dep_emit", False),
                 enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
                 enable_graph_scheduler=getattr(self, "enable_graph_scheduler", False),
