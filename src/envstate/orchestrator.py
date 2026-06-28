@@ -24,6 +24,7 @@ from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
 from src.envstate.ledger import ActionLedger
 from src.envstate.maintainer import _verified_test_run_passed as _gate_passed
+from src.envstate.repair_loop import run_structured_repair
 from src.envstate.world_model import (
     CommandRecord,
     PlannerDecision,
@@ -361,6 +362,9 @@ def run_v3(
     _repaired_ids: set[str] = set()       # nodes given a host-first repair this run (one each)
     _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
     _budget_exhausted: bool = False
+    _known_invalid: set[str] = set()
+    _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
+    MAX_REPAIRS_PER_BLOCK: int = 5
 
     def _run_tests_verified() -> bool:
         """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
@@ -379,7 +383,7 @@ def run_v3(
         return _gate_passed(verify_report)
 
     def _dep_emit_phase(cycle: int) -> None:
-        nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted
+        nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted, _manual_blocks, _known_invalid
         if not enable_dep_emit or current_map.dep_graph is None:
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
@@ -404,7 +408,21 @@ def run_v3(
             from src.envstate.block_emit import block_emit
             graph, _bundle, _failed = block_emit(
                 graph, sandbox_execute, exec_readonly, ledger, cycle,
-            )
+                manual_blocks=_manual_blocks)
+            if _failed is not None and getattr(build_agent, "client", None) is not None:
+                _out = run_structured_repair(
+                    graph, _failed, _bundle, cycle,
+                    propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
+                    emit=lambda g, mb: block_emit(g, sandbox_execute, exec_readonly,
+                                                  ledger, cycle, manual_blocks=mb),
+                    manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+                    max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns)
+                graph = _out.graph
+                _manual_blocks = _out.manual_blocks
+                _known_invalid = set(_out.known_invalid)
+                _repair_turns -= _out.turns_spent
+                if _out.budget_exhausted or _repair_turns <= 0:
+                    _budget_exhausted = True
         else:
             graph, _reports, steps = emit_drain(
                 graph, build_agent, sandbox_execute, ledger, exec_readonly,
