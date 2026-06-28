@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.emit import partition, topo_order, _apt_name, _pip_spec
+from python_deps.depgraph.emit import partition, topo_order, _apt_name, _pip_spec, _is_reciped
 from python_deps.depgraph.schema import DepGraph, Node, NodeType
 
 
@@ -36,22 +36,37 @@ def _block_id_for(node: Node) -> str:
     return f"{node.layer.value}.{short}"
 
 
+def _block_for(node: Node) -> Block | None:
+    """Build the one-action block for an installable node, or None if it has no command."""
+    cmd = _command_for(node)
+    if not cmd:
+        return None
+    apt = _apt_name(node)
+    return Block(
+        block_id=_block_id_for(node),
+        wave=node.layer.value,
+        commands=(cmd,),
+        target_node_ids=(node.id,),
+        provider_ids=(node.chosen_fix,) if apt is not None else (),
+        check_commands=(node.check_command,) if node.check_command else (),
+    )
+
+
 def compile_blocks(graph: DepGraph) -> tuple[Block, ...]:
+    """Emit-phase compile: ONLY the emittable wave (partition().emittable = MISSING nodes
+    whose deps are satisfied). Used by the live block-emit phase."""
     if graph is None:
         return ()
     ready = topo_order(graph, partition(graph).emittable)
-    blocks: list[Block] = []
-    for n in ready:
-        cmd = _command_for(n)
-        if not cmd:
-            continue
-        apt = _apt_name(n)
-        blocks.append(Block(
-            block_id=_block_id_for(n),
-            wave=n.layer.value,
-            commands=(cmd,),
-            target_node_ids=(n.id,),
-            provider_ids=(n.chosen_fix,) if apt is not None else (),
-            check_commands=(n.check_command,) if n.check_command else (),
-        ))
-    return tuple(blocks)
+    return tuple(b for n in ready if (b := _block_for(n)) is not None)
+
+
+def compile_replay_blocks(graph: DepGraph) -> tuple[Block, ...]:
+    """Artifact/replay compile: one block per installable (_is_reciped) node, in topo
+    order, REGARDLESS of state. Reproduces the certified environment on a fresh
+    container — so SATISFIED nodes ARE included (unlike compile_blocks). Pure."""
+    if graph is None:
+        return ()
+    installable = tuple(n for n in graph.nodes if _is_reciped(n))
+    ready = topo_order(graph, installable)
+    return tuple(b for n in ready if (b := _block_for(n)) is not None)
