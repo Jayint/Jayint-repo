@@ -510,6 +510,16 @@ report the blocked step — do not attempt later steps.
 """
 
 
+V3_PROPOSE_SYSTEM_PROMPT = """\
+You are diagnosing ONE failing environment obligation inside a Docker container.
+You may run READ-ONLY diagnostics (pkg-config, apt-cache, ldconfig, pip show, ls, cat).
+You may NOT install/modify/delete — the host applies your fix, not you.
+Each turn respond with ONE of:
+  Action: <one read-only shell command>      (you will get an Observation:)
+  Final Patch: followed by exactly one fenced ```json PatchProposal object
+The patch is the ONLY accepted output — never claim success in prose."""
+
+
 # ---------------------------------------------------------------------------
 # BuildAgent
 # ---------------------------------------------------------------------------
@@ -945,6 +955,74 @@ class BuildAgent:
             ),
             completed_steps=current_step_idx,
         )
+
+    # ------------------------------------------------------------------
+    # v3 typed-patch path (inv #6)
+    # ------------------------------------------------------------------
+
+    def propose(self, scope, exec_readonly, *, max_diag_turns: int = 4, rejection_errors=()):
+        """v3 typed-patch path (inv #6): read-only ReAct -> one PatchProposal, or None."""
+        from src.envstate.repair_scope import render_repair_scope
+        from src.envstate.jsonutil import extract_json_object
+        from python_deps.depgraph.patch import parse_patch_proposal, PatchParseError
+
+        user = render_repair_scope(scope)
+        if rejection_errors:
+            user += ("\n\nYour previous patch was REJECTED by the gate:\n"
+                     + "\n".join(f"- {e}" for e in rejection_errors)
+                     + "\nFix these and re-emit ONE corrected fenced ```json patch.")
+        messages = [
+            {"role": "system", "content": V3_PROPOSE_SYSTEM_PROMPT},
+            {"role": "user", "content": user},
+        ]
+
+        def _parse(text):
+            obj = extract_json_object(text)
+            if obj is None:
+                return None, "no JSON object found"
+            try:
+                return parse_patch_proposal(obj), None
+            except PatchParseError as exc:
+                return None, "; ".join(exc.errors)
+
+        retried = False
+        for _turn in range(max_diag_turns + 1):
+            text, usage, raw = complete_with_retry(
+                self.client, self.model, messages, temperature=0, stop=["Observation:"])
+            if self.on_usage:
+                self.on_usage(usage)
+            log_llm_exchange("build_agent_propose", raw, parsed={"turn": _turn})
+
+            if "Final Patch" in text or extract_json_object(text) is not None:
+                proposal, err = _parse(text)
+                if proposal is not None and not proposal.is_empty():
+                    return proposal
+                if retried:
+                    return None
+                retried = True
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content": (
+                        f"That was not a valid PatchProposal ({err}). Re-emit EXACTLY one "
+                        f"fenced ```json object matching the schema. No prose after it.")}]
+                continue
+
+            action = _extract_worker_action(text)
+            if not action.strip():
+                if retried:
+                    return None
+                retried = True
+                messages = messages + [
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content":
+                        "Emit either 'Action: <read-only cmd>' or a Final Patch fenced ```json object."}]
+                continue
+            rc, out = exec_readonly(action)
+            messages = messages + [
+                {"role": "assistant", "content": text},
+                {"role": "user", "content":
+                    f"Observation: [{'ok' if rc == 0 else 'FAILED'}]\n{_truncate_output(out)}"}]
+        return None
 
     # ------------------------------------------------------------------
     # Private helpers
