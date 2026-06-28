@@ -5,9 +5,19 @@ All collaborators are faked — no LLM calls, no Docker containers.
 """
 from __future__ import annotations
 
+import inspect
+import sys
+from pathlib import Path
 import pytest
 from dataclasses import dataclass
 from typing import Callable
+
+# Put <repo>/src on sys.path so python_deps.* resolves when enable_graph_scheduler=True
+# triggers the lazy import in graph_scheduler.py (mirrors test_graph_scheduler_wiring.py).
+_ROOT = Path(__file__).resolve().parents[1]
+_SRC = _ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import (
@@ -347,10 +357,64 @@ class TestRunV1ReturnType:
 # Signature-guard: Task 3 — enable_contract_graph must be gone
 # ---------------------------------------------------------------------------
 
-import inspect
-from src.envstate.orchestrator import run_v1
-
-
 def test_run_v1_has_no_contract_graph_param():
     params = inspect.signature(run_v1).parameters
     assert "enable_contract_graph" not in params
+
+
+# ---------------------------------------------------------------------------
+# v3 smoke: graph-scheduler reaches planner_done on a clean graph
+# ---------------------------------------------------------------------------
+
+def _world_map_with_clean_dep_graph() -> WorldModelMap:
+    """WorldModelMap with dep_graph=None: scheduler frontier is empty.
+
+    next_decision(None, run_tests=passing) → 'done' immediately.
+    Mirrors the fixture pattern from test_graph_scheduler_wiring._missing_node_map()
+    but uses the off-None path (no nodes at all = clean frontier).
+    """
+    return _base_map()
+
+
+class _UnusedPlanner:
+    """Explodes if planner.decide is ever called (graph-scheduler bypasses it)."""
+    def decide(self, world_map):
+        raise AssertionError("planner.decide must not be called in graph-scheduler mode")
+
+
+class _NoopBuildAgent:
+    """build_agent stub — never called when next_decision returns 'done' immediately."""
+    def run(self, task, sandbox_execute, ledger, step_offset=0, check=None, budget=None):
+        raise AssertionError("build_agent.run must not be called when scheduler yields done")
+
+    def run_recipe(self, recipe, sandbox_execute, ledger, step_offset=0):
+        raise AssertionError("build_agent.run_recipe must not be called here")
+
+
+class _NoopMaintainer:
+    """Passes world_map through unchanged — never called on the done path."""
+    def update(self, world_map, report):
+        return world_map
+
+
+def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
+    """With graph-scheduler on and an already-satisfied graph + passing tests,
+    run_v1 terminates via the scheduler's done path (no contract-graph needed).
+
+    Characterization smoke for the v3 arm: dep_graph=None (clean frontier),
+    sandbox_execute returns '1 passed' → _run_tests_verified returns True →
+    next_decision(None, run_tests=True) returns 'done' → stop == 'planner_done'.
+    """
+    monkeypatch.setenv("DOCKERAGENT_ENABLE_SERVICE_PROVISION", "0")
+    # clean dep-graph (dep_graph=None → empty frontier) + tests pass → done
+    world = _world_map_with_clean_dep_graph()
+
+    def passing_exec(cmd):
+        return (True, "1 passed")
+
+    final_map, stop = run_v1(
+        _UnusedPlanner(), _NoopBuildAgent(), _NoopMaintainer(),
+        world, ActionLedger(), passing_exec, max_cycles=3,
+        enable_graph_scheduler=True, enable_dep_emit=True, enable_runtime_feedback=True,
+    )
+    assert stop == "planner_done"

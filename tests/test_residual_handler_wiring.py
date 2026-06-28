@@ -265,7 +265,7 @@ def test_runtime_ingest_merges_discovered_node_on_graph_arm():
     while `orchestrator.py` did not `import os`, so every cycle raised NameError
     *before* the merge_map that writes discovered nodes back. The bare
     `except Exception` suppressed it, so the runtime-feedback loop was silently
-    dead on v1gs/v1gsp/v1gsps and no existing test caught it (they assert the
+    dead on v1gs/v1gsp/v3 and no existing test caught it (they assert the
     ABSENCE of give-up, which the NameError also produced).
 
     RED (missing `import os`): NameError -> merge skipped -> node absent.

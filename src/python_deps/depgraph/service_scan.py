@@ -241,7 +241,7 @@ def _service_node(kind: str, *, confidence: str, discovered_by: DiscoveredBy,
 def scan_services(repo_path: str, graph: DepGraph, *, bind_env: bool = False) -> DepGraph:
     """Append confidence-annotated SERVICE nodes (design 2026-06-25 §5). NEW graph.
 
-    ``bind_env`` (arm ``v1gsps``, default off) gates ONLY the NEW compose/CI
+    ``bind_env`` (arm ``v3``, default off) gates ONLY the NEW compose/CI
     ``environment:`` DB-URL absorption onto confirmed service nodes; off it,
     this stage is byte-identical to the pre-binding behaviour (the always-on
     inferred CONFIG-URL binding path below is unaffected).

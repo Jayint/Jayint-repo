@@ -101,17 +101,13 @@ def test_completed_steps_are_not_marked_failed() -> None:
         probe=lambda: EnvSnapshot(installed=(), env={"python_version": "3.11"}),
         manifest=type("M", (), {"required": (Fact("burr", ""),), "build_system": "pip"})(),
         exec_readonly=lambda c: (0, "{}"),
-        enable_contract_graph=True,
     )
 
     assert ba.recipes, "build_agent.run_recipe must have been called"
-    outcomes = _outcomes_by_intent(final_map)
-
-    # The two steps whose command succeeded must NOT be 'failed'.
-    assert outcomes["s1"] != "failed", outcomes
-    assert outcomes["s2"] != "failed", outcomes
-    assert outcomes["s1"] in ("ok", "ok_but_still_blocked"), outcomes
-    assert outcomes["s2"] in ("ok", "ok_but_still_blocked"), outcomes
-
-    # The third step (which actually failed) MUST be 'failed'.
-    assert outcomes["s3"] == "failed", outcomes
+    # Per-step Attempt outcome tracking (BUG-10 regression guard) was implemented
+    # in the contract-graph Attempt layer, which was removed in Phase 1 Task 3
+    # (enable_contract_graph param deleted; contract_graph.attempts() always empty).
+    # The core assertion — build_agent.run_recipe is invoked — remains above.
+    assert reason in ("planner_giveup", "max_cycles"), (
+        f"expected recipe to exhaust cycles or give up; got {reason!r}"
+    )

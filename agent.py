@@ -1762,7 +1762,7 @@ class DockerAgent:
                 from src.envstate.synthesis import bakeable_config_env
                 for name, value in bakeable_config_env(graph, exclude=frozenset(already)):
                     self.synthesizer.add_env_instruction(name, value)
-            # Binding bake pass (arm v1gsps): a host-SATISFIED service-binding
+            # Binding bake pass (arm v3): a host-SATISFIED service-binding
             # CONFIG node's corrected URL must take PRECEDENCE over any stale
             # original URL the ledger/config passes baked for the same var.
             # Runs LAST so add_env_instruction's last-call wins; off-arm or an

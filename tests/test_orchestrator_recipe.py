@@ -92,7 +92,6 @@ def test_run_v1_drives_recipe_and_commits_attempts() -> None:
         probe=lambda: EnvSnapshot(installed=(), env={"python_version": "3.11"}),
         manifest=type("M", (), {"required": (Fact("opencv-python", ""),), "build_system": "pip"})(),
         exec_readonly=lambda c: (0, "{}"),
-        enable_contract_graph=True,
     )
     assert ba.recipes, "build_agent.run_recipe must have been called"
     assert ba.recipes[0].steps[0].command == "apt-get install -y libgl1"

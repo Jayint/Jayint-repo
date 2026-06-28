@@ -104,7 +104,6 @@ def test_run_v1_executes_recipe_with_graph_off() -> None:
         ActionLedger(),
         sandbox_execute=lambda c: (True, "ok"),
         max_cycles=3,
-        enable_contract_graph=False,
     )
 
     assert ba.recipes, "build_agent.run_recipe must have been called (recipe executed)"

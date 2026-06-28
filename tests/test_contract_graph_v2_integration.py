@@ -173,20 +173,12 @@ def test_maintainer_done_flag_marks_goal_satisfied() -> None:
         probe=lambda: EnvSnapshot(installed=(Fact("torch", "2.1.0"),)),
         manifest=type("M", (), {"required": (Fact("torch", ""),), "build_system": "pip"})(),
         exec_readonly=lambda c: (0, ""),
-        enable_contract_graph=True,
     )
 
     assert reason == "done_flag"
     assert final_map.done_flag is True
-
-    g = final_map.contract_graph
-    assert GOAL_TESTS_PASS in final_map.host_satisfied, (
-        "GOAL_TESTS_PASS must enter host_satisfied after maintainer sets done_flag "
-        "and a real pytest execution (5 passed) is in the ledger"
-    )
-    assert goal_ready(g, final_map.host_satisfied), (
-        "goal_ready must be True once GOAL_TESTS_PASS is satisfied"
-    )
+    # Contract-graph host_satisfied wiring was removed in Phase 1 Task 3 (enable_contract_graph
+    # param deleted).  The core invariant — done_flag fires correctly — is preserved above.
 
 
 def test_collect_only_does_not_satisfy_goal() -> None:
@@ -229,9 +221,10 @@ def test_collect_only_does_not_satisfy_goal() -> None:
             probe=lambda: EnvSnapshot(installed=(Fact("torch", "2.1.0"),)),
             manifest=type("M", (), {"required": (Fact("torch", ""),), "build_system": "pip"})(),
             exec_readonly=lambda c: (0, ""),
-            enable_contract_graph=True,
         )
 
+        # enable_contract_graph removed in Task 3; host_satisfied is always frozenset()
+        # and contract_graph is always empty — assertions hold trivially (non-regression).
         g = final_map.contract_graph
         assert GOAL_TESTS_PASS not in final_map.host_satisfied, (
             f"Goal must NOT be satisfied for cmd={cmd!r}, stdout={stdout!r}; "

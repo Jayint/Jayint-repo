@@ -34,7 +34,7 @@ _LAYER_ORDER: tuple[Layer, ...] = (
 )
 
 # Services join the walk LAST (after the server binary/SystemLib is installed);
-# only used on the live in-image path (arm v1gsps). Never used off-arm.
+# only used on the live in-image path (arm v3). Never used off-arm.
 _SERVICE_LAYER_ORDER: tuple[Layer, ...] = _LAYER_ORDER + (Layer.SERVICES,)
 
 
@@ -68,7 +68,7 @@ def certify(
     if node is None or not node.check_command:
         return graph
     # Services are reachability-certified only on the live in-image path (arm
-    # v1gsps) and only when CONFIRMED. Off-arm / inferred: stay UNKNOWN (design
+    # v3) and only when CONFIRMED. Off-arm / inferred: stay UNKNOWN (design
     # §4.3). The scratch container cannot host the daemon, so the scratch
     # certify_all call leaves allow_service_certify=False.
     if node.type is NodeType.SERVICE:
@@ -106,7 +106,7 @@ def certify_all(
 
     Pass ``allow_service_certify=True`` and ``layer_order=_SERVICE_LAYER_ORDER``
     (via ``certify_refresh``) to also certify confirmed SERVICE nodes on the live
-    in-image path (arm v1gsps).
+    in-image path (arm v3).
     """
     new = graph
     for layer in layer_order:

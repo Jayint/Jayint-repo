@@ -86,8 +86,15 @@ class FakeSandbox:
 class FakeSynth:
     base_image = "python:3.12-slim"
     workdir = "/app"
+    MIN_PASS_RATIO = 0.8
     def command_mutates_environment(self, cmd): return False
     def classify_mutation(self, cmd): return "noop"
+    def observation_pass_ratio(self, out):
+        # Minimal stub: return 1.0 for any passing output, None otherwise.
+        # Used by _record_v1_in_build_pass_signal (added in Phase 1).
+        import re
+        return 1.0 if re.search(r"\b[1-9]\d*\s+passed\b", out or "", re.IGNORECASE) else None
+    def observation_has_ambiguous_error_signal(self, out): return False
 
 
 class RunV1IntegrationTest(unittest.TestCase):
