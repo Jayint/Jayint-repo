@@ -252,3 +252,30 @@ def test_b3_ablation_does_not_use_propose(_v3_task_fixture_b3):
     assert _v3_task_fixture_b3.run_calls >= 1, (
         "build_agent.run was never called in the B3 ablation path"
     )
+
+
+def test_obligation_task_without_exec_readonly_falls_to_freetext(monkeypatch):
+    """Obligation task + enable_script_materialization=True but exec_readonly=None
+    must NOT enter the typed-repair path (which would crash at certify_refresh).
+    Instead it must fall through to build_agent.run (free-text path).
+
+    Regression guard for I-1: missing ``exec_readonly is not None`` guard.
+    """
+    inputs = _make_run_v3_inputs(
+        task=_obligation_task(),
+        enable_script_materialization=True,
+    )
+    # Override exec_readonly to None to reproduce the crash scenario
+    inputs["exec_readonly"] = None
+
+    bundle = _FixtureBundle(inputs, _obligation_task(), monkeypatch)
+    bundle.run()
+
+    assert bundle.repair_calls == 0, (
+        "run_structured_repair was called with exec_readonly=None; "
+        "this would crash at certify_refresh(graph, None, cycle)"
+    )
+    assert bundle.run_calls >= 1, (
+        "build_agent.run was never called; obligation task with exec_readonly=None "
+        "must fall through to the free-text path"
+    )

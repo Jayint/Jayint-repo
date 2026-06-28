@@ -634,6 +634,7 @@ def run_v3(
         task = decision.task
         _targets = getattr(task, "target_node_ids", ()) or ()
         if (_targets and enable_script_materialization
+                and exec_readonly is not None
                 and getattr(build_agent, "client", None) is not None):
             from src.envstate.block_emit import block_emit
             from python_deps.depgraph.patch_gate import compose_script
