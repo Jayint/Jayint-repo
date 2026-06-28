@@ -1205,7 +1205,9 @@ class DockerAgent:
         )
         if getattr(self, "enable_deterministic_maintainer", False):
             from src.envstate.deterministic_maintainer import DeterministicMaintainer
-            maintainer = DeterministicMaintainer()
+            maintainer = DeterministicMaintainer(
+                v3_only=getattr(self, "enable_graph_scheduler", False)
+            )
         else:
             maintainer = _Maintainer(
                 self.client,

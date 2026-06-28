@@ -168,3 +168,40 @@ def test_only_failing_command_in_mixed_report_yields_blocker():
     assert len(patch.add_blockers) == 1
     assert len(patch.add_contracts) == 1
     assert patch.add_blockers[0].data["layer"] == "system"
+
+
+# ---------------------------------------------------------------------------
+# Task 2 (C1): v3_only param + _v3_done_gate
+# ---------------------------------------------------------------------------
+
+
+def _world_map_with_blockers():
+    """A WorldModelMap with a non-empty contract_graph (built by maintain())."""
+    return maintain(
+        _base_map(),
+        _report("pip install psycopg2", 1, "Error: pg_config: command not found"),
+    )
+
+
+def test_v3_only_maintainer_does_not_write_contract_graph():
+    m = DeterministicMaintainer(v3_only=True)
+    base = _world_map_with_blockers()  # map with a non-empty contract_graph baseline
+    report = _report("pytest", 1, "ModuleNotFoundError: No module named 'foo'")
+    out = m.update(base, report)
+    assert out.contract_graph == base.contract_graph  # unchanged — no blocker write in v3
+
+
+def test_v3_only_maintainer_sets_done_flag_on_verified_pass():
+    m = DeterministicMaintainer(v3_only=True)
+    base = _base_map()
+    report = TaskReport("t", "done", (CommandRecord("python -m pytest -q", 0, "3 passed"),), "")
+    out = m.update(base, report)
+    assert out.done_flag is True
+
+
+def test_default_maintainer_still_writes_blockers():
+    m = DeterministicMaintainer()  # v3_only defaults False → v1 behavior preserved
+    base = _base_map()
+    report = _report("pytest", 1, "ModuleNotFoundError: No module named 'bar'")
+    out = m.update(base, report)
+    assert out.contract_graph.nodes  # blocker written (v1 path unchanged)

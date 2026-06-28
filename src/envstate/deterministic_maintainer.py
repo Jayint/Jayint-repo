@@ -93,8 +93,34 @@ def maintain(current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
     )
 
 
+def _v3_done_gate(current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+    """v3-only done-gate: set done_flag + sync progress. No contract_graph write.
+
+    The dep-graph is the sole world-model in v3; the blocker patch is vestigial
+    there. Anti-hollow: still requires _verified_test_run_passed (host evidence),
+    never finalizes on LLM/action say-so.
+    """
+    done = current_map.done_flag or _verified_test_run_passed(report)
+    progress_update = _progress_synced_with_done(current_map, done)
+    if done == current_map.done_flag and progress_update is None:
+        return current_map  # no-op fast path
+    return merge_map(current_map, done_flag=done, progress=progress_update)
+
+
 class DeterministicMaintainer:
-    """Duck-typed stand-in for Maintainer (exposes .update)."""
+    """Duck-typed stand-in for Maintainer (exposes .update).
+
+    v3_only=True activates the slim done-gate path (_v3_done_gate): only
+    done_flag + progress are written; contract_graph is left untouched because
+    dep_graph is the sole world-model in the v3/graph-scheduler arm.
+    The default (v3_only=False) delegates to maintain() unchanged — v1 behavior
+    is byte-for-byte preserved.
+    """
+
+    def __init__(self, *, v3_only: bool = False) -> None:
+        self._v3_only = v3_only
 
     def update(self, current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+        if self._v3_only:
+            return _v3_done_gate(current_map, report)
         return maintain(current_map, report)
