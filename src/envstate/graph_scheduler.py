@@ -13,6 +13,7 @@ from python_deps.depgraph.schema import DepGraph
 from python_deps.depgraph.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
+from src.envstate.constants import VERIFY_TEST_CMD
 from src.envstate.world_model import PlannerDecision, Task
 
 
@@ -51,9 +52,6 @@ def packet_to_task(packet: ObligationPacket) -> Task:
 
 
 def _discover_task() -> Task:
-    # Lazy import: orchestrator imports this module, so import its constant at call
-    # time to avoid a circular import and keep a single source of truth.
-    from src.envstate.orchestrator import VERIFY_TEST_CMD
     return Task(
         goal=(
             "All known requirements are satisfied but the test suite still fails. "

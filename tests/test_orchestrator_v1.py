@@ -338,13 +338,13 @@ def test_done_branch_returns_planner_done_immediately():
 # ---------------------------------------------------------------------------
 
 def test_termination_reason_maps_to_legacy_strings():
-    from src.envstate.orchestrator import TerminationReason, _v3_stop_reason
-    assert _v3_stop_reason(TerminationReason.DONE) == "planner_done"
-    assert _v3_stop_reason(TerminationReason.DONE_FLAG) == "done_flag"
-    assert _v3_stop_reason(TerminationReason.GIVEUP_RESIDUAL) == "planner_giveup"
-    assert _v3_stop_reason(TerminationReason.GIVEUP_BUDGET) == "planner_giveup"
-    assert _v3_stop_reason(TerminationReason.GIVEUP_STUCK) == "planner_giveup"
-    assert _v3_stop_reason(TerminationReason.MAX_CYCLES) == "max_cycles"
+    from src.envstate.orchestrator import TerminationReason, _to_stop_reason
+    assert _to_stop_reason(TerminationReason.DONE) == "planner_done"
+    assert _to_stop_reason(TerminationReason.DONE_FLAG) == "done_flag"
+    assert _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL) == "planner_giveup"
+    assert _to_stop_reason(TerminationReason.GIVEUP_BUDGET) == "planner_giveup"
+    assert _to_stop_reason(TerminationReason.GIVEUP_STUCK) == "planner_giveup"
+    assert _to_stop_reason(TerminationReason.MAX_CYCLES) == "max_cycles"
 
 
 class TestRunV1ReturnType:

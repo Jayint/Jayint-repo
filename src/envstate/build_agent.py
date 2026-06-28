@@ -136,7 +136,12 @@ def _reconstruct_plain_heredoc(content: str, action_start: int) -> str:
     op = _RE_HEREDOC_OP.search(tail.splitlines()[0] if tail else "")
     if not op:
         return tail.splitlines()[0] if tail else ""
-    delim = re.search(r"([A-Za-z_]\w*)\s*$", op.group(0)).group(1)
+    delim_match = re.search(r"([A-Za-z_]\w*)\s*$", op.group(0))
+    if not delim_match:
+        # Operator matched but no trailing delimiter word (unusual spacing/quoting):
+        # fall back to the opener line rather than raising AttributeError.
+        return tail.splitlines()[0] if tail else ""
+    delim = delim_match.group(1)
     lines = tail.splitlines()
     kept = [lines[0]]
     found = False
@@ -552,12 +557,17 @@ class BuildAgent:
         check: str | None = None,
         budget: int = LOCAL_BUDGET,
     ) -> TaskReport:
-        """Mini-ReAct loop capped at LOCAL_BUDGET shell actions.
+        """Mini-ReAct loop capped at ``budget`` LLM turns (default LOCAL_BUDGET).
+
+        Each loop iteration is one LLM call; composition rejections and
+        empty-response re-prompts ``continue`` without executing a shell command,
+        so the budget counts LLM turns, not shell actions (``steps_executed``
+        tracks actual shell calls separately).
 
         Returns TaskReport(status='done') when the LLM emits
-        "Final Answer: Success" for the task's done_when criterion.
-        Returns TaskReport(status='blocked') on budget exhaustion or
-        the stuck guard firing.
+        "Final Answer: Success" for the task's done_when criterion (or, in
+        host-check mode, when ``check`` passes). Returns TaskReport(status=
+        'blocked') on budget exhaustion or the stuck guard firing.
         """
         history: list[CommandRecord] = []
         messages: list[dict] = [
