@@ -2231,6 +2231,19 @@ class DockerAgent:
         self.memory_stats["retrieval_hits"] += len(results)
         return self.memory_manager.format_retrieval_results(results)
 
+    def _persist_setup_sh(self, text):
+        """Write the rendered setup.sh into the run's log dir as the audit/replay artifact.
+        No-op when no log dir is set (e.g. unit tests)."""
+        import os
+        d = getattr(self, "setup_log_dir", None) or getattr(self, "logs_dir", None)
+        if not d:
+            return
+        try:
+            with open(os.path.join(d, "setup.sh"), "w") as fh:
+                fh.write(text)
+        except OSError:
+            pass
+
     def _synthesize_final_build_recipe(self, drop_replayed_state=False):
         """Assemble the Dockerfile build commands from the ActionLedger.
 
@@ -2241,6 +2254,31 @@ class DockerAgent:
         this mode an empty irreducible list is valid (the file/closure layers are added
         by the caller afterwards), so we always apply and return True.
         """
+        if (getattr(self, "enable_script_materialization", False)
+                and getattr(self, "_final_dep_graph", None) is not None):
+            # v3 (design §5.2): the compiled setup.sh is the install spine — graph-sourced,
+            # NOT ledger replay (invariant #1 / §18 #2). compile_replay_blocks (state-independent)
+            # reproduces the certified closure; compile_blocks would be empty here (all SATISFIED).
+            # The pinned closure + config ENV + file captures are appended AFTER, by
+            # _finalize_supervisor_artifacts (_emit_closure_recipe / _bake_test_env_vars /
+            # _emit_interleaved_state_recipe) — so this early return does not drop them.
+            from python_deps.depgraph.block import compile_replay_blocks
+            from python_deps.depgraph.script import render_setup_sh
+            blocks = compile_replay_blocks(self._final_dep_graph)
+            build_commands = [c for b in blocks for c in b.commands]
+            self._persist_setup_sh(render_setup_sh(blocks))      # audit/replay artifact
+            self.synthesizer.apply_build_recipe({
+                "build_commands": build_commands,
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": [],
+                "excluded_commands": [],
+                "rationale": "Compiled from the certified dep-graph (setup.sh spine).",
+                "confidence": "high",
+            })
+            self.build_recipe = {"build_commands": build_commands, "source": "compiled_setup_sh"}
+            self.build_recipe_source = "compiled_setup_sh"
+            return True
         if getattr(self, "enable_envstate", False) and self.action_ledger is not None:
             from src.envstate.synthesis import build_commands_from_ledger
             ledger_commands = build_commands_from_ledger(
