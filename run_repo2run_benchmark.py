@@ -224,8 +224,12 @@ def build_agent_command(
     # enable_service_provision: agent.py reads DOCKERAGENT_ENABLE_SERVICE_PROVISION
     # from os.environ only (~:1154); there is NO --enable-service-provision CLI flag,
     # so we inject the env var instead of appending a flag.
+    # The else-branch is mandatory: without it the env var leaks into subsequent
+    # calls (e.g. a v3-arm run followed by a v0-arm run in the same process).
     if getattr(args, "enable_service_provision", False):
         os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1"
+    else:
+        os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
 
     return command
 
@@ -3376,7 +3380,7 @@ def parse_args() -> argparse.Namespace:
             "v1=three-role orchestrator Planner/BuildAgent/Maintainer "
             "(--enable-v1 --enable-cleanroom --steps 12); "
             "v3=full graph-scheduled stack (--enable-graph-scheduler --enable-runtime-pin "
-            "--enable-service-provision, --steps 12). "
+            "--enable-service-provision; --steps 12). "
             "Overrides the individual --enable-* flags and --max-steps when set. "
             "Outputs land under <output-root>/arm{0,v1,v3}_<label>/."
         ),
