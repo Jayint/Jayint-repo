@@ -25,8 +25,18 @@ _KIND_PREFIX: dict[NodeType, str] = {
     NodeType.IMPORT: "import:", NodeType.PROJECT: "project:",
 }
 _ALLOWED_PROMOTION = frozenset({"hint", "candidate"})
+_BENIGN_REDIR = re.compile(r"\s*(?:\d?>>?\s*/dev/null|\d?>&\d)")
 _MUTATING = re.compile(
-    r"(\bapt-get\s+install\b|\bpip\s+install\b|\bnpm\s+(install|ci)\b|\brm\s|\bmkdir\s|>>|>)")
+    r"(\bapt-get\s+install\b|\bapt\s+install\b|\bpip\d?\s+install\b|\bnpm\s+(?:install|ci)\b"
+    r"|\brm\b|\bmkdir\b|\bmv\b|\bcp\b|\btee\b|\bdd\b|\btruncate\b|\bln\s+-s\b"
+    r"|\bcurl\b|\bwget\b|>>|>)")
+
+
+def is_read_only(cmd: str) -> bool:
+    """True when *cmd* performs no env mutation. Benign /dev/null and fd-dup (2>&1)
+    redirects are stripped first. Load-bearing: admitted check_commands are host-executed."""
+    scrubbed = _BENIGN_REDIR.sub("", cmd or "")
+    return not _MUTATING.search(scrubbed)
 
 
 def _node_type(value: str) -> NodeType | None:
@@ -67,7 +77,7 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
                         f"(only {sorted(_ALLOWED_PROMOTION)} or none; SATISFIED is host-only)")
         if not r.evidence_ref or r.evidence_ref not in known_evidence_ids:
             errs.append(f"requirement {r.id} cites unknown/absent evidence {r.evidence_ref!r}")
-        if r.check_command and _MUTATING.search(r.check_command):
+        if r.check_command and not is_read_only(r.check_command):
             errs.append(f"check command for {r.id} is not read-only: {r.check_command!r}")
         # conflicting redefinition vs graph
         cur = graph.get(r.id)
@@ -88,7 +98,7 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
             if nid not in known_after:
                 errs.append(f"script block {s.block_id} targets unknown node {nid!r}")
         for chk in s.checks:
-            if _MUTATING.search(chk):
+            if not is_read_only(chk):
                 errs.append(f"script block {s.block_id} check is not read-only: {chk!r}")
 
     # edges: replicate EDGE_RULES against the post-add_requirements view (with_edge would RAISE).
