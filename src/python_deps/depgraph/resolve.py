@@ -22,6 +22,11 @@ roots are dropped and the lock is retried so the remaining good roots still yiel
 a graph; the dropped roots are surfaced as ``missing`` Package nodes (+ conflict
 edges) with evidence.  A degraded ``uv pip compile`` ``# via`` parse is kept only
 as a last-resort fallback when ``uv.lock`` cannot be produced at all.
+
+Implementation note: the three parsing concerns are split into focused modules
+(resolve_lock, resolve_errors, resolve_link); this module re-exports all their
+public symbols and contains the orchestration layer (resolve_closure,
+_pip_compile_fallback) that ties them together.
 """
 
 from __future__ import annotations
@@ -30,9 +35,7 @@ import contextlib
 import os
 import re
 import shlex
-import shutil
 import tempfile
-from dataclasses import dataclass, replace
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
     import tomllib
@@ -40,811 +43,82 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.ids import package_id
-from python_deps.depgraph.schema import (
-    DepGraph,
-    DiscoveredBy,
-    Edge,
-    EdgeType,
-    Layer,
-    Node,
-    NodeType,
-    State,
+
+# --------------------------------------------------------------------------- #
+# Re-exports from sub-modules (keep every previously-public name importable
+# from python_deps.depgraph.resolve without changes at any call site).
+# --------------------------------------------------------------------------- #
+from python_deps.depgraph.resolve_lock import (
+    UV_BIN,
+    DEFAULT_TARGET_PLATFORM,
+    _DIST_NAME_RE,
+    _REQUIREMENT_RE,
+    _REQ_NAME_RE,
+    _PY_VERSION_RE,
+    _LOCAL_SOURCE_KEYS,
+    _safe_dist_names,
+    _req_name,
+    _validate_target_python,
+    _canon,
+    _python_marker_env,
+    _marker_applies,
+    _version_key,
+    _entry_applies,
+    _select_applicable_packages,
+    _prune_to_applicable,
+    _package_node,
+    _is_local_source,
+    parse_uv_lock,
+    _artifact_filename,
+    _wheel_matches_platform,
+    native_risk_from_lock,
 )
-from python_deps.import_mapping import map_import_to_package
+from python_deps.depgraph.resolve_errors import (
+    MissingPackage,
+    VersionConstraint,
+    VersionConflict,
+    PythonIncompat,
+    ResolverDiagnosis,
+    _REGISTRY_MISS_RE,
+    _NO_VERSION_RE,
+    _NO_VERSION_PLAIN_RE,
+    _YOU_REQUIRE_RE,
+    _DEPENDS_ON_RE,
+    _PY_INCOMPAT_RE,
+    _PY_IMPOSER_BEFORE_RE,
+    _PY_IMPOSER_AFTER_RE,
+    _BUILD_FAILURE_RE,
+    _UNUSABLE_RE,
+    _excerpt,
+    parse_resolver_error,
+    _missing_package_node,
+    _conflict_package_node,
+    _ROOT_IMPOSER_NAMES,
+    _real_imposer,
+    _conflict_endpoint_node,
+    _conflict_endpoints,
+    _diagnosis_to_graph,
+    _offending_root_names,
+)
+from python_deps.depgraph.resolve_link import (
+    _stamp,
+    _import_edges,
+    link_imports_to_packages,
+    _merge,
+)
+from python_deps.depgraph.schema import Edge, EdgeType, Node
 
-# Locked decision 1: the 'uv' binary, invoked (never imported) via the Executor.
-# Resolution happens HOST-side (cross-platform resolve needs no container
-# interpreter), so resolve from the host PATH; fall back to the bare name so the
-# executor's PATH resolves it at run time.
-UV_BIN = shutil.which("uv") or "uv"
-
-# Default container target when the caller does not detect/inject one. NEVER
-# manylinux2014 (silently downgrades e.g. numpy) — use the modern 2_28 baseline.
-DEFAULT_TARGET_PLATFORM = "x86_64-manylinux_2_28"
-
+# --------------------------------------------------------------------------- #
+# Constants local to the orchestration / fallback layer.
+# --------------------------------------------------------------------------- #
 # Heredoc delimiter for feeding the root requirements on stdin (fallback path).
 _HEREDOC = "DEPGRAPH_REQS"
 
 # A pinned line, e.g. ``opencv-python==4.9.0.80`` (fallback path only).
 _PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;#]+)")
 
-# A plausible PEP 508 requirement — a distribution name with optional extras and
-# an optional version specifier (e.g. ``urllib3<1.21`` / ``numpy>=2,<3``).  The
-# allowed alphabet excludes quotes, spaces, newlines, slashes and shell
-# metacharacters so nothing untrusted can break out of a TOML string or a heredoc
-# body.  Version constraints are kept so the resolver can detect conflicts.
-_DIST_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-_REQUIREMENT_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]*"  # distribution name
-    r"(?:\[[A-Za-z0-9._,-]+\])?"  # optional extras
-    r"[<>=!~,.*+A-Za-z0-9_!-]*$"  # optional version specifier(s)
-)
-# The bare distribution name at the head of a requirement token (drops the
-# extras/specifier) — used for case/separator-insensitive node matching.
-_REQ_NAME_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)")
-# A simple ``X.Y`` / ``X.Y.Z`` python version, for the resolve target.
-_PY_VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)*$")
-
-
-def _safe_dist_names(dist_names: list[str]) -> list[str]:
-    """Keep only injection-safe requirement tokens (name + optional specifier)."""
-    return [d for d in dist_names if _REQUIREMENT_RE.match(d)]
-
-
-def _req_name(token: str) -> str:
-    """Bare distribution name of a requirement token (``urllib3<1.21`` -> ``urllib3``)."""
-    match = _REQ_NAME_RE.match(token.strip())
-    return match.group(1) if match else token.strip()
-
-
-def _validate_target_python(target_python: str) -> str:
-    """Return ``target_python`` if it is a plain version, else raise."""
-    if not _PY_VERSION_RE.match(target_python):
-        raise ValueError(f"invalid target python version: {target_python!r}")
-    return target_python
-
 # Tokens that mark an annotation source rather than a parent distribution.
 _SOURCE_FLAGS = {"-r", "-c", "--requirement", "--constraint"}
-
-# uv.lock source kinds that denote the *local* project (the synthetic resolve
-# root or a path/editable dependency) rather than an installable distribution.
-_LOCAL_SOURCE_KEYS = frozenset({"virtual", "editable", "directory"})
-
-
-def _canon(name: str) -> str:
-    """PEP 503-style normalization for case/separator-insensitive matching."""
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-# --------------------------------------------------------------------------- #
-# Forked-version resolution: pick the ONE package version applicable to the
-# target python when a uv.lock forks a dependency across python markers.
-# --------------------------------------------------------------------------- #
-def _python_marker_env(target_python: str) -> dict[str, str]:
-    """Marker-evaluation environment for ``target_python`` (e.g. ``"3.11"``).
-
-    ``python_version`` keeps two components (``3.11``); ``python_full_version``
-    is padded to three (``3.11.0``) so ``python_full_version < '3.12'`` style
-    fork markers evaluate correctly.
-    """
-    parts = [p for p in target_python.split(".") if p]
-    version = ".".join(parts[:2]) if len(parts) >= 2 else target_python
-    full = ".".join((parts + ["0", "0"])[:3]) if parts else target_python
-    return {"python_version": version, "python_full_version": full}
-
-
-def _marker_applies(marker: str, env: dict[str, str]) -> bool | None:
-    """Evaluate a resolution ``marker`` for ``env``; ``None`` if not evaluable.
-
-    ``packaging`` is a near-universal transitive dependency, but its absence (or
-    a malformed marker) must not crash the resolver — the caller treats ``None``
-    as "unknown" and falls back to a deterministic version pick.
-    """
-    try:
-        from packaging.markers import Marker
-    except ImportError:
-        return None
-    try:
-        return bool(Marker(marker).evaluate(env))
-    except Exception:
-        return None
-
-
-def _version_key(version: str | None):
-    """Sort key for picking the highest version (packaging-aware, str fallback)."""
-    if not version:
-        return (0,)
-    try:
-        from packaging.version import Version
-
-        return (1, Version(version))
-    except Exception:
-        return (0, version)
-
-
-def _entry_applies(pkg: dict, env: dict[str, str]) -> bool | None:
-    """Whether a forked ``[[package]]`` applies under ``env``.
-
-    A package with no ``resolution-markers`` always applies.  Otherwise it
-    applies when ANY of its markers evaluates true; ``None`` (unknown) is
-    returned only when no marker could be evaluated at all.
-    """
-    markers = pkg.get("resolution-markers") or []
-    if not markers:
-        return True
-    saw_unknown = False
-    for marker in markers:
-        verdict = _marker_applies(marker, env)
-        if verdict is True:
-            return True
-        if verdict is None:
-            saw_unknown = True
-    return None if saw_unknown else False
-
-
-def _select_applicable_packages(
-    raw_packages: list[dict],
-    target_python: str | None,
-) -> list[dict]:
-    """Drop fork duplicates: keep one version per name for ``target_python``.
-
-    When a name appears once, it is kept as-is.  When it forks into multiple
-    versions, the version whose ``resolution-markers`` match ``target_python`` is
-    kept; ties / unknown markers fall back to the highest version so two versions
-    of one distribution are never emitted (which would break ``pip install``).
-    With no ``target_python`` the list is returned unchanged (legacy behavior).
-    """
-    if target_python is None:
-        return raw_packages
-
-    env = _python_marker_env(target_python)
-    by_canon: dict[str, list[dict]] = {}
-    order: list[str] = []
-    for pkg in raw_packages:
-        name = pkg.get("name")
-        if not name:
-            continue
-        key = _canon(name)
-        if key not in by_canon:
-            by_canon[key] = []
-            order.append(key)
-        by_canon[key].append(pkg)
-
-    selected: list[dict] = []
-    for key in order:
-        group = by_canon[key]
-        if len(group) == 1:
-            selected.append(group[0])
-            continue
-        applicable = [p for p in group if _entry_applies(p, env) is True]
-        pool = applicable or group
-        selected.append(max(pool, key=lambda p: _version_key(p.get("version"))))
-    return selected
-
-
-def _prune_to_applicable(
-    nodes: list[Node],
-    edges: list[Edge],
-    seed_specs: list[tuple[str, str | None]],
-    env: dict[str, str],
-) -> tuple[list[Node], list[Edge]]:
-    """Keep only packages reachable from the project's direct deps via edges whose
-    markers apply under ``env``.
-
-    A ``uv.lock`` is a UNIVERSAL lock: it lists packages needed across the whole
-    ``requires-python`` range, including marker-gated ones (e.g. ``audioop-lts``
-    pulled only under ``python_full_version >= '3.13'``). On a 3.11 target such a
-    package is not part of the environment and has no installable distribution
-    there, so installing it collapses the whole closure. Prune any node not
-    reachable through marker-applicable edges from the direct deps.
-
-    Conservative: an unknown/unevaluable marker (``_marker_applies`` -> ``None``)
-    is treated as APPLICABLE (kept), so only definitely-false markers prune. If
-    the roots cannot be determined, all nodes are kept (no-op).
-    """
-    if not nodes:
-        return nodes, edges
-
-    canon_to_id: dict[str, str] = {}
-    for n in nodes:
-        canon_to_id.setdefault(_canon(n.name), n.id)
-
-    adj: dict[str, list[str]] = {}
-    has_incoming: set[str] = set()
-    for e in edges:
-        has_incoming.add(e.dst)
-        if e.marker is None or _marker_applies(e.marker, env) is not False:
-            adj.setdefault(e.src, []).append(e.dst)
-
-    # Seeds: applicable project direct deps, plus any node with no incoming edge
-    # at all (a genuine root uv listed). A node whose only incoming edges are
-    # marker-false is NOT a seed (it has incoming edges) -> correctly prunable.
-    seeds: set[str] = set()
-    for dep_name, marker in seed_specs:
-        if marker is not None and _marker_applies(marker, env) is False:
-            continue
-        nid = canon_to_id.get(_canon(dep_name))
-        if nid is not None:
-            seeds.add(nid)
-    for n in nodes:
-        if n.id not in has_incoming:
-            seeds.add(n.id)
-    if not seeds:
-        return nodes, edges
-
-    keep: set[str] = set()
-    stack = list(seeds)
-    while stack:
-        nid = stack.pop()
-        if nid in keep:
-            continue
-        keep.add(nid)
-        for nxt in adj.get(nid, ()):
-            if nxt not in keep:
-                stack.append(nxt)
-
-    kept_nodes = [n for n in nodes if n.id in keep]
-    kept_edges = [e for e in edges if e.src in keep and e.dst in keep]
-    return kept_nodes, kept_edges
-
-
-def _package_node(
-    name: str,
-    version: str | None,
-    *,
-    provenance: str = "uv.lock",
-    resolvable: bool = True,
-) -> Node:
-    """A resolver-discovered ``Package`` node (unknown until host-certified).
-
-    ``resolvable=False`` marks an UNRESOLVED placeholder (a root ``uv`` could not
-    resolve, or a conflict): it carries NO ``pip:<name>`` fix, because that name
-    is exactly what failed to resolve — prescribing ``pip install <name>`` would
-    fail (or install a squatter). "No known fix" is the honest signal.
-    """
-    fix = f"pip:{name}" if resolvable else None
-    return Node(
-        id=package_id(name, version),
-        type=NodeType.PACKAGE,
-        name=name,
-        layer=Layer.PIP,
-        discovered_by=DiscoveredBy.RESOLVER,
-        version=version,
-        check_command=f"python -m pip show {name}",
-        fix_candidates=(fix,) if resolvable else (),
-        chosen_fix=fix,
-        provenance=provenance,
-    )
-
-
-# --------------------------------------------------------------------------- #
-# Pure parser 1: uv.lock -> Package nodes + Package->Package requires edges.
-# --------------------------------------------------------------------------- #
-def _is_local_source(source: dict) -> bool:
-    """True when a ``[[package]].source`` denotes the local project, not a dist."""
-    return any(key in source for key in _LOCAL_SOURCE_KEYS)
-
-
-def parse_uv_lock(
-    text: str,
-    target_python: str | None = None,
-) -> tuple[list[Node], list[Edge]]:
-    """Parse a ``uv.lock`` into Package nodes + Package->Package requires edges.
-
-    Each ``[[package]]`` with a registry/url/git source becomes a ``Package``
-    node; local sources (the synthetic resolve root, path/editable deps) are
-    skipped.  Each ``dependencies = [{name, marker?}]`` entry becomes a
-    parent->child ``requires`` edge carrying the optional dependency ``marker``.
-
-    When ``target_python`` is given and the lock forks a package across python
-    ``resolution-markers`` (e.g. ``numpy`` 2.4.6 for ``<3.12`` and 2.5.0 for
-    ``>=3.12``), only the version applicable to ``target_python`` is emitted, so
-    the closure stays container-accurate and never hands two versions of one
-    distribution to ``pip install``.
-    """
-    data = tomllib.loads(text)
-    raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python
-    )
-
-    nodes: list[Node] = []
-    entries: list[tuple[dict, Node]] = []
-    canon_to_id: dict[str, str] = {}
-    # The project's direct deps (from the local root entry) seed marker-reachability.
-    seed_specs: list[tuple[str, str | None]] = []
-    for pkg in raw_packages:
-        name = pkg.get("name")
-        if not name:
-            continue
-        if _is_local_source(pkg.get("source", {})):
-            for dep in pkg.get("dependencies", []):
-                dep_name = dep.get("name")
-                if dep_name:
-                    seed_specs.append((dep_name, dep.get("marker")))
-            continue
-        node = _package_node(name, pkg.get("version"))
-        nodes.append(node)
-        entries.append((pkg, node))
-        canon_to_id[_canon(name)] = node.id
-
-    # Dedup edges by (src, dst), MERGING markers: a parent may list the same child
-    # under several markers (e.g. version-fork markers ``numpy<3.12`` / ``>=3.12``
-    # that collapse to one node after fork-dedup). The child is then needed under
-    # the UNION of those markers, so differing markers collapse to unconditional
-    # (None) — otherwise keeping just the first marker would wrongly prune a child
-    # that IS applicable via a later edge.
-    edge_marker: dict[tuple[str, str], str | None] = {}
-    edge_order: list[tuple[str, str]] = []
-    for pkg, node in entries:
-        for dep in pkg.get("dependencies", []):
-            dep_name = dep.get("name")
-            if not dep_name:
-                continue
-            child_id = canon_to_id.get(_canon(dep_name))
-            if child_id is None or child_id == node.id:
-                continue
-            key = (node.id, child_id)
-            marker = dep.get("marker")
-            if key not in edge_marker:
-                edge_marker[key] = marker
-                edge_order.append(key)
-            elif edge_marker[key] != marker:
-                edge_marker[key] = None  # union of distinct markers -> unconditional
-    edges: list[Edge] = [
-        Edge(
-            src=src,
-            dst=dst,
-            relation=EdgeType.REQUIRES,
-            origin="resolver",
-            marker=edge_marker[(src, dst)],
-        )
-        for (src, dst) in edge_order
-    ]
-
-    # Prune packages reachable only through markers that don't hold for the target
-    # (a universal lock lists deps for the whole requires-python range). Only when a
-    # target is given, mirroring the fork-dedup above (legacy no-op without one).
-    if target_python is not None:
-        nodes, edges = _prune_to_applicable(
-            nodes, edges, seed_specs, _python_marker_env(target_python)
-        )
-    return nodes, edges
-
-
-# --------------------------------------------------------------------------- #
-# Pure parser 2: per-package native-build risk from the lock's artifacts.
-# --------------------------------------------------------------------------- #
-def _artifact_filename(artifact: dict) -> str | None:
-    """Filename of an sdist/wheel lock entry (explicit, or derived from url)."""
-    if not isinstance(artifact, dict):
-        return None
-    name = artifact.get("filename")
-    if name:
-        return name
-    url = artifact.get("url")
-    if url:
-        return url.rsplit("/", 1)[-1]
-    return None
-
-
-def _wheel_matches_platform(filename: str | None, target_platform: str) -> bool:
-    """True when ``filename`` is installable on the (linux) ``target_platform``.
-
-    Universal wheels (``...-none-any.whl``) match every platform.  Otherwise the
-    target's arch token (e.g. ``x86_64`` / ``aarch64``) must appear in a *linux*
-    platform tag; macOS/Windows wheels never match a linux target.
-    """
-    if not filename:
-        return False
-    low = filename.lower()
-    if not low.endswith(".whl"):
-        return False
-    if low.endswith("-none-any.whl"):
-        return True
-    arch = (target_platform.split("-", 1)[0] if target_platform else "").lower()
-    if not arch:
-        return False
-    if "linux" not in low:  # the target is linux; skip macosx_/win_ wheels.
-        return False
-    return arch in low
-
-
-def native_risk_from_lock(
-    text: str,
-    target_platform: str,
-    target_python: str | None = None,
-) -> dict[str, dict]:
-    """Map ``package name -> {build_from_source, artifact, hash}`` from a lock.
-
-    A package that ships an ``sdist`` but **no wheel matching
-    ``target_platform``** must be built from source on the target.  The chosen
-    artifact is the matching wheel when one exists, else the sdist.
-
-    ``target_python`` resolves fork duplicates the same way as
-    :func:`parse_uv_lock` so the risk for a forked package reflects the version
-    actually installed on the target (not whichever version appeared last).
-    """
-    data = tomllib.loads(text)
-    raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python
-    )
-    risk: dict[str, dict] = {}
-    for pkg in raw_packages:
-        name = pkg.get("name")
-        if not name or _is_local_source(pkg.get("source", {})):
-            continue
-        sdist = pkg.get("sdist")
-        wheels = pkg.get("wheels", []) or []
-
-        matching_wheel = next(
-            (
-                w
-                for w in wheels
-                if _wheel_matches_platform(_artifact_filename(w), target_platform)
-            ),
-            None,
-        )
-        has_sdist = isinstance(sdist, dict) and bool(sdist)
-        build_from_source = has_sdist and matching_wheel is None
-
-        if matching_wheel is not None:
-            chosen = matching_wheel
-        elif has_sdist:
-            chosen = sdist
-        elif wheels:
-            chosen = wheels[0]
-        else:
-            chosen = None
-
-        risk[name] = {
-            "build_from_source": build_from_source,
-            "artifact": _artifact_filename(chosen) if chosen else None,
-            "hash": chosen.get("hash") if isinstance(chosen, dict) else None,
-        }
-    return risk
-
-
-# --------------------------------------------------------------------------- #
-# Pure parser 3: failed ``uv lock`` stderr -> structured diagnosis.
-# --------------------------------------------------------------------------- #
-@dataclass(frozen=True)
-class MissingPackage:
-    name: str
-    version: str | None
-    evidence: str
-
-
-@dataclass(frozen=True)
-class VersionConstraint:
-    package: str  # the constrained package
-    specifier: str  # e.g. "<2.0" or ">=2.0"
-    imposed_by: str | None  # the package imposing it, or None for the root
-
-
-@dataclass(frozen=True)
-class VersionConflict:
-    package: str  # the package under conflict
-    left: VersionConstraint
-    right: VersionConstraint
-    evidence: str
-
-
-@dataclass(frozen=True)
-class PythonIncompat:
-    floor: str  # e.g. ">=3.11"
-    evidence: str
-    imposer: str | None = None  # the package that requires the floor, if known
-
-
-@dataclass(frozen=True)
-class ResolverDiagnosis:
-    missing: tuple[MissingPackage, ...] = ()
-    constraints: tuple[VersionConstraint, ...] = ()
-    conflicts: tuple[VersionConflict, ...] = ()
-    python_incompat: PythonIncompat | None = None
-    raw: str = ""
-
-
-# uv wraps long diagnostic lines, so inter-token whitespace may be a newline +
-# indent rather than a single space — match runs of whitespace, not literal spaces.
-# (Distribution names are never split: uv only wraps at whitespace boundaries.)
-_REGISTRY_MISS_RE = re.compile(
-    r"([A-Za-z0-9][A-Za-z0-9._-]*)\s+(?:was|were)\s+not\s+found\s+in\s+the\s+"
-    r"(?:package\s+)?registry"
-)
-_NO_VERSION_RE = re.compile(
-    r"there\s+(?:is|are)\s+no\s+versions?\s+of\s+([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s,)]+)"
-)
-_NO_VERSION_PLAIN_RE = re.compile(
-    r"there\s+(?:is|are)\s+no\s+versions?\s+of\s+([A-Za-z0-9][A-Za-z0-9._-]*)(?![=\w.-])"
-)
-_YOU_REQUIRE_RE = re.compile(
-    r"you require ([A-Za-z0-9][A-Za-z0-9._-]*)\s*([<>=!~]=?[0-9][^\s,)]*)"
-)
-_DEPENDS_ON_RE = re.compile(
-    r"([A-Za-z0-9][A-Za-z0-9._-]*)(?:==[^\s]+)? depends on "
-    r"([A-Za-z0-9][A-Za-z0-9._-]*)\s*([<>=!~]=?[0-9][^\s,)]*)"
-)
-_PY_INCOMPAT_RE = re.compile(
-    r"(?:does not satisfy Python|requires Python)\s*(>=?\s*[0-9][0-9.]*)"
-)
-# The package imposing a python floor: ``X==1.0 requires Python>=3.12`` (form B,
-# imposer before the clause) or ``... and you require X`` (form A, after it).
-_PY_IMPOSER_BEFORE_RE = re.compile(
-    r"([A-Za-z0-9][A-Za-z0-9._-]*)(?:==[^\s]+)?\s+requires Python"
-)
-_PY_IMPOSER_AFTER_RE = re.compile(
-    r"and you require ([A-Za-z0-9][A-Za-z0-9._-]*)"
-)
-# An sdist whose metadata BUILD fails (old/broken setup.py, missing build deps).
-# uv prints ``× Failed to build `factory==1.2```; this is NOT a version conflict
-# or a registry miss, so without recognizing it the diagnosis is empty and the
-# drop-retry loop can never attribute/drop the offending root -> whole-closure
-# collapse (P0). The distribution name is never line-wrapped (uv wraps only at
-# whitespace, and there is none inside ``name==version``).
-_BUILD_FAILURE_RE = re.compile(
-    r"Failed to build\s+`?([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s`]+)"
-)
-# A root with NO usable version: every release yanked ("all versions of X cannot
-# be used"), or a requires-python the target lacks ("X==V cannot be used"). uv's
-# universal conclusion for a fundamentally-unsatisfiable package is "<dist>[==V]
-# cannot be used"; it is neither a registry miss, a build failure, nor a version
-# tug-of-war (which says "unsatisfiable", never "cannot be used"), so it was
-# previously unattributable -> whole-closure collapse (RATBench mcp-atlassian +
-# docling). uv WRAPS "cannot\n      be used", so match whitespace runs inside the
-# phrase too (same reason the other diagnostic regexes use ``\s+``).
-_UNUSABLE_RE = re.compile(
-    r"\b([A-Za-z0-9][A-Za-z0-9._-]*)(?:==[^\s]+)?\s+cannot\s+be\s+used"
-)
-
-
-def _excerpt(text: str, needle_start: int, width: int = 200) -> str:
-    """A short evidence window around ``needle_start`` (single-lined)."""
-    lo = max(0, needle_start - 20)
-    snippet = text[lo : lo + width].strip()
-    return " ".join(snippet.split())
-
-
-def parse_resolver_error(stderr: str) -> ResolverDiagnosis:
-    """Structure a failed ``uv lock`` stderr into a :class:`ResolverDiagnosis`.
-
-    Recognizes registry misses, no-such-version, version conflicts (root and
-    transitive bounds on a shared package), and python-version incompatibility.
-    """
-    text = stderr or ""
-
-    missing: list[MissingPackage] = []
-    seen_missing: set[str] = set()
-
-    def _add_missing(name: str, version: str | None, start: int) -> None:
-        key = _canon(name)
-        if key in seen_missing:
-            return
-        seen_missing.add(key)
-        missing.append(MissingPackage(name, version, _excerpt(text, start)))
-
-    for m in _REGISTRY_MISS_RE.finditer(text):
-        _add_missing(m.group(1), None, m.start())
-    for m in _NO_VERSION_RE.finditer(text):
-        _add_missing(m.group(1), m.group(2), m.start())
-    for m in _NO_VERSION_PLAIN_RE.finditer(text):
-        _add_missing(m.group(1), None, m.start())
-    # A build failure makes the root unresolvable in this environment; surface it
-    # as a missing package (with the build error as evidence) so the drop-retry
-    # loop attributes and drops it instead of collapsing the entire closure.
-    for m in _BUILD_FAILURE_RE.finditer(text):
-        _add_missing(m.group(1), m.group(2), m.start())
-    # A package uv concludes "cannot be used" (all-yanked, or requires a Python the
-    # target lacks) is likewise unresolvable; attribute it so its root is dropped.
-    for m in _UNUSABLE_RE.finditer(text):
-        _add_missing(m.group(1), None, m.start())
-
-    constraints: list[VersionConstraint] = []
-    for m in _YOU_REQUIRE_RE.finditer(text):
-        constraints.append(VersionConstraint(m.group(1), m.group(2), None))
-    for m in _DEPENDS_ON_RE.finditer(text):
-        constraints.append(VersionConstraint(m.group(2), m.group(3), m.group(1)))
-
-    # A conflict = a single package carrying >=2 distinct specifiers.
-    by_pkg: dict[str, list[VersionConstraint]] = {}
-    for c in constraints:
-        by_pkg.setdefault(_canon(c.package), []).append(c)
-    conflicts: list[VersionConflict] = []
-    for cons in by_pkg.values():
-        specs = {c.specifier for c in cons}
-        if len(cons) >= 2 and len(specs) >= 2:
-            # Pick two constraints with DISTINCT specifiers (uv may restate the
-            # same bound several times across wrapped lines, so cons[0]/cons[1]
-            # are not reliably the two conflicting bounds).  Prefer a pair whose
-            # imposers also differ so the edge joins two real distributions.
-            left = cons[0]
-            right = next(
-                (c for c in cons[1:] if c.specifier != left.specifier
-                 and _real_imposer(c.imposed_by) != _real_imposer(left.imposed_by)),
-                None,
-            )
-            if right is None:
-                right = next(c for c in cons[1:] if c.specifier != left.specifier)
-            conflicts.append(
-                VersionConflict(
-                    package=left.package,
-                    left=left,
-                    right=right,
-                    evidence=_excerpt(text, text.find(left.package)),
-                )
-            )
-
-    python_incompat: PythonIncompat | None = None
-    py = _PY_INCOMPAT_RE.search(text)
-    if py:
-        floor = re.sub(r"\s+", "", py.group(1))
-        before = _PY_IMPOSER_BEFORE_RE.search(text)
-        after = _PY_IMPOSER_AFTER_RE.search(text)
-        imposer = before.group(1) if before else (after.group(1) if after else None)
-        python_incompat = PythonIncompat(floor, _excerpt(text, py.start()), imposer)
-
-    return ResolverDiagnosis(
-        missing=tuple(missing),
-        constraints=tuple(constraints),
-        conflicts=tuple(conflicts),
-        python_incompat=python_incompat,
-        raw=text,
-    )
-
-
-# --------------------------------------------------------------------------- #
-# Diagnosis -> graph (missing/conflict nodes + conflicts_with edges).
-# --------------------------------------------------------------------------- #
-def _missing_package_node(name: str, version: str | None, evidence: str) -> Node:
-    return replace(
-        _package_node(name, version, provenance="uv lock (unresolved)", resolvable=False),
-        state=State.MISSING,
-        evidence=evidence,
-    )
-
-
-def _conflict_package_node(name: str, evidence: str) -> Node:
-    return replace(
-        _package_node(name, None, provenance="uv lock (conflict)", resolvable=False),
-        state=State.UNKNOWN,
-        evidence=evidence,
-    )
-
-
-# Synthetic resolve-root labels uv uses for the root requirements ("your project
-# depends on ...", "the root project ...").  These are NOT real distributions and
-# must never leak in as Package nodes; treat them like the unnamed root (None).
-_ROOT_IMPOSER_NAMES: frozenset[str] = frozenset({"project", "root"})
-
-
-def _real_imposer(imposer: str | None) -> str | None:
-    """An imposing distribution name, or ``None`` for the synthetic resolve root."""
-    if imposer is None or _canon(imposer) in _ROOT_IMPOSER_NAMES:
-        return None
-    return imposer
-
-
-def _conflict_endpoint_node(name: str, c: VersionConflict) -> Node:
-    """A Package node for a conflict endpoint.
-
-    The shared package (``c.package``) has no version satisfying every bound, so it
-    is ``MISSING``; an imposing distribution resolves fine on its own and stays
-    ``UNKNOWN`` (only the *combination* is unsatisfiable).
-    """
-    if _canon(name) == _canon(c.package):
-        return _missing_package_node(name, None, c.evidence)
-    return _conflict_package_node(name, c.evidence)
-
-
-def _conflict_endpoints(c: VersionConflict) -> tuple[str | None, str | None]:
-    """Two distinct Package names to join with a conflicts_with edge.
-
-    A synthetic-root imposer (``None``/"your project") falls back to the shared
-    package, so a "package P needs D>=x but the root pins D<x" conflict joins the
-    real P and the shared D (never the synthetic root).
-    """
-    a = _real_imposer(c.left.imposed_by) or c.package
-    b = _real_imposer(c.right.imposed_by) or c.package
-    if a == b:
-        imposers = [
-            x
-            for x in (_real_imposer(c.left.imposed_by), _real_imposer(c.right.imposed_by))
-            if x
-        ]
-        if not imposers:
-            return None, None
-        a, b = imposers[0], c.package
-        if a == b:
-            return None, None
-    return a, b
-
-
-def _diagnosis_to_graph(diag: ResolverDiagnosis) -> tuple[list[Node], list[Edge]]:
-    nodes: list[Node] = []
-    seen_ids: set[str] = set()
-
-    def _add(node: Node) -> Node:
-        if node.id not in seen_ids:
-            seen_ids.add(node.id)
-            nodes.append(node)
-        return node
-
-    edges: list[Edge] = []
-
-    for m in diag.missing:
-        _add(_missing_package_node(m.name, m.version, m.evidence))
-
-    for c in diag.conflicts:
-        a, b = _conflict_endpoints(c)
-        if a is None or b is None:
-            continue
-        na = _add(_conflict_endpoint_node(a, c))
-        nb = _add(_conflict_endpoint_node(b, c))
-        edges.append(
-            Edge(
-                src=na.id,
-                dst=nb.id,
-                relation=EdgeType.CONFLICTS_WITH,
-                origin="resolver",
-                data={
-                    "package": c.package,
-                    "src_bound": c.left.specifier,
-                    "dst_bound": c.right.specifier,
-                    "evidence": c.evidence,
-                },
-            )
-        )
-
-    if diag.python_incompat is not None:
-        incompat = diag.python_incompat
-        floor = incompat.floor
-        py_node = _add(
-            Node(
-                id="pkg:python",
-                type=NodeType.PACKAGE,
-                name="python",
-                layer=Layer.INTERPRETER,
-                discovered_by=DiscoveredBy.RESOLVER,
-                version=floor,
-                state=State.MISSING,
-                evidence=incompat.evidence,
-                provenance="uv lock (python incompat)",
-            )
-        )
-        # Conflict edge to the interpreter need with the floor (spec §"Conflict/
-        # failure → graph"): the imposing package conflicts_with the interpreter.
-        if incompat.imposer and _canon(incompat.imposer) != _canon(py_node.name):
-            imposer_node = _add(
-                _conflict_package_node(incompat.imposer, incompat.evidence)
-            )
-            edges.append(
-                Edge(
-                    src=imposer_node.id,
-                    dst=py_node.id,
-                    relation=EdgeType.CONFLICTS_WITH,
-                    origin="resolver",
-                    data={
-                        "package": "python",
-                        "floor": floor,
-                        "dst_bound": floor,
-                        "evidence": incompat.evidence,
-                    },
-                )
-            )
-
-    return nodes, edges
-
-
-def _offending_root_names(diag: ResolverDiagnosis) -> set[str]:
-    """Canonical names of packages implicated by a lock failure."""
-    names: set[str] = {_canon(m.name) for m in diag.missing}
-    for c in diag.conflicts:
-        names.add(_canon(c.package))
-        for imposer in (_real_imposer(c.left.imposed_by), _real_imposer(c.right.imposed_by)):
-            if imposer:
-                names.add(_canon(imposer))
-    return names
 
 
 # --------------------------------------------------------------------------- #
@@ -896,122 +170,6 @@ def _read_lock(workdir: str) -> str | None:
             return fh.read()
     except OSError:
         return None
-
-
-def _stamp(
-    node: Node,
-    risk: dict[str, dict],
-    target_python: str,
-    target_platform: str,
-    exclude_newer: str | None = None,
-) -> Node:
-    """Stamp targeting provenance + native-build risk onto a Package node."""
-    changes: dict = {
-        "resolved_python": target_python,
-        "resolved_platform": target_platform,
-        "exclude_newer": exclude_newer,
-    }
-    info = risk.get(node.name) or risk.get(_canon(node.name))
-    if info is None:
-        # Case/separator-insensitive fallback.
-        for key, val in risk.items():
-            if _canon(key) == _canon(node.name):
-                info = val
-                break
-    if info is not None:
-        changes["build_from_source"] = info.get("build_from_source")
-        changes["artifact"] = info.get("artifact")
-        changes["hash"] = info.get("hash")
-    return replace(node, **changes)
-
-
-def _import_edges(
-    roots: list[tuple[str | None, str]],
-    nodes: list[Node],
-) -> list[Edge]:
-    """Import->Package edges for each root with a resolved Package node."""
-    canon_to_id = {_canon(n.name): n.id for n in nodes}
-    edges: list[Edge] = []
-    seen: set[tuple[str, str]] = set()
-    for import_id_, dist in roots:
-        if import_id_ is None:
-            continue  # manifest-declared root: no Import node to attach.
-        pkg_id = canon_to_id.get(_canon(_req_name(dist)))
-        if pkg_id is None:
-            continue
-        key = (import_id_, pkg_id)
-        if key in seen:
-            continue
-        seen.add(key)
-        edges.append(
-            Edge(
-                src=import_id_,
-                dst=pkg_id,
-                relation=EdgeType.REQUIRES,
-                origin="resolver",
-            )
-        )
-    return edges
-
-
-def link_imports_to_packages(graph: DepGraph) -> DepGraph:
-    """Connect every Import node to its resolved Package by canonical dist name.
-
-    Complements :func:`_import_edges`, which only links imports that were
-    themselves resolver roots.  A manifest-declared dependency seeds a Package via
-    a root with ``import_id=None`` (see ``roots.select_roots``), so its scanned
-    Import node would otherwise be orphaned from the Package — breaking the
-    symptom->owner walk.  This pass links any Import whose mapped distribution
-    matches a Package node, regardless of how the root was sourced.  ``_canon``
-    collapses ``_``/``-``/``.`` so e.g. ``charset_normalizer`` matches
-    ``charset-normalizer`` even via the identity fallback.
-    """
-    canon_to_pkg = {
-        _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
-    }
-    existing = {
-        (e.src, e.dst) for e in graph.edges if e.relation is EdgeType.REQUIRES
-    }
-    new = graph
-    for node in graph.nodes:
-        if node.type is not NodeType.IMPORT:
-            continue
-        dist = map_import_to_package(node.name).package_name
-        pkg_id = canon_to_pkg.get(_canon(dist))
-        if pkg_id is None or (node.id, pkg_id) in existing:
-            continue
-        new = new.with_edge(
-            Edge(
-                src=node.id,
-                dst=pkg_id,
-                relation=EdgeType.REQUIRES,
-                origin="reconcile",
-            )
-        )
-    return new
-
-
-def _merge(
-    primary_nodes: list[Node],
-    primary_edges: list[Edge],
-    extra_nodes: list[Node],
-    extra_edges: list[Edge],
-) -> tuple[list[Node], list[Edge]]:
-    """Merge node/edge lists; primary entries win on id/edge-key collisions."""
-    nodes: list[Node] = list(primary_nodes)
-    have_ids = {n.id for n in nodes}
-    for n in extra_nodes:
-        if n.id not in have_ids:
-            have_ids.add(n.id)
-            nodes.append(n)
-
-    edges: list[Edge] = list(primary_edges)
-    have_keys = {e.key() for e in edges}
-    for e in extra_edges:
-        if e.key() not in have_keys:
-            have_keys.add(e.key())
-            edges.append(e)
-    return nodes, edges
 
 
 def resolve_closure(
