@@ -493,3 +493,4 @@ def test_v3_collect_only_does_not_finalize_as_done():
         world, ActionLedger(), collect_only_exec, max_cycles=2,
     )
     assert final_map.done_flag is not True  # collect-only must not finalize
+    assert stop not in ("planner_done", "done_flag")  # hollow scheduler gate is also caught
