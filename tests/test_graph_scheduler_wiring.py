@@ -47,16 +47,6 @@ class _QueuePlanner:
         return self._queue.pop(0)
 
 
-class _ExplodingPlanner:
-    """decide() must never be called under the scheduler flag."""
-    def __init__(self):
-        self.called = False
-
-    def decide(self, world_map):
-        self.called = True
-        raise AssertionError("planner.decide must not be called in scheduler mode")
-
-
 class _RecordingBuildAgent:
     """Records the task/check it receives; returns a blocked report."""
     def __init__(self):

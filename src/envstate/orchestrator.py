@@ -20,6 +20,7 @@ import enum
 import os
 from typing import Any, Callable, Tuple
 
+from src.envstate._loop_common import host_refresh_facts
 from src.envstate.ledger import ActionLedger
 from src.envstate.maintainer import _verified_test_run_passed as _gate_passed
 from src.envstate.world_model import (
@@ -211,8 +212,7 @@ def run_v1(
                 "runtime_ingest_phase: exception suppressed: %s", exc
             )
 
-    if probe is not None and manifest is not None:
-        current_map = apply_deterministic(current_map, probe(), manifest)
+    current_map = host_refresh_facts(current_map, probe, manifest)
 
     for cycle in range(1, max_cycles + 1):
         # ── 0. Graph-first: certify + emit the certified closure ────────────
@@ -257,8 +257,7 @@ def run_v1(
             global_step += len(report.commands)
 
             # Deterministic facts after recipe (before the maintainer).
-            if probe is not None and manifest is not None:
-                current_map = apply_deterministic(current_map, probe(), manifest)
+            current_map = host_refresh_facts(current_map, probe, manifest)
 
             # ── 3. Maintainer updates the world model ─────────────────────
             current_map = maintainer.update(current_map, report)
@@ -289,8 +288,7 @@ def run_v1(
         global_step += len(report.commands)
 
         # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
-        if probe is not None and manifest is not None:
-            current_map = apply_deterministic(current_map, probe(), manifest)
+        current_map = host_refresh_facts(current_map, probe, manifest)
 
         # ── 4. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
@@ -528,8 +526,7 @@ def run_v3(
                 "runtime_ingest_phase: exception suppressed: %s", exc
             )
 
-    if probe is not None and manifest is not None:
-        current_map = apply_deterministic(current_map, probe(), manifest)
+    current_map = host_refresh_facts(current_map, probe, manifest)
 
     for cycle in range(1, max_cycles + 1):
         # ── 0. Graph-first: certify + emit the certified closure ────────────
@@ -593,8 +590,7 @@ def run_v3(
             global_step += len(report.commands)
 
             # Deterministic facts after recipe (before the maintainer).
-            if probe is not None and manifest is not None:
-                current_map = apply_deterministic(current_map, probe(), manifest)
+            current_map = host_refresh_facts(current_map, probe, manifest)
 
             # ── 3. Maintainer updates the world model ─────────────────────
             current_map = maintainer.update(current_map, report)
@@ -631,8 +627,7 @@ def run_v3(
         global_step += max(len(report.commands), 1)
 
         # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
-        if probe is not None and manifest is not None:
-            current_map = apply_deterministic(current_map, probe(), manifest)
+        current_map = host_refresh_facts(current_map, probe, manifest)
 
         # ── 4. Maintainer updates the world model ────────────────────────────
         current_map = maintainer.update(current_map, report)
