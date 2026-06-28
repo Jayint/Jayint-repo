@@ -99,7 +99,7 @@ def _noop_sandbox(cmd: str) -> tuple[bool, str]:
 # Import target (will fail until orchestrator.py is rewritten)
 # ---------------------------------------------------------------------------
 
-from src.envstate.orchestrator import run_v1  # noqa: E402
+from src.envstate.orchestrator import run_v1, VERIFY_TEST_CMD  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -299,6 +299,27 @@ class TestRunV1TwoCycleRun:
         assert len(on_cycle_calls) == 2
         assert on_cycle_calls[0] == (1, "task")
         assert on_cycle_calls[1] == (2, "task")
+
+
+def test_done_branch_returns_planner_done_immediately():
+    """action='done' returns ('…','planner_done') without running VERIFY_TEST_CMD.
+
+    Regression pin: after removing the advisory-done path the done branch must
+    return immediately without executing any sandbox commands.
+    """
+    calls: list[str] = []
+
+    def tracking_exec(cmd: str) -> tuple[bool, str]:
+        calls.append(cmd)
+        return (True, "")
+
+    planner = FakePlanner([PlannerDecision(action="done", reason="x")])
+    final_map, stop = run_v1(
+        planner, FakeBuildAgent([]), FakeMaintainer([]),
+        _base_map(), ActionLedger(), tracking_exec, max_cycles=2,
+    )
+    assert stop == "planner_done"
+    assert VERIFY_TEST_CMD not in calls   # advisory path is gone
 
 
 class TestRunV1ReturnType:
