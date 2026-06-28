@@ -560,13 +560,11 @@ def run_v3(
     #   first cycle's _dep_emit_phase certify does NOT call probe(), so it
     #   cannot fill in these fields.  Required.
     #
-    # ② Post-recipe (inside apply_recipe_patch): recipe just mutated the
-    #   container.  The NEXT cycle's certify won't call probe(), and
-    #   maintainer.update in THIS cycle needs the fresh probe facts.  Required.
+    # ② Post-task (inside task branch): build_agent just mutated the container.
+    #   The NEXT cycle's certify won't call probe(), and maintainer.update in
+    #   THIS cycle needs the fresh probe facts.  Required.
     #
-    # ③ Post-task (inside task branch): same reasoning as ②.  Required.
-    #
-    # Conclusion: all three sites are the minimal set — none can be removed
+    # Conclusion: both sites are the minimal set — neither can be removed
     # without leaving the maintainer or the scheduler with stale probe data.
     current_map = host_refresh_facts(current_map, probe, manifest)
 
@@ -611,45 +609,6 @@ def run_v3(
                 on_cycle(cycle, current_map, decision, None)
             return current_map, _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
 
-        # ── 2. Recipe patch branch ───────────────────────────────────────────
-        if decision.action == "apply_recipe_patch":
-            recipe: RecipePatch | None = decision.recipe_patch
-            if recipe is None or not recipe.steps:
-                # Empty recipe — nothing to execute; let maintainer decide.
-                empty_report = TaskReport("recipe", "done", (), "empty recipe")
-                current_map = maintainer.update(current_map, empty_report)
-                if on_cycle is not None:
-                    on_cycle(cycle, current_map, decision, empty_report)
-                if current_map.done_flag:
-                    return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
-                continue
-
-            # Execute the whole recipe as a single unified run.
-            report: TaskReport = build_agent.run_recipe(
-                recipe,
-                sandbox_execute,
-                ledger,
-                step_offset=global_step,
-            )
-            global_step += len(report.commands)
-
-            # ② Probe refresh after recipe — see refresh contract above.
-            # Recipe mutated the container; next cycle's certify won't call
-            # probe(), and maintainer.update below needs fresh probe facts.
-            current_map = host_refresh_facts(current_map, probe, manifest)
-
-            # ── 3. Maintainer updates the world model ─────────────────────
-            current_map = maintainer.update(current_map, report)
-
-            if on_cycle is not None:
-                on_cycle(cycle, current_map, decision, report)
-
-            # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
-            if current_map.done_flag:
-                return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
-
-            continue
-
         # ── 3. Graph-scheduler task branch (action == "task") ────────────────
         assert decision.task is not None, (
             f"PlannerDecision action='task' but .task is None (cycle {cycle})"
@@ -672,7 +631,7 @@ def run_v3(
         # advance at 1 so the ledger step offset never aliases across cycles.
         global_step += max(len(report.commands), 1)
 
-        # ③ Probe refresh after task — see refresh contract above.
+        # ② Probe refresh after task — see refresh contract above.
         # Task mutated the container; next cycle's certify won't call probe(),
         # and maintainer.update below needs fresh probe facts (OFF the ledger).
         current_map = host_refresh_facts(current_map, probe, manifest)
