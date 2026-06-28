@@ -24,6 +24,7 @@ class ProviderSpec:
     kind: str            # action class, e.g. "apt" | "pip" | "npm" | "shell"
     command: str
     provides: tuple[str, ...] = ()
+    override: bool = False   # True => replace an existing chosen_fix (repair correction)
 
 
 @dataclass(frozen=True)
@@ -64,31 +65,51 @@ def _as_tuple(x) -> tuple:
     return tuple(x) if isinstance(x, (list, tuple)) else ()
 
 
+class PatchParseError(ValueError):
+    """Missing required fields -> structured rejection (the v3 propose path retries/rejects)."""
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = errors
+        super().__init__("; ".join(errors))
+
+
 def parse_patch_proposal(d: dict) -> PatchProposal:
     d = d or {}
     patch = d.get("patch", d)
     rationale = d.get("rationale", {})
     if not isinstance(rationale, dict):
         rationale = {}
+    errs: list[str] = []
+
+    def _req(item, key, ctx):
+        if key not in item:
+            errs.append(f"{ctx}: missing required key {key!r}")
+            return None
+        return item[key]
+
     reqs = tuple(NodeSpec(
-        id=r["id"], type=r["type"], name=r.get("name", ""), layer=r["layer"],
+        id=_req(r, "id", "add_requirements"), type=_req(r, "type", "add_requirements"),
+        name=r.get("name", ""), layer=_req(r, "layer", "add_requirements"),
         check_command=r.get("check_command"), evidence_ref=r.get("evidence_ref"),
         promotion=r.get("promotion") if r.get("promotion") is not None else r.get("state"),
     ) for r in _as_tuple(patch.get("add_requirements")))
     provs = tuple(ProviderSpec(
-        id=p["id"], kind=p["kind"], command=p["command"], provides=_as_tuple(p.get("provides")),
+        id=_req(p, "id", "add_providers"), kind=_req(p, "kind", "add_providers"),
+        command=_req(p, "command", "add_providers"), provides=_as_tuple(p.get("provides")),
+        override=bool(p.get("override", False)),
     ) for p in _as_tuple(patch.get("add_providers")))
     edges = tuple(EdgeSpec(
-        source=e["source"], target=e["target"],
+        source=_req(e, "source", "add_edges"), target=_req(e, "target", "add_edges"),
         relation=e.get("relation", "requires"), hard=bool(e.get("hard", True)),
     ) for e in _as_tuple(patch.get("add_edges")))
     sps = tuple(ScriptPatch(
-        block_id=s["block_id"], wave=s["wave"],
+        block_id=_req(s, "block_id", "script_patches"), wave=_req(s, "wave", "script_patches"),
         commands=_as_tuple(s.get("commands")) or ((s["command"],) if s.get("command") else ()),
         target_node_ids=_as_tuple(s.get("target_node_ids")),
         op=s.get("op", "add_block"), checks=_as_tuple(s.get("checks")),
         provides=_as_tuple(s.get("provides")), evidence_ref=s.get("evidence_ref"),
     ) for s in _as_tuple(patch.get("script_patches")))
+    if errs:
+        raise PatchParseError(errs)
     return PatchProposal(
         rationale=rationale, add_requirements=reqs, add_providers=provs, add_edges=edges,
         script_patches=sps, request_checks=_as_tuple(patch.get("request_checks")),
