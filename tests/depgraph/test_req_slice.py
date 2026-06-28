@@ -6,7 +6,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from python_deps.depgraph.schema import Node, NodeType, Layer, State, DiscoveredBy, Attempt, DepGraph, Edge, EdgeType
-from python_deps.depgraph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider, build_requirement_slice, RequirementSlice, DepView
+from python_deps.depgraph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider, build_requirement_slice, RequirementSlice, DepView, render_requirement_slice
 
 
 def _syslib(**kw):
@@ -112,3 +112,22 @@ def test_active_gate_empty_when_no_test_node():
         check_command="pkg-config --exists x"))
     s = build_requirement_slice(g, g.get("syslib:x"))
     assert s.active_gate == ""          # no TEST node -> empty, never crashes
+
+
+def test_render_contains_target_avoidance_and_no_crash():
+    g = _graph_with_frontier()
+    lines = render_requirement_slice(build_requirement_slice(g, g.get("syslib:libxml2")))
+    blob = "\n".join(lines)
+    assert any(l.startswith("target:") for l in lines)
+    assert "apt:libxml2-dev" in blob                         # candidate/chosen surfaced
+    assert "tried & FAILED" in blob and "avoid apt:libxml2dev" in blob  # the anti-ReAct signal
+    assert "active gate: python -m pytest -q" in blob
+    assert "unblocks: pkg:lxml==5.0" in blob                  # reverse-REQUIRES surfaced to the agent
+    assert all(isinstance(l, str) for l in lines)
+
+
+def test_render_empty_slice_does_not_crash():
+    g = DepGraph().with_node(Node(id="syslib:x", type=NodeType.SYSTEM_LIB, name="x",
+        layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING))
+    lines = render_requirement_slice(build_requirement_slice(g, g.get("syslib:x")))
+    assert lines and lines[0].startswith("target:")          # minimal but valid

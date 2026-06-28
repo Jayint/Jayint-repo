@@ -87,6 +87,39 @@ class RequirementSlice:
     platform: str | None
 
 
+def render_requirement_slice(s: RequirementSlice) -> tuple[str, ...]:
+    """Compact, agent-readable fact lines. Empty sections are omitted."""
+    lines = [f"target: {s.node_id}  ({s.kind}, {s.layer}, {s.state})"]
+    gate = f"   [active gate: {s.active_gate}]" if s.active_gate else ""
+    lines.append(f"why: {s.chain_to_goal or '(no chain to goal)'}{gate}")
+    if s.check:
+        lines.append(f"check: {s.check}")
+    if s.deps:
+        lines.append("deps: " + ", ".join(f"{d.id}={d.state}" for d in s.deps))
+    if s.unblocks:
+        # the reverse-REQUIRES the old packet computed then discarded — what this node frees up
+        lines.append("unblocks: " + ", ".join(s.unblocks))
+    pv = s.providers
+    if pv.candidates:
+        chosen = f"  chosen={pv.chosen}" if pv.chosen else ""
+        lines.append("providers: candidates=[" + ", ".join(c.id for c in pv.candidates) + "]" + chosen)
+    for t in pv.tried_failed:
+        avoid = f"  (=> avoid {t.provider_id})" if t.provider_id else ""
+        lines.append(f"tried & FAILED: {t.command}{avoid}")
+    if s.layer_cohort_satisfied or s.layer_cohort_missing:
+        lines.append(
+            f"layer ({s.layer}): satisfied=[{', '.join(s.layer_cohort_satisfied)}]  "
+            f"missing=[{', '.join(s.layer_cohort_missing)}]"
+        )
+    if s.conflict:
+        lines.append(s.conflict)
+    if s.platform:
+        lines.append(s.platform)
+    if s.evidence:
+        lines.append(f"evidence: {s.evidence}")
+    return tuple(lines)
+
+
 def build_requirement_slice(graph, node) -> RequirementSlice:
     """Pure read-time projection of `node` for the agent. Reuses advise's render helpers
     (imported lazily to avoid module load-order coupling)."""
