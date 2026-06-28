@@ -71,6 +71,10 @@ class TestApplyArmEnv(unittest.TestCase):
             if k.startswith("DOCKERAGENT_ENABLE_"):
                 del os.environ[k]
 
+    def tearDown(self):
+        for k in [k for k in os.environ if k.startswith("DOCKERAGENT_ENABLE_")]:
+            del os.environ[k]
+
     def test_v3_sets_full_stack(self):
         rrb._apply_arm_env("v3")
         for var in ("V1", "DEP_GRAPH", "DEP_EMIT", "RUNTIME_FEEDBACK",

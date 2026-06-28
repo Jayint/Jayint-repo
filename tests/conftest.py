@@ -10,10 +10,8 @@ if str(REPO_ROOT) not in sys.path:
 # Pre-existing collection errors unrelated to the contract-graph v2 rewrite.
 # test_docker_build.py references a missing external file
 #   (/Multi-Docker-Eval/evaluation/docker_build.py).
-# test_run_rat_benchmark.py references a missing module (eval.common) that
-#   lives in an external rat-bench-integration directory.
-# Both fail at import time; excluding them lets the suite collect cleanly.
+# test_run_rat_benchmark.py previously referenced a missing module (eval.common)
+#   but Phase 1 stubs resolved that; it now imports and collects cleanly (29 passed).
 collect_ignore = [
     "test_docker_build.py",
-    "test_run_rat_benchmark.py",
 ]

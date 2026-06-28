@@ -108,6 +108,9 @@ def test_completed_steps_are_not_marked_failed() -> None:
     # in the contract-graph Attempt layer, which was removed in Phase 1 Task 3
     # (enable_contract_graph param deleted; contract_graph.attempts() always empty).
     # The core assertion — build_agent.run_recipe is invoked — remains above.
+    # NOTE (Phase 2): there is no v3 equivalent of per-step Attempt outcome coverage;
+    # the graph scheduler produces no per-step Attempt nodes (the contract graph is
+    # absent in the v3 arm), so this coverage gap is intentional, not a regression.
     assert reason in ("planner_giveup", "max_cycles"), (
         f"expected recipe to exhaust cycles or give up; got {reason!r}"
     )

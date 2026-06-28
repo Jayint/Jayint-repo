@@ -110,6 +110,7 @@ def _noop_sandbox(cmd: str) -> tuple[bool, str]:
 # ---------------------------------------------------------------------------
 
 from src.envstate.orchestrator import run_v1, run_v3, VERIFY_TEST_CMD  # noqa: E402
+from src.envstate.deterministic_maintainer import DeterministicMaintainer  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +412,20 @@ class _NoopMaintainer:
         return world_map
 
 
+class _PassiveBuildAgent:
+    """build_agent stub that can be called but returns a blocked report with no commands.
+
+    Used in anti-hollow tests where next_decision dispatches a discover task
+    (because _run_tests_verified rejects hollow output) but the agent produces
+    no evidence of a real test pass, so the maintainer done-gate stays False.
+    """
+    def run(self, task, sandbox_execute, ledger, step_offset=0, check=None, budget=None):
+        return TaskReport("discover", "blocked", (), "no commands ran")
+
+    def run_recipe(self, recipe, sandbox_execute, ledger, step_offset=0):
+        return TaskReport("recipe", "blocked", (), "no commands ran")
+
+
 def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
     """With graph-scheduler on and an already-satisfied graph + passing tests,
     run_v3 terminates via the scheduler's done path (no contract-graph needed).
@@ -432,3 +447,49 @@ def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
         enable_dep_emit=True, enable_runtime_feedback=True,
     )
     assert stop == "planner_done"
+
+
+# ---------------------------------------------------------------------------
+# v3 anti-hollow: collect-only must not set done_flag
+# ---------------------------------------------------------------------------
+
+def test_v3_collect_only_does_not_finalize_as_done():
+    """A pytest --collect-only rc=0 must NOT set done_flag / terminate run_v3 as done.
+
+    The v3 done-gate requires a REAL verified test pass (_verified_test_run_passed).
+    Characterization of the anti-hollow guarantee:
+
+    Flow:
+      collect_only_exec always returns (True, "collected 5 items") — rc=0, but the
+      output contains no execution evidence ("N passed" or "[100%]"). Two guards
+      block the hollow path:
+
+      1. SCHEDULER gate (_run_tests_verified): runs sandbox_execute(VERIFY_TEST_CMD)
+         → (True, "collected 5 items").  _gate_passed rejects this because
+         _shows_execution("collected 5 items") is False (no "N passed" / "Ran N tests")
+         and _shows_pytest_completion is False (no "[100%]").  run_tests() returns
+         False, so next_decision returns a discover task instead of 'done'.
+
+      2. MAINTAINER gate (DeterministicMaintainer v3_only=True): the discover-task
+         build_agent returns a TaskReport with no commands.  _verified_test_run_passed
+         finds no rc=0 test-command record → done_flag stays False.
+
+    Proof it can fail: replace collect_only_exec with one that returns
+    (True, "3 passed") for VERIFY_TEST_CMD — _run_tests_verified returns True,
+    next_decision returns 'done', and the loop exits immediately as 'planner_done'.
+    (The _PassiveBuildAgent never gets called on the done path, so no done_flag is
+    set via the maintainer either, but the scheduler gate IS breached — that is the
+    hollow-success anti-pattern this test closes off.)
+    """
+    world = _world_map_with_clean_dep_graph()
+
+    def collect_only_exec(cmd):
+        # Any command (including VERIFY_TEST_CMD) returns rc=0 but only hollow
+        # collect-only output — no actual test execution evidence.
+        return (True, "collected 5 items")
+
+    final_map, stop = run_v3(
+        _PassiveBuildAgent(), DeterministicMaintainer(v3_only=True),
+        world, ActionLedger(), collect_only_exec, max_cycles=2,
+    )
+    assert final_map.done_flag is not True  # collect-only must not finalize
