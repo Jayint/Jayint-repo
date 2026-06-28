@@ -10,6 +10,15 @@
 
 **Source design:** `docs/superpowers/specs/2026-06-28-graph-governed-script-materialized-agent-design.md` (§3.2, §3.3, §5.2, §6, §7) and its §18 Planning Decisions.
 **Grounding:** `.superpowers/sdd/newdesign-{1-reuse-gap,2-plan,3-risks-decisions}.md`.
+**Reviewed:** `.superpowers/sdd/review-{1-alignment,2-implementation,3-complexity}.md` (sonnet, 2026-06-28).
+
+> **Review corrections applied (2026-06-28), all verified against the live schema:**
+> (1) `Layer.PIP` is the Python-package layer — there is NO `Layer.PYTHON`.
+> (2) `Node` has a REQUIRED `discovered_by: DiscoveredBy` field (no default) — every `Node(...)` passes `discovered_by=DiscoveredBy.RESOLVER`.
+> (3) Node lookup is `DepGraph.get(id) -> Node | None` — there is NO `graph.node()`.
+> (4) `scan_ci_services`/`scan_compose_services` meta dicts carry `image/host/port`, NOT a file path — the static-collect adapter uses generic file labels.
+> (5) Truncation is extracted to a pure `src/envstate/text_util.py` so the runner does not import the LLM-agent stack.
+> Alignment review: Phase 1 faithfully matches §18 and correctly defers gates/PatchGate/platform/causal. Complexity review: boundaries clean, no new cycles; the Phase-2 "Architectural musts" below capture its findings.
 
 ## Global Constraints
 
@@ -19,7 +28,7 @@
 - **State enum unchanged:** do NOT add values to `State`; it stays `{UNKNOWN, MISSING, SATISFIED}`. Hint/Candidate/Active is `Node.data["promotion"]` + `Edge.data["hard"]`, never a `state`.
 - **File size:** keep each new file < 400 lines; pure modules carry no Docker/network/LLM imports.
 - **Naming:** the evidence module is `evidence_log.py` (NOT `evidence.py` — `src/python_deps/evidence.py` already exists).
-- **Reuse, don't reimplement:** `emit.partition`, `emit.topo_order`, `emit._apt_name`, `emit._pip_spec`, `depgraph_live.certify_refresh`, `depgraph_live.ensure_python_shim`, `depgraph_live._ReadonlyExecAdapter`, `config_scan.scan_env_reads`/`parse_env_example`, `service_scan.scan_ci_services`/`scan_compose_services`, `build_agent._truncate_output`.
+- **Reuse, don't reimplement:** `emit.partition`, `emit.topo_order`, `emit._apt_name`, `emit._pip_spec`, `depgraph_live.certify_refresh`, `depgraph_live.ensure_python_shim`, `depgraph_live._ReadonlyExecAdapter`, `config_scan.scan_env_reads`/`parse_env_example`, `service_scan.scan_ci_services`/`scan_compose_services`. (Truncation is extracted to a new pure `text_util.truncate_output` — see Task 5 — so the runner stays off the LLM stack.)
 - **Git hygiene:** `git add` only the exact files each task creates/modifies — NEVER `git add -A`/`.`/`<dir>` (the repo has unrelated untracked WIP). Conventional commit messages with an Observation/Why/What/Verification body. **No `Co-Authored-By` trailer.** Do not push.
 
 ### Verified reuse signatures (use these exactly)
@@ -37,9 +46,12 @@ def _apt_name(node: Node) -> str | None: ...      # node.chosen_fix "apt:NAME" -
 def _pip_spec(node: Node) -> str: ...             # "name==ver" or "name"
 
 # src/python_deps/depgraph/schema.py  (Node — frozen)
-#   id:str  type:NodeType  name:str  layer:Layer  state:State=UNKNOWN
-#   version:str|None  check_command:str|None  chosen_fix:str|None  data:dict
+#   id:str  type:NodeType  name:str  layer:Layer  discovered_by:DiscoveredBy  (REQUIRED, no default)
+#   state:State=UNKNOWN  version:str|None  check_command:str|None  chosen_fix:str|None  data:dict
 #   NodeType.{PACKAGE, SYSTEM_LIB, TOOL, ...}; State.{UNKNOWN, MISSING, SATISFIED}
+#   Layer.{SYSTEM, PIP, RUNTIME, TESTS, CONFIG, SERVICES, ...}  (NOTE: PIP, not "PYTHON")
+#   DiscoveredBy.{GOAL, STATIC_SCAN, RESOLVER, PROBE, RUNTIME}
+# DepGraph node lookup: graph.get(node_id) -> Node | None   (there is NO graph.node())
 
 # src/envstate/depgraph_live.py
 def certify_refresh(graph, exec_readonly, cycle: int, *, allow_service_certify: bool|None=None): ...
@@ -52,8 +64,9 @@ def parse_env_example(repo_path: str) -> dict[str, str]: ...     # VAR -> defaul
 def scan_ci_services(repo_path: str) -> tuple[dict[str, dict], bool]: ...  # {name: {...}}, has_ci
 def scan_compose_services(repo_path: str) -> dict[str, dict]: ...          # {name: {...}}
 
-# src/envstate/build_agent.py
-def _truncate_output(output: str) -> str: ...    # head+tail truncation
+# src/envstate/build_agent.py  (reference only — DO NOT import from the runner)
+def _truncate_output(output: str) -> str: ...    # head+tail truncation; Task 5 re-homes this
+                                                 # logic into the pure src/envstate/text_util.py
 ```
 
 The runner's executor callables (match the existing orchestrator contract):
@@ -77,7 +90,7 @@ The runner's executor callables (match the existing orchestrator contract):
 ```python
 # tests/depgraph/test_block_compile.py
 from python_deps.depgraph.block import Block, compile_blocks
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State
+from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 
 def test_block_fields_default():
@@ -91,10 +104,11 @@ def test_block_fields_default():
 def _g():
     g = DepGraph()
     g = g.with_node(Node(id="syslib:libpq", type=NodeType.SYSTEM_LIB, name="libpq.so",
-                         layer=Layer.SYSTEM, state=State.MISSING,
+                         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
                          check_command="ldconfig -p | grep -q libpq", chosen_fix="apt:libpq-dev"))
     g = g.with_node(Node(id="pkg:psycopg2", type=NodeType.PACKAGE, name="psycopg2",
-                         layer=Layer.PYTHON, state=State.MISSING, version="2.9.9",
+                         layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+                         state=State.MISSING, version="2.9.9",
                          check_command="python -m pip show psycopg2"))
     return g
 
@@ -184,7 +198,7 @@ def compile_blocks(graph: DepGraph) -> tuple[Block, ...]:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/depgraph/test_block_compile.py -q`
-Expected: PASS (2 tests). If topo order differs, confirm `Layer.SYSTEM` orders before `Layer.PYTHON` in the engine; adjust the fixture, not the order logic.
+Expected: PASS (2 tests). If topo order differs, confirm `Layer.SYSTEM` orders before `Layer.PIP` in the engine; adjust the fixture, not the order logic.
 
 - [ ] **Step 5: Commit**
 
@@ -526,11 +540,10 @@ def collect_static_evidence(repo_path: str) -> tuple[DeterministicHit, ...]:
 
     ci_services, _has_ci = scan_ci_services(repo_path)
     for svc, meta in sorted(ci_services.items()):
-        _add(meta.get("file", ".github/workflows"), "ci_service",
-             name=svc, snippet=str(meta.get("image", svc)))
+        # VERIFIED: service meta carries image/host/port — NOT a file path; use a generic label.
+        _add(".github/workflows", "ci_service", name=svc, snippet=str(meta.get("image", svc)))
     for svc, meta in sorted(scan_compose_services(repo_path).items()):
-        _add(meta.get("file", "docker-compose.yml"), "compose_service",
-             name=svc, snippet=str(meta.get("image", svc)))
+        _add("docker-compose.yml", "compose_service", name=svc, snippet=str(meta.get("image", svc)))
     for var, default in sorted(parse_env_example(repo_path).items()):
         _add(".env.example", "env_var", name=var, snippet=str(default))
     for var, file in sorted(scan_env_reads(repo_path).items()):
@@ -550,7 +563,7 @@ def compact_bundle_json(hits: tuple[DeterministicHit, ...], goal: str = _GOAL) -
     return json.dumps({"goal": goal, "deterministic_hits": rows}, indent=2)
 ```
 
-> **Implementer note:** the exact dict keys returned by `scan_ci_services`/`scan_compose_services` (e.g. `"file"`, `"image"`) may differ — read those functions and adjust `meta.get(...)` keys so the test's `ci_service`/`env_var` assertions pass. Do not change the scanners; only the adapter.
+> **Implementer note (VERIFIED 2026-06-28):** `scan_ci_services(repo)->(dict[name,meta], has_ci)` and `scan_compose_services(repo)->dict[name,meta]`; each `meta` carries `image/host/port/service_confidence` and **no file-path key** — so the adapter uses generic file labels (above), not `meta.get("file")`/`"source"`. `scan_env_reads(repo)->{VAR: file}` (value IS the file) and `parse_env_example(repo)->{VAR: default}`. Do not change the scanners; only the adapter. The test asserts kind+name (reliable), not exact file paths.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -569,11 +582,12 @@ git commit -m "feat(depgraph): static evidence collectors + compact LLM bundle (
 ### Task 5: Block runner — `run_blocks` (the §7 runner)
 
 **Files:**
+- Create: `src/envstate/text_util.py` (extract the pure `truncate_output` helper so the runner does NOT import the LLM-agent stack via `build_agent`).
 - Create: `src/envstate/script_runner.py`
 - Test: `tests/envstate/test_script_runner.py`
 
 **Interfaces:**
-- Consumes: `block.Block`, `evidence_log.{Evidence,EvidenceBundle}`, `depgraph_live.{certify_refresh,ensure_python_shim}`, `build_agent._truncate_output`.
+- Consumes: `block.Block`, `evidence_log.{Evidence,EvidenceBundle}`, `depgraph_live.{certify_refresh,ensure_python_shim}`, `text_util.truncate_output`.
 - Produces: `run_blocks(blocks, sandbox_execute, exec_readonly, graph, cycle, *, container_kind="canonical") -> tuple[DepGraph, EvidenceBundle, str | None]` — returns `(certified_graph, evidence, failed_block_id_or_None)`. Executes each block under the mutating executor, stops on first failed block (§7), logs one `Evidence` per block, and certifies via `certify_refresh` (block rc=0 ≠ node truth — invariant #2/#3).
 
 - [ ] **Step 1: Write the failing test**
@@ -581,14 +595,14 @@ git commit -m "feat(depgraph): static evidence collectors + compact LLM bundle (
 ```python
 # tests/envstate/test_script_runner.py
 from python_deps.depgraph.block import Block
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State
+from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from src.envstate.script_runner import run_blocks
 
 
 def _graph():
     g = DepGraph()
     g = g.with_node(Node(id="syslib:libpq", type=NodeType.SYSTEM_LIB, name="libpq.so",
-                         layer=Layer.SYSTEM, state=State.MISSING,
+                         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
                          check_command="ldconfig -p | grep -q libpq", chosen_fix="apt:libpq-dev"))
     return g
 
@@ -613,7 +627,7 @@ def test_one_evidence_per_block_and_certify():
     graph, bundle, failed = run_blocks(_BLOCKS, _exec_ok, ro, _graph(), cycle=1)
     assert failed is None
     assert len(bundle.items) == 2 and all(e.container_kind == "canonical" for e in bundle.items)
-    assert graph.node("syslib:libpq").state is State.SATISFIED
+    assert graph.get("syslib:libpq").state is State.SATISFIED
 
 
 def test_stops_on_first_failed_block():
@@ -634,22 +648,48 @@ def test_block_rc0_does_not_certify_without_check_pass():
     def ro(cmd):
         return (1, "not found")
     graph, bundle, failed = run_blocks(_BLOCKS, _exec_ok, ro, _graph(), cycle=1)
-    assert graph.node("syslib:libpq").state is not State.SATISFIED
+    assert graph.get("syslib:libpq").state is not State.SATISFIED
 ```
 
-> **Implementer note:** confirm the accessor for a node by id (`graph.node(id)` vs `graph.get(id)`); use whatever `schema.DepGraph` exposes and keep the test consistent.
+> **Implementer note (VERIFIED):** node lookup is `graph.get(node_id) -> Node | None` (there is NO `graph.node()`). `Node` requires `discovered_by=DiscoveredBy.RESOLVER` (no default). `Layer.PIP` is the Python-package layer (there is no `Layer.PYTHON`).
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `python3 -m pytest tests/envstate/test_script_runner.py -q`
 Expected: FAIL with `ModuleNotFoundError: No module named 'src.envstate.script_runner'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 3a: Extract the pure truncation helper**
+
+Create `src/envstate/text_util.py` so `script_runner` stays off the LLM-agent stack
+(`build_agent` imports `llm_response` etc.). This is additive — leave
+`build_agent._truncate_output` in place for Phase 1 (Phase 2 can re-point it to
+delegate here; the brief duplication is acceptable and noted).
+
+```python
+# src/envstate/text_util.py
+"""Pure text helpers shared across envstate (no LLM/Docker imports)."""
+from __future__ import annotations
+
+_HEAD = 1500
+_TAIL = 1500
+
+
+def truncate_output(output: str, head: int = _HEAD, tail: int = _TAIL) -> str:
+    """Head+tail truncation preserving the start and the tail (traceback/pytest summary)."""
+    s = output or ""
+    if len(s) <= head + tail:
+        return s
+    return s[:head] + "\n...[truncated]...\n" + s[-tail:]
+```
+> The implementer SHOULD mirror the head/tail sizes of the existing
+> `build_agent._truncate_output` so excerpts look identical; read that function and copy its constants.
+
+- [ ] **Step 3b: Write the runner**
 
 ```python
 # src/envstate/script_runner.py
 """Strict-shell block runner (design §7): execute annotated blocks, log typed
-Evidence, certify target nodes via the host-check path. The v4-loop analog of
+Evidence, certify target nodes via the host-check path. The v3 analog of
 depgraph_live.emit_drain, but runs raw block commands with NO LLM seeding.
 
 Invariant #2/#3: a block exiting 0 never certifies a node — only certify_refresh
@@ -661,8 +701,8 @@ from typing import Callable
 
 from python_deps.depgraph.block import Block
 from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
-from src.envstate.build_agent import _truncate_output
 from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
+from src.envstate.text_util import truncate_output
 
 
 def run_blocks(
@@ -686,7 +726,7 @@ def run_blocks(
             ev = Evidence(
                 evidence_id=f"ev.{cycle}.{ev_n}", container_kind=container_kind,
                 command=cmd, rc=0 if ok else 1,
-                output_excerpt=_truncate_output(out or ""), cycle=cycle,
+                output_excerpt=truncate_output(out or ""), cycle=cycle,
                 block_id=block.block_id,
                 node_id=block.target_node_ids[0] if block.target_node_ids else None,
             )
@@ -710,7 +750,7 @@ Expected: PASS (3 tests). If `certify_refresh` certifies more/less than expected
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/envstate/script_runner.py tests/envstate/test_script_runner.py
+git add src/envstate/text_util.py src/envstate/script_runner.py tests/envstate/test_script_runner.py
 git commit -m "feat(envstate): strict-shell block runner with per-block evidence + host certify"
 ```
 
@@ -732,14 +772,14 @@ git commit -m "feat(envstate): strict-shell block runner with per-block evidence
 """Design §16 invariants assertable in Phase 1."""
 from python_deps.depgraph.block import compile_blocks
 from python_deps.depgraph.script import render_setup_sh, parse_setup_sh
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State
+from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from src.envstate.script_runner import run_blocks
 
 
 def _g():
     g = DepGraph()
     return g.with_node(Node(id="syslib:libpq", type=NodeType.SYSTEM_LIB, name="libpq.so",
-                            layer=Layer.SYSTEM, state=State.MISSING,
+                            layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
                             check_command="ldconfig -p | grep -q libpq",
                             chosen_fix="apt:libpq-dev"))
 
@@ -789,4 +829,10 @@ git commit -m "test(depgraph): Phase-1 GSM invariants (block-rc != node-truth; s
 ## Next phases (separate plans — do NOT start here)
 
 - **Phase 2 (the integration; applies §18 decisions):** rewrite `run_v3` to drive `compile_blocks → run_blocks → certify_refresh`; add `PatchProposal`/`PatchGate` (port `contracts/{patch,validation,apply}`); switch the final Dockerfile/fresh-replay source to the compiled `setup.sh` (supersede `synthesis.py` ledger-replay for v3); keep `_verified_test_run_passed` as the binding done-gate; expose an internal graph-only toggle for the §14 B3 ablation. **Re-baseline v3 after.**
+  - **Architectural musts surfaced by review (do not skip in Phase 2):**
+    - **Retire `RecipeStep`/`RecipePatch` from the v3 execution path.** After the rewrite, `run_blocks` is the SOLE v3 execution engine; `emit_drain`/`run_recipe`/`RecipePatch` become v1-only. Leaving both creates two competing execution engines feeding two incompatible evidence histories — directly undermining invariants #1/#2. (review-3 #2, the biggest structural risk.)
+    - **Recompile the script after EVERY graph mutation.** `compile_blocks(graph)` is pure; the persisted `setup.sh` is only a *projection* of the graph. A PatchGate apply that adds an ordering edge is invisible to fresh replay unless the script is recompiled. "The script is a compiled proof attempt from the graph" only holds if compile is always re-run. (review-1, failure-class-4.)
+    - **PatchGate needs a provider action-class taxonomy.** §10's "provider command matches allowed action class" has no existing implementation — define it at Phase 2 start (`kind="apt"`→`^apt-get install`, `kind="pip"`→`^python3 -m pip install`, …); the §14 "wrong apt package name" case is its regression test. (review-1.)
+    - **Re-point `build_agent._truncate_output` → `text_util.truncate_output`** to remove the brief duplication left by Phase 1.
+- **Soft/hard edges (Phase 5 / §5.2 promotion ladder):** when the FIRST soft edge is introduced, add `Edge.data["hard"]` (default `True`) and make `schedule._dependencies_satisfied` filter `and e.data.get("hard", True)` so soft edges never block scheduling (invariant #10). Not needed in Phase 1 (all build edges are hard `requires`), but it is the exact seam — do not invent a parallel advisory path; generalize the existing Config/Service carve-out in `schedule._is_actionable` into this model. (review-1, review-3 #1/#4.)
 - **Phase 3** maturity gates (advisory/scheduling only). **Phase 4** platform profiles + Platform node. **Phase 5** causal overlay + lab containers (the B4→B5 delta). **Phase 6** fresh-replay runner + baseline arms + controlled suite + metrics.
