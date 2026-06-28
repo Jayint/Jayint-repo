@@ -6,10 +6,10 @@ import re
 
 # kind -> regex the provider command must match (searched against the stripped command).
 ACTION_CLASSES: dict[str, str] = {
-    "apt":   r"^apt-get(\s+update\s*&&\s*apt-get)?\s+install\b",
-    "pip":   r"^(python3?\s+-m\s+)?pip\s+install\b",
+    "apt":   r"^(?:apt-get|apt)(?:\s+update\s*&&\s*(?:apt-get|apt))?\s+install\b",
+    "pip":   r"^(python3?\s+-m\s+)?pip\d?\s+install\b",
     "npm":   r"^npm\s+(install|ci)\b",
-    "shell": r".",   # explicit, audited escape hatch: matches any non-empty command
+    "shell": r".",
 }
 
 
