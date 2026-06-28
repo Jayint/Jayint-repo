@@ -105,8 +105,12 @@ return graph, bundle, failed
 - `run_blocks` (Phase 1) executes each block, stops on the first failure, logs one `Evidence`
   per command, and certifies via `certify_refresh` (block rc=0 never certifies — #3/#4).
 - **`run_blocks` stays pure/unchanged.** The dual-write lives in `wrapped_sandbox`: a thin
-  orchestrator wrapper around the existing `sandbox_execute` that, on a successful block command,
-  also appends a minimal `ActionEvent` to the live `ActionLedger` (the state-capture feed, decision #3).
+  orchestrator wrapper around the existing `sandbox_execute` that, on **each** block command
+  (success *or* failure), appends a minimal `ActionEvent` to the live `ActionLedger` (the
+  state-capture feed, decision #3). Failures (`rc != 0`) are mirrored too because
+  `_runtime_ingest_phase` (`orchestrator.py:441`) reads `ledger.events()` filtered to `rc != 0`
+  to discover new nodes — the pre-2b `emit_drain` fed it the same way, so the block path must
+  preserve that to keep the discovery loop alive.
 - With no LLM in A, a `failed` block ends the wave; the loop proceeds to the existing
   certify/done-gate logic. (Repair on failure arrives in Slice B.)
 
@@ -116,15 +120,26 @@ return graph, bundle, failed
 
 ```text
 if v3 and enable_script_materialization:
-    spine = render_setup_sh(compose_script(final_graph))     # the install spine (apt + pinned-direct pip)
-    # write spine as setup.sh; Dockerfile: COPY setup.sh + RUN bash setup.sh
-    # THEN append the retained captures (unchanged):
-    #   build_pin_instructions(installed=pip_freeze_facts, project_name=...)   # closure pin
-    #   bakeable_config_env(...) / extract_env_vars_from_ledger(...)           # config ENV bake
-    #   _emit_interleaved_state_recipe()                                       # file-content capture
+    blocks = compile_replay_blocks(final_graph)              # STATE-INDEPENDENT (see note below)
+    build_commands = [c for b in blocks for c in b.commands] # per-block apt + pinned-direct pip
+    persist render_setup_sh(blocks) as setup.sh             # audit/replay artifact
+    apply_build_recipe({build_commands, source="compiled_setup_sh"}); return True
+    # THEN _finalize_supervisor_artifacts appends the retained captures (unchanged), AFTER this returns:
+    #   _emit_closure_recipe()                # build_pin_instructions — closure pin
+    #   _bake_test_env_vars()                 # config ENV bake
+    #   _emit_interleaved_state_recipe()      # file-content capture
 else:
     <existing build_commands_from_ledger path>               # v1 + B3 ablation
 ```
+
+**Why `compile_replay_blocks`, not `compose_script`:** `compose_script`/`compile_blocks` emit
+ONLY the emittable wave (`partition().emittable` = `State.MISSING` nodes). At finalize time every
+node is `SATISFIED`, so they yield an empty spine. The artifact needs a *replay* projection — one
+block per installable (`_is_reciped`) node in topo order, **regardless of state** — which
+`compile_replay_blocks` (a small state-independent sibling of `compile_blocks` reusing
+`_is_reciped`/`topo_order`/`_block_for`) provides. The rendered `setup.sh` is persisted as the
+audit/replay artifact; the Dockerfile RUN spine is the per-block command list (functionally a
+`RUN bash setup.sh`, but kept as commands so it composes with the retained-capture command layers).
 
 `synthesis.build_commands_from_ledger` is bypassed for v3; everything else in the finalizer
 (`build_pin_instructions` `synthesis.py:224`, config-bake, file-capture
