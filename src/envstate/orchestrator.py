@@ -29,7 +29,6 @@ from src.envstate.world_model import (
     RecipePatch,
     TaskReport,
     WorldModelMap,
-    apply_deterministic,
     merge_map,
 )
 
@@ -580,6 +579,8 @@ def run_v3(
             _sched_stuck = _sched_stuck + 1 if n_nodes <= _sched_last_nodes else 0
             _sched_last_nodes = n_nodes
             if _sched_stuck >= 2:                # consecutive discover rounds revealed no new obligations
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, None)
                 return current_map, _v3_stop_reason(TerminationReason.GIVEUP_STUCK)
 
         if decision.action == "done":

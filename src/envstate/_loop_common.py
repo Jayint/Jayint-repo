@@ -7,18 +7,7 @@ other's internal state variables.
 """
 from __future__ import annotations
 
-from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import WorldModelMap, apply_deterministic
-
-
-def current_revision(ledger: ActionLedger) -> int:
-    """Return the last ``env_revision_after`` from the ledger, or 0 if empty.
-
-    Used by both arms to read the host-side env revision without repeating the
-    ledger-slicing idiom.
-    """
-    evs = ledger.events()
-    return evs[-1].env_revision_after if evs else 0
 
 
 def host_refresh_facts(

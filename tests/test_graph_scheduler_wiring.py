@@ -227,3 +227,33 @@ def test_stuck_yields_giveup_before_max_cycles():
         enable_dep_emit=True,
     )
     assert stop == "planner_giveup", f"expected stuck->giveup, got {stop!r}"
+
+
+def test_stuck_path_fires_on_cycle_callback():
+    """GIVEUP_STUCK must invoke on_cycle for the final cycle (telemetry parity).
+
+    The pre-split monolith fired on_cycle on this path; the v3 arm was missing
+    the callback, so the stuck cycle was absent from the trace.  This test pins
+    the fix: on_cycle is called at least once when run_v3 gives up due to
+    two consecutive discover rounds with no new obligations.
+    """
+    calls: list[tuple] = []
+
+    final_map, stop = run_v3(
+        build_agent=_RecordingBuildAgent(),
+        maintainer=_NoopMaintainer(),
+        initial_world_map=_no_check_node_map(),
+        ledger=ActionLedger(),
+        sandbox_execute=_sandbox_fail,
+        max_cycles=4,
+        exec_readonly=lambda cmd: (1, ""),
+        enable_dep_emit=True,
+        on_cycle=lambda *a: calls.append(a),
+    )
+    assert stop == "planner_giveup"
+    assert calls, "on_cycle must be called on the GIVEUP_STUCK path"
+    # The final entry must correspond to a 'task' decision (discover task = stuck sentinel)
+    final_cycle_num, _map, final_decision, _report = calls[-1]
+    assert final_decision.action == "task", (
+        f"stuck path decision must be 'task', got {final_decision.action!r}"
+    )

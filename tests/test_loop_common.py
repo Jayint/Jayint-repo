@@ -15,36 +15,13 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate._loop_common import current_revision, host_refresh_facts
-from src.envstate.ledger import ActionLedger, make_action_event
+from src.envstate._loop_common import host_refresh_facts
 from src.envstate.world_model import WorldModelMap, Fact, initial_map, merge_map
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _empty_ledger() -> ActionLedger:
-    return ActionLedger()
-
-
-def _ledger_with_events(*revisions_after: int) -> ActionLedger:
-    """Build a ledger with one event per supplied revision_after value."""
-    ledger = ActionLedger()
-    for i, rev in enumerate(revisions_after, start=1):
-        evt = make_action_event(
-            step=i,
-            cmd=f"echo {i}",
-            success=True,
-            stdout="ok",
-            env_revision_before=rev - 1,
-            env_revision_after=rev,
-            mutation_class=None,
-            container_id="test",
-        )
-        ledger.append(evt)
-    return ledger
-
 
 def _base_map() -> WorldModelMap:
     return initial_map(
@@ -54,30 +31,6 @@ def _base_map() -> WorldModelMap:
         build_system="pip",
         repo_layout=(),
     )
-
-
-# ---------------------------------------------------------------------------
-# current_revision
-# ---------------------------------------------------------------------------
-
-def test_current_revision_returns_zero_for_empty_ledger():
-    assert current_revision(_empty_ledger()) == 0
-
-
-def test_current_revision_returns_last_revision_after():
-    ledger = _ledger_with_events(1, 2, 5)
-    assert current_revision(ledger) == 5
-
-
-def test_current_revision_single_event():
-    ledger = _ledger_with_events(7)
-    assert current_revision(ledger) == 7
-
-
-def test_current_revision_does_not_mutate_ledger():
-    ledger = _ledger_with_events(3)
-    _ = current_revision(ledger)
-    assert len(ledger.events()) == 1, "current_revision must not modify the ledger"
 
 
 # ---------------------------------------------------------------------------
