@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, replace
 
 from python_deps.depgraph.action_class import matches_action_class
-from python_deps.depgraph.block import Block
+from python_deps.depgraph.block import Block, compile_blocks
 from python_deps.depgraph.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
@@ -161,3 +161,27 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
     # 4. script_patches -> governed blocks; they NEVER mutate node state.
     blocks = tuple(_script_patch_to_block(s) for s in proposal.script_patches)
     return ApplyResult(graph=g, blocks=blocks)
+
+
+# Wave rank for slotting manual blocks; mirrors the Layer enum order so a manual
+# "system" block runs before any "pip" block. compile_blocks already emits compiled
+# blocks in topo (wave-rank-nondecreasing) order, and Python's sort is STABLE, so
+# sorting the merged list by wave rank leaves compiled blocks in place and slots
+# each manual block after the compiled blocks of its wave.
+_WAVE_RANK: dict[str, int] = {layer.value: i for i, layer in enumerate(Layer)}
+
+
+def compose_script(graph: DepGraph, manual_blocks: tuple[Block, ...] = ()) -> tuple[Block, ...]:
+    compiled = compile_blocks(graph)
+    seen = {b.block_id for b in compiled}
+    fresh = []
+    for b in manual_blocks:
+        if b.block_id in seen:                 # graph-compiled block wins on id collision
+            continue
+        seen.add(b.block_id)
+        fresh.append(b)
+    if not fresh:
+        return compiled
+    merged = list(compiled) + fresh            # compiled first -> stable sort keeps them first per wave
+    merged.sort(key=lambda b: _WAVE_RANK.get(b.wave, len(_WAVE_RANK)))
+    return tuple(merged)
