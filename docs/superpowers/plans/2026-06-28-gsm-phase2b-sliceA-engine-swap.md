@@ -385,16 +385,30 @@ def _syslib_map():
 
 
 def build_run_v3_inputs():
-    """Fresh run_v3 kwargs each call. sandbox installs OK; exec_readonly passes the
-    ldconfig check so the node certifies."""
+    """Fresh run_v3 kwargs each call. The check is STATEFUL: ldconfig fails UNTIL the apt
+    install runs, then passes. This matters because `certify_refresh` runs BEFORE the emit
+    phase (orchestrator.py:392) — an unconditional pass there would pre-satisfy the node,
+    leaving an empty emittable wave (block_emit compiles 0 blocks, no install, no dual-write).
+    With the stateful check the node stays MISSING at certify, block_emit installs it, and the
+    post-install check certifies it."""
+    state = {"installed": False}
+    led = ActionLedger()
+    def sandbox(cmd):
+        if "libpq-dev" in cmd:
+            state["installed"] = True
+        return (True, "installed")
+    def ro(cmd):
+        if "ldconfig" in cmd:
+            return (0, "libpq") if state["installed"] else (1, "")
+        return (1, "")
     return dict(
         build_agent=_RecordingBuildAgent(),
         maintainer=_NoopMaintainer(),
         initial_world_map=_syslib_map(),
-        ledger=ActionLedger(),
-        sandbox_execute=lambda cmd: (True, "installed"),
+        ledger=led,
+        sandbox_execute=sandbox,
         max_cycles=1,
-        exec_readonly=lambda cmd: (0, "libpq") if "ldconfig" in cmd else (1, ""),
+        exec_readonly=ro,
         enable_dep_emit=True,
     )
 
@@ -473,15 +487,17 @@ In `src/envstate/orchestrator.py`, inside `run_v3._dep_emit_phase`, KEEP `ensure
 
 Leave the satisfied-PACKAGE fold + `merge_map` (`:416-429`) unchanged (it runs after, for both branches). `enable_script_materialization` is a `run_v3` parameter so it is already in `_dep_emit_phase`'s closure scope — no `nonlocal` needed (it is read-only here).
 
+**Also update the one existing test that pins the OLD v3 default.** Because the toggle defaults **on** (B5), `run_v3` no longer runs `emit_drain` by default — `tests/test_graph_scheduler_wiring.py::test_drain_runs_under_flag_as_prefix` asserts the pre-2b default (emit_drain runs in v3 with no flag) and will now fail. This is the expected, intended consequence of the default flip, NOT a weakening: the test's real subject ("emit_drain runs as the deterministic prefix") is now the B3/off path. Update its `run_v3(...)` call to pass `enable_script_materialization=False` (the run_v1 portion is unaffected — v1 has no such flag). Do not change the test's assertions; only add the flag so it exercises the emit_drain path it was written to check. (If the full-suite gate in Task 8 surfaces other tests that assert the old v3 default, those get the same one-line `enable_script_materialization=False` update — but only that test is known to break here.)
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/test_v3_block_emit_wiring.py -q`
-Expected: PASS (2 tests). Then `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_graph_scheduler_wiring.py -q` — v1 + the toggle-off v3 path unchanged.
+Expected: PASS (2 tests). Then `python3 -m pytest tests/test_orchestrator_v1.py tests/test_orchestrator_v1_snapshot.py tests/test_graph_scheduler_wiring.py -q` — green: v1 unchanged, the toggle-off v3 path unchanged, and the updated `test_drain_runs_under_flag_as_prefix` exercises emit_drain via `enable_script_materialization=False`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/envstate/orchestrator.py tests/test_v3_block_emit_wiring.py
+git add src/envstate/orchestrator.py tests/test_v3_block_emit_wiring.py tests/test_graph_scheduler_wiring.py
 git commit -m "feat(v3): _dep_emit_phase drives block_emit under enable_script_materialization"
 ```
 
