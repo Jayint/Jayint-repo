@@ -16,9 +16,14 @@ from python_deps.depgraph.emit import topo_order
 
 
 def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:
-    """True when every node this one REQUIRES is SATISFIED."""
+    """True when every HARD node this one REQUIRES is SATISFIED.
+
+    Soft edges (``Edge.data["hard"] is False``) never block scheduling (invariant #10);
+    they are hints/candidates promoted to hard only on runtime/gate failure.
+    """
     for edge in graph.edges:
-        if edge.src == node.id and edge.relation is EdgeType.REQUIRES:
+        if (edge.src == node.id and edge.relation is EdgeType.REQUIRES
+                and edge.data.get("hard", True)):
             dep = graph.get(edge.dst)
             if dep is None or dep.state is not State.SATISFIED:
                 return False
