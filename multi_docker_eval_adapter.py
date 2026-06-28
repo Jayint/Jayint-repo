@@ -781,13 +781,12 @@ RUN git clone {repo_url} /testbed
             # (Planner/BuildAgent/Maintainer) instead of the legacy ReAct loop.
             _enable_v1 = os.environ.get("DOCKERAGENT_ENABLE_V1", "").lower() in ("1", "true", "yes", "on")
             _enable_contract_graph = os.environ.get("DOCKERAGENT_ENABLE_CONTRACT_GRAPH", "").lower() in ("1", "true", "yes", "on")
-            # Phase-0 dep-graph advisory (--arm v1gd). Implies v1.
+            # arm v3 (graph-scheduled) feature flags — each enables one layer of the dep-graph pipeline.
+            # dep_graph: advisory overlay; dep_emit: certify+escalate; runtime_feedback: failure classification;
+            # graph_scheduler: graph drives DECIDE/EXECUTE/CERTIFY loop (the v3 default).
             _enable_dep_graph = os.environ.get("DOCKERAGENT_ENABLE_DEP_GRAPH", "").lower() in ("1", "true", "yes", "on")
-            # Graph-first emit: certify closure + escalate frontier (--arm v1gde). Implies dep_graph.
             _enable_dep_emit = os.environ.get("DOCKERAGENT_ENABLE_DEP_EMIT", "").lower() in ("1", "true", "yes", "on")
-            # Runtime feedback: classify ledger failures and append discovered requirements (--arm v1gder).
             _enable_runtime_feedback = os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK", "").lower() in ("1", "true", "yes", "on")
-            # Graph scheduler: graph schedules the agent (DECIDE=graph, EXECUTE=agent, CERTIFY=host) (--arm v1gs).
             _enable_graph_scheduler = os.environ.get("DOCKERAGENT_ENABLE_GRAPH_SCHEDULER", "").lower() in ("1", "true", "yes", "on")
             _enable_runtime_pin = os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_PIN", "").lower() in ("1", "true", "yes", "on")
             _enable_det_maint = os.environ.get("DOCKERAGENT_DETERMINISTIC_MAINTAINER", "").lower() in ("1", "true", "yes", "on")

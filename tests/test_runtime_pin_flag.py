@@ -32,7 +32,7 @@ def test_adapter_reads_env():
 def test_rat_benchmark_sets_env_and_arm():
     src = (_ROOT / "run_rat_benchmark.py").read_text()
     assert "DOCKERAGENT_ENABLE_RUNTIME_PIN" in src
-    assert '"v3"' in src  # renamed v1gsp→v3 in Phase 1 Task 4
+    assert '"v3"' in src  # renamed v1gsps→v3 in Phase 1 Task 4
 
 
 def test_repo2run_has_v1gsp_preset_and_forward():

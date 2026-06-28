@@ -53,9 +53,9 @@ class _Maintainer:
         return m
 
 
-def test_run_v1_drives_recipe_and_commits_attempts() -> None:
-    """run_v1 with enable_contract_graph=True and apply_recipe_patch decision
-    must delegate to build_agent.run_recipe and preserve the recipe steps."""
+def test_run_v1_drives_recipe() -> None:
+    """run_v1 with an apply_recipe_patch decision must delegate to
+    build_agent.run_recipe and preserve the recipe steps in the returned state."""
     rp = RecipePatch(
         steps=(
             RecipeStep(
