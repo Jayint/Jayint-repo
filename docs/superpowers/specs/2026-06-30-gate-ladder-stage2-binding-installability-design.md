@@ -1,88 +1,70 @@
-# Gate-Ladder Stage 2 — Binding Installability via Reset-to-Base — Design
+# Gate-Ladder Stage 2 — Binding Dep-Spine Installability via Reset-to-Base — Design
 
-> **Extends:** `docs/superpowers/specs/2026-06-29-gate-ladder-outer-loop-design.md` (the two-gate model); builds on the Stage 1 observability scaffold (`src/envstate/gates.py`, landed `ba7f829..d817ab4`).
-> **Wires:** `docs/superpowers/HANDOFF-graph-to-build-script-renderer.md` — the `render_build_script` renderer (built, container-validated, deliberately left inert). Stage 2 is the "first non-additive step" that handoff names.
+> **Extends:** `docs/superpowers/specs/2026-06-29-gate-ladder-outer-loop-design.md` (two-gate model); builds on the Stage 1 observability scaffold (`src/envstate/gates.py`, landed `ba7f829..d817ab4`).
+> **Wires:** `docs/superpowers/HANDOFF-graph-to-build-script-renderer.md` — the `render_build_script` renderer (built, container-validated, deliberately inert). Stage 2 is the "first non-additive step" that handoff names.
 
-**Status:** DESIGN (decided via brainstorm, 2026-06-30). Not yet implemented.
+**Status:** DESIGN (decided via brainstorm + 3-agent adversarial review, 2026-06-30). Not yet implemented.
 
-**Decided by:** user, through a Q1–Q5 brainstorm of the in-loop container mechanics + the decision to wire the graph→build-script renderer.
+**Scope name:** Stage 2 binds **dep-spine** installability (system + pip reciped nodes). The **project's own install** (`pip install -e .`), **`#@need`/`#@block` certification**, and **service/config** are explicitly **deferred to Stage 2.5** (§7 Deferred). Calling the gate "binding dep-spine installability" is deliberate honesty: it does not yet certify that the project itself builds.
 
 ---
 
-## 0. Correction to the gate-ladder spec (important)
+## 0. Correction to the gate-ladder spec
 
-The gate-ladder spec (§6, §9, §11) repeatedly states *"Sandbox today has no commit/checkpoint support — Stage 2 must add it."* **That is wrong.** `src/sandbox.py` already:
-
-- **auto-commits a snapshot after every successful state-changing command** (`execute()` → `_should_commit()` → `self.container.commit()`),
-- keeps a **baseline snapshot** at init and tracks `last_success_image`,
-- **rolls back** via `docker rm` + `docker run <last-good-image>` + ephemeral-service replay (`_restore_last_success_container` / `rollback()`),
-- and the v3 loop **uses** this Sandbox (`agent.py:1366` binds `sandbox_execute=self.sandbox.execute`, `exec_readonly=self.sandbox.exec_readonly`).
-
-So `docker commit` checkpoint/reset is **already built**. Stage 2 is therefore: (a) give the loop a *control surface* over the container (reset-to-base, reset-to-last-good, run-install-script — today the loop sees only two thin callables), (b) a **fresh-from-base install + host certify** as the binding `ebsr` gate, and (c) **localized** failures feeding the existing repair loop. (The gate-ladder spec's §6/§9/§11 wording should be corrected to match.)
+The gate-ladder spec (§6/§9/§11) says *"Sandbox has no commit/checkpoint support — Stage 2 must add it."* **Wrong.** `src/sandbox.py` already auto-commits after each successful state-changing command (`execute()`→`_should_commit()`→`container.commit()`), keeps a baseline snapshot + `last_success_image`, and rolls back via `docker rm`+`docker run <img>`+ephemeral replay (`_restore_last_success_container`/`rollback()`); the v3 loop uses it (`agent.py:1366` `sandbox_execute=self.sandbox.execute`; `agent.py:1371` `exec_readonly=self.sandbox.exec_readonly`). So Stage 2 is: (a) a loop **control surface** over the container, (b) a **fresh-from-base install + host certify** binding gate, (c) **localized** failures into the existing repair loop. (Patch the gate-ladder spec's §6/§9/§11 to match.)
 
 ---
 
 ## 1. Goal & scope
 
-**Goal:** turn Stage 1's *provisional* installability gate into a **binding `ebsr`** check by compiling the graph into a whole `setup.sh` (`render_build_script`), running it from a clean base container, **and host-certifying every node** — then feeding precise, *localized* failures into the existing structured repair loop.
+**Goal:** turn Stage 1's *provisional* installability gate into a **binding dep-spine `ebsr`** check by compiling the graph into a whole install-only `setup.sh` (`render_build_script`), running it from a clean base container, **and host-certifying every reciped node**, with localized failures feeding the existing typed-patch repair loop.
 
-**In scope (Stage 2):**
-- Wire `render_build_script` as the install-subroutine renderer.
-- The **two-phase install/certify** model (§1.5) as the binding installability gate.
-- A loop-controlled container surface: reset-to-base, reset-to-last-good, run-install-script.
-- The reset-to-base execution model (replacing the incremental `block_emit` install when the flag is on).
-- **Error localization** on two failure modes (install line rc≠0; install-rc-0-but-node-certifies-MISSING), mapped via `#@node` annotations.
-- An enriched repair input (debug bundle) adding the localized runtime failure + bounded script window to the existing graph slice.
-- A **pip/apt cache volume** so reset-to-base re-runs stay affordable.
+**In scope:** wire `render_build_script`; the two-phase install→certify binding gate over reciped `#@node`; a container control surface (reset-to-base, run-install-script); reset-to-base execution model (flag-gated, replacing the incremental `block_emit` install when on); error localization on the two failure modes; an enriched repair debug bundle; a pip/apt cache volume.
 
-**Out of scope (deferred to Stage 3):** the `done`-condition wiring (`next_decision` reading testability gate state), the `pytest --collect-only` probe, and `classify_gate_failure`→typed-obligations. Stage 2 changes the *install mechanism + repair input*, not termination logic.
+**Out of scope → Stage 2.5:** project install (`pip install -e .`); certification of `#@need` stubs and `#@block` (LLM-patch) sections; service/config nodes; tier-by-tier snapshot optimization.
+
+**Out of scope → Stage 3:** `done`-condition wiring (`next_decision` reading testability gate state); `pytest --collect-only` probe; `classify_gate_failure`→typed-obligations.
 
 ---
 
-## 1.5 Reuse: `render_build_script` + the two-phase install/certify model
+## 1.5 Reuse + the binding model (two-phase, necessary AND sufficient conditions)
 
-A concurrent agent built **exactly the renderer Stage 2 needs** and validated its execution model in real containers (handoff: `docs/superpowers/HANDOFF-graph-to-build-script-renderer.md`). Stage 2 **wires it**; it does not reinvent it.
+### Renderer (reuse-only, do NOT modify — handoff invariant)
+`render_build_script(graph, manual_blocks) -> str` (`src/python_deps/depgraph/build_script.py`, pure / byte-reproducible / never writes `node.state`) compiles the graph into ONE **install-only** `setup.sh`: hard `Layer`-tier sections, intra-tier `topo_order`, `--no-deps` pinned pip, one hoisted `apt-get update`, preamble `set -Eeuo pipefail`. Annotations: `#@node` (executable install line for reciped PACKAGE-with-version / SYSTEM_LIB|TOOL-with-`apt:`-`chosen_fix`), `#@need` (comment-only stub for CONFIG/SERVICE/DATA_ASSET), `#@block` (governed LLM patch), `#@check` (the node's check, emitted as a **comment, NOT executed**).
 
-### The renderer
-`render_build_script(graph, manual_blocks) -> str` (`src/python_deps/depgraph/build_script.py`, pure / byte-reproducible / never writes `node.state`) compiles the certified graph into ONE **install-only** `setup.sh`: hard `Layer`-tier sections, intra-tier `topo_order`, `--no-deps` pinned pip (full pinned closure → no resolver drift), one hoisted `apt-get update`. Per-line authority annotations:
+### Two-phase install/certify
+1. **install** — `bash setup.sh` from clean base; `set -e` aborts at the first failing install line.
+2. **certify** — host runs each reciped node's `#@check` read-only (`certify_refresh` → `certify_all`) → flips `State`.
 
-- `#@node` — host-compiled, **has a real executable install line** (reciped `PACKAGE` w/ version, or `SYSTEM_LIB`/`TOOL` w/ `apt:` `chosen_fix`).
-- `#@need` — **comment-only** stub (no executable line) for `CONFIG`/`SERVICE`/`DATA_ASSET`; the LLM satisfies these via a governed `#@block`.
-- `#@block` — governed LLM patch (from `manual_blocks`), wave-grouped; commands ARE executable.
-- `#@check` — the node's check command, emitted as a **comment, NOT executed** (the script is install-only; certification is a separate pass).
+`bash rc=0 ≠ certified`. Proven by the cv2 e2e: install rc 0 but `syslib:libglib2.0-0` certified MISSING (Debian-13 t64 rename). **But the adversarial review showed two-phase is *necessary, not sufficient*** — the gate's honesty also requires *certify coverage* and *check quality*. The binding condition is therefore precise:
 
-It **coexists with** `render_setup_sh`/`parse_setup_sh` (untouched) and reuses `emit`/`advise`/`schema`/`block` by import only.
+> **Binding dep-spine installability** ⇔
+> (a) **install rc 0**, AND
+> (b) **every `_is_reciped` node that has a `check_command` certifies `State.SATISFIED`**, AND
+> (c) **no `_is_reciped` node lacks a `check_command`** (enforced at render time — see below).
 
-### The two-phase install/certify model (the anti-hollow heart)
-Because `#@check` is *not* executed by the script, the binding gate is **two phases**:
+Conditions that make (b)/(c) sound (folded in from review):
 
-1. **install** — `bash setup.sh` from a clean base; `set -Eeuo pipefail` aborts at the first failing install line.
-2. **certify** — host runs each `#@node`'s `#@check` read-only (`certify_refresh` / `exec_readonly`) → flips `State` PRESENT/MISSING.
+- **No-check nodes are a build error, caught at render (review C2).** `_is_reciped` requires a version/`chosen_fix` but NOT a `check_command`; `certify_all` leaves a no-check node `UNKNOWN` (`certify.py:68-69`), and `UNKNOWN ≠ SATISFIED`. To avoid both the hollow-pass (treat UNKNOWN as pass) and the livelock (treat as fail with no repair path — `failed_reciped_nodes` skips no-check nodes), **`render_build_script`'s consumer must fail fast**: if `_is_reciped(node) and not node.check_command`, raise before running, surfacing it as a graph defect the LLM must fix (supply a check). The binding certify evaluates only `_is_reciped` nodes (a `certify_reciped_only` filter/wrapper — `certify_refresh` certifies *all* nodes, so `#@need` stubs must be excluded; review I3).
+- **Prefer importability checks over metadata checks (review C4).** `python -m pip show X` passes even when a `--no-deps` install left a transitively-broken, unimportable package. Where a module name is known, the pip node's `check_command` should be `python -c "import <module>"`; C-extension syslibs should use a functional import or `ldconfig -p | grep <soname>` rather than `dpkg -s <name>`. This is the builder-side check-quality fix (§7) and the corrected check is promoted to the graph deterministically (not via an LLM patch — see §4/review I2).
 
-**`bash rc=0 ≠ certified`.** This separation is *proven necessary*: in the cv2 e2e, install returned **rc 0 but `syslib:libglib2.0-0` certified MISSING** — a real **hollow success caught** (Debian-13 t64 rename: `apt-get install libglib2.0-0` installs `libglib2.0-0t64`, so `dpkg -s libglib2.0-0` returns rc 1). Therefore:
-
-> **Binding installability = install rc 0 AND every reciped `#@node` certifies PRESENT** — not `bash rc 0` alone.
-
-This **replaces** the earlier draft's `render_setup_sh` + "full script rc 0 → SATISFIED": Stage 2's render is `render_build_script`, and the gate is the two-phase install+certify.
+This **replaces** the earlier `render_setup_sh` + "rc 0 → SATISFIED" framing.
 
 ---
 
-## 2. The reset model (decided: nested R2/R3, "bash the whole script")
+## 2. The reset model (decided: reset-to-base every attempt — R2 dropped)
 
-Three reset granularities; the Sandbox already gives two for free:
+Every install attempt — first try and every repair retry — does the same thing:
 
-| Option | What | Cost | Honesty |
-|---|---|---|---|
-| R1 no reset | repair attempts run on the live, possibly-dirty container | cheapest | a failed attempt's junk can fool the next attempt |
-| **R2 reset to last-good snapshot** | `docker rm` + run `last_success_image`, then bash the whole script | cheap (present lines no-op) | clean relative to prior good state |
-| **R3 reset to base** | bash the whole script from `base_image` | full re-run | every run is a binding `ebsr` |
+```
+reset_to_base()              # docker rm + docker run from base_image (NOT last_success)
+rc, fail = run_install_script(script)
+graph = certify_reciped_only(graph, exec_readonly, cycle)
+```
 
-Because the model is `bash setup.sh` (not block-stepped `run_blocks`), R2 and R3 are the **same action from a different snapshot** — and both are followed by the certify pass:
+**Why R2 was dropped (review I1/I2/I4):** the earlier nested "reset-to-last-good (R2) for fast inner search" gave little real speedup on the critical path — `run_install_script` is a *single* `bash` exec, so the sandbox commits at most once per run; on the **first** failing node `last_success_image ≈ the pre-install baseline`, so R2 would re-run the whole script anyway (≈ R3). R2 also could not undo apt **removals** (false negatives) and could inherit a partially-committed install (`_is_informational_exit` commits exit-1 "usage" output as success). Reset-to-base every attempt is simpler, always-honest, and depends on no snapshot hygiene. Cost is mitigated by the cache volume (§9).
 
-- **Inner repair loop → R2 (fast candidate search).** Reset to the last-good snapshot, then **bash the whole re-rendered script**: present lines are no-ops, and any patch-inserted *earlier* line or version change simply applies (pip/apt install what's missing/changed). This **dissolves the resume-point problem** — bashing the full script naturally handles inserts and modifications — so there is no fiddly "resume from block K-1" rule. Then certify. Fast because most is pre-installed.
-- **Outer loop → R3 (binding verify).** Once the inner loop has a candidate fix, reset to base, bash the whole re-rendered script, and certify. That two-phase result is the **binding installability gate**. R2 only proposes; R3 certifies.
-
-Why not R3 per repair attempt: it is redundant with the outer binding run (the honesty arbiter) and is the slowest path × the most frequent event. R2 gives contamination-freedom cheaply; the outer R3 run is the backstop that catches any case where R2's idempotent re-run diverged from a true from-clean build.
+**Deferred optimization (Stage 2.5):** if measured too slow on large closures, reintroduce **tier-by-tier commits** inside `run_install_script` so a true reset-to-last-tier becomes available — accepting the resume-point complexity then, with evidence.
 
 ---
 
@@ -90,127 +72,119 @@ Why not R3 per repair attempt: it is redundant with the outer binding run (the h
 
 ```
 outer iteration (flag enable_binding_install on):
-  script = render_build_script(graph, manual_blocks)
-  reset_to_base()                       # fresh container from base_image
+  script = render_build_script(graph, manual_blocks)   # raises if a reciped node lacks a check (C2)
+  reset_to_base()
 
   ── install phase ──
-  rc, fail = run_install_script(script) # bash setup.sh; set -e aborts at first failing line
-    └─ rc != 0 → localize (mode A): failing line → preceding #@node + stderr
+  result = run_install_script(script)                  # bash setup.sh; set -e + ERR trap
+    └─ result.rc != 0 → localize mode A: result.failing_command → preceding #@node + result.stderr
 
   ── certify phase ──  (only if install rc 0)
-  graph = certify_refresh(graph, exec_readonly)   # run each #@node's #@check read-only
-    └─ any reciped node MISSING → localize (mode B): that #@node (hollow-success, e.g. cv2 t64)
+  graph = certify_reciped_only(graph, exec_readonly, cycle)   # reciped #@node only
+    └─ any reciped node not SATISFIED → localize mode B: that #@node (installed-but-not-certified)
 
-  if install rc 0 AND all reciped nodes PRESENT:
-      installability BINDING gate SATISFIED
+  if result.rc == 0 AND all reciped-with-check nodes SATISFIED:
+      binding dep-spine installability SATISFIED
       run pytest on the certified container → testability   (done-path unchanged; Stage 3 re-wires it)
   else:
       assemble debug bundle (§5) for the localized node →
-      INNER repair loop (run_structured_repair, R2):
-        LLM → PatchProposal → PatchGate → re-render
-        reset_to_last_good(); bash whole script; certify; retry the failing node  (bounded)
-      once the node installs AND certifies → candidate fix → outer R3 re-verify
+      repair (run_structured_repair): LLM → PatchProposal → PatchGate → re-render
+      continue            # next outer iteration: reset_to_base + install + certify is the binding re-verify
 ```
 
-- **Two-tier honesty:** the inner R2 loop is a *fast candidate search*; the **binding** installability is **always a from-base (R3) install + certify**. R2 proposes, R3 certifies — so R2 imperfection is safe.
-- **Two failure modes** drive repair: **(A)** an install line exits non-zero (`set -e` abort), and **(B)** install rc 0 but a node's `#@check` certifies MISSING (the hollow-success case). Both localize to a `#@node`.
-- **Per-issue verification** = the next R3 run installs+certifies past the previously-failing node. **Loop-level exit** = an R3 from-base run where install rc 0 AND all reciped nodes certify PRESENT.
-- Testability runs on the certified container; its termination logic is unchanged in Stage 2.
+- **Every binding check is a from-base install+certify.** There is no incremental "candidate search" tier; the repair produces a graph patch and the next iteration re-verifies from clean.
+- **Two failure modes:** **A** install line rc≠0 (`set -e` abort); **B** install rc 0 but a reciped node not `SATISFIED`. Both localize to a `#@node`.
+- **Per-issue verification** = the next from-base run installs+certifies past the previously-failing node. **Loop-level exit** = a from-base run where install rc 0 AND all reciped-with-check nodes `SATISFIED`.
+- Stage-2 repairs admit **typed node/edge patches** (add_requirements / add_edges / version changes → certified `#@node`); `#@block`/script-patches and `#@need` satisfaction are Stage 2.5 (so nothing uncertified can satisfy the Stage-2 gate). Testability runs on the certified container; its termination logic is unchanged.
 
 ---
 
-## 4. Error localization (decided: `#@node` mapping, two failure modes)
+## 4. Error localization (two modes, `#@node` mapping) + check-quality guard
 
-`render_build_script` annotates each executable install line with its source `#@node <id>` (and `#@block <id>` for governed patches). Localization maps *failing line → node*:
+`render_build_script` annotates each executable install line with its `#@node <id>` (and `#@block <id>`). Localization maps *failing line → node*.
 
-- **Mode A — install line rc≠0.** `set -Eeuo pipefail` aborts the script at the first failing command. An `ERR` trap (printing `$BASH_COMMAND` / `$LINENO`) or line capture identifies the failing line; the immediately-preceding `#@node`/`#@block` annotation gives the node. Hand the LLM the failing command **highlighted within its annotated block** + raw stderr + a bounded script window:
+- **Mode A — install line rc≠0.** `run_install_script` injects an ERR trap (`trap 'echo "FAIL:$BASH_COMMAND:$LINENO" >&2' ERR`, prepended to the script string before `bash -c` — the renderer is unmodified, so the consumer adds the trap). The trap yields the failing command + line; the preceding `#@node` annotation gives the node. Hand the LLM the failing command **highlighted in its annotated block** + raw stderr + a bounded window.
+- **Mode B — reciped node not SATISFIED after install rc 0.** Two distinct causes, and the bundle must NOT prejudge (review C1): (i) the **check is too strict** (cv2/t64 — install fine, `dpkg -s` wrong), or (ii) the **install fetched the wrong thing** (a transitional/alias package installed rc 0 but the needed lib is absent). The bundle presents **both** hypotheses and includes `dpkg -l | grep <name>` / `pip show <name>` evidence so the LLM can distinguish them. **Anti-weakening guard:** `PatchGate` must reject a proposed `check_command` that cannot fail on a container where the node's install line is omitted (i.e. a check structurally incapable of detecting absence) — otherwise mode-B "fix the check" becomes a new hollow-success path.
+- **Builder-side, deterministic (review I2):** correcting a brittle SystemLib check (`dpkg -s` → `ldconfig`/import) does **not** go through the LLM `PatchProposal` route (the schema has no `update_node`/override). A deterministic pre-repair heuristic rewrites such checks and promotes them to the graph.
 
-```
-#@node syslib:libgl1  provider=apt:libgl1  unblocks=pkg:opencv-python==4.13.0.92
-apt-get install -y --no-install-recommends libgl1      ← FAILED (rc=100)
---- stderr ---
-E: Unable to locate package libgl1 ...
-```
-
-- **Mode B — certify MISSING after install rc 0.** The certify pass runs each `#@node`'s `#@check`; a node that returns non-PRESENT despite a clean install is the localized failure. Hand the LLM that node, its `#@check`, and the check's output (the cv2/`libglib2.0-0` t64 case). Mode B has no stderr from a *failed* command — the evidence is "installed but check says absent," which often means the **check command is wrong** (see §9 capability-check lesson), so the fix may target the node's `check_command` rather than its install.
-
-**Bound the context:** failing node's block + a small window of neighbors (or the script's `#@node` outline) — not the whole file — so context stays bounded on large repos.
+Bound the window to the failing node's block + a few neighbors (or the `#@node` outline), not the whole file.
 
 ---
 
-## 5. The repair debug bundle (input enrichment; output unchanged)
-
-Each repair attempt the LLM sees a **three-part bundle**:
+## 5. Repair debug bundle (input enrichment; output unchanged)
 
 | Part | Source | Tells the LLM | Status |
 |---|---|---|---|
-| Localized runtime failure | container (this run) | mode A: failing cmd + block + stderr · mode B: node + `#@check` + "installed-but-absent" | **NEW** |
+| Localized failure | container (this run) | mode A: failing cmd + block + stderr · mode B: node + `#@check` + `dpkg -l`/`pip show` evidence + **both** hypotheses | NEW |
 | Scoped `RepairScope` slice | the graph | providers, tried_failed, dep states, unblocks, cohort, gate, platform, evidence | exists |
-| Bounded script window | rendered `setup.sh` | ordering / neighbors around the failure | **NEW** |
+| Bounded script window | rendered `setup.sh` | ordering / neighbors around the failure | NEW |
 
-- The graph slice stays **scoped to the failing node's neighborhood** (current Slice B behavior — no whole-graph summary).
-- It is **self-updating**: each failed attempt records to the graph (ledger attempts → `tried_failed`; `runtime_classify` → evidence; a certify-MISSING result is itself recorded), so the next slice shows "you already tried X and it failed/stayed-absent" — the anti-repeat signal.
-- **Output unchanged:** LLM → typed `PatchProposal` → deterministic `PatchGate` → host re-renders via `render_build_script`. Stage 2 only enriches the *input*. Single authority preserved: the host certifies (install rc + per-node `#@check`); the LLM cannot declare success.
+Graph slice stays **scoped** (no whole-graph summary) and **self-updating** (`tried_failed`/`runtime_classify`/certify-MISSING all recorded → anti-repeat). **Output unchanged:** LLM → typed `PatchProposal` → `PatchGate` → re-render. Host certifies; LLM cannot declare success.
 
 ---
 
-## 6. The seam (decided: extra optional callables, Q5=A)
+## 6. The seam (optional callables)
 
-`run_v3` today sees only `sandbox_execute(cmd)->(bool,str)` and `exec_readonly(cmd)->(int,str)`. Stage 2 adds **optional keyword callables** (default `None` ⇒ Stage-1 behavior), matching the existing thin-callable idiom (trivially faked in tests, backward-compatible, flag-gated):
+`run_v3` gains optional kwargs (default `None` ⇒ Stage-1 behavior; matches the Stage-1 `enable_gate_observability` pattern):
 
-- `reset_to_base: Callable[[], None] | None`
-- `reset_to_last_good: Callable[[], None] | None`
-- `run_install_script: Callable[[str], InstallResult] | None` — bash the rendered script in the current container; return `(rc, failing_line/command, stderr)` for mode-A localization.
+- `reset_to_base: Callable[[], None] | None` — **new** `Sandbox` method: `docker rm` + run from `base_image`, **always** (distinct from `rollback()`/`_restore_last_success_container`, which use `last_success_image` and only fall back to base when no snapshot exists — review I4).
+- `run_install_script: Callable[[str], InstallResult] | None` — bash the rendered script with the prepended ERR trap. **Must bypass `Sandbox.execute()`** (its `_get_invalid_compound_setup_prefix` preflight rejects multi-step scripts) and call `container.exec_run` directly, like `exec_readonly` does (review/grounding).
 - a flag `enable_binding_install: bool = False`.
 
-The **certify phase reuses the existing `exec_readonly` callable + `certify_refresh`** — no new certify seam needed. Drivers (`agent.py`, `scripts/l2_repair_loop_smoke.py`) bind the new `Sandbox` methods. Rejected alternatives: a single `ContainerController` protocol object (churns the two-callable seam) and passing the concrete `Sandbox` (breaks the fake-callable test seam).
+```python
+@dataclass(frozen=True)
+class InstallResult:
+    rc: int
+    failing_command: str | None   # $BASH_COMMAND from the ERR trap; None on success
+    lineno: int | None
+    stderr: str
+```
+
+The **certify phase reuses the existing `exec_readonly` callable + `certify_refresh`** (called with its required `cycle` arg — `certify_refresh(graph, exec_readonly, cycle)`; the 2-arg form raises `TypeError`), wrapped by a `certify_reciped_only` filter. Drivers (`agent.py`, `scripts/l2_repair_loop_smoke.py`) bind the new `Sandbox` methods.
 
 ---
 
-## 7. Components & files
+## 7. Components, task order & deferred
 
-| Component | Change | Effort |
+**Task order** (dependencies): T1 → T3 → T4; T2 ∥ T1; T5 after T1; T6 independent.
+
+| Task | Files | Change |
 |---|---|---|
-| `src/python_deps/depgraph/build_script.py` | **reuse as-is** (`render_build_script`) — do NOT modify (handoff invariant: it stays pure/envstate-free) | — |
-| `src/sandbox.py` | `reset_to_base()` (`docker rm` + run from `base_image`); `run_install_script(script)` (bash + mode-A localization → `InstallResult`); expose `reset_to_last_good()` (≈ existing `rollback()`); mount a persistent **pip/apt cache volume** | M |
-| `src/envstate/` (new small module) | localization/debug-bundle assembly (mode A + mode B; `#@node` mapping; bounded window) | S |
-| `src/envstate/repair_loop.py` (`run_structured_repair`) | reset-to-last-good + re-bash + re-certify between attempts; attach the localized failure to the obligation packet | M |
-| `src/envstate/orchestrator.py` (`run_v3` + `_dep_emit_phase`) | new optional callables + `enable_binding_install` flag; when on, replace incremental `block_emit` install with the two-phase render→reset-to-base→install→certify; installability binds from (install rc 0 ∧ all reciped PRESENT) | M–L |
-| drivers (`agent.py`, `l2` smoke) | bind the new `Sandbox` methods into `run_v3` | S |
-| builder-side fix (graph/check) | `SystemLib` `#@check` prefers capability checks (`ldconfig -p \| grep <soname>`, `command -v`) over exact `dpkg -s <name>`; certify-MISSING feeds this fix back into the graph | S |
-| test suite | two-phase path, localization (A+B), reset-to-base, byte-identical-off | L |
+| T1 | `src/sandbox.py` | `reset_to_base()` (always `base_image`); `run_install_script(script)->InstallResult` (ERR-trap prepend, `container.exec_run`, mode-A localization); mount persistent pip/apt **cache volume** |
+| T2 | `src/envstate/` (new) | localizer + debug-bundle assembly (mode A/B, `#@node` mapping, bounded window, both-hypotheses mode-B); `certify_reciped_only` wrapper |
+| T3 | `src/envstate/orchestrator.py` (`run_v3`+`_dep_emit_phase`) | optional callables + `enable_binding_install`; when on, replace incremental `block_emit` with render→`reset_to_base`→`run_install_script`→`certify_reciped_only`; binding from (rc0 ∧ all reciped-with-check SATISFIED); **render fail-fast if a reciped node lacks a check** |
+| T4 | `src/envstate/repair_loop.py` | reset-to-base per attempt; attach debug bundle; cap inner-loop `failed_id` to the original (no silent pivot — review I3) |
+| T5 | `agent.py`, `l2` smoke | bind new `Sandbox` callables |
+| T6 | builder/check + `PatchGate` | deterministic SystemLib check rewrite (`dpkg -s`→`ldconfig`/import) promoted to graph; prefer `import` checks for pip; PatchGate anti-weakening guard (reject a check that can't detect absence) |
 
-Execution-layer note: the handoff's prototype `DockerExecutor` (docker run -d + exec + cleanup, two-phase install/certify) was scratchpad-only. We **reuse the existing wired `Sandbox`** (it already has commit/rollback) rather than introduce `DockerExecutor`; the prototype is a reference for the two-phase logic. `docker commit` checkpoints a *certified* container.
+`render_build_script` is **reused unmodified**. Execution layer reuses the wired `Sandbox` (not the scratchpad `DockerExecutor`); `docker commit` checkpoints a *certified* container. **Most important regression test:** flag-OFF ⇒ byte-identical to Stage 1 (in T3).
+
+**Deferred → Stage 2.5:** project install (`pip install -e . --no-deps`) + its certification (import the project); `#@need`/`#@block` certify coverage (review C3 — `#@block` installs are not graph nodes, so `certify_all` never checks them; admit them to the gate only once certified); service/config; tier-by-tier commit (R2 revival) if perf demands.
 
 ---
 
-## 8. Safety & byte-identical guarantee
+## 8. Safety & byte-identical
 
-- `enable_binding_install` defaults **False** ⇒ behavior byte-identical to Stage 1 (incremental `block_emit` path untouched; new callables `None` on the off-path).
-- `run_v1` and the B3 ablation (`enable_script_materialization=False`) untouched.
-- Anti-hollow preserved and strengthened: installability state is written only by the host (install rc + per-node `#@check`); the LLM still only proposes typed patches. `render_build_script` never writes `node.state` (handoff invariant).
+`enable_binding_install` defaults **False** ⇒ byte-identical to Stage 1 (incremental path untouched; new callables `None`). `run_v1` and the B3 ablation untouched. Anti-hollow strengthened: installability state written only by the host (install rc + per-node `#@check`), checks are render-time-validated (no-check = error) and quality-guarded (import-pref + anti-weakening). `render_build_script` never writes `node.state`.
 
 ---
 
 ## 9. Risks & open questions
 
-- **Reset-to-base performance** — the full re-run per outer iteration is the main perf risk. Mitigation: the pip/apt cache volume turns re-runs into mostly cached no-ops up to the failing line. **Measure this as the Stage 2 benchmark arm** (turns/wall-clock vs the incremental arm); fall back to a hybrid (R2 search + a single final R3 binding run) only if measured cost is prohibitive.
-- **`SystemLib` check-command robustness (the cv2 lesson)** — exact `dpkg -s <name>` is brittle under Debian renames (t64). Prefer capability checks; treat a certify-MISSING-after-clean-install as a strong signal that the *check* (not the install) is wrong, and promote the corrected check to the graph. Without this, mode-B failures will mis-localize as install problems.
-- **Mode-A line→node precision** — block-level node attribution is usually exact (a block ≈ one node's install); the `ERR`-trap `$BASH_COMMAND`/`$LINENO` capture pinpoints the line in multi-line `#@block` patches. Confirm the trap reliably reports the failing line through `set -e`.
-- **Container abstraction reconcile** — we use `Sandbox`, not the prototype `DockerExecutor`. Confirm `Sandbox` can (a) reset to `base_image` (not just `last_success`) and (b) run a multi-line script as one `bash` invocation with a trap. Both look feasible from `_restore_last_success_container` + `execute`.
-- **Cache volume isolation** — a shared cache across repos must not serve a wrong wheel/version; key the cache appropriately (or accept index-level caching only).
-- **Stage boundary** — testability runs on the certified container in Stage 2, but its `done`-wiring stays Stage 3; the binding-install change must not alter `next_decision`.
+- **Reset-to-base performance (now the primary risk, R2 dropped).** Every attempt re-runs the full script. Mitigation: pip/apt cache volume → cached no-ops up to the failing line. **Measure as the Stage-2 benchmark arm** (turns/wall-clock vs incremental); revive tier-commit R2 (Stage 2.5) only if measured prohibitive.
+- **Cache keying (review M2):** default = **index-level only** (apt package index + pip wheel cache, not keyed per repo). Safe for pip (wheel filenames encode name+ver+py+abi+platform). **apt `.deb` filenames do NOT encode distro release** → a cache shared across **different base images** can serve the wrong binary; therefore key the apt cache by base image (or disable apt caching across differing base images).
+- **`_is_informational_exit` pre-existing bug:** `execute()` commits exit-1 "usage" output as success. Mostly moot now (we reset to base, not last_success), but `run_install_script` must NOT route through `execute()` (it bypasses preflight anyway), so it won't inherit this.
+- **Mode-B residual:** even with both-hypotheses framing + the anti-weakening guard, a sufficiently adversarial check could pass; the guard (reject checks that can't fail without the install) is the backstop. Verify the guard is implementable (run the proposed check on a container with the install line omitted).
+- **Stage boundary:** testability runs on the certified container, but its `done`-wiring stays Stage 3; the binding-install change must not touch `next_decision`.
 
 ---
 
 ## 10. Research framing
 
-Stage 2 delivers the **honest half of the installability gate**: `ebsr` certified by reproducing the env from a clean base via the compiled artifact **and per-node host certification**, not by a proxy on a dirty container or a bare `bash rc 0`. The cv2 hollow-success catch is concrete evidence the two-phase model works.
-
-Positioning vs **HerAgent / "Prometheus"** (arXiv 2602.07871) sharpens here: HerAgent *generates* the whole `setup.sh` with the LLM and certifies **existentially** (a level passes if *any one* command rc 0), with no pinning / no `--no-deps` / no closure. Ours is the inverse and stronger: the **graph is the source of truth**, `render_build_script` is a **deterministic pinned projection**, the LLM is only a governed `#@block` proposer, and certification is **per-node and host-owned** — with fixes promoted to the graph, not patched into the container. The two gates are now both host-certified from clean; the reset-to-base loop is the *mechanism* by which localized failures become typed graph obligations.
+Stage 2's contribution, sharpened by the adversarial review: **binding installability is two-phase (install + per-node host certify) AND requires certify-coverage + check-quality** — a stronger anti-hollow claim than "the script exits 0," and stronger than HerAgent's existential certification (arXiv 2602.07871: a level passes if *any one* command rc 0, no pinning/closure). Ours: graph = source of truth, `render_build_script` = deterministic pinned projection, LLM = governed proposer, certification = **per-reciped-node, host-owned, check-validated**, fixes promoted to the graph. Stage 2 binds the **dep-spine** half honestly; the project-install half is the explicit Stage-2.5 next rung.
 
 ---
 
 ## 11. Summary
 
-Make installability **binding** by compiling the graph with `render_build_script` into a whole install-only `setup.sh`, running it from a clean base, **and host-certifying every node** — binding = **install rc 0 AND all reciped nodes certify PRESENT** (the two-phase model, proven by the cv2 t64 hollow-success catch). Localize the **two failure modes** (install line rc≠0 → preceding `#@node`; certify-MISSING → that `#@node`) and feed them — with the existing scoped `RepairScope` slice and a bounded script window — into the unchanged typed-patch repair loop. Use the **nested reset model**: inner repair = reset to last-good + bash whole script + certify (R2, fast candidate search; the "bash whole script" form dissolves the resume-point problem); outer = reset to base + bash + certify (R3, binding). Expose container controls as **optional `run_v3` callables** (default off ⇒ byte-identical), reusing the existing `Sandbox`'s commit/rollback and the `render_build_script` renderer (do not modify it). Keep a pip/apt **cache volume** to make reset-to-base affordable, and **measure** it against the incremental arm. The `done`-wiring, collect-only probe, and failure classifier remain Stage 3.
+Make **dep-spine** installability **binding** by compiling the graph with `render_build_script` into a whole install-only `setup.sh`, running it from a clean base, **and host-certifying every reciped node** — binding = **install rc 0 AND every reciped-with-check `#@node` certifies `SATISFIED`**, with **no reciped node lacking a check** (render fail-fast) and checks favoring **importability over metadata** plus a **PatchGate anti-weakening guard** (the review's necessary-not-sufficient hardening). **Reset to base on every attempt** (R2 dropped — its speedup was illusory on the critical path and it had removal/contamination gaps); a pip/apt **cache volume** keeps it affordable, **measured** against the incremental arm. Localize the **two failure modes** (install rc≠0 → preceding `#@node`; certify-not-SATISFIED → that `#@node`, with both repair hypotheses) and feed them — with the scoped `RepairScope` slice and a bounded window — into the unchanged typed-patch repair loop. Expose container controls as **optional `run_v3` callables** (default off ⇒ byte-identical), reusing the wired `Sandbox` and the unmodified `render_build_script`. **Project install, `#@need`/`#@block` certification, and tier-commit R2 are Stage 2.5; `done`-wiring/collect-probe/classifier remain Stage 3.**
