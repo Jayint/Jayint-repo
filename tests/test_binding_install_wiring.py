@@ -114,6 +114,7 @@ def test_flag_on_install_failure_with_client_enters_repair():
     bundle=None on the binding path, which build_repair_scope now tolerates.
     """
     counter = [0]
+    scopes = []
 
     class _AgentWithClient:
         client = object()  # non-None → repair branch activates
@@ -123,6 +124,7 @@ def test_flag_on_install_failure_with_client_enters_repair():
 
         def propose(self, *a, **k):
             counter[0] += 1
+            scopes.append(a[0] if a else None)   # capture the RepairScope passed to propose
             return None      # admit nothing → real repair loop ends after one propose
 
         def run_recipe(self, *a, **k):
@@ -149,3 +151,6 @@ def test_flag_on_install_failure_with_client_enters_repair():
     )
     # Fix 3: localize returned None but _unsat fallback provided failed_node → repair engaged.
     assert counter[0] >= 1
+    # Fix (re-review): the node id is passed as target_hint so the scope resolves the
+    # unsatisfied node even though it is not a block id — scope must carry the node context.
+    assert scopes and getattr(scopes[0], "target_node_id", None) == "syslib:libgl1"

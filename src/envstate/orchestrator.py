@@ -466,6 +466,10 @@ def run_v3(
                     emit=lambda g, mb: _binding_emit(g, mb, cycle),
                     manual_blocks=_manual_blocks, known_invalid=_known_invalid,
                     max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+                    # _failed_node is a NODE id (from certify/localize), not a block id; the
+                    # binding path has no block-keyed bundle, so seed target_hint so the repair
+                    # scope still resolves the unsatisfied node's requirement slice.
+                    target_hint=_failed_node,
                     cap_failed_id=True)
                 graph = _out.graph
                 _manual_blocks = _out.manual_blocks
