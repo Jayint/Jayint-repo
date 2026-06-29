@@ -1,7 +1,7 @@
 # tests/depgraph/test_static_collect_bundle.py
 import json
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
-from python_deps.depgraph.ids import package_id
+from python_deps.depgraph.ids import package_id, project_id
 from python_deps.depgraph.static_collect import (
     DeterministicHit, collect_static_evidence, compact_bundle_json,
 )
@@ -45,3 +45,23 @@ def test_no_package_hits_without_graph(tmp_path):
     # back-compat: existing call sites pass no graph -> no package hits, no crash
     hits = collect_static_evidence(str(tmp_path))
     assert all(h.kind != "package" for h in hits)
+
+
+def test_package_hit_carries_node_id(tmp_path):
+    g = DepGraph().with_node(Node(id=package_id("psycopg", None), type=NodeType.PACKAGE,
+        name="psycopg", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER))
+    hits = collect_static_evidence(str(tmp_path), g)
+    pkg = [h for h in hits if h.kind == "package"]
+    assert pkg and pkg[0].node_id == "pkg:psycopg"
+    # and it is serialized into the bundle JSON
+    row = next(r for r in json.loads(compact_bundle_json(hits))["deterministic_hits"]
+               if r.get("node_id") == "pkg:psycopg")
+    assert row["name"] == "psycopg"
+
+
+def test_project_node_emitted_with_node_id(tmp_path):
+    g = DepGraph().with_node(Node(id=project_id("myrepo"), type=NodeType.PROJECT,
+        name="myrepo", layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN))
+    hits = collect_static_evidence(str(tmp_path), g)
+    proj = [h for h in hits if h.kind == "project"]
+    assert proj and proj[0].node_id == project_id("myrepo")

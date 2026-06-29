@@ -19,21 +19,23 @@ _GOAL = ("Infer local install/test/run environment requirements, not deployment 
 class DeterministicHit:
     evidence_id: str
     file: str
-    kind: str                     # ci_service | compose_service | env_var | env_read
+    kind: str                     # ci_service | compose_service | env_var | env_read | package | project
     snippet: str = ""
     name: str | None = None
+    node_id: str | None = None
 
 
 def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHit, ...]:
     hits: list[DeterministicHit] = []
     n = 0
 
-    def _add(file, kind, *, name=None, snippet=""):
+    def _add(file, kind, *, name=None, snippet="", node_id=None):
         nonlocal n
         prefix = {"ci_service": "ci", "compose_service": "svc",
-                  "env_var": "env", "env_read": "code", "package": "pkg"}.get(kind, "ev")
+                  "env_var": "env", "env_read": "code", "package": "pkg",
+                  "project": "proj"}.get(kind, "ev")
         hits.append(DeterministicHit(f"{prefix}.{n:02d}", file, kind,
-                                     snippet=snippet, name=name))
+                                     snippet=snippet, name=name, node_id=node_id))
         n += 1
 
     ci_services, _has_ci = scan_ci_services(repo_path)
@@ -51,7 +53,10 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
         for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PACKAGE),
                            key=lambda x: x.name):
             _add("manifest", "package", name=node.name,
-                 snippet=node.version or "")
+                 snippet=node.version or "", node_id=node.id)
+        for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PROJECT),
+                           key=lambda x: x.id):
+            _add("manifest", "project", name=node.name, node_id=node.id)
     return tuple(hits)
 
 
@@ -63,5 +68,7 @@ def compact_bundle_json(hits: tuple[DeterministicHit, ...], goal: str = _GOAL) -
             row["name"] = h.name
         if h.snippet:
             row["snippet"] = h.snippet
+        if h.node_id is not None:
+            row["node_id"] = h.node_id
         rows.append(row)
     return json.dumps({"goal": goal, "deterministic_hits": rows}, indent=2)
