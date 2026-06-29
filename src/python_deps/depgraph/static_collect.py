@@ -8,7 +8,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from python_deps.depgraph.config_scan import scan_env_reads, parse_env_example
+from python_deps.depgraph.config_scan import (
+    scan_env_reads, parse_env_example, scan_framework_config_reads,
+)
 from python_deps.depgraph.service_scan import scan_ci_services, scan_compose_services
 
 _GOAL = ("Infer local install/test/run environment requirements, not deployment "
@@ -48,6 +50,12 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
         _add(".env.example", "env_var", name=var, snippet=str(default))
     for var, file in sorted(scan_env_reads(repo_path).items()):
         _add(file, "env_read", name=var)
+    seen_vars = {h.name for h in hits if h.kind in ("env_var", "env_read")}
+    for var, src in sorted(scan_framework_config_reads(repo_path).items()):
+        if var in seen_vars:
+            continue
+        seen_vars.add(var)
+        _add(str(src), "env_var", name=var, snippet="settings/framework config field")
     if graph is not None:
         from python_deps.depgraph.schema import NodeType
         for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PACKAGE),

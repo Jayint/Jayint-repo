@@ -65,3 +65,26 @@ def test_project_node_emitted_with_node_id(tmp_path):
     hits = collect_static_evidence(str(tmp_path), g)
     proj = [h for h in hits if h.kind == "project"]
     assert proj and proj[0].node_id == project_id("myrepo")
+
+
+def test_basesettings_fields_feed_the_bundle(tmp_path):
+    (tmp_path / "config.py").write_text(
+        "from pydantic_settings import BaseSettings\n"
+        "class Settings(BaseSettings):\n"
+        "    POSTGRES_SERVER: str\n"
+        "    POSTGRES_PORT: int = 5432\n"
+        "    SECRET_KEY: str\n")
+    hits = collect_static_evidence(str(tmp_path))
+    names = {h.name for h in hits if h.kind == "env_var"}
+    assert {"POSTGRES_SERVER", "POSTGRES_PORT", "SECRET_KEY"} <= names
+
+
+def test_framework_config_deduped_against_env_read(tmp_path):
+    # a var seen via os.environ must not be double-emitted by the framework-config source
+    (tmp_path / "a.py").write_text("import os\nX = os.environ['SHARED_VAR']\n")
+    (tmp_path / "config.py").write_text(
+        "from pydantic_settings import BaseSettings\n"
+        "class Settings(BaseSettings):\n    SHARED_VAR: str\n")
+    hits = collect_static_evidence(str(tmp_path))
+    shared = [h for h in hits if h.name == "SHARED_VAR"]
+    assert len(shared) == 1
