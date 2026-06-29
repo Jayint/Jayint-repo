@@ -76,10 +76,6 @@ def test_empty_graph_emits_preamble():
     assert "# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT." in lines
     assert "set -Eeuo pipefail" in lines
     assert out.endswith("\n")
-
-
-def test_none_graph_is_safe():
-    assert render_build_script(None).splitlines()[0] == "#!/usr/bin/env bash"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -175,7 +171,8 @@ def test_deterministic_core_sections_and_commands():
     # one hoisted apt-get update, exactly once
     assert out.count("apt-get update") == 1
     # section headers present and SYSTEM precedes PIP
-    assert out.index("==== SYSTEM ====") < out.index("==== PIP ====")
+    assert (out.index("# ==================== SYSTEM ====================")
+            < out.index("# ==================== PIP ===================="))
     # the real commands
     assert "apt-get install -y --no-install-recommends libpq-dev" in out
     assert ("python3 -m pip install --break-system-packages --no-deps "
@@ -187,9 +184,38 @@ def test_deterministic_core_sections_and_commands():
     assert out.index("libpq-dev\n") < out.index("psycopg2==2.9.9")
 
 
-def test_no_apt_update_when_no_system_nodes():
-    g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"),))
-    assert "apt-get update" not in render_build_script(g)
+def test_apt_update_hoisted_iff_system_nodes_present():
+    # POSITIVE: emitted for a system node (fails against the Task 1 stub -> real RED)
+    g_sys = DepGraph(nodes=(_apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),))
+    assert "apt-get update" in render_build_script(g_sys)
+    # NEGATIVE: not emitted for a pip-only graph
+    g_pip = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"),))
+    assert "apt-get update" not in render_build_script(g_pip)
+
+
+def test_apt_update_hoisted_once_for_multiple_system_nodes():
+    g = DepGraph(nodes=(
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _apt("syslib:build-essential", "build-essential", "apt:build-essential"),
+    ))
+    out = render_build_script(g)
+    assert out.count("apt-get update") == 1
+    assert out.count("export DEBIAN_FRONTEND=noninteractive") == 1
+    update_pos = out.index("apt-get update")
+    assert update_pos < out.index("libpq-dev\n")
+    assert update_pos < out.index("build-essential\n")
+
+
+def test_node_check_command_emitted_between_annotation_and_install():
+    g = DepGraph(nodes=(
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9",
+             check_command="python -m pip show psycopg2"),
+    ))
+    out = render_build_script(g)
+    node_idx = out.index("#@node pkg:psycopg2")
+    check_idx = out.index("#@check python -m pip show psycopg2")
+    install_idx = out.index("psycopg2==2.9.9")
+    assert node_idx < check_idx < install_idx
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -333,13 +359,18 @@ def test_need_stubs_are_comment_only():
     assert "#@need service:postgres  state=missing" in out
     assert "#@check pg_isready -q" in out
     assert "#@need config:DATABASE_URL  state=missing" in out
-    # a need carries NO install command — the next non-comment line after the
-    # service stub must not be an install (it's the no-command marker comment)
-    svc_idx = out.index("#@need service:postgres")
-    tail = out[svc_idx:].splitlines()
-    assert any("(no command" in ln for ln in tail[:5])
     # services/config render AFTER pip (highest layer rank)
     assert out.index("psycopg2==2.9.9") < out.index("#@need service:postgres")
+    # the stub carries NO real command. SERVICES is the last layer, so the
+    # service stub runs to EOF; every non-blank line there must be a comment.
+    lines = out.splitlines()
+    start = next(i for i, ln in enumerate(lines)
+                 if ln.startswith("#@need service:postgres"))
+    body = lines[start:]
+    assert any("(no command" in ln for ln in body)
+    for ln in body:
+        if ln.strip():
+            assert ln.startswith("#"), f"non-comment line in #@need stub: {ln!r}"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -447,6 +478,38 @@ def test_uncovered_need_still_stubbed_with_block_present():
                 target_node_ids=("service:other",))
     out = render_build_script(g, manual_blocks=(blk,))
     assert "#@need config:DATABASE_URL" in out
+
+
+def test_block_appears_in_its_wave_section_after_pip():
+    g = DepGraph(nodes=(
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES),
+    ))
+    blk = Block(block_id="svc:pg-init", wave="services",
+                commands=("pg_ctl start",), target_node_ids=("service:postgres",))
+    out = render_build_script(g, manual_blocks=(blk,))
+    assert out.index("psycopg2==2.9.9") < out.index("pg_ctl start")
+
+
+def test_block_with_empty_targets_renders_and_covers_nothing():
+    g = DepGraph(nodes=(
+        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG),
+    ))
+    blk = Block(block_id="meta:setup", wave="config", commands=("echo setup",),
+                target_node_ids=())
+    out = render_build_script(g, manual_blocks=(blk,))
+    assert "#@block meta:setup" in out
+    assert "echo setup" in out
+    assert "#@need config:DATABASE_URL" in out          # empty targets -> no coverage
+
+
+def test_block_with_unknown_wave_lands_in_catch_all():
+    blk = Block(block_id="post:warm", wave="post-install", commands=("true",),
+                target_node_ids=())
+    out = render_build_script(DepGraph(), manual_blocks=(blk,))
+    assert "(UNSCHEDULED BLOCKS)" in out
+    assert "#@block post:warm" in out
+    assert "true" in out
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -496,6 +559,14 @@ def render_build_script(graph, manual_blocks=()) -> str:
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
+    # F6: a manual_block whose wave is not a Layer value would otherwise vanish.
+    known_waves = {layer.value for layer in _LAYER_ORDER}
+    leftover = [b for b in manual_blocks if b.wave not in known_waves]
+    if leftover:
+        parts.append("")
+        parts.append("# ==================== (UNSCHEDULED BLOCKS) ====================")
+        for b in leftover:
+            parts.extend(_block_block(b))
     return "\n".join(parts) + "\n"
 ```
 
@@ -536,16 +607,25 @@ def test_manifest_counts_hash_and_meta():
         _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES),
     ))
     out = render_build_script(g)
-    assert "#   nodes: 2 reciped (1 system, 1 pip) + 1 needs" in out
-    assert "#   graph-hash: sha256:" in out
-    assert "python: 3.11" in out and "platform: linux/amd64" in out
-    assert "exclude-newer: 2026-06-01" in out
+    preamble = out[:out.index("set -Eeuo pipefail")]
+    assert "#   nodes: 2 reciped (1 system, 1 pip) + 1 needs (1 service)" in preamble
+    assert "#   graph-hash: sha256:" in preamble
+    # meta fields live in the comment header, before the set line (not in body)
+    for needle in ("python: 3.11", "platform: linux/amd64", "exclude-newer: 2026-06-01"):
+        assert any(needle in ln and ln.startswith("#")
+                   for ln in preamble.splitlines()), needle
 
 
-def test_graph_hash_is_deterministic_and_timestamp_free():
-    g = DepGraph(nodes=(_pkg("pkg:a", "a", "1.0"), _pkg("pkg:b", "b", "2.0")))
-    g_shuffled = DepGraph(nodes=(_pkg("pkg:b", "b", "2.0"), _pkg("pkg:a", "a", "1.0")))
-    assert render_build_script(g) == render_build_script(g_shuffled)
+def test_determinism_with_mixed_tier_insertion_order():
+    nodes = (
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _apt("tool:gcc", "gcc", "apt:gcc", type_=NodeType.TOOL, layer=Layer.TOOLCHAIN),
+    )
+    g1 = DepGraph(nodes=nodes)
+    g2 = DepGraph(nodes=tuple(reversed(nodes)))
+    assert render_build_script(g1) == render_build_script(g2)   # insertion-order invariant
+    assert render_build_script(g1) == render_build_script(g1)   # pure: same in, same out
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -559,11 +639,18 @@ Add imports at top: `import hashlib`, `import json`, `from collections import Co
 
 ```python
 def _graph_hash(graph: DepGraph) -> str:
-    payload = sorted(
+    reciped_ids = {n.id for n in graph.nodes if _is_reciped(n)}
+    nodes_payload = sorted(
         (n.id, n.version or "", n.chosen_fix or "")
         for n in graph.nodes if _is_reciped(n)
     )
-    blob = json.dumps(payload, separators=(",", ":"))
+    edges_payload = sorted(
+        (e.src, e.dst, e.relation.value)
+        for e in graph.edges
+        if e.src in reciped_ids and e.dst in reciped_ids
+    )
+    blob = json.dumps({"nodes": nodes_payload, "edges": edges_payload},
+                      separators=(",", ":"))
     return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()[:12]
 
 
@@ -583,6 +670,8 @@ def _closure_meta(graph: DepGraph) -> dict[str, str]:
 
 _TYPE_WORD = {NodeType.SYSTEM_LIB: "system", NodeType.TOOL: "toolchain",
               NodeType.PACKAGE: "pip"}
+_NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config",
+              NodeType.DATA_ASSET: "data_asset"}
 
 
 def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
@@ -593,11 +682,16 @@ def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
     counts = Counter(_TYPE_WORD.get(n.type, n.type.value) for n in reciped)
     count_str = ", ".join(f"{counts[w]} {w}" for w in ("system", "toolchain", "pip")
                           if counts.get(w))
+    need_counts = Counter(_NEED_WORD.get(n.type, n.type.value) for n in needs)
+    need_str = ", ".join(f"{need_counts[w]} {w}"
+                         for w in ("service", "config", "data_asset")
+                         if need_counts.get(w))
+    needs_suffix = f" ({need_str})" if need_str else ""
     meta = _closure_meta(graph)
     meta_str = "   ".join(f"{k}: {v}" for k, v in meta.items())
-    lines = list(_BANNER[:-1])  # banner minus its trailing "#"
+    lines = list(_BANNER)  # full banner; _BANNER[-1] is the "#" separator (keep it)
     lines.append(f"#   nodes: {len(reciped)} reciped ({count_str or 'none'}) "
-                 f"+ {len(needs)} needs")
+                 f"+ {len(needs)} needs{needs_suffix}")
     hash_line = f"#   graph-hash: {_graph_hash(graph)}"
     if meta_str:
         hash_line += "   " + meta_str
@@ -639,8 +733,9 @@ git commit -m "feat(build-script): manifest header (counts, deterministic graph-
 
 ```python
 # add to tests/depgraph/test_build_script.py
+import re
 from python_deps.depgraph.block import compile_replay_blocks
-from python_deps.depgraph.emit import _is_reciped
+from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec
 
 
 def _rich_graph():
@@ -667,9 +762,24 @@ def test_every_reciped_node_installed_exactly_once():
     g = _rich_graph()
     out = render_build_script(g)
     for n in g.nodes:
-        if _is_reciped(n):
-            name = n.name if n.type is not NodeType.PACKAGE else f"{n.name}=={n.version}"
-            assert out.count(name) >= 1
+        if not _is_reciped(n):
+            continue
+        if _apt_name(n) is not None:
+            cmd = f"apt-get install -y --no-install-recommends {_apt_name(n)}"
+        else:
+            cmd = (f"python3 -m pip install --break-system-packages --no-deps "
+                   f"{_pip_spec(n)}")
+        assert out.count(cmd) == 1, f"{n.id}: expected 1 install line, got {out.count(cmd)}"
+
+
+def test_build_from_source_and_toolchain_flags_in_annotations():
+    out = render_build_script(_rich_graph())
+    psycopg2_line = next(ln for ln in out.splitlines()
+                         if ln.startswith("#@node pkg:psycopg2"))
+    assert "build-from-source" in psycopg2_line
+    gcc_line = next(ln for ln in out.splitlines()
+                    if ln.startswith("#@node tool:gcc"))
+    assert "toolchain" in gcc_line
 
 
 def test_requires_edge_orders_lines():
@@ -690,20 +800,51 @@ def test_install_target_parity_with_compile_replay_blocks():
     assert node_ids == replay_targets
 
 
-def test_golden_snapshot():
+def test_golden_snapshot_byte_for_byte():
     out = render_build_script(_rich_graph())
+    # mask the opaque digest (its value is covered by the determinism test)
+    normalized = re.sub(r"sha256:[0-9a-f]{12}", "sha256:<HASH>", out)
     expected = (
         "#!/usr/bin/env bash\n"
         "#\n"
         "# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.\n"
         "# Edit the graph and re-render; this file is an artifact, not a source.\n"
         "#\n"
-        "#   nodes: 4 reciped (1 system, 1 toolchain, 2 pip) + 2 needs\n"
+        "#   nodes: 4 reciped (1 system, 1 toolchain, 2 pip) + 2 needs (1 service, 1 config)\n"
+        "#   graph-hash: sha256:<HASH>\n"
+        "#\n"
+        "set -Eeuo pipefail\n"
+        "\n"
+        "# ==================== SYSTEM ====================\n"
+        "export DEBIAN_FRONTEND=noninteractive\n"
+        "apt-get update\n"
+        "#@node syslib:libpq-dev  provider=apt:libpq-dev  requires=-  unblocks=pkg:psycopg2\n"
+        "apt-get install -y --no-install-recommends libpq-dev\n"
+        "\n"
+        "# ==================== TOOLCHAIN ====================\n"
+        "#@node tool:gcc  provider=apt:gcc  requires=-  unblocks=pkg:psycopg2  toolchain  evidence=ev:build:psycopg2\n"
+        "apt-get install -y --no-install-recommends gcc\n"
+        "\n"
+        "# ==================== PIP ====================\n"
+        "#@node pkg:psycopg2  version=2.9.9  requires=syslib:libpq-dev,tool:gcc  build-from-source  evidence=ev:import:psycopg2\n"
+        "python3 -m pip install --break-system-packages --no-deps psycopg2==2.9.9\n"
+        "#@node pkg:typing-extensions  version=4.11.0  requires=-  evidence=ev:resolver\n"
+        "python3 -m pip install --break-system-packages --no-deps typing-extensions==4.11.0\n"
+        "\n"
+        "# ==================== CONFIG ====================\n"
+        "#\n"
+        "#@need config:DATABASE_URL  state=missing\n"
+        "#@evidence ev:settings:DATABASE_URL\n"
+        "#     (no command — propose a governed block to satisfy this)\n"
+        "\n"
+        "# ==================== SERVICES ====================\n"
+        "#\n"
+        "#@need service:postgres  state=missing\n"
+        "#@check pg_isready -q\n"
+        "#@evidence ev:readme:db\n"
+        "#     (no command — propose a governed block to satisfy this)\n"
     )
-    assert out.startswith(expected)
-    # exactly one bootstrap, full structure
-    assert out.count("apt-get update") == 1
-    assert out.count("export DEBIAN_FRONTEND=noninteractive") == 1
+    assert normalized == expected
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -714,6 +855,8 @@ Expected: First run may FAIL if any format detail differs (e.g. count words). Th
 - [ ] **Step 3: Reconcile implementation if needed**
 
 If `test_install_target_parity_with_compile_replay_blocks` fails, the cause is a divergence between `_reciped_in_layer`'s union and `compile_replay_blocks`'s node set — both must derive from `_is_reciped`. Verify no layer is skipped in `_LAYER_ORDER` (it is `tuple(Layer)`, which includes every layer). Do not weaken the test.
+
+If `test_golden_snapshot_byte_for_byte` fails, diff the actual output against `expected` (the `graph-hash` digest is already masked, so only format/ordering differences surface). Verify the actual output line-by-line against spec §6. Fix the IMPLEMENTATION to match the expected; only edit `expected` if a difference is a legitimate format the spec permits (e.g. a token-spacing choice) — never to paper over a missing or extra line.
 
 - [ ] **Step 4: Run the full module + a regression sweep**
 
@@ -742,6 +885,13 @@ git commit -m "test(build-script): golden snapshot + determinism/ordering/parity
 
 ---
 
+## Review status
+
+Reviewed by three parallel Sonnet agents (spec-fidelity, code-correctness-vs-real-codebase, test/TDD quality); all returned SHIP-WITH-FIXES. Every CRITICAL/HIGH/MEDIUM finding has been folded into this plan and the spec, including: the `_BANNER[:-1]` separator bug (Task 5), edges in `_graph_hash` (Task 5), the needs-count breakdown (Task 5), the byte-for-byte masked golden (Task 6), the vacuous-RED apt test (Task 2), exact-install-count (Task 6), comment-only `#@need` proof (Task 3), the `#@check`/multi-system/wave-section/empty-targets/mixed-tier/flags tests, and the unknown-wave catch-all (Task 4). The `#@node` check format was standardized to a separate `#@check` line (spec §7 updated) to match the existing `script.py` convention.
+
 ## Execution Handoff
 
-See the project's chosen execution path (the requester has asked for a plan review first).
+Two execution options:
+
+1. **Subagent-Driven (recommended)** — dispatch a fresh subagent per task, review between tasks (REQUIRED SUB-SKILL: superpowers:subagent-driven-development).
+2. **Inline Execution** — execute tasks in this session with checkpoints (REQUIRED SUB-SKILL: superpowers:executing-plans).

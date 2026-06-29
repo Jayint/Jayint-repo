@@ -131,7 +131,7 @@ Three structural choices doing the work:
 
 **Field sources** (all real `Node` fields, schema.py:117):
 
-- `#@node <id>  version=<version>  provider=<chosen_fix>  requires=<requires_of, reciped, or '-'>  evidence=<evidence via advise._best_evidence_line>  [unblocks=<required_by — what breaks if this fails>] [build-from-source] [toolchain]  [check=<check_command, comment>]`
+- `#@node <id>  version=<version>  provider=<chosen_fix>  requires=<requires_of, reciped, or '-'>  [unblocks=<required_by — what breaks if this fails>]  [build-from-source] [toolchain]  evidence=<evidence via advise._best_evidence_line>` — followed, when the node has a `check_command`, by a separate `#@check <command>` comment line. (Checks are emitted as their own `#@check` line for **all three** kinds, matching the existing `script.py` `#@check` convention; in install-only mode they are comments, not executed.)
 - `#@need <id>  state=<state>  requires=<requires_of or '-'>` then `#@check <check_command>` and `#@evidence <evidence>` on following comment lines (no command line).
 - `#@block <block_id>  source=llm-patch  targets=<target_node_ids>  evidence=<evidence_ref>` then `#@check <checks>` (read-only, validated by PatchGate) then the command body.
 
@@ -156,7 +156,7 @@ A `# …`-commented preamble before `set -Eeuo pipefail` containing: the "DO NOT
 
 ## 10. Testing (all pure, no Docker)
 
-- **Golden snapshot** — a fixture graph (a syslib + a tool + a 3-package chain including one `build_from_source`, plus one service and one config node) → assert the exact `setup.sh` string, byte-for-byte. Pins format, ordering, hoisting, and the three annotation kinds.
+- **Golden snapshot** — a fixture graph (a syslib + a tool + a 2-package set including one `build_from_source`, plus one service and one config node) → assert the exact `setup.sh` string, byte-for-byte, with the opaque `graph-hash` digest masked to a placeholder (its value is separately covered by the determinism property). Pins format, ordering, hoisting, and the three annotation kinds.
 - **Properties:**
   - (a) every `_is_reciped` node appears exactly once as an install line;
   - (b) for every REQUIRES edge among reciped nodes, the dependency's line precedes the dependent's;
