@@ -93,3 +93,24 @@ def test_toggle_off_uses_emit_drain_and_repair(monkeypatch):
     inputs = build_run_v3_inputs()
     orchestrator.run_v3(**inputs, enable_script_materialization=False)
     assert "drain" in calls and "repair" in calls and "block" not in calls
+
+
+def test_dep_emit_recertifies_after_emit(monkeypatch):
+    """A node whose install completes during the emit phase but is left MISSING by
+    block_emit (e.g. installed after the wave's per-block certify, or by the repair
+    loop) must still be host-certified before the scheduler's done-decision. Without
+    a post-emit certify pass, the start-of-cycle certify (which ran BEFORE the install)
+    leaves it MISSING and the next cycle's certify never runs once the run finalizes."""
+    from python_deps.depgraph.evidence_log import EvidenceBundle
+
+    inputs = build_run_v3_inputs()
+
+    def fake_block_emit(graph, sandbox_execute, exec_readonly, ledger, cycle, *, manual_blocks=()):
+        # Perform the install (flips the stateful ldconfig check) but return the node
+        # STILL MISSING — only a post-emit certify_refresh can satisfy it.
+        sandbox_execute("apt-get install -y libpq-dev")
+        return graph, EvidenceBundle(), None
+
+    monkeypatch.setattr(be, "block_emit", fake_block_emit)
+    final_map, _ = orchestrator.run_v3(**inputs, enable_script_materialization=True)
+    assert final_map.dep_graph.get("syslib:libpq.so").state is State.SATISFIED

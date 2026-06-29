@@ -443,6 +443,13 @@ def run_v3(
                 _repair_turns -= _repaired_n
                 if _repair_turns <= 0:
                     _budget_exhausted = True
+        # Final re-certify after the emit: the start-of-cycle certify (above) ran
+        # BEFORE any install this cycle, and run_blocks only certifies after each
+        # block it ran (and skips the pass after a failed block). A node whose
+        # install completes during THIS cycle's emit/repair must be reflected before
+        # the scheduler's done-decision — otherwise it stays MISSING because the next
+        # cycle's certify never runs once the done-gate finalizes the run. Idempotent.
+        graph = certify_refresh(graph, exec_readonly, cycle)
         # Fold emit-certified packages into installed so the synthesizer's closure
         # recipe includes them even when the planner finalizes immediately.
         sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
