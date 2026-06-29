@@ -24,14 +24,14 @@ class DeterministicHit:
     name: str | None = None
 
 
-def collect_static_evidence(repo_path: str) -> tuple[DeterministicHit, ...]:
+def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHit, ...]:
     hits: list[DeterministicHit] = []
     n = 0
 
     def _add(file, kind, *, name=None, snippet=""):
         nonlocal n
         prefix = {"ci_service": "ci", "compose_service": "svc",
-                  "env_var": "env", "env_read": "code"}.get(kind, "ev")
+                  "env_var": "env", "env_read": "code", "package": "pkg"}.get(kind, "ev")
         hits.append(DeterministicHit(f"{prefix}.{n:02d}", file, kind,
                                      snippet=snippet, name=name))
         n += 1
@@ -46,6 +46,12 @@ def collect_static_evidence(repo_path: str) -> tuple[DeterministicHit, ...]:
         _add(".env.example", "env_var", name=var, snippet=str(default))
     for var, file in sorted(scan_env_reads(repo_path).items()):
         _add(file, "env_read", name=var)
+    if graph is not None:
+        from python_deps.depgraph.schema import NodeType
+        for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PACKAGE),
+                           key=lambda x: x.name):
+            _add("manifest", "package", name=node.name,
+                 snippet=node.version or "")
     return tuple(hits)
 
 
