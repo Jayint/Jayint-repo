@@ -46,6 +46,7 @@ def test_deterministic_core_sections_and_commands():
     # annotation provenance is present
     assert "#@node pkg:psycopg2  version=2.9.9  requires=syslib:libpq-dev" in out
     assert "evidence=ev:import:psycopg2" in out
+    assert "provider=apt:libpq-dev" in out
     # libpq-dev install line appears before psycopg2 install line (topo)
     assert out.index("libpq-dev\n") < out.index("psycopg2==2.9.9")
 
