@@ -42,6 +42,12 @@ def main() -> int:  # noqa: C901 — deliberately all-in-one driver
         dest="base_image",
         help="Docker base image (default: python:3.11-slim)",
     )
+    ap.add_argument(
+        "--enable-binding-install",
+        action="store_true",
+        dest="enable_binding_install",
+        help="Stage 2: render the graph to setup.sh, reset to base, install, certify reciped nodes",
+    )
     args = ap.parse_args()
 
     # ── Heavy imports (inside main so top-level import is clean) ─────────────
@@ -144,6 +150,9 @@ def main() -> int:  # noqa: C901 — deliberately all-in-one driver
             manifest=manifest,
             exec_readonly=exec_readonly,
             enable_script_materialization=True,
+            enable_binding_install=args.enable_binding_install,
+            reset_to_base=sandbox.reset_to_base,
+            run_install_script=sandbox.run_install_script,
         )
     finally:
         # Best-effort container cleanup — must not mask the test result.

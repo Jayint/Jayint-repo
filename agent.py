@@ -363,6 +363,7 @@ class DockerAgent:
         # built and a client exists, unless explicitly disabled. Replaces the deleted
         # deterministic scan_config/scan_services. No deterministic fallback (spec §5).
         self.enable_llm_env_classifier: bool = bool(enable_llm_env_classifier)
+        self.enable_binding_install = False   # Stage 2 binding dep-spine install; off by default, set True to enable
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
         self.current_task_id = None
@@ -1372,6 +1373,9 @@ class DockerAgent:
                     enable_dep_emit=getattr(self, "enable_dep_emit", False),
                     enable_runtime_feedback=getattr(self, "enable_runtime_feedback", False),
                     enable_script_materialization=self.enable_script_materialization,
+                    enable_binding_install=getattr(self, "enable_binding_install", False),
+                    reset_to_base=self.sandbox.reset_to_base,
+                    run_install_script=self.sandbox.run_install_script,
                 )
             else:
                 final_map, stop_reason = _run_v1_loop(
