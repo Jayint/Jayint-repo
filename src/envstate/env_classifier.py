@@ -1,0 +1,107 @@
+# src/envstate/env_classifier.py
+"""Construction-time LLM environment classifier (design 2026-06-29, Slice C). The allowed
+LLM bridge: python_deps/depgraph stays LLM-free; this envstate module calls the model and
+feeds the result through the pure patch_gate. Best-effort: never raises into the build."""
+from __future__ import annotations
+
+import logging
+from collections.abc import Callable
+from dataclasses import replace
+
+logger = logging.getLogger(__name__)
+
+_GOAL = ("Infer LOCAL install/test/run environment requirements (not deployment). For each "
+         "need cite >=1 evidence_id from the bundle. Deployment-only / release / secret-store / "
+         "cache / optional-matrix signals -> promotion 'hint' only. Every requirement needs a real "
+         "check_command or null (a hint).")
+_SYSTEM_PROMPT = (
+    "You classify a compact evidence bundle into environment obligations for running a repo's "
+    "tests locally. Output ONLY a JSON object: {\"add_requirements\":[{id,type,name,layer,"
+    "check_command,promotion,evidence_ref}], \"add_edges\":[{source,target,relation,hard}]}.\n"
+    "type in {Service,Config,DataAsset}; id is 'service:<name>' / 'config:<VAR>' / 'data:<name>'; "
+    "layer in {services,config}; promotion in {hint,candidate} (NEVER active); evidence_ref MUST be "
+    "an evidence_id from the bundle. Edges connect an existing node (e.g. a pkg: or project: id from "
+    "the bundle) to your new node. " + _GOAL
+)
+
+
+def _normalize(d: dict) -> dict:
+    """Map the recalled output shape onto what parse_patch_proposal expects:
+    requirements->add_requirements, state->promotion (lowercased), evidence_refs->evidence_ref."""
+    if not isinstance(d, dict):
+        return {}
+    patch = dict(d.get("patch", d))
+    if "requirements" in patch and "add_requirements" not in patch:
+        patch["add_requirements"] = patch.get("requirements")
+    norm_reqs = []
+    for r in (patch.get("add_requirements") or []):
+        if not isinstance(r, dict):
+            continue
+        r = dict(r)
+        prom = r.get("promotion") or r.get("state")
+        if isinstance(prom, str):
+            r["promotion"] = prom.strip().lower()
+        if "evidence_ref" not in r:
+            refs = r.get("evidence_refs")
+            if isinstance(refs, (list, tuple)) and refs:
+                r["evidence_ref"] = refs[0]
+        norm_reqs.append(r)
+    patch["add_requirements"] = norm_reqs
+    return {"patch": patch}
+
+
+def _sanitize(proposal, bundle_ids, graph):
+    """Drop ungrounded/illegal requirements; force ALL edges soft; keep only edges whose
+    endpoints exist (after the kept new nodes are accounted for)."""
+    from python_deps.depgraph.patch import PatchProposal
+    from python_deps.depgraph.patch_gate import _KIND_PREFIX
+    from python_deps.depgraph.schema import NodeType
+
+    def _ok(r):
+        if r.evidence_ref not in bundle_ids:
+            return False
+        try:
+            nt = NodeType(r.type)
+        except ValueError:
+            return False
+        prefix = _KIND_PREFIX.get(nt)
+        return bool(prefix) and isinstance(r.id, str) and r.id.startswith(prefix)
+
+    good_reqs = tuple(r for r in proposal.add_requirements if _ok(r))
+    known = {r.id for r in good_reqs} | {n.id for n in graph.nodes}
+    good_edges = tuple(replace(e, hard=False) for e in proposal.add_edges
+                       if e.source in known and e.target in known)
+    return PatchProposal(add_requirements=good_reqs, add_edges=good_edges)
+
+
+def make_construction_classifier(complete_fn: Callable[[list[dict]], str]):
+    """Return classify(graph, repo_path) -> graph. complete_fn(messages)->text (temp-0, JSON)."""
+    def classify(graph, repo_path: str):
+        try:
+            from python_deps.depgraph.static_collect import (
+                collect_static_evidence, compact_bundle_json)
+            from python_deps.depgraph.patch import parse_patch_proposal
+            from python_deps.depgraph.patch_gate import admit_proposal
+            from src.envstate.jsonutil import extract_json_object
+
+            hits = collect_static_evidence(repo_path, graph)
+            if not hits:
+                return graph
+            bundle_ids = frozenset(h.evidence_id for h in hits)
+            messages = [{"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": compact_bundle_json(hits, _GOAL)}]
+            obj = extract_json_object(complete_fn(messages))
+            if obj is None:
+                return graph
+            proposal = _sanitize(parse_patch_proposal(_normalize(obj)), bundle_ids, graph)
+            if proposal.is_empty():
+                return graph
+            result = admit_proposal(graph, proposal, known_evidence_ids=bundle_ids)
+            if not result.accepted:
+                logger.warning("env classifier proposal rejected: %s", result.errors)
+                return graph
+            return result.graph
+        except Exception as exc:                       # best-effort: never crash the build
+            logger.warning("env classifier skipped: %s", exc)
+            return graph
+    return classify
