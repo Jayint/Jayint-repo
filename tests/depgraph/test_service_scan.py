@@ -104,3 +104,27 @@ def test_service_db_from_url():
     assert service_db_from_url("postgresql://h/only_db") == "only_db"
     assert service_db_from_url("postgres://h:5432/") is None
     assert service_db_from_url("not-a-url") is None
+
+
+def test_compose_meta_captures_healthcheck(tmp_path):
+    (tmp_path / "compose.yml").write_text(
+        "services:\n"
+        "  db:\n"
+        "    image: postgres:16\n"
+        "    ports: ['5432:5432']\n"
+        "    healthcheck:\n"
+        "      test: ['CMD-SHELL', 'pg_isready -U postgres']\n")
+    meta = scan_compose_services(str(tmp_path))
+    pg = meta.get("postgres") or next(iter(meta.values()))
+    assert "pg_isready" in str(pg.get("healthcheck", ""))
+
+
+def test_compose_meta_healthcheck_absent_returns_empty(tmp_path):
+    (tmp_path / "compose.yml").write_text(
+        "services:\n"
+        "  db:\n"
+        "    image: postgres:16\n"
+        "    ports: ['5432:5432']\n")
+    meta = scan_compose_services(str(tmp_path))
+    pg = meta.get("postgres") or next(iter(meta.values()))
+    assert pg.get("healthcheck") == ""

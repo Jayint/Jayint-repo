@@ -79,6 +79,19 @@ def _port_of(entry: dict) -> int | None:
     return None
 
 
+def _healthcheck_of(entry) -> str:
+    if not isinstance(entry, dict):
+        return ""
+    hc = entry.get("healthcheck")
+    if isinstance(hc, dict):
+        test = hc.get("test")
+        if isinstance(test, (list, tuple)):
+            return " ".join(str(t) for t in test)
+        if test:
+            return str(test)
+    return ""
+
+
 def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
     """Merge a parsed YAML doc's `services:` blocks into `out` (first kind wins)."""
     if not isinstance(doc, dict):
@@ -95,7 +108,7 @@ def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
             image = entry.get("image")
             kind = _kind_of(svc_name, image)
             if kind and kind not in out:
-                out[kind] = {"image": image or "", "port": _port_of(entry), "source": source}
+                out[kind] = {"image": image or "", "port": _port_of(entry), "healthcheck": _healthcheck_of(entry), "source": source}
 
 
 def _load_yaml(path: str):

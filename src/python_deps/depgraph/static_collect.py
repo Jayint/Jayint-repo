@@ -45,7 +45,12 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
         # VERIFIED: service meta carries image/host/port — NOT a file path; use a generic label.
         _add(".github/workflows", "ci_service", name=svc, snippet=str(meta.get("image", svc)))
     for svc, meta in sorted(scan_compose_services(repo_path).items()):
-        _add("docker-compose.yml", "compose_service", name=svc, snippet=str(meta.get("image", svc)))
+        _snip = str(meta.get("image", svc))
+        if meta.get("port"):
+            _snip += f" port={meta['port']}"
+        if meta.get("healthcheck"):
+            _snip += f" healthcheck={meta['healthcheck']}"
+        _add("docker-compose.yml", "compose_service", name=svc, snippet=_snip)
     for var, default in sorted(parse_env_example(repo_path).items()):
         _add(".env.example", "env_var", name=var, snippet=str(default))
     for var, file in sorted(scan_env_reads(repo_path).items()):

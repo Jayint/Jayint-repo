@@ -79,6 +79,19 @@ def test_basesettings_fields_feed_the_bundle(tmp_path):
     assert {"POSTGRES_SERVER", "POSTGRES_PORT", "SECRET_KEY"} <= names
 
 
+def test_compose_snippet_includes_port_and_healthcheck(tmp_path):
+    (tmp_path / "compose.yml").write_text(
+        "services:\n"
+        "  db:\n"
+        "    image: postgres:16\n"
+        "    ports: ['5432:5432']\n"
+        "    healthcheck:\n"
+        "      test: ['CMD-SHELL', 'pg_isready -U postgres']\n")
+    hits = collect_static_evidence(str(tmp_path))
+    svc = next(h for h in hits if h.kind == "compose_service")
+    assert "5432" in svc.snippet and "pg_isready" in svc.snippet
+
+
 def test_framework_config_deduped_against_env_read(tmp_path):
     # a var seen via os.environ must not be double-emitted by the framework-config source
     (tmp_path / "a.py").write_text("import os\nX = os.environ['SHARED_VAR']\n")
