@@ -2,6 +2,7 @@ from python_deps.depgraph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 from python_deps.depgraph.build_script import render_build_script
+from python_deps.depgraph.block import Block
 
 
 def test_empty_graph_emits_preamble():
@@ -122,3 +123,66 @@ def test_need_stubs_are_comment_only():
     for ln in lines[first_need:]:
         if ln.strip():
             assert ln.startswith("#"), f"non-comment line in #@need region: {ln!r}"
+
+
+def test_manual_block_renders_and_suppresses_its_need():
+    g = DepGraph(nodes=(
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES,
+              check_command="pg_isready -q"),
+    ))
+    blk = Block(
+        block_id="svc:postgres-init", wave="services",
+        commands=("pg_ctl init && pg_ctl start",),
+        target_node_ids=("service:postgres",),
+        check_commands=("pg_isready -q",),
+        evidence_refs=("ev:readme:db",),
+    )
+    out = render_build_script(g, manual_blocks=(blk,))
+    # the LLM block is rendered with provenance
+    assert ("#@block svc:postgres-init  source=llm-patch  "
+            "targets=service:postgres") in out
+    assert "pg_ctl init && pg_ctl start" in out
+    # the covered node is NOT also a #@need
+    assert "#@need service:postgres" not in out
+
+
+def test_uncovered_need_still_stubbed_with_block_present():
+    g = DepGraph(nodes=(
+        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG),
+    ))
+    blk = Block(block_id="svc:x", wave="services", commands=("true",),
+                target_node_ids=("service:other",))
+    out = render_build_script(g, manual_blocks=(blk,))
+    assert "#@need config:DATABASE_URL" in out
+
+
+def test_block_appears_in_its_wave_section_after_pip():
+    g = DepGraph(nodes=(
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES),
+    ))
+    blk = Block(block_id="svc:pg-init", wave="services",
+                commands=("pg_ctl start",), target_node_ids=("service:postgres",))
+    out = render_build_script(g, manual_blocks=(blk,))
+    assert out.index("psycopg2==2.9.9") < out.index("pg_ctl start")
+
+
+def test_block_with_empty_targets_renders_and_covers_nothing():
+    g = DepGraph(nodes=(
+        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG),
+    ))
+    blk = Block(block_id="meta:setup", wave="config", commands=("echo setup",),
+                target_node_ids=())
+    out = render_build_script(g, manual_blocks=(blk,))
+    assert "#@block meta:setup" in out
+    assert "echo setup" in out
+    assert "#@need config:DATABASE_URL" in out          # empty targets -> no coverage
+
+
+def test_block_with_unknown_wave_lands_in_catch_all():
+    blk = Block(block_id="post:warm", wave="post-install", commands=("true",),
+                target_node_ids=())
+    out = render_build_script(DepGraph(), manual_blocks=(blk,))
+    assert "(UNSCHEDULED BLOCKS)" in out
+    assert "#@block post:warm" in out
+    assert "true" in out

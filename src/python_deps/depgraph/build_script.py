@@ -100,19 +100,46 @@ def _need_in_layer(graph: DepGraph, layer: Layer, covered: set[str]) -> list[Nod
     return sorted(nodes, key=lambda n: n.id)
 
 
+def _block_block(block) -> list[str]:
+    head = f"#@block {block.block_id}  source=llm-patch"
+    if block.target_node_ids:
+        head += "  targets=" + ",".join(block.target_node_ids)
+    if block.evidence_refs:
+        head += "  evidence=" + ",".join(block.evidence_refs)
+    out = [head]
+    for chk in block.check_commands:
+        out.append(f"#@check {chk}")
+    out.extend(block.commands)
+    return out
+
+
 def render_build_script(graph, manual_blocks=()) -> str:
     if graph is None:
         graph = DepGraph()
     parts: list[str] = list(_BANNER) + ["set -Eeuo pipefail"]
+    covered = {nid for b in manual_blocks for nid in b.target_node_ids}
+    blocks_by_wave: dict[str, list] = {}
+    for b in manual_blocks:
+        blocks_by_wave.setdefault(b.wave, []).append(b)
     apt_done = [False]
     for layer in _LAYER_ORDER:
         section: list[str] = []
         for node in _reciped_in_layer(graph, layer):
             section += _node_block(graph, node, apt_done)
-        for node in _need_in_layer(graph, layer, covered=set()):
+        for b in blocks_by_wave.get(layer.value, ()):
+            section += _block_block(b)
+        for node in _need_in_layer(graph, layer, covered):
             section += _need_block(graph, node)
         if section:
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
+    # Catch-all: blocks whose wave is not a known Layer value
+    known_waves = {layer.value for layer in _LAYER_ORDER}
+    leftover = [b for b in manual_blocks if b.wave not in known_waves]
+    if leftover:
+        parts.append("")
+        parts.append("# ==================== (UNSCHEDULED BLOCKS) ====================")
+        for b in leftover:
+            parts.extend(_block_block(b))
     return "\n".join(parts) + "\n"
