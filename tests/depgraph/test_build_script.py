@@ -1,8 +1,11 @@
+import re
+
 from python_deps.depgraph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 from python_deps.depgraph.build_script import render_build_script
-from python_deps.depgraph.block import Block
+from python_deps.depgraph.block import Block, compile_replay_blocks
+from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec
 
 
 def test_empty_graph_emits_preamble():
@@ -226,3 +229,112 @@ def test_closure_meta_is_insertion_order_invariant():
     assert render_build_script(g1) == render_build_script(g2)
     # lowest-id package wins deterministically -> python 3.10
     assert "python: 3.10" in render_build_script(g1)
+
+
+def _rich_graph():
+    g = DepGraph(nodes=(
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _apt("tool:gcc", "gcc", "apt:gcc", type_=NodeType.TOOL, layer=Layer.TOOLCHAIN,
+             evidence="ev:build:psycopg2"),
+        _pkg("pkg:typing-extensions", "typing-extensions", "4.11.0",
+             evidence="ev:resolver"),
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9", build_from_source=True,
+             evidence="ev:import:psycopg2"),
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES,
+              check_command="pg_isready -q", evidence="ev:readme:db"),
+        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG,
+              evidence="ev:settings:DATABASE_URL"),
+    ))
+    for src, dst in (("pkg:psycopg2", "syslib:libpq-dev"),
+                     ("pkg:psycopg2", "tool:gcc")):
+        g = g.with_edge(Edge(src=src, dst=dst, relation=EdgeType.REQUIRES))
+    return g
+
+
+def test_every_reciped_node_installed_exactly_once():
+    g = _rich_graph()
+    out = render_build_script(g)
+    for n in g.nodes:
+        if not _is_reciped(n):
+            continue
+        if _apt_name(n) is not None:
+            cmd = f"apt-get install -y --no-install-recommends {_apt_name(n)}"
+        else:
+            cmd = (f"python3 -m pip install --break-system-packages --no-deps "
+                   f"{_pip_spec(n)}")
+        assert out.count(cmd) == 1, f"{n.id}: expected 1 install line, got {out.count(cmd)}"
+
+
+def test_build_from_source_and_toolchain_flags_in_annotations():
+    out = render_build_script(_rich_graph())
+    psycopg2_line = next(ln for ln in out.splitlines()
+                         if ln.startswith("#@node pkg:psycopg2"))
+    assert "build-from-source" in psycopg2_line
+    gcc_line = next(ln for ln in out.splitlines()
+                    if ln.startswith("#@node tool:gcc"))
+    assert "toolchain" in gcc_line
+
+
+def test_requires_edge_orders_lines():
+    out = render_build_script(_rich_graph())
+    assert out.index("libpq-dev\n") < out.index("psycopg2==2.9.9")
+    assert out.index("gcc\n") < out.index("psycopg2==2.9.9")
+
+
+def test_install_target_parity_with_compile_replay_blocks():
+    g = _rich_graph()
+    replay_targets = {nid for b in compile_replay_blocks(g) for nid in b.target_node_ids}
+    out = render_build_script(g)
+    # every replay target appears as a #@node annotation in the artifact
+    for nid in replay_targets:
+        assert f"#@node {nid}" in out
+    # and the artifact introduces no extra #@node beyond the reciped set
+    node_ids = {ln.split()[1] for ln in out.splitlines() if ln.startswith("#@node ")}
+    assert node_ids == replay_targets
+
+
+def test_golden_snapshot_byte_for_byte():
+    out = render_build_script(_rich_graph())
+    # mask the opaque digest (its value is covered by the determinism test)
+    normalized = re.sub(r"sha256:[0-9a-f]{12}", "sha256:<HASH>", out)
+    expected = (
+        "#!/usr/bin/env bash\n"
+        "#\n"
+        "# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.\n"
+        "# Edit the graph and re-render; this file is an artifact, not a source.\n"
+        "#\n"
+        "#   nodes: 4 reciped (1 system, 1 toolchain, 2 pip) + 2 needs (1 service, 1 config)\n"
+        "#   graph-hash: sha256:<HASH>\n"
+        "#\n"
+        "set -Eeuo pipefail\n"
+        "\n"
+        "# ==================== SYSTEM ====================\n"
+        "export DEBIAN_FRONTEND=noninteractive\n"
+        "apt-get update\n"
+        "#@node syslib:libpq-dev  provider=apt:libpq-dev  requires=-  unblocks=pkg:psycopg2\n"
+        "apt-get install -y --no-install-recommends libpq-dev\n"
+        "\n"
+        "# ==================== TOOLCHAIN ====================\n"
+        "#@node tool:gcc  provider=apt:gcc  requires=-  unblocks=pkg:psycopg2  toolchain  evidence=ev:build:psycopg2\n"
+        "apt-get install -y --no-install-recommends gcc\n"
+        "\n"
+        "# ==================== PIP ====================\n"
+        "#@node pkg:psycopg2  version=2.9.9  requires=syslib:libpq-dev,tool:gcc  build-from-source  evidence=ev:import:psycopg2\n"
+        "python3 -m pip install --break-system-packages --no-deps psycopg2==2.9.9\n"
+        "#@node pkg:typing-extensions  version=4.11.0  requires=-  evidence=ev:resolver\n"
+        "python3 -m pip install --break-system-packages --no-deps typing-extensions==4.11.0\n"
+        "\n"
+        "# ==================== CONFIG ====================\n"
+        "#\n"
+        "#@need config:DATABASE_URL  state=missing\n"
+        "#@evidence ev:settings:DATABASE_URL\n"
+        "#     (no command — propose a governed block to satisfy this)\n"
+        "\n"
+        "# ==================== SERVICES ====================\n"
+        "#\n"
+        "#@need service:postgres  state=missing\n"
+        "#@check pg_isready -q\n"
+        "#@evidence ev:readme:db\n"
+        "#     (no command — propose a governed block to satisfy this)\n"
+    )
+    assert normalized == expected
