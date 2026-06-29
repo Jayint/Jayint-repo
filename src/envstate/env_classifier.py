@@ -54,7 +54,7 @@ def _sanitize(proposal, bundle_ids, graph):
     """Drop ungrounded/illegal requirements; force ALL edges soft; keep only edges whose
     endpoints exist (after the kept new nodes are accounted for)."""
     from python_deps.depgraph.patch import PatchProposal
-    from python_deps.depgraph.patch_gate import _KIND_PREFIX
+    from python_deps.depgraph.patch_gate import _ALLOWED_PROMOTION, _KIND_PREFIX, is_read_only
     from python_deps.depgraph.schema import NodeType
 
     def _ok(r):
@@ -65,7 +65,16 @@ def _sanitize(proposal, bundle_ids, graph):
         except ValueError:
             return False
         prefix = _KIND_PREFIX.get(nt)
-        return bool(prefix) and isinstance(r.id, str) and r.id.startswith(prefix)
+        if not (bool(prefix) and isinstance(r.id, str) and r.id.startswith(prefix)):
+            return False
+        # Drop (don't void the batch on) entries the gate would reject all-or-nothing:
+        # an illegal promotion or a non-read-only check_command. One bad LLM field then
+        # only loses that requirement, not every valid sibling in the proposal.
+        if r.promotion is not None and r.promotion not in _ALLOWED_PROMOTION:
+            return False
+        if r.check_command and not is_read_only(r.check_command):
+            return False
+        return True
 
     good_reqs = tuple(r for r in proposal.add_requirements if _ok(r))
     known = {r.id for r in good_reqs} | {n.id for n in graph.nodes}

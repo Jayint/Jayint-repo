@@ -60,3 +60,32 @@ def test_classifier_returns_graph_unchanged_on_junk():
     g = _graph_with_pkg()
     out = make_construction_classifier(lambda m: "not json")(g, "/nonexistent-repo")
     assert out is g                                   # best-effort: junk -> unchanged
+
+
+def test_one_illegal_promotion_does_not_void_valid_siblings():
+    # An illegal promotion ("active") on one grounded req must NOT void the whole batch:
+    # _sanitize drops the bad req (so admit's all-or-nothing gate stays clean) and the
+    # valid sibling is still admitted.
+    g = _graph_with_pkg()
+    llm_json = json.dumps({"requirements": [
+        {"id": "service:postgres", "type": "Service", "name": "postgres", "layer": "services",
+         "state": "candidate", "evidence_refs": ["pkg.00"]},
+        {"id": "service:redis", "type": "Service", "name": "redis", "layer": "services",
+         "state": "active", "evidence_refs": ["pkg.00"]}]})   # "active" illegal -> dropped, not voiding
+    out = make_construction_classifier(lambda m: llm_json)(g, "/nonexistent-repo")
+    assert out.get("service:postgres") is not None        # valid sibling survives
+    assert out.get("service:redis") is None               # illegal-promotion req dropped
+
+
+def test_non_read_only_check_command_req_is_dropped_not_voiding():
+    # A grounded req with a mutating check_command would be gate-rejected; _sanitize drops
+    # it so a valid sibling still admits.
+    g = _graph_with_pkg()
+    llm_json = json.dumps({"requirements": [
+        {"id": "service:postgres", "type": "Service", "name": "postgres", "layer": "services",
+         "state": "hint", "evidence_refs": ["pkg.00"]},
+        {"id": "config:BAD", "type": "Config", "name": "BAD", "layer": "config",
+         "state": "hint", "check_command": "pip install evil", "evidence_refs": ["pkg.00"]}]})
+    out = make_construction_classifier(lambda m: llm_json)(g, "/nonexistent-repo")
+    assert out.get("service:postgres") is not None
+    assert out.get("config:BAD") is None

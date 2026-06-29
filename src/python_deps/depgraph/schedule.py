@@ -42,6 +42,13 @@ def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False)
     return (
         node.state is State.MISSING
         and service_ok
+        and node.type is not NodeType.DATA_ASSET   # DataAsset (tier 6) is a construction-time
+                                                   # advisory Hint/Candidate from the LLM env
+                                                   # classifier (Slice C) — never a scheduled
+                                                   # obligation (like CONFIG/SERVICE). Its
+                                                   # `test -f ...`-style check would otherwise make
+                                                   # it actionable; keep classifier soft nodes out
+                                                   # of the frontier.
         and (node.type is not NodeType.CONFIG      # config is advisory-only (tier 6); its `printenv X`
                                                    # check is unsatisfiable in a fresh-shell exec, and a
                                                    # genuinely-required var is set reactively via the
