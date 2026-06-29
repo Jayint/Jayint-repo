@@ -21,7 +21,11 @@ _SYSTEM_PROMPT = (
     "type in {Service,Config,DataAsset}; id is 'service:<name>' / 'config:<VAR>' / 'data:<name>'; "
     "layer in {services,config}; promotion in {hint,candidate} (NEVER active); evidence_ref MUST be "
     "an evidence_id from the bundle. Edges connect an existing node (e.g. a pkg: or project: id from "
-    "the bundle) to your new node. " + _GOAL
+    "the bundle) to your new node. "
+    "Some bundle hits include a \"node_id\" (e.g. \"pkg:psycopg\", \"project:foo\"). To link a "
+    "new node to an existing one, add an edge whose source/target are those exact node_id values. "
+    "Valid edge relations are ONLY: requires, alternative_to, conflicts_with (default requires). "
+    "Do NOT invent other relations, and do NOT create a node per package. " + _GOAL
 )
 
 
@@ -52,10 +56,13 @@ def _normalize(d: dict) -> dict:
 
 def _sanitize(proposal, bundle_ids, graph):
     """Drop ungrounded/illegal requirements; force ALL edges soft; keep only edges whose
-    endpoints exist (after the kept new nodes are accounted for)."""
+    endpoints exist (after the kept new nodes are accounted for) AND whose relation is a
+    valid EdgeType value. An invalid-relation edge is dropped (not batch-voiding)."""
     from python_deps.depgraph.patch import PatchProposal
     from python_deps.depgraph.patch_gate import _ALLOWED_PROMOTION, _KIND_PREFIX, is_read_only
-    from python_deps.depgraph.schema import NodeType
+    from python_deps.depgraph.schema import NodeType, EdgeType
+
+    _valid_relations = {e.value for e in EdgeType}
 
     def _ok(r):
         if r.evidence_ref not in bundle_ids:
@@ -79,7 +86,8 @@ def _sanitize(proposal, bundle_ids, graph):
     good_reqs = tuple(r for r in proposal.add_requirements if _ok(r))
     known = {r.id for r in good_reqs} | {n.id for n in graph.nodes}
     good_edges = tuple(replace(e, hard=False) for e in proposal.add_edges
-                       if e.source in known and e.target in known)
+                       if e.source in known and e.target in known
+                       and e.relation in _valid_relations)
     return PatchProposal(add_requirements=good_reqs, add_edges=good_edges)
 
 

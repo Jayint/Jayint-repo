@@ -10,7 +10,7 @@ for p in (str(_ROOT), str(_SRC)):
 import json
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
 from python_deps.depgraph.ids import package_id
-from src.envstate.env_classifier import make_construction_classifier, _normalize
+from src.envstate.env_classifier import make_construction_classifier, _normalize, _SYSTEM_PROMPT
 
 
 def _graph_with_pkg():
@@ -89,3 +89,38 @@ def test_non_read_only_check_command_req_is_dropped_not_voiding():
     out = make_construction_classifier(lambda m: llm_json)(g, "/nonexistent-repo")
     assert out.get("service:postgres") is not None
     assert out.get("config:BAD") is None
+
+
+def _graph_with_psycopg3():
+    return DepGraph().with_node(Node(id=package_id("psycopg", "3.1"), type=NodeType.PACKAGE,
+        name="psycopg", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, version="3.1"))
+
+
+def test_prompt_mentions_node_id_anchoring():
+    assert "node_id" in _SYSTEM_PROMPT
+
+
+def test_invalid_relation_edge_dropped_not_voiding():
+    # an edge with an invalid relation must be dropped, leaving the valid node admitted
+    g = _graph_with_psycopg3()
+    llm = json.dumps({"requirements": [
+        {"id": "service:postgres", "type": "Service", "name": "postgres", "layer": "services",
+         "state": "candidate", "evidence_refs": ["pkg.00"]}],
+        "add_edges": [{"source": package_id("psycopg", "3.1"), "target": "service:postgres",
+                       "relation": "depends_on", "hard": True}]})   # bad relation
+    out = make_construction_classifier(lambda m: llm)(g, "/nonexistent-repo")
+    assert out.get("service:postgres") is not None         # node still admitted (batch not voided)
+    assert all(e.relation.value == "requires" or e.dst != "service:postgres"
+               for e in out.edges) or not any(e.dst == "service:postgres" for e in out.edges)
+
+
+def test_valid_relation_edge_survives_soft():
+    g = _graph_with_psycopg3()
+    llm = json.dumps({"requirements": [
+        {"id": "service:postgres", "type": "Service", "name": "postgres", "layer": "services",
+         "state": "candidate", "evidence_refs": ["pkg.00"]}],
+        "add_edges": [{"source": package_id("psycopg", "3.1"), "target": "service:postgres",
+                       "relation": "requires", "hard": True}]})
+    out = make_construction_classifier(lambda m: llm)(g, "/nonexistent-repo")
+    e = next(e for e in out.edges if e.dst == "service:postgres")
+    assert e.relation.value == "requires" and e.data.get("hard") is False
