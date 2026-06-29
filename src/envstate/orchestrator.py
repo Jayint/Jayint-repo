@@ -331,6 +331,8 @@ def run_v3(
     enable_runtime_feedback: bool = True,
     graph_scheduler_attempt_cap: int = 3,
     enable_script_materialization: bool = True,
+    enable_gate_observability: bool = False,   # Stage 1 — observability only, byte-identical off
+    gate_observer=None,                        # Callable[[tuple[GateResult, GateResult]], None] | None
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -381,6 +383,17 @@ def run_v3(
             "scheduler test probe",
         )
         return _gate_passed(verify_report)
+
+    def _finish(reason):
+        # Stage 1 two-gate observability: fires once on the way out (any exit path).
+        # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
+        if enable_gate_observability:
+            from src.envstate.gates import evaluate_gates
+            _g = evaluate_gates(current_map.dep_graph, _run_tests_verified)
+            if gate_observer is not None:
+                gate_observer(_g)
+        _stop = _to_stop_reason(reason)
+        return current_map, _stop
 
     def _dep_emit_phase(cycle: int) -> None:
         nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted, _manual_blocks, _known_invalid
@@ -598,13 +611,13 @@ def run_v3(
         _dep_emit_phase(cycle)
         if _budget_exhausted:
             # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
-            return current_map, _to_stop_reason(TerminationReason.GIVEUP_BUDGET)
+            return _finish(TerminationReason.GIVEUP_BUDGET)
         # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
         #        into the live dep-graph. Runs once per cycle before any branch so
         #        it fires regardless of which branch returns (I2 done-path fix).
         _runtime_ingest_phase()
         if _residual_giveup is not None:
-            return current_map, _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
+            return _finish(TerminationReason.GIVEUP_RESIDUAL)
         # ── 1. Graph-scheduler decides what to do next ──────────────────────
         decision, chosen = next_decision(
             current_map.dep_graph,
@@ -622,17 +635,17 @@ def run_v3(
             if _sched_stuck >= 2:                # consecutive discover rounds revealed no new obligations
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, None)
-                return current_map, _to_stop_reason(TerminationReason.GIVEUP_STUCK)
+                return _finish(TerminationReason.GIVEUP_STUCK)
 
         if decision.action == "done":
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
-            return current_map, _to_stop_reason(TerminationReason.DONE)
+            return _finish(TerminationReason.DONE)
 
         if decision.action == "giveup":
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
-            return current_map, _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
+            return _finish(TerminationReason.GIVEUP_RESIDUAL)
 
         # ── 3. Graph-scheduler task branch (action == "task") ────────────────
         assert decision.task is not None, (
@@ -681,7 +694,7 @@ def run_v3(
                 check=task.done_when, budget=SCHEDULER_TASK_BUDGET)
             _repair_turns -= 1          # free-text path: one LLM unit (typed path already charged)
         if _budget_exhausted or _repair_turns <= 0:
-            return current_map, _to_stop_reason(TerminationReason.GIVEUP_BUDGET)
+            return _finish(TerminationReason.GIVEUP_BUDGET)
         # Scheduler mode: a passing host check can return zero commands; floor the
         # advance at 1 so the ledger step offset never aliases across cycles.
         global_step += max(len(report.commands), 1)
@@ -700,10 +713,10 @@ def run_v3(
 
         # ── 6. Hard-stop on done_flag — do NOT re-enter scheduler ────────────
         if current_map.done_flag:
-            return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
+            return _finish(TerminationReason.DONE_FLAG)
 
     # Exhausted all cycles without termination.
-    return current_map, _to_stop_reason(TerminationReason.MAX_CYCLES)
+    return _finish(TerminationReason.MAX_CYCLES)
 
 
 # ---------------------------------------------------------------------------
