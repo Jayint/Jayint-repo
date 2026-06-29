@@ -4,9 +4,47 @@ import re
 import shlex
 import tarfile
 import docker
+from dataclasses import dataclass
 from src.synthesizer import Synthesizer
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
+
+_INSTALL_FAIL_MARKER = "__INSTALL_FAIL__"
+
+
+@dataclass(frozen=True)
+class InstallResult:
+    rc: int
+    failing_command: str | None   # $BASH_COMMAND captured by the ERR trap; None on success
+    lineno: int | None
+    stderr: str
+
+
+def _wrap_with_err_trap(script: str) -> str:
+    """Prepend an ERR trap so a `set -e` abort prints the failing command + line.
+
+    render_build_script is reuse-only (its preamble already sets `set -Eeuo pipefail`);
+    we add ONLY the trap line, immediately after the shebang/preamble is irrelevant —
+    bash applies the most recent trap, and `-E` makes the trap inherit into functions.
+    """
+    trap = (
+        "trap 'rc=$?; echo "
+        f"\"{_INSTALL_FAIL_MARKER}:$BASH_COMMAND:$LINENO\" >&2; exit $rc' ERR\n"
+    )
+    return trap + script
+
+
+def _parse_install_failure(output: str) -> tuple[str | None, int | None]:
+    """Return (failing_command, lineno) from the FIRST install-fail marker, else (None, None)."""
+    for line in (output or "").splitlines():
+        if line.startswith(_INSTALL_FAIL_MARKER + ":"):
+            rest = line[len(_INSTALL_FAIL_MARKER) + 1:]
+            cmd, _, lineno_s = rest.rpartition(":")
+            try:
+                return (cmd or None), int(lineno_s)
+            except ValueError:
+                return (cmd or None), None
+    return None, None
 
 
 def _service_extra_hosts():
@@ -29,6 +67,7 @@ class Sandbox:
         apt_http_timeout_seconds=120,
         apt_https_timeout_seconds=120,
         docker_client_timeout_seconds=None,
+        enable_cache_volume: bool = False,
     ):
         self.client = docker.from_env(timeout=docker_client_timeout_seconds)
         self.base_image = base_image
@@ -49,6 +88,11 @@ class Sandbox:
         self.apt_retries = apt_retries
         self.apt_http_timeout_seconds = apt_http_timeout_seconds
         self.apt_https_timeout_seconds = apt_https_timeout_seconds
+        if enable_cache_volume:
+            cache = dict(self.volumes or {})
+            cache.setdefault("jayint_pip_cache", {"bind": "/root/.cache/pip", "mode": "rw"})
+            cache.setdefault("jayint_apt_cache", {"bind": "/var/cache/apt/archives", "mode": "rw"})
+            self.volumes = cache
         self._setup_initial_container()
 
     def _setup_initial_container(self):
@@ -360,6 +404,52 @@ class Sandbox:
         except docker.errors.DockerException as exc:
             return False, f"[SYSTEM] Rollback failed: {exc}"
         return True, message
+
+    def reset_to_base(self) -> None:
+        """Recreate the container fresh from base_image (NOT last_success_image).
+
+        Distinct from rollback()/_restore_last_success_container, which restore the
+        last good snapshot. Used by the Stage-2 binding-install gate so every install
+        attempt runs from clean. Does NOT replay runtime services (install-only path).
+        """
+        if self.container is not None:
+            try:
+                self.container.stop()
+            except docker.errors.DockerException:
+                pass
+            try:
+                self.container.remove()
+            except docker.errors.DockerException:
+                pass
+        _extra_hosts = _service_extra_hosts()
+        self.container = self.client.containers.run(
+            self.base_image, detach=True, tty=True, working_dir=self.workdir,
+            command="/bin/bash", volumes=self.volumes, platform=self.platform,
+            **({} if _extra_hosts is None else {"extra_hosts": _extra_hosts}),
+        )
+        self.container.exec_run(f"mkdir -p {self.workdir}")
+        self._bootstrap_apt_if_supported()
+        if self.seed_dir:
+            self._seed_workdir_from_host()
+        self.current_image = self.base_image
+
+    def run_install_script(self, script: str) -> InstallResult:
+        """Run an install-only setup.sh in the CURRENT container, bypassing execute()'s
+        preflight (which rejects multi-step scripts). Returns InstallResult with the
+        ERR-trap-localized failing command on rc!=0.
+
+        Invariant: this does NOT commit a snapshot; the Stage-2 gate always calls
+        reset_to_base() before this, so last_success_image is never relied upon here.
+        """
+        wrapped = _wrap_with_err_trap(script)
+        result = self.container.exec_run(["/bin/bash", "-c", wrapped], workdir=self.workdir)
+        output = result.output
+        if isinstance(output, (bytes, bytearray)):
+            output = output.decode("utf-8", errors="replace")
+        rc = result.exit_code if result.exit_code is not None else -1
+        failing_command, lineno = _parse_install_failure(output or "")
+        return InstallResult(rc=rc, failing_command=failing_command, lineno=lineno,
+                             stderr=output or "")
 
     def _register_snapshot(self, image_id):
         if image_id:
