@@ -10,6 +10,10 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from python_deps.depgraph.block import Block
 
 from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec, topo_order
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
@@ -104,7 +108,7 @@ def _need_in_layer(graph: DepGraph, layer: Layer, covered: set[str]) -> list[Nod
     return sorted(nodes, key=lambda n: n.id)
 
 
-def _block_block(block) -> list[str]:
+def _block_block(block: Block) -> list[str]:
     head = f"#@block {block.block_id}  source=llm-patch"
     if block.target_node_ids:
         head += "  targets=" + ",".join(block.target_node_ids)
@@ -178,7 +182,7 @@ def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
     return lines
 
 
-def render_build_script(graph, manual_blocks=()) -> str:
+def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...] = ()) -> str:
     if graph is None:
         graph = DepGraph()
     parts: list[str] = _manifest(graph, manual_blocks) + ["set -Eeuo pipefail"]
