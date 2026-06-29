@@ -186,3 +186,33 @@ def test_block_with_unknown_wave_lands_in_catch_all():
     assert "(UNSCHEDULED BLOCKS)" in out
     assert "#@block post:warm" in out
     assert "true" in out
+
+
+def test_manifest_counts_hash_and_meta():
+    g = DepGraph(nodes=(
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9",
+             resolved_python="3.11", resolved_platform="linux/amd64",
+             exclude_newer="2026-06-01"),
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES),
+    ))
+    out = render_build_script(g)
+    preamble = out[:out.index("set -Eeuo pipefail")]
+    assert "#   nodes: 2 reciped (1 system, 1 pip) + 1 needs (1 service)" in preamble
+    assert "#   graph-hash: sha256:" in preamble
+    # meta fields live in the comment header, before the set line (not in body)
+    for needle in ("python: 3.11", "platform: linux/amd64", "exclude-newer: 2026-06-01"):
+        assert any(needle in ln and ln.startswith("#")
+                   for ln in preamble.splitlines()), needle
+
+
+def test_determinism_with_mixed_tier_insertion_order():
+    nodes = (
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _apt("tool:gcc", "gcc", "apt:gcc", type_=NodeType.TOOL, layer=Layer.TOOLCHAIN),
+    )
+    g1 = DepGraph(nodes=nodes)
+    g2 = DepGraph(nodes=tuple(reversed(nodes)))
+    assert render_build_script(g1) == render_build_script(g2)   # insertion-order invariant
+    assert render_build_script(g1) == render_build_script(g1)   # pure: same in, same out

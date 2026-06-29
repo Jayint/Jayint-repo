@@ -7,6 +7,10 @@ is intentionally NOT parseable back to one-block-per-node.
 """
 from __future__ import annotations
 
+import hashlib
+import json
+from collections import Counter
+
 from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec, topo_order
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
 
@@ -113,10 +117,72 @@ def _block_block(block) -> list[str]:
     return out
 
 
+def _graph_hash(graph: DepGraph) -> str:
+    reciped_ids = {n.id for n in graph.nodes if _is_reciped(n)}
+    nodes_payload = sorted(
+        (n.id, n.version or "", n.chosen_fix or "")
+        for n in graph.nodes if _is_reciped(n)
+    )
+    edges_payload = sorted(
+        (e.src, e.dst, e.relation.value)
+        for e in graph.edges
+        if e.src in reciped_ids and e.dst in reciped_ids
+    )
+    blob = json.dumps({"nodes": nodes_payload, "edges": edges_payload},
+                      separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()[:12]
+
+
+def _closure_meta(graph: DepGraph) -> dict[str, str]:
+    meta: dict[str, str] = {}
+    for n in graph.nodes:
+        if n.type is not NodeType.PACKAGE:
+            continue
+        for key, attr in (("python", "resolved_python"),
+                          ("platform", "resolved_platform"),
+                          ("exclude-newer", "exclude_newer")):
+            val = getattr(n, attr, None)
+            if val and key not in meta:
+                meta[key] = val
+    return meta
+
+
+_TYPE_WORD = {NodeType.SYSTEM_LIB: "system", NodeType.TOOL: "toolchain",
+              NodeType.PACKAGE: "pip"}
+_NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config",
+              NodeType.DATA_ASSET: "data_asset"}
+
+
+def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
+    reciped = [n for n in graph.nodes if _is_reciped(n)]
+    covered = {nid for b in manual_blocks for nid in b.target_node_ids}
+    needs = [n for n in graph.nodes
+             if n.type in _NEED_TYPES and not _is_reciped(n) and n.id not in covered]
+    counts = Counter(_TYPE_WORD.get(n.type, n.type.value) for n in reciped)
+    count_str = ", ".join(f"{counts[w]} {w}" for w in ("system", "toolchain", "pip")
+                          if counts.get(w))
+    need_counts = Counter(_NEED_WORD.get(n.type, n.type.value) for n in needs)
+    need_str = ", ".join(f"{need_counts[w]} {w}"
+                         for w in ("service", "config", "data_asset")
+                         if need_counts.get(w))
+    needs_suffix = f" ({need_str})" if need_str else ""
+    meta = _closure_meta(graph)
+    meta_str = "   ".join(f"{k}: {v}" for k, v in meta.items())
+    lines = list(_BANNER)  # full banner; _BANNER[-1] is the "#" separator (keep it)
+    lines.append(f"#   nodes: {len(reciped)} reciped ({count_str or 'none'}) "
+                 f"+ {len(needs)} needs{needs_suffix}")
+    hash_line = f"#   graph-hash: {_graph_hash(graph)}"
+    if meta_str:
+        hash_line += "   " + meta_str
+    lines.append(hash_line)
+    lines.append("#")
+    return lines
+
+
 def render_build_script(graph, manual_blocks=()) -> str:
     if graph is None:
         graph = DepGraph()
-    parts: list[str] = list(_BANNER) + ["set -Eeuo pipefail"]
+    parts: list[str] = _manifest(graph, manual_blocks) + ["set -Eeuo pipefail"]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
     for b in manual_blocks:
