@@ -27,6 +27,7 @@ def run_structured_repair(
     max_repairs=5, repair_budget=10 ** 9,
     constraints=None, target_hint=None,
     scope_builder=build_repair_scope,
+    cap_failed_id: bool = False,
 ):
     ki = set(known_invalid)
     mb = tuple(manual_blocks)
@@ -62,8 +63,13 @@ def run_structured_repair(
             return RepairOutcome(graph, failed_id, mb, frozenset(ki), turns, False)
         graph, mb = res.graph, res.manual_blocks
         last_failed_cmd = scope.failed_command
-        graph, bundle, failed_id = emit(graph, mb)
-        if failed_id is None:
+        graph, bundle, new_failed_id = emit(graph, mb)
+        if new_failed_id is None:
             return RepairOutcome(graph, None, mb, frozenset(ki), turns, False)
+        if cap_failed_id and new_failed_id != failed_id:
+            # Stage 2: original node fixed but a different node now fails; return the
+            # original id and let the outer loop re-verify from a fresh base (no silent pivot).
+            return RepairOutcome(graph, failed_id, mb, frozenset(ki), turns, False)
+        failed_id = new_failed_id
         ki.add(scope.failed_command or "")
     return RepairOutcome(graph, failed_id, mb, frozenset(ki), turns, False)
