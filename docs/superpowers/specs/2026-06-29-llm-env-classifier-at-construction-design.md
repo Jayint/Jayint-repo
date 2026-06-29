@@ -31,7 +31,7 @@
 
 ### 3.1 Placement (the LLM is the sole classifier; `python_deps` stays pure)
 
-`build_dep_graph` no longer emits Config/Service nodes. The classifier is a one-time phase in `run_v3` (orchestrator), run **once after `build_dep_graph` returns and before the scheduling loop** — where both the graph and `build_agent.client` exist. The LLM call lives only in `src.envstate`; `python_deps/depgraph` makes no LLM call (only the small additive `_KIND_PREFIX`/`ids` helpers change there).
+`build_dep_graph` no longer emits Config/Service nodes. The classifier runs **after `build_dep_graph` returns and before the advisory is rendered**. **Placement (refined during plan grounding — see the plan):** inside `build_advisory_for_repo` (advise.py), between `build_dep_graph` and `render_dep_graph_advisory`, via an **injected `classify` callback** — `advise.py` stays LLM-free (it only invokes an opaque `Callable`), and `agent.py` builds the callback from `self.client`/`self.model`. Preferred over a `run_v3` phase because it is where build+render already co-occur, it has `repo_path`, and it lets *both* the scheduler graph and the advisory string include the LLM nodes (a `run_v3` phase would leave the advisory stale and lacks `repo_path`). The LLM call lives only in `src.envstate`; `python_deps/depgraph` makes no LLM call (only the small additive `_KIND_PREFIX`/`ids` helpers change there).
 
 **This phase is the default Config/Service/DataAsset source when an LLM client is present** (not a default-off experimental arm — there is no deterministic fallback). A flag `enable_llm_env_classifier` exists as an explicit *disable*; with no client the phase is skipped and **those tiers are simply absent** (a deliberate, accepted consequence — see §5).
 
