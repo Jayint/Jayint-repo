@@ -79,67 +79,6 @@ def test_configured_vars_from_real_dotenv_and_pytest_ini(tmp_path):
     assert "DJANGO_SETTINGS_MODULE" in provided
 
 
-# --- Task 9: scan_config orchestrator ---
-
-from python_deps.depgraph.config_scan import scan_config
-from python_deps.depgraph.schema import (
-    DepGraph, Node, NodeType, Layer, DiscoveredBy, State, EdgeType,
-)
-from python_deps.depgraph.ids import project_id, package_id, config_id
-
-
-def _graph_with_project_and_pkg(proj="app", pkg="django"):
-    p = Node(id=project_id(proj), type=NodeType.PROJECT, name=proj, layer=Layer.PIP,
-             discovered_by=DiscoveredBy.STATIC_SCAN)
-    d = Node(id=package_id(pkg, "4.2"), type=NodeType.PACKAGE, name=pkg, layer=Layer.PIP,
-             discovered_by=DiscoveredBy.RESOLVER, version="4.2")
-    return DepGraph().with_node(p).with_node(d)
-
-
-def test_project_induced_config_node_and_edge(tmp_path):
-    _write(tmp_path, "app/settings.py", "import os\nSECRET_KEY = os.environ['SECRET_KEY']\n")
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg())
-    node = g.get(config_id("SECRET_KEY"))
-    assert node is not None and node.type is NodeType.CONFIG and node.tier == 6
-    assert node.check_command == "printenv SECRET_KEY"
-    assert node.fix_candidates == ("env:SECRET_KEY=?",)
-    assert any(e.src == project_id("app") and e.dst == config_id("SECRET_KEY")
-               for e in g.edges)
-
-
-def test_package_induced_config_node_and_edge(tmp_path):
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg(pkg="django"))
-    node = g.get(config_id("DJANGO_SETTINGS_MODULE"))
-    assert node is not None
-    assert any(e.src == package_id("django", "4.2") and e.dst == config_id("DJANGO_SETTINGS_MODULE")
-               for e in g.edges)
-
-
-def test_value_hint_from_env_example(tmp_path):
-    _write(tmp_path, "app/s.py", "import os\nX = os.getenv('DEBUG')\n")
-    _write(tmp_path, ".env.example", "DEBUG=False\n")
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg())
-    assert g.get(config_id("DEBUG")).fix_candidates == ("env:DEBUG=False",)
-
-
-def test_already_configured_var_is_suppressed(tmp_path):
-    _write(tmp_path, "app/s.py", "import os\nX = os.environ['ALREADY']\n")
-    _write(tmp_path, ".env", "ALREADY=1\n")
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg())
-    assert g.get(config_id("ALREADY")) is None
-
-
-def test_package_default_not_lost_when_var_also_project_read(tmp_path):
-    """Package curated default must survive even when the same var is project-read first."""
-    _write(tmp_path, "app/s.py", "import os\nREGION = os.environ['AWS_DEFAULT_REGION']\n")
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg(pkg="boto3"))
-    node = g.get(config_id("AWS_DEFAULT_REGION"))
-    assert node is not None, "CONFIG node for AWS_DEFAULT_REGION must be created"
-    assert node.fix_candidates == ("env:AWS_DEFAULT_REGION=us-east-1",), (
-        f"Expected curated default us-east-1, got: {node.fix_candidates}"
-    )
-
-
 def test_plain_baseconfig_class_not_treated_as_settings(tmp_path):
     # A plain (non-pydantic) `class BaseConfig` and its subclass must NOT have their
     # annotated attrs harvested as env vars (gap ④ false-positive regression test).
@@ -169,19 +108,3 @@ def test_scan_env_defaults_captures_string_literal(tmp_path):
     assert d["FEATURE_FLAG"] == "on"
     assert "DATABASE_URL" not in d      # f-string default: not statically resolvable
     assert "NO_DEFAULT" not in d        # no default argument
-
-
-def test_scan_config_uses_env_get_default_as_value(tmp_path):
-    _write(tmp_path, "app/config.py",
-           'import os\nB = os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")\n')
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg())
-    node = g.get(config_id("CELERY_BROKER_URL"))
-    assert node.fix_candidates == ("env:CELERY_BROKER_URL=redis://127.0.0.1:6379/0",)
-
-
-def test_env_example_value_wins_over_code_default(tmp_path):
-    # .env.example must take precedence over the in-code os.environ.get default.
-    _write(tmp_path, "app/s.py", 'import os\nX = os.environ.get("DEBUG", "True")\n')
-    _write(tmp_path, ".env.example", "DEBUG=False\n")
-    g = scan_config(str(tmp_path), _graph_with_project_and_pkg())
-    assert g.get(config_id("DEBUG")).fix_candidates == ("env:DEBUG=False",)

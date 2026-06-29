@@ -307,7 +307,6 @@ def build_advisory_for_repo(
     *,
     host_executor: Executor | None = None,
     target_python: str | None = None,
-    enable_service_provision: bool = False,
     classify: Callable | None = None,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
@@ -323,7 +322,6 @@ def build_advisory_for_repo(
         with DockerExecutor(base_image) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
-                enable_service_provision=enable_service_provision,
             )
         if classify is not None:
             graph = classify(graph, repo_path)        # LLM env classifier (envstate-injected; pure call here)

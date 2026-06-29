@@ -12,10 +12,6 @@ import ast
 import os
 import re
 
-from .ids import config_id
-from .schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State, Edge, EdgeType
-from .config_tables import config_obligations_for_package
-
 _EXCLUDED_SEGMENTS: frozenset[str] = frozenset(
     {
         "examples", "example", "docs", "doc", "build", "dist", "samples",
@@ -260,81 +256,3 @@ def configured_vars(repo_path: str) -> set[str]:
                 elif stripped and not line[:1].isspace():
                     in_env = False
     return provided
-
-
-# --- Task 9: scan_config orchestrator ---
-
-def _config_node(var: str, value: str | None, evidence: str | None,
-                 discovered_by: DiscoveredBy) -> Node:
-    fix = f"env:{var}={value}" if value else f"env:{var}=?"
-    return Node(
-        id=config_id(var),
-        type=NodeType.CONFIG,
-        name=var,
-        layer=Layer.CONFIG,
-        discovered_by=discovered_by,
-        state=State.UNKNOWN,
-        check_command=f"printenv {var}",
-        fix_candidates=(fix,),
-        chosen_fix=fix,
-        evidence=evidence,
-        provenance="config scan",
-    )
-
-
-def scan_config(repo_path: str, graph: DepGraph) -> DepGraph:
-    """Append project- and package-induced CONFIG nodes + requires edges.
-
-    Suppresses vars already provided at test time (``configured_vars``). Returns a
-    NEW graph; no-op-safe when there is no Project/Package node to anchor to.
-    """
-    suppressed = configured_vars(repo_path)
-    values = parse_env_example(repo_path)
-
-    # Pre-merge all curated package defaults into `values` BEFORE creating any nodes,
-    # so the project pass sees package defaults even for vars it creates first.
-    # A .env.example value takes precedence (guard: var not in values).
-    for pkg in [n for n in graph.nodes if n.type is NodeType.PACKAGE]:
-        for var, default in config_obligations_for_package(pkg.name):
-            if default is not None and var not in values:
-                values[var] = default
-
-    # Code-level defaults (os.environ.get(VAR, "literal")) fill vars that neither
-    # .env.example nor the package tables cover — lowest precedence (setdefault).
-    # Reactivates the Service-tier URL-binding branch (it needs a parseable value).
-    for var, default in scan_env_defaults(repo_path).items():
-        values.setdefault(var, default)
-
-    project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
-    test = next((n for n in graph.nodes if n.type is NodeType.TEST), None)
-    anchor = project or test  # project-induced reads hang off Project (or Test goal)
-
-    new = graph
-
-    def _add(var: str, evidence: str | None, src_id: str | None,
-             discovered_by: DiscoveredBy) -> None:
-        nonlocal new
-        if var in suppressed:
-            return
-        if new.get(config_id(var)) is None:
-            new = new.with_node(_config_node(var, values.get(var), evidence, discovered_by))
-        if src_id is not None:
-            new = new.with_edge(Edge(src=src_id, dst=config_id(var),
-                                     relation=EdgeType.REQUIRES, origin="config"))
-
-    # Project-induced: os.environ reads + framework config readers.
-    project_reads = dict(scan_env_reads(repo_path))
-    project_reads.update(scan_framework_config_reads(repo_path))
-    for var, evidence in project_reads.items():
-        _add(var, evidence, anchor.id if anchor else None, DiscoveredBy.STATIC_SCAN)
-
-    # Package-induced: each resolved Package's curated config obligations.
-    for pkg in [n for n in graph.nodes if n.type is NodeType.PACKAGE]:
-        for var, default in config_obligations_for_package(pkg.name):
-            ev = f"induced by package {pkg.name}"
-            # a curated default becomes the value hint when .env.example has none.
-            if default is not None and var not in values:
-                values[var] = default
-            _add(var, ev, pkg.id, DiscoveredBy.RESOLVER)
-
-    return new

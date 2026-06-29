@@ -60,8 +60,6 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.config_scan import scan_config
-from python_deps.depgraph.service_scan import scan_services, attach_in_image_provisioning
 from python_deps.depgraph.seed import seed_predicted_native
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
@@ -213,7 +211,6 @@ def build_dep_graph(
     target_python: str | None = None,
     target_platform: str | None = None,
     exclude_newer: str | None = None,
-    enable_service_provision: bool = False,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -294,20 +291,6 @@ def build_dep_graph(
     # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail
     # hint); Stage 4.5 ldd_probe is the authoritative run-time native-lib source.
     graph = seed_predicted_native(graph)
-    # Stage 3c — Config tier (tier 6): project- and package-induced env-var needs
-    # appended to the same graph (design 2026-06-25 six-tier model). Static; the
-    # existing certify pass (Stage 5) certifies their `printenv` presence.
-    graph = scan_config(repo_path, graph)
-    # Stage 3d — Service tier (tier 5): confidence-annotated SERVICE nodes appended
-    # to the same graph (design 2026-06-25-services-tier-design.md). Discovery only;
-    # services are NOT certified here (certify skip-guard keeps them UNKNOWN).
-    # ``bind_env`` (arm v3) gates the NEW compose `environment:` DB-URL
-    # absorption so the off-state Services advisory stays byte-identical.
-    graph = scan_services(repo_path, graph, bind_env=enable_service_provision)
-    # Stage 3e — Service action layer (arm v3): promote confirmed services to
-    # in-image obligations (SystemLib prereq + loopback probe + start recipe).
-    # Off-state default keeps this byte-identical (design 2026-06-27 §4/§9).
-    graph = attach_in_image_provisioning(graph, enabled=enable_service_provision)
     resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 
