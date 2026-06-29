@@ -417,14 +417,20 @@ def run_v3(
         # LLM turns are NOT counted.
         def _binding_emit(graph, manual_blocks, cycle):
             from python_deps.depgraph.build_script import render_build_script
+            from python_deps.depgraph.emit import _is_reciped
             from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+            # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
+            _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
+            if _missing:
+                raise ValueError(
+                    f"binding-install repair: reciped nodes lack a check_command: {_missing}")
             script = render_build_script(graph, manual_blocks)
-            if reset_to_base is not None:
-                reset_to_base()
-            result = run_install_script(script) if run_install_script is not None else None
+            reset_to_base()
+            result = run_install_script(script)
             graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
-            if result is not None and result.rc != 0:
-                return graph, None, localize_install_failure(script, result.failing_command).node_id
+            if result.rc != 0:
+                return graph, None, (localize_install_failure(script, result.failing_command).node_id
+                                     or (unsat[0] if unsat else None))
             return graph, None, (unsat[0] if unsat else None)
 
         if enable_script_materialization and enable_binding_install:
@@ -432,23 +438,25 @@ def run_v3(
             # install, certify reciped nodes. Repair reuses run_structured_repair.
             from python_deps.depgraph.build_script import render_build_script
             from python_deps.depgraph.emit import _is_reciped
-            from src.envstate.install_localizer import (
-                localize_install_failure, certify_reciped_only, assemble_install_debug_bundle,
-            )
+            from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+            if reset_to_base is None or run_install_script is None:
+                raise ValueError(
+                    "binding-install: reset_to_base and run_install_script are required "
+                    "when enable_binding_install=True")
             # Consumer fail-fast: a reciped node with no check_command cannot be certified.
             missing_check = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
             if missing_check:
                 raise ValueError(
                     f"binding-install: reciped nodes lack a check_command: {missing_check}")
             script = render_build_script(graph, _manual_blocks)
-            if reset_to_base is not None:
-                reset_to_base()
-            result = run_install_script(script) if run_install_script is not None else None
+            reset_to_base()
+            result = run_install_script(script)
             graph, _unsat = certify_reciped_only(graph, exec_readonly, cycle)
-            install_ok = result is not None and result.rc == 0
+            install_ok = result.rc == 0
             _failed_node = None
-            if not install_ok and result is not None:
-                _failed_node = localize_install_failure(script, result.failing_command).node_id
+            if not install_ok:
+                _failed_node = (localize_install_failure(script, result.failing_command).node_id
+                                or (_unsat[0] if _unsat else None))
             elif _unsat:
                 _failed_node = _unsat[0]
             if _failed_node is not None and getattr(build_agent, "client", None) is not None:

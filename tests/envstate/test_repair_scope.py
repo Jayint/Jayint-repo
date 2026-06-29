@@ -32,6 +32,15 @@ def test_build_scope_carries_failure_and_evidence(monkeypatch):
     assert "ev.1.0" in scope.known_evidence_ids
     assert scope.constraints == (("package_manager", "apt"),)
 
+def test_build_scope_tolerates_none_bundle():
+    # Binding-install repair passes bundle=None (no obligation packet — failure evidence is the
+    # install stderr, surfaced separately). build_repair_scope must not crash on bundle.items.
+    scope = rs.build_repair_scope(
+        object(), target_node_id=None, failed_block=None, bundle=None)
+    assert scope.known_evidence_ids == frozenset()
+    assert scope.failed_command is None
+
+
 def test_render_surfaces_avoidlist_and_schema(monkeypatch):
     monkeypatch.setattr(rs, "build_requirement_slice", lambda g, n: object())
     monkeypatch.setattr(rs, "render_requirement_slice", lambda s: ("CHECK: pkg-config",))

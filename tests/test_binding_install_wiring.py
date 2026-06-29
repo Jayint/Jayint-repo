@@ -76,3 +76,76 @@ def test_flag_on_install_failure_does_not_crash():
         return InstallResult(1, "apt-get install -y libgl1", 5, "E: not found")
     # build_agent.client is None → no repair; the phase must complete without raising
     _run(enable_binding_install=True, reset_to_base=lambda: None, run_install_script=install)
+
+
+def test_flag_on_requires_callables():
+    import pytest
+    # reset_to_base=None should raise
+    with pytest.raises(ValueError):
+        _run(enable_binding_install=True, reset_to_base=None,
+             run_install_script=lambda s: InstallResult(0, None, None, ""))
+    # run_install_script=None should raise
+    with pytest.raises(ValueError):
+        _run(enable_binding_install=True, reset_to_base=lambda: None,
+             run_install_script=None)
+
+
+def test_flag_on_missing_check_command_raises():
+    import pytest
+    bad_pkg = Node(id="pkg:foo==1.0", type=NodeType.PACKAGE, name="foo", version="1.0",
+                   layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
+                   chosen_fix="pip:foo")  # no check_command → _is_reciped but uncertifiable
+    base = initial_map(base_image="python:3.11", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    wm = merge_map(base, dep_graph=DepGraph().with_node(bad_pkg))
+    with pytest.raises(ValueError):
+        orchestrator.run_v3(
+            _agent(), _maint(), wm, ActionLedger(), lambda c: (False, ""),
+            max_cycles=1, exec_readonly=_ro, enable_dep_emit=True,
+            enable_script_materialization=True, enable_binding_install=True,
+            reset_to_base=lambda: None,
+            run_install_script=lambda s: InstallResult(0, None, None, ""),
+        )
+
+
+def test_flag_on_install_failure_with_client_enters_repair():
+    """Repair must fire even when localize() returns node_id=None (Fix 3), AND the REAL
+    repair path must not crash: run_structured_repair → build_repair_scope is called with
+    bundle=None on the binding path, which build_repair_scope now tolerates.
+    """
+    counter = [0]
+
+    class _AgentWithClient:
+        client = object()  # non-None → repair branch activates
+
+        def run(self, *a, **k):
+            return TaskReport("t", "blocked", (), "")
+
+        def propose(self, *a, **k):
+            counter[0] += 1
+            return None      # admit nothing → real repair loop ends after one propose
+
+        def run_recipe(self, *a, **k):
+            return TaskReport("r", "done", (), "")
+
+    # Syslib node: reciped (chosen_fix starts with "apt:"), has check_command, starts MISSING
+    syslib = Node(id="syslib:libgl1", type=NodeType.SYSTEM_LIB, name="libgl1",
+                  layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
+                  check_command="dpkg -s libgl1", chosen_fix="apt:libgl1")
+    base = initial_map(base_image="python:3.11", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    wm = merge_map(base, dep_graph=DepGraph().with_node(syslib))
+
+    # exec_readonly always fails → node stays MISSING after certify → appears in _unsat.
+    # Install fails with a command NOT in the rendered script → localize returns node_id=None;
+    # the _unsat fallback still yields a failed_node, so the REAL repair loop engages and
+    # build_repair_scope is exercised with bundle=None (no patching of run_structured_repair).
+    orchestrator.run_v3(
+        _AgentWithClient(), _maint(), wm, ActionLedger(), lambda c: (False, ""),
+        max_cycles=1, exec_readonly=lambda cmd: (1, ""),
+        enable_dep_emit=True, enable_script_materialization=True,
+        enable_binding_install=True, reset_to_base=lambda: None,
+        run_install_script=lambda s: InstallResult(1, "totally-unmapped-command-xyz", 3, "E: boom"),
+    )
+    # Fix 3: localize returned None but _unsat fallback provided failed_node → repair engaged.
+    assert counter[0] >= 1

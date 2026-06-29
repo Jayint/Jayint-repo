@@ -55,14 +55,18 @@ def build_repair_scope(graph, *, target_node_id, failed_block, bundle,
         slice_lines = tuple(render_requirement_slice(build_requirement_slice(graph, node)))
     failed_cmd = failed_block.commands[-1] if (failed_block and failed_block.commands) else None
     failed_out = ""
-    for ev in bundle.items:
+    # bundle is None on the binding-install repair path (no obligation packet — the failure
+    # evidence is the install stderr, surfaced via the debug bundle, not a ledger packet).
+    # Treat a missing bundle as empty evidence rather than crashing on bundle.items.
+    _evidence = bundle.items if bundle is not None else ()
+    for ev in _evidence:
         if ev.rc != 0 and (failed_block is None or ev.block_id == failed_block.block_id):
             failed_cmd = failed_cmd or ev.command
             failed_out = ev.output_excerpt or ""
     return RepairScope(
         target_node_id=target_node_id, failed_command=failed_cmd, failed_output=failed_out,
         slice_lines=slice_lines, known_invalid=tuple(known_invalid), constraints=cons,
-        known_evidence_ids=frozenset(ev.evidence_id for ev in bundle.items))
+        known_evidence_ids=frozenset(ev.evidence_id for ev in _evidence))
 
 
 def render_repair_scope(scope: RepairScope) -> str:
