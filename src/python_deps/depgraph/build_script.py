@@ -74,6 +74,32 @@ def _reciped_in_layer(graph: DepGraph, layer: Layer) -> tuple[Node, ...]:
     return topo_order(graph, nodes)
 
 
+_NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE, NodeType.DATA_ASSET)
+
+
+def _need_block(graph: DepGraph, node: Node) -> list[str]:
+    from python_deps.depgraph.advise import _best_evidence_line  # lazy: avoid load-order coupling
+    reqs = [d.id for d in graph.requires_of(node.id) if _is_reciped(d)]
+    head = f"#@need {node.id}  state={node.state.value}"
+    if reqs:
+        head += "  requires=" + ",".join(sorted(reqs))
+    out = ["#", head]
+    if node.check_command:
+        out.append(f"#@check {node.check_command}")
+    ev = _best_evidence_line(node.evidence)
+    if ev:
+        out.append(f"#@evidence {ev}")
+    out.append("#     (no command — propose a governed block to satisfy this)")
+    return out
+
+
+def _need_in_layer(graph: DepGraph, layer: Layer, covered: set[str]) -> list[Node]:
+    nodes = [n for n in graph.nodes
+             if n.layer is layer and n.type in _NEED_TYPES
+             and not _is_reciped(n) and n.id not in covered]
+    return sorted(nodes, key=lambda n: n.id)
+
+
 def render_build_script(graph, manual_blocks=()) -> str:
     if graph is None:
         graph = DepGraph()
@@ -83,6 +109,8 @@ def render_build_script(graph, manual_blocks=()) -> str:
         section: list[str] = []
         for node in _reciped_in_layer(graph, layer):
             section += _node_block(graph, node, apt_done)
+        for node in _need_in_layer(graph, layer, covered=set()):
+            section += _need_block(graph, node)
         if section:
             parts.append("")
             parts.append(_section_header(layer))

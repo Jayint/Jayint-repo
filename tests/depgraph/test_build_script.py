@@ -83,3 +83,34 @@ def test_node_check_command_emitted_between_annotation_and_install():
     check_idx = out.index("#@check python -m pip show psycopg2")
     install_idx = out.index("psycopg2==2.9.9")
     assert node_idx < check_idx < install_idx
+
+
+def _need(id_, type_, name, layer, **kw):
+    return Node(id=id_, type=type_, name=name, layer=layer,
+                discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING, **kw)
+
+
+def test_need_stubs_are_comment_only():
+    g = DepGraph(nodes=(
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES,
+              check_command="pg_isready -q", evidence="ev:readme:db"),
+        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG,
+              evidence="ev:settings:DATABASE_URL"),
+    ))
+    out = render_build_script(g)
+    assert "#@need service:postgres  state=missing" in out
+    assert "#@check pg_isready -q" in out
+    assert "#@need config:DATABASE_URL  state=missing" in out
+    # services/config render AFTER pip (highest layer rank)
+    assert out.index("psycopg2==2.9.9") < out.index("#@need service:postgres")
+    # the stub carries NO real command. SERVICES is the last layer, so the
+    # service stub runs to EOF; every non-blank line there must be a comment.
+    lines = out.splitlines()
+    start = next(i for i, ln in enumerate(lines)
+                 if ln.startswith("#@need service:postgres"))
+    body = lines[start:]
+    assert any("(no command" in ln for ln in body)
+    for ln in body:
+        if ln.strip():
+            assert ln.startswith("#"), f"non-comment line in #@need stub: {ln!r}"
