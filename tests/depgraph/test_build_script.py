@@ -216,3 +216,13 @@ def test_determinism_with_mixed_tier_insertion_order():
     g2 = DepGraph(nodes=tuple(reversed(nodes)))
     assert render_build_script(g1) == render_build_script(g2)   # insertion-order invariant
     assert render_build_script(g1) == render_build_script(g1)   # pure: same in, same out
+
+
+def test_closure_meta_is_insertion_order_invariant():
+    a = _pkg("pkg:aaa", "aaa", "1.0", resolved_python="3.10")
+    b = _pkg("pkg:zzz", "zzz", "2.0", resolved_python="3.11")
+    g1 = DepGraph(nodes=(a, b))
+    g2 = DepGraph(nodes=(b, a))
+    assert render_build_script(g1) == render_build_script(g2)
+    # lowest-id package wins deterministically -> python 3.10
+    assert "python: 3.10" in render_build_script(g1)

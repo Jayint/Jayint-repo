@@ -135,9 +135,8 @@ def _graph_hash(graph: DepGraph) -> str:
 
 def _closure_meta(graph: DepGraph) -> dict[str, str]:
     meta: dict[str, str] = {}
-    for n in graph.nodes:
-        if n.type is not NodeType.PACKAGE:
-            continue
+    for n in sorted((n for n in graph.nodes if n.type is NodeType.PACKAGE),
+                    key=lambda n: n.id):
         for key, attr in (("python", "resolved_python"),
                           ("platform", "resolved_platform"),
                           ("exclude-newer", "exclude_newer")):
