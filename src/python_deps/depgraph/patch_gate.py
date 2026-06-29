@@ -79,6 +79,11 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
             errs.append(f"requirement {r.id} cites unknown/absent evidence {r.evidence_ref!r}")
         if r.check_command and not is_read_only(r.check_command):
             errs.append(f"check command for {r.id} is not read-only: {r.check_command!r}")
+        if r.check_command:
+            from python_deps.depgraph.check_quality import check_can_detect_absence
+            if not check_can_detect_absence(r.check_command):
+                errs.append(f"check command for {r.id} cannot detect absence "
+                            f"(structurally trivial): {r.check_command!r}")
         # conflicting redefinition vs graph
         cur = graph.get(r.id)
         if cur is not None and (cur.type.value != r.type or cur.layer.value != r.layer
