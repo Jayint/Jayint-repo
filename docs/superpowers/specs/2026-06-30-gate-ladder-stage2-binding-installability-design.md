@@ -128,7 +128,7 @@ Graph slice stays **scoped** (no whole-graph summary) and **self-updating** (`tr
 `run_v3` gains optional kwargs (default `None` ⇒ Stage-1 behavior; matches the Stage-1 `enable_gate_observability` pattern):
 
 - `reset_to_base: Callable[[], None] | None` — **new** `Sandbox` method: `docker rm` + run from `base_image`, **always** (distinct from `rollback()`/`_restore_last_success_container`, which use `last_success_image` and only fall back to base when no snapshot exists — review I4).
-- `run_install_script: Callable[[str], InstallResult] | None` — bash the rendered script with the prepended ERR trap. **Must bypass `Sandbox.execute()`** (its `_get_invalid_compound_setup_prefix` preflight rejects multi-step scripts) and call `container.exec_run` directly, like `exec_readonly` does (review/grounding).
+- `run_install_script: Callable[[str], InstallResult] | None` — bash the rendered script with the prepended ERR trap. **Must bypass `Sandbox.execute()`** (its `_get_invalid_compound_setup_prefix` preflight rejects multi-step scripts) and call `container.exec_run` directly, like `exec_readonly` does (review/grounding). Because it bypasses `execute()` it never commits a snapshot, and `reset_to_base()` always precedes it — so the gate never depends on `last_success_image` (snapshot-state invariant; needs a code comment).
 - a flag `enable_binding_install: bool = False`.
 
 ```python
@@ -146,14 +146,14 @@ The **certify phase reuses the existing `exec_readonly` callable + `certify_refr
 
 ## 7. Components, task order & deferred
 
-**Task order** (dependencies): T1 → T3 → T4; T2 ∥ T1; T5 after T1; T6 independent.
+**Task order** (dependencies, corrected per blast-radius review): **(T1 ∥ T2) → T3 → (T4 ∥ T5); T6 independent.** The edges `T2→T3` (T3 calls the localizer + `certify_reciped_only`) and `T3→T5` (T5 binds callables into `run_v3`'s new kwargs that T3 adds) are real — do NOT start T5 on T1 alone.
 
 | Task | Files | Change |
 |---|---|---|
-| T1 | `src/sandbox.py` | `reset_to_base()` (always `base_image`); `run_install_script(script)->InstallResult` (ERR-trap prepend, `container.exec_run`, mode-A localization); mount persistent pip/apt **cache volume** |
+| T1 | `src/sandbox.py` | `reset_to_base()` (always `base_image`); `run_install_script(script)->InstallResult` (ERR-trap prepend, `container.exec_run`, mode-A localization); document the snapshot-state invariant (bypasses `execute()` so never `commit()`s; `reset_to_base()` always precedes it); mount persistent pip/apt **cache volume** |
 | T2 | `src/envstate/` (new) | localizer + debug-bundle assembly (mode A/B, `#@node` mapping, bounded window, both-hypotheses mode-B); `certify_reciped_only` wrapper |
 | T3 | `src/envstate/orchestrator.py` (`run_v3`+`_dep_emit_phase`) | optional callables + `enable_binding_install`; when on, replace incremental `block_emit` with render→`reset_to_base`→`run_install_script`→`certify_reciped_only`; binding from (rc0 ∧ all reciped-with-check SATISFIED); **render fail-fast if a reciped node lacks a check** |
-| T4 | `src/envstate/repair_loop.py` | reset-to-base per attempt; attach debug bundle; cap inner-loop `failed_id` to the original (no silent pivot — review I3) |
+| T4 | `src/envstate/repair_loop.py` | reset-to-base per attempt; attach debug bundle; cap inner-loop `failed_id` to the original via a NEW `cap_failed_id: bool = False` param (Stage 2 passes `True`; existing call sites stay `False`, so the shared `block_emit` repair path is unchanged — blast-radius review) |
 | T5 | `agent.py`, `l2` smoke | bind new `Sandbox` callables |
 | T6 | builder/check + `PatchGate` | deterministic SystemLib check rewrite (`dpkg -s`→`ldconfig`/import) promoted to graph; prefer `import` checks for pip; PatchGate anti-weakening guard (reject a check that can't detect absence) |
 
@@ -188,3 +188,18 @@ Stage 2's contribution, sharpened by the adversarial review: **binding installab
 ## 11. Summary
 
 Make **dep-spine** installability **binding** by compiling the graph with `render_build_script` into a whole install-only `setup.sh`, running it from a clean base, **and host-certifying every reciped node** — binding = **install rc 0 AND every reciped-with-check `#@node` certifies `SATISFIED`**, with **no reciped node lacking a check** (render fail-fast) and checks favoring **importability over metadata** plus a **PatchGate anti-weakening guard** (the review's necessary-not-sufficient hardening). **Reset to base on every attempt** (R2 dropped — its speedup was illusory on the critical path and it had removal/contamination gaps); a pip/apt **cache volume** keeps it affordable, **measured** against the incremental arm. Localize the **two failure modes** (install rc≠0 → preceding `#@node`; certify-not-SATISFIED → that `#@node`, with both repair hypotheses) and feed them — with the scoped `RepairScope` slice and a bounded window — into the unchanged typed-patch repair loop. Expose container controls as **optional `run_v3` callables** (default off ⇒ byte-identical), reusing the wired `Sandbox` and the unmodified `render_build_script`. **Project install, `#@need`/`#@block` certification, and tier-commit R2 are Stage 2.5; `done`-wiring/collect-probe/classifier remain Stage 3.**
+
+---
+
+## 12. Promotion & cleanup path (making this "the" code; retiring the old loop)
+
+A read-only inventory confirms: **nothing in the current install/loop hot paths is safe to delete now** — every module serves a live research ablation (B2 `run_v1`, B3 `enable_script_materialization=False`, B5 `block_emit`) or the v1 baseline. So "make this the code and remove old loop code to avoid confusion" is a **sequenced** outcome, not an immediate edit; the flag-gated, default-off, byte-identical design (§8) is exactly the safeguard that prevents premature promotion (and collapsing the B5 comparator).
+
+**Phases:**
+1. **Now — land Stage 2 flag-gated (`enable_binding_install=False`).** Add the new path; delete nothing. (Optional cosmetic only: `block_emit.py`'s `parse_setup_sh(render_setup_sh(compose_replay_script(...)))` triple round-trip is identity-equivalent to `compose_replay_script(...)` per `test_gsm_invariants_phase1.py` — simplifiable with a comment, but it's documentation, not dead code.)
+2. **After benchmarks** (B5 `block_emit` vs B5-binding `render_build_script`) justify it — flip the default to `enable_binding_install=True`, gating the old incremental B5 path behind its own explicit flag.
+3. **After the ablations are done/published** — retire the old incremental path: `block_emit.py`, `script_runner.py` (`run_blocks`), `script.py` (`render_setup_sh`/`parse_setup_sh`), the `enable_script_materialization=True` branch + the B3 `else` branch in `_dep_emit_phase`, and `repair_failed_nodes` (B3-only). `emit_drain` only once `run_v1` is also retired (it's shared by B3 **and** `run_v1`). Plus companion tests (`test_block_emit.py`, `test_script_runner.py`, `test_script_render.py`, `test_v3_block_emit_wiring.py`, parts of `test_sliceA_seam_integration.py`).
+
+**Never removable (permanently load-bearing):** `render_build_script`, `run_structured_repair`, `compose_replay_script`, `certify_*`, `admit_proposal`/`validate_proposal`, `GateResult`/`evaluate_gates`, the `run_v3` body, `_build_v1_ledger_appender` (test-covered — deleting it broke ~20 tests), and `run_v1` until the ablations are published.
+
+**Gotchas:** `render_build_script` has zero `src/` callers today — **inert by design** (HANDOFF §1), not dead; Stage 2 T3 adds its first live caller. `run_install_script` (whole-script + ERR trap + `certify_reciped_only`) is a genuinely different execution model from `run_blocks` (block-by-block) — a parallel implementation, not a rename.
