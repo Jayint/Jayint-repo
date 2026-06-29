@@ -1,0 +1,78 @@
+import sys
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+for p in (str(_ROOT), str(_ROOT / "src")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+from src.envstate import orchestrator
+from src.envstate.ledger import ActionLedger
+from src.envstate.world_model import TaskReport, initial_map, merge_map
+from src.sandbox import InstallResult
+from python_deps.depgraph.schema import (
+    DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
+)
+
+
+def _agent():
+    class _A:
+        client = None
+        def run(self, *a, **k): return TaskReport("t", "blocked", (), "")
+        def propose(self, *a, **k): return None
+        def run_recipe(self, *a, **k): return TaskReport("r", "done", (), "")
+    return _A()
+
+
+def _maint():
+    class _M:
+        def update(self, wm, *a, **k): return wm
+    return _M()
+
+
+def _map():
+    syslib = Node(id="syslib:libgl1", type=NodeType.SYSTEM_LIB, name="libgl1",
+                  layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=State.SATISFIED,
+                  check_command="dpkg -s libgl1", chosen_fix="apt:libgl1")
+    base = initial_map(base_image="python:3.11", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    return merge_map(base, dep_graph=DepGraph().with_node(syslib))
+
+
+def _ro(cmd):
+    return (0, "ok") if "libgl1" in cmd else (1, "")
+
+
+def _run(**kw):
+    return orchestrator.run_v3(
+        _agent(), _maint(), _map(), ActionLedger(), lambda c: (False, ""),
+        max_cycles=1, exec_readonly=_ro, enable_dep_emit=True,
+        enable_script_materialization=True, **kw,
+    )
+
+
+def test_flag_off_byte_identical():
+    base_map, base_reason = _run()
+    off_map, off_reason = _run(enable_binding_install=False,
+                               reset_to_base=lambda: None,
+                               run_install_script=lambda s: InstallResult(0, None, None, ""))
+    assert base_reason == off_reason
+    assert base_map.dep_graph == off_map.dep_graph
+
+
+def test_flag_on_runs_install_then_certifies():
+    calls = []
+    def reset(): calls.append("reset")
+    def install(script):
+        calls.append("install")
+        assert "#@node" in script  # render_build_script output was passed
+        return InstallResult(0, None, None, "")
+    _run(enable_binding_install=True, reset_to_base=reset, run_install_script=install)
+    assert calls == ["reset", "install"]   # binding path used, block_emit not
+
+
+def test_flag_on_install_failure_does_not_crash():
+    def install(script):
+        return InstallResult(1, "apt-get install -y libgl1", 5, "E: not found")
+    # build_agent.client is None → no repair; the phase must complete without raising
+    _run(enable_binding_install=True, reset_to_base=lambda: None, run_install_script=install)

@@ -333,6 +333,9 @@ def run_v3(
     enable_script_materialization: bool = True,
     enable_gate_observability: bool = False,   # Stage 1 — observability only, byte-identical off
     gate_observer=None,                        # Callable[[tuple[GateResult, GateResult]], None] | None
+    enable_binding_install: bool = False,      # Stage 2 — binding dep-spine install; byte-identical off
+    reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base)
+    run_install_script=None,                   # Callable[[str], InstallResult] | None
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -412,7 +415,57 @@ def run_v3(
         # deterministic prefix so the LLM only sees the irreducible residual.
         # global_step is advanced here only if emit_drain consumed steps, so
         # LLM turns are NOT counted.
-        if enable_script_materialization:
+        def _binding_emit(graph, manual_blocks, cycle):
+            from python_deps.depgraph.build_script import render_build_script
+            from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+            script = render_build_script(graph, manual_blocks)
+            if reset_to_base is not None:
+                reset_to_base()
+            result = run_install_script(script) if run_install_script is not None else None
+            graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
+            if result is not None and result.rc != 0:
+                return graph, None, localize_install_failure(script, result.failing_command).node_id
+            return graph, None, (unsat[0] if unsat else None)
+
+        if enable_script_materialization and enable_binding_install:
+            # Stage 2: binding dep-spine install — render whole script, reset to base,
+            # install, certify reciped nodes. Repair reuses run_structured_repair.
+            from python_deps.depgraph.build_script import render_build_script
+            from python_deps.depgraph.emit import _is_reciped
+            from src.envstate.install_localizer import (
+                localize_install_failure, certify_reciped_only, assemble_install_debug_bundle,
+            )
+            # Consumer fail-fast: a reciped node with no check_command cannot be certified.
+            missing_check = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
+            if missing_check:
+                raise ValueError(
+                    f"binding-install: reciped nodes lack a check_command: {missing_check}")
+            script = render_build_script(graph, _manual_blocks)
+            if reset_to_base is not None:
+                reset_to_base()
+            result = run_install_script(script) if run_install_script is not None else None
+            graph, _unsat = certify_reciped_only(graph, exec_readonly, cycle)
+            install_ok = result is not None and result.rc == 0
+            _failed_node = None
+            if not install_ok and result is not None:
+                _failed_node = localize_install_failure(script, result.failing_command).node_id
+            elif _unsat:
+                _failed_node = _unsat[0]
+            if _failed_node is not None and getattr(build_agent, "client", None) is not None:
+                _out = run_structured_repair(
+                    graph, _failed_node, None, cycle,
+                    propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
+                    emit=lambda g, mb: _binding_emit(g, mb, cycle),
+                    manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+                    max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+                    cap_failed_id=True)
+                graph = _out.graph
+                _manual_blocks = _out.manual_blocks
+                _known_invalid = set(_out.known_invalid)
+                _repair_turns -= _out.turns_spent
+                if _out.budget_exhausted or _repair_turns <= 0:
+                    _budget_exhausted = True
+        elif enable_script_materialization:
             # Slice A: deterministic block run replaces emit_drain on v3 (design §5.1).
             # No LLM and no host-repair here — a failed block ends the wave (Slice B adds
             # the repair loop). compose_script handles the emittable wave; certify writes state.
