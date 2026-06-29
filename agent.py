@@ -286,6 +286,7 @@ class DockerAgent:
         command_timeout_seconds=1800,
         enable_post_synthesis_repair=True,
         self_verify_max_rounds=2,
+        enable_llm_env_classifier=True,
     ):
         self.repo_url = repo_url
         self.model = model
@@ -358,6 +359,10 @@ class DockerAgent:
             self.enable_graph_scheduler if enable_script_materialization is None
             else bool(enable_script_materialization)
         )
+        # Construction-time LLM env classifier (Slice C). Runs wherever the dep graph is
+        # built and a client exists, unless explicitly disabled. Replaces the deleted
+        # deterministic scan_config/scan_services. No deterministic fallback (spec §5).
+        self.enable_llm_env_classifier: bool = bool(enable_llm_env_classifier)
         self.enable_cleanroom = enable_cleanroom
         self.action_ledger = None
         self.current_task_id = None
@@ -1157,9 +1162,25 @@ class DockerAgent:
                     if getattr(self, "_runtime_pin_decision", None) is not None
                     else None
                 )
+                _classify = None
+                if getattr(self, "enable_llm_env_classifier", False) and getattr(self, "client", None) is not None:
+                    from src.envstate.env_classifier import make_construction_classifier
+                    from src.envstate.llm_response import complete_with_retry
+                    from src.envstate.jsonutil import extract_json_object
+
+                    def _env_clf_complete(messages):
+                        text, _u, _r = complete_with_retry(
+                            self.client, self.model, messages,
+                            accept=lambda t: extract_json_object(t) is not None,
+                            temperature=0, max_attempts=2,
+                        )
+                        return text
+
+                    _classify = make_construction_classifier(_env_clf_complete)
                 _dep_advisory, _dep_graph = build_advisory_for_repo(
                     self.workplace, _base_image, target_python=_req_minor,
                     enable_service_provision=os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1",
+                    classify=_classify,
                 )
                 # Stats/artifact are best-effort and kept INSIDE a guard so a
                 # failure here can never clobber a successfully-built advisory.
@@ -3427,6 +3448,9 @@ if __name__ == "__main__":
                         help="Replace the LLM Maintainer with a deterministic host module "
                              "(verbatim-signature blockers + correct layers; implies "
                              "--enable-v1 and --enable-contract-graph).")
+    parser.add_argument("--disable-llm-env-classifier", action="store_true",
+                        help="Disable the construction-time LLM Config/Service/DataAsset classifier "
+                             "(default on when a dep-graph arm runs with an LLM client).")
     parser.add_argument(
         "--disable-post-synthesis-repair",
         action="store_true",
@@ -3485,5 +3509,6 @@ if __name__ == "__main__":
         command_timeout_seconds=args.command_timeout,
         enable_post_synthesis_repair=not args.disable_post_synthesis_repair,
         self_verify_max_rounds=args.self_verify_max_rounds,
+        enable_llm_env_classifier=not args.disable_llm_env_classifier,
     )
     agent.run(max_steps=args.steps, keep_container=args.keep_container)

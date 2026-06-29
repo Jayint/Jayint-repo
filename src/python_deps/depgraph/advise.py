@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 
 from python_deps.depgraph.build import build_dep_graph
-from python_deps.depgraph.executor import Executor
+from python_deps.depgraph.executor import DockerExecutor, Executor, LocalSubprocessExecutor
 from python_deps.depgraph.emit import partition
 from python_deps.depgraph.schema import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
 
@@ -307,6 +308,7 @@ def build_advisory_for_repo(
     host_executor: Executor | None = None,
     target_python: str | None = None,
     enable_service_provision: bool = False,
+    classify: Callable | None = None,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
 
@@ -317,17 +319,14 @@ def build_advisory_for_repo(
     ``DockerExecutor``).
     """
     try:
-        from python_deps.depgraph.executor import (
-            DockerExecutor,
-            LocalSubprocessExecutor,
-        )
-
         host = host_executor or LocalSubprocessExecutor()
         with DockerExecutor(base_image) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
                 enable_service_provision=enable_service_provision,
             )
+        if classify is not None:
+            graph = classify(graph, repo_path)        # LLM env classifier (envstate-injected; pure call here)
         return render_dep_graph_advisory(graph), graph
     except Exception as exc:  # noqa: BLE001 — advisory must never break a run
         logger.warning("dep-graph advisory unavailable: %s", exc)

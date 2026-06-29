@@ -144,7 +144,7 @@ def test_empty_graph_renders_nothing() -> None:
 def test_build_advisory_degrades_gracefully(monkeypatch) -> None:
     """ANY failure building the graph must yield ('', None), never raise — so a
     run proceeds exactly as if the feature were off (graceful degradation)."""
-    import python_deps.depgraph.executor as executor_mod
+    import python_deps.depgraph.advise as advise_mod
     from python_deps.depgraph.advise import build_advisory_for_repo
 
     class _BoomExecutor:
@@ -157,7 +157,7 @@ def test_build_advisory_degrades_gracefully(monkeypatch) -> None:
         def __exit__(self, *a):
             return False
 
-    monkeypatch.setattr(executor_mod, "DockerExecutor", _BoomExecutor)
+    monkeypatch.setattr(advise_mod, "DockerExecutor", _BoomExecutor)
     advisory, graph = build_advisory_for_repo("/nonexistent", "python:3.11-slim")
     assert advisory == ""
     assert graph is None
