@@ -114,3 +114,11 @@ def test_need_stubs_are_comment_only():
     for ln in body:
         if ln.strip():
             assert ln.startswith("#"), f"non-comment line in #@need stub: {ln!r}"
+
+    # exhaustively prove EVERY #@need stub (config + service) is comment-only:
+    # anchor at the first #@need line — from there to EOF there must be no
+    # executable line (every non-blank line starts with '#').
+    first_need = next(i for i, ln in enumerate(lines) if ln.startswith("#@need "))
+    for ln in lines[first_need:]:
+        if ln.strip():
+            assert ln.startswith("#"), f"non-comment line in #@need region: {ln!r}"
