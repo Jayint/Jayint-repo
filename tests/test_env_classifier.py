@@ -110,8 +110,8 @@ def test_invalid_relation_edge_dropped_not_voiding():
                        "relation": "depends_on", "hard": True}]})   # bad relation
     out = make_construction_classifier(lambda m: llm)(g, "/nonexistent-repo")
     assert out.get("service:postgres") is not None         # node still admitted (batch not voided)
-    assert all(e.relation.value == "requires" or e.dst != "service:postgres"
-               for e in out.edges) or not any(e.dst == "service:postgres" for e in out.edges)
+    # the only proposed edge to service:postgres was the invalid one -> it must be dropped entirely
+    assert not any(e.dst == "service:postgres" for e in out.edges)
 
 
 def test_valid_relation_edge_survives_soft():
