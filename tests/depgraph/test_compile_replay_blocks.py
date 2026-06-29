@@ -24,7 +24,7 @@ def test_replay_includes_satisfied_node_emit_excludes_it():
     # ... but the replay compiler reproduces the install spine regardless of state.
     blocks = compile_replay_blocks(g)
     assert [b.block_id for b in blocks] == ["system.libpq.so"]
-    assert blocks[0].commands == ("apt-get install -y --no-install-recommends libpq-dev",)
+    assert blocks[0].commands == ("apt-get update && apt-get install -y --no-install-recommends libpq-dev",)
     assert blocks[0].check_commands == ("ldconfig -p | grep -q libpq",)
 
 

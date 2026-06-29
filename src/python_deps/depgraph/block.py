@@ -24,7 +24,11 @@ class Block:
 def _command_for(node: Node) -> str:
     apt = _apt_name(node)
     if apt is not None:
-        return f"apt-get install -y --no-install-recommends {apt}"
+        # Self-sufficient block: a fresh base image ships empty apt lists, so the
+        # block MUST refresh metadata before install or it fails (exit 100 "Unable
+        # to locate package"). Keeping update+install in one block preserves the
+        # one-action-per-block replay contract and matches emit.build_recipe.
+        return f"apt-get update && apt-get install -y --no-install-recommends {apt}"
     if node.type is NodeType.PACKAGE:
         return f"python3 -m pip install --break-system-packages {_pip_spec(node)}"
     # Fallback: a node with an explicit chosen_fix that is not apt: (e.g. a shell recipe).
