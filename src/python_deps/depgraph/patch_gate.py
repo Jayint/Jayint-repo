@@ -22,7 +22,7 @@ from python_deps.depgraph.schema import (
 _KIND_PREFIX: dict[NodeType, str] = {
     NodeType.PACKAGE: "pkg:", NodeType.SYSTEM_LIB: "syslib:", NodeType.TOOL: "tool:",
     NodeType.CONFIG: "config:", NodeType.SERVICE: "service:", NodeType.RUNTIME: "runtime:",
-    NodeType.IMPORT: "import:", NodeType.PROJECT: "project:",
+    NodeType.IMPORT: "import:", NodeType.PROJECT: "project:", NodeType.DATA_ASSET: "data:",
 }
 _ALLOWED_PROMOTION = frozenset({"hint", "candidate"})
 _BENIGN_REDIR = re.compile(r"\s*(?:\d?>>?\s*/dev/null|\d?>&\d)")
