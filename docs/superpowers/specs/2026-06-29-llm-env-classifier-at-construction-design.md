@@ -2,146 +2,158 @@
 
 **Date:** 2026-06-29
 **Branch:** `john-planner-v3`
-**Status:** approved (brainstorming, 2026-06-29)
-**Extends:** `2026-06-25-six-tier-environment-world-model-design.md`, `2026-06-25-services-tier-design.md` (Config + Services tiers, deterministic). Resolves services-tier **§13 Q1** (the "should an inferred service carry a soft link?" open question).
-**Lineage:** the recalled hybrid design (deterministic scan → compact bundle → LLM classifier → hint/candidate → runtime promotion → certify) + the existing typed-patch / promotion machinery (`patch.py`/`patch_gate.py`) that was built for Slice B and never wired to construction. **This = the missing wire.**
+**Status:** approved (brainstorming, 2026-06-29) — **revised to the hard-delete (replace) model**
+**Extends / supersedes:** the Config + Services tiers of `2026-06-25-six-tier-environment-world-model-design.md` and `2026-06-25-services-tier-design.md`. This **replaces** their deterministic node-creation with an LLM semantic classifier (the recalled hybrid design's "regex/AST evidence → LLM classifier → hint/candidate → promotion", v1). It resolves services-tier §13 (inferred → soft edge) by making *all* construction edges soft.
+**Lineage:** the recalled hybrid design + the existing typed-patch/promotion machinery (`patch.py`/`patch_gate.py`, built for Slice B, never wired to construction) + the existing-but-unconsumed evidence bundle (`static_collect.py:27`).
 
 ## 1. One line
 
-Add a **default-off, one-time construction phase** that feeds the existing compact evidence bundle to the LLM once and **adds Hint/Candidate Service/Config/DataAsset nodes with soft (non-blocking) edges** for environment needs the deterministic scanners can't infer — all graph mutation through the existing `patch_gate`, so `python_deps/depgraph` stays LLM-free.
+**Delete** the deterministic Config/Service node-creators (`scan_config`/`scan_services`, build.py Stages 3c/3d/3e) and replace them with an **LLM semantic classifier**: the deterministic file parsers feed a compact evidence bundle, the LLM classifies it into **Hint/Candidate** Service/Config/DataAsset nodes with **all-soft edges**, applied through the existing `patch_gate`. The LLM proposes; the host validates and applies; `python_deps/depgraph` stays LLM-free.
 
-## 2. What exists today vs. what this adds
+## 2. The finding this closes (and what changes)
 
-**Today (deterministic only).** `build_dep_graph` runs `scan_config` + `scan_services` (pure, no LLM). Their edge model (verified in code, matches the written services spec §4):
-- **confirmed** service (corroborated by CI/compose) → **hard** `requires` edge (`service_scan.py:292-302`).
-- **inferred** service (package-table guess, no corroboration) → **no edge** — node-only + `data["inducing_package"]`, advisory (`service_scan.py:308`).
-- **Config** → hard `requires` edge (`config_scan.py:322`), but the node is advisory/non-actionable (`schedule._is_actionable` excludes CONFIG; certify proves presence only).
+> *"Initial config/service construction is still mostly deterministic direct graph mutation. The bundle exists (static_collect.py:27) but build still directly calls `scan_config`/`scan_services` (build.py:297). The 'regex/AST evidence → LLM classifier → hint/candidate → promotion' design is not wired."*
 
-**The pieces already built but unwired.** `static_collect.collect_static_evidence` + `compact_bundle_json` produce the exact §3.2 bundle (with `evidence_id`s) — **zero production consumers today**. `patch.py`/`patch_gate.py` provide a typed `PatchProposal` + `admit_proposal(graph, proposal, known_evidence_ids)` gate that creates MISSING-only nodes with a `promotion ∈ {hint,candidate}` tag and `hard:false` edges, grounded on `evidence_ref ∈ known_evidence_ids`. The `make_llm_classifier` factory + the orchestrator's temp-0 `complete_fn` exist (runtime path).
+**Deleted (the deterministic node-creators):**
+- `scan_config()` / `_config_node()` (config_scan.py) and `scan_services()` / `_service_node()` / the curated `package→service` table / the confidence ranking / the structural-edge creation (service_scan.py).
+- `attach_in_image_provisioning()` **call** in build (Stage 3e) — the armed action layer, which read confirmed service nodes that no longer exist at build time.
+- build.py Stages **3c / 3d / 3e**.
 
-**What this slice adds.** One envstate-layer phase that connects those pieces at construction: `bundle → LLM → PatchProposal → admit_proposal → enriched graph`. Additive — the deterministic nodes are untouched; the LLM dedups against them and contributes net-new nodes + soft edges (including soft edges onto the previously edgeless **inferred** nodes, closing services-tier §13).
+**Kept (the deterministic *parsers*, now pure evidence collectors):**
+- `scan_ci_services`, `scan_compose_services` (service_scan.py); `parse_env_example`, `scan_env_reads` (config_scan.py). These already feed `static_collect.collect_static_evidence` — that becomes their only consumer.
+
+**Added:**
+- a `package` hit kind in the bundle (so the LLM can do the dep-induced inference the curated table used to, e.g. `psycopg2 → postgres`) — `collect_static_evidence(repo_path, graph)`.
+- the LLM classifier phase (envstate) — the sole Config/Service/DataAsset source.
+- `NodeType.DATA_ASSET → "data:"` in `patch_gate._KIND_PREFIX` + `ids.data_asset_id`.
 
 ## 3. Design
 
-### 3.1 Placement (additive, purity-preserving)
+### 3.1 Placement (the LLM is the sole classifier; `python_deps` stays pure)
 
-A new one-time phase in `run_v3` (orchestrator), run **once after the deterministic graph is built and before the scheduling loop** — the seam where both `current_map.dep_graph` and `build_agent.client` exist (mirrors the runtime-classifier wiring at `orchestrator.py:481`). `build_dep_graph` and all of `python_deps/depgraph` stay **untouched and LLM-free**; the LLM call lives only in `src.envstate`. Off (flag off, or no client) → the phase is a no-op → **off-state byte-identical**.
+`build_dep_graph` no longer emits Config/Service nodes. The classifier is a one-time phase in `run_v3` (orchestrator), run **once after `build_dep_graph` returns and before the scheduling loop** — where both the graph and `build_agent.client` exist. The LLM call lives only in `src.envstate`; `python_deps/depgraph` makes no LLM call (only the small additive `_KIND_PREFIX`/`ids` helpers change there).
 
-### 3.2 Data flow (almost all reuse)
+**This phase is the default Config/Service/DataAsset source when an LLM client is present** (not a default-off experimental arm — there is no deterministic fallback). A flag `enable_llm_env_classifier` exists as an explicit *disable*; with no client the phase is skipped and **those tiers are simply absent** (a deliberate, accepted consequence — see §5).
+
+### 3.2 Data flow (the recalled pipeline, mostly reuse)
 
 ```
-collect_static_evidence(repo)        # EXISTING (static_collect.py) — DeterministicHit[]
-  -> compact_bundle_json(hits)       # EXISTING — {"goal", "deterministic_hits":[{evidence_id,file,kind,name,snippet}]}
-  -> complete_fn(messages)           # EXISTING shape — temp-0, JSON-accept, built from build_agent.client/model
-  -> parse to PatchProposal          # reuse patch.parse_patch_proposal (+ a thin normalizer, §3.4)
-  -> sanitize(proposal, bundle_ids)  # NEW (envstate) — drop entries whose evidence_ref ∉ bundle_ids; dedup vs graph
-  -> admit_proposal(graph, proposal, known_evidence_ids=bundle_ids)   # EXISTING gate (patch_gate.py:214)
-  -> merge_map(dep_graph=enriched)   # EXISTING
+collect_static_evidence(repo, graph)   # parsers + NEW package hits -> DeterministicHit[]
+  -> compact_bundle_json(hits)         # {"goal", "deterministic_hits":[{evidence_id,file,kind,name,snippet}]}
+  -> complete_fn(messages)             # temp-0, JSON-accept, from build_agent.client/model (reuse llm_response)
+  -> parse to PatchProposal            # reuse patch.parse_patch_proposal + thin normalizer (§3.3)
+  -> sanitize(proposal, bundle_ids)    # drop entries whose evidence_ref ∉ bundle_ids / illegal; dedup
+  -> admit_proposal(graph, proposal, known_evidence_ids=bundle_ids)   # EXISTING gate
+  -> merge_map(dep_graph=enriched)
 ```
 
-The bundle's `evidence_id` set is passed as `known_evidence_ids`; the gate rejects any node/edge citing an id not in the bundle (the hallucination guard).
+The bundle `evidence_id` set is the `known_evidence_ids` — the gate rejects any node/edge citing an id not in the bundle (hallucination guard).
 
-### 3.3 The LLM contract (maps R → existing machinery)
+### 3.3 The LLM contract (maps the recalled shape → existing machinery)
 
-The recalled output shape (`requirements:[{type,id,state,check_command,evidence_refs,rationale}]`) maps onto the existing `PatchProposal` so we reuse `parse_patch_proposal`/`patch_gate` rather than inventing a parser:
-
-| Recalled field | Maps to (patch machinery) |
+| Recalled field | Maps to |
 |---|---|
-| `type` (Service/Config/DataAsset) | `NodeSpec.type` (NodeType) |
-| `id` (`service:postgres`) | `NodeSpec.id` (prefix-validated by `patch_gate._KIND_PREFIX`) |
-| `state: HINT \| CANDIDATE` | **`NodeSpec.promotion: "hint" \| "candidate"`** (lowercased) — **NOT a `State`** (per the standing rule: Hint/Candidate/Active = `Node.data["promotion"]` + `Edge.data["hard"]`, never a `State` value). The created node is always `State.MISSING`. |
+| `type` (Service/Config/DataAsset) | `NodeSpec.type` |
+| `id` (`service:postgres`, `config:DATABASE_URL`, `data:fixtures.db`) | `NodeSpec.id` (prefix-validated by `_KIND_PREFIX`) |
+| `state: HINT \| CANDIDATE` | **`NodeSpec.promotion: "hint" \| "candidate"`** (lowercased) — **never a `State`** (standing rule: Hint/Candidate/Active = `Node.data["promotion"]` + `Edge.data["hard"]`). The node is always `State.MISSING`. |
 | `check_command` | `NodeSpec.check_command` (None allowed for advisory SERVICE) |
-| `evidence_refs: [...]` | `NodeSpec.evidence_ref` (the gate validates ∈ bundle ids) |
-| `rationale` | dropped (not stored; logging only) |
-| edges (chain) | `EdgeSpec` in `add_edges` with **`hard: false`** |
+| `evidence_refs:[...]` | `NodeSpec.evidence_ref` (validated ∈ bundle ids) |
+| `rationale` | dropped (logging only) |
+| edges (the cross-tier chain, e.g. `pkg:psycopg2 → service:postgres`) | `EdgeSpec` in `add_edges`, **`hard:false`** |
 
-`parse_patch_proposal` already falls back to `state` for `promotion` (`patch.py:93`); we add a thin normalizer (lowercase `promotion`; accept `evidence_refs` → first/`evidence_ref`) so the LLM may emit either the patch-native or the recalled shape.
+`parse_patch_proposal` already accepts `state` as a `promotion` fallback (patch.py:93); a thin normalizer lowercases `promotion` and accepts `evidence_refs → evidence_ref`.
 
-### 3.4 Edge rule — **hardness follows confidence, not the detector**
+### 3.4 Edge rule — **all construction edges are soft**
 
-> **confirmed / certifiable obligation → hard edge.  inferred / hint / candidate (all LLM-construction output) → soft edge.  active (hard) only via runtime/gate promotion.**
+Every node the classifier appends gets **soft** edges (`hard:false`). There is no confirmed=hard / inferred=no-edge distinction at construction anymore (that lived in the deleted scanners). Consequences:
+- Soft edges never block: `schedule._dependencies_satisfied` gates only on hard edges (invariant #10). Nothing the LLM adds at construction is hard-scheduled — the "no hard scheduling from a single weak static clue" guardrail holds by construction.
+- The cross-tier chain (`pkg:psycopg2 → service:postgres → config:DATABASE_URL`) is now expressed as soft edges — visible to the agent, non-blocking. (This is the §13 resolution: inferred links exist, softly.)
+- **Promotion to active = a hard edge**, performed only by the EXISTING runtime/gate path (residual handler on a real failure; discover-task for config). The construction LLM never emits active.
 
-- Deterministic **confirmed** service edges stay **hard** (unchanged).
-- Deterministic **inferred** services (today: no edge) **may receive a soft edge** from the LLM pass (connecting `inducing_package → service`), closing services-tier §13 — keeps the cross-tier chain visible while non-blocking.
-- All LLM-emitted construction edges are **soft** (`hard:false`).
-- Soft edges never block: `schedule._dependencies_satisfied` only gates on hard edges (invariant #10). So nothing the LLM adds at construction is hard-scheduled — exactly the "no hard scheduling from a single weak static clue" guardrail.
-- **Promotion to active = hard edge**, performed only by the EXISTING runtime/gate path (residual handler on a real failure; discover-task for config). The construction LLM never emits active.
+### 3.5 Node types & DataAsset
 
-### 3.5 Node types & DataAsset (small adds)
+Service/Config already supported by `_KIND_PREFIX`. DataAsset adds: `NodeType.DATA_ASSET → "data:"` (+ `_node_type` round-trip), `data_asset_id(name)` in `ids.py`, Layer mapping (tier 6). `check_command` = a file-presence test (`test -f <path>`) when derivable, else `None` (a hint; certify skip-guards a check-less node).
 
-Service/Config already supported by `patch_gate._KIND_PREFIX`. DataAsset needs:
-- `NodeType.DATA_ASSET → "data:"` in `patch_gate._KIND_PREFIX` (and `_node_type` round-trip).
-- `data_asset_id(name)` in `ids.py`.
-- Layer mapping (tier 6, alongside Config).
-- `check_command` = an LLM-supplied file-presence test (`test -f <path>`) when derivable; else `None` → a hint (certify skip-guards a check-less node, like advisory services).
+### 3.6 Sanitize-then-admit
 
-### 3.6 Idempotency & sanitize-then-admit
-
-- `apply_proposal` dedups by node id (first-writer-wins). An LLM `service:postgres` that `scan_services` already created is a **no-op** — the deterministic node keeps its confirmed status; the LLM contributes only net-new nodes + soft edges.
-- `admit_proposal` is all-or-nothing (rejects the whole batch on any validation error). Because an LLM may emit one slightly-off entry among good ones, the envstate layer **sanitizes first**: drop any requirement/edge whose `evidence_ref ∉ bundle_ids` or whose endpoint/type is illegal, then admit the clean subset. The gate stays strict/pure; we just maximize useful yield. Dropped entries are logged.
+`admit_proposal` is all-or-nothing (any validation error rejects the whole batch). Because an LLM may emit one off entry among good ones, the envstate layer **sanitizes first**: drop any requirement/edge whose `evidence_ref ∉ bundle_ids` or whose type/endpoint is illegal, then admit the clean subset. Gate stays strict/pure; dropped entries logged.
 
 ### 3.7 Prompt guardrails (the "CI/CD is dangerous" rule)
 
-The system prompt instructs: goal is **local install/test/run**, not deployment; deployment-only / release / secret-store / cache / optional-matrix signals → **hint only** unless corroborated by a test/CI service or a code env-read; every requirement needs a **real `check_command`** or it is a hint with `check=None`; **every requirement must cite ≥1 `evidence_ref` from the bundle** (ungrounded → dropped by sanitize).
-
-### 3.8 Arm / toggle
-
-New default-off flag `enable_llm_env_classifier` (arm e.g. `v3gc`), cascading like the existing orchestration flags. Off (or no client) → phase is a no-op → off-state byte-identical. Re-baseline (B-on vs B-off) after landing.
+System prompt: goal is **local install/test/run**, not deployment; deployment-only / release / secret-store / cache / optional-matrix signals → **hint only** unless corroborated by a test/CI service or a code env-read; every requirement needs a **real `check_command`** or it is a hint with `check=None`; every requirement must cite ≥1 `evidence_ref` from the bundle (ungrounded → dropped). The LLM does the `psycopg2 → postgres` dep-induced inference from the new `package` hits (replacing the curated table).
 
 ## 4. Scope
 
-**In scope (v1):** the construction phase + sanitize + the DataAsset adds + the arm; LLM over the **existing** `static_collect` bundle (compose, GH-Actions services, `.env.example`, source `os.getenv`/`environ` reads); Hint/Candidate Service/Config/DataAsset nodes + soft edges; reuse `parse_patch_proposal`/`admit_proposal`.
+**In scope (v1):**
+- **Delete** the deterministic node-creators + build Stages 3c/3d/3e (§2).
+- Refactor `config_scan.py` / `service_scan.py` to **parser-only** modules (keep the four parsers; remove `scan_config`/`scan_services`/`_config_node`/`_service_node`/the table/edges).
+- `collect_static_evidence(repo, graph)` + a `package` hit kind.
+- the `env_classifier` phase + the DataAsset `_KIND_PREFIX`/`ids` adds.
+- Sequence in run_v3: `build → enrich → (advisory/loop)`.
+- Reuse `parse_patch_proposal` / `admit_proposal` / `complete_with_retry`.
 
 **Out of scope (explicit follow-ups):**
-- **Bundle source expansion** to the full recalled list (README/docs, Makefile/scripts, `.devcontainer`, `Dockerfile`, `.gitlab-ci`, `conftest.py`/fixtures, pydantic `BaseSettings`/decouple in `env_read`). v1's bundle `env_read` is `os.getenv`/`environ` only; the LLM partly compensates from `.env.example`. Expanding `static_collect` unlocks the rest — separate slice.
-- **Replacing** the deterministic scanners (we stay additive — D1).
-- **Auto-active at construction** (active stays a runtime/gate-only promotion).
-- **A reasoning/causal plane** (Slice B+ / Phase 5).
-- **No new `State` value** — Hint/Candidate are `promotion` + soft edge only.
+- **Bundle source expansion** to the full recalled list (README/docs, Makefile/scripts, `.devcontainer`, `Dockerfile`, `.gitlab-ci`, `conftest`/fixtures, pydantic `BaseSettings`/decouple). v1 keeps today's parsers + the package hit; the LLM partly compensates from `.env.example`.
+- **Re-homing the armed service action layer** (`attach_in_image_provisioning` / start_recipe / binding-config) onto the LLM's post-build service nodes — that's where the one *hard* gate (binding-config waits for service) will live. Its build call is removed here; the function is left unwired (deletion decided when the action layer is rebuilt).
+- **Auto-active at construction** (active stays runtime/gate-only).
+- A reasoning/causal plane.
 
-## 5. Backward compatibility
+## 5. Backward compatibility & risk (this is an invasive change)
 
-- Flag off or no LLM client → phase skipped → graph identical to today → off-state byte-identical.
-- `python_deps/depgraph` unchanged except the small DataAsset `_KIND_PREFIX`/`ids` additions (additive, default-safe; no behavior change when no DataAsset node is proposed).
-- Deterministic confirmed/inferred nodes + their edges unchanged; the LLM only adds (dedup'd) nodes + soft edges.
-- v1 (`run_v1`) untouched (the phase lives in `run_v3` only).
-- The standing rule holds: the LLM **reads** host-certified state and **proposes**; it never writes `SATISFIED` (the gate structurally forbids it).
+- **Off-state is NOT byte-identical.** The deterministic config/service tiers are gone; with the flag off or no client, the graph lacks those tiers. This breaks the codebase's usual "flag-off → byte-identical" invariant by design, and removes the flag-based LLM-vs-deterministic A/B (A/B now requires a git-revert).
+- **Config/Service/DataAsset detection requires an LLM client.** Headless/cron runs without a model configured, or an API outage, yield no such tiers (today they'd be present deterministically). Accepted (the benchmark harness always has a client).
+- **`build_dep_graph`'s output changes for every consumer.** It no longer emits Config/Service nodes; the advisory builder (advise.py:327) and any direct consumer see those tiers only after enrichment → the run_v3 sequence must be `build → enrich → advise`.
+- **Test churn.** `test_config_scan.py` / `test_service_scan.py` and build-graph assertions for Config/Service nodes are deleted or rewritten (parser tests kept; node-creation tests removed). New tests cover the classifier phase.
+- **Reliability tradeoff.** A confirmed CI `services: postgres` (ground truth) is now an LLM-graded soft hint/candidate, active only on a runtime failure — consistent with the recalled policy ("explicit CI → CANDIDATE; active from runtime"), but it does move a deterministic certainty behind a probabilistic classifier.
+- The trust boundary holds: the LLM proposes a `PatchProposal`; the gate validates (never `SATISFIED`; promotion ∈ {hint,candidate}; evidence-grounded; edges legal) and the host applies. v1 (`run_v1`) untouched.
 
 ## 6. Testing (TDD)
 
-- **Normalizer/parse:** recalled-shape JSON (`state:HINT`, `evidence_refs`) → `PatchProposal` with `promotion="hint"`, `evidence_ref` set; patch-native shape also parses; junk/empty → empty proposal.
-- **Sanitize:** entries with `evidence_ref ∉ bundle_ids` dropped; the clean subset survives; whole-batch not lost to one bad entry.
-- **Enrichment phase (fake `complete_fn`):** a fixed candidates JSON over a real-ish graph adds the expected Hint/Candidate Service/Config/DataAsset nodes with **soft** edges (incl. a soft edge onto a pre-existing edgeless inferred node); deterministic nodes unchanged; dedup no-op for an id the scanner already made.
-- **Non-blocking:** the added soft nodes are absent from `scheduler_frontier` and do not block `_dependencies_satisfied` for the test goal.
-- **Grounding/safety:** a hallucinated `evidence_ref` and a `SATISFIED`/illegal-type proposal are rejected/dropped; graph never gains a SATISFIED node.
-- **DataAsset:** a `data:` node round-trips through `patch_gate` (prefix, type, layer).
-- **Off-state:** flag off (and client-present-but-flag-off) → byte-identical graph.
-- **Manual real-LLM smoke (optional):** run the phase on the cloned `full-stack-fastapi-template` (compose `db: postgres:18` + pydantic settings) and inspect the added hint/candidate nodes + soft edges + rendered slice.
+- **Parsers survive:** `scan_ci_services`/`scan_compose_services`/`parse_env_example`/`scan_env_reads` still tested (kept).
+- **Bundle:** `collect_static_evidence(repo, graph)` includes `package` hits from the graph's PACKAGE nodes; bundle JSON shape stable.
+- **Normalizer/parse:** recalled-shape JSON (`state:HINT`, `evidence_refs`) → `PatchProposal` (`promotion="hint"`, `evidence_ref`); patch-native shape also parses; junk → empty.
+- **Sanitize:** entries with `evidence_ref ∉ bundle_ids` dropped; clean subset survives; one bad entry doesn't lose the batch.
+- **Classifier phase (fake `complete_fn`):** fixed candidates JSON over a built graph adds the expected Hint/Candidate Service/Config/DataAsset nodes with **soft** edges (incl. `pkg → service` chain); never `SATISFIED`; dedup no-op for an existing id.
+- **Non-blocking:** added soft nodes absent from `scheduler_frontier`; don't block `_dependencies_satisfied` for the test goal.
+- **Deletion:** `build_dep_graph` no longer emits Config/Service nodes (assert the old node-creation tests are gone/replaced; build returns a graph without those tiers absent the phase).
+- **DataAsset:** a `data:` node round-trips through `patch_gate`.
+- **No-client:** phase skipped cleanly (no crash; tiers simply absent).
+- **Manual real-LLM smoke:** the cloned `full-stack-fastapi-template` (compose `db: postgres:18` + pydantic settings + `psycopg`) → inspect the LLM's hint/candidate nodes, the `pkg:psycopg → service:postgres` soft chain, and the rendered slice.
 
 ## 7. File structure / integration points (grounded 2026-06-29)
 
 ```text
-src/envstate/env_classifier.py          NEW — the construction phase: build complete_fn (reuse llm_response),
-                                          collect_static_evidence -> compact_bundle_json -> LLM -> normalize ->
-                                          parse_patch_proposal -> sanitize(bundle_ids) -> admit_proposal -> graph.
-                                          (envstate layer = the allowed LLM bridge; python_deps stays pure.)
-src/envstate/orchestrator.py            run_v3: one-time call to the phase before the loop, gated by the new flag,
-                                          when current_map.dep_graph and build_agent.client exist; merge_map result.
-agent.py                                 new flag enable_llm_env_classifier (cascade like the others); pass to run_v3.
-src/python_deps/depgraph/patch_gate.py  add NodeType.DATA_ASSET -> "data:" to _KIND_PREFIX (+ _node_type).
-src/python_deps/depgraph/ids.py         add data_asset_id(name).
-# REUSE (unchanged): static_collect.{collect_static_evidence,compact_bundle_json}; patch.parse_patch_proposal;
-#   patch_gate.{validate_proposal,apply_proposal,admit_proposal}; llm_response.complete_with_retry;
-#   schedule._dependencies_satisfied (soft-edge honoring already correct).
-# UNCHANGED: build_dep_graph, scan_config, scan_services, certify, run_v1, the done-gate, world_model.Task.
+src/python_deps/depgraph/build.py        REMOVE Stages 3c/3d/3e (scan_config, scan_services,
+                                          attach_in_image_provisioning calls, ~lines 297-310).
+src/python_deps/depgraph/config_scan.py  DELETE scan_config/_config_node (+ project/package-induced
+                                          node creation, edges); KEEP parse_env_example, scan_env_reads
+                                          (+ framework reads) as evidence parsers.
+src/python_deps/depgraph/service_scan.py DELETE scan_services/_service_node/package-table/edges/
+                                          (call-site of) attach_in_image_provisioning; KEEP
+                                          scan_ci_services, scan_compose_services as parsers.
+src/python_deps/depgraph/static_collect.py  collect_static_evidence(repo, graph): add `package` hit kind.
+src/python_deps/depgraph/patch_gate.py   add NodeType.DATA_ASSET -> "data:" to _KIND_PREFIX (+ _node_type).
+src/python_deps/depgraph/ids.py          add data_asset_id(name).
+src/envstate/env_classifier.py           NEW — build complete_fn (reuse llm_response); collect_static_evidence
+                                          -> compact_bundle_json -> LLM -> normalize -> parse_patch_proposal
+                                          -> sanitize(bundle_ids) -> admit_proposal -> graph.
+src/envstate/orchestrator.py             run_v3: one-time classifier phase after build, before advisory/loop,
+                                          when client present; merge_map result. Sequence build -> enrich -> advise.
+agent.py                                 enable_llm_env_classifier flag (explicit disable; default = on when
+                                          a client exists); pass to run_v3.
+# REUSE unchanged: patch.parse_patch_proposal; patch_gate.{validate,apply,admit}_proposal;
+#   llm_response.complete_with_retry; schedule._dependencies_satisfied (soft-honoring already correct).
+# UNCHANGED: certify, run_v1, the done-gate, world_model.Task.
 ```
 
 ## 8. Decisions log
 
-- Hybrid, **additive** classifier (not replace) — deterministic scanners keep creating nodes; LLM layers on top, dedup'd (user, 2026-06-29).
-- Node types **Service + Config + DataAsset** (user, 2026-06-29); DataAsset via a small `_KIND_PREFIX`/`ids` add.
-- Bundle **as-is for v1**; full source expansion is a follow-up (user, 2026-06-29).
-- **Edge rule: hardness follows confidence** — confirmed→hard, inferred/LLM→soft, active only via runtime/gate. Resolves services-tier §13 (user, 2026-06-29).
-- R's **`state: HINT/CANDIDATE` → `promotion` tag + soft edge**, never a new `State` (standing rule).
-- **Sanitize-then-admit** over strict all-or-nothing, to survive a single LLM slip (recommended; user to confirm).
-- Default-off arm; off-state byte-identical; LLM bridge lives in `src.envstate` so `python_deps/depgraph` stays LLM-free.
+- **Hard-delete** the deterministic Config/Service node-creators; LLM is the sole classifier (user, 2026-06-29). Parsers kept as evidence collectors.
+- **All construction edges soft**; confirmed/inferred distinction removed; active only via runtime/gate (user, 2026-06-29). Resolves services-tier §13.
+- **Package evidence** added to the bundle so the LLM keeps dep-induced service inference (user, 2026-06-29).
+- Node types **Service + Config + DataAsset** (user, 2026-06-29).
+- Bundle **as-is + package hit** for v1; full source expansion deferred.
+- R's **`state: HINT/CANDIDATE` → `promotion` + soft edge**, never a `State` (standing rule).
+- **LLM-required / off-state not byte-identical accepted** (user, 2026-06-29) — no deterministic fallback; flag is an explicit disable.
+- **Armed service action layer** (attach_in_image_provisioning) unwired here; re-homed onto LLM nodes when the action layer is rebuilt (deferred).
+- Sanitize-then-admit over strict reject-all (recommended).
