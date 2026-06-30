@@ -15,6 +15,29 @@ from python_deps.depgraph.schema import (
 )
 
 
+def test_install_evidence_carries_block_id_for_block_failure():
+    # A #@block install failure: localize_install_failure returns a BLOCK id. The evidence must
+    # set block_id (not only node_id) so build_repair_scope — which matches install stderr by
+    # ev.block_id == failed_block.block_id — still surfaces the stderr on the follow-up repair.
+    from src.envstate.repair_scope import build_repair_scope
+    from python_deps.depgraph.block import Block
+
+    bundle = orchestrator._build_install_evidence(
+        InstallResult(1, "pip install badpkg", 7, "ERROR: no matching distribution"),
+        "pip.badpkg", 2)
+    ev = bundle.items[0]
+    assert ev.node_id == "pip.badpkg" and ev.block_id == "pip.badpkg"
+    assert "no matching distribution" in ev.output_excerpt
+    assert ev.evidence_id == "install.2.pip.badpkg"
+
+    # End-to-end: when the failure maps to a block, the scope must carry the stderr + evidence.
+    fb = Block(block_id="pip.badpkg", wave="pip", commands=("pip install badpkg",),
+               target_node_ids=("pkg:badpkg",))
+    scope = build_repair_scope(object(), target_node_id=None, failed_block=fb, bundle=bundle)
+    assert "no matching distribution" in scope.failed_output
+    assert "install.2.pip.badpkg" in scope.known_evidence_ids
+
+
 def _agent():
     class _A:
         client = None

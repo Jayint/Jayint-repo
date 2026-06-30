@@ -55,9 +55,11 @@ def build_repair_scope(graph, *, target_node_id, failed_block, bundle,
         slice_lines = tuple(render_requirement_slice(build_requirement_slice(graph, node)))
     failed_cmd = failed_block.commands[-1] if (failed_block and failed_block.commands) else None
     failed_out = ""
-    # bundle is None on the binding-install repair path (no obligation packet — the failure
-    # evidence is the install stderr, surfaced via the debug bundle, not a ledger packet).
-    # Treat a missing bundle as empty evidence rather than crashing on bundle.items.
+    # bundle may be None on the binding-install path when there is no install-command failure
+    # (e.g. install rc 0 but a reciped check still MISSING). On an install failure the binding
+    # path supplies a single-item EvidenceBundle built from the InstallResult (see
+    # orchestrator._build_install_evidence). Treat a missing bundle as empty evidence rather
+    # than crashing on bundle.items.
     _evidence = bundle.items if bundle is not None else ()
     for ev in _evidence:
         if ev.rc != 0 and (failed_block is None or ev.block_id == failed_block.block_id):

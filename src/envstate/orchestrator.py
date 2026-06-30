@@ -315,6 +315,32 @@ def run_v1(
 # run_v3 — graph-scheduler loop (no planner)
 # ---------------------------------------------------------------------------
 
+def _build_install_evidence(result, failed_id, cycle):
+    """Wrap a FAILED binding-install InstallResult as a single-item EvidenceBundle so the
+    repair proposer sees the install stderr (RepairScope.failed_output) AND can cite it
+    (PatchGate requires every proposed requirement/script-patch to reference a known evidence
+    id). The install runs from a fresh-from-base container = 'fresh_replay'.
+
+    ``failed_id`` is whatever localize_install_failure resolved — a #@node id OR a #@block id —
+    so it is written to BOTH Evidence.node_id and Evidence.block_id. run_structured_repair looks
+    the id up as a block_id, and build_repair_scope copies stderr only when
+    ``ev.block_id == failed_block.block_id``; setting block_id keeps the stderr visible on a
+    #@block failure, while node_id stays correct for the common graph-node case.
+    """
+    from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+    ev = Evidence(
+        evidence_id=f"install.{cycle}.{failed_id or 'unknown'}",
+        container_kind="fresh_replay",
+        command=result.failing_command or "(install script)",
+        rc=result.rc,
+        output_excerpt=(result.stderr or "")[-2000:],
+        cycle=cycle,
+        node_id=failed_id,
+        block_id=failed_id,
+    )
+    return EvidenceBundle().with_item(ev)
+
+
 def run_v3(
     build_agent,
     maintainer,
@@ -422,23 +448,6 @@ def run_v3(
         # deterministic prefix so the LLM only sees the irreducible residual.
         # global_step is advanced here only if emit_drain consumed steps, so
         # LLM turns are NOT counted.
-        def _install_evidence_bundle(result, node_id, cycle):
-            """Wrap a FAILED InstallResult as a single-item EvidenceBundle so the repair
-            proposer sees the install stderr (RepairScope.failed_output) AND can cite it
-            (PatchGate requires every proposed requirement/script-patch to reference a known
-            evidence id). The install runs from a fresh-from-base container = 'fresh_replay'."""
-            from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
-            ev = Evidence(
-                evidence_id=f"install.{cycle}.{node_id or 'unknown'}",
-                container_kind="fresh_replay",
-                command=result.failing_command or "(install script)",
-                rc=result.rc,
-                output_excerpt=(result.stderr or "")[-2000:],
-                cycle=cycle,
-                node_id=node_id,
-            )
-            return EvidenceBundle().with_item(ev)
-
         def _binding_emit(graph, manual_blocks, cycle):
             from python_deps.depgraph.build_script import render_build_script
             from python_deps.depgraph.emit import _is_reciped
@@ -456,7 +465,7 @@ def run_v3(
                 _node = (localize_install_failure(script, result.failing_command).node_id
                          or (unsat[0] if unsat else None))
                 # Carry the fresh install stderr as evidence into the next repair scope.
-                return graph, _install_evidence_bundle(result, _node, cycle), _node
+                return graph, _build_install_evidence(result, _node, cycle), _node
             return graph, None, (unsat[0] if unsat else None)
 
         if enable_script_materialization and enable_binding_install:
@@ -489,7 +498,7 @@ def run_v3(
                 # On an install failure, seed the repair with the install stderr as citable
                 # evidence; on an rc0-but-unsatisfied node there is no install command failure,
                 # so the scope falls back to the node's requirement slice (bundle None).
-                _bundle = _install_evidence_bundle(result, _failed_node, cycle) if not install_ok else None
+                _bundle = _build_install_evidence(result, _failed_node, cycle) if not install_ok else None
                 _out = run_structured_repair(
                     graph, _failed_node, _bundle, cycle,
                     propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
