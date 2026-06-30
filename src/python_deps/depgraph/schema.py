@@ -83,6 +83,25 @@ class Layer(enum.Enum):
     SERVICES = "services"
 
 
+class Strength(enum.Enum):
+    """Blocking semantics. SOFT = hint/candidate (does not block dependents or
+    gates); HARD = required obligation. The populator sets HARD on reciped tiers;
+    static/LLM discovery stays SOFT."""
+
+    SOFT = "soft"
+    HARD = "hard"
+
+
+class Phase(enum.Enum):
+    """Where a node's commands belong in the final artifact (distinct from Layer,
+    which drives topological order)."""
+
+    SETUP = "setup"
+    RUNTIME = "runtime"
+    TEST = "test"
+    GATE = "gate"
+
+
 # relation -> (allowed src node-type values, allowed dst node-type values)
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
@@ -141,6 +160,12 @@ class Node:
     resolved_platform: str | None = None
     exclude_newer: str | None = None  # uv resolve cutoff (reproducibility)
     data: dict = field(default_factory=dict)  # general per-node metadata bag
+    # --- install-command generation (uniform-graph) ---
+    # setup_commands is the node's canonical "how" (the only command source the
+    # renderer reads); strength is blocking semantics; phase is artifact placement.
+    setup_commands: tuple[str, ...] = ()
+    strength: Strength = Strength.SOFT
+    phase: Phase = Phase.SETUP
 
     def __post_init__(self) -> None:
         # Derive tier from type when left at the 0 sentinel. Idempotent for goal
@@ -198,6 +223,9 @@ class Node:
             "resolved_python": self.resolved_python,
             "resolved_platform": self.resolved_platform,
             "exclude_newer": self.exclude_newer,
+            "setup_commands": list(self.setup_commands),
+            "strength": self.strength.value,
+            "phase": self.phase.value,
             "data": dict(self.data),
         }
 
