@@ -355,6 +355,13 @@ def run_v3(
     (seeded to ``max_cycles``).
     """
     from src.envstate.graph_scheduler import next_decision
+    # The binding-install path is a specialization of script materialization; it cannot run
+    # without it. Reject the contradictory combination instead of silently no-opping (which
+    # would fall through to emit_drain and look like a clean run). Only fires when the new
+    # flag is on, so enable_binding_install=False stays byte-identical.
+    if enable_binding_install and not enable_script_materialization:
+        raise ValueError(
+            "enable_binding_install=True requires enable_script_materialization=True")
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0
@@ -415,6 +422,23 @@ def run_v3(
         # deterministic prefix so the LLM only sees the irreducible residual.
         # global_step is advanced here only if emit_drain consumed steps, so
         # LLM turns are NOT counted.
+        def _install_evidence_bundle(result, node_id, cycle):
+            """Wrap a FAILED InstallResult as a single-item EvidenceBundle so the repair
+            proposer sees the install stderr (RepairScope.failed_output) AND can cite it
+            (PatchGate requires every proposed requirement/script-patch to reference a known
+            evidence id). The install runs from a fresh-from-base container = 'fresh_replay'."""
+            from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+            ev = Evidence(
+                evidence_id=f"install.{cycle}.{node_id or 'unknown'}",
+                container_kind="fresh_replay",
+                command=result.failing_command or "(install script)",
+                rc=result.rc,
+                output_excerpt=(result.stderr or "")[-2000:],
+                cycle=cycle,
+                node_id=node_id,
+            )
+            return EvidenceBundle().with_item(ev)
+
         def _binding_emit(graph, manual_blocks, cycle):
             from python_deps.depgraph.build_script import render_build_script
             from python_deps.depgraph.emit import _is_reciped
@@ -429,8 +453,10 @@ def run_v3(
             result = run_install_script(script)
             graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
             if result.rc != 0:
-                return graph, None, (localize_install_failure(script, result.failing_command).node_id
-                                     or (unsat[0] if unsat else None))
+                _node = (localize_install_failure(script, result.failing_command).node_id
+                         or (unsat[0] if unsat else None))
+                # Carry the fresh install stderr as evidence into the next repair scope.
+                return graph, _install_evidence_bundle(result, _node, cycle), _node
             return graph, None, (unsat[0] if unsat else None)
 
         if enable_script_materialization and enable_binding_install:
@@ -460,8 +486,12 @@ def run_v3(
             elif _unsat:
                 _failed_node = _unsat[0]
             if _failed_node is not None and getattr(build_agent, "client", None) is not None:
+                # On an install failure, seed the repair with the install stderr as citable
+                # evidence; on an rc0-but-unsatisfied node there is no install command failure,
+                # so the scope falls back to the node's requirement slice (bundle None).
+                _bundle = _install_evidence_bundle(result, _failed_node, cycle) if not install_ok else None
                 _out = run_structured_repair(
-                    graph, _failed_node, None, cycle,
+                    graph, _failed_node, _bundle, cycle,
                     propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
                     emit=lambda g, mb: _binding_emit(g, mb, cycle),
                     manual_blocks=_manual_blocks, known_invalid=_known_invalid,

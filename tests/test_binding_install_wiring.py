@@ -154,3 +154,20 @@ def test_flag_on_install_failure_with_client_enters_repair():
     # Fix (re-review): the node id is passed as target_hint so the scope resolves the
     # unsatisfied node even though it is not a block id — scope must carry the node context.
     assert scopes and getattr(scopes[0], "target_node_id", None) == "syslib:libgl1"
+    # Final-review fix: the install stderr must reach the proposer as failure output, and a
+    # citable evidence id must exist (PatchGate requires every proposal to cite known evidence).
+    assert "boom" in scopes[0].failed_output
+    assert scopes[0].known_evidence_ids
+
+
+def test_flag_on_requires_script_materialization():
+    import pytest
+    with pytest.raises(ValueError):
+        orchestrator.run_v3(
+            _agent(), _maint(), _map(), ActionLedger(), lambda c: (False, ""),
+            max_cycles=1, exec_readonly=_ro, enable_dep_emit=True,
+            enable_script_materialization=False,   # contradictory with binding-install
+            enable_binding_install=True,
+            reset_to_base=lambda: None,
+            run_install_script=lambda s: InstallResult(0, None, None, ""),
+        )

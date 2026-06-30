@@ -51,6 +51,9 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
     errs: list[str] = []
     existing_ids = {n.id for n in graph.nodes}
     proposed_node_ids = {r.id for r in proposal.add_requirements}
+    # Lazy import (not module-level) keeps python_deps.depgraph envstate-free; used by both the
+    # requirement-check and script-patch-check anti-weakening guards below.
+    from python_deps.depgraph.check_quality import check_can_detect_absence
 
     # within-proposal duplicate ids (nodes / providers / script blocks)
     for label, ids in (("add_requirements", [r.id for r in proposal.add_requirements]),
@@ -79,11 +82,9 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
             errs.append(f"requirement {r.id} cites unknown/absent evidence {r.evidence_ref!r}")
         if r.check_command and not is_read_only(r.check_command):
             errs.append(f"check command for {r.id} is not read-only: {r.check_command!r}")
-        if r.check_command:
-            from python_deps.depgraph.check_quality import check_can_detect_absence
-            if not check_can_detect_absence(r.check_command):
-                errs.append(f"check command for {r.id} cannot detect absence "
-                            f"(structurally trivial): {r.check_command!r}")
+        if r.check_command and not check_can_detect_absence(r.check_command):
+            errs.append(f"check command for {r.id} cannot detect absence "
+                        f"(structurally trivial): {r.check_command!r}")
         # conflicting redefinition vs graph
         cur = graph.get(r.id)
         if cur is not None and (cur.type.value != r.type or cur.layer.value != r.layer
@@ -110,6 +111,9 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
         for chk in s.checks:
             if not is_read_only(chk):
                 errs.append(f"script block {s.block_id} check is not read-only: {chk!r}")
+            if not check_can_detect_absence(chk):
+                errs.append(f"script block {s.block_id} check cannot detect absence "
+                            f"(structurally trivial): {chk!r}")
 
     # edges: replicate EDGE_RULES against the post-add_requirements view (with_edge would RAISE).
     type_of = {n.id: n.type.value for n in graph.nodes}
