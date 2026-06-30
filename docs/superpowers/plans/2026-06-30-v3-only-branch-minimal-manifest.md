@@ -244,3 +244,38 @@ metric — the live done-gate requires a **full** pass; `0.8` is the offline hon
 
 **Carry-forward warnings (from prior incidents):** do this in a git **worktree**; legacy is **read-only**;
 **no broad `git add`/`git rm`/`reset`** (subagent git ops have discarded WIP here before); commit-by-commit.
+
+---
+
+## 7. Build outcome (branch `v3-core`, 2026-06-30)
+
+Built as **scope A** in a sibling worktree (`/Users/john/john-planner-v3-core`, branched from
+`10efb9e`; the `john-planner-v3` branch + WIP untouched). Validated with system `python3` —
+the full suite runs without Docker; the Docker+LLM e2e is a separate run.
+
+| Commit | What landed | Validation |
+|---|---|---|
+| `c1731c9` | `v3_build_agent.py` — `V3BuildAgent.propose` lifted from `build_agent.py` (1088 LoC), zero legacy drag | parity vs original, 8 tests |
+| `36c54ca` | `scripts/run_v3_e2e.py` — the legible entrypoint (classifier → `run_v3` w/ materialization+binding-install+gate-observability → `setup.sh`) | argparse + all imports resolve |
+| `6da6e34` | `run_oracle.py` (716 LoC) + `done_gate.py` (238 LoC) lifted from `synthesizer.py`/`maintainer.py`; consumers rewired | parity tests, 98-test v3 subset |
+| `b91a359` | **Prune**: deleted `agent.py`, both planners, `maintainer.py`, `build_agent.py`, arm-0 modules, `verification_bundle`/`artifact_verify`/`workplace_replay`, the planner-facing `contracts/*`, the z3-era `python_deps/*`, `EnvStateOrchestrator`, + 97 legacy/parity tests; restored `models.py` to the verbatim 6-class subset | **1276 passed, 32 skipped** (2 pre-existing PDF-dataset failures) |
+
+**Deviations from the plan (residual coupling found during the build — honest record):**
+
+1. **`synthesizer.py` is NOT deleted.** `src/sandbox.py` (kept) uses `Synthesizer` as its
+   preflight command-classifier. Removing it requires extracting/slimming the Sandbox classifier
+   dependency — a follow-up. The done-gate's need was already severed (→ `run_oracle.py`).
+2. **`run_v1` is NOT deleted** from `orchestrator.py`. Two keep-anchor tests
+   (`test_graph_scheduler_wiring.py`, `test_v3_task_branch.py`'s B3 path) reference it. Removing it
+   means rewriting those tests — a follow-up. `EnvStateOrchestrator` *was* removed.
+3. **More of `contracts/` is kept than predicted** (`apply/extract/ids/nodes/patch/validation/schema`
+   beyond `graph.py`) — `deterministic_maintainer.py` (kept) imports them.
+4. **`models.py`**: the z3 classes were dropped, but the 6 classes the depgraph stack needs
+   (`PythonRequirement`, `PythonVersionRequirement`, `ImportFinding`, `ImportPackageMapping`,
+   `DependencyFailure`, `PythonDependencyEvidence`) are kept **verbatim** (incl. `to_dict` /
+   `is_dependency_shaped`) — an initial lossy stub was caught and replaced.
+
+**Still open (not in scope A):**
+- The **outer gate-ladder loop** (§5) — gates remain observability-only; closing it is Stage 2.5/3.
+- The real **Docker+LLM e2e run** of `run_v3_e2e.py` (needs an API key + target repo; Docker is available).
+- Removing residuals 1–2 above for a strictly v3-only tree.
