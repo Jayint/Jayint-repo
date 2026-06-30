@@ -23,7 +23,7 @@ from typing import Any, Callable, Tuple
 from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
 from src.envstate.ledger import ActionLedger
-from src.envstate.maintainer import _verified_test_run_passed as _gate_passed
+from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
 from src.envstate.repair_loop import run_structured_repair
 from src.envstate.world_model import (
     CommandRecord,

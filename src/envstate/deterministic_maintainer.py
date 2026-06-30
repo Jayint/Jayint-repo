@@ -16,7 +16,7 @@ from .contracts.graph import ContractGraph
 from .contracts.nodes import Edge, Node
 from .contracts.patch import GraphPatch
 from .contracts.validation import validate_patch
-from .maintainer import _progress_synced_with_done, _verified_test_run_passed
+from .done_gate import _progress_synced_with_done, _verified_test_run_passed
 from .world_model import TaskReport, WorldModelMap, merge_map
 
 logger = logging.getLogger(__name__)
