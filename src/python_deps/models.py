@@ -1,3 +1,13 @@
+"""Data models for the v3 depgraph stack.
+
+This is the verbatim subset of the original ``python_deps.models`` needed by
+``evidence.py``, ``import_graph.py`` and ``failure_classifier.py`` — all
+transitively reached from ``depgraph/build.py`` and ``depgraph/roots.py``.
+
+The z3-era constraint/solver classes (DependencyConstraint, ConstraintGraph,
+ConstraintEdge, SolverResult, DependencyReport, PythonCandidate,
+PackageCandidate, SuggestedCommand) are excluded from the v3-only branch.
+"""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -60,140 +70,6 @@ class DependencyFailure:
     @property
     def is_dependency_shaped(self) -> bool:
         return self.failure_type != "not_dependency_related"
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class SuggestedCommand:
-    command: str
-    reason: str
-    kind: str = "recommended"
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class DependencyConstraint:
-    kind: str
-    target: str
-    specifier: str = ""
-    source: str = ""
-    trust: str = "medium"
-    hard: bool = False
-    reason: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class PythonCandidate:
-    version: str
-    source: str = ""
-    rank: int = 0
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class PackageCandidate:
-    name: str
-    version: str
-    requires_python: str = ""
-    requires_dist: tuple[str, ...] = field(default_factory=tuple)
-    upload_time: str | None = None
-    has_wheel: bool = False
-    yanked: bool = False
-    source: str = "pypi"
-    rank: int = 0
-
-    @property
-    def node_id(self) -> str:
-        return f"{self.name}=={self.version}"
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class ConstraintEdge:
-    kind: str
-    source_node: str
-    target_package: str = ""
-    target_specifier: str = ""
-    marker: str = ""
-    hard: bool = True
-    source: str = ""
-    reason: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class ConstraintGraph:
-    python_candidates: list[PythonCandidate] = field(default_factory=list)
-    package_candidates: dict[str, list[PackageCandidate]] = field(default_factory=dict)
-    required_packages: list[str] = field(default_factory=list)
-    edges: list[ConstraintEdge] = field(default_factory=list)
-    soft_edges: list[ConstraintEdge] = field(default_factory=list)
-    blocked_assignments: list[dict[str, str]] = field(default_factory=list)
-    provenance: list[dict[str, str]] = field(default_factory=list)
-
-    def all_edges(self, include_soft: bool = True) -> list[ConstraintEdge]:
-        if include_soft:
-            return list(self.edges) + list(self.soft_edges)
-        return list(self.edges)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "python_candidates": [item.to_dict() for item in self.python_candidates],
-            "package_candidates": {
-                name: [candidate.to_dict() for candidate in candidates]
-                for name, candidates in sorted(self.package_candidates.items())
-            },
-            "required_packages": list(self.required_packages),
-            "edges": [item.to_dict() for item in self.edges],
-            "soft_edges": [item.to_dict() for item in self.soft_edges],
-            "blocked_assignments": list(self.blocked_assignments),
-            "provenance": list(self.provenance),
-        }
-
-
-@dataclass(frozen=True)
-class SolverResult:
-    status: str
-    selected_python: str | None = None
-    selected_packages: dict[str, str] = field(default_factory=dict)
-    install_commands: tuple[str, ...] = field(default_factory=tuple)
-    verification_commands: tuple[str, ...] = field(default_factory=tuple)
-    relaxed_soft_constraints: tuple[str, ...] = field(default_factory=tuple)
-    explanation: tuple[str, ...] = field(default_factory=tuple)
-    errors: tuple[str, ...] = field(default_factory=tuple)
-    unsat_core: tuple[str, ...] = field(default_factory=tuple)
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True)
-class DependencyReport:
-    status: str
-    failure_type: str
-    command: str = ""
-    import_name: str | None = None
-    package_name: str | None = None
-    confidence: str = "medium"
-    package_mapper: tuple[str, ...] = field(default_factory=tuple)
-    constraints: tuple[DependencyConstraint, ...] = field(default_factory=tuple)
-    evidence: tuple[str, ...] = field(default_factory=tuple)
-    recommended_commands: tuple[str, ...] = field(default_factory=tuple)
-    verification_commands: tuple[str, ...] = field(default_factory=tuple)
-    notes: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

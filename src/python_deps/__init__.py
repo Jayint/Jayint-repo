@@ -1,28 +1,15 @@
-"""Static Python dependency evidence collection for Jayint runs."""
+"""Python dependency utilities — v3-only branch.
 
-from .evidence import collect_python_dependency_evidence
-from .failure_classifier import classify_dependency_failure
-from .models import DependencyConstraint, DependencyReport, PythonDependencyEvidence
-from .report import (
-    append_dependency_report,
-    build_dependency_failure_report,
-    initialize_diagnostics_summary,
-    record_dependency_report,
-    solver_result_to_report,
-)
-from .resolver import record_solver_result, solve_dependency_problem
+The z3-era modules (models bulk classes, graph, z3_adapter, resolver,
+constraints, report, pypi_metadata, external_graph) are excluded from the
+v3-only branch.  Only the depgraph sub-package (uv.lock-based closure) and
+the shared scan utilities (import_mapping, import_graph, import_graph.models
+stub) are kept.
 
-__all__ = [
-    "DependencyReport",
-    "DependencyConstraint",
-    "PythonDependencyEvidence",
-    "append_dependency_report",
-    "build_dependency_failure_report",
-    "classify_dependency_failure",
-    "collect_python_dependency_evidence",
-    "initialize_diagnostics_summary",
-    "record_dependency_report",
-    "record_solver_result",
-    "solve_dependency_problem",
-    "solver_result_to_report",
-]
+evidence.py and failure_classifier.py are also present but their eager
+re-exports have been removed from this __init__ so that importing any
+python_deps.depgraph.* submodule does not trigger z3-era class imports.
+"""
+from __future__ import annotations
+
+__all__: list[str] = []

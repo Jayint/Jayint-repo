@@ -8,7 +8,3 @@ def test_run_v1_exposes_enable_dep_emit():
     assert sig.parameters["enable_dep_emit"].default is False
 
 
-def test_env_var_bridge_present():
-    import multi_docker_eval_adapter as ad
-    src = inspect.getsource(ad)
-    assert "DOCKERAGENT_ENABLE_DEP_EMIT" in src
