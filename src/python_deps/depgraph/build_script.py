@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from python_deps.depgraph.block import Block
 
-from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec, topo_order
+from python_deps.depgraph.emit import _is_reciped, _apt_name, topo_order
+from python_deps.depgraph.populate import populate_setup_commands
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
 
 _BANNER = (
@@ -32,14 +33,6 @@ def _section_header(layer: Layer) -> str:
     label = layer.value.upper()
     return f"# ==================== {label} ===================="
 
-
-def _install_command(node: Node) -> str:
-    apt = _apt_name(node)
-    if apt is not None:
-        return f"apt-get install -y --no-install-recommends {apt}"
-    if node.type is NodeType.PACKAGE:
-        return f"python3 -m pip install --break-system-packages --no-deps {_pip_spec(node)}"
-    return node.chosen_fix or ""  # defensive; reciped syslib/tool are always apt
 
 
 def _annotation(graph: DepGraph, node: Node) -> list[str]:
@@ -73,7 +66,7 @@ def _node_block(graph: DepGraph, node: Node, apt_done: list[bool]) -> list[str]:
         out += ["export DEBIAN_FRONTEND=noninteractive", "apt-get update"]
         apt_done[0] = True
     out += _annotation(graph, node)
-    out.append(_install_command(node))
+    out += list(node.setup_commands)
     return out
 
 
@@ -185,6 +178,7 @@ def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
 def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...] = ()) -> str:
     if graph is None:
         graph = DepGraph()
+    graph = populate_setup_commands(graph)  # single call site: derive commands, then emit
     parts: list[str] = _manifest(graph, manual_blocks) + ["set -Eeuo pipefail"]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
