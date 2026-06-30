@@ -22,6 +22,12 @@ def _service():
                 state=State.MISSING)
 
 
+def _tool():
+    return Node(id="tool:cmake", type=NodeType.TOOL, name="cmake",
+                layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
+                state=State.MISSING, chosen_fix="apt:cmake")
+
+
 def test_fills_reciped_package_with_pinned_no_deps_pip():
     n = populate_setup_commands(DepGraph(nodes=(_pkg(),))).get("pkg:requests")
     assert n.setup_commands == (
@@ -42,8 +48,15 @@ def test_leaves_non_reciped_service_untouched():
     assert n.strength is Strength.SOFT
 
 
+def test_fills_reciped_tool_with_apt():
+    n = populate_setup_commands(DepGraph(nodes=(_tool(),))).get("tool:cmake")
+    assert n.setup_commands == ("apt-get install -y --no-install-recommends cmake",)
+    assert n.strength is Strength.HARD
+
+
 def test_idempotent_does_not_overwrite_existing():
     g = DepGraph(nodes=(_pkg(),))
     once = populate_setup_commands(g)
     twice = populate_setup_commands(once)
     assert once.get("pkg:requests").setup_commands == twice.get("pkg:requests").setup_commands
+    assert once.get("pkg:requests").strength == twice.get("pkg:requests").strength

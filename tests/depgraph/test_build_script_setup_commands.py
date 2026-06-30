@@ -20,7 +20,8 @@ def test_install_command_is_deleted():
 
 def test_renderer_emits_setup_commands_verbatim():
     # A node whose setup_commands differ from any derivation proves the renderer
-    # reads the field. (No populate call — the field is already set.)
+    # reads the field. (populate IS called inside render, but its idempotency
+    # guard skips this node since setup_commands is already set.)
     g = DepGraph(nodes=(_pkg(setup_commands=("echo CUSTOM_INSTALL",)),))
     script = render_build_script(g)
     assert "echo CUSTOM_INSTALL" in script

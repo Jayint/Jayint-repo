@@ -21,14 +21,14 @@ def test_to_dict_includes_new_fields():
     n = _pkg(
         setup_commands=("python3 -m pip install --break-system-packages --no-deps requests==2.0",),
         strength=Strength.HARD,
-        phase=Phase.SETUP,
+        phase=Phase.RUNTIME,
     )
     d = n.to_dict()
     assert d["setup_commands"] == [
         "python3 -m pip install --break-system-packages --no-deps requests==2.0"
     ]
     assert d["strength"] == "hard"
-    assert d["phase"] == "setup"
+    assert d["phase"] == "runtime"
 
 
 def test_enum_values():

@@ -11,10 +11,10 @@ from __future__ import annotations
 from dataclasses import replace
 
 from python_deps.depgraph.emit import _apt_name, _is_reciped, _pip_spec
-from python_deps.depgraph.schema import DepGraph, NodeType, Strength
+from python_deps.depgraph.schema import DepGraph, Node, NodeType, Strength
 
 
-def _command_for(node) -> str:
+def _command_for(node: Node) -> str:
     """The install command for a reciped node (apt for SystemLib/Tool, pinned
     --no-deps pip for Package). The single source of this derivation."""
     apt = _apt_name(node)
