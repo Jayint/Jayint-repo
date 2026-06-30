@@ -81,12 +81,12 @@ def test_header_goal_and_project_lines() -> None:
     assert "GOAL" in out and "repo_tests_pass" in out
     assert "PROJECT" in out and "visionapp" in out
     # project line lists its declared dep
-    assert "opencv-python" in out.split("FRONTIER")[0]
+    assert "opencv-python" in out.split("UNSATISFIED")[0]
 
 
 def test_frontier_block_has_fix_and_needed_by() -> None:
     out = render_dep_graph_advisory(_cv2_like_graph())
-    assert "FRONTIER" in out
+    assert "UNSATISFIED" in out
     # the system lib appears with its apt fix and is attributed to opencv-python
     assert "libgl1" in out
     assert "fix-candidate: apt:libgl1" in out

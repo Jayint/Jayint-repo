@@ -114,7 +114,7 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
             f"{', '.join(deps) if deps else '(none declared)'}"
         )
 
-    frontier = sorted(
+    unsatisfied_nodes = sorted(
         (
             n
             for n in graph.nodes
@@ -122,10 +122,10 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
         ),
         key=lambda n: (_LAYER_RANK.get(n.layer, 9), n.name),
     )
-    if frontier:
+    if unsatisfied_nodes:
         lines.append("")
-        lines.append("FRONTIER (unsatisfied - act here):")
-        for n in frontier:
+        lines.append("UNSATISFIED (act here):")
+        for n in unsatisfied_nodes:
             lines.append(
                 f"  {n.layer.value.upper():9} {n.name}   [{n.type.value}]  MISSING"
             )
