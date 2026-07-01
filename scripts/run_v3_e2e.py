@@ -141,7 +141,7 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
                   if dep_graph is not None else [])
     if dep_graph is not None:
         with open(args.out, "w") as fh:
-            fh.write(render_build_script(dep_graph))
+            fh.write(render_build_script(dep_graph, getattr(final_map, "manual_blocks", ())))
         print(f"[v3] wrote certified setup.sh -> {args.out}")
 
     if gates_seen:

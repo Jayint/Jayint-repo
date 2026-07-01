@@ -98,6 +98,10 @@ class WorldModelMap:
     # can project contract nodes from it. None when the feature is off or the build
     # failed. Not serialized (map_to_dict/from_dict) — it is consumed in-process only.
     dep_graph: "DepGraph | None" = None
+    # Governed manual blocks (LLM-admitted ScriptPatches) carried in-process so the
+    # FINAL rendered setup.sh includes them. Not serialized (map_to_dict/from_dict) —
+    # consumed in-process only, same as dep_graph above.
+    manual_blocks: tuple = ()
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +227,7 @@ def merge_map(
     host_satisfied: frozenset[str] | None = None,
     dep_advisory: str | None = None,
     dep_graph: "DepGraph | None" = None,
+    manual_blocks: tuple | None = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 
@@ -247,6 +252,7 @@ def merge_map(
         host_satisfied=host_satisfied if host_satisfied is not None else current.host_satisfied,
         dep_advisory=dep_advisory if dep_advisory is not None else current.dep_advisory,
         dep_graph=dep_graph if dep_graph is not None else current.dep_graph,
+        manual_blocks=manual_blocks if manual_blocks is not None else current.manual_blocks,
     )
 
 

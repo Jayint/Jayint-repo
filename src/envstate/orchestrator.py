@@ -577,6 +577,7 @@ def run_v3(
         advisory = current_map.dep_advisory
         current_map = merge_map(
             current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
+            manual_blocks=_manual_blocks,
         )
 
     def _runtime_ingest_phase() -> None:
@@ -787,7 +788,7 @@ def run_v3(
                 _repair_turns -= _out.turns_spent
                 if _out.budget_exhausted:
                     _budget_exhausted = True
-            current_map = merge_map(current_map, dep_graph=_g)
+            current_map = merge_map(current_map, dep_graph=_g, manual_blocks=_manual_blocks)
             report = TaskReport(task.goal, "done", (), "structured-repair task")
         else:
             report = build_agent.run(
