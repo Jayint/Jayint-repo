@@ -489,6 +489,17 @@ def test_seed_and_ldd_reconcile_even_when_apt_resolution_unresolved(
         e for e in out.edges if e.dst == node.id and e.relation is EdgeType.REQUIRES
     ]
     assert len(edges) == 1
+
+    # Discriminate the CANONICAL reconcile_predicted path from the pre-existing
+    # soname-keyed fallback (existing = new.get(predicted_id) -> with_attempt):
+    # both collapse to one node with discovered_by=RESOLVER preserved (the
+    # fallback's lookup was ALREADY soname-keyed before Task 9's ldd_probe.py
+    # fix), so node-count/discovered_by alone do not prove the canonical path
+    # ran. reconcile_predicted uniquely sets ``evidence`` to the real observed
+    # ldd line (the fallback's with_attempt never touches evidence, so it would
+    # stay None — the seed fixture above never set it). Only the canonical
+    # path leaves this non-None and referencing the soname.
+    assert node.evidence and "libcustomthing.so.2" in node.evidence
     assert edges[0].src == pkg.id
 
 

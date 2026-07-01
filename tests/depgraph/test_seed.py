@@ -19,7 +19,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.seed import seed_predicted_native
+from python_deps.depgraph.seed import _predicted_syslib_node, seed_predicted_native
 
 
 def _package(name: str, version: str, *, build_from_source=None) -> Node:
@@ -59,6 +59,23 @@ def test_seed_predicts_runtime_syslib_for_opencv():
     deps = {d.id for d in out.requires_of(pkg.id)}
     assert syslib_id("libGL.so.1") in deps
     assert syslib_id("libglib-2.0.so.0") in deps
+
+
+def test_predicted_syslib_node_unresolved_apt_soname():
+    """Worst-case seed path: a curated soname with NO ``NATIVE_LIB_TO_APT`` hit.
+
+    ``apt_for_soname`` misses (the fictitious ``libfoo.so.99`` is absent from
+    the curated table), so the predicted node must still be soname-keyed (the
+    *need* is surfaced) with an EMPTY apt resolution (the *name* is not) —
+    ``chosen_fix is None`` / ``fix_candidates == ()``. This end-to-end
+    unresolved-apt case at the seed layer was previously untested.
+    """
+    node = _predicted_syslib_node("libfoo.so.99")
+
+    assert node.id == syslib_id("libfoo.so.99")
+    assert node.type is NodeType.SYSTEM_LIB
+    assert node.chosen_fix is None
+    assert node.fix_candidates == ()
 
 
 def test_seed_predicts_build_tool_for_psycopg2():
