@@ -353,12 +353,12 @@ def run_v3(
     enable_dep_emit: bool = True,
     enable_runtime_feedback: bool = True,
     graph_scheduler_attempt_cap: int = 3,
-    enable_script_materialization: bool = True,
+    enable_script_materialization: bool = True,  # deprecated no-op; run_v3 is fresh-replay-only (Phase 4)
     enable_gate_observability: bool = False,   # Stage 1 — observability only, byte-identical off
     gate_observer=None,                        # Callable[[tuple[GateResult, GateResult]], None] | None
-    enable_binding_install: bool = False,      # Stage 2 — binding dep-spine install; byte-identical off
-    reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base)
-    run_install_script=None,                   # Callable[[str], InstallResult] | None
+    enable_binding_install: bool = True,       # deprecated no-op; run_v3 is fresh-replay-only (Phase 4)
+    reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base) — REQUIRED
+    run_install_script=None,                   # Callable[[str], InstallResult] | None — REQUIRED
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -376,15 +376,35 @@ def run_v3(
     The graph scheduler replaces the three-role LLM planner with a pure-function
     certify → emit → decide pipeline. LLM turns are bounded by ``_repair_turns``
     (seeded to ``max_cycles``).
+
+    run_v3 is fresh-replay-only (Phase 4): every cycle's dep-emit renders the
+    WHOLE certified graph to one install-only script, resets the container to
+    base, and replays it (Model B). ``reset_to_base``/``run_install_script``
+    are therefore required, not optional. ``enable_script_materialization`` /
+    ``enable_binding_install`` are deprecated no-ops kept only for call-site
+    compatibility during the migration — passing ``False`` for either raises
+    (they select the old incremental/legacy branches, which no longer exist
+    in ``run_v3``; use ``run_v1`` or the ``block_emit``/``emit_drain``
+    ablation entry points for that behavior).
     """
     from src.envstate.graph_scheduler import next_decision
-    # The binding-install path is a specialization of script materialization; it cannot run
-    # without it. Reject the contradictory combination instead of silently no-opping (which
-    # would fall through to emit_drain and look like a clean run). Only fires when the new
-    # flag is on, so enable_binding_install=False stays byte-identical.
-    if enable_binding_install and not enable_script_materialization:
+    # run_v3 has exactly one executor: fresh full-script replay from base. The
+    # executor callables are therefore mandatory (there is no fallback branch
+    # to silently drop into anymore).
+    if reset_to_base is None or run_install_script is None:
         raise ValueError(
-            "enable_binding_install=True requires enable_script_materialization=True")
+            "run_v3 is fresh-replay-only: reset_to_base and run_install_script are required "
+            "(use the block_emit ablation or run_v1 for incremental/legacy execution)")
+    # enable_script_materialization / enable_binding_install no longer select a
+    # branch (there is only one executor) — they are deprecated flags kept for
+    # call-site compatibility. Passing False asks for behavior that no longer
+    # exists in run_v3, so fail loudly instead of silently running the
+    # canonical executor under a name that implies it was skipped.
+    if not enable_script_materialization or not enable_binding_install:
+        raise ValueError(
+            "enable_script_materialization=False / enable_binding_install=False are deprecated "
+            "no-ops: run_v3 is fresh-replay-only (removed entirely in a later phase); "
+            "use the block_emit ablation or run_v1 for incremental/legacy execution")
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0
@@ -394,11 +414,11 @@ def run_v3(
     _handed: dict[str, int] = {}          # per-obligation hand-out counts
     _sched_stuck: int = 0                 # consecutive discover cycles with no new obligations
     _sched_last_nodes: int = -1           # dep-graph node count at the last discover cycle
-    _repaired_ids: set[str] = set()       # nodes given a host-first repair this run (one each)
     _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
     _budget_exhausted: bool = False
     _known_invalid: set[str] = set()
     _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
+    _last_replay_key: tuple | None = None  # memoizes the last real fresh-replay (render hash)
     MAX_REPAIRS_PER_BLOCK: int = 5
 
     def _run_tests_verified() -> bool:
@@ -428,141 +448,93 @@ def run_v3(
         _stop = _to_stop_reason(reason)
         return current_map, _stop
 
+    def _binding_emit(graph, manual_blocks, cycle):
+        """Canonical fresh-replay executor (Phase 4 — Model B, the SOLE run_v3 executor).
+
+        Render the WHOLE certified graph to one install-only script, reset the
+        container to base, replay the script, then certify reciped nodes
+        against the live host. Hoisted to ``run_v3`` scope (not nested in
+        ``_dep_emit_phase``) so both the per-cycle emit below AND every
+        ``run_structured_repair`` retry call through this SAME closure — one
+        replay implementation, no duplicated render/reset/install logic.
+
+        Memoization (Step 2): if the rendered script is byte-identical to the
+        last real replay (graph + manual_blocks unchanged), the
+        ``reset_to_base``/``run_install_script`` pair is skipped — the
+        container already reflects it, and re-running is wasteful. The repair
+        loop's inner retries still re-replay on every attempt because each
+        attempt changes ``manual_blocks`` (a new patch) or the graph, so the
+        hash differs and the skip does not fire there.
+
+        Returns ``(graph, evidence_bundle_or_None, failed_node_id_or_None)``.
+        """
+        nonlocal _last_replay_key
+        from python_deps.depgraph.build_script import render_build_script
+        from python_deps.depgraph.emit import _is_reciped
+        from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+        # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
+        _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
+        if _missing:
+            raise ValueError(
+                f"binding-install repair: reciped nodes lack a check_command: {_missing}")
+        script = render_build_script(graph, manual_blocks)
+        key = (hash(script),)
+        result = None
+        if key != _last_replay_key:
+            reset_to_base()
+            result = run_install_script(script)
+            _last_replay_key = key
+        graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
+        if result is not None and result.rc != 0:
+            _node = (localize_install_failure(script, result.failing_command).node_id
+                     or (unsat[0] if unsat else None))
+            # Carry the fresh install stderr as evidence into the next repair scope.
+            return graph, _build_install_evidence(result, _node, cycle), _node
+        return graph, None, (unsat[0] if unsat else None)
+
     def _dep_emit_phase(cycle: int) -> None:
-        nonlocal current_map, global_step, _repaired_ids, _repair_turns, _budget_exhausted, _manual_blocks, _known_invalid
+        nonlocal current_map, _repair_turns, _budget_exhausted, _manual_blocks, _known_invalid
         if not enable_dep_emit or current_map.dep_graph is None:
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
             return
         from python_deps.depgraph.schema import NodeType, State
         from src.envstate.world_model import Fact
-        from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
-        from python_deps.depgraph.advise import render_depgraph_planner
+        from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
         # Make a bare `python` resolve to python3 before any check runs.
         ensure_python_shim(sandbox_execute)
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
-        # Certify still runs (populating the frontier); emit_drain runs as a
-        # deterministic prefix so the LLM only sees the irreducible residual.
-        # global_step is advanced here only if emit_drain consumed steps, so
-        # LLM turns are NOT counted.
-        def _binding_emit(graph, manual_blocks, cycle):
-            from python_deps.depgraph.build_script import render_build_script
-            from python_deps.depgraph.emit import _is_reciped
-            from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
-            # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
-            _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
-            if _missing:
-                raise ValueError(
-                    f"binding-install repair: reciped nodes lack a check_command: {_missing}")
-            script = render_build_script(graph, manual_blocks)
-            reset_to_base()
-            result = run_install_script(script)
-            graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
-            if result.rc != 0:
-                _node = (localize_install_failure(script, result.failing_command).node_id
-                         or (unsat[0] if unsat else None))
-                # Carry the fresh install stderr as evidence into the next repair scope.
-                return graph, _build_install_evidence(result, _node, cycle), _node
-            return graph, None, (unsat[0] if unsat else None)
-
-        if enable_script_materialization and enable_binding_install:
-            # Stage 2: binding dep-spine install — render whole script, reset to base,
-            # install, certify reciped nodes. Repair reuses run_structured_repair.
-            from python_deps.depgraph.build_script import render_build_script
-            from python_deps.depgraph.emit import _is_reciped
-            from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
-            if reset_to_base is None or run_install_script is None:
-                raise ValueError(
-                    "binding-install: reset_to_base and run_install_script are required "
-                    "when enable_binding_install=True")
-            # Consumer fail-fast: a reciped node with no check_command cannot be certified.
-            missing_check = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
-            if missing_check:
-                raise ValueError(
-                    f"binding-install: reciped nodes lack a check_command: {missing_check}")
-            script = render_build_script(graph, _manual_blocks)
-            reset_to_base()
-            result = run_install_script(script)
-            graph, _unsat = certify_reciped_only(graph, exec_readonly, cycle)
-            install_ok = result.rc == 0
-            _failed_node = None
-            if not install_ok:
-                _failed_node = (localize_install_failure(script, result.failing_command).node_id
-                                or (_unsat[0] if _unsat else None))
-            elif _unsat:
-                _failed_node = _unsat[0]
-            if _failed_node is not None and getattr(build_agent, "client", None) is not None:
-                # On an install failure, seed the repair with the install stderr as citable
-                # evidence; on an rc0-but-unsatisfied node there is no install command failure,
-                # so the scope falls back to the node's requirement slice (bundle None).
-                _bundle = _build_install_evidence(result, _failed_node, cycle) if not install_ok else None
-                _out = run_structured_repair(
-                    graph, _failed_node, _bundle, cycle,
-                    propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
-                    emit=lambda g, mb: _binding_emit(g, mb, cycle),
-                    manual_blocks=_manual_blocks, known_invalid=_known_invalid,
-                    max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
-                    # _failed_node is a NODE id (from certify/localize), not a block id; the
-                    # binding path has no block-keyed bundle, so seed target_hint so the repair
-                    # scope still resolves the unsatisfied node's requirement slice.
-                    target_hint=_failed_node,
-                    cap_failed_id=True)
-                graph = _out.graph
-                _manual_blocks = _out.manual_blocks
-                _known_invalid = set(_out.known_invalid)
-                _repair_turns -= _out.turns_spent
-                if _out.budget_exhausted or _repair_turns <= 0:
-                    _budget_exhausted = True
-        elif enable_script_materialization:
-            # Slice A: deterministic block run replaces emit_drain on v3 (design §5.1).
-            # No LLM and no host-repair here — a failed block ends the wave (Slice B adds
-            # the repair loop). compose_script handles the emittable wave; certify writes state.
-            # NOTE: global_step is intentionally not advanced here (block_emit owns no LLM
-            # turns); the repair loop's step accounting is wired in Slice B.
-            from src.envstate.block_emit import block_emit
-            graph, _bundle, _failed = block_emit(
-                graph, sandbox_execute, exec_readonly, ledger, cycle,
-                manual_blocks=_manual_blocks)
-            if _failed is not None and getattr(build_agent, "client", None) is not None:
-                _out = run_structured_repair(
-                    graph, _failed, _bundle, cycle,
-                    propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
-                    emit=lambda g, mb: block_emit(g, sandbox_execute, exec_readonly,
-                                                  ledger, cycle, manual_blocks=mb),
-                    manual_blocks=_manual_blocks, known_invalid=_known_invalid,
-                    max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns)
-                graph = _out.graph
-                _manual_blocks = _out.manual_blocks
-                _known_invalid = set(_out.known_invalid)
-                _repair_turns -= _out.turns_spent
-                if _out.budget_exhausted or _repair_turns <= 0:
-                    _budget_exhausted = True
-        else:
-            graph, _reports, steps = emit_drain(
-                graph, build_agent, sandbox_execute, ledger, exec_readonly,
-                step_offset=global_step, cycle=cycle,
-            )
-            if steps:
-                global_step += steps
-            # Host-first repair of reciped nodes the batch wave could not certify (the
-            # broken-bridge fix). Only the graph-scheduler arm performs host repair.
-            from src.envstate.depgraph_live import repair_failed_nodes
-            graph, repair_steps, _repaired_n = repair_failed_nodes(
-                graph, build_agent, sandbox_execute, ledger, exec_readonly,
-                step_offset=global_step, cycle=cycle, repaired_ids=_repaired_ids,
-            )
-            if repair_steps:
-                global_step += repair_steps
-            if _repaired_n:
-                _repair_turns -= _repaired_n
-                if _repair_turns <= 0:
-                    _budget_exhausted = True
+        # Certify still runs (populating the frontier); the fresh-replay emit
+        # below is the SOLE executor (Phase 4) — LLM turns are counted only
+        # through run_structured_repair (_repair_turns), never global_step,
+        # since the emit itself makes no LLM calls.
+        graph, _bundle, _failed_node = _binding_emit(graph, _manual_blocks, cycle)
+        if _failed_node is not None and getattr(build_agent, "client", None) is not None:
+            # On an install failure, seed the repair with the install stderr as citable
+            # evidence; on an rc0-but-unsatisfied node there is no install command failure,
+            # so the scope falls back to the node's requirement slice (bundle None).
+            _out = run_structured_repair(
+                graph, _failed_node, _bundle, cycle,
+                propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
+                emit=lambda g, mb: _binding_emit(g, mb, cycle),
+                manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+                max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+                # _failed_node is a NODE id (from certify/localize), not a block id; the
+                # binding path has no block-keyed bundle, so seed target_hint so the repair
+                # scope still resolves the unsatisfied node's requirement slice.
+                target_hint=_failed_node,
+                cap_failed_id=True)
+            graph = _out.graph
+            _manual_blocks = _out.manual_blocks
+            _known_invalid = set(_out.known_invalid)
+            _repair_turns -= _out.turns_spent
+            if _out.budget_exhausted or _repair_turns <= 0:
+                _budget_exhausted = True
         # Final re-certify after the emit: the start-of-cycle certify (above) ran
-        # BEFORE any install this cycle, and run_blocks only certifies after each
-        # block it ran (and skips the pass after a failed block). A node whose
-        # install completes during THIS cycle's emit/repair must be reflected before
-        # the scheduler's done-decision — otherwise it stays MISSING because the next
-        # cycle's certify never runs once the done-gate finalizes the run. Idempotent.
+        # BEFORE any install this cycle. A node whose install completes during
+        # THIS cycle's emit/repair must be reflected before the scheduler's
+        # done-decision — otherwise it stays MISSING because the next cycle's
+        # certify never runs once the done-gate finalizes the run. Idempotent.
         graph = certify_refresh(graph, exec_readonly, cycle)
         # Fold emit-certified packages into installed so the synthesizer's closure
         # recipe includes them even when the planner finalizes immediately.

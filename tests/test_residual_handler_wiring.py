@@ -70,10 +70,23 @@ from src.envstate.world_model import (
     initial_map,
     merge_map,
 )
+from src.sandbox import InstallResult
 from python_deps.depgraph.ids import TEST_NODE_ID
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
+
+
+# run_v3 is fresh-replay-only (Phase 4): reset_to_base/run_install_script are
+# mandatory. _no_missing_node_map() below has only a TEST node (not reciped),
+# so the fresh-replay executor never has anything to actually install — these
+# fakes just satisfy the guard and report a clean rc=0.
+def _noop_reset_to_base() -> None:
+    pass
+
+
+def _noop_run_install_script(script: str) -> InstallResult:
+    return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
 
 
 class _ExplodingPlanner:
@@ -229,6 +242,8 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
         exec_readonly=_exec_readonly_missing,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
     # Post-fix: successful events are filtered out (rc != 0), so obs is empty,
     # _runtime_ingest_phase returns early, _residual_giveup stays None.
@@ -287,6 +302,8 @@ def test_runtime_ingest_merges_discovered_node_on_graph_arm():
         exec_readonly=_exec_readonly_missing,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
     merged = [
         n for n in final_map.dep_graph.nodes
@@ -334,6 +351,8 @@ def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
         exec_readonly=_exec_readonly_missing,
         enable_dep_emit=True,
         enable_runtime_feedback=True,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
     # Post-fix: diverged is empty (no node was added → no divergence possible),
     # so the gate `diverged and no_actionable and not emittable` is False.

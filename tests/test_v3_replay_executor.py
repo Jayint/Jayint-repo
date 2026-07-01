@@ -1,0 +1,160 @@
+"""Phase 4: run_v3's dep-emit phase has exactly ONE executor — fresh full-script
+replay from base (Model B). Confirms the collapsed `_dep_emit_phase` body:
+
+  - every cycle renders the WHOLE certified graph and replays it via
+    `reset_to_base` + `run_install_script` (`orchestrator._binding_emit`), NOT
+    `block_emit`/`emit_drain` (both removed from `_dep_emit_phase`; they
+    survive only in `run_v1` / a future ablation entry point).
+  - the render-hash memoization (Step 2): a cycle whose rendered script is
+    byte-identical to the last real replay (graph + manual_blocks unchanged)
+    SKIPS `reset_to_base`/`run_install_script` — the container already
+    reflects it.
+
+The harness is a discover-task-only scenario (VERIFY_TEST_CMD always "fails")
+so the scheduler never hands out a targeted obligation task — the task branch
+(`orchestrator.py:757-791`, still block_emit-wired; out of scope for Phase 4)
+never fires, keeping this test's block_emit assertion unambiguous.
+"""
+import sys
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+_SRC = _ROOT / "src"
+for p in (str(_ROOT), str(_SRC)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+import src.envstate.block_emit as be
+import src.envstate.depgraph_live as dl
+from src.envstate.orchestrator import VERIFY_TEST_CMD, run_v3
+from src.envstate.ledger import ActionLedger
+from src.envstate.world_model import TaskReport, initial_map, merge_map
+from src.sandbox import InstallResult
+from python_deps.depgraph.schema import (
+    DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
+)
+
+
+class _RecordingBuildAgent:
+    """Free-text-only build agent (no `.client`) — discover tasks stay off the
+    typed-repair/task-branch `block_emit` path, so this test never exercises it."""
+
+    def __init__(self):
+        self.tasks = []
+
+    def run(self, task, sandbox_execute, ledger, step_offset=0, check=None, budget=None):
+        self.tasks.append(task)
+        return TaskReport(task_goal=task.goal, status="blocked", commands=(), learning="discover")
+
+    def run_recipe(self, recipe, sandbox_execute, ledger, step_offset=0):
+        return TaskReport(task_goal="r", status="done", commands=(), learning="ok")
+
+
+class _NoopMaintainer:
+    def update(self, world_map, report):
+        return world_map
+
+
+def _pkg_map():
+    """WorldModelMap with one MISSING, reciped PACKAGE node (pip-installable)."""
+    node = Node(
+        id="pkg:requests", type=NodeType.PACKAGE, name="requests", version="2.31.0",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,
+        check_command="python3 -c 'import requests'",
+    )
+    base = initial_map(base_image="python:3.11-slim", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    return merge_map(base, dep_graph=DepGraph().with_node(node))
+
+
+def _build_harness():
+    """Stateful fakes: exec_readonly reports the node MISSING until
+    run_install_script flips `installed`. VERIFY_TEST_CMD always fails, so the
+    scheduler stays on the discover/free-text path every cycle (frontier
+    empty once the node is satisfied, tests never "pass") — the run
+    terminates via the LLM-turn budget on cycle 2, giving the test 2 full
+    `_dep_emit_phase` invocations to observe."""
+    state = {"installed": False}
+    calls = {"reset": 0, "install": 0}
+
+    def sandbox_execute(cmd):
+        if cmd == VERIFY_TEST_CMD:
+            return (False, "no tests ran")
+        return (True, "ok")
+
+    def exec_readonly(cmd):
+        if "import requests" in cmd:
+            return (0, "") if state["installed"] else (1, "ModuleNotFoundError")
+        return (1, "")
+
+    def reset_to_base():
+        calls["reset"] += 1
+
+    def run_install_script(script):
+        calls["install"] += 1
+        state["installed"] = True
+        return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
+
+    inputs = dict(
+        build_agent=_RecordingBuildAgent(),
+        maintainer=_NoopMaintainer(),
+        initial_world_map=_pkg_map(),
+        ledger=ActionLedger(),
+        sandbox_execute=sandbox_execute,
+        max_cycles=2,
+        exec_readonly=exec_readonly,
+        enable_dep_emit=True,
+        reset_to_base=reset_to_base,
+        run_install_script=run_install_script,
+    )
+    return inputs, calls
+
+
+def test_run_v3_uses_fresh_replay_each_cycle(monkeypatch):
+    """Cycle 1 (render hash CHANGED — first real replay): reset_to_base +
+    run_install_script are invoked, and block_emit/emit_drain are NOT.
+    Cycle 2 (render hash UNCHANGED — graph + manual_blocks identical to the
+    last replay): the memoized skip fires, so reset_to_base/run_install_script
+    are NOT called again.
+    """
+    block_calls = {"n": 0}
+    drain_calls = {"n": 0}
+
+    def _spy_block(*a, **k):
+        block_calls["n"] += 1
+        return be.block_emit(*a, **k)
+
+    def _spy_drain(*a, **k):
+        drain_calls["n"] += 1
+        return dl.emit_drain(*a, **k)
+
+    monkeypatch.setattr(be, "block_emit", _spy_block)
+    monkeypatch.setattr(dl, "emit_drain", _spy_drain)
+
+    inputs, calls = _build_harness()
+    final_map, stop = run_v3(**inputs)
+
+    # The scheduler never hands out a targeted obligation (frontier empties
+    # after cycle 1's install; tests never "pass"), so it stays on the
+    # discover/free-text path and exhausts the LLM-turn budget on cycle 2.
+    assert stop == "planner_giveup", f"expected the LLM-turn budget to exhaust on cycle 2, got {stop!r}"
+
+    # Exactly one real replay across the 2 cycles: cycle 1 replays (hash
+    # changed from the initial None), cycle 2's re-render is byte-identical
+    # (nothing about the graph/manual_blocks changed) -> memoized skip.
+    assert calls["reset"] == 1, (
+        f"expected exactly 1 real replay (2nd cycle memoized), got {calls['reset']} reset_to_base call(s)"
+    )
+    assert calls["install"] == 1, (
+        f"expected exactly 1 real replay (2nd cycle memoized), got {calls['install']} run_install_script call(s)"
+    )
+
+    # block_emit/emit_drain are not part of run_v3's dep-emit executor anymore
+    # (Phase 4) — the fresh-replay body (_binding_emit) is the sole executor.
+    assert block_calls["n"] == 0, "block_emit must NOT run inside run_v3's dep-emit phase (Phase 4)"
+    assert drain_calls["n"] == 0, "emit_drain must NOT run inside run_v3's dep-emit phase (Phase 4)"
+
+    # The fresh-replay install actually certified the node.
+    assert final_map.dep_graph.get("pkg:requests").state is State.SATISFIED, (
+        "the fresh-replay install must have certified the node"
+    )

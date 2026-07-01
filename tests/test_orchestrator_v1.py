@@ -31,11 +31,23 @@ from src.envstate.world_model import (
     initial_map,
     merge_map,
 )
+from src.sandbox import InstallResult
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+# run_v3 is fresh-replay-only (Phase 4): reset_to_base/run_install_script are
+# mandatory. These v3 smoke tests use dep_graph=None (_dep_emit_phase
+# short-circuits before ever touching them), so no-op fakes just satisfy the
+# guard.
+def _noop_reset_to_base() -> None:
+    pass
+
+
+def _noop_run_install_script(script: str) -> InstallResult:
+    return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
 
 def _base_map() -> WorldModelMap:
     return initial_map(
@@ -445,6 +457,7 @@ def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
         _NoopBuildAgent(), _NoopMaintainer(),
         world, ActionLedger(), passing_exec, max_cycles=3,
         enable_dep_emit=True, enable_runtime_feedback=True,
+        reset_to_base=_noop_reset_to_base, run_install_script=_noop_run_install_script,
     )
     assert stop == "planner_done"
 
@@ -491,6 +504,7 @@ def test_v3_collect_only_does_not_finalize_as_done():
     final_map, stop = run_v3(
         _PassiveBuildAgent(), DeterministicMaintainer(v3_only=True),
         world, ActionLedger(), collect_only_exec, max_cycles=2,
+        reset_to_base=_noop_reset_to_base, run_install_script=_noop_run_install_script,
     )
     assert final_map.done_flag is not True  # collect-only must not finalize
     assert stop not in ("planner_done", "done_flag")  # hollow scheduler gate is also caught

@@ -1,6 +1,10 @@
 """Tests: obligation tasks route through run_structured_repair (typed path);
-discover tasks and B3-ablation (enable_script_materialization=False) stay on
-build_agent.run (free-text path).
+discover tasks stay on build_agent.run (free-text path).
+
+Phase 4 (fresh-replay-only run_v3): enable_script_materialization=False is a
+deprecated no-op-or-raise flag now — the B3 ablation (obligation task on the
+free-text path) is no longer reachable through run_v3 with this flag; a
+dedicated raise-test replaces the old B3-ablation behavioral test.
 
 Harness mirrors tests/envstate/test_v3_repair_wiring.py.
 
@@ -25,6 +29,8 @@ for p in (str(_ROOT), str(_SRC)):
 
 import pytest
 
+import pytest
+
 import src.envstate.graph_scheduler as gs_module
 import src.envstate.orchestrator as orch
 from src.envstate import orchestrator
@@ -36,6 +42,7 @@ from src.envstate.world_model import (
     TaskReport,
     initial_map,
 )
+from src.sandbox import InstallResult
 
 
 # ---------------------------------------------------------------------------
@@ -101,12 +108,23 @@ def _discover_task() -> Task:
     )
 
 
-def _make_run_v3_inputs(task: Task, enable_script_materialization: bool) -> dict:
+def _noop_reset_to_base() -> None:
+    pass
+
+
+def _noop_run_install_script(script: str) -> InstallResult:
+    return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
+
+
+def _make_run_v3_inputs(task: Task) -> dict:
     """Build a dict of kwargs for run_v3.
 
-    dep_graph=None → _dep_emit_phase short-circuits immediately.
-    enable_dep_emit=False → extra safeguard (belt-and-suspenders).
-    max_cycles=1  → loop terminates after a single task cycle.
+    dep_graph=None → _dep_emit_phase short-circuits immediately (before it
+    would ever touch reset_to_base/run_install_script). enable_dep_emit=False
+    → extra safeguard (belt-and-suspenders). max_cycles=1 → loop terminates
+    after a single task cycle. reset_to_base/run_install_script are required
+    unconditionally by run_v3 (Phase 4) even though this harness's dep-emit
+    phase never calls them — no-op fakes just satisfy the guard.
     """
     led = ActionLedger()
 
@@ -125,7 +143,8 @@ def _make_run_v3_inputs(task: Task, enable_script_materialization: bool) -> dict
         max_cycles=1,
         exec_readonly=ro,
         enable_dep_emit=False,
-        enable_script_materialization=enable_script_materialization,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
 
 
@@ -187,32 +206,16 @@ class _FixtureBundle:
 
 @pytest.fixture
 def _v3_task_fixture(monkeypatch):
-    """Obligation task (target_node_ids set) + enable_script_materialization=True."""
-    inputs = _make_run_v3_inputs(
-        task=_obligation_task(),
-        enable_script_materialization=True,
-    )
+    """Obligation task (target_node_ids set)."""
+    inputs = _make_run_v3_inputs(task=_obligation_task())
     return _FixtureBundle(inputs, _obligation_task(), monkeypatch)
 
 
 @pytest.fixture
 def _v3_discover_fixture(monkeypatch):
-    """Discover task (target_node_ids empty) + enable_script_materialization=True."""
-    inputs = _make_run_v3_inputs(
-        task=_discover_task(),
-        enable_script_materialization=True,
-    )
+    """Discover task (target_node_ids empty)."""
+    inputs = _make_run_v3_inputs(task=_discover_task())
     return _FixtureBundle(inputs, _discover_task(), monkeypatch)
-
-
-@pytest.fixture
-def _v3_task_fixture_b3(monkeypatch):
-    """Obligation task + enable_script_materialization=False (B3 ablation)."""
-    inputs = _make_run_v3_inputs(
-        task=_obligation_task(),
-        enable_script_materialization=False,
-    )
-    return _FixtureBundle(inputs, _obligation_task(), monkeypatch)
 
 
 # ---------------------------------------------------------------------------
@@ -220,8 +223,8 @@ def _v3_task_fixture_b3(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_obligation_task_uses_propose_not_run(_v3_task_fixture):
-    """Obligation task with enable_script_materialization=True must call
-    run_structured_repair (typed path) and must NOT call build_agent.run.
+    """Obligation task must call run_structured_repair (typed path) and must
+    NOT call build_agent.run.
     """
     _v3_task_fixture.run()
     assert _v3_task_fixture.run_calls == 0, (
@@ -241,30 +244,25 @@ def test_discover_task_uses_run(_v3_discover_fixture):
     )
 
 
-def test_b3_ablation_does_not_use_propose(_v3_task_fixture_b3):
-    """Obligation task with enable_script_materialization=False (B3 ablation) must
-    use build_agent.run and must NOT call run_structured_repair.
+def test_b3_ablation_now_raises():
+    """Phase 4: enable_script_materialization=False is a deprecated no-op-or-raise
+    flag — run_v3 has exactly one executor (fresh full-script replay), so the old
+    B3 ablation (obligation task forced onto the free-text path) is no longer
+    reachable through run_v3 at all. Pin the deprecation contract instead.
     """
-    _v3_task_fixture_b3.run()
-    assert _v3_task_fixture_b3.repair_calls == 0, (
-        "run_structured_repair was called despite enable_script_materialization=False"
-    )
-    assert _v3_task_fixture_b3.run_calls >= 1, (
-        "build_agent.run was never called in the B3 ablation path"
-    )
+    inputs = _make_run_v3_inputs(task=_obligation_task())
+    with pytest.raises(ValueError, match="deprecated"):
+        orchestrator.run_v3(**inputs, enable_script_materialization=False)
 
 
 def test_obligation_task_without_exec_readonly_falls_to_freetext(monkeypatch):
-    """Obligation task + enable_script_materialization=True but exec_readonly=None
-    must NOT enter the typed-repair path (which would crash at certify_refresh).
-    Instead it must fall through to build_agent.run (free-text path).
+    """Obligation task with exec_readonly=None must NOT enter the typed-repair
+    path (which would crash at certify_refresh). Instead it must fall through
+    to build_agent.run (free-text path).
 
     Regression guard for I-1: missing ``exec_readonly is not None`` guard.
     """
-    inputs = _make_run_v3_inputs(
-        task=_obligation_task(),
-        enable_script_materialization=True,
-    )
+    inputs = _make_run_v3_inputs(task=_obligation_task())
     # Override exec_readonly to None to reproduce the crash scenario
     inputs["exec_readonly"] = None
 
