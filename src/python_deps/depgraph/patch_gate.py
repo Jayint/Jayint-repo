@@ -114,6 +114,18 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
             if not check_can_detect_absence(chk):
                 errs.append(f"script block {s.block_id} check cannot detect absence "
                             f"(structurally trivial): {chk!r}")
+        if not s.commands:
+            errs.append(f"script block {s.block_id} has empty commands")
+        if any(not c.strip() for c in s.commands):
+            errs.append(f"script block {s.block_id} has a blank/whitespace-only command")
+        try:
+            Layer(s.wave)
+        except ValueError:
+            errs.append(f"script block {s.block_id} has illegal wave {s.wave!r} "
+                        f"(must be a Layer value)")
+        for nid in s.provides:
+            if nid not in known_after:
+                errs.append(f"script block {s.block_id} provides unknown node {nid!r}")
 
     # edges: replicate EDGE_RULES against the post-add_requirements view (with_edge would RAISE).
     type_of = {n.id: n.type.value for n in graph.nodes}

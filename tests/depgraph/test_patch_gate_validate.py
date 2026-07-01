@@ -109,3 +109,50 @@ def test_provider_provides_unknown_node_rejected(_graph_with_evidence):
         provides=("syslib:does-not-exist",)),))
     errs = validate_proposal(g, p, known_evidence_ids=frozenset({"ev.1.0"}))
     assert any("does-not-exist" in e for e in errs)
+
+
+# --- script-patch hardening: empty/blank commands, illegal wave, unknown provides ---
+
+def _graph_with(nid: str) -> DepGraph:
+    return DepGraph().with_node(Node(id=nid, type=NodeType.SYSTEM_LIB, name="x",
+        layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING))
+
+
+def _sp(**kw) -> ScriptPatch:
+    base = dict(block_id="blk:1", wave="system", commands=("apt-get install -y libx",),
+                target_node_ids=("syslib:x",), checks=("dpkg -s libx",), evidence_ref="ev:1")
+    base.update(kw); return ScriptPatch(**base)
+
+
+_SP_EV = frozenset({"ev:1"})
+
+
+def test_rejects_empty_commands():
+    errs = validate_proposal(_graph_with("syslib:x"),
+        PatchProposal(script_patches=(_sp(commands=()),)), known_evidence_ids=_SP_EV)
+    assert any("empty commands" in e for e in errs)
+
+
+def test_rejects_blank_command():
+    errs = validate_proposal(_graph_with("syslib:x"),
+        PatchProposal(script_patches=(_sp(commands=("apt-get install -y libx", "   ")),)),
+        known_evidence_ids=_SP_EV)
+    assert any("blank" in e for e in errs)
+
+
+def test_rejects_illegal_wave():
+    errs = validate_proposal(_graph_with("syslib:x"),
+        PatchProposal(script_patches=(_sp(wave="post-install"),)), known_evidence_ids=_SP_EV)
+    assert any("illegal wave" in e for e in errs)
+
+
+def test_rejects_provides_unknown_node():
+    errs = validate_proposal(_graph_with("syslib:x"),
+        PatchProposal(script_patches=(_sp(provides=("syslib:ghost",)),)), known_evidence_ids=_SP_EV)
+    assert any("provides unknown node" in e for e in errs)
+
+
+def test_accepts_legal_script_patch():
+    errs = validate_proposal(_graph_with("syslib:x"),
+        PatchProposal(script_patches=(_sp(),)), known_evidence_ids=_SP_EV)
+    assert errs == []
