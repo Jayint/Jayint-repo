@@ -298,6 +298,34 @@ def test_discover_gate_records_ledger_evidence(monkeypatch):
     )
 
 
+def test_repeated_unclassified_discover_gives_up(monkeypatch):
+    """Task 5c: repeated discover-gate failures that never grow the graph must
+    terminate via the existing bounded ``_sched_stuck`` counter
+    (GIVEUP_STUCK -> 'planner_giveup') rather than run to max_cycles or loop
+    forever waiting for a classification that will never arrive. The 2-round
+    bound is intentional (see the comment at orchestrator.py's `_sched_stuck
+    >= 2` check) — this test is the regression pin for it.
+    """
+    inputs = _make_run_v3_inputs(task=_discover_task())
+    inputs["max_cycles"] = 5
+    calls = {"n": 0}
+
+    def _failing_sandbox(cmd: str):
+        calls["n"] += 1
+        return (False, "E   ModuleNotFoundError: No module named 'totally_unclassifiable_xyz'")
+
+    inputs["sandbox_execute"] = _failing_sandbox
+
+    bundle = _FixtureBundle(inputs, _discover_task(), monkeypatch)
+    bundle.run()
+
+    assert bundle.stop_reason == "planner_giveup"
+    assert calls["n"] < inputs["max_cycles"], (
+        "discover gate ran for the full max_cycles budget instead of giving up "
+        "via the bounded _sched_stuck counter"
+    )
+
+
 def test_b3_ablation_now_raises():
     """Phase 4: enable_script_materialization=False is a deprecated no-op-or-raise
     flag — run_v3 has exactly one executor (fresh full-script replay), so the old

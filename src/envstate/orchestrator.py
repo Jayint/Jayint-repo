@@ -728,6 +728,9 @@ def run_v3(
             n_nodes = len(current_map.dep_graph.nodes) if current_map.dep_graph else 0
             _sched_stuck = _sched_stuck + 1 if n_nodes <= _sched_last_nodes else 0
             _sched_last_nodes = n_nodes
+            # Bound is intentional (Task 5c): the discover gate (Task 5b) never spends
+            # LLM-repair budget, so without this counter an all-discover run with an
+            # unclassifiable failure would loop until max_cycles instead of giving up.
             if _sched_stuck >= 2:                # consecutive discover rounds revealed no new obligations
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, None)
