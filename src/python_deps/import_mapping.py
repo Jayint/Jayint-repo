@@ -10,7 +10,6 @@ CURATED_IMPORT_TO_PACKAGE = {
     "django_filters": "django-filter",
     "factory": "factory-boy",
     "fitz": "PyMuPDF",
-    "image": "Pillow",
     "lxml": "lxml",
     "mysqldb": "mysqlclient",
     "openssl": "pyOpenSSL",

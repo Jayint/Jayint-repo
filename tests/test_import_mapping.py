@@ -35,3 +35,12 @@ def test_curated_entry_beats_a_conflicting_manifest_declaration():
     # even if the manifest declares the bare squatter, the curated mapping wins
     r = map_import_to_package("socketio", declared_package_names={"socketio"})
     assert r.package_name == "python-socketio"
+
+
+def test_image_does_not_map_to_pillow():
+    # the `image` PyPI distribution is NOT Pillow; Pillow is `PIL`/`pil`
+    assert map_import_to_package("image").package_name != "Pillow"
+
+
+def test_pil_still_maps_to_pillow():
+    assert map_import_to_package("pil").package_name == "Pillow"
