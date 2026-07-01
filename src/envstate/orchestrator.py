@@ -370,6 +370,13 @@ def run_v3(
     run_install_script=None,                   # Callable[[str], InstallResult] | None — REQUIRED
     repo_path: str | None = None,              # repo root — seeds RepoContext.local_names for
                                                 # the diagnosis router (Phase 6); None -> empty set
+    tracer=None,                                # RunTracer | None (Task 8) — append-only, host-owned
+                                                # observability recorder. Every ``tracer.record_*``/
+                                                # ``tracer.set_*`` call below is guarded by
+                                                # ``if tracer is not None:`` so passing ``None`` (the
+                                                # default) leaves run_v3's behavior byte-identical —
+                                                # the tracer only OBSERVES, it never influences a
+                                                # decision, a certify, or a write.
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -405,6 +412,10 @@ def run_v3(
     so a repo-local import is never mistaken for a missing PyPI package.
     """
     from src.envstate.graph_scheduler import next_decision
+    # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
+    # the actual ``tracer.record_*``/``tracer.set_*`` CALLS below are guarded by
+    # ``if tracer is not None:``, not this import.
+    from src.envstate.run_trace import DiscoverRecord, FreshReplayRecord, PatchGateRecord
     # run_v3 has exactly one executor: fresh full-script replay from base. The
     # executor callables are therefore mandatory (there is no fallback branch
     # to silently drop into anymore).
@@ -489,6 +500,12 @@ def run_v3(
             "deterministic discover gate")
 
     def _finish(reason):
+        # Task 8: record the final governed manual-block set on the way out (any
+        # exit path) — same "fires once on exit" contract as the gate
+        # observability block below, kept as a separate guard/statement so the
+        # tracer-off path never even constructs the generator.
+        if tracer is not None:
+            tracer.set_manual_blocks(tuple(b.block_id for b in _manual_blocks))
         # Stage 1 two-gate observability: fires once on the way out (any exit path).
         # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
         if enable_gate_observability:
@@ -566,6 +583,25 @@ def run_v3(
         result = run_install_script(script)
         _last_replay_result = result
         graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
+        if tracer is not None:
+            # Task 8: one FreshReplayRecord per cycle (Model B — every cycle
+            # replays). test_rc/test_summary are not available at THIS site
+            # (the test gate is a separate call, e.g. _run_tests_verified /
+            # _run_discover_gate) — recorded as None/"" here; this record is
+            # the INSTALL result only.
+            from python_deps.depgraph.schema import State
+            _certified_ids = tuple(sorted(
+                n.id for n in graph.nodes if _is_reciped(n) and n.state is State.SATISFIED
+            ))
+            tracer.record_replay(FreshReplayRecord(
+                ran=True,
+                setup_rc=result.rc,
+                failing_command=result.failing_command if result.rc != 0 else None,
+                certified_node_ids=_certified_ids,
+                unsatisfied_node_ids=tuple(unsat),
+                test_rc=None,
+                test_summary="",
+            ))
         if result.rc != 0:
             _node = (localize_install_failure(script, result.failing_command).node_id
                      or (unsat[0] if unsat else None))
@@ -632,6 +668,45 @@ def run_v3(
             manual_blocks=_manual_blocks, known_invalid=_known_invalid,
             max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
             target_hint=target_hint, cap_failed_id=cap_failed_id)
+        if tracer is not None:
+            # Task 8: RepairOutcome (repair_loop.RepairOutcome) does NOT expose
+            # an "accepted"/"accepted_node_ids"/"errors" surface — it only
+            # returns the resulting graph/manual_blocks/still_failing_id/
+            # turns_spent/budget_exhausted. Derive the PatchGateRecord fields
+            # from a before/after diff instead of inventing fields that don't
+            # exist on RepairOutcome:
+            #   accepted_node_ids  — node ids present in _out.graph but not in
+            #                        the graph passed INTO run_structured_repair
+            #                        (i.e. admitted add_requirements).
+            #   accepted_block_ids — block ids present in _out.manual_blocks but
+            #                        not in the manual_blocks passed in (i.e.
+            #                        admitted script_patches).
+            #   accepted           — True iff the graph OR manual_blocks changed
+            #                        at all (covers a providers-only admission —
+            #                        e.g. a chosen_fix correction — which adds no
+            #                        new node/block id but DOES mutate the graph).
+            #   errors             — RepairOutcome does not surface per-attempt
+            #                        validate_proposal() errors (they are
+            #                        swallowed inside the internal retry loop);
+            #                        left empty rather than fabricated.
+            _before_node_ids = frozenset(n.id for n in graph.nodes) if graph is not None else frozenset()
+            _before_block_ids = frozenset(b.block_id for b in _manual_blocks)
+            _after_node_ids = (frozenset(n.id for n in _out.graph.nodes)
+                               if _out.graph is not None else frozenset())
+            _after_block_ids = frozenset(b.block_id for b in _out.manual_blocks)
+            _new_node_ids = tuple(sorted(_after_node_ids - _before_node_ids))
+            _new_block_ids = tuple(sorted(_after_block_ids - _before_block_ids))
+            _ev_ref = (bundle.items[0].evidence_id
+                      if (bundle is not None and bundle.items) else None)
+            tracer.record_patchgate(PatchGateRecord(
+                cycle=cycle,
+                failed_block_id=failed_id,
+                evidence_ref=_ev_ref,
+                accepted=(_out.graph != graph) or (_out.manual_blocks != _manual_blocks),
+                accepted_node_ids=_new_node_ids,
+                accepted_block_ids=_new_block_ids,
+                errors=(),
+            ))
         _manual_blocks = _out.manual_blocks
         _known_invalid = set(_out.known_invalid)
         _repair_turns -= _out.turns_spent
@@ -688,7 +763,7 @@ def run_v3(
             manual_blocks=_manual_blocks,
         )
 
-    def _runtime_ingest_phase() -> None:
+    def _runtime_ingest_phase(cycle: int) -> None:
         nonlocal current_map, _rt_mark, _residual_giveup
         if not enable_runtime_feedback or current_map.dep_graph is None:
             return
@@ -740,6 +815,32 @@ def run_v3(
                 classifiers = (classify_observation, _bounded_llm)
 
             new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
+            if tracer is not None:
+                # Task 8: run_v3's ONLY ledger writer is _run_discover_gate (the
+                # deterministic VERIFY_TEST_CMD gate — no free-text mutation
+                # exists in run_v3), so every event in `obs` at this point
+                # originates from a discover-gate cycle; recording ONE
+                # DiscoverRecord per _runtime_ingest_phase call (this is the
+                # "next-cycle ingest that consumes [the gate's] event" from the
+                # brief) is therefore correct without needing a second record
+                # call inside _run_discover_gate itself.
+                #
+                # diagnosis_modes is computed here PURELY for observability via
+                # the SAME diagnose_all/_repo_ctx() used by _repair_or_route —
+                # this is a read-only, side-effect-free re-classification of
+                # the same (command, output) pairs already computed above; it
+                # does not feed into `found`/`new_graph` or any decision.
+                _pre_ids = frozenset(n.id for n in pre_graph.nodes) if pre_graph is not None else frozenset()
+                _post_ids = frozenset(n.id for n in new_graph.nodes) if new_graph is not None else frozenset()
+                _new_ids = tuple(sorted(_post_ids - _pre_ids))
+                _diags = diagnose_all(tuple(obs), _repo_ctx())
+                tracer.record_discover(DiscoverRecord(
+                    cycle=cycle,
+                    command=VERIFY_TEST_CMD,
+                    used_llm_mutation=False,
+                    new_node_ids=_new_ids,
+                    diagnosis_modes=tuple(d.mode.value for d in _diags),
+                ))
             # Advance the mark ONLY after a successful ingest call returns — so an
             # exception mid-ingest does not permanently drop those events (they are
             # re-read next cycle). (spec §11; C4 event-loss fix.)
@@ -825,7 +926,7 @@ def run_v3(
         # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
         #        into the live dep-graph. Runs once per cycle before any branch so
         #        it fires regardless of which branch returns (I2 done-path fix).
-        _runtime_ingest_phase()
+        _runtime_ingest_phase(cycle)
         if _residual_giveup is not None:
             return _finish(TerminationReason.GIVEUP_RESIDUAL)
         # ── 1. Graph-scheduler decides what to do next ──────────────────────
