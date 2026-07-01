@@ -506,7 +506,7 @@ def evaluate_installability_gate(graph, replay=None) -> GateResult:
 
 Thread `_last_replay_result` into `evaluate_gates(graph, run_tests_verified, replay=_last_replay_result)` inside `_finish` (`orchestrator.py:423-427`). On the canonical path `replay` is always non-None (Phase 4 guarantees the executor ran), so the gate is always binding.
 
-- [ ] **Step 3: `done` requires a green replay (authoritative).** Tests run in the fresh-replayed container, so a `done` already implies the latest replay rc==0 — but assert it defensively: if `decision.action == "done"` while `_last_replay_result is None or _last_replay_result.rc != 0`, return `GIVEUP_REPLAY` with the failing command recorded. Never report done on a build that didn't reproduce from base.
+- [ ] **Step 3: EVERY success door requires a green replay (authoritative).** Add a `_finalize_if_replayed(reason)` helper: return `GIVEUP_REPLAY` if `_last_replay_result is None or _last_replay_result.rc != 0`, else `_finish(reason)`. Route ALL success-returning paths through it — not only the scheduler's `decision.action == "done"`, but also the maintainer-driven `done_flag` path (`TerminationReason.DONE_FLAG`) and any `planner_done` return. (`run_v3_e2e` treats `done`/`done_flag`/`planner_done` as equally successful, so a single unguarded door reintroduces hollow success — this was a review finding.) Never report a success on a build that didn't reproduce from base. Cover both the `rc != 0` and the `is None` branches with tests.
 
 - [ ] **Step 4: Driver.** `scripts/run_v3_e2e.py`: drop `--no-binding-install` (replay is unconditional). The final `render_build_script(dep_graph, final_map.manual_blocks)` (Phase 2) is the artifact and equals what ran.
 
