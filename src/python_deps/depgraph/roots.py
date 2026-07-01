@@ -88,11 +88,30 @@ def _manifest_root_token(req) -> str:
     SEE a conflict — the spec's "project pinning numpy<2 plus a dep requiring
     numpy>=2" example.  The specifier is dropped (bare name only) when it is empty,
     carries a marker, or fails the injection-safety check.
+
+    Per-dep extras (``uvicorn[standard]``) are carried too — NOT stripped — so
+    the extra's own transitive deps reach the resolver instead of silently
+    vanishing under a ``--no-deps`` install (Task 8).
     """
     spec = (getattr(req, "specifier", "") or "").replace(" ", "")
+    extras = getattr(req, "extras", ()) or ()
+    name = f"{req.name}[{','.join(extras)}]" if extras else req.name
     if spec and _SAFE_SPECIFIER_RE.match(spec):
-        return f"{req.name}{spec}"
-    return req.name
+        return f"{name}{spec}"
+    return name
+
+
+# Optional-dependency group name embedded at the tail of a requirement's
+# ``source`` string by evidence.py, e.g.
+# ``pyproject.toml:project.optional-dependencies.test`` -> ``test``, or
+# ``setup.cfg:options.extras_require.docs`` -> ``docs``.
+_OPTIONAL_GROUP_RE = re.compile(r"(?:optional-dependencies|extras_require)\.(.+)$")
+
+
+def _requirement_group(source: str) -> str:
+    """Extras-group name a ``kind=="optional_dependency"`` requirement belongs to."""
+    match = _OPTIONAL_GROUP_RE.search(source or "")
+    return match.group(1) if match else ""
 
 
 def _is_non_distribution(import_name: str) -> bool:
@@ -125,6 +144,7 @@ def _is_non_distribution(import_name: str) -> bool:
 def select_roots(
     repo_path: str,
     graph: DepGraph,
+    needed_extras: frozenset[str] = frozenset(),
 ) -> list[tuple[str | None, str]]:
     """Return ``(import_id | None, distribution_name)`` resolver roots.
 
@@ -132,6 +152,18 @@ def select_roots(
     scanned imports fill gaps only for distributions not already declared.
     Non-distributions are filtered out, and each distribution appears once
     (deduped by normalized name).
+
+    ``needed_extras`` TARGETS which ``[project.optional-dependencies]`` /
+    ``extras_require`` groups are in scope: a ``kind=="optional_dependency"``
+    requirement is only added as a root when its group is a member of
+    ``needed_extras``; runtime (non-optional) deps are always included. This
+    is the fix for the "uv unions all extras groups" bug — previously every
+    optional group was appended as a root with no filter, so mutually
+    exclusive groups (e.g. ``cpu``/``gpu``) collided into one unsatisfiable
+    resolve. The default (``frozenset()``) is deliberately runtime-only; see
+    ``build.py`` for the seam that would eventually source this set from
+    discovered CI/tox/Makefile ``pip install -e .[...]`` invocations
+    (cluster-1 enrichment, not this task).
     """
     evidence = collect_python_dependency_evidence(repo_path)
     declared_names = {req.name for req in evidence.declared_dependencies}
@@ -141,6 +173,9 @@ def select_roots(
 
     # 1. Manifest-declared dependencies (highest trust).
     for req in evidence.declared_dependencies:
+        if getattr(req, "kind", "dependency") == "optional_dependency":
+            if _requirement_group(req.source) not in needed_extras:
+                continue
         normalized = normalize_package_name(req.name)
         if normalized in seen:
             continue

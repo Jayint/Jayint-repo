@@ -199,3 +199,71 @@ def test_manifest_scan_dedup_via_normalization(tmp_path):
     roots = select_roots(str(repo), graph)
     flask_entries = [(imp, dist) for imp, dist in roots if dist.lower() == "flask"]
     assert flask_entries == [(None, "Flask")]
+
+
+# --------------------------------------------------------------------------- #
+# Task 8 — targeted extras: needed_extras gating + per-dep extras preserved.
+# --------------------------------------------------------------------------- #
+def _fixture_repo_with_optional_groups(tmp_path: Path) -> Path:
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["requests"]
+
+        [project.optional-dependencies]
+        test = ["pytest"]
+        docs = ["sphinx"]
+        """,
+    )
+    _write(repo, "proj/app.py", "import requests\n")
+    return repo
+
+
+def test_only_needed_extra_group_becomes_a_root(tmp_path):
+    repo = _fixture_repo_with_optional_groups(tmp_path)
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, needed_extras=frozenset({"test"}))
+
+    names = {tok for _imp, tok in roots}
+    assert any(t.startswith("requests") for t in names)   # runtime always
+    assert any(t.startswith("pytest") for t in names)     # needed extra
+    assert not any(t.startswith("sphinx") for t in names)  # unneeded group excluded
+
+
+def test_no_needed_extras_default_excludes_all_optional_groups(tmp_path):
+    repo = _fixture_repo_with_optional_groups(tmp_path)
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph)  # default needed_extras=frozenset()
+
+    names = {tok for _imp, tok in roots}
+    assert any(t.startswith("requests") for t in names)
+    assert not any(t.startswith("pytest") for t in names)
+    assert not any(t.startswith("sphinx") for t in names)
+
+
+def test_per_dep_extra_specifier_is_preserved(tmp_path):
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["uvicorn[standard]>=0.20"]
+        """,
+    )
+    _write(repo, "proj/app.py", "import uvicorn\n")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph)
+
+    names = {tok for _imp, tok in roots}
+    assert any("uvicorn[standard]" in t for t in names)   # extra NOT stripped
+    assert not any(t == "uvicorn" for t in names)          # not silently bare
