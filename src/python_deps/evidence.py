@@ -257,12 +257,13 @@ def _add_requirement_line(
     parsed = _parse_requirement_line(line)
     if not parsed:
         return
-    name, specifier, marker = parsed
+    name, specifier, marker, extras = parsed
     target.append(
         PythonRequirement(
             name=name,
             specifier=specifier,
             marker=marker,
+            extras=extras,
             source=source,
             kind=kind,
             trust=trust,
@@ -270,21 +271,22 @@ def _add_requirement_line(
     )
 
 
-def _parse_requirement_line(line: str) -> tuple[str, str, str] | None:
+def _parse_requirement_line(line: str) -> tuple[str, str, str, tuple[str, ...]] | None:
     cleaned = _strip_inline_comment(line).strip()
     if not cleaned or cleaned.startswith(("-", "--")):
         return None
     if "://" in cleaned or cleaned.startswith(("git+", "hg+", "svn+")):
         egg_match = re.search(r"[#&]egg=([A-Za-z0-9_.-]+)", cleaned)
         if egg_match:
-            return egg_match.group(1), cleaned, ""
+            return egg_match.group(1), cleaned, "", ()
         return None
     try:
         requirement = Requirement(cleaned)
     except InvalidRequirement:
         return None
     marker = str(requirement.marker) if requirement.marker is not None else ""
-    return requirement.name, str(requirement.specifier), marker
+    extras = tuple(sorted(requirement.extras))
+    return requirement.name, str(requirement.specifier), marker, extras
 
 
 def _strip_inline_comment(line: str) -> str:
