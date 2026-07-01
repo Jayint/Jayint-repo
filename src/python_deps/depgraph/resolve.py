@@ -135,10 +135,22 @@ def _project_dir(project_dir: str | None):
             yield tmp
 
 
+# Injection-safe optional-dependency group name (a bare TOML table key: no
+# quotes, brackets, newlines or whitespace).
+_SAFE_GROUP_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _safe_group_names(names) -> list[str]:
+    """Sorted, injection-safe extras-group names (bare TOML table keys only)."""
+    return sorted(n for n in names if isinstance(n, str) and _SAFE_GROUP_RE.match(n))
+
+
 def _write_pyproject(
     workdir: str,
     dist_names: list[str],
     target_python: str,
+    *,
+    extras: frozenset[str] = frozenset(),
 ) -> None:
     _validate_target_python(target_python)
     deps = ",\n    ".join(f'"{d}"' for d in _safe_dist_names(dist_names))
@@ -151,6 +163,19 @@ def _write_pyproject(
         f"    {deps}\n"
         "]\n"
     )
+    if extras:
+        # The chosen groups' own requirement bodies already flow into
+        # `dist_names` above -- roots.select_roots (Task 8) gates a group by
+        # `needed_extras` and, when selected, flattens its members straight
+        # into the plain root list, so they are already being resolved via
+        # `dependencies`. This table is a provenance record of which
+        # optional-dependency groups were IN SCOPE for this resolve (visible
+        # in the produced uv.lock's root-package metadata for debugging/
+        # traceability), not a second resolution path -- declaring the same
+        # requirement under two different TOML keys would be redundant.
+        content += "\n[project.optional-dependencies]\n"
+        for group in _safe_group_names(extras):
+            content += f"{group} = []\n"
     with open(os.path.join(workdir, "pyproject.toml"), "w", encoding="utf-8") as fh:
         fh.write(content)
 
@@ -190,6 +215,7 @@ def resolve_closure(
     target_env: TargetEnv,
     exclude_newer: str | None = None,
     project_dir: str | None = None,
+    extras: frozenset[str] = frozenset(),
 ) -> tuple[list[Node], list[Edge]]:
     """Resolve ``roots`` to a Package closure (nodes + edges) via ``uv.lock``.
 
@@ -206,6 +232,16 @@ def resolve_closure(
     evaluated against a forked/conditional lock entry sees the container's own
     facts — never a normalized stand-in, and never the host running this
     resolve.
+
+    ``extras`` is the set of ``[project.optional-dependencies]`` / extras_require
+    group names IN SCOPE for this resolve (Task 8's targeted-extras fix — the
+    caller, typically ``roots.select_roots(..., needed_extras=...)`` upstream
+    of here, has already gated which groups' members are present in ``roots``
+    at all). It is written into the temp pyproject's own
+    ``[project.optional-dependencies]`` table as a provenance record of which
+    groups were considered (see :func:`_write_pyproject`); the groups'
+    requirement bodies themselves reach the resolver via ``roots`` /
+    ``dist_names``, not through this table.
 
     A throwaway uv project is created in a temp dir (or ``project_dir`` when
     injected, for tests), ``uv lock`` is run on the host through
@@ -230,7 +266,7 @@ def resolve_closure(
             names = [dist for _import_id, dist in current]
             if not names:
                 break
-            _write_pyproject(workdir, names, target_python)
+            _write_pyproject(workdir, names, target_python, extras=extras)
             result = host_executor.run(
                 _lock_command(workdir, target_python, exclude_newer, platform)
             )

@@ -112,6 +112,72 @@ wheels = [
 ]
 """
 
+# Task 8 (targeted extras) — a minimal lock as if the "test" optional-deps
+# group were in scope (pytest + its transitive iniconfig), vs. a lock with
+# only the runtime dep. Used to prove a `.[test]`-scoped closure carries the
+# group's transitive deps while a no-extras closure does not.
+CANNED_LOCK_WITH_TEST_EXTRA = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "requests" },
+    { name = "pytest" },
+]
+
+[[package]]
+name = "requests"
+version = "2.32.3"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/x/requests-2.32.3-py3-none-any.whl", hash = "sha256:req-wheel" },
+]
+
+[[package]]
+name = "pytest"
+version = "8.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "iniconfig" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/x/pytest-8.3.0-py3-none-any.whl", hash = "sha256:pytest-wheel" },
+]
+
+[[package]]
+name = "iniconfig"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/x/iniconfig-2.0.0-py3-none-any.whl", hash = "sha256:ini-wheel" },
+]
+"""
+
+CANNED_LOCK_NO_EXTRA = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "requests" },
+]
+
+[[package]]
+name = "requests"
+version = "2.32.3"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/x/requests-2.32.3-py3-none-any.whl", hash = "sha256:req-wheel" },
+]
+"""
+
 LINUX_X86 = "x86_64-manylinux_2_28"
 LINUX_ARM = "aarch64-manylinux_2_28"
 
@@ -966,6 +1032,50 @@ def test_resolve_closure_default_platform_when_none(tmp_path):
     assert np.resolved_platform == DEFAULT_TARGET_PLATFORM
 
 
+# --------------------------------------------------------------------------- #
+# Task 8 — targeted extras: resolve_closure(extras=...) writes scope into the
+# temp pyproject, and a roots list that includes the needed group's members
+# (as roots.select_roots would produce) yields their transitive deps.
+# --------------------------------------------------------------------------- #
+def test_resolve_closure_with_extras_includes_group_transitive_deps(tmp_path):
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK_WITH_TEST_EXTRA)
+    ex = _lock_ok_executor()
+    # roots as select_roots(..., needed_extras={"test"}) would produce: the
+    # runtime dep plus the "test" group's own member.
+    roots = [(None, "requests"), (None, "pytest")]
+
+    nodes, _edges = resolve_closure(
+        roots,
+        ex,
+        target_env=_target_env(),
+        extras=frozenset({"test"}),
+        project_dir=str(tmp_path),
+    )
+    names = {n.name for n in nodes}
+    assert "pytest" in names
+    assert "iniconfig" in names  # pytest's transitive dep -- would vanish if dropped
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert "[project.optional-dependencies]" in pyproject
+    assert "test = []" in pyproject
+
+
+def test_resolve_closure_without_extras_excludes_group(tmp_path):
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK_NO_EXTRA)
+    ex = _lock_ok_executor()
+    roots = [(None, "requests")]  # no "test" group member (needed_extras=frozenset())
+
+    nodes, _edges = resolve_closure(
+        roots, ex, target_env=_target_env(), project_dir=str(tmp_path)
+    )
+    names = {n.name for n in nodes}
+    assert "pytest" not in names
+    assert "iniconfig" not in names
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert "[project.optional-dependencies]" not in pyproject
+
+
 def test_resolve_closure_empty_roots_returns_empty():
     ex = _lock_ok_executor()
     assert resolve_closure([], ex, target_env=_target_env()) == ([], [])
@@ -1609,6 +1719,35 @@ def test_write_pyproject_rejects_bad_python_version(tmp_path):
 
     with pytest.raises(ValueError):
         _write_pyproject(str(tmp_path), ["flask"], "3.11; rm -rf /")
+
+
+def test_write_pyproject_includes_optional_dependencies_section_for_chosen_extras(tmp_path):
+    from python_deps.depgraph.resolve import _write_pyproject
+
+    _write_pyproject(str(tmp_path), ["flask", "pytest"], "3.11", extras=frozenset({"test"}))
+    content = (tmp_path / "pyproject.toml").read_text()
+    assert "[project.optional-dependencies]" in content
+    assert "test = []" in content
+
+
+def test_write_pyproject_omits_optional_dependencies_section_when_no_extras(tmp_path):
+    from python_deps.depgraph.resolve import _write_pyproject
+
+    _write_pyproject(str(tmp_path), ["flask"], "3.11")
+    content = (tmp_path / "pyproject.toml").read_text()
+    assert "[project.optional-dependencies]" not in content
+
+
+def test_write_pyproject_drops_unsafe_extras_group_name(tmp_path):
+    from python_deps.depgraph.resolve import _write_pyproject
+
+    # An injectable-looking group name must never reach the TOML table key.
+    _write_pyproject(
+        str(tmp_path), ["flask"], "3.11", extras=frozenset({"test", "]\ninjected = true"})
+    )
+    content = (tmp_path / "pyproject.toml").read_text()
+    assert "test = []" in content
+    assert "injected" not in content
 
 
 def test_compile_command_drops_injectable_dist_name():
