@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 
 from python_deps.depgraph.action_class import matches_action_class
 from python_deps.depgraph.block import Block, compile_blocks
+from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER
 from python_deps.depgraph.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
@@ -187,12 +188,19 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
     return ApplyResult(graph=g, blocks=blocks)
 
 
-# Wave rank for slotting manual blocks; mirrors the Layer enum order so a manual
-# "system" block runs before any "pip" block. compile_blocks already emits compiled
-# blocks in topo (wave-rank-nondecreasing) order, and Python's sort is STABLE, so
-# sorting the merged list by wave rank leaves compiled blocks in place and slots
-# each manual block after the compiled blocks of its wave.
-_WAVE_RANK: dict[str, int] = {layer.value: i for i, layer in enumerate(Layer)}
+# Wave rank for slotting manual blocks; shares the certified EXECUTION_LAYER_ORDER
+# (design section 6, also used by certify.certify_all and build_script.render_build_script)
+# so the live compose order matches render_build_script's artifact order (replay
+# fidelity) and RUNTIME/CONFIG/TESTS waves sort correctly, rather than the raw Layer
+# enum declaration order. Layers not in EXECUTION_LAYER_ORDER (e.g. SERVICES) sort
+# last, in enum order. compile_blocks already emits compiled blocks in topo
+# (wave-rank-nondecreasing) order, and Python's sort is STABLE, so sorting the
+# merged list by wave rank leaves compiled blocks in place and slots each manual
+# block after the compiled blocks of its wave.
+_WAVE_ORDER: tuple[Layer, ...] = EXECUTION_LAYER_ORDER + tuple(
+    L for L in Layer if L not in EXECUTION_LAYER_ORDER
+)
+_WAVE_RANK: dict[str, int] = {layer.value: i for i, layer in enumerate(_WAVE_ORDER)}
 
 
 def compose_script(graph: DepGraph, manual_blocks: tuple[Block, ...] = ()) -> tuple[Block, ...]:

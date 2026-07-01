@@ -1,5 +1,8 @@
 # tests/depgraph/test_compose_script.py
+import re
+
 from python_deps.depgraph.block import Block
+from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import compose_script
 from python_deps.depgraph.script import render_setup_sh, parse_setup_sh
 from python_deps.depgraph.schema import (
@@ -72,3 +75,34 @@ def test_manual_overlay_does_not_reorder_same_wave_compiled_blocks():
     assert "pip.extra" in with_manual
     # removing the manual block recovers the compiled order EXACTLY (no intra-wave reorder)
     assert [i for i in with_manual if i != "pip.extra"] == compiled_ids
+
+
+def _tests_and_config_blocks():
+    # config precedes tests in EXECUTION_LAYER_ORDER; fed in the OPPOSITE order
+    # (tests before config) so a raw-enum-order bug (Layer declares TESTS before
+    # CONFIG) would sort tests first instead.
+    tests_block = Block(block_id="tests.smoke", wave="tests",
+                        commands=("pytest -q",), target_node_ids=())
+    config_block = Block(block_id="config.env", wave="config",
+                        commands=("export FOO=bar",), target_node_ids=())
+    return tests_block, config_block
+
+
+def test_compose_script_orders_blocks_by_execution_layer_order():
+    tests_block, config_block = _tests_and_config_blocks()
+    blocks = compose_script(DepGraph(), (tests_block, config_block))
+    ids = [b.block_id for b in blocks]
+    # config must precede tests (EXECUTION_LAYER_ORDER), regardless of input order.
+    assert ids.index("config.env") < ids.index("tests.smoke")
+
+
+def test_artifact_and_live_block_order_agree():
+    # Replay parity: the artifact's #@block order must match compose_script's
+    # live order for the same manual blocks (Task 6 fixed the artifact; this
+    # guards that patch_gate's live path agrees with it).
+    tests_block, config_block = _tests_and_config_blocks()
+    blocks = (tests_block, config_block)
+    live_ids = [b.block_id for b in compose_script(DepGraph(), blocks)]
+    rendered = render_build_script(DepGraph(), blocks)
+    artifact_ids = re.findall(r"^#@block (\S+)", rendered, re.MULTILINE)
+    assert artifact_ids == live_ids
