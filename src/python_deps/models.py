@@ -19,6 +19,7 @@ class PythonRequirement:
     name: str
     specifier: str = ""
     marker: str = ""
+    extras: tuple[str, ...] = ()
     source: str = ""
     kind: str = "dependency"
     trust: str = "high"
