@@ -118,6 +118,28 @@ class RunTracer:
     def record_replay(self, r: FreshReplayRecord) -> None:
         self._replays.append(r)
 
+    def set_last_replay_tests(self, test_rc: int, test_summary: str) -> None:
+        """Back-fill the LAST recorded replay's test-gate result in place.
+
+        The test gate (``_run_tests_verified`` / ``_run_discover_gate``) runs
+        as a SEPARATE call from the fresh-replay executor that produces
+        ``FreshReplayRecord``s, so ``record_replay`` always records
+        ``test_rc=None``/``test_summary=""`` — the install result only. Once
+        the test gate result is known, this replaces the last list entry with
+        a copy carrying the test fields (``dataclasses.replace`` — the
+        record itself stays frozen; only the list entry, which this recorder
+        owns, is swapped for a new one). Under Model B every cycle replays
+        BEFORE the scheduler calls the test gate, so there is always a last
+        replay to back-fill by the time this is called; if called more than
+        once for the same replay, the most recent test run wins. No-op if no
+        replay has been recorded yet.
+        """
+        if not self._replays:
+            return
+        self._replays[-1] = dataclasses.replace(
+            self._replays[-1], test_rc=test_rc, test_summary=test_summary
+        )
+
     def set_manual_blocks(self, ids: tuple[str, ...]) -> None:
         self._manual_block_ids = tuple(ids)
 

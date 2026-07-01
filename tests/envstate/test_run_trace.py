@@ -192,6 +192,58 @@ def test_last_replay_returns_most_recent_of_several():
 
 
 # ---------------------------------------------------------------------------
+# 3b. set_last_replay_tests() back-fills ONLY the LAST replay's test fields
+# ---------------------------------------------------------------------------
+
+def test_set_last_replay_tests_backfills_last():
+    """Task 8 gap-fix: the test gate (`_run_tests_verified`) is a SEPARATE
+    call from the fresh-replay executor, so `record_replay` always records
+    test_rc=None/test_summary="". `set_last_replay_tests` back-fills the
+    LAST recorded replay in place (via dataclasses.replace, keeping the
+    record frozen) once the test gate result is known — earlier replays in
+    the same run must be untouched.
+    """
+    tracer = RunTracer()
+    first = _replay_record(setup_rc=1, test_rc=None)
+    second = _replay_record(setup_rc=0, test_rc=None)
+
+    tracer.record_replay(first)
+    tracer.record_replay(second)
+    tracer.set_last_replay_tests(0, "5 passed in 0.10s")
+
+    trace = tracer.snapshot(stop_reason="planner_done", gates={})
+
+    assert len(trace.replays) == 2
+    # Earlier replay is byte-identical to what was recorded — untouched.
+    assert trace.replays[0] == first
+    assert trace.replays[0].test_rc is None
+    assert trace.replays[0].test_summary == first.test_summary
+    # Only the LAST replay got the back-filled test result.
+    assert trace.replays[1].test_rc == 0
+    assert trace.replays[1].test_summary == "5 passed in 0.10s"
+    # Every other field on the last replay is preserved (only test_rc/
+    # test_summary changed via dataclasses.replace).
+    assert trace.replays[1].setup_rc == second.setup_rc
+    assert trace.replays[1].ran == second.ran
+    assert trace.replays[1].certified_node_ids == second.certified_node_ids
+    assert trace.replays[1].unsatisfied_node_ids == second.unsatisfied_node_ids
+
+    assert trace.last_replay.test_rc == 0
+
+
+def test_set_last_replay_tests_noop_when_empty():
+    """No replays recorded yet -> set_last_replay_tests must not raise and
+    must leave `replays` empty (defensive no-op, not an IndexError)."""
+    tracer = RunTracer()
+    tracer.set_last_replay_tests(0, "5 passed")
+
+    trace = tracer.snapshot(stop_reason="planner_done", gates={})
+
+    assert trace.replays == ()
+    assert trace.last_replay is None
+
+
+# ---------------------------------------------------------------------------
 # 4. to_dict() round-trips to a plain, JSON-serializable dict
 # ---------------------------------------------------------------------------
 
