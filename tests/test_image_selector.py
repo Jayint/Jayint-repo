@@ -81,32 +81,51 @@ def test_select_base_image_uses_llm_choice_from_candidates():
     # Scripted LLM turns: locate-files, (relevance per file), detect-language, select-image.
     # PythonHandler.base_images() yields plain "python:3.N" tags (no "-slim" suffix), so
     # the scripted <image> choice must be one of those to pass the candidate-membership check.
+    #
+    # PythonHandler.base_images("linux") == ["python:3.6", ..., "python:3.14"] (9 entries);
+    # `_llm_select_base_image`'s hardcoded fallback is candidate_images[len//2] == index 4 ==
+    # "python:3.10". Scripting "python:3.10" here would make this test pass even if <image>
+    # parsing were completely broken (the fallback would silently produce the same value).
+    # Use a non-middle candidate so the assertion can only pass via real <image> parsing.
     client = _FakeClient([
         "<file>pyproject.toml</file>\n<file>README.md</file>",  # locate
         "<rel>Yes</rel>",                                        # relevance (repeated per file)
         "<lang>python</lang>",                                   # detect language
-        "<image>python:3.10</image>",                            # select image
+        "<image>python:3.13</image>",                            # select image (non-middle candidate)
     ])
     sel = ImageSelector(client, model="fake-model")
     image, handler, docs, platform_override = sel.select_base_image(repo)
-    assert image == "python:3.10"
+    assert image == "python:3.13"
     assert handler is not None
     assert isinstance(docs, str)
 
 
 def test_language_detection_falls_back_to_rules_when_llm_returns_junk():
-    repo = _repo_with({"requirements.txt": "requests\n", "app.py": "print('hi')\n"})
-    # detect-language turn returns no <lang> tag -> rule-based detect_language runs on the
-    # real repo structure (a requirements.txt + .py repo resolves to 'python').
+    # A python-language fixture can't discriminate here: select_base_image's fallback
+    # chain is llm -> rule-based detect_language() -> hardcoded default "python". If the
+    # rule-based path were silently broken (e.g. always returning None), the hardcoded
+    # "python" default would mask the regression and this repo would still resolve to a
+    # python image, so `assert "python" in image` would pass either way.
+    #
+    # Use a Go fixture instead: go.mod + a .go file makes GoHandler.detect_language()
+    # (the rule-based path) return True with no competing-language signals, so a
+    # non-python result can ONLY come from the rules path actually running -- the
+    # hardcoded default would produce a python image instead, which the assertion below
+    # would catch.
+    repo = _repo_with({
+        "go.mod": "module example.com/demo\n\ngo 1.21\n",
+        "main.go": "package main\n\nfunc main() {}\n",
+    })
     client = _FakeClient([
-        "<file>requirements.txt</file>\n<file>app.py</file>",  # locate
-        "<rel>Yes</rel>",                                       # relevance
-        "I am not sure",                                        # detect-language junk -> None
-        "<image>python:3.11</image>",                           # select image
+        "<file>go.mod</file>\n<file>main.go</file>",  # locate
+        "<rel>Yes</rel>",                              # relevance
+        "I am not sure",                               # detect-language junk -> None
+        "<image>golang:1.22</image>",                  # select image
     ])
     sel = ImageSelector(client, model="fake-model")
     image, handler, _docs, _po = sel.select_base_image(repo)
-    assert "python" in image  # a python candidate was chosen
+    assert handler.language == "go"       # proves rule-based detect_language() ran
+    assert image == "golang:1.22"         # proves the Go candidate list was used, not python's
 
 
 def test_language_hint_short_circuits_llm_detection():
@@ -119,3 +138,18 @@ def test_language_hint_short_circuits_llm_detection():
     sel = ImageSelector(client, model="fake-model")
     image, handler, _docs, _po = sel.select_base_image(repo, language_hint="python")
     assert image == "python:3.12"
+
+    # The above alone can't detect a regression that removes the short-circuit: the
+    # fake serves a scripted response for whichever stage fires, so even a spurious
+    # detect-language call would silently get *some* script slot and the run would
+    # still complete. Assert directly on the recorded calls that the detect-language
+    # stage never fired.
+    calls = client.chat.completions.calls
+    detect_language_marker = "PRIMARY programming language"  # unique to DETECT_LANGUAGE_PROMPT
+    assert not any(detect_language_marker in call[0]["content"] for call in calls), (
+        "detect-language LLM stage fired despite language_hint being provided"
+    )
+    # With a hint, exactly 3 calls should occur: locate(1) + relevance(1 file) +
+    # select-image(1). Pinning the count catches a reintroduced detect-language call
+    # even if its prompt text changed and no longer matched the marker above.
+    assert len(calls) == 3
