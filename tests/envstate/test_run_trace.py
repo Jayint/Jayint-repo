@@ -99,6 +99,27 @@ def test_snapshot_reflects_all_recorded_kinds():
     assert trace.loop_mode == "v3_graph_typed_repair"
 
 
+def test_snapshot_defensive_copies_gates_dict():
+    """Part-1 review Minor: snapshot() must copy the caller's `gates` dict, not
+    alias it — otherwise a post-snapshot mutation of the SOURCE dict would
+    retroactively change an already-returned, supposedly-frozen RunTrace."""
+    tracer = RunTracer()
+    source = {"installability": {"provisional": False}}
+
+    trace = tracer.snapshot(stop_reason="planner_done", gates=source)
+    assert trace.gates == {"installability": {"provisional": False}}
+
+    source["installability"] = {"provisional": True}
+    source["testability"] = {"passed": False}
+
+    assert trace.gates == {"installability": {"provisional": False}}, (
+        "trace.gates changed after the snapshot call when the SOURCE dict "
+        "passed to snapshot() was mutated — gates=gates aliased the caller's "
+        "dict instead of copying it"
+    )
+    assert "testability" not in trace.gates
+
+
 def test_snapshot_reflects_marks():
     tracer = RunTracer()
     tracer.mark_emit_drain()

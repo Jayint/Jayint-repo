@@ -133,5 +133,10 @@ class RunTracer:
             replays=tuple(self._replays),
             manual_block_ids=self._manual_block_ids,
             stop_reason=stop_reason,
-            gates=gates,
+            # Defensive copy (Part-1 review Minor): RunTrace is meant to be an
+            # immutable, frozen snapshot, but `dict` is itself mutable — storing
+            # the caller's live `gates` object by reference would let a
+            # post-snapshot mutation of THAT dict retroactively change an
+            # already-returned RunTrace. Copy it in.
+            gates=dict(gates),
         )
