@@ -126,6 +126,7 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
             run_install_script=sandbox.run_install_script,
             enable_gate_observability=True,            # report both maturity gates on exit
             gate_observer=gates_seen.append,
+            repo_path=args.repo,                       # seeds the diagnosis router's RepoContext
         )
     finally:
         try:

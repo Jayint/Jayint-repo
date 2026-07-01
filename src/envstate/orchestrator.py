@@ -37,11 +37,6 @@ Executor = Callable[[str], Tuple[bool, str]]
 # Module-level constants (spec §8).
 MAX_CYCLES: int = 12
 LOCAL_BUDGET: int = 8
-# Per-obligation LLM turn budget for the v3 graph-scheduler task branch. Each
-# scheduled obligation is host-checked, so this bounds how many ReAct turns the
-# BuildAgent gets to satisfy one node before the scheduler moves on.
-SCHEDULER_TASK_BUDGET: int = 5
-
 # Canonical collect-only command — kept for back-compat (some tests/modules import it).
 COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
 
@@ -363,6 +358,8 @@ def run_v3(
     enable_binding_install: bool = True,       # deprecated no-op; run_v3 is fresh-replay-only (Phase 4)
     reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base) — REQUIRED
     run_install_script=None,                   # Callable[[str], InstallResult] | None — REQUIRED
+    repo_path: str | None = None,              # repo root — seeds RepoContext.local_names for
+                                                # the diagnosis router (Phase 6); None -> empty set
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -390,6 +387,12 @@ def run_v3(
     (they select the old incremental/legacy branches, which no longer exist
     in ``run_v3``; use ``run_v1`` or the ``block_emit``/``emit_drain``
     ablation entry points for that behavior).
+
+    Every failure bundle is diagnosed (``python_deps.depgraph.diagnose``) BEFORE
+    typed repair is attempted (Phase 6): a repo-internal reference or a residual
+    bug never spends a repair turn, and a pip-disproven package name is never
+    retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
+    so a repo-local import is never mistaken for a missing PyPI package.
     """
     from src.envstate.graph_scheduler import next_decision
     # run_v3 has exactly one executor: fresh full-script replay from base. The
@@ -514,8 +517,74 @@ def run_v3(
             return graph, _build_install_evidence(result, _node, cycle), _node
         return graph, None, (unsat[0] if unsat else None)
 
+    # ── Diagnosis router (Phase 6) ────────────────────────────────────────────
+    # RepoContext.local_names is built once from the repo (repo_path may be None
+    # in unit tests that never construct a real filesystem tree — the router then
+    # degrades to "no known local names", never REPO_INTERNAL_REF). invalid_names
+    # accumulates as pip disproves package names across cycles; the context is
+    # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
+    from python_deps.depgraph.diagnose import RepoContext, Mode, diagnose_all
+    from python_deps.depgraph import scan
+    from python_deps.import_mapping import normalize_package_name
+    _local_names = frozenset(scan.local_module_names(repo_path)) if repo_path else frozenset()
+    _invalid_names: set[str] = set()
+
+    def _repo_ctx() -> RepoContext:
+        return RepoContext(local_names=_local_names, invalid_names=frozenset(_invalid_names))
+
+    def _repair_or_route(graph, failed_id, bundle, cycle, *, target_hint=None, cap_failed_id=False):
+        """Diagnose the failure that produced ``bundle`` BEFORE typed repair.
+
+        ENVIRONMENT / AMBIGUOUS      -> run_structured_repair (AMBIGUOUS spends a
+                                        propose turn to disambiguate — see repair_scope).
+        REPO_INTERNAL_REF / RESIDUAL -> non-environment: return graph unchanged (no repair).
+        INVALID_ATTEMPT (and nothing environment-shaped) -> record the normalized
+                                        disproven name; no repair.
+
+        This is the SINGLE ``run_structured_repair`` call site in ``run_v3`` — both
+        the main-loop (``_dep_emit_phase``) and the task-branch obligation-repair
+        site route through this helper so diagnosis is applied identically.
+
+        Note (deviation from the design pseudocode): ``diagnose.Diagnosis.discovery``
+        is only ever populated for ``Mode.ENVIRONMENT`` — every ``INVALID_ATTEMPT``
+        diagnosis carries ``discovery=None`` (see diagnose.py's two INVALID_ATTEMPT
+        return sites). The disproven name is therefore re-derived here via
+        ``classify_dependency_failure`` on the SAME (command, output) pair rather
+        than read off ``d.discovery.name`` (which would always be ``None``).
+        """
+        nonlocal _manual_blocks, _known_invalid, _repair_turns, _budget_exhausted
+        observations = (
+            tuple((it.command, it.output_excerpt) for it in bundle.items) if bundle else ()
+        )
+        diags = diagnose_all(observations, _repo_ctx()) if observations else ()
+        modes = {d.mode for d in diags}
+        if Mode.REPO_INTERNAL_REF in modes or Mode.RESIDUAL in modes:
+            return graph
+        if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
+            from python_deps.failure_classifier import classify_dependency_failure
+            for (cmd, out), d in zip(observations, diags):
+                if d.mode is not Mode.INVALID_ATTEMPT:
+                    continue
+                name = classify_dependency_failure(cmd, out).package_name
+                if name:
+                    _invalid_names.add(normalize_package_name(name))
+            return graph
+        _out = run_structured_repair(
+            graph, failed_id, bundle, cycle,
+            propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
+            emit=lambda g, mb: _binding_emit(g, mb, cycle),   # REPLAY emit (Model B)
+            manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+            max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+            target_hint=target_hint, cap_failed_id=cap_failed_id)
+        _manual_blocks = _out.manual_blocks
+        _known_invalid = set(_out.known_invalid)
+        _repair_turns -= _out.turns_spent
+        if _out.budget_exhausted or _repair_turns <= 0:
+            _budget_exhausted = True
+        return _out.graph
+
     def _dep_emit_phase(cycle: int) -> None:
-        nonlocal current_map, _repair_turns, _budget_exhausted, _manual_blocks, _known_invalid
+        nonlocal current_map, _manual_blocks
         if not enable_dep_emit or current_map.dep_graph is None:
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
@@ -535,23 +604,12 @@ def run_v3(
             # On an install failure, seed the repair with the install stderr as citable
             # evidence; on an rc0-but-unsatisfied node there is no install command failure,
             # so the scope falls back to the node's requirement slice (bundle None).
-            _out = run_structured_repair(
+            # _failed_node is a NODE id (from certify/localize), not a block id; the
+            # binding path has no block-keyed bundle, so seed target_hint so the repair
+            # scope still resolves the unsatisfied node's requirement slice.
+            graph = _repair_or_route(
                 graph, _failed_node, _bundle, cycle,
-                propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
-                emit=lambda g, mb: _binding_emit(g, mb, cycle),
-                manual_blocks=_manual_blocks, known_invalid=_known_invalid,
-                max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
-                # _failed_node is a NODE id (from certify/localize), not a block id; the
-                # binding path has no block-keyed bundle, so seed target_hint so the repair
-                # scope still resolves the unsatisfied node's requirement slice.
-                target_hint=_failed_node,
-                cap_failed_id=True)
-            graph = _out.graph
-            _manual_blocks = _out.manual_blocks
-            _known_invalid = set(_out.known_invalid)
-            _repair_turns -= _out.turns_spent
-            if _out.budget_exhausted or _repair_turns <= 0:
-                _budget_exhausted = True
+                target_hint=_failed_node, cap_failed_id=True)
         # Final re-certify after the emit: the start-of-cycle certify (above) ran
         # BEFORE any install this cycle. A node whose install completes during
         # THIS cycle's emit/repair must be reflected before the scheduler's
@@ -764,31 +822,17 @@ def run_v3(
             _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()
             _tid = _targets[0]
             _fb = next((b.block_id for b in _blocks if _tid in b.target_node_ids), None)
-            _propose = lambda s, **k: build_agent.propose(s, exec_readonly, **k)
-            # Replay emit (Model B): the SAME hoisted closure _dep_emit_phase uses,
-            # so every repair retry is a real fresh full-script replay — no
-            # block_emit/incremental path remains in run_v3 (Phase 5).
-            _emit = lambda g, mb: _binding_emit(g, mb, cycle)
             if _fb is None:
-                _out = run_structured_repair(
-                    _g, _tid, EvidenceBundle(), cycle, target_hint=_tid,
-                    propose=_propose, emit=_emit, manual_blocks=_manual_blocks,
-                    known_invalid=_known_invalid, max_repairs=MAX_REPAIRS_PER_BLOCK,
-                    repair_budget=_repair_turns)
+                # No manual block targets this node yet — nothing to pre-check;
+                # route the (empty) bundle through diagnosis and repair directly.
+                _g = _repair_or_route(_g, _tid, EvidenceBundle(), cycle, target_hint=_tid)
             else:
-                _g, _b2, _f2 = _emit(_g, _manual_blocks)
-                _out = (run_structured_repair(
-                            _g, _f2, _b2, cycle, target_hint=_tid, propose=_propose, emit=_emit,
-                            manual_blocks=_manual_blocks, known_invalid=_known_invalid,
-                            max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns)
-                        if _f2 is not None else None)
-            if _out is not None:
-                _g = _out.graph
-                _manual_blocks = _out.manual_blocks
-                _known_invalid = set(_out.known_invalid)
-                _repair_turns -= _out.turns_spent
-                if _out.budget_exhausted:
-                    _budget_exhausted = True
+                # A manual block already targets this node (prior-cycle repair) — replay
+                # once (Model B) to see whether it still fails before spending another
+                # repair turn.
+                _g, _b2, _f2 = _binding_emit(_g, _manual_blocks, cycle)
+                if _f2 is not None:
+                    _g = _repair_or_route(_g, _f2, _b2, cycle, target_hint=_tid)
             current_map = merge_map(current_map, dep_graph=_g, manual_blocks=_manual_blocks)
             report = TaskReport(task.goal, "done", (), "structured-repair task")
         else:
