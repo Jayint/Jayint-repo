@@ -352,11 +352,12 @@ def _diagnosis_to_graph(diag: ResolverDiagnosis) -> tuple[list[Node], list[Edge]
 
 
 def _offending_root_names(diag: ResolverDiagnosis) -> set[str]:
-    """Canonical names of packages implicated by a lock failure."""
+    """Canonical names of ROOTS to drop for a retry: missing packages and the
+    shared/conflicted package itself. Imposers are NOT dropped — dropping the
+    pin root and retrying lets uv pull a consistent version transitively, and
+    the conflict is recorded as an advisory edge rather than collapsing both
+    subtrees."""
     names: set[str] = {_canon(m.name) for m in diag.missing}
     for c in diag.conflicts:
         names.add(_canon(c.package))
-        for imposer in (_real_imposer(c.left.imposed_by), _real_imposer(c.right.imposed_by)):
-            if imposer:
-                names.add(_canon(imposer))
     return names

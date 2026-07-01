@@ -12,6 +12,7 @@ fallback.
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 from python_deps.depgraph.executor import CommandResult
 from python_deps.depgraph.resolve import (
@@ -615,6 +616,24 @@ def test_parse_error_version_conflict_not_misread_as_unusable():
     # urllib3 is the no-satisfiable-version shared package (a real missing), but
     # neither root (requests/your project) is attributed as "cannot be used".
     assert "requests" not in {m.name for m in diag.missing}
+
+
+def test_conflict_drops_shared_package_not_imposers():
+    """A conflict drop-retry must drop only the shared/conflicted package (and
+    genuinely missing packages), never the imposing roots. Dropping an imposer
+    collapses its whole subtree to a diagnostic stub instead of letting uv pull
+    a consistent version transitively and recording the conflict as an
+    advisory edge."""
+    # project pins a<2.0 ; package-b requires a>=2.0  -> shared package = "a"
+    conflict = SimpleNamespace(
+        package="a",
+        left=SimpleNamespace(imposed_by="project"),
+        right=SimpleNamespace(imposed_by="package-b"),
+    )
+    diag = SimpleNamespace(missing=[], conflicts=[conflict])
+    names = _offending_root_names(diag)
+    assert "a" in names                 # the pin/shared root is dropped and retried
+    assert "package-b" not in names     # the imposing root must be KEPT
 
 
 # --------------------------------------------------------------------------- #
