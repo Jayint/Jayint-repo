@@ -1,7 +1,20 @@
 """Deterministic block-emit phase for v3 (design §5.1): compile the graph's emittable
 wave to blocks, run them, certify via host checks, and dual-write a minimal ActionLedger
 (the state-capture feed) alongside the typed EvidenceBundle. NO LLM. The v3 analog of
-emit_drain, but graph-compiled and free of build_agent."""
+emit_drain, but graph-compiled and free of build_agent.
+
+QUARANTINE (Phase 9): this module is the incremental-execution **ablation
+baseline**, NOT the canonical v3 method. The canonical executor is fresh
+full-script replay — ``orchestrator._binding_emit`` inside ``run_v3``, which
+renders the WHOLE certified graph to one install-only script, resets the
+container to base, and replays it every cycle (Model B). ``run_v3`` never
+imports or calls ``block_emit`` (grep-confirmed at Phase 9); it exists here
+only for (a) its own direct unit tests and (b) a future incremental-vs-replay
+ablation harness — a separate experiment, not part of the canonical claim.
+Do not wire this back into ``run_v3``; if you need incremental block-at-a-time
+execution today, that is ``run_v1``'s ``emit_drain``/``repair_failed_nodes``
+path (``src/envstate/depgraph_live.py``), which has the same quarantine
+status relative to ``run_v3``."""
 from __future__ import annotations
 
 from typing import Callable

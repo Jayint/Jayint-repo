@@ -3,8 +3,10 @@
 Phase 4 (fresh-replay-only run_v3): the emit under test is the ONLY executor
 (orchestrator._binding_emit — render whole graph -> reset_to_base ->
 run_install_script -> certify_reciped_only), not block_emit (removed from
-run_v3's _dep_emit_phase). Harness still mirrors tests/test_v3_block_emit_wiring.py
-(same fake style), but exercises reset_to_base/run_install_script instead of
+run_v3's _dep_emit_phase). Harness fake style originally mirrored
+tests/test_v3_block_emit_wiring.py (removed in Phase 9 — it existed solely
+to pin the now-deleted enable_script_materialization/enable_binding_install
+deprecation-raise), but exercises reset_to_base/run_install_script instead of
 monkeypatching block_emit.
 """
 import sys
@@ -28,7 +30,8 @@ from python_deps.depgraph.schema import (
 
 
 # ---------------------------------------------------------------------------
-# Fakes (mirrored from test_v3_block_emit_wiring.py with .client added)
+# Fakes (originally mirrored from the now-removed test_v3_block_emit_wiring.py,
+# with .client added)
 # ---------------------------------------------------------------------------
 
 class _FakeClient:
@@ -60,7 +63,8 @@ class _NoopMaintainer:
 
 
 def _syslib_map():
-    """A WorldModelMap with one MISSING SystemLib (same as in test_v3_block_emit_wiring)."""
+    """A WorldModelMap with one MISSING SystemLib (same fixture shape as the
+    now-removed test_v3_block_emit_wiring.py used)."""
     node = Node(
         id="syslib:libpq.so",
         type=NodeType.SYSTEM_LIB,

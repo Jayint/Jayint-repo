@@ -362,10 +362,8 @@ def run_v3(
     enable_dep_emit: bool = True,
     enable_runtime_feedback: bool = True,
     graph_scheduler_attempt_cap: int = 3,
-    enable_script_materialization: bool = True,  # deprecated no-op; run_v3 is fresh-replay-only (Phase 4)
     enable_gate_observability: bool = False,   # Stage 1 — observability only, byte-identical off
     gate_observer=None,                        # Callable[[tuple[GateResult, GateResult]], None] | None
-    enable_binding_install: bool = True,       # deprecated no-op; run_v3 is fresh-replay-only (Phase 4)
     reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base) — REQUIRED
     run_install_script=None,                   # Callable[[str], InstallResult] | None — REQUIRED
     repo_path: str | None = None,              # repo root — seeds RepoContext.local_names for
@@ -398,12 +396,11 @@ def run_v3(
     run_v3 is fresh-replay-only (Phase 4): every cycle's dep-emit renders the
     WHOLE certified graph to one install-only script, resets the container to
     base, and replays it (Model B). ``reset_to_base``/``run_install_script``
-    are therefore required, not optional. ``enable_script_materialization`` /
-    ``enable_binding_install`` are deprecated no-ops kept only for call-site
-    compatibility during the migration — passing ``False`` for either raises
-    (they select the old incremental/legacy branches, which no longer exist
-    in ``run_v3``; use ``run_v1`` or the ``block_emit``/``emit_drain``
-    ablation entry points for that behavior).
+    are therefore required, not optional — there is no other executor, and no
+    flag selects one (Phase 9 removed the vestigial ``enable_script_materialization``/
+    ``enable_binding_install`` deprecation flags; use ``run_v1`` or the
+    ``block_emit``/``emit_drain`` ablation entry points for incremental/legacy
+    execution).
 
     Every failure bundle is diagnosed (``python_deps.depgraph.diagnose``) BEFORE
     typed repair is attempted (Phase 6): a repo-internal reference or a residual
@@ -423,16 +420,6 @@ def run_v3(
         raise ValueError(
             "run_v3 is fresh-replay-only: reset_to_base and run_install_script are required "
             "(use the block_emit ablation or run_v1 for incremental/legacy execution)")
-    # enable_script_materialization / enable_binding_install no longer select a
-    # branch (there is only one executor) — they are deprecated flags kept for
-    # call-site compatibility. Passing False asks for behavior that no longer
-    # exists in run_v3, so fail loudly instead of silently running the
-    # canonical executor under a name that implies it was skipped.
-    if not enable_script_materialization or not enable_binding_install:
-        raise ValueError(
-            "enable_script_materialization=False / enable_binding_install=False are deprecated "
-            "no-ops: run_v3 is fresh-replay-only (removed entirely in a later phase); "
-            "use the block_emit ablation or run_v1 for incremental/legacy execution")
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0

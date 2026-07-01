@@ -9,8 +9,9 @@ Uses synthetic planner/build_agent/maintainer stubs (no Docker/LLM). Confirms:
     free-text fallback entirely (see tests/envstate/test_v3_task_branch.py
     for the full 3-way-dispatch coverage)
   - run_v1  -> the deterministic emit_drain runs as a prefix (Phase 4: run_v3
-    no longer has an emit_drain branch under any flag value — see
-    test_v3_block_emit_wiring.py for the deprecation-raise coverage)
+    has no emit_drain branch at all — it has exactly one executor, fresh
+    full-script replay; Phase 9 removed the vestigial deprecation-raise
+    flags/tests that used to pin this)
   - run_v3  -> a sufficiency-stuck run gives up (does not run to max_cycles)
 """
 from __future__ import annotations
@@ -198,10 +199,12 @@ def test_flag_on_scheduler_gives_up_without_client():
 # Spec: docs/superpowers/specs/2026-06-26-unified-executor-loop-delta.md §0
 #
 # Phase 4 (fresh-replay-only run_v3): the "emit_drain under the flag" half of
-# this test is gone — run_v3 no longer has an emit_drain branch under ANY
-# flag value (enable_script_materialization=False now raises; see
-# test_v3_block_emit_wiring.py::test_toggle_off_now_raises). Only the v1 half
-# survives, renamed to make the split explicit.
+# this test is gone — run_v3 has exactly one executor (fresh full-script
+# replay) and never had an emit_drain branch. Phase 9 removed the vestigial
+# enable_script_materialization/enable_binding_install deprecation-raise
+# flags (and tests/test_v3_block_emit_wiring.py, which existed solely to pin
+# that raise) entirely. Only the v1 half survives, renamed to make the split
+# explicit.
 
 def test_v1_drain_runs_as_prefix(monkeypatch):
     """emit_drain MUST run under run_v1's dep_emit phase (emit-prefix path).

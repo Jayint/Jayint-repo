@@ -135,7 +135,6 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
             probe=lambda: probe_env(sandbox.exec_readonly),
             manifest=manifest,
             exec_readonly=sandbox.exec_readonly,
-            enable_script_materialization=True,        # v3: graph -> setup.sh, host-certified
             reset_to_base=sandbox.reset_to_base,
             run_install_script=sandbox.run_install_script,
             enable_gate_observability=True,            # report both maturity gates on exit
