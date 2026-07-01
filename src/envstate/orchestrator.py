@@ -468,7 +468,20 @@ def run_v3(
             (CommandRecord(VERIFY_TEST_CMD, 0 if ok else 1, (out or "")[-2000:]),),
             "scheduler test probe",
         )
-        return _gate_passed(verify_report)
+        passed = _gate_passed(verify_report)
+        # Task 8 gap-fix: back-fill the LAST fresh-replay record with this
+        # test-gate result. `_binding_emit` (the sole run_v3 executor) always
+        # records test_rc=None/test_summary="" — the test gate is a SEPARATE
+        # call that runs later in the cycle (here), so without this the
+        # replay record's test fields could never reflect a real test run
+        # and `proof.canonical_success` would be permanently unreachable.
+        # Uses the VERIFIED gate result (`passed`), not the raw pytest rc —
+        # a hollow pass (e.g. zero tests collected) must still record test_rc=1.
+        # Under Model B every cycle replays before the scheduler calls this,
+        # so there is always a last replay to back-fill.
+        if tracer is not None:
+            tracer.set_last_replay_tests(0 if passed else 1, (out or "")[-500:])
+        return passed
 
     def _run_discover_gate(task, cycle: int) -> TaskReport:
         """Deterministic discover-task gate (Task 5b) — the sole executor for

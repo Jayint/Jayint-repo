@@ -88,11 +88,16 @@ def _pkg_map():
     return merge_map(base, dep_graph=DepGraph().with_node(node))
 
 
-def _run_v3_to_done_with_fake_sandbox():
+def _run_v3_to_done_with_fake_sandbox(tracer=None):
     """Fake sandbox that installs the one MISSING package node on the first
     replay and reports success from then on — the scheduler reaches "done" on
     cycle 1 (frontier empties + tests pass) with a real rc=0 InstallResult
-    already recorded as ``_last_replay_result``."""
+    already recorded as ``_last_replay_result``.
+
+    ``tracer`` (optional, Task 8 gap-fix regression test) — threaded straight
+    through to ``run_v3`` so a caller can snapshot it afterwards and inspect
+    the recorded ``FreshReplayRecord``s.
+    """
     state = {"installed": False}
 
     def sandbox_execute(cmd):
@@ -140,8 +145,39 @@ def _run_v3_to_done_with_fake_sandbox():
         run_install_script=run_install_script,
         enable_gate_observability=True,
         gate_observer=gate_observer,
+        tracer=tracer,
     )
     return SimpleNamespace(final_map=final_map, stop=stop, gates=captured["gates"])
+
+
+def test_test_rc_backfilled_makes_canonical_success_reachable():
+    """Task 8 test_rc back-fill gap-fix: before wiring ``_run_tests_verified``
+    to ``tracer.set_last_replay_tests``, ``trace.last_replay.test_rc`` was
+    ALWAYS None on every real run (the test gate is a separate call from the
+    fresh-replay executor that produces ``FreshReplayRecord``s), so
+    ``proof.canonical_success`` could never be True on a real trace. A clean
+    run to "done" (rc=0 replay, passing anti-hollow test gate) must now
+    back-fill the LAST replay's ``test_rc`` to 0, and ``canonical_success``
+    must be reachable end-to-end.
+    """
+    from python_deps.depgraph.build_script import render_build_script
+    from src.envstate.proof import canonical_success
+    from src.envstate.run_trace import RunTracer
+
+    tracer = RunTracer(repo="acme/widget")
+    result = _run_v3_to_done_with_fake_sandbox(tracer=tracer)
+    assert result.stop == "planner_done"
+
+    trace = tracer.snapshot(stop_reason=result.stop, gates=result.gates)
+
+    assert trace.last_replay is not None
+    assert trace.last_replay.setup_rc == 0
+    assert trace.last_replay.test_rc == 0
+
+    script_text = render_build_script(
+        result.final_map.dep_graph, getattr(result.final_map, "manual_blocks", ())
+    )
+    assert canonical_success(trace, script_text) is True
 
 
 def test_done_reports_binding_gate_not_provisional():
