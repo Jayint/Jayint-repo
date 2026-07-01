@@ -390,6 +390,81 @@ def test_native_risk_forked_lock_uses_target_python_version():
 
 
 # --------------------------------------------------------------------------- #
+# Task 7: marker evaluation must honor the TARGET, never the HOST running the
+# resolve (``resolve_lock._marker_env`` / ``TargetEnv``).
+# --------------------------------------------------------------------------- #
+def test_x86_gated_dep_kept_when_target_is_x86_even_on_arm_host():
+    from python_deps.depgraph.resolve_lock import _marker_applies, _marker_env
+    from python_deps.depgraph.target_env import TargetEnv
+
+    target = TargetEnv(
+        python_full="3.11.0",
+        python_version="3.11",
+        platform_machine="x86_64",
+        sys_platform="linux",
+        os_name="posix",
+        platform_system="Linux",
+        python_platform_tag="x86_64-manylinux_2_28",
+    )
+    assert _marker_applies("platform_machine == 'x86_64'", _marker_env(target)) is True
+    assert _marker_applies("sys_platform == 'win32'", _marker_env(target)) is False
+
+
+# A package forked across ``platform_machine`` (not just python version) — the
+# real leak vector: with only the two python keys, ``packaging`` fills
+# ``platform_machine`` from the HOST's ``default_environment()``, so the
+# outcome used to depend on which machine ran the resolve. Deterministic here
+# regardless of host proves the leak is closed.
+PLATFORM_FORKED_LOCK = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "onnxruntime" },
+]
+
+[[package]]
+name = "onnxruntime"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "arm-only-dep", marker = "platform_machine == 'aarch64'" },
+]
+wheels = [
+    { url = "https://x/onnxruntime-1.0.0-py3-none-any.whl", hash = "sha256:ort" },
+]
+
+[[package]]
+name = "arm-only-dep"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://x/arm_only_dep-2.0.0-py3-none-any.whl", hash = "sha256:arm" },
+]
+"""
+
+
+def test_parse_uv_lock_prunes_platform_gated_dep_for_x86_target():
+    nodes, _edges = parse_uv_lock(
+        PLATFORM_FORKED_LOCK, target_python="3.11", target_platform=LINUX_X86
+    )
+    names = {n.name for n in nodes}
+    assert "arm-only-dep" not in names
+    assert "onnxruntime" in names
+
+
+def test_parse_uv_lock_keeps_platform_gated_dep_for_arm_target():
+    nodes, _edges = parse_uv_lock(
+        PLATFORM_FORKED_LOCK, target_python="3.11", target_platform=LINUX_ARM
+    )
+    assert "arm-only-dep" in {n.name for n in nodes}
+
+
+# --------------------------------------------------------------------------- #
 # parse_resolver_error
 # --------------------------------------------------------------------------- #
 REGISTRY_MISS_STDERR = (
@@ -1409,9 +1484,19 @@ def test_resolve_closure_stamps_exclude_newer(tmp_path):
 def test_lock_command_quotes_caller_supplied_args():
     from python_deps.depgraph.resolve import _lock_command
 
-    cmd = _lock_command("/tmp/wd", "3.11", "2024-01-01")
+    cmd = _lock_command("/tmp/wd", "3.11", "2024-01-01", "x86_64-manylinux_2_28")
     assert "--python 3.11" in cmd
     assert "--exclude-newer 2024-01-01" in cmd
+
+
+def test_lock_command_carries_python_platform_flag():
+    # Task 7: without --python-platform, `uv lock` resolves for the HOST's
+    # platform tags, not the target container's -- this is what makes the
+    # resolve target-honest end to end.
+    from python_deps.depgraph.resolve import _lock_command
+
+    cmd = _lock_command("/tmp/wd", "3.11", None, "aarch64-manylinux_2_28")
+    assert "--python-platform aarch64-manylinux_2_28" in cmd
 
 
 def test_write_pyproject_rejects_bad_python_version(tmp_path):

@@ -24,6 +24,7 @@ from python_deps.depgraph.schema import (
     Node,
     NodeType,
 )
+from python_deps.depgraph.target_env import TargetEnv
 
 # Locked decision 1: the 'uv' binary, invoked (never imported) via the Executor.
 # Resolution happens HOST-side (cross-platform resolve needs no container
@@ -84,17 +85,46 @@ def _canon(name: str) -> str:
 # Forked-version resolution: pick the ONE package version applicable to the
 # target python when a uv.lock forks a dependency across python markers.
 # --------------------------------------------------------------------------- #
-def _python_marker_env(target_python: str) -> dict[str, str]:
-    """Marker-evaluation environment for ``target_python`` (e.g. ``"3.11"``).
+def _marker_env(target: TargetEnv) -> dict[str, str]:
+    """Marker-evaluation environment for ``target`` — ALL PEP 508 fields.
+
+    Delegates to :meth:`TargetEnv.marker_env`. Passing every field
+    ``packaging.markers`` may reference is what keeps ``Marker.evaluate()``
+    from falling back to its HOST-derived ``default_environment()`` for
+    ``sys_platform`` / ``platform_machine`` / ``os_name`` — the leak that let a
+    non-x86_64-linux dev host silently mis-evaluate platform-gated deps.
+    """
+    return target.marker_env()
+
+
+def _target_env_for(
+    target_python: str, target_platform: str | None = None
+) -> TargetEnv:
+    """Build a :class:`TargetEnv` from the (legacy) ``target_python`` /
+    ``target_platform`` strings this module's pure parsers take.
 
     ``python_version`` keeps two components (``3.11``); ``python_full_version``
     is padded to three (``3.11.0``) so ``python_full_version < '3.12'`` style
-    fork markers evaluate correctly.
+    fork markers evaluate correctly. The container this codebase resolves for
+    is always linux (see :data:`DEFAULT_TARGET_PLATFORM`), so ``sys_platform`` /
+    ``os_name`` / ``platform_system`` are fixed; only ``platform_machine`` varies,
+    taken from ``target_platform``'s arch token (default ``x86_64``) — NEVER
+    from the host running the resolve.
     """
     parts = [p for p in target_python.split(".") if p]
     version = ".".join(parts[:2]) if len(parts) >= 2 else target_python
     full = ".".join((parts + ["0", "0"])[:3]) if parts else target_python
-    return {"python_version": version, "python_full_version": full}
+    platform = target_platform or DEFAULT_TARGET_PLATFORM
+    machine = platform.split("-", 1)[0] if platform else "x86_64"
+    return TargetEnv(
+        python_full=full,
+        python_version=version,
+        platform_machine=machine,
+        sys_platform="linux",
+        os_name="posix",
+        platform_system="Linux",
+        python_platform_tag=platform,
+    )
 
 
 def _marker_applies(marker: str, env: dict[str, str]) -> bool | None:
@@ -149,19 +179,22 @@ def _entry_applies(pkg: dict, env: dict[str, str]) -> bool | None:
 def _select_applicable_packages(
     raw_packages: list[dict],
     target_python: str | None,
+    target_platform: str | None = None,
 ) -> list[dict]:
-    """Drop fork duplicates: keep one version per name for ``target_python``.
+    """Drop fork duplicates: keep one version per name for the TARGET.
 
     When a name appears once, it is kept as-is.  When it forks into multiple
-    versions, the version whose ``resolution-markers`` match ``target_python`` is
-    kept; ties / unknown markers fall back to the highest version so two versions
-    of one distribution are never emitted (which would break ``pip install``).
-    With no ``target_python`` the list is returned unchanged (legacy behavior).
+    versions, the version whose ``resolution-markers`` match the target
+    (python version AND platform — e.g. ``platform_machine == 'aarch64'``) is
+    kept; ties / unknown markers fall back to the highest version so two
+    versions of one distribution are never emitted (which would break ``pip
+    install``).  With no ``target_python`` the list is returned unchanged
+    (legacy behavior).
     """
     if target_python is None:
         return raw_packages
 
-    env = _python_marker_env(target_python)
+    env = _marker_env(_target_env_for(target_python, target_platform))
     by_canon: dict[str, list[dict]] = {}
     order: list[str] = []
     for pkg in raw_packages:
@@ -292,6 +325,7 @@ def _is_local_source(source: dict) -> bool:
 def parse_uv_lock(
     text: str,
     target_python: str | None = None,
+    target_platform: str | None = None,
 ) -> tuple[list[Node], list[Edge]]:
     """Parse a ``uv.lock`` into Package nodes + Package->Package requires edges.
 
@@ -300,15 +334,20 @@ def parse_uv_lock(
     skipped.  Each ``dependencies = [{name, marker?}]`` entry becomes a
     parent->child ``requires`` edge carrying the optional dependency ``marker``.
 
-    When ``target_python`` is given and the lock forks a package across python
-    ``resolution-markers`` (e.g. ``numpy`` 2.4.6 for ``<3.12`` and 2.5.0 for
-    ``>=3.12``), only the version applicable to ``target_python`` is emitted, so
-    the closure stays container-accurate and never hands two versions of one
-    distribution to ``pip install``.
+    When ``target_python`` is given and the lock forks a package across
+    ``resolution-markers`` (python version — e.g. ``numpy`` 2.4.6 for ``<3.12``
+    and 2.5.0 for ``>=3.12`` — OR platform, e.g. ``platform_machine ==
+    'aarch64'``), only the version applicable to the target is emitted, so the
+    closure stays container-accurate and never hands two versions of one
+    distribution to ``pip install``.  ``target_platform`` (e.g.
+    ``"aarch64-manylinux_2_28"``) supplies ``platform_machine`` for that
+    evaluation; without it every marker is evaluated against the TARGET
+    container's assumed facts (see :func:`_target_env_for`), never the HOST
+    running this parse.
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python
+        data.get("package", []), target_python, target_platform
     )
 
     nodes: list[Node] = []
@@ -370,7 +409,10 @@ def parse_uv_lock(
     # target is given, mirroring the fork-dedup above (legacy no-op without one).
     if target_python is not None:
         nodes, edges = _prune_to_applicable(
-            nodes, edges, seed_specs, _python_marker_env(target_python)
+            nodes,
+            edges,
+            seed_specs,
+            _marker_env(_target_env_for(target_python, target_platform)),
         )
     return nodes, edges
 
@@ -427,10 +469,12 @@ def native_risk_from_lock(
     ``target_python`` resolves fork duplicates the same way as
     :func:`parse_uv_lock` so the risk for a forked package reflects the version
     actually installed on the target (not whichever version appeared last).
+    ``target_platform`` also feeds that fork-selection's marker evaluation
+    (``platform_machine``), not just the later wheel-filename match below.
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python
+        data.get("package", []), target_python, target_platform
     )
     risk: dict[str, dict] = {}
     for pkg in raw_packages:
