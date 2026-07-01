@@ -770,7 +770,7 @@ def run_v3(
         try:
             from python_deps.depgraph.advise import render_depgraph_planner
             from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-            from python_deps.depgraph.runtime_classify import classify_observation
+            from python_deps.depgraph.diagnose import make_diagnostic_classifier, is_local_import
             events = ledger.events()
             new_events = events[_rt_mark:]
             obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
@@ -779,9 +779,15 @@ def run_v3(
             pre_graph = current_map.dep_graph
             _out_of_scope: list[tuple[str, str]] = []   # non-env diagnoses; Task 6 reads this
 
-            # Deterministic regex tier always runs; the temp-0 LLM tier is appended
-            # when a client exists (spec §6 cascade).
-            classifiers = (classify_observation,)
+            # Deterministic tier: route through the SAME diagnosis router used by
+            # ``_repair_or_route`` (Phase 6), not the raw ``classify_observation``
+            # regex classifier — otherwise a repo-local import surfaced by the
+            # discover gate (``VERIFY_TEST_CMD``) would be mis-ingested as a PyPI
+            # package here even though ``_repair_or_route`` would have refused to
+            # repair it (the local-import guard must hold on BOTH the install-
+            # failure/repair path and this discover-gate/ingest path). The temp-0
+            # LLM tier is appended when a client exists (spec §6 cascade).
+            classifiers = (make_diagnostic_classifier(_repo_ctx()),)
             if getattr(build_agent, "client", None) is not None:
                 from src.envstate.llm_classifier import make_llm_classifier
                 from src.envstate.llm_response import complete_with_retry
@@ -812,7 +818,23 @@ def run_v3(
                     _seen_errs.add(key)
                     return _llm(cmd, out)
 
-                classifiers = (classify_observation, _bounded_llm)
+                # The deterministic tier above already applies the local-import
+                # guard; the LLM tier bypasses ``diagnose()`` entirely (it is a
+                # free-text classifier), so it must be guarded independently here
+                # or a repo-local import that dodges the deterministic regexes
+                # could still be proposed as a package by the LLM.
+                _ctx = _repo_ctx()
+
+                def _guarded_llm(cmd, out):
+                    disc = _bounded_llm(cmd, out)
+                    if disc is None:
+                        return None
+                    imp = (disc.data or {}).get("import_name") or disc.name
+                    if is_local_import(imp, _ctx.local_names):
+                        return None
+                    return disc
+
+                classifiers = (make_diagnostic_classifier(_repo_ctx()), _guarded_llm)
 
             new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
             if tracer is not None:
