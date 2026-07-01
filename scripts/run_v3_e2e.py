@@ -8,9 +8,11 @@ This is the whole story in one driver:
   3. INNER LOOP  run_v3 executes the script block-by-block, the host certifies
                  each node, and on a failed block the V3BuildAgent proposes ONE
                  typed PatchProposal (gated by PatchGate, bounded by repair_loop).
-  4. INSTALL GATE  enable_binding_install resets the container to a clean base,
-                 runs the whole rendered setup.sh, and certifies reciped nodes
-                 (the fresh-replay installability proof).
+  4. INSTALL GATE  every cycle resets the container to a clean base and
+                 replays the whole rendered setup.sh (Model B — run_v3's sole
+                 executor, unconditional); the LATEST cycle's replay result is
+                 the binding installability proof (no separate terminal-replay
+                 step — see ``src.envstate.gates.evaluate_installability_gate``).
   5. TEST GATE   the done-gate runs real pytest; observability reports both gates.
   6. ARTIFACT    the final certified graph is rendered to setup.sh.
 
@@ -23,7 +25,6 @@ NOT run in CI — requires Docker + a real LLM API key
 Usage:
   python scripts/run_v3_e2e.py <repo_path> [--model <slug>]
          [--base-image python:3.11-slim] [--out setup.sh]
-         [--no-binding-install]   # ablate the fresh-replay install gate
 """
 from __future__ import annotations
 
@@ -38,12 +39,6 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     ap.add_argument("--model", default=None, help="LLM model slug")
     ap.add_argument("--base-image", default="python:3.11-slim", dest="base_image")
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
-    ap.add_argument(
-        "--no-binding-install",
-        action="store_false",
-        dest="binding_install",
-        help="Ablate the fresh-replay installability gate (inner loop only).",
-    )
     args = ap.parse_args()
 
     # repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
@@ -121,7 +116,6 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
             manifest=manifest,
             exec_readonly=sandbox.exec_readonly,
             enable_script_materialization=True,        # v3: graph -> setup.sh, host-certified
-            enable_binding_install=args.binding_install,  # fresh-replay installability gate
             reset_to_base=sandbox.reset_to_base,
             run_install_script=sandbox.run_install_script,
             enable_gate_observability=True,            # report both maturity gates on exit

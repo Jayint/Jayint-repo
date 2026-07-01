@@ -438,16 +438,27 @@ class _PassiveBuildAgent:
         return TaskReport("recipe", "blocked", (), "no commands ran")
 
 
-def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
-    """With graph-scheduler on and an already-satisfied graph + passing tests,
-    run_v3 terminates via the scheduler's done path (no contract-graph needed).
+def test_v3_graph_scheduler_giveup_replay_when_dep_graph_none_never_replayed(monkeypatch):
+    """Phase 7 (installability gate binding): with dep_graph=None, `_dep_emit_phase`
+    short-circuits before ever calling `_binding_emit` (`current_map.dep_graph is
+    None` guard, R3(c)) — so no fresh-from-base replay ever runs and
+    `_last_replay_result` stays None. Even though the scheduler's frontier is
+    trivially empty and tests pass (`next_decision` would say 'done'), run_v3 must
+    NOT report 'planner_done' on an environment that was never actually replayed
+    from base — there is no proof it builds. This closes the same hollow-success
+    hole as `test_v3_collect_only_does_not_finalize_as_done` below: a passing
+    scheduler decision alone is not sufficient, the binding replay proof is
+    required too.
 
-    Characterization smoke for the v3 arm: dep_graph=None (clean frontier),
-    sandbox_execute returns '1 passed' → _run_tests_verified returns True →
-    next_decision(None, run_tests=True) returns 'done' → stop == 'planner_done'.
+    Renamed from `test_v3_graph_scheduler_reaches_planner_done_on_clean_graph`
+    (pre-Phase-7 characterization, which asserted the opposite — 'planner_done' —
+    precisely because no replay was ever required for "done"; see
+    `test_v3_graph_scheduler_reaches_planner_done_with_real_replay` below for the
+    equivalent scenario WITH a real replay, which still reaches 'planner_done').
     """
     monkeypatch.setenv("DOCKERAGENT_ENABLE_SERVICE_PROVISION", "0")
-    # clean dep-graph (dep_graph=None → empty frontier) + tests pass → done
+    # clean dep-graph (dep_graph=None → empty frontier) + tests pass, but
+    # _dep_emit_phase never runs (no dep_graph) → no replay ever happens.
     world = _world_map_with_clean_dep_graph()
 
     def passing_exec(cmd):
@@ -456,6 +467,33 @@ def test_v3_graph_scheduler_reaches_planner_done_on_clean_graph(monkeypatch):
     final_map, stop = run_v3(
         _NoopBuildAgent(), _NoopMaintainer(),
         world, ActionLedger(), passing_exec, max_cycles=3,
+        enable_dep_emit=True, enable_runtime_feedback=True,
+        reset_to_base=_noop_reset_to_base, run_install_script=_noop_run_install_script,
+    )
+    assert stop == "planner_giveup"
+
+
+def test_v3_graph_scheduler_reaches_planner_done_with_real_replay(monkeypatch):
+    """Companion to the giveup case above: an EMPTY (but not None) dep_graph +
+    a real exec_readonly DOES drive `_dep_emit_phase` through `_binding_emit`
+    (reset_to_base + run_install_script), so `_last_replay_result` is a real
+    rc=0 InstallResult by the time the scheduler decides 'done' — the binding
+    replay guard (Phase 7) is satisfied and the run terminates 'planner_done'.
+    """
+    monkeypatch.setenv("DOCKERAGENT_ENABLE_SERVICE_PROVISION", "0")
+    from python_deps.depgraph.schema import DepGraph
+    world = merge_map(_base_map(), dep_graph=DepGraph())
+
+    def passing_exec(cmd):
+        return (True, "1 passed")
+
+    def noop_exec_readonly(cmd):
+        return (0, "")
+
+    final_map, stop = run_v3(
+        _NoopBuildAgent(), _NoopMaintainer(),
+        world, ActionLedger(), passing_exec, max_cycles=3,
+        exec_readonly=noop_exec_readonly,
         enable_dep_emit=True, enable_runtime_feedback=True,
         reset_to_base=_noop_reset_to_base, run_install_script=_noop_run_install_script,
     )

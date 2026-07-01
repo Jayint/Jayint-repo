@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import enum
 import os
-from typing import Any, Callable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
@@ -30,6 +30,9 @@ from src.envstate.world_model import (
     WorldModelMap,
     merge_map,
 )
+
+if TYPE_CHECKING:
+    from src.sandbox import InstallResult
 
 # Sentinel type aliases (readable names only, no runtime cost).
 Executor = Callable[[str], Tuple[bool, str]]
@@ -66,6 +69,10 @@ class TerminationReason(enum.Enum):
     GIVEUP_CONFIG   = "giveup_config"     # targeted obligation but no exec_readonly/client:
                                            # typed repair is impossible, and there is no
                                            # free-text fallback to silently downgrade to
+    GIVEUP_REPLAY   = "giveup_replay"     # scheduler decided "done" but the latest
+                                           # per-cycle replay (Model B's sole executor)
+                                           # did not reproduce from base (rc!=0) — a
+                                           # build that doesn't build is never "done"
     MAX_CYCLES      = "max_cycles"
 
 
@@ -76,6 +83,7 @@ _TERMINATION_TO_STOP_REASON: dict[TerminationReason, str] = {
     TerminationReason.GIVEUP_BUDGET:   "planner_giveup",
     TerminationReason.GIVEUP_STUCK:    "planner_giveup",
     TerminationReason.GIVEUP_CONFIG:   "planner_giveup",
+    TerminationReason.GIVEUP_REPLAY:   "planner_giveup",
     TerminationReason.MAX_CYCLES:      "max_cycles",
 }
 
@@ -426,6 +434,12 @@ def run_v3(
     _known_invalid: set[str] = set()
     _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
     MAX_REPAIRS_PER_BLOCK: int = 5
+    # Latest per-cycle fresh-replay InstallResult (Phase 7). Model B replays the
+    # WHOLE certified graph from base every cycle (no memoization), so this always
+    # reflects the current graph+manual_blocks — it IS the installability proof,
+    # not a proxy for it. Set by `_binding_emit` (the sole run_v3 executor);
+    # threaded into `evaluate_gates` and gates the "done" decision below.
+    _last_replay_result: "InstallResult | None" = None
 
     def _run_tests_verified() -> bool:
         """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
@@ -477,7 +491,13 @@ def run_v3(
         # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
         if enable_gate_observability:
             from src.envstate.gates import evaluate_gates
-            _g = evaluate_gates(current_map.dep_graph, _run_tests_verified)
+            # Phase 7: thread the latest per-cycle fresh-replay result so the
+            # installability gate is BINDING on the canonical path (Model B
+            # guarantees `_last_replay_result` is set by the time any `_finish`
+            # exit fires — every cycle replays before the scheduler decides).
+            _g = evaluate_gates(
+                current_map.dep_graph, _run_tests_verified, replay=_last_replay_result
+            )
             if gate_observer is not None:
                 gate_observer(_g)
         _stop = _to_stop_reason(reason)
@@ -493,8 +513,14 @@ def run_v3(
         ``run_structured_repair`` retry call through this SAME closure — one
         replay implementation, no duplicated render/reset/install logic.
 
+        Records the raw ``InstallResult`` into ``_last_replay_result`` (Phase 7)
+        before returning — this is the one place the executor actually runs
+        ``run_install_script``, so it is the right place to capture the binding
+        installability proof for ``evaluate_gates``/the "done" guard.
+
         Returns ``(graph, evidence_bundle_or_None, failed_node_id_or_None)``.
         """
+        nonlocal _last_replay_result
         from python_deps.depgraph.build_script import render_build_script
         from python_deps.depgraph.emit import _is_reciped
         from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
@@ -509,6 +535,7 @@ def run_v3(
         # the docker-build future work).
         reset_to_base()
         result = run_install_script(script)
+        _last_replay_result = result
         graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
         if result.rc != 0:
             _node = (localize_install_failure(script, result.failing_command).node_id
@@ -795,6 +822,24 @@ def run_v3(
                 return _finish(TerminationReason.GIVEUP_STUCK)
 
         if decision.action == "done":
+            # Phase 7: "done" is authoritative only if the latest per-cycle
+            # replay (Model B's sole executor) actually reproduced from base.
+            # Tests already run inside that same fresh-replayed container, so
+            # rc!=0 here should never coincide with a real "done" — this is a
+            # defensive assertion, not the normal path. Never report done on a
+            # build that didn't build.
+            if _last_replay_result is None or _last_replay_result.rc != 0:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "graph-scheduler: 'done' decided but the latest fresh replay "
+                    "did not reproduce from base (rc=%s, failing_command=%r) — "
+                    "giving up instead of reporting done",
+                    _last_replay_result.rc if _last_replay_result is not None else None,
+                    _last_replay_result.failing_command if _last_replay_result is not None else None,
+                )
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, None)
+                return _finish(TerminationReason.GIVEUP_REPLAY)
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
             return _finish(TerminationReason.DONE)
