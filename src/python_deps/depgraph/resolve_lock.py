@@ -100,16 +100,26 @@ def _marker_env(target: TargetEnv) -> dict[str, str]:
 def _target_env_for(
     target_python: str, target_platform: str | None = None
 ) -> TargetEnv:
-    """Build a :class:`TargetEnv` from the (legacy) ``target_python`` /
-    ``target_platform`` strings this module's pure parsers take.
+    """Build a :class:`TargetEnv` from BARE ``target_python`` / ``target_platform``
+    strings, for callers with no real :class:`TargetEnv` to pass (this module's
+    pure parsers are also unit-tested directly, string-only, in isolation).
 
     ``python_version`` keeps two components (``3.11``); ``python_full_version``
     is padded to three (``3.11.0``) so ``python_full_version < '3.12'`` style
     fork markers evaluate correctly. The container this codebase resolves for
     is always linux (see :data:`DEFAULT_TARGET_PLATFORM`), so ``sys_platform`` /
-    ``os_name`` / ``platform_system`` are fixed; only ``platform_machine`` varies,
-    taken from ``target_platform``'s arch token (default ``x86_64``) — NEVER
-    from the host running the resolve.
+    ``os_name`` / ``platform_system`` are fixed; ``platform_machine`` is taken
+    from ``target_platform``'s arch token (default ``x86_64``).
+
+    CAUTION: ``target_platform`` here is the NORMALIZED wheel/uv tag (e.g.
+    ``"aarch64-manylinux_2_28"``), so the ``platform_machine`` this recovers is
+    ALWAYS the canonical arch — it can never reproduce a raw, non-canonical
+    ``platform.machine()`` value (e.g. ``"arm64"``) a real container might
+    report. ``resolve_closure`` therefore never uses this reconstruction: it
+    always threads the actual detected/overridden :class:`TargetEnv` (see
+    :func:`_resolved_target_env`) so a marker like ``platform_machine ==
+    'arm64'`` is evaluated against the container's own RAW fact, not a
+    normalized stand-in.
     """
     parts = [p for p in target_python.split(".") if p]
     version = ".".join(parts[:2]) if len(parts) >= 2 else target_python
@@ -125,6 +135,28 @@ def _target_env_for(
         platform_system="Linux",
         python_platform_tag=platform,
     )
+
+
+def _resolved_target_env(
+    target_python: str,
+    target_platform: str | None,
+    target_env: TargetEnv | None,
+) -> TargetEnv:
+    """The :class:`TargetEnv` to marker-evaluate a fork/prune decision against.
+
+    Prefers an explicitly supplied ``target_env`` — the actual detected (or
+    caller-overridden) container facts ``resolve_closure`` always threads down
+    now, carrying the RAW ``platform_machine`` reported by the container.
+    Falls back to reconstructing one from the legacy ``target_python`` /
+    ``target_platform`` strings ONLY when no real ``target_env`` is available
+    (:func:`parse_uv_lock` / :func:`native_risk_from_lock` are also exercised
+    directly, string-only, by unit tests) — that reconstruction can only ever
+    recover the NORMALIZED arch token (see :func:`_target_env_for`'s caution),
+    so it must never be reached once a real ``target_env`` exists.
+    """
+    if target_env is not None:
+        return target_env
+    return _target_env_for(target_python, target_platform)
 
 
 def _marker_applies(marker: str, env: dict[str, str]) -> bool | None:
@@ -180,6 +212,7 @@ def _select_applicable_packages(
     raw_packages: list[dict],
     target_python: str | None,
     target_platform: str | None = None,
+    target_env: TargetEnv | None = None,
 ) -> list[dict]:
     """Drop fork duplicates: keep one version per name for the TARGET.
 
@@ -190,11 +223,16 @@ def _select_applicable_packages(
     versions of one distribution are never emitted (which would break ``pip
     install``).  With no ``target_python`` the list is returned unchanged
     (legacy behavior).
+
+    ``target_env``, when given, is the real container :class:`TargetEnv` and
+    is used AS-IS (RAW ``platform_machine``) for marker evaluation instead of
+    reconstructing one from ``target_platform`` — see
+    :func:`_resolved_target_env`.
     """
     if target_python is None:
         return raw_packages
 
-    env = _marker_env(_target_env_for(target_python, target_platform))
+    env = _marker_env(_resolved_target_env(target_python, target_platform, target_env))
     by_canon: dict[str, list[dict]] = {}
     order: list[str] = []
     for pkg in raw_packages:
@@ -326,6 +364,7 @@ def parse_uv_lock(
     text: str,
     target_python: str | None = None,
     target_platform: str | None = None,
+    target_env: TargetEnv | None = None,
 ) -> tuple[list[Node], list[Edge]]:
     """Parse a ``uv.lock`` into Package nodes + Package->Package requires edges.
 
@@ -339,15 +378,17 @@ def parse_uv_lock(
     and 2.5.0 for ``>=3.12`` — OR platform, e.g. ``platform_machine ==
     'aarch64'``), only the version applicable to the target is emitted, so the
     closure stays container-accurate and never hands two versions of one
-    distribution to ``pip install``.  ``target_platform`` (e.g.
-    ``"aarch64-manylinux_2_28"``) supplies ``platform_machine`` for that
-    evaluation; without it every marker is evaluated against the TARGET
-    container's assumed facts (see :func:`_target_env_for`), never the HOST
-    running this parse.
+    distribution to ``pip install``.  ``target_env`` (the real container
+    facts — RAW ``platform_machine``) is used for that evaluation when given;
+    ``target_platform`` (e.g. ``"aarch64-manylinux_2_28"``) is only a
+    fallback used to reconstruct a NORMALIZED-arch stand-in when no
+    ``target_env`` is available (see :func:`_resolved_target_env`). Without
+    either, every marker is evaluated against the TARGET container's assumed
+    default facts, never the HOST running this parse.
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python, target_platform
+        data.get("package", []), target_python, target_platform, target_env
     )
 
     nodes: list[Node] = []
@@ -412,7 +453,7 @@ def parse_uv_lock(
             nodes,
             edges,
             seed_specs,
-            _marker_env(_target_env_for(target_python, target_platform)),
+            _marker_env(_resolved_target_env(target_python, target_platform, target_env)),
         )
     return nodes, edges
 
@@ -459,22 +500,29 @@ def native_risk_from_lock(
     text: str,
     target_platform: str,
     target_python: str | None = None,
+    target_env: TargetEnv | None = None,
 ) -> dict[str, dict]:
     """Map ``package name -> {build_from_source, artifact, hash}`` from a lock.
 
     A package that ships an ``sdist`` but **no wheel matching
     ``target_platform``** must be built from source on the target.  The chosen
     artifact is the matching wheel when one exists, else the sdist.
+    ``target_platform`` here is always the NORMALIZED wheel/uv tag (e.g.
+    ``"aarch64-manylinux_2_28"``) — wheel filenames never carry a raw alias
+    like ``arm64``, so this wheel-filename match is unaffected by the
+    raw-vs-normalized distinction below.
 
     ``target_python`` resolves fork duplicates the same way as
     :func:`parse_uv_lock` so the risk for a forked package reflects the version
     actually installed on the target (not whichever version appeared last).
-    ``target_platform`` also feeds that fork-selection's marker evaluation
-    (``platform_machine``), not just the later wheel-filename match below.
+    That fork-selection's marker evaluation uses ``target_env`` (the real
+    container facts — RAW ``platform_machine``) when given, falling back to
+    reconstructing a NORMALIZED-arch stand-in from ``target_platform`` only
+    when no ``target_env`` is available (see :func:`_resolved_target_env`).
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
-        data.get("package", []), target_python, target_platform
+        data.get("package", []), target_python, target_platform, target_env
     )
     risk: dict[str, dict] = {}
     for pkg in raw_packages:

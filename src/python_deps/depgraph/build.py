@@ -221,9 +221,13 @@ def build_dep_graph(
     this function.  ``target_python`` / ``target_platform`` remain accepted as
     caller overrides that patch the detected env (a hardcoded python would pin
     wheels for the wrong interpreter; an unset default would leak the dev host's
-    own platform into the resolve).  See the module docstring for the staged
-    pipeline.  Returns the final immutable ``DepGraph``; certificates produced
-    here are provisional (scratch-container scope) per design section 4.6.
+    own platform into the resolve).  The detected/patched ``TargetEnv`` OBJECT is
+    passed straight into :func:`resolve_closure` (never decomposed into two
+    strings first) so its RAW ``platform_machine`` — not a normalized wheel-tag
+    stand-in — is what every marker evaluation downstream actually sees.  See
+    the module docstring for the staged pipeline.  Returns the final immutable
+    ``DepGraph``; certificates produced here are provisional (scratch-container
+    scope) per design section 4.6.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -246,6 +250,10 @@ def build_dep_graph(
     # target_python/target_platform (if given) patch the detected env rather
     # than skipping detection, so every other target-honest field (used by
     # marker evaluation in resolve_lock.py) still reflects the real container.
+    # The resulting `target_env` OBJECT (never decomposed into separate
+    # strings) is what gets passed to resolve_closure below, so its RAW
+    # `platform_machine` (e.g. a container reporting "arm64") reaches PEP 508
+    # marker evaluation instead of being lost to a normalized wheel-tag split.
     target_env = detect_target_env(container_executor)
     if target_python:
         target_env = replace(
@@ -260,7 +268,6 @@ def build_dep_graph(
             python_platform_tag=target_platform,
         )
     target_python = target_env.python_version
-    platform = target_env.python_platform_tag
 
     # Runtime-tier obligation: the container must run the targeted python minor.
     # Certified later by a host check (rc 0 iff sys.version_info matches); discovery
@@ -284,8 +291,7 @@ def build_dep_graph(
     pkg_nodes, pkg_edges = resolve_closure(
         roots,
         host_executor,
-        target_python=target_python,
-        target_platform=platform,
+        target_env=target_env,
         exclude_newer=exclude_newer,
     )
     pre_resolve_ids = {n.id for n in graph.nodes}

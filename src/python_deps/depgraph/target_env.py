@@ -73,7 +73,16 @@ class TargetEnv:
     One instance flows from ``detect_target_env`` (or a caller override) through
     ``resolve_closure`` into every marker evaluation and into the ``uv lock
     --python-platform`` flag, so a mismatched dev host never substitutes its own
-    platform for the container's.
+    platform for the container's. Concretely: ``build.py`` passes THIS OBJECT
+    (never two decomposed strings) into ``resolve_closure``, which threads it
+    into ``parse_uv_lock``/``native_risk_from_lock`` for marker evaluation via
+    :meth:`marker_env` — so a marker like ``platform_machine == 'arm64'`` sees
+    the container's own RAW ``platform.machine()``, while ``python_platform_tag``
+    (the NORMALIZED wheel tag) is what feeds ``--python-platform`` and wheel
+    matching.  Reconstructing a ``TargetEnv`` FROM those two strings after the
+    fact (as ``resolve_lock._target_env_for`` still does, for callers with no
+    real instance to pass) can only ever recover the normalized arch — never a
+    raw alias — which is exactly the bug this end-to-end threading closes.
     """
 
     python_full: str

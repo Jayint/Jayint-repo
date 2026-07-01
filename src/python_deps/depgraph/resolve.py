@@ -43,6 +43,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 from python_deps.depgraph.executor import Executor
+from python_deps.depgraph.target_env import TargetEnv
 
 # --------------------------------------------------------------------------- #
 # Re-exports from sub-modules (keep every previously-public name importable
@@ -186,8 +187,7 @@ def resolve_closure(
     roots: list[tuple[str | None, str]],
     host_executor: Executor,
     *,
-    target_python: str = "3.11",
-    target_platform: str | None = None,
+    target_env: TargetEnv,
     exclude_newer: str | None = None,
     project_dir: str | None = None,
 ) -> tuple[list[Node], list[Edge]]:
@@ -197,6 +197,16 @@ def resolve_closure(
     produced by ``roots.select_roots`` / ``naming.package_roots``); a ``None``
     import id is a manifest-declared root with no Import node to attach.
 
+    ``target_env`` is the single :class:`TargetEnv` (Task 7) the whole resolve
+    honors: ``target_env.python_version`` / ``target_env.python_platform_tag``
+    (the NORMALIZED wheel/uv tag) drive ``uv lock --python``/``--python-platform``
+    and the wheel-artifact match, while ``target_env`` ITSELF (carrying the RAW
+    ``platform.machine()`` the container reported) is threaded into
+    ``parse_uv_lock``/``native_risk_from_lock`` so every PEP 508 marker
+    evaluated against a forked/conditional lock entry sees the container's own
+    facts — never a normalized stand-in, and never the host running this
+    resolve.
+
     A throwaway uv project is created in a temp dir (or ``project_dir`` when
     injected, for tests), ``uv lock`` is run on the host through
     ``host_executor``, and the resulting ``uv.lock`` is parsed.  On lock failure
@@ -205,7 +215,8 @@ def resolve_closure(
     nodes with evidence.  If no lock can be produced at all, a degraded
     ``uv pip compile`` ``# via`` parse is used as a last resort.
     """
-    platform = target_platform or DEFAULT_TARGET_PLATFORM
+    target_python = target_env.python_version
+    platform = target_env.python_platform_tag
     if not roots:
         return [], []
 
@@ -228,10 +239,13 @@ def resolve_closure(
             if lock_text:
                 try:
                     nodes, edges = parse_uv_lock(
-                        lock_text, target_python, target_platform=platform
+                        lock_text,
+                        target_python,
+                        target_platform=platform,
+                        target_env=target_env,
                     )
                     risk = native_risk_from_lock(
-                        lock_text, platform, target_python
+                        lock_text, platform, target_python, target_env=target_env
                     )
                     nodes = [
                         _stamp(n, risk, target_python, platform, exclude_newer)

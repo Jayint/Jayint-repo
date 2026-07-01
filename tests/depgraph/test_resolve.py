@@ -32,6 +32,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
+from python_deps.depgraph.target_env import TargetEnv
 
 # --------------------------------------------------------------------------- #
 # Canned uv.lock fixtures.
@@ -113,6 +114,38 @@ wheels = [
 
 LINUX_X86 = "x86_64-manylinux_2_28"
 LINUX_ARM = "aarch64-manylinux_2_28"
+
+
+def _target_env(
+    platform_tag: str = DEFAULT_TARGET_PLATFORM,
+    python_version: str = "3.11",
+    *,
+    machine: str | None = None,
+) -> TargetEnv:
+    """Test TargetEnv builder: python_version + a NORMALIZED platform_tag ->
+    a full TargetEnv, with the linux/posix facts this codebase always targets.
+
+    ``machine`` defaults to the tag's own leading arch token, which is fine
+    for every test that only cares about canonical arches (LINUX_X86 /
+    LINUX_ARM / DEFAULT_TARGET_PLATFORM are already canonical). Tests proving
+    RAW != NORMALIZED (the Task 7 wiring bug) pass ``machine`` explicitly so
+    the built TargetEnv's ``platform_machine`` diverges from its
+    ``python_platform_tag``, exactly like a real container reporting a
+    non-canonical alias (e.g. ``"arm64"``) alongside a normalized wheel tag.
+    """
+    parts = [p for p in python_version.split(".") if p]
+    full = ".".join((parts + ["0", "0"])[:3]) if parts else python_version
+    version = ".".join(parts[:2]) if len(parts) >= 2 else python_version
+    arch = machine or (platform_tag.split("-", 1)[0] if platform_tag else "x86_64")
+    return TargetEnv(
+        python_full=full,
+        python_version=version,
+        platform_machine=arch,
+        sys_platform="linux",
+        os_name="posix",
+        platform_system="Linux",
+        python_platform_tag=platform_tag,
+    )
 
 
 def _node_by_name(nodes):
@@ -464,6 +497,82 @@ def test_parse_uv_lock_keeps_platform_gated_dep_for_arm_target():
     assert "arm-only-dep" in {n.name for n in nodes}
 
 
+# A dep gated on the RAW, non-canonical machine alias Docker Desktop's Apple
+# Silicon containers actually report (``platform.machine() == "arm64"``), never
+# the canonical ``"aarch64"`` wheel-tag arch. Real uv.lock markers only ever
+# reference canonical arches, but any PEP 508 ``platform_machine`` marker is
+# evaluated against whatever the container's ``platform.machine()`` literally
+# printed -- this proves that raw string, not a normalized stand-in, is what
+# reaches evaluation.
+RAW_MACHINE_FORKED_LOCK = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "onnxruntime" },
+]
+
+[[package]]
+name = "onnxruntime"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "arm64-only-dep", marker = "platform_machine == 'arm64'" },
+]
+wheels = [
+    { url = "https://x/onnxruntime-1.0.0-py3-none-any.whl", hash = "sha256:ort" },
+]
+
+[[package]]
+name = "arm64-only-dep"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://x/arm64_only_dep-2.0.0-py3-none-any.whl", hash = "sha256:arm64" },
+]
+"""
+
+
+def test_resolve_closure_keeps_raw_machine_gated_dep_for_arm64_container(tmp_path):
+    """END-TO-END regression (review Critical, Task 7): the wiring from
+    ``build.py`` through ``resolve_closure`` into marker evaluation must carry
+    the container's RAW ``platform_machine`` (e.g. Docker Desktop's Apple
+    Silicon containers report ``platform.machine() == "arm64"``), never the
+    NORMALIZED ``--python-platform`` wheel tag (``"aarch64-manylinux_2_28"``).
+
+    Before the fix, ``resolve_closure`` only accepted the two decomposed
+    strings (``target_python`` / the NORMALIZED ``target_platform`` tag) and
+    ``resolve_lock._target_env_for`` rebuilt ``platform_machine`` by splitting
+    that tag -- which can only ever recover the canonical arch (``"aarch64"``),
+    never the raw alias (``"arm64"``) a real container reports. A dep gated on
+    ``platform_machine == 'arm64'`` was therefore wrongly PRUNED even when the
+    real target machine literally was ``"arm64"``. Now the actual
+    :class:`TargetEnv` (carrying the RAW machine) is threaded straight through,
+    so the dep is correctly KEPT.
+    """
+    (tmp_path / "uv.lock").write_text(RAW_MACHINE_FORKED_LOCK)
+    ex = _lock_ok_executor()
+
+    target = _target_env(LINUX_ARM, machine="arm64")
+    assert target.platform_machine == "arm64"  # RAW, non-canonical
+    assert target.python_platform_tag == LINUX_ARM  # NORMALIZED -- deliberately differs
+
+    nodes, _edges = resolve_closure(
+        [(None, "onnxruntime")],
+        ex,
+        target_env=target,
+        project_dir=str(tmp_path),
+    )
+
+    names = {n.name for n in nodes}
+    assert "onnxruntime" in names
+    assert "arm64-only-dep" in names  # KEPT: marker evaluated against the RAW machine
+
+
 # --------------------------------------------------------------------------- #
 # parse_resolver_error
 # --------------------------------------------------------------------------- #
@@ -798,8 +907,7 @@ def test_resolve_closure_reads_lock_and_builds_graph(tmp_path):
     nodes, edges = resolve_closure(
         ROOTS,
         ex,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         project_dir=str(tmp_path),
     )
 
@@ -830,8 +938,7 @@ def test_resolve_closure_stamps_targeting_and_native_risk(tmp_path):
     nodes, _edges = resolve_closure(
         ROOTS,
         ex,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         project_dir=str(tmp_path),
     )
     by_name = _node_by_name(nodes)
@@ -853,7 +960,7 @@ def test_resolve_closure_default_platform_when_none(tmp_path):
     ex = _lock_ok_executor()
 
     nodes, _edges = resolve_closure(
-        ROOTS, ex, target_python="3.11", project_dir=str(tmp_path)
+        ROOTS, ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
     np = _node_by_name(nodes)["numpy"]
     assert np.resolved_platform == DEFAULT_TARGET_PLATFORM
@@ -861,7 +968,7 @@ def test_resolve_closure_default_platform_when_none(tmp_path):
 
 def test_resolve_closure_empty_roots_returns_empty():
     ex = _lock_ok_executor()
-    assert resolve_closure([], ex, target_python="3.11") == ([], [])
+    assert resolve_closure([], ex, target_env=_target_env()) == ([], [])
 
 
 # --------------------------------------------------------------------------- #
@@ -880,7 +987,7 @@ def test_resolve_closure_emits_conflict_edge_on_lock_failure(tmp_path):
     # Roots not implicated by the conflict -> no drop/retry, straight to diagnosis.
     roots = [("import:flask", "flask")]
     nodes, edges = resolve_closure(
-        roots, ex, target_python="3.11", project_dir=str(tmp_path)
+        roots, ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
 
     conflict_edges = [e for e in edges if e.relation is EdgeType.CONFLICTS_WITH]
@@ -906,7 +1013,7 @@ def test_resolve_closure_emits_missing_node_on_registry_miss(tmp_path):
     )
     roots = [(None, "nonexistent-pkg")]
     nodes, _edges = resolve_closure(
-        roots, ex, target_python="3.11", project_dir=str(tmp_path)
+        roots, ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
     by_name = _node_by_name(nodes)
     assert "nonexistent-pkg" in by_name
@@ -924,7 +1031,7 @@ def test_resolve_closure_emits_interpreter_node_on_python_incompat(tmp_path):
         }
     )
     nodes, edges = resolve_closure(
-        [(None, "shiny-lib")], ex, target_python="3.11", project_dir=str(tmp_path)
+        [(None, "shiny-lib")], ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
     by_name = _node_by_name(nodes)
     py = by_name.get("python")
@@ -1020,8 +1127,7 @@ def test_resolve_closure_per_root_resilience_drops_bad_root(tmp_path):
     nodes, edges = resolve_closure(
         roots,
         stub,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         project_dir=str(tmp_path),
     )
     by_name = _node_by_name(nodes)
@@ -1079,8 +1185,7 @@ def test_resolve_closure_drops_build_failing_root_not_collapse(tmp_path):
     nodes, _edges = resolve_closure(
         roots,
         stub,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         project_dir=str(tmp_path),
     )
     by_name = _node_by_name(nodes)
@@ -1120,7 +1225,7 @@ def test_resolve_closure_falls_back_to_pip_compile_when_no_lock(tmp_path):
     )
     roots = [("import:cv2", "opencv-python")]
     nodes, edges = resolve_closure(
-        roots, ex, target_python="3.11", project_dir=str(tmp_path)
+        roots, ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
 
     by_name = _node_by_name(nodes)
@@ -1365,7 +1470,7 @@ def test_resolve_closure_drops_all_roots_emits_only_diagnosis(tmp_path):
     nodes, edges = resolve_closure(
         [(None, "bada"), (None, "badb")],
         ex,
-        target_python="3.11",
+        target_env=_target_env(),
         project_dir=str(tmp_path),
     )
     by_name = _node_by_name(nodes)
@@ -1414,8 +1519,7 @@ def test_resolve_closure_drops_multiple_bad_roots_over_iterations(tmp_path):
     nodes, _edges = resolve_closure(
         roots,
         stub,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         project_dir=str(tmp_path),
     )
     by_name = _node_by_name(nodes)
@@ -1441,7 +1545,7 @@ def test_resolve_closure_self_conflict_emits_no_conflict_edge(tmp_path):
         }
     )
     _nodes, edges = resolve_closure(
-        [(None, "flask")], ex, target_python="3.11", project_dir=str(tmp_path)
+        [(None, "flask")], ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
     assert [e for e in edges if e.relation is EdgeType.CONFLICTS_WITH] == []
 
@@ -1456,7 +1560,7 @@ def test_resolve_closure_survives_corrupt_lock(tmp_path):
         responses={"uv lock": CommandResult("uv lock", 0, "", "")}
     )
     nodes, edges = resolve_closure(
-        [(None, "flask")], ex, target_python="3.11", project_dir=str(tmp_path)
+        [(None, "flask")], ex, target_env=_target_env(), project_dir=str(tmp_path)
     )
     assert (nodes, edges) == ([], [])  # no exception; degraded-empty result
 
@@ -1470,8 +1574,7 @@ def test_resolve_closure_stamps_exclude_newer(tmp_path):
     nodes, _edges = resolve_closure(
         ROOTS,
         ex,
-        target_python="3.11",
-        target_platform=LINUX_X86,
+        target_env=_target_env(LINUX_X86),
         exclude_newer="2024-01-01",
         project_dir=str(tmp_path),
     )
