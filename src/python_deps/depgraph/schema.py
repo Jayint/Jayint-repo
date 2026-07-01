@@ -286,12 +286,6 @@ class DepGraph:
         return replace(self, edges=self.edges + (edge,))
 
     def _validate_edge(self, edge: Edge) -> None:
-        rule = EDGE_RULES.get(edge.relation.value)
-        if rule is None:
-            # Unconstrained reserved relations (e.g. alternative_to) carry no
-            # type rule; conflicts_with IS constrained via EDGE_RULES above.
-            return
-        allowed_src, allowed_dst = rule
         src_node = self.get(edge.src)
         dst_node = self.get(edge.dst)
         if src_node is None or dst_node is None:
@@ -299,6 +293,12 @@ class DepGraph:
                 f"edge {edge.relation.value} references unknown node(s): "
                 f"{edge.src!r} -> {edge.dst!r}"
             )
+        rule = EDGE_RULES.get(edge.relation.value)
+        if rule is None:
+            # Reserved relations (e.g. alternative_to) carry no type rule, but
+            # endpoints must still exist.
+            return
+        allowed_src, allowed_dst = rule
         if src_node.type.value not in allowed_src:
             raise ValueError(
                 f"illegal {edge.relation.value} source type "

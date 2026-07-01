@@ -146,6 +146,15 @@ def test_edge_rules_reject_unknown_nodes():
         graph.with_edge(Edge(src="import:nope", dst="pkg:nope"))
 
 
+def test_alternative_to_edge_rejects_unknown_nodes():
+    # alternative_to is a reserved relation with no EDGE_RULES entry, but it
+    # must still reject dangling edges rather than returning early.
+    g = DepGraph()
+    with pytest.raises(ValueError):
+        g.with_edge(Edge(src="import:fake1", dst="import:fake2",
+                         relation=EdgeType.ALTERNATIVE_TO))
+
+
 def test_edge_rules_reject_illegal_destination():
     # Package is a legal `requires` source, but Test is NOT a legal destination
     # (Test ∉ allowed_dst). Exercises the dst-rejection branch specifically.
