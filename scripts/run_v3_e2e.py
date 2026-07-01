@@ -31,12 +31,37 @@ import argparse
 import os
 import sys
 
+# repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
+# resolves from root, `python_deps.*` resolves from src/.
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+for _p in (_root, os.path.join(_root, "src")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
+# ── module-level imports so tests can monkeypatch these names on the module ──
+from openai import OpenAI
+from httpx import Timeout
+from src.sandbox import Sandbox
+from src.envstate.orchestrator import run_v3
+from src.envstate.v3_build_agent import V3BuildAgent
+from src.envstate.deterministic_maintainer import DeterministicMaintainer
+from src.envstate.world_model import initial_map
+from src.envstate.ledger import ActionLedger
+from src.envstate.snapshot import probe_env
+from src.envstate.manifest import parse_manifests
+from src.envstate.llm_response import complete_with_retry
+from src.envstate.env_classifier import make_construction_classifier
+from src.envstate.base_image_selection import choose_base_image
+from python_deps.depgraph.advise import build_advisory_for_repo
+from python_deps.depgraph.build_script import render_build_script
+from python_deps.depgraph.schema import State
+
+
+def _parse_args(argv):
     ap = argparse.ArgumentParser(description="v3 (GSM) environment builder — end to end.")
     ap.add_argument("repo", help="Path to the target repository")
     ap.add_argument("--model", default=None, help="LLM model slug")
-    ap.add_argument("--base-image", default="python:3.11-slim", dest="base_image")
+    ap.add_argument("--base-image", default="auto", dest="base_image")
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
     ap.add_argument(
         "--no-binding-install",
@@ -44,32 +69,10 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
         dest="binding_install",
         help="Ablate the fresh-replay installability gate (inner loop only).",
     )
-    args = ap.parse_args()
+    return ap.parse_args(argv)
 
-    # repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
-    # resolves from root, `python_deps.*` resolves from src/.
-    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for _p in (_root, os.path.join(_root, "src")):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
 
-    # ── heavy imports inside main so module import stays light ────────────────
-    from openai import OpenAI
-    from httpx import Timeout
-    from src.sandbox import Sandbox
-    from src.envstate.orchestrator import run_v3
-    from src.envstate.v3_build_agent import V3BuildAgent
-    from src.envstate.deterministic_maintainer import DeterministicMaintainer
-    from src.envstate.world_model import initial_map
-    from src.envstate.ledger import ActionLedger
-    from src.envstate.snapshot import probe_env
-    from src.envstate.manifest import parse_manifests
-    from src.envstate.llm_response import complete_with_retry
-    from src.envstate.env_classifier import make_construction_classifier
-    from python_deps.depgraph.advise import build_advisory_for_repo
-    from python_deps.depgraph.build_script import render_build_script
-    from python_deps.depgraph.schema import State
-
+def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 1. LLM client (OAI-compatible; OpenRouter -> MiniMax -> OpenAI) ───────
     api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
                or os.getenv("OPENAI_API_KEY"))
@@ -89,11 +92,21 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     def _complete(messages) -> str:
         return complete_with_retry(client, model, messages, temperature=0)[0]
 
+    # ── 1.5 SELECT: pick + pin the base image (auto) or honor an explicit tag ─
+    choice = choose_base_image(
+        args.repo, client, model,
+        explicit=(None if args.base_image == "auto" else args.base_image),
+    )
+    print(f"[v3] base-image: {choice.image} (py {choice.minor}) — {choice.reason}")
+    base_image = choice.image
+
     # ── 2. BELIEF: build the dep-graph; the LLM classifier proposes typed nodes
     classify = make_construction_classifier(_complete)
     graph = None
     try:
-        _advisory, graph = build_advisory_for_repo(args.repo, args.base_image, classify=classify)
+        _advisory, graph = build_advisory_for_repo(
+            args.repo, base_image, target_python=choice.minor, classify=classify,
+        )
         n = sum(1 for _ in graph.nodes) if graph is not None else 0
         print(f"[v3] dep-graph: {n} nodes")
     except Exception as exc:  # graceful degradation — graph is advisory at construction
@@ -102,13 +115,14 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
 
     manifest = parse_manifests(args.repo)
     world_map = initial_map(
-        base_image=args.base_image, workdir="/app", language="unknown",
+        base_image=base_image, workdir="/app", language="unknown",
         build_system=manifest.build_system if manifest is not None else "unknown",
         repo_layout=(), dep_graph=graph,
     )
 
     # ── 3-5. Real container + the v3 loop ────────────────────────────────────
-    sandbox = Sandbox(base_image=args.base_image, workdir="/app", seed_dir=args.repo)
+    sandbox = Sandbox(base_image=base_image, workdir="/app",
+                       platform=choice.platform_override, seed_dir=args.repo)
     gates_seen: list = []
     try:
         final_map, stop = run_v3(
@@ -151,6 +165,15 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     ok = stop in ("done", "done_flag", "planner_done") and not unresolved
     print("V3 E2E:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
+
+
+def main_with_args(argv) -> int:
+    args = _parse_args(argv)
+    return _run(args)
+
+
+def main() -> int:
+    return main_with_args(sys.argv[1:])
 
 
 if __name__ == "__main__":
