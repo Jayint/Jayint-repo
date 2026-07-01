@@ -67,7 +67,7 @@ Phases below are numbered **in execution order** (v1's mismatch between headings
 | 4 | Make fresh replay the sole executor (drop block_emit + emit_drain from `run_v3`) | one execution strategy; graph = source of truth | — |
 | 5 | Single task-dispatch branch (gate-evidence / typed-repair / give-up) | no free-text mutation in `run_v3` | 3, 4 |
 | 6 | Unify repair entry + wire diagnosis routing through all sites | every repair is mode-routed identically | 3, 5 |
-| 7 | Collapse fork: block-emit in-loop + mandatory terminal fresh replay | one in-loop path; binding installability gate | 2, 4, 6 |
+| 7 | Installability gate binding from the per-cycle replay (no provisional path) | binding gate by construction | 4 |
 | 8 | Instrumentation + e2e proof harness | trace proves canonical path, no legacy | 1–7 |
 | 9 | Quarantine legacy into named baseline/ablation modules | codebase reads singular | 4, 5, 7, green benchmarks |
 
@@ -766,7 +766,7 @@ New test files: `test_manual_blocks_persist.py` (done), `test_diagnose_*` (done,
 
 **Spec/review coverage:** single-loop claim → Canonical Model + Phase 7 (arch MAJOR 1). Diagnosis-router ordering/scope → Phase 3 (companion Phase 1) + Phase 6 (companion Phase 2, all repair sites) (arch MAJOR 2/3, exec BLOCKER 3). `known_invalid` key-space conflict → Phase 3 reconciliation #3 (arch MAJOR 4). `manual_blocks` persistence signature → Phase 2 decided (arch MEDIUM 7, exec BLOCKER 2). Phase renumbering → the Phase↔Order map + Phase 9 last (exec BLOCKER 1). Silent-no-op flag → Phase 4 raises then Phase 9 removes (arch MEDIUM 5). Provisional→binding gate → Phase 7 required (arch MEDIUM 6, grounding nit). Phase 4/5 combined branch → Phase 5 literal 3-way (exec BLOCKER 4). Prose→pytest → every phase has real test code. E2e proof → Phase 8 (user request, full spec).
 
-**Placeholder scan:** signatures given for every new symbol (`WorldModelMap.manual_blocks`, `diagnose_all`, `_repair_or_route`, `RunTracer`/`RunTrace`/`FreshReplayRecord`, `verify_*`, terminal replay). Two spots intentionally reference existing code to copy rather than re-derive: the typed-repair block body (Phase 5a, `orchestrator.py:760-791` unchanged) and companion Tasks 1–3 (DRY — do not duplicate). `EvidenceBundle`'s command-record field names (`.cmd`/`.output`) must be confirmed on first touch in Phase 6 (noted inline).
+**Placeholder scan:** signatures given for every new symbol (`WorldModelMap.manual_blocks`, `diagnose_all`, `_repair_or_route`, hoisted `_binding_emit`, `RunTracer`/`RunTrace`/`FreshReplayRecord`, `verify_*`, per-cycle replay records). Two spots intentionally reference existing code to copy rather than re-derive: the typed-repair block body (Phase 5a, `orchestrator.py:760-791` unchanged) and companion Tasks 1–3 (DRY — do not duplicate). `EvidenceBundle`'s command-record field names (`.cmd`/`.output`) must be confirmed on first touch in Phase 6 (noted inline).
 
 **Type consistency:** `Block` fields (`block_id/wave/commands/target_node_ids/provider_ids/check_commands/evidence_refs`) match `patch_gate._script_patch_to_block`. `Discovery | None` is the ingest seam type throughout. `GateResult` gains a `replay=` param, not a new field. `make_action_event` keyword signature matches `ledger.py:24-49`. `RunTracer` mirrors `ActionLedger`'s append-only shape.
 
