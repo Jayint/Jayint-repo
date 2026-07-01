@@ -442,8 +442,8 @@ def _tool_check(tool: str) -> str:
     """Deterministic check_command for a toolchain need (design 4.4)."""
     if tool.endswith(".h"):
         return (
-            "python -c \"import sysconfig, pathlib; "
-            f"print(pathlib.Path(sysconfig.get_paths()['include'], '{tool}').exists())\""
+            "python -c \"import sysconfig, pathlib, sys; "
+            f"sys.exit(0 if pathlib.Path(sysconfig.get_paths()['include'], '{tool}').exists() else 1)\""
         )
     return f"command -v {tool}"
 

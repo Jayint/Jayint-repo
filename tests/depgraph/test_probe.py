@@ -7,8 +7,11 @@ host certifies the fix later (Task 8).
 
 from __future__ import annotations
 
+import subprocess
+import sys
+
 from python_deps.depgraph.ids import import_id, package_id, syslib_id, tool_id
-from python_deps.depgraph.probe import import_probe, install_closure
+from python_deps.depgraph.probe import _tool_check, import_probe, install_closure
 from python_deps.depgraph.schema import (
     DepGraph,
     DiscoveredBy,
@@ -273,6 +276,22 @@ def test_install_closure_unknown_tool_has_empty_fix(fake_executor, make_result_f
 
     assert out.get(tool_id("gcc")) is not None
     assert out.get(tool_id("cc")) is None  # not a false positive from "gcc"
+
+
+# --------------------------------------------------------------------------- #
+# _tool_check: header check must fail rc!=0 when the header is absent         #
+# --------------------------------------------------------------------------- #
+def test_header_check_exits_nonzero_when_absent():
+    cmd = _tool_check("definitely_absent_xyz.h")
+    # the check runs `python -c "..."`; run it on the host and confirm rc != 0
+    cmd = cmd.replace("python ", sys.executable + " ", 1)
+    rc = subprocess.run(cmd, shell=True).returncode
+    assert rc != 0, "absent header must NOT certify (was rc 0 via print())"
+
+
+def test_header_check_uses_sys_exit_not_print():
+    assert "sys.exit" in _tool_check("Python.h")
+    assert "print(" not in _tool_check("Python.h")
 
 
 # --------------------------------------------------------------------------- #
