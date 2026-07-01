@@ -240,6 +240,53 @@ def test_environment_bundle_invokes_typed_repair_with_replay_emit(monkeypatch):
     )
 
 
+def test_residual_bundle_skips_repair(monkeypatch):
+    """An AssertionError (residual, non-environment failure) must never spend
+    a repair turn: _repair_or_route must diagnose it Mode.RESIDUAL and return
+    the graph unchanged, WITHOUT ever calling build_agent.propose."""
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="pytest -q", lineno=None,
+            stderr="AssertionError: assert 1 == 2",
+        )
+
+    agent = _RecordingBuildAgent()
+    inputs = _base_inputs(agent, run_install_script)
+
+    orchestrator.run_v3(**inputs)
+
+    assert agent.propose_calls == 0, (
+        "propose was called for a residual AssertionError; the diagnosis "
+        "router must skip repair for Mode.RESIDUAL"
+    )
+
+
+def test_ambiguous_bundle_invokes_typed_repair(monkeypatch):
+    """An unclassifiable failure (maps to no package, not local, not a proven
+    invalid attempt) is diagnosed Mode.AMBIGUOUS, which — like ENVIRONMENT —
+    still routes through run_structured_repair (spending a propose turn to
+    disambiguate) rather than being silently dropped."""
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="some_cmd", lineno=None,
+            stderr="some totally unclassifiable gibberish output xyz123",
+        )
+
+    agent = _RecordingBuildAgent()
+    inputs = _base_inputs(agent, run_install_script)
+
+    orchestrator.run_v3(**inputs)
+
+    assert agent.propose_calls >= 1, (
+        "propose was never called for an unclassifiable (AMBIGUOUS) failure; "
+        "Mode.AMBIGUOUS must reach typed repair, same as Mode.ENVIRONMENT"
+    )
+
+
 def test_single_repair_call_site_and_no_block_emit_in_source():
     """Source-level pin: exactly one literal run_structured_repair( call
     site remains in run_v3 (inside _repair_or_route), and block_emit is not

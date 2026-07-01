@@ -787,6 +787,8 @@ New test files: `test_manual_blocks_persist.py` (done), `test_diagnose_*` (done,
 
 **Canonical Model — SETTLED (Model B, user-chosen 2026-07-01):** fresh full-script replay is the SOLE executor; `block_emit` is a named ablation; there is NO separate terminal replay (the per-cycle replay is the proof); installability is binding by construction. Executor mechanism = `reset_to_base + run_install_script` (option A); cached `docker build` (option B) is recorded as Future Work, not built. Phases 4–9 reflect Model B; Phases 1–3 were executor-independent and are already done.
 
+**Success-metric strictness (final fix wave, 2026-07-01):** `canonical_success` ⊋ loop stop_reason success; paper metric = canonical_success. Tightening `_finalize_if_replayed` to also require no-unsatisfied-reciped-nodes was considered and DEFERRED (check_commands can be unreliable per the construction-correctness audit — would make the loop hostage to check correctness and could lower pass rate on genuinely-fine runs).
+
 ---
 
 ## Execution Handoff

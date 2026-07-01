@@ -73,6 +73,13 @@ def canonical_success(trace: RunTrace, script_text: str) -> bool:
     """The strongest per-repo proof claim: done, on a green fresh replay, via
     the canonical loop only, with an artifact-complete script, and no host
     certifier left unsatisfied.
+
+    Intentionally stricter than the loop's own success signal: ``run_v3``'s
+    ``_finalize_if_replayed`` (orchestrator.py) gates a `done`/`planner_done`/
+    `done_flag` ``stop_reason`` on install rc0 alone, so a run can reach a
+    success ``stop_reason`` while still carrying an unsatisfied reciped node
+    (or a failing test) — ``canonical_success``, not ``stop_reason``, is the
+    paper/report success metric.
     """
     last = trace.last_replay
     return bool(

@@ -20,6 +20,7 @@ from src.envstate.contracts.graph import ContractGraph
 if TYPE_CHECKING:
     # Imported only for type-checking to avoid a runtime import cycle
     # (python_deps depends on nothing here; this stays a string annotation).
+    from python_deps.depgraph.block import Block
     from python_deps.depgraph.schema import DepGraph
 
 
@@ -101,7 +102,7 @@ class WorldModelMap:
     # Governed manual blocks (LLM-admitted ScriptPatches) carried in-process so the
     # FINAL rendered setup.sh includes them. Not serialized (map_to_dict/from_dict) —
     # consumed in-process only, same as dep_graph above.
-    manual_blocks: tuple = ()
+    manual_blocks: tuple["Block", ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +228,7 @@ def merge_map(
     host_satisfied: frozenset[str] | None = None,
     dep_advisory: str | None = None,
     dep_graph: "DepGraph | None" = None,
-    manual_blocks: tuple | None = None,
+    manual_blocks: "tuple[Block, ...] | None" = None,
 ) -> WorldModelMap:
     """Return a new WorldModelMap with only the supplied keyword fields replaced.
 

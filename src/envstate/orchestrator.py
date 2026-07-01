@@ -398,9 +398,10 @@ def run_v3(
     base, and replays it (Model B). ``reset_to_base``/``run_install_script``
     are therefore required, not optional — there is no other executor, and no
     flag selects one (Phase 9 removed the vestigial ``enable_script_materialization``/
-    ``enable_binding_install`` deprecation flags; use ``run_v1`` or the
-    ``block_emit``/``emit_drain`` ablation entry points for incremental/legacy
-    execution).
+    ``enable_binding_install`` deprecation flags; for incremental/legacy
+    execution, use ``run_v1`` (its real entry point is ``emit_drain``) or the
+    ``block_emit`` module — a quarantined ablation baseline, not a runnable
+    entry point; a full ablation loop is future work).
 
     Every failure bundle is diagnosed (``python_deps.depgraph.diagnose``) BEFORE
     typed repair is attempted (Phase 6): a repo-internal reference or a residual
@@ -535,6 +536,19 @@ def run_v3(
         environment from base. Any other exit reason (budget/residual/stuck/
         config giveups, max_cycles) is already a terminal failure and is NOT
         routed through this guard — only success reasons need downgrading.
+
+        IMPORTANT — this guard's success (a ``stop_reason`` of ``done`` /
+        ``planner_done`` / ``done_flag``) is a WEAKER signal than
+        ``src.envstate.proof.canonical_success``. This guard only checks that
+        the latest fresh replay's install rc was 0; ``canonical_success`` is
+        strictly stronger — it also requires the replay's ``test_rc == 0``,
+        no unsatisfied reciped nodes (a reciped node's ``check_command`` can
+        still fail even though the install script that produced it returned
+        rc0), no legacy-path usage, and an artifact-complete script. A run
+        can legitimately stop here with success (build rc0, tests pass)
+        while still carrying an unsatisfied reciped node — that is NOT a
+        bug in this guard; ``canonical_success`` is the paper/report
+        success metric, not this function's ``stop_reason``.
         """
         if _last_replay_result is None or _last_replay_result.rc != 0:
             import logging
@@ -738,6 +752,10 @@ def run_v3(
             # _failed_node is a NODE id (from certify/localize), not a block id; the
             # binding path has no block-keyed bundle, so seed target_hint so the repair
             # scope still resolves the unsatisfied node's requirement slice.
+            # Budget note: this call reseeds max_repairs=MAX_REPAIRS_PER_BLOCK for
+            # THIS node; combined with the task-branch call site below, a stubborn
+            # node can be charged up to ~2x MAX_REPAIRS attempts in a single cycle —
+            # the GLOBAL bound is still _repair_turns (checked as `_repair_turns <= 0`).
             graph = _repair_or_route(
                 graph, _failed_node, _bundle, cycle,
                 target_hint=_failed_node, cap_failed_id=True)
@@ -1009,6 +1027,11 @@ def run_v3(
             _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()
             _tid = _targets[0]
             _fb = next((b.block_id for b in _blocks if _tid in b.target_node_ids), None)
+            # Budget note (both branches below): each _repair_or_route call reseeds
+            # max_repairs=MAX_REPAIRS_PER_BLOCK per node, so a stubborn node routed
+            # through both this task-branch call and the main-loop call above can be
+            # charged up to ~2x MAX_REPAIRS attempts in a single cycle — the GLOBAL
+            # bound is still _repair_turns (checked as `_repair_turns <= 0`).
             if _fb is None:
                 # No manual block targets this node yet — nothing to pre-check;
                 # route the (empty) bundle through diagnosis and repair directly.
