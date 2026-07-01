@@ -115,6 +115,33 @@ def test_soft_syslib_edge_does_not_block_package_emission():
     assert "pkg:numpy" in {n.id for n in part.emittable}
 
 
+def test_wheel_not_blocked_by_build_tool_dep():
+    # A WHEEL (build_from_source=False) needs no compiler/headers at install time —
+    # a MISSING build-time Tool dep (e.g. libjpeg-dev) must NOT gate it. Only
+    # runtime SystemLib deps gate wheels (see test_wheel_package_waits_for_its_runtime_syslib).
+    pillow = _pkg("Pillow", version="10.3.0", bfs=False)
+    libjpeg_dev = _tool("libjpeg-dev", apt="libjpeg-dev")
+    g = DepGraph(
+        nodes=(pillow, libjpeg_dev),
+        edges=(Edge(src="pkg:Pillow", dst="tool:libjpeg-dev", relation=EdgeType.REQUIRES),),
+    )
+    part = partition(g)
+    assert "pkg:Pillow" in {n.id for n in part.emittable}
+
+
+def test_sdist_blocked_by_build_tool_dep():
+    # Same shape, but build_from_source=True: an sdist DOES need the compiler/
+    # headers to build, so a MISSING build-time Tool dep must gate it.
+    pillow = _pkg("Pillow", version="10.3.0", bfs=True)
+    libjpeg_dev = _tool("libjpeg-dev", apt="libjpeg-dev")
+    g = DepGraph(
+        nodes=(pillow, libjpeg_dev),
+        edges=(Edge(src="pkg:Pillow", dst="tool:libjpeg-dev", relation=EdgeType.REQUIRES),),
+    )
+    part = partition(g)
+    assert "pkg:Pillow" not in {n.id for n in part.emittable}
+
+
 def test_partition_demotes_repeatedly_failed_emit_to_frontier():
     # Fix #3: a resolved package that has failed to emit MAX_EMIT_ATTEMPTS times must
     # stop being emittable and escalate to the frontier (no infinite re-emit loop).
