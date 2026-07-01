@@ -24,22 +24,35 @@ NOT run in CI — requires Docker + a real LLM API key
 
 Usage:
   python scripts/run_v3_e2e.py <repo_path> [--model <slug>]
-         [--base-image python:3.11-slim] [--out setup.sh]
+         [--base-image python:3.11-slim] [--out setup.sh] [--trace-out trace.json]
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
 
-def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Pure argparse construction — no ``src.*``/``python_deps.*`` imports, so
+    this is importable/callable in a test process with no Docker or LLM key
+    (Task 8d smoke test: parses ``--trace-out`` without touching main()'s
+    heavy-import/Docker path).
+    """
     ap = argparse.ArgumentParser(description="v3 (GSM) environment builder — end to end.")
     ap.add_argument("repo", help="Path to the target repository")
     ap.add_argument("--model", default=None, help="LLM model slug")
     ap.add_argument("--base-image", default="python:3.11-slim", dest="base_image")
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
-    args = ap.parse_args()
+    ap.add_argument("--trace-out", default=None, dest="trace_out",
+                     help="Where to write the run's RunTrace JSON (Task 8 proof harness). "
+                          "Omitted -> no tracer is built and behavior is unchanged.")
+    return ap
+
+
+def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
+    args = _build_arg_parser().parse_args()
 
     # repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
     # resolves from root, `python_deps.*` resolves from src/.
@@ -64,6 +77,8 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     from python_deps.depgraph.advise import build_advisory_for_repo
     from python_deps.depgraph.build_script import render_build_script
     from python_deps.depgraph.schema import State
+    from src.envstate.run_trace import RunTracer
+    from src.envstate.proof import finalize_trace
 
     # ── 1. LLM client (OAI-compatible; OpenRouter -> MiniMax -> OpenAI) ───────
     api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
@@ -105,6 +120,11 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 3-5. Real container + the v3 loop ────────────────────────────────────
     sandbox = Sandbox(base_image=args.base_image, workdir="/app", seed_dir=args.repo)
     gates_seen: list = []
+    # Task 8d: only built when --trace-out is given — RunTracer only OBSERVES
+    # (see run_trace.py's module docstring), so passing tracer=None (the
+    # run_v3 default) when --trace-out is omitted keeps this driver's
+    # behavior byte-identical to before Task 8d.
+    tracer = RunTracer(repo=args.repo) if args.trace_out else None
     try:
         final_map, stop = run_v3(
             V3BuildAgent(client, model),
@@ -121,6 +141,7 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
             enable_gate_observability=True,            # report both maturity gates on exit
             gate_observer=gates_seen.append,
             repo_path=args.repo,                       # seeds the diagnosis router's RepoContext
+            tracer=tracer,
         )
     finally:
         try:
@@ -134,9 +155,11 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     dep_graph = getattr(final_map, "dep_graph", None)
     unresolved = ([n.id for n in dep_graph.nodes if n.state is State.MISSING]
                   if dep_graph is not None else [])
+    script_text = ""
     if dep_graph is not None:
+        script_text = render_build_script(dep_graph, getattr(final_map, "manual_blocks", ()))
         with open(args.out, "w") as fh:
-            fh.write(render_build_script(dep_graph, getattr(final_map, "manual_blocks", ())))
+            fh.write(script_text)
         print(f"[v3] wrote certified setup.sh -> {args.out}")
 
     if gates_seen:
@@ -145,6 +168,19 @@ def main() -> int:  # noqa: C901 — deliberately one all-in-one driver
     print(f"stop_reason={stop} unresolved={unresolved}")
     ok = stop in ("done", "done_flag", "planner_done") and not unresolved
     print("V3 E2E:", "PASS" if ok else "FAIL")
+
+    # ── Task 8d: emit the RunTrace + verify report (ADDITIVE — the PASS/FAIL
+    # logic above is unchanged; this only fires when --trace-out was given,
+    # since `tracer` is None otherwise and there is nothing to snapshot).
+    if tracer is not None:
+        trace, report = finalize_trace(tracer, stop, gates_seen, script_text)
+        with open(args.trace_out, "w") as fh:
+            json.dump(trace.to_dict(), fh, indent=2)
+        print(f"[v3] wrote run trace -> {args.trace_out}")
+        for key in ("canonical", "artifact", "local_import"):
+            errs = report[key]
+            print(f"[v3] verify_{key}: {'CLEAN' if not errs else errs}")
+
     return 0 if ok else 1
 
 
