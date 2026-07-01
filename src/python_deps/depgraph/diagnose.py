@@ -29,6 +29,12 @@ class Mode(enum.Enum):
 @dataclass(frozen=True)
 class RepoContext:
     local_names: frozenset[str] = field(default_factory=frozenset)
+    # PEP-503-normalized (see ``_norm``) disproven package names — callers must
+    # normalize before constructing (``diagnose`` compares both sides via
+    # ``_norm`` so ``Frobnicate_9000`` and ``frobnicate-9000`` are the same
+    # entry). Kept separate from ``repair_loop.known_invalid``, which is a
+    # heterogeneous key space of raw failed commands + node/block ids —
+    # mixing normalized package names into it would corrupt equality lookups.
     invalid_names: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -51,12 +57,14 @@ def is_local_import(import_name: str, local_names: frozenset[str]) -> bool:
     return import_name.split(".", 1)[0] in local_names
 
 
+def _norm(name: str) -> str:
+    """PEP-503-ish normalization so ``Frobnicate_9000`` == ``frobnicate-9000``."""
+    return (name or "").strip().lower().replace("_", "-")
+
+
 # An assertion / logic failure is a residual (non-environment) bug: the graph
 # cannot close it by adding a node. Conservative — anything else stays AMBIGUOUS.
 _RESIDUAL_RE = re.compile(r"\bAssertionError\b")
-
-# failure_type values the router treats as import-shaped (candidate packages).
-_IMPORT_FAILURE_TYPES = frozenset({"module_not_found", "import_name_error"})
 
 
 def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
@@ -75,9 +83,10 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
         return Diagnosis(Mode.INVALID_ATTEMPT, None,
                          f"pip found no matching distribution for {name!r}")
 
-    # Import failures split three ways: repo-local (out of scope), previously
-    # disproven (invalid), or a genuine external package requirement.
-    if dep.failure_type in _IMPORT_FAILURE_TYPES:
+    # ModuleNotFoundError is strong, unambiguous evidence: the exact top-level
+    # name failed to import. Repo-local (out of scope), previously disproven
+    # (invalid), or a genuine external package requirement.
+    if dep.failure_type == "module_not_found":
         import_name = dep.import_name or ""
         if is_local_import(import_name, ctx.local_names):
             return Diagnosis(Mode.REPO_INTERNAL_REF, None,
@@ -86,11 +95,38 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
         if disc is None:
             return Diagnosis(Mode.AMBIGUOUS, None,
                              f"import {import_name!r} had no package mapping")
-        if disc.name in ctx.invalid_names:
+        if _norm(disc.name) in ctx.invalid_names:
             return Diagnosis(Mode.INVALID_ATTEMPT, None,
                              f"package {disc.name!r} was previously disproven")
         return Diagnosis(Mode.ENVIRONMENT, disc,
                          f"external import {import_name!r} -> package requirement")
+
+    # ImportError "cannot import name X from Y" is weaker evidence than
+    # ModuleNotFoundError: Y may already be installed-but-outdated, mid a
+    # circular import, or Y may be a dotted submodule reference rather than a
+    # distribution name. classify_observation handles this byte-identically to
+    # module_not_found (guesses a package from Y's top-level segment even when
+    # Y is a nested submodule) — be conservative here: only trust that guess
+    # when the failed "from" target is *itself* the bare top-level name
+    # (no dotting occurred), i.e. classify_observation's resolved import_name
+    # equals the literal "from" target. Otherwise stay AMBIGUOUS rather than
+    # mint a bogus package node the traceback doesn't actually support.
+    if dep.failure_type == "import_name_error":
+        import_name = dep.import_name or ""
+        if is_local_import(import_name, ctx.local_names):
+            return Diagnosis(Mode.REPO_INTERNAL_REF, None,
+                             f"{import_name!r} resolves to a repo-local module")
+        failed_from = dep.details.get("module_name", import_name)
+        disc = classify_observation(command, text)
+        if disc is None or disc.data.get("import_name") != failed_from:
+            return Diagnosis(Mode.AMBIGUOUS, None,
+                             f"import_name_error for {failed_from!r} has no confirmed "
+                             "top-level package mapping — probe before repair")
+        if _norm(disc.name) in ctx.invalid_names:
+            return Diagnosis(Mode.INVALID_ATTEMPT, None,
+                             f"package {disc.name!r} was previously disproven")
+        return Diagnosis(Mode.ENVIRONMENT, disc,
+                         f"external import {failed_from!r} -> package requirement")
 
     # Native lib / service / config / tool: reuse the classifier verbatim.
     disc = classify_observation(command, text)
@@ -102,6 +138,17 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     if _RESIDUAL_RE.search(text):
         return Diagnosis(Mode.RESIDUAL, None, "assertion failure — non-environment residual")
     return Diagnosis(Mode.AMBIGUOUS, None, "unclassified failure — probe before repair")
+
+
+def diagnose_all(
+    observations: tuple[tuple[str, str], ...], ctx: RepoContext
+) -> tuple[Diagnosis, ...]:
+    """Batch form of :func:`diagnose` (Phase 6 orchestrator routing seam).
+
+    Pure; reads ``mode``/``reason`` without re-running classification per call
+    site. ``make_diagnostic_classifier`` remains the ingest-time seam.
+    """
+    return tuple(diagnose(cmd, out, ctx) for cmd, out in observations)
 
 
 def make_diagnostic_classifier(ctx: RepoContext) -> Callable[[str, str], Discovery | None]:
