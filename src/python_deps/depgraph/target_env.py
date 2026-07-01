@@ -24,16 +24,19 @@ from dataclasses import dataclass
 from python_deps.depgraph.executor import Executor
 
 # Single probe: version, os.name, sys.platform, machine, platform.system — one
-# process, one round trip into the container. Tries `python3` first and falls
-# back to `python` — some target images (e.g. slim bases) only ship the latter,
-# and silently defaulting the whole TargetEnv on a missing `python3` resolves
-# for the wrong interpreter/platform.
+# process, one round trip into the container. `python3` ONLY, no `python`
+# fallback: the rest of the construction/certification pipeline (build.py's
+# runtime check, runtime_classify.py's import checks, emit.py's install steps)
+# hard-codes `python3`, so a `python`-only image is not a supported target —
+# detecting it here would just defer the failure to `python3: not found` later
+# in the pipeline. Absent/unusable `python3` safely degrades to the default
+# TargetEnv below instead.
 _PROBE_BODY = (
     "import platform,sys,os; "
     "print(sys.version.split()[0], os.name, sys.platform, "
     "platform.machine(), platform.system())"
 )
-_PROBE_CMD = f'python3 -c "{_PROBE_BODY}" || python -c "{_PROBE_BODY}"'
+_PROBE_CMD = f'python3 -c "{_PROBE_BODY}"'
 _LIBC_PROBE_CMD = "ldd --version"
 
 # Defaults used both as the "never crash" fallback and as the base target this
@@ -154,11 +157,10 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         ".".join(version_parts[:2]) if len(version_parts) >= 2 else python_full
     )
 
-    # Reject Python 2 (the `python` fallback below may resolve to a legacy
-    # `python` == 2.7 interpreter on some images). A 2.x TargetEnv would make
-    # `uv lock --python 2.7` disagree with build.py's runtime node, which is
-    # always python3 — degrade to the known-good default instead of building
-    # a self-inconsistent graph.
+    # Reject Python 2 (some images alias `python3` to a legacy 2.x build). A
+    # 2.x TargetEnv would make `uv lock --python 2.7` disagree with build.py's
+    # runtime node, which is always python3 — degrade to the known-good
+    # default instead of building a self-inconsistent graph.
     major = version_parts[0]
     if not major.isdigit() or int(major) < 3:
         return _default_target_env()

@@ -137,54 +137,31 @@ def test_detect_target_env_never_crashes_on_executor_exception():
     assert t.os_name == "posix"
 
 
-# ── python3 -> python fallback (review P2, bug 1) ────────────────────────────
+# ── python3-only probe, no `python` fallback (review P2) ─────────────────────
 #
-# Some target images (e.g. slim bases) ship a working `python` but no
-# `python3`. The probe must try `python3` first and fall back to `python`,
-# not silently default the whole TargetEnv (wrong interpreter/platform).
+# The rest of the construction/certification pipeline (build.py's runtime
+# check, runtime_classify.py's import checks, emit.py's install steps)
+# hard-codes `python3`. A `python`-only image is not a supported target: a
+# `python` fallback here would let detection SUCCEED on an image the rest of
+# the pipeline cannot actually build (it would later fail with `python3: not
+# found`). So absent/unusable `python3` must degrade to the known-good
+# default TargetEnv, not probe a `python` shim.
 
 
-def test_probe_command_falls_back_to_python():
-    """The command detection sends to the executor tries `python3` first and
-    falls back to `python` in the same shell round trip (mirrors the existing
-    ``--python-platform`` string-presence style test)."""
-    ex = _FakeExecutor(
-        {
-            "import platform,sys,os": (
-                0,
-                "3.11.4 posix linux x86_64 Linux\n",
-                "",
-            ),
-            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
-        }
-    )
-    detect_target_env(ex)
+def test_python3_absent_degrades_to_default():
+    """No `python3` in the (simulated) image => the probe command is not-ok,
+    so detection degrades to the default TargetEnv rather than trying a
+    `python` fallback."""
+    ex = _FakeExecutor({})  # every command 127s — simulates python3 absent.
+    t = detect_target_env(ex)
+    assert t.python_version == "3.11"
+    assert t.python_full == "3.11.0"
+    assert t.platform_machine == "x86_64"
     assert ex.calls, "detect_target_env never invoked the executor"
     probe_cmd = ex.calls[0]
     assert probe_cmd.startswith("python3 -c")
-    assert " || python -c" in probe_cmd
-
-
-def test_probe_falls_back_to_python_when_python3_absent(monkeypatch, tmp_path):
-    """Real shell-level fallback: PATH has no ``python3`` at all, only a
-    ``python`` shim. If the ``||`` fallback did not fire, ``detect_target_env``
-    would silently return the hardcoded default TargetEnv instead of these
-    (deliberately distinctive) probed facts."""
-    from python_deps.depgraph.executor import LocalSubprocessExecutor
-
-    shim = tmp_path / "python"
-    shim.write_text("#!/bin/sh\necho '9.9.9 posix testplatform arm64 TestSystem'\n")
-    shim.chmod(0o755)
-    monkeypatch.setenv("PATH", str(tmp_path))
-
-    t = detect_target_env(LocalSubprocessExecutor())
-    assert t.python_full == "9.9.9"
-    assert t.sys_platform == "testplatform"
-    assert t.platform_system == "TestSystem"
-    # platform_machine stays RAW (markers compare verbatim); only the
-    # wheel/uv tag is alias-normalized, and only on the fallback path too.
-    assert t.platform_machine == "arm64"
-    assert t.python_platform_tag.startswith("aarch64-")
+    assert " || " not in probe_cmd
+    assert "python -c" not in probe_cmd
 
 
 # ── machine-alias normalization: tag-only, NOT the marker value (review P2 fix) ─
@@ -248,16 +225,16 @@ def test_machine_x86_64_probe_raw_and_tag_both_x86_64():
     assert t.python_platform_tag.startswith("x86_64-")
 
 
-# ── Python-2 fallback rejection (review P2, bug 2) ───────────────────────────
+# ── Python-2 rejection (review P2, bug 2) ────────────────────────────────────
 #
-# The `python3 -> python` shell fallback exists so images shipping only a
-# Python-3 `python` are still detected. But a legacy `python` == 2.7 must NOT
-# be accepted: it would make `uv lock --python 2.7` disagree with build.py's
+# Some images alias `python3` to a legacy 2.x interpreter. That must NOT be
+# accepted: it would make `uv lock --python 2.7` disagree with build.py's
 # runtime node (always python3), a self-inconsistent graph. Degrade to the
-# known-good default instead.
+# known-good default instead — this is input validation on the probe output,
+# independent of the (now-removed) `python` fallback.
 
 
-def test_python2_probe_falls_back_to_default():
+def test_python2_probe_degrades_to_default():
     ex = _FakeExecutor(
         {
             "import platform,sys,os": (
