@@ -1,5 +1,13 @@
-"""Tests: obligation tasks route through run_structured_repair (typed path);
-discover tasks stay on build_agent.run (free-text path).
+"""Tests: run_v3's task-dispatch branch is a single consolidated 3-way split
+(Task 5a) — there is NO free-text mutation left in run_v3:
+
+  - obligation tasks (target_node_ids set)   -> typed repair (run_structured_repair,
+    emit=_binding_emit replay) when exec_readonly+client are both present, else an
+    explicit GIVEUP_CONFIG give-up ("planner_giveup") — never build_agent.run.
+  - discover tasks (target_node_ids empty)   -> the deterministic VERIFY_TEST_CMD
+    gate (_run_discover_gate, Task 5b): one ledger event as evidence, no LLM call,
+    bounded by the existing _sched_stuck counter (Task 5c) rather than the
+    LLM-repair budget.
 
 Phase 4 (fresh-replay-only run_v3): enable_script_materialization=False is a
 deprecated no-op-or-raise flag now — the B3 ablation (obligation task on the
@@ -96,7 +104,7 @@ def _obligation_task() -> Task:
 
 
 def _discover_task() -> Task:
-    """Task with no target_node_ids — stays on the free-text build_agent.run path."""
+    """Task with no target_node_ids — routes through the deterministic discover gate."""
     return Task(
         goal="discover missing runtime deps",
         done_when="pytest --collect-only -q --disable-warnings",
@@ -164,6 +172,12 @@ class _FixtureBundle:
         self._mp = monkeypatch
         self.run_calls: int = 0
         self.repair_calls: int = 0
+        self.final_map = None
+        self.stop_reason: str | None = None
+
+    def events(self):
+        """The ActionLedger events recorded during .run() (identity, not a copy)."""
+        return self._inputs["ledger"].events()
 
     def run(self) -> None:
         _repair_ref: dict[str, int] = {"n": 0}
@@ -192,7 +206,7 @@ class _FixtureBundle:
         self._mp.setattr(orch, "run_structured_repair", _fake_repair)
 
         # ── run ───────────────────────────────────────────────────────────────
-        orchestrator.run_v3(**self._inputs)
+        self.final_map, self.stop_reason = orchestrator.run_v3(**self._inputs)
 
         self.run_calls = self._inputs["build_agent"].run_calls
         self.repair_calls = _repair_ref["n"]
@@ -234,11 +248,24 @@ def test_obligation_task_uses_propose_not_run(_v3_task_fixture):
     )
 
 
-def test_discover_task_uses_run(_v3_discover_fixture):
-    """Discover task (no target_node_ids) must use the free-text build_agent.run path."""
+def test_discover_task_runs_gate_not_agent(_v3_discover_fixture):
+    """Discover task (no target_node_ids) must run the deterministic VERIFY_TEST_CMD
+    gate (Task 5b) — NOT build_agent.run (free text) and NOT run_structured_repair
+    (typed repair). This is the Task 5a/5b replacement for the old free-text
+    ``test_discover_task_uses_run``.
+    """
     _v3_discover_fixture.run()
-    assert _v3_discover_fixture.run_calls >= 1, (
-        "build_agent.run was never called; discover task must stay on free-text path"
+    assert _v3_discover_fixture.run_calls == 0, (
+        "build_agent.run was called for a discover task; run_v3 has no free-text "
+        "mutation path left (Task 5a)"
+    )
+    assert _v3_discover_fixture.repair_calls == 0, (
+        "run_structured_repair was called for a discover task (no target_node_ids)"
+    )
+    events = _v3_discover_fixture.events()
+    assert any(e.cmd == orchestrator.VERIFY_TEST_CMD for e in events), (
+        "the discover gate must append a VERIFY_TEST_CMD ledger event as evidence "
+        "for the next cycle's _runtime_ingest_phase"
     )
 
 
@@ -253,12 +280,15 @@ def test_b3_ablation_now_raises():
         orchestrator.run_v3(**inputs, enable_script_materialization=False)
 
 
-def test_obligation_task_without_exec_readonly_falls_to_freetext(monkeypatch):
+def test_obligation_task_without_exec_readonly_gives_up(monkeypatch):
     """Obligation task with exec_readonly=None must NOT enter the typed-repair
-    path (which would crash at certify_refresh). Instead it must fall through
-    to build_agent.run (free-text path).
+    path (which would crash at certify_refresh) and must NOT silently downgrade
+    to free-text mutation (build_agent.run — removed from run_v3 by Task 5a).
+    It gives up honestly via GIVEUP_CONFIG -> 'planner_giveup'.
 
-    Regression guard for I-1: missing ``exec_readonly is not None`` guard.
+    Regression guard for I-1 (missing ``exec_readonly is not None`` guard),
+    rewritten for Task 5a's explicit 3-way dispatch: there is no free-text
+    fallback left to fall through to.
     """
     inputs = _make_run_v3_inputs(task=_obligation_task())
     # Override exec_readonly to None to reproduce the crash scenario
@@ -267,11 +297,36 @@ def test_obligation_task_without_exec_readonly_falls_to_freetext(monkeypatch):
     bundle = _FixtureBundle(inputs, _obligation_task(), monkeypatch)
     bundle.run()
 
+    assert bundle.stop_reason == "planner_giveup"
     assert bundle.repair_calls == 0, (
         "run_structured_repair was called with exec_readonly=None; "
         "this would crash at certify_refresh(graph, None, cycle)"
     )
-    assert bundle.run_calls >= 1, (
-        "build_agent.run was never called; obligation task with exec_readonly=None "
-        "must fall through to the free-text path"
+    assert bundle.run_calls == 0, (
+        "build_agent.run was called; the give-up path must not fall back to "
+        "free-text mutation (run_v3 has no free-text path left)"
     )
+
+
+def test_no_free_text_build_agent_run_in_run_v3_source():
+    """Source-level pin (belt-and-suspenders on top of the behavioral tests
+    above): run_v3's body must not contain a ``build_agent.run(`` call site.
+    """
+    import inspect
+    src = inspect.getsource(orchestrator.run_v3)
+    assert "build_agent.run(" not in src
+
+
+def test_block_emit_absent_from_run_v3_source():
+    """Task 5a/5b: block_emit is fully gone as an EXECUTABLE code path in
+    run_v3 — the task branch's typed-repair emit is now the SAME hoisted
+    replay closure (_binding_emit) that _dep_emit_phase uses. block_emit
+    remains a standalone, directly-unit-tested module for run_v1 / a future
+    ablation entry point (Phase 9); run_v3's docstring still names it
+    (pointing callers at that ablation), so this checks for the actual
+    import/call sites rather than any mention of the string.
+    """
+    import inspect
+    src = inspect.getsource(orchestrator.run_v3)
+    assert "import block_emit" not in src
+    assert "block_emit(" not in src

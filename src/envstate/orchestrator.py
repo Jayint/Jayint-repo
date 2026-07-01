@@ -19,7 +19,7 @@ from typing import Any, Callable, Tuple
 
 from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
-from src.envstate.ledger import ActionLedger
+from src.envstate.ledger import ActionLedger, make_action_event
 from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
 from src.envstate.repair_loop import run_structured_repair
 from src.envstate.world_model import (
@@ -68,6 +68,9 @@ class TerminationReason(enum.Enum):
     GIVEUP_RESIDUAL = "giveup_residual"   # LLM giveup or runtime divergence
     GIVEUP_BUDGET   = "giveup_budget"     # LLM repair turns exhausted
     GIVEUP_STUCK    = "giveup_stuck"      # no new graph obligations (discover rounds)
+    GIVEUP_CONFIG   = "giveup_config"     # targeted obligation but no exec_readonly/client:
+                                           # typed repair is impossible, and there is no
+                                           # free-text fallback to silently downgrade to
     MAX_CYCLES      = "max_cycles"
 
 
@@ -77,6 +80,7 @@ _TERMINATION_TO_STOP_REASON: dict[TerminationReason, str] = {
     TerminationReason.GIVEUP_RESIDUAL: "planner_giveup",
     TerminationReason.GIVEUP_BUDGET:   "planner_giveup",
     TerminationReason.GIVEUP_STUCK:    "planner_giveup",
+    TerminationReason.GIVEUP_CONFIG:   "planner_giveup",
     TerminationReason.MAX_CYCLES:      "max_cycles",
 }
 
@@ -436,6 +440,35 @@ def run_v3(
         )
         return _gate_passed(verify_report)
 
+    def _run_discover_gate(task, cycle: int) -> TaskReport:
+        """Deterministic discover-task gate (Task 5b) — the sole executor for
+        empty-``target_node_ids`` tasks. Runs exactly ``VERIFY_TEST_CMD`` (no
+        LLM, no free-text mutation) and appends ONE ledger event as evidence.
+
+        ``done_when`` must be the canonical gate; discover tasks are built with
+        ``done_when=VERIFY_TEST_CMD`` (``graph_scheduler._discover_task``), so
+        normalize defensively here rather than trusting a possibly-divergent
+        ``task.done_when``.
+
+        Does NOT ingest this cycle's ledger event — that happens at the TOP of
+        the NEXT cycle's ``_runtime_ingest_phase`` (existing seam, keyed off
+        ``_rt_mark``). Under Model B this runs against the fresh post-replay
+        container automatically: the sandbox is one container object that
+        ``_dep_emit_phase`` already ``reset_to_base``'d and replayed at the
+        top of THIS cycle, so no separate replay is needed here.
+        """
+        cmd = VERIFY_TEST_CMD
+        ok, out = sandbox_execute(cmd)
+        ledger.append(make_action_event(
+            step=global_step, cmd=cmd, success=ok, stdout=(out or ""),
+            env_revision_before=global_step, env_revision_after=global_step,  # discover mutates nothing
+            mutation_class=None, container_id=getattr(build_agent, "container_id", ""),
+        ))
+        return TaskReport(
+            task.goal, "done" if ok else "blocked",
+            (CommandRecord(cmd, 0 if ok else 1, (out or "")[-2000:]),),
+            "deterministic discover gate")
+
     def _finish(reason):
         # Stage 1 two-gate observability: fires once on the way out (any exit path).
         # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
@@ -716,10 +749,12 @@ def run_v3(
         )
         task = decision.task
         _targets = getattr(task, "target_node_ids", ()) or ()
-        if (_targets and enable_script_materialization
-                and exec_readonly is not None
-                and getattr(build_agent, "client", None) is not None):
-            from src.envstate.block_emit import block_emit
+        if _targets:
+            if exec_readonly is None or getattr(build_agent, "client", None) is None:
+                # Canonical v3 cannot do typed repair without a read-only executor +
+                # client. Do NOT silently downgrade to free-text mutation (that path
+                # no longer exists in run_v3) — give up honestly instead.
+                return _finish(TerminationReason.GIVEUP_CONFIG)
             from python_deps.depgraph.patch_gate import compose_script
             from python_deps.depgraph.evidence_log import EvidenceBundle
             _g = current_map.dep_graph
@@ -727,8 +762,10 @@ def run_v3(
             _tid = _targets[0]
             _fb = next((b.block_id for b in _blocks if _tid in b.target_node_ids), None)
             _propose = lambda s, **k: build_agent.propose(s, exec_readonly, **k)
-            _emit = lambda g, mb: block_emit(g, sandbox_execute, exec_readonly,
-                                             ledger, cycle, manual_blocks=mb)
+            # Replay emit (Model B): the SAME hoisted closure _dep_emit_phase uses,
+            # so every repair retry is a real fresh full-script replay — no
+            # block_emit/incremental path remains in run_v3 (Phase 5).
+            _emit = lambda g, mb: _binding_emit(g, mb, cycle)
             if _fb is None:
                 _out = run_structured_repair(
                     _g, _tid, EvidenceBundle(), cycle, target_hint=_tid,
@@ -752,10 +789,12 @@ def run_v3(
             current_map = merge_map(current_map, dep_graph=_g, manual_blocks=_manual_blocks)
             report = TaskReport(task.goal, "done", (), "structured-repair task")
         else:
-            report = build_agent.run(
-                task, sandbox_execute, ledger, step_offset=global_step,
-                check=task.done_when, budget=SCHEDULER_TASK_BUDGET)
-            _repair_turns -= 1          # free-text path: one LLM unit (typed path already charged)
+            # Discover task (empty target_node_ids): run the deterministic gate and
+            # record ledger evidence; the NEXT cycle's _runtime_ingest_phase turns a
+            # failure into typed obligations. No LLM call here, so _repair_turns is
+            # untouched — the discover path is bounded by _sched_stuck (Task 5c), not
+            # the LLM-repair budget.
+            report = _run_discover_gate(task, cycle)
         if _budget_exhausted or _repair_turns <= 0:
             return _finish(TerminationReason.GIVEUP_BUDGET)
         # Scheduler mode: a passing host check can return zero commands; floor the

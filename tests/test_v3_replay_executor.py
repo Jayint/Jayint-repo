@@ -12,9 +12,17 @@ replay from base (Model B). Confirms the collapsed `_dep_emit_phase` body:
     `docker build`, out of scope here).
 
 The harness is a discover-task-only scenario (VERIFY_TEST_CMD always "fails")
-so the scheduler never hands out a targeted obligation task — the task branch
-(`orchestrator.py:757-791`, still block_emit-wired; out of scope for Phase 4)
-never fires, keeping this test's block_emit assertion unambiguous.
+so the scheduler never hands out a targeted obligation task — the task
+branch's typed-repair path never fires, keeping this test's block_emit
+assertion unambiguous.
+
+Phase 5 (`orchestrator._run_discover_gate`): discover tasks now run the
+deterministic VERIFY_TEST_CMD gate instead of `build_agent.run` (free text),
+and — being a mechanical host check, not an LLM call — no longer spend
+`_repair_turns`. So this 2-cycle harness runs to `max_cycles` rather than
+exhausting the (now-untouched) LLM-repair budget; see
+`tests/envstate/test_v3_task_branch.py` for the dedicated discover-gate
+routing/evidence/give-up coverage.
 """
 import sys
 from pathlib import Path
@@ -37,8 +45,9 @@ from python_deps.depgraph.schema import (
 
 
 class _RecordingBuildAgent:
-    """Free-text-only build agent (no `.client`) — discover tasks stay off the
-    typed-repair/task-branch `block_emit` path, so this test never exercises it."""
+    """No-`.client` build agent — discover tasks route through the
+    deterministic gate (`_run_discover_gate`), not `.run`/`.propose`, so this
+    test never exercises either (kept only so run_v3's guards are satisfied)."""
 
     def __init__(self):
         self.tasks = []
@@ -71,9 +80,10 @@ def _pkg_map():
 def _build_harness():
     """Stateful fakes: exec_readonly reports the node MISSING until
     run_install_script flips `installed`. VERIFY_TEST_CMD always fails, so the
-    scheduler stays on the discover/free-text path every cycle (frontier
-    empty once the node is satisfied, tests never "pass") — the run
-    terminates via the LLM-turn budget on cycle 2, giving the test 2 full
+    scheduler stays on the discover-gate path every cycle (frontier empty
+    once the node is satisfied, tests never "pass") — the discover gate is
+    deterministic and does not spend `_repair_turns`, so the run terminates
+    via `max_cycles` (not the LLM-turn budget), giving the test 2 full
     `_dep_emit_phase` invocations to observe."""
     state = {"installed": False}
     calls = {"reset": 0, "install": 0}
@@ -138,8 +148,10 @@ def test_run_v3_uses_fresh_replay_each_cycle(monkeypatch):
 
     # The scheduler never hands out a targeted obligation (frontier empties
     # after cycle 1's install; tests never "pass"), so it stays on the
-    # discover/free-text path and exhausts the LLM-turn budget on cycle 2.
-    assert stop == "planner_giveup", f"expected the LLM-turn budget to exhaust on cycle 2, got {stop!r}"
+    # discover-gate path every cycle. The discover gate is deterministic (no
+    # LLM call), so it does not spend _repair_turns — the run exhausts
+    # max_cycles=2 instead of the LLM-repair budget (Phase 5).
+    assert stop == "max_cycles", f"expected max_cycles (discover gate spends no LLM budget), got {stop!r}"
 
     # Two real replays across the 2 cycles: no memoization, so cycle 2's
     # byte-identical re-render is STILL replayed for real (every cycle must

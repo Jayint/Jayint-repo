@@ -2,8 +2,12 @@
 
 Uses synthetic planner/build_agent/maintainer stubs (no Docker/LLM). Confirms:
   - run_v1  -> planner.decide drives the cycle (byte-identical to today)
-  - run_v3  -> the scheduler drives; planner.decide is never called; the
-    build_agent receives a graph-derived task with a host `check`
+  - run_v3  -> the scheduler drives; planner.decide is never called (run_v3
+    has no planner param at all); a targeted obligation task with no
+    build_agent.client gives up honestly (GIVEUP_CONFIG) rather than
+    silently falling back to build_agent.run — Task 5a removed run_v3's
+    free-text fallback entirely (see tests/envstate/test_v3_task_branch.py
+    for the full 3-way-dispatch coverage)
   - run_v1  -> the deterministic emit_drain runs as a prefix (Phase 4: run_v3
     no longer has an emit_drain branch under any flag value — see
     test_v3_block_emit_wiring.py for the deprecation-raise coverage)
@@ -153,11 +157,21 @@ def test_flag_off_planner_drives():
     assert stop == "planner_done"
 
 
-# ── 2. flag ON: scheduler drives, planner untouched ──────────────────────────
+# ── 2. flag ON: scheduler drives, no free-text fallback ──────────────────────
+#
+# Historically this test asserted that a targeted obligation task with no
+# build_agent.client fell back to build_agent.run (free-text path) — the old
+# run_v3 dispatch condition silently downgraded when `.client` was absent.
+# Task 5a (orchestrator.py task-dispatch consolidation) removed that fallback
+# entirely: run_v3 now has ZERO free-text mutation. A target-bearing task
+# with no client (or no exec_readonly) gives up honestly via GIVEUP_CONFIG
+# instead. build_agent.run is asserted NEVER called — this is the correct
+# updated pin for "scheduler drives" (there is no planner param on run_v3 to
+# begin with, so "planner untouched" was always structurally guaranteed).
 
-def test_flag_on_scheduler_drives_planner_untouched():
+def test_flag_on_scheduler_gives_up_without_client():
     build_agent = _RecordingBuildAgent()
-    run_v3(
+    final_map, stop = run_v3(
         build_agent=build_agent,
         maintainer=_NoopMaintainer(),
         initial_world_map=_missing_node_map(),
@@ -169,10 +183,14 @@ def test_flag_on_scheduler_drives_planner_untouched():
         reset_to_base=_noop_reset_to_base,
         run_install_script=_noop_run_install_script,
     )
-    assert build_agent.tasks, "build_agent.run must be invoked with the frontier task"
-    task = build_agent.tasks[0]
-    assert task.target_node_ids == ("pkg:requests",)
-    assert build_agent.checks[0] == task.done_when
+    assert stop == "planner_giveup", (
+        f"targeted obligation task with no build_agent.client must give up "
+        f"honestly (GIVEUP_CONFIG), got {stop!r}"
+    )
+    assert build_agent.tasks == [], (
+        "build_agent.run must never be called from run_v3 (Task 5a removed the "
+        "free-text fallback entirely)"
+    )
 
 
 # ── 3. v1's deterministic drain runs as a prefix (unchanged) ────────────────
