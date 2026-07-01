@@ -1,5 +1,4 @@
 import os, tempfile
-import pytest
 from src.envstate import base_image_selection as bis
 from src.envstate.base_image_selection import BaseImageChoice, choose_base_image
 
@@ -56,3 +55,33 @@ def test_selection_failure_degrades_to_default(monkeypatch):
     choice = choose_base_image(_repo(">=3.10"), client=object(), model="m")
     assert choice.image == "python:3.11-slim"     # DEFAULT fallback
     assert "degraded" in choice.reason.lower() or "fallback" in choice.reason.lower()
+
+
+def test_auto_bare_tag_is_normalized_to_slim(monkeypatch):
+    class _FakeSelector:
+        def __init__(self, *a, **k): pass
+        def select_base_image(self, repo_path, **k):
+            # bare tag, no variant — must not reach the caller un-slimmed.
+            return "python:3.10", object(), "docs", None
+    monkeypatch.setattr(bis, "ImageSelector", _FakeSelector)
+    choice = choose_base_image(_repo(">=3.10"), client=object(), model="m", explicit=None)
+    assert choice.image == "python:3.10-slim"
+
+
+def test_auto_already_slim_tag_is_not_double_suffixed(monkeypatch):
+    class _FakeSelector:
+        def __init__(self, *a, **k): pass
+        def select_base_image(self, repo_path, **k):
+            return "python:3.11-slim", object(), "docs", None
+    monkeypatch.setattr(bis, "ImageSelector", _FakeSelector)
+    choice = choose_base_image(_repo(">=3.11"), client=object(), model="m", explicit=None)
+    assert choice.image == "python:3.11-slim"     # NOT "python:3.11-slim-slim"
+
+
+def test_explicit_bare_tag_is_honored_verbatim_not_normalized(monkeypatch):
+    # If the selector is ever constructed here, fail loudly — explicit must skip it.
+    monkeypatch.setattr(bis, "ImageSelector",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("LLM used")))
+    choice = choose_base_image(_repo(">=3.10"), client=object(), model="m",
+                               explicit="python:3.12")
+    assert choice.image == "python:3.12"          # NOT normalized to "-slim"

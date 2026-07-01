@@ -22,8 +22,12 @@ NOT run in CI — requires Docker + a real LLM API key
 
 Usage:
   python scripts/run_v3_e2e.py <repo_path> [--model <slug>]
-         [--base-image python:3.11-slim] [--out setup.sh]
+         [--base-image auto|python:3.11-slim] [--out setup.sh]
          [--no-binding-install]   # ablate the fresh-replay install gate
+
+  --base-image defaults to "auto" (LLM-selected, then pinned to
+  requires-python and normalized to a -slim variant); pass an explicit
+  tag (e.g. python:3.11-slim) to override verbatim.
 """
 from __future__ import annotations
 

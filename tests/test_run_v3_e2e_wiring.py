@@ -1,7 +1,6 @@
 """The 'loop closed' assertion: the selected+pinned image reaches all three
 consumers, and target_python == the pinned minor. No Docker, no network."""
 import types
-import pytest
 import scripts.run_v3_e2e as e2e
 from src.envstate.base_image_selection import BaseImageChoice
 
@@ -9,11 +8,11 @@ from src.envstate.base_image_selection import BaseImageChoice
 def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path):
     seen = {}
 
-    monkeypatch.setattr(e2e, "_load_dotenv", lambda *a, **k: None, raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
-    # Facade returns a known pinned choice.
-    choice = BaseImageChoice("python:3.10-slim", "3.10", None, "auto: test")
+    # Facade returns a known pinned choice with a non-None platform override,
+    # so the assertion below locks the platform thread through Sandbox(...).
+    choice = BaseImageChoice("python:3.10-slim", "3.10", "linux/amd64", "auto: test")
     monkeypatch.setattr(e2e, "choose_base_image", lambda *a, **k: choice, raising=False)
 
     def _fake_advisory(repo, image, *, host_executor=None, target_python=None, classify=None):
@@ -48,3 +47,4 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
     assert seen["advisory_target_python"] == "3.10"      # loop closed: minor -> graph
     assert seen["map_image"] == "python:3.10-slim"
     assert seen["sandbox_image"] == "python:3.10-slim"
+    assert seen["sandbox_platform"] == "linux/amd64"     # platform thread -> Sandbox(platform=...)
