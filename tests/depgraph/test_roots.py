@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
+from types import SimpleNamespace
 
-from python_deps.depgraph.roots import select_roots
+from python_deps.depgraph.roots import _env_marker_excludes, select_roots
 from python_deps.depgraph.scan import scan_to_nodes
 from python_deps.depgraph.target_env import TargetEnv
 
@@ -350,6 +351,53 @@ def test_no_target_env_keeps_marker_deps(tmp_path):
 
     dists = {dist for _imp, dist in roots}
     assert "foo" in dists
+
+
+# --------------------------------------------------------------------------- #
+# Task 8 review fix #2 — generalize the conservative rule past `extra` alone:
+# KEEP whenever the marker references ANY PEP 508 field `target_env.marker_env()`
+# does not supply (host-fallback fields), not just `extra`.
+# --------------------------------------------------------------------------- #
+
+
+def test_marker_referencing_uncovered_field_is_kept(tmp_path):
+    # `platform_python_implementation` is one of the 5 host-fallback fields
+    # ABSENT from TargetEnv.marker_env() -- `packaging` would silently fill it
+    # from the HOST's own `platform.python_implementation()`, so this function
+    # must not judge it at all. Kept even though the target is Linux/CPython
+    # and this marker text would otherwise suggest "false for us".
+    repo = _fixture_repo_with_marker_dep(
+        tmp_path, "platform_python_implementation == 'PyPy'"
+    )
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_marker_referencing_implementation_name_is_kept(tmp_path):
+    # Same as above for `implementation_name`, the other commonly-seen
+    # host-fallback field (e.g. `implementation_name == 'pypy'` guards).
+    repo = _fixture_repo_with_marker_dep(tmp_path, "implementation_name == 'pypy'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_unevaluable_marker_is_kept():
+    # A marker referencing a name outside the PEP 508 grammar (e.g. a typo)
+    # can never survive `packaging.requirements.Requirement()` parsing, so
+    # evidence.py drops such a dependency line entirely -- it never reaches
+    # root selection at all (verified directly: `_parse_requirement_line`
+    # returns None for "foo ; bogus_field == 'x'", so a pyproject.toml fixture
+    # can't exercise this path). Exercise `_env_marker_excludes` directly
+    # instead, with a stand-in object whose `.marker` is a raw (unparseable)
+    # string, to hit the `_marker_applies`-returns-None / eval-error path.
+    req = SimpleNamespace(name="foo", marker="bogus_field == 'x'")
+    assert _env_marker_excludes(req, _LINUX_TARGET_ENV) is False
 
 
 def test_unmarked_dep_always_kept(tmp_path):

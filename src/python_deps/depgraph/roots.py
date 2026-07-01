@@ -76,6 +76,28 @@ TYPING_ONLY_DENYLIST: frozenset[str] = frozenset({"_typeshed"})
 # Obvious junk that is never a distribution root.
 JUNK_DENYLIST: frozenset[str] = frozenset({"", "__future__", "__main__"})
 
+# Every PEP 508 marker variable name `packaging` can parse into a Marker (the
+# grammar restricts marker variables to exactly this set -- see
+# https://peps.python.org/pep-0508/#environment-markers). Used by
+# ``_env_marker_excludes`` to detect a marker referencing a field the TARGET
+# cannot supply (see that function's docstring for why this matters).
+_PEP508_MARKER_FIELDS: frozenset[str] = frozenset(
+    {
+        "os_name",
+        "sys_platform",
+        "platform_machine",
+        "platform_python_implementation",
+        "platform_release",
+        "platform_system",
+        "platform_version",
+        "python_version",
+        "python_full_version",
+        "implementation_name",
+        "implementation_version",
+        "extra",
+    }
+)
+
 # A version specifier safe to embed verbatim in the resolver's temp pyproject
 # (a TOML double-quoted string) and the fallback heredoc body: PEP 440 operators
 # plus version characters only — no quotes, spaces, newlines, shell metacharacters
@@ -149,31 +171,59 @@ def _is_non_distribution(import_name: str) -> bool:
 def _env_marker_excludes(req, target_env: "TargetEnv | None") -> bool:
     """True only when we are CONFIDENT ``req`` must not be a root for the target.
 
-    Conservative-skip rule (review "no silent shrink" constraint): a dep is
-    excluded ONLY when ALL of the following hold —
+    Conservative-skip rule (review "no silent shrink" constraint), generalized
+    past the original ``extra``-only special case: a dep is excluded ONLY when
+    ALL of the following hold —
 
     * a real ``target_env`` was given (no target -> nothing is filterable),
     * the requirement HAS a marker at all,
-    * the marker does NOT reference ``extra`` — ``extra == "..."`` markers
-      gate optional-dependency GROUPS, which are already handled by the
-      ``needed_extras`` mechanism above; this function must never re-judge
-      them, or it would silently drop an extra's dep for a reason unrelated
-      to environment (the exact silent-shrink this review flags against), and
+    * EVERY PEP 508 field the marker references is one ``target_env.marker_env()``
+      actually supplies (see ``uncovered`` below), and
     * the marker EVALUATES to False against ``target_env.marker_env()``.
 
-    Every other case — no target_env, no marker, an extra-referencing marker,
-    a True evaluation, or any evaluation error (``_marker_applies`` returns
-    ``None`` on ``packaging`` absence or a malformed marker) — KEEPS the dep.
-    Keeping on uncertainty is the point: an over-eager filter here would
-    silently shrink the closure fed to ``uv``, which is worse than resolving
-    one extra unneeded root.
+    Why generalize: ``TargetEnv.marker_env()`` supplies only 6 of the 12 PEP 508
+    marker fields (``python_version``, ``python_full_version``,
+    ``platform_machine``, ``sys_platform``, ``os_name``, ``platform_system``).
+    ``packaging.markers.Marker.evaluate()`` silently fills any field missing from
+    the given environment from the HOST's own ``default_environment()`` -- so a
+    marker referencing e.g. ``platform_python_implementation`` or
+    ``implementation_name`` would be evaluated against the HOST's value, not the
+    TARGET's, making a drop decision confidently WRONG. ``extra`` is simply one
+    more field ``marker_env()`` never supplies (it is inherently a per-requirement
+    grouping flag, not an environment fact) -- so the same "field not covered by
+    the target" rule subsumes the old ``"extra" in marker`` special-case without
+    naming it specially: ``uncovered`` always contains ``extra`` alongside the
+    5 host-fallback fields, and gating on ANY uncovered field being referenced
+    keeps ``extra``-gated deps out of this filter exactly as before (they are
+    already handled by the ``needed_extras`` mechanism above; this function must
+    never re-judge them, or it would silently drop an extra's dep for a reason
+    unrelated to environment).
+    ``uncovered`` is DERIVED from ``target_env.marker_env()`` each call, so
+    widening that method (a tracked follow-up) automatically shrinks
+    ``uncovered`` down to just ``{"extra"}`` with no change needed here.
+
+    Every other case — no target_env, no marker, a marker referencing an
+    uncovered field, a True evaluation, or any evaluation error
+    (``_marker_applies`` returns ``None`` on ``packaging`` absence or a
+    malformed marker) — KEEPS the dep. Keeping on uncertainty is the point: an
+    over-eager filter here would silently shrink the closure fed to ``uv``,
+    which is worse than resolving one extra unneeded root.
+
+    Substring matching (``field in marker``) below errs toward KEEP: a marker
+    string that merely happens to contain a field name as a substring (of e.g.
+    a version literal) only causes over-inclusion into ``uncovered``, which
+    means MORE deps get kept, never fewer — the safe direction. Do not tighten
+    this into exact tokenization; that could only ever make the filter drop
+    more, which is the wrong direction for this "no silent shrink" invariant.
     """
     if target_env is None:
         return False
     marker = getattr(req, "marker", "") or ""
     if not marker:
         return False
-    if "extra" in marker:
+    covered = set(target_env.marker_env())
+    uncovered = _PEP508_MARKER_FIELDS - covered
+    if any(field in marker for field in uncovered):
         return False
     try:
         verdict = _marker_applies(marker, target_env.marker_env())
