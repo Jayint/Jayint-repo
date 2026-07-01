@@ -182,13 +182,13 @@ def test_block_with_empty_targets_renders_and_covers_nothing():
     assert "#@need config:DATABASE_URL" in out          # empty targets -> no coverage
 
 
-def test_block_with_unknown_wave_lands_in_catch_all():
-    blk = Block(block_id="post:warm", wave="post-install", commands=("true",),
-                target_node_ids=())
-    out = render_build_script(DepGraph(), manual_blocks=(blk,))
-    assert "(UNSCHEDULED BLOCKS)" in out
-    assert "#@block post:warm" in out
-    assert "true" in out
+def test_block_with_unknown_wave_raises():
+    import pytest
+    from python_deps.depgraph.block import Block
+    blk = Block(block_id="blk:x", wave="post-install", commands=("echo hi",),
+                target_node_ids=(), provider_ids=(), check_commands=(), evidence_refs=())
+    with pytest.raises(ValueError, match="illegal waves"):
+        render_build_script(DepGraph(), (blk,))
 
 
 def test_manifest_counts_hash_and_meta():

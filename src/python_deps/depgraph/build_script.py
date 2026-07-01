@@ -197,12 +197,12 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
-    # Catch-all: blocks whose wave is not a known Layer value
+    # Fail-fast: PatchGate (Phase 1) rejects illegal waves, so any manual block whose
+    # wave is not a Layer value is a programming error, not user input — never silently
+    # render it into an UNSCHEDULED section.
     known_waves = {layer.value for layer in _LAYER_ORDER}
-    leftover = [b for b in manual_blocks if b.wave not in known_waves]
-    if leftover:
-        parts.append("")
-        parts.append("# ==================== (UNSCHEDULED BLOCKS) ====================")
-        for b in leftover:
-            parts.extend(_block_block(b))
+    illegal = [b.block_id for b in manual_blocks if b.wave not in known_waves]
+    if illegal:
+        raise ValueError(f"render_build_script: manual blocks have illegal waves "
+                         f"(not a Layer value): {illegal}")
     return "\n".join(parts) + "\n"
