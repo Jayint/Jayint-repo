@@ -78,10 +78,14 @@ That is the legitimate, *derived* form of "predict native needs": an sdist build
 
 **Two changes:**
 
-1. **Extract `wheel_oracle.py`** (~100 lines) — move `native_risk_from_lock`,
-   `_wheel_matches_platform`, `_artifact_filename` out of `resolve_lock.py` (468 lines → ~370).
-   This is a pure refactor that *names the concept* (a reader searching "where is wheel/sdist
-   decided" finds one module) and resolves the file-size smell. `resolve_lock.py` imports from it.
+1. **Extract `wheel_oracle.py`** (~100 lines) — move the wheel/sdist decision into a self-contained
+   `risk_from_packages(...)` (plus the tag/platform helpers). Because `native_risk_from_lock` also
+   calls `_select_applicable_packages` (which must stay in `resolve_lock.py` for `parse_uv_lock`), a
+   wholesale move would create an import cycle; instead `wheel_oracle.py` is self-contained and
+   `resolve_lock.py` keeps a thin, behavior-identical `native_risk_from_lock` wrapper (it filters
+   local-source entries with its own `_is_local_source` before delegating, so the concept is not
+   duplicated). This *names the concept* and modestly reduces the file (~469→~404). `resolve.py`'s
+   import list is unchanged.
    **Behavior preserved exactly**, including the known latent bug that platform markers are
    evaluated against the HOST not the target (see *Adjacent known issues*) — fixing that is a
    separate correctness track, not this design.
@@ -148,13 +152,13 @@ needed). Sources:
   bundle only (kind `conda_declaration`), where the model maps it with soft strength or declines.
 
 **Node emission.** Each extracted apt package → one node:
-- type `Tool` if the name is a toolchain, else `SystemLib`. The classifier `is_toolchain_apt`
+- type `Tool` if the name is a toolchain, else `SystemLib`. A private `_is_toolchain_apt` helper
   matches a small fixed set (`build-essential`, `gcc`, `g++`, `clang`, `make`, `cmake`,
   `pkg-config`, `ninja-build`, `autoconf`, `automake`, `libtool`) plus the "not a `lib*` / `*-dev`
   library" shape. This *classifies an already-declared package by name*; it is NOT a package→syslib
-  prediction map, so it honors the no-table principle. It lives in `ids.py` for discoverability and
-  its **only consumer is `declaration_mine.py`** — the redesigned `seed.py` emits a fixed
-  `build-essential` node and no longer classifies arbitrary names.
+  prediction map, so it honors the no-table principle. It lives **private inside `declaration_mine.py`**
+  (its sole consumer); `ids.py` stays a file of pure `X_id(name)` constructors. The redesigned
+  `seed.py` emits a fixed `build-essential` node and never classifies arbitrary names.
 - `discovered_by=STATIC_DECLARATION`, `chosen_fix=apt:<pkg>`, `check_command="dpkg -s <pkg>"`,
   `provenance="<relpath>:<line>"`, `state=UNKNOWN`. Like any reciped apt node it becomes
   `strength=HARD` via `populate_setup_commands`; a `requires` edge to it (from the declaring
@@ -172,16 +176,17 @@ needed). Sources:
 The LLM bridge (`env_classifier.classify`, outside `build_dep_graph`) keeps its current shape; two
 additive changes.
 
-1. **Raw prose intake.** Add `collect_raw_file_snippets(repo_path)` to `static_collect.py` — a
-   bounded allowlist of *unstructured* files the deterministic scanners cannot parse:
-   `README*`, `INSTALL*`, `Makefile`, `setup.cfg`, `docs/` install pages. Per-file cap (≈500
-   chars of the install-relevant region) and total cap (≈3000 chars). Each snippet becomes a
-   `DeterministicHit` with a synthetic id (`raw.NN`) added to `bundle_ids`, so `_sanitize`'s
-   grounding invariant (`evidence_ref ∈ bundle_ids`) holds unchanged. Declaration files
-   (Dockerfile/Aptfile/CI) ALSO appear as context hits (`decl_apt`), but their *nodes* already
-   came from stage 3c — the LLM sees them only for cross-reference, it does not re-create them.
-   `static_collect.py`'s "thin adapter" docstring is updated; the new raw-snippet collection is a
-   distinct, clearly-named function (not smuggled into the adapter reshaping).
+1. **Raw prose intake.** Add a NEW module `raw_intake.py` with `collect_raw_file_snippets(repo_path)`
+   — a bounded allowlist of *unstructured* files the deterministic scanners cannot parse: `README*`,
+   `INSTALL*`, `Makefile`, `setup.cfg`, `docs/` install pages. Per-file cap (≈500 chars of the
+   install-relevant region) and total cap (≈3000 chars). Each snippet becomes a `DeterministicHit`
+   with a synthetic id (`raw.NN`) added to `bundle_ids`, so `_sanitize`'s grounding invariant
+   (`evidence_ref ∈ bundle_ids`) holds unchanged. It is its OWN module, not bolted into
+   `static_collect.py` — that file's stated role is a "thin adapter that reshapes scanner output,"
+   not a blind repo scanner, so raw-file scanning is a distinct concern (symmetric with
+   `declaration_mine.py`). The `decl_apt` / `conda_declaration` context hits — which genuinely
+   reshape declaration-scan output — stay in `static_collect.py`. Declaration nodes already came
+   from stage 3c; the LLM sees `decl_apt` only for cross-reference.
 
 2. **SystemLib/Tool proposals.** Widen `env_classifier._SYSTEM_PROMPT` to allow
    `type ∈ {Service, Config, DataAsset, SystemLib, Tool}` and the `syslib:<name>` / `tool:<name>`
@@ -198,15 +203,18 @@ additive changes.
    `env_classifier`, after `_sanitize`: for each soft `syslib:<name>`/`tool:<name>` node lacking a
    `chosen_fix`, derive `chosen_fix=apt:<name>` from the id suffix (the same convention stage 3c
    uses). That makes it reciped → installed proactively — the construction spec's "SOFT gates
-   blocking, not emission." **Open question the plan must close:** once reciped,
-   `populate_setup_commands` currently sets `strength=HARD` on *every* reciped node, which would
-   wrongly harden an LLM node. Preferred resolution: `populate` preserves an already-set `strength`
-   and only defaults the deterministic tiers to HARD, so an LLM node (marked SOFT at admission)
-   stays SOFT while still emitting. This is the one place cluster 2 touches `populate.py` — small
-   and scoped, but a real dependency, surfaced here rather than mid-implementation. *Reduced-scope
-   fallback* (keeps `populate.py` untouched this iteration): keep widened SystemLib/Tool proposals
-   as ADVISORY-only soft hints that inform repair and are NOT auto-installed — drop the normalize
-   step. The plan picks one explicitly.
+   blocking, not emission." **Then keep it SOFT via a named origin.** Once reciped,
+   `populate_setup_commands` currently marks *every* reciped node HARD, which would wrongly harden an
+   LLM node. Resolution: give classifier-admitted nodes a distinct `discovered_by` — add
+   `DiscoveredBy.CLASSIFIER` (schema.py) and have `patch_gate.apply_proposal` stamp it (today those
+   nodes reuse `DiscoveredBy.PROBE` with `provenance=None`, indistinguishable from a real probe
+   discovery, which hurts attribution). Then `populate_setup_commands` keeps `strength=SOFT` for
+   `discovered_by is CLASSIFIER` and defaults only the deterministic tiers to HARD;
+   `normalize_emittability` targets the same clean predicate. One small named signal that both fixes
+   the strength issue AND restores node attribution (a paper value) — better than an ad-hoc
+   `provenance is None` heuristic. Touches `schema.py`, `patch_gate.py`, `populate.py`, all narrowly.
+   (Reduced-scope fallback, rejected: keep widened proposals ADVISORY-only and not auto-installed —
+   simpler but delivers no proactive install, so it is not chosen.)
 
 ---
 
@@ -223,7 +231,7 @@ existing mechanisms, not a per-stage attribute:
 | Package (manifest-declared) | RESOLVER | pinned `version` | HARD (reciped) | the deterministic hard spine (unchanged) |
 | `build_from_source` → build-essential | RESOLVER | `apt:build-essential` | HARD (reciped) | closed chain: no wheel ⇒ compiler required |
 | apt declaration (Dockerfile/Aptfile/CI) | **STATIC_DECLARATION** (new) | `apt:<pkg>` | HARD (reciped) | author-stated; should block if absent |
-| LLM SystemLib/Tool (prose/conda) | classifier | only via `normalize_emittability` (Cluster 2 §3) | **SOFT** (kept, §3) | inference; soft edges via `_sanitize` |
+| LLM SystemLib/Tool (prose/conda) | **CLASSIFIER** (new) | only via `normalize_emittability` (Cluster 2 §3) | **SOFT** (kept, §3) | inference; soft edges via `_sanitize` |
 | `ldd_probe` soname (existing) | PROBE | `apt:<pkg>` | HARD | DT_NEEDED ground truth |
 
 The invariant **"the LLM only ever proposes SOFT"** holds structurally: `_sanitize` forces its edges
@@ -236,22 +244,23 @@ installable. `certify.py` remains the sole writer of `SATISFIED`.
 
 | Module | Responsibility | Change |
 |---|---|---|
-| `wheel_oracle.py` | wheel-vs-sdist + platform-tag decision from uv.lock | **NEW** (extracted from resolve_lock.py; 468→~370) |
-| `declaration_mine.py` | `mine_declarations(graph, repo_path)` — stage 3c; apt declarations → STATIC_DECLARATION nodes | **NEW** (~130) |
+| `wheel_oracle.py` | self-contained wheel-vs-sdist + platform-tag decision (`risk_from_packages`) | **NEW** (extracted from resolve_lock.py; real reduction ~469→~404) |
+| `declaration_mine.py` | `mine_declarations(graph, repo_path)` — stage 3c; apt declarations → STATIC_DECLARATION nodes; owns private `_is_toolchain_apt` | **NEW** (~130) |
+| `raw_intake.py` | `collect_raw_file_snippets(repo_path)` — bounded raw prose files → `raw.NN` hits | **NEW** (Cluster 2 §1) |
 | `seed.py` | `seed_wheel_oracle_prior` — build-essential from build_from_source | rename; delete table path + dead helpers (~110→~50) |
 | `tables.py` | post-observation remaps + probe-scope hint only | **delete** `PACKAGE_TO_SYSTEM_DEPS`, `system_deps_for_package`, `_NORMALIZED_PACKAGE_SYSTEM_DEPS` |
-| `resolve_lock.py` | uv.lock → Package nodes/edges | import (and re-export, for `resolve.py:74`) wheel logic from `wheel_oracle.py` |
+| `resolve_lock.py` | uv.lock → Package nodes/edges | thin `native_risk_from_lock` wrapper: filter local-source entries (via its own `_is_local_source`), then call `wheel_oracle.risk_from_packages` (keeps `resolve.py:74` import list byte-identical, no dup of `_is_local_source` in the new module) |
 | `probe.py` / `ldd_probe.py` | build-time + runtime native probes | widen `reconcile_predicted` guard `RESOLVER → {RESOLVER, STATIC_DECLARATION}`; preserve provenance/strength on merge |
-| `static_collect.py` | evidence bundle assembly | add `collect_raw_file_snippets` + `decl_apt`/`conda_declaration` hits; docstring updated |
-| `env_classifier.py` | LLM classifier (sole LLM bridge) | widen `_SYSTEM_PROMPT`; add `normalize_emittability` post-sanitize (Cluster 2 §3); drop per-id promotion |
-| `populate.py` | fills `setup_commands` + `strength` | preserve an already-set `strength` so normalized LLM nodes stay SOFT (Cluster 2 §3) |
-| `schema.py` | enums | add `DiscoveredBy.STATIC_DECLARATION = "static_declaration"` |
+| `static_collect.py` | evidence bundle assembly (reshapes scanner output) | add `decl_apt` / `conda_declaration` context hits (reshaping declaration-scan output — matches its role); raw-file scanning goes to `raw_intake.py`, not here |
+| `env_classifier.py` | LLM classifier (sole LLM bridge) | widen `_SYSTEM_PROMPT`; add `normalize_emittability` post-sanitize; wire `raw_intake` hits into the bundle; drop per-id promotion |
+| `patch_gate.py` | admit LLM proposals | stamp admitted nodes `discovered_by=DiscoveredBy.CLASSIFIER` (was PROBE) |
+| `populate.py` | fills `setup_commands` + `strength` | keep `strength=SOFT` for `discovered_by is CLASSIFIER`; default the deterministic tiers to HARD (Cluster 2 §3) |
+| `schema.py` | enums | add `DiscoveredBy.STATIC_DECLARATION` and `DiscoveredBy.CLASSIFIER` |
 | `build.py` | pipeline orchestrator | rename stage 3b call; insert stage 3c `mine_declarations` |
-| `ids.py` | id constructors + `is_toolchain_apt` | host `is_toolchain_apt` (sole consumer: `declaration_mine.py`) |
-| tests | — | replace `test_tables.py` / `test_seed.py` (table gone); add tests per new module + the reconcile-guard case |
+| tests | — | replace `test_tables.py` / `test_seed.py`; update `test_build.py` e2e fixture + `test_ldd_probe_docker.py` import (table gone); add tests per new module + reconcile-guard + CLASSIFIER-stays-soft |
 
-`build.py` stays a linear, named, self-documenting stage list. No god-files introduced; the one
-file-size smell (`resolve_lock.py`) is *reduced* by this change.
+`build.py` stays a linear, named, self-documenting stage list. `ids.py` is untouched (stays pure id
+constructors). No god-files introduced; the `resolve_lock.py` size smell is modestly *reduced*.
 
 ---
 
