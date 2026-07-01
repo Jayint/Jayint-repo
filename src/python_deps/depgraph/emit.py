@@ -62,9 +62,9 @@ def _conflicted_ids(graph: DepGraph) -> set[str]:
 
 def _toolchain_ready(graph: DepGraph, pkg: Node) -> bool:
     """Native readiness gate. Runtime SystemLib deps must be SATISFIED before ANY
-    package emits (a wheel dlopens them too). Build-time Tool deps gate only
-    build-from-source packages — a prebuilt wheel needs no headers/compilers.
-    Soft requires edges never block (invariant #10; mirrors
+    package emits (a wheel dlopens them too). Build-time Tool deps gate source
+    builds and unknown build mode; only a known wheel (build_from_source is False)
+    skips them. Soft requires edges never block (invariant #10; mirrors
     schedule._dependencies_satisfied)."""
     for edge in graph.edges:
         if not (edge.src == pkg.id and edge.relation is EdgeType.REQUIRES
@@ -75,8 +75,9 @@ def _toolchain_ready(graph: DepGraph, pkg: Node) -> bool:
             continue
         if dep.type is NodeType.SYSTEM_LIB:
             return False                               # runtime lib: wheel & sdist
-        if dep.type is NodeType.TOOL and pkg.build_from_source:
-            return False                               # build tool: sdist builds only
+        if dep.type is NodeType.TOOL and pkg.build_from_source is not False:
+            return False       # build tool blocks source builds AND unknown build mode;
+                               # only a KNOWN wheel (build_from_source is False) skips it
     return True
 
 

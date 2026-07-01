@@ -142,6 +142,21 @@ def test_sdist_blocked_by_build_tool_dep():
     assert "pkg:Pillow" not in {n.id for n in part.emittable}
 
 
+def test_unknown_buildmode_blocked_by_build_tool_dep():
+    # build_from_source=None (unknown, e.g. the _pip_compile_fallback() path in
+    # resolve.py never stamps it) must be treated conservatively like a source
+    # build: a MISSING build-time Tool dep must still gate emission. Only an
+    # EXPLICIT wheel (build_from_source is False) may skip Tool gating.
+    pillow = _pkg("Pillow", version="10.3.0", bfs=None)
+    libjpeg_dev = _tool("libjpeg-dev", apt="libjpeg-dev")
+    g = DepGraph(
+        nodes=(pillow, libjpeg_dev),
+        edges=(Edge(src="pkg:Pillow", dst="tool:libjpeg-dev", relation=EdgeType.REQUIRES),),
+    )
+    part = partition(g)
+    assert "pkg:Pillow" not in {n.id for n in part.emittable}
+
+
 def test_partition_demotes_repeatedly_failed_emit_to_frontier():
     # Fix #3: a resolved package that has failed to emit MAX_EMIT_ATTEMPTS times must
     # stop being emittable and escalate to the frontier (no infinite re-emit loop).
