@@ -1,7 +1,9 @@
 import re
+import shlex
 from typing import Any, Optional
 
 from src.synthesizer import Synthesizer
+from src.evaluation_target import is_ratbench_target, normalize_evaluation_target
 
 
 def normalize_command_list(commands):
@@ -21,15 +23,40 @@ def normalize_command_list(commands):
 def derive_supported_verification_bundle(
     run_summary: Optional[dict[str, Any]],
     synthesizer: Optional[Synthesizer] = None,
+    evaluation_target: Optional[str] = None,
 ) -> dict[str, list[str]]:
     summary = run_summary or {}
     detector = synthesizer or Synthesizer()
+    target = normalize_evaluation_target(
+        evaluation_target or summary.get("evaluation_target") or summary.get("benchmark_evaluation_target")
+    )
     observed_actions = _collect_observed_successful_actions(summary)
-    observed_test_commands = _collect_effective_observed_test_commands(summary, detector)
+    observed_test_commands = _collect_effective_observed_test_commands(
+        summary,
+        detector,
+        include_failed_executed=is_ratbench_target(target),
+    )
+
+    reported_bundle = summary.get("verification_bundle") or {}
+    reported_runtime_commands = normalize_command_list(
+        reported_bundle.get("runtime_preparation_commands")
+    )
+    reported_test_commands = normalize_command_list(reported_bundle.get("test_commands"))
+    if _reported_bundle_commands_are_supported(
+        reported_runtime_commands,
+        reported_test_commands,
+        observed_actions,
+        observed_test_commands,
+        detector,
+    ):
+        return {
+            "runtime_preparation_commands": reported_runtime_commands,
+            "test_commands": reported_test_commands,
+        }
 
     runtime_commands = []
     for candidate in (
-        normalize_command_list((summary.get("verification_bundle") or {}).get("runtime_preparation_commands")),
+        reported_runtime_commands,
         normalize_command_list(summary.get("verified_runtime_preparation_commands")),
     ):
         supported = [
@@ -41,7 +68,7 @@ def derive_supported_verification_bundle(
 
     test_commands = []
     for candidate in (
-        normalize_command_list((summary.get("verification_bundle") or {}).get("test_commands")),
+        reported_test_commands,
         normalize_command_list(summary.get("verified_test_commands")),
         normalize_command_list(summary.get("verified_test_command")),
     ):
@@ -75,9 +102,14 @@ def _collect_observed_successful_actions(run_summary: dict[str, Any]) -> list[st
 def _collect_effective_observed_test_commands(
     run_summary: dict[str, Any],
     synthesizer: Synthesizer,
+    include_failed_executed: bool = False,
 ) -> list[str]:
     commands = []
-    for record in run_summary.get("successful_actions") or []:
+    records = list(run_summary.get("successful_actions") or [])
+    if include_failed_executed:
+        records.extend(run_summary.get("failed_actions") or [])
+
+    for record in records:
         if not isinstance(record, dict):
             continue
         command = str(record.get("command") or "").strip()
@@ -93,9 +125,20 @@ def _collect_effective_observed_test_commands(
             synthesizer.observation_has_effective_test_signal(observation)
             and not synthesizer.observation_has_test_failure_signal(observation)
             and not synthesizer.is_truncated_test_output_command(command)
+        ) or (
+            include_failed_executed
+            and synthesizer.is_test_command(command)
+            and synthesizer.observation_has_effective_test_signal(observation)
+            and not _is_collect_only_test_command(command)
+            and not synthesizer.is_truncated_test_output_command(command)
         ):
             commands.append(command)
     return commands
+
+
+def _is_collect_only_test_command(command: str) -> bool:
+    normalized = " " + re.sub(r"\s+", " ", command or "").strip() + " "
+    return " --collect-only " in normalized or " --co " in normalized
 
 
 def _reported_runtime_command_is_supported(reported_command: str, observed_actions: list[str]) -> bool:
@@ -106,6 +149,56 @@ def _reported_runtime_command_is_supported(reported_command: str, observed_actio
         _normalize_command_for_compare(observed) == normalized_reported
         for observed in observed_actions
     )
+
+
+def _reported_bundle_commands_are_supported(
+    runtime_commands: list[str],
+    test_commands: list[str],
+    observed_actions: list[str],
+    observed_test_commands: list[str],
+    synthesizer: Synthesizer,
+) -> bool:
+    if not test_commands:
+        return False
+
+    runtime_supported = all(
+        _reported_runtime_command_is_supported(command, observed_actions)
+        for command in runtime_commands
+    )
+    tests_supported = all(
+        _reported_test_command_is_supported(command, observed_test_commands, synthesizer)
+        for command in test_commands
+    )
+    if runtime_supported and tests_supported:
+        return True
+
+    if runtime_supported or not runtime_commands:
+        return False
+    if not all(_runtime_command_can_be_inline_env_prefix(command) for command in runtime_commands):
+        return False
+
+    inline_env_prefix = " ".join(runtime_commands).strip()
+    matched_inline_runtime = False
+    for test_command in test_commands:
+        if _reported_test_command_is_supported(test_command, observed_test_commands, synthesizer):
+            continue
+        combined_command = f"{inline_env_prefix} {test_command}".strip()
+        if _reported_test_command_is_supported(combined_command, observed_test_commands, synthesizer):
+            matched_inline_runtime = True
+            continue
+        return False
+
+    return matched_inline_runtime
+
+
+def _runtime_command_can_be_inline_env_prefix(command: str) -> bool:
+    try:
+        parts = shlex.split(str(command or "").strip(), posix=True)
+    except ValueError:
+        return False
+    if not parts:
+        return False
+    return all(re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.+$", part) for part in parts)
 
 
 def _reported_test_command_is_supported(

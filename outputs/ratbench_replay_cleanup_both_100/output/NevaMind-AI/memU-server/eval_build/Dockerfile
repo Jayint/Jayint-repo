@@ -1,0 +1,17 @@
+FROM python:3.13
+RUN (python -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || python3 -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry)
+WORKDIR /app
+COPY . /app
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=300
+ENV PIP_RETRIES=5
+
+RUN printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "120";' 'Acquire::https::Timeout "120";' 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99jayint-retries
+
+RUN JAYINT_PIP_ATTEMPT=1; JAYINT_PIP_MAX_ATTEMPTS=3; JAYINT_PIP_STATUS=1; while [ "$JAYINT_PIP_ATTEMPT" -le "$JAYINT_PIP_MAX_ATTEMPTS" ]; do PIP_NO_CACHE_DIR=1 /bin/sh -lc 'python -m pip install --upgrade pip setuptools wheel' && JAYINT_PIP_STATUS=0 && break; JAYINT_PIP_STATUS=$?; (python -m pip cache purge >/dev/null 2>&1 || python3 -m pip cache purge >/dev/null 2>&1 || pip cache purge >/dev/null 2>&1 || true); if [ "$JAYINT_PIP_ATTEMPT" -eq "$JAYINT_PIP_MAX_ATTEMPTS" ]; then exit "$JAYINT_PIP_STATUS"; fi; JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); sleep 5; done; exit "$JAYINT_PIP_STATUS"
+
+
+RUN cd /app && pip install -e ".[dev]" --no-deps
+RUN cd /app && pip install "fastapi[standard]>=0.122.0" "uvicorn[standard]>=0.35.0" "memu-py[postgres]>=1.2.0" "psycopg[binary,pool]>=3.2.9" "temporalio==1.16.0" "pydantic-settings>=2.10.1" "python-dotenv>=1.0.0"
+RUN cd /app && pip install "pytest>=7.2.0" "pytest-asyncio>=0.23.0" "pytest-cov>=6.0.0" "httpx>=0.27.0"

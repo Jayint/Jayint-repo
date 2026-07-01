@@ -16,10 +16,15 @@ import subprocess
 import sys
 from collections import Counter
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
+from src.dockerfile_repair import (
+    build_dockerfile_repair_input,
+    repair_dockerfile_for_missing_python_modules,
+    repair_dockerfile_with_llm,
+)
 from src.repo2run_dataset import load_repo2run_dataset
 from src.synthesizer import (
     Synthesizer,
@@ -44,43 +49,31 @@ REPO2RUN_POETRY_COLLECT_COMMAND = "poetry run pytest --collect-only -q --disable
 REPO2RUN_UV_COLLECT_COMMAND = f"uv run {REPO2RUN_PYTEST_COLLECT_COMMAND}"
 REPO2RUN_PDM_COLLECT_COMMAND = f"pdm run {REPO2RUN_PYTEST_COLLECT_COMMAND}"
 REPO2RUN_EVAL_TOOL_INSTALL = (
-    "RUN (python -m pip install pytest pytest-xdist poetry || "
-    "python3 -m pip install pytest pytest-xdist poetry || "
-    "pip install pytest pytest-xdist poetry)"
+    "RUN (python -m pip install --no-cache-dir --trusted-host pypi.org "
+    "--trusted-host files.pythonhosted.org pytest pytest-xdist poetry || "
+    "python3 -m pip install --no-cache-dir --trusted-host pypi.org "
+    "--trusted-host files.pythonhosted.org pytest pytest-xdist poetry || "
+    "pip install --no-cache-dir --trusted-host pypi.org "
+    "--trusted-host files.pythonhosted.org pytest pytest-xdist poetry)"
 )
 OBSERVED_PIP_CONSTRAINTS_PATH = "/tmp/jayint-pip-constraints.txt"
 PYTORCH_CPU_INDEX_URL = "https://download.pytorch.org/whl/cpu"
-DOCKERFILE_REPAIR_LOG_LIMIT = 12000
-DOCKERFILE_REPAIR_SYSTEM_PROMPT = """You are a bounded Dockerfile repair agent.
-
-You receive a Dockerfile that was generated from a successful sandbox setup trajectory, plus the fresh Docker build/test failure feedback.
-Your job is to repair only the Dockerfile so the fresh image can reproduce the sandbox setup and run the provided test command.
-
-Rules:
-1. Output JSON only with keys: dockerfile, rationale, confidence.
-2. `dockerfile` must be the full replacement Dockerfile text, not a patch.
-3. Do not modify target repository source code outside Dockerfile commands.
-4. Do not invent a new setup strategy unless the trajectory evidence is insufficient.
-5. Prefer restoring omitted successful setup commands from agent_run_summary in the original trajectory order.
-6. Preserve command order. Do not merge, sort, hoist, or rewrite successful setup commands for convenience.
-7. Fix replay gaps such as missing installs, lost ENV/WORKDIR/SHELL context, build/runtime split mistakes, or Dockerfile syntax errors.
-8. Do not remove an existing Dockerfile RUN command unless the logs clearly prove it is wrong or duplicate.
-9. Keep the existing base image and repository copy semantics unless the failure directly requires a change.
-10. Do not emit raw multi-line RUN commands. Multi-line shell/Python/file-write content must be encoded into a single valid RUN instruction or otherwise rendered with Dockerfile-safe syntax.
-11. Treat `agent_run_summary.build_recipe.build_commands` as the authoritative replay order. If a successful command edited files, created symlinks, installed packages, or patched stubs, preserve that exact command text unless Dockerfile syntax alone forces escaping.
-12. Do not replace an observed successful file patch or stub with your own equivalent implementation. The goal is reproduction of the sandbox trajectory, not a cleaner independent solution.
-13. Do not try to fix a test-command runtime wrapper by adding a final Dockerfile `RUN` test. If the provided test command uses a wrapper such as `xvfb-run`, preserve the test command outside the Dockerfile.
-
-`confidence` must be one of: "high", "medium", "low".
-"""
-
-DOCKERFILE_REPAIR_USER_PROMPT = """Repair the Dockerfile using the failure feedback and trajectory evidence.
-
-Input JSON:
-```json
-{repair_input_json}
-```
-"""
+MINICONDA_INSTALL_RUN_INSTRUCTION = (
+    "RUN if [ ! -x /opt/conda/bin/conda ]; then "
+    "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates bzip2 "
+    "&& rm -rf /var/lib/apt/lists/*; "
+    'JAYINT_CONDA_ARCH="$(uname -m)"; '
+    'case "$JAYINT_CONDA_ARCH" in '
+    "x86_64|amd64) JAYINT_CONDA_ARCH=x86_64 ;; "
+    "aarch64|arm64) JAYINT_CONDA_ARCH=aarch64 ;; "
+    '*) echo "Unsupported conda arch: $JAYINT_CONDA_ARCH" >&2; exit 1 ;; '
+    "esac; "
+    'curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/jayint-miniconda.sh '
+    '"https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${JAYINT_CONDA_ARCH}.sh" '
+    "&& bash /tmp/jayint-miniconda.sh -b -p /opt/conda "
+    "&& rm -f /tmp/jayint-miniconda.sh; "
+    "fi"
+)
 
 
 def _json_safe(value: Any) -> Any:
@@ -1289,6 +1282,69 @@ def _is_broad_torch_requirement(requirement: str) -> bool:
     return not _is_exact_torch_requirement(requirement)
 
 
+def _is_unpinned_torch_requirement(requirement: str) -> bool:
+    return bool(
+        re.fullmatch(r"torch(?:\[[^\]]+\])?", str(requirement or "").strip())
+    )
+
+
+def _observed_torch_requirement(pip_constraints: dict[str, str]) -> str | None:
+    version = str((pip_constraints or {}).get("torch") or "").strip()
+    if not re.fullmatch(r"[0-9][A-Za-z0-9_.!+~-]*", version):
+        return None
+    return f"torch=={version}"
+
+
+def _drop_pytorch_cpu_index_option(options: list[str]) -> list[str]:
+    filtered: list[str] = []
+    index = 0
+    while index < len(options):
+        option = options[index]
+        option_name, has_inline_value, inline_value = option.partition("=")
+        if option_name in {"-i", "--index-url"}:
+            if has_inline_value and inline_value == PYTORCH_CPU_INDEX_URL:
+                index += 1
+                continue
+            if (
+                not has_inline_value
+                and index + 1 < len(options)
+                and options[index + 1] == PYTORCH_CPU_INDEX_URL
+            ):
+                index += 2
+                continue
+        filtered.append(option)
+        index += 1
+    return filtered
+
+
+def _pin_observed_unpinned_torch_requirement(
+    command: str,
+    pip_constraints: dict[str, str],
+) -> str:
+    observed_requirement = _observed_torch_requirement(pip_constraints)
+    if not observed_requirement or not _is_bare_pip_install_command(command):
+        return command
+    parsed = _split_pip_install_command(command)
+    if not parsed:
+        return command
+    prefix, options, requirements = parsed
+    rewritten_requirements: list[str] = []
+    for requirement in requirements:
+        if _is_unpinned_torch_requirement(requirement):
+            rewritten_requirements.append(observed_requirement)
+        else:
+            rewritten_requirements.append(requirement)
+    if rewritten_requirements == requirements:
+        return command
+    return shlex.join(
+        [
+            *prefix,
+            *_drop_pytorch_cpu_index_option(options),
+            *rewritten_requirements,
+        ]
+    )
+
+
 def _is_torch_cpu_split_candidate(requirement: str) -> bool:
     return _is_broad_torch_requirement(requirement)
 
@@ -1698,13 +1754,130 @@ def _is_apt_install_replay_command(command: str) -> bool:
     )
 
 
+def _shlex_tokens(command: str) -> list[str] | None:
+    try:
+        return shlex.split(" ".join(str(command or "").split()).strip())
+    except ValueError:
+        return None
+
+
+def _is_opt_conda_command(command: str) -> bool:
+    tokens = _shlex_tokens(command)
+    return bool(tokens and tokens[0] == "/opt/conda/bin/conda")
+
+
+def _is_opt_conda_bootstrap_instruction(line: str) -> bool:
+    normalized = " ".join(str(line or "").split()).lower()
+    return "/opt/conda" in normalized and any(
+        marker in normalized
+        for marker in (
+            "miniconda",
+            "miniforge",
+            "micromamba",
+            "mambaorg/micromamba",
+        )
+    )
+
+
+def _dockerfile_has_opt_conda_bootstrap_before_first_use(lines: list[str]) -> bool:
+    saw_bootstrap = False
+    for line in lines:
+        if _is_opt_conda_bootstrap_instruction(line):
+            saw_bootstrap = True
+        if "/opt/conda/bin/conda" in str(line or ""):
+            return saw_bootstrap
+    return saw_bootstrap
+
+
+def _dockerfile_contains_habitat_sim_fallback(lines: list[str]) -> bool:
+    text = "\n".join(str(line or "") for line in lines)
+    return "site-packages/habitat_sim" in text or bool(
+        re.search(r"--ignore=[^ \n]*habitat", text)
+    )
+
+
+def _conda_requirement_name(requirement: str) -> str:
+    return re.split(r"[<>=!~]", str(requirement or "").strip(), maxsplit=1)[0].lower()
+
+
+def _is_habitat_sim_conda_install_command(command: str) -> bool:
+    tokens = _shlex_tokens(command)
+    if not tokens or tokens[:2] != ["/opt/conda/bin/conda", "install"]:
+        return False
+    return any(_conda_requirement_name(token) == "habitat-sim" for token in tokens[2:])
+
+
+def _is_habitat_sim_conda_search_command(command: str) -> bool:
+    tokens = _shlex_tokens(command)
+    if not tokens or tokens[:2] != ["/opt/conda/bin/conda", "search"]:
+        return False
+    return any(_conda_requirement_name(token) == "habitat-sim" for token in tokens[2:])
+
+
+def _is_conda_probe_or_tos_command(command: str) -> bool:
+    tokens = _shlex_tokens(command)
+    if not tokens or tokens[0] != "/opt/conda/bin/conda":
+        return False
+    return tokens[1:2] in (["--version"], ["tos"])
+
+
+def _should_drop_habitat_sim_fallback_conda_command(
+    command: str,
+    *,
+    habitat_sim_fallback_available: bool,
+) -> bool:
+    if not habitat_sim_fallback_available:
+        return False
+    return (
+        _is_habitat_sim_conda_install_command(command)
+        or _is_habitat_sim_conda_search_command(command)
+        or _is_conda_probe_or_tos_command(command)
+    )
+
+
+def _make_conda_search_nonfatal(command: str) -> str:
+    tokens = _shlex_tokens(command)
+    if not tokens or tokens[:2] != ["/opt/conda/bin/conda", "search"]:
+        return command
+    if "|| true" in " ".join(str(command or "").split()):
+        return command
+    return shlex.join(tokens) + " || true"
+
+
+def _add_parent_dirs_to_absolute_touch_command(command: str) -> str:
+    normalized = " ".join(str(command or "").split()).strip()
+    if not normalized or any(
+        operator in normalized for operator in ("&&", "||", ";", "|")
+    ):
+        return command
+    try:
+        tokens = shlex.split(normalized)
+    except ValueError:
+        return command
+    if len(tokens) < 2 or tokens[0] != "touch":
+        return command
+    file_paths = tokens[1:]
+    if not all(path.startswith("/") and not path.endswith("/") for path in file_paths):
+        return command
+    parent_dirs = sorted({str(PurePosixPath(path).parent) for path in file_paths})
+    parent_dirs = [path for path in parent_dirs if path and path != "."]
+    if not parent_dirs:
+        return command
+    return shlex.join(["mkdir", "-p", *parent_dirs]) + " && " + shlex.join(tokens)
+
+
 def _repair_generated_apt_retry_status_variables(command: str) -> str:
     if "JAYINT_APT_ATTEMPT" not in (command or ""):
         return command
-    if "JAYINT_PIP_STATUS" not in command and "JAYINT_PIP_MAX_ATTEMPTS" not in command:
+    if (
+        "JAYINT_PIP_ATTEMPT" not in command
+        and "JAYINT_PIP_STATUS" not in command
+        and "JAYINT_PIP_MAX_ATTEMPTS" not in command
+    ):
         return command
     return (
-        command.replace("JAYINT_PIP_STATUS", "JAYINT_APT_STATUS")
+        command.replace("JAYINT_PIP_ATTEMPT", "JAYINT_APT_ATTEMPT")
+        .replace("JAYINT_PIP_STATUS", "JAYINT_APT_STATUS")
         .replace("JAYINT_PIP_MAX_ATTEMPTS", "JAYINT_APT_MAX_ATTEMPTS")
     )
 
@@ -1882,6 +2055,189 @@ def _is_top_level_dockerfile_instruction(line: str) -> bool:
     )
 
 
+def _dockerfile_context_copy_destinations(lines: list[str]) -> set[str]:
+    env: dict[str, str] = {}
+    current_workdir = "/app"
+    destinations: set[str] = set()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        env_updates = _parse_dockerfile_env_instruction(stripped)
+        if env_updates:
+            for key, value in env_updates.items():
+                env[key] = _expand_dockerfile_variables(value, env)
+            continue
+
+        if stripped.upper().startswith("WORKDIR "):
+            current_workdir = _normalize_dockerfile_workdir(
+                stripped.split(None, 1)[1].strip(),
+                env,
+                current_workdir,
+            )
+            continue
+
+        if not re.match(r"^(?:COPY|ADD)\s+", stripped, flags=re.IGNORECASE):
+            continue
+
+        try:
+            tokens = shlex.split(stripped)
+        except ValueError:
+            tokens = stripped.split()
+        if len(tokens) < 3:
+            continue
+
+        source_start = 1
+        while source_start < len(tokens) - 1 and tokens[source_start].startswith("--"):
+            source_start += 1
+        if len(tokens) - source_start < 2:
+            continue
+
+        sources = tokens[source_start:-1]
+        if not any(source in {".", "./"} for source in sources):
+            continue
+
+        destination = _normalize_dockerfile_workdir(tokens[-1], env, current_workdir)
+        destinations.add(destination)
+
+    return destinations
+
+
+def _git_clone_destination(command: str) -> str | None:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    if not tokens:
+        return None
+
+    if any(token in {"&&", "||", ";", "|"} for token in tokens):
+        return None
+
+    try:
+        git_index = tokens.index("git")
+    except ValueError:
+        return None
+    if git_index + 1 >= len(tokens) or tokens[git_index + 1] != "clone":
+        return None
+
+    option_args = {
+        "-b",
+        "--branch",
+        "--depth",
+        "--jobs",
+        "-j",
+        "--origin",
+        "-o",
+        "--recurse-submodules",
+        "--reference",
+        "--reference-if-able",
+        "--separate-git-dir",
+        "--shallow-since",
+        "--shallow-exclude",
+        "--template",
+        "--upload-pack",
+        "-u",
+    }
+    positional: list[str] = []
+    index = git_index + 2
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--":
+            index += 1
+            continue
+        if token.startswith("-"):
+            if token in option_args and index + 1 < len(tokens):
+                index += 2
+            else:
+                index += 1
+            continue
+        positional.append(token)
+        index += 1
+
+    if len(positional) < 2:
+        return None
+    return positional[-1]
+
+
+def _is_redundant_context_clone_command(
+    command: str,
+    *,
+    workdir: str,
+    context_copy_destinations: set[str],
+) -> bool:
+    destinations = [_git_clone_destination(command)]
+    if "git clone" in command and "JAYINT_GIT_ATTEMPT" in command:
+        for match in re.finditer(r"\bgit\s+clone\b(?P<args>.*?)(?:&&|\|\||;|$)", command):
+            destinations.append(
+                _git_clone_destination("git clone " + match.group("args").strip())
+            )
+
+    for destination in destinations:
+        if not destination:
+            continue
+        normalized_destination = _normalize_dockerfile_workdir(destination, {}, workdir)
+        if normalized_destination in context_copy_destinations:
+            return True
+    return False
+
+
+def _is_replay_diagnostic_run_command(command: str) -> bool:
+    stripped = " ".join(str(command or "").split()).strip()
+    if not stripped:
+        return False
+
+    try:
+        tokens = shlex.split(stripped)
+    except ValueError:
+        tokens = stripped.split()
+    if not tokens:
+        return False
+
+    executable = PurePosixPath(tokens[0]).name
+    if executable.startswith("python") and "-c" in tokens:
+        code_index = tokens.index("-c") + 1
+        if code_index >= len(tokens):
+            return False
+        code = tokens[code_index]
+        mutating_markers = (
+            "open(",
+            ".write",
+            "write(",
+            "mkdir",
+            "makedirs",
+            "subprocess",
+            "os.system",
+            "check_call",
+            "check_output",
+            "pip ",
+            "install ",
+            "shutil",
+        )
+        if any(marker in code for marker in mutating_markers):
+            return False
+        return "import " in code or code.lstrip().startswith("from ")
+
+    if any(operator in stripped for operator in ("&&", "||", ";", "|", ">", "<")):
+        return False
+
+    if executable in {"ls", "pwd"}:
+        return True
+    if executable == "find" and len(tokens) > 1:
+        return not any(
+            token in {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+            for token in tokens
+        )
+    if executable in {"head", "tail", "cat"} and len(tokens) > 1:
+        return True
+    if executable == "sed" and "-n" in tokens[:3]:
+        return True
+
+    return False
+
+
 def normalize_eval_dockerfile_for_replay(
     dockerfile_text: str,
     pip_constraints: Optional[dict[str, str]] = None,
@@ -1890,6 +2246,7 @@ def normalize_eval_dockerfile_for_replay(
     rendered: list[str] = []
     lines = str(dockerfile_text or "").splitlines()
     workdir = infer_workdir_from_dockerfile(dockerfile_text)
+    context_copy_destinations = _dockerfile_context_copy_destinations(lines)
     index = 0
     multiline_script_index = 1
     local_pip_installed_projects: set[str] = set()
@@ -1921,6 +2278,8 @@ def normalize_eval_dockerfile_for_replay(
     )
     cuda_extension_builds_skipped = any("SKIP_CUDA_BUILD=TRUE" in line for line in lines)
     poetry_lock_available = _dockerfile_may_include_poetry_lock(dockerfile_text)
+    opt_conda_available = _dockerfile_has_opt_conda_bootstrap_before_first_use(lines)
+    habitat_sim_fallback_available = _dockerfile_contains_habitat_sim_fallback(lines)
     while index < len(lines):
         generated_apt_retry = _collect_generated_apt_retry_with_orphan_continuations(lines, index)
         if generated_apt_retry:
@@ -1955,6 +2314,14 @@ def normalize_eval_dockerfile_for_replay(
         if stripped.startswith("RUN "):
             command = stripped[4:].strip()
             original_command = command
+            if _is_redundant_context_clone_command(
+                command,
+                workdir=workdir,
+                context_copy_destinations=context_copy_destinations,
+            ):
+                continue
+            if _is_replay_diagnostic_run_command(command):
+                continue
             command = _repair_generated_apt_retry_status_variables(command)
             if command != original_command:
                 rendered.append(f"RUN {command}")
@@ -1993,6 +2360,13 @@ def normalize_eval_dockerfile_for_replay(
                     pip_installed_package_names,
                 )
                 if generated_pip_command != _extract_generated_pip_retry_inner_command(command):
+                    applied_generated_pip_rewrite = True
+                pinned_generated_pip_command = _pin_observed_unpinned_torch_requirement(
+                    generated_pip_command,
+                    pip_constraints,
+                )
+                if pinned_generated_pip_command != generated_pip_command:
+                    generated_pip_command = pinned_generated_pip_command
                     applied_generated_pip_rewrite = True
                 constrained_pip_command = _add_observed_constraints_to_pip_command(
                     generated_pip_command,
@@ -2062,14 +2436,35 @@ def normalize_eval_dockerfile_for_replay(
             if _is_apt_install_replay_command(command):
                 rendered.append(build_resilient_apt_install_run_instruction(command))
                 continue
+            if _is_opt_conda_command(command):
+                if _should_drop_habitat_sim_fallback_conda_command(
+                    command,
+                    habitat_sim_fallback_available=habitat_sim_fallback_available,
+                ):
+                    continue
+                if not opt_conda_available:
+                    rendered.append(MINICONDA_INSTALL_RUN_INSTRUCTION)
+                    opt_conda_available = True
+                command = _make_conda_search_nonfatal(command)
+                rendered.append(f"RUN {command}")
+                continue
+            touch_command = _add_parent_dirs_to_absolute_touch_command(command)
+            if touch_command != command:
+                rendered.append(f"RUN {touch_command}")
+                continue
             if _is_bare_pip_install_command(command):
                 command = _add_no_deps_to_known_force_reinstall(
                     command,
                     pip_installed_package_names,
                 )
-                command = _add_observed_constraints_to_pip_command(command, pip_constraints)
-                if command != original_command:
+                command = _pin_observed_unpinned_torch_requirement(command, pip_constraints)
+                constrained_command = _add_observed_constraints_to_pip_command(
+                    command,
+                    pip_constraints,
+                )
+                if constrained_command != command:
                     ensure_pip_constraints_rendered()
+                command = constrained_command
                 filtered_pip_command = _drop_reinstalled_local_projects(
                     command,
                     local_pip_installed_projects,
@@ -2134,7 +2529,7 @@ def normalize_repo2run_collect_candidate(command: str) -> str:
     if xvfb_tokens:
         wrapper_tokens, inner_tokens = xvfb_tokens
         inner_command = _normalize_python_module_pytest_prefix(
-            " ".join(shlex.quote(token) for token in inner_tokens)
+            " ".join(_quote_repo2run_collect_token(token) for token in inner_tokens)
         )
         normalized = " ".join(
             [*(shlex.quote(token) for token in wrapper_tokens), inner_command]
@@ -2196,10 +2591,18 @@ def _split_safe_leading_cd_collect_command(command: str) -> Optional[tuple[Optio
     cd_workdir = _normalize_collect_cd_workdir(tokens[1])
     if cd_workdir is None:
         return None
-    inner_command = " ".join(shlex.quote(token) for token in tokens[3:]).strip()
+    inner_command = " ".join(
+        _quote_repo2run_collect_token(token) for token in tokens[3:]
+    ).strip()
     if not inner_command:
         return None
     return cd_workdir or None, inner_command
+
+
+def _quote_repo2run_collect_token(token: str) -> str:
+    if _is_env_assignment_token(token):
+        return token
+    return shlex.quote(token)
 
 
 def _repo2run_collect_command_has_unsafe_shell_syntax(command: str) -> bool:
@@ -2560,198 +2963,6 @@ def classify_test_execution(
     }
 
 
-_MISSING_PYTHON_MODULE_RE = re.compile(
-    r"(?:ModuleNotFoundError|ImportError):\s+No module named ['\"](?P<module>[^'\"]+)['\"]"
-)
-_KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS = {
-    "ppocr": ("paddleocr", "paddleocr==2.7.3"),
-    "ppstructure": ("paddleocr", "paddleocr==2.7.3"),
-}
-
-
-def extract_missing_python_modules_from_test_execution(
-    test_execution: Optional[dict[str, Any]],
-) -> list[str]:
-    modules: list[str] = []
-    seen: set[str] = set()
-    for item in (test_execution or {}).get("results") or []:
-        execution = item.get("execution") or {}
-        combined_output = "\n".join(
-            [
-                _decode_command_stream(execution.get("stdout")),
-                _decode_command_stream(execution.get("stderr")),
-            ]
-        )
-        for match in _MISSING_PYTHON_MODULE_RE.finditer(combined_output):
-            module = (match.group("module") or "").split(".", 1)[0].strip()
-            if module and module not in seen:
-                seen.add(module)
-                modules.append(module)
-    return modules
-
-
-def _strip_requirement_line(line: str) -> str:
-    stripped = (line or "").strip()
-    if not stripped or stripped.startswith("#"):
-        return ""
-    if " #" in stripped:
-        stripped = stripped.split(" #", 1)[0].strip()
-    return stripped
-
-
-def _find_declared_requirement_in_workspace(
-    workspace_root: Optional[Path],
-    package_name: str,
-) -> str | None:
-    normalized_name = _normalize_pip_constraint_name(package_name)
-    if not workspace_root or not normalized_name or not workspace_root.exists():
-        return None
-
-    inspected = 0
-    for path in sorted(workspace_root.rglob("*requirements*.txt")):
-        inspected += 1
-        if inspected > 100:
-            break
-        try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        for line in text.splitlines():
-            requirement = _strip_requirement_line(line)
-            if _pip_requirement_name(requirement) == normalized_name:
-                return requirement
-
-    lock_inspected = 0
-    package_pattern = re.compile(
-        r"(?ms)^\[\[package\]\]\s*.*?^name\s*=\s*"
-        + re.escape(json.dumps(package_name)[1:-1]).join(['"', '"'])
-        + r"\s*$.*?^version\s*=\s*\"(?P<version>[^\"]+)\"",
-    )
-    for path in sorted(workspace_root.rglob("poetry.lock")):
-        lock_inspected += 1
-        if lock_inspected > 20:
-            break
-        try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        match = package_pattern.search(text)
-        if match:
-            return f"{package_name}=={match.group('version')}"
-    return None
-
-
-def _requirement_for_missing_module(
-    module: str,
-    workspace_root: Optional[Path],
-) -> str | None:
-    module_name = _normalize_pip_constraint_name((module or "").split(".", 1)[0])
-    if not module_name:
-        return None
-
-    candidate_package_names: list[str] = []
-    fallback_requirement = module_name
-    if module_name in _KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS:
-        package_name, fallback_requirement = _KNOWN_MISSING_MODULE_PACKAGE_FALLBACKS[module_name]
-        candidate_package_names.append(package_name)
-    candidate_package_names.append(module_name)
-
-    for package_name in candidate_package_names:
-        declared = _find_declared_requirement_in_workspace(workspace_root, package_name)
-        if declared:
-            return declared
-    return fallback_requirement
-
-
-def _preferred_pip_invocation_for_dockerfile(dockerfile_text: str) -> str:
-    text = dockerfile_text or ""
-    if re.search(r"\bpython3\s+-m\s+pip\s+install\b", text):
-        return "python3 -m pip"
-    if re.search(r"\bpip3\s+install\b", text):
-        return "pip3"
-    return "pip"
-
-
-def _dockerfile_already_installs_requirement(dockerfile_text: str, requirement: str) -> bool:
-    requirement_name = _pip_requirement_name(requirement)
-    if not requirement_name:
-        return True
-    requires_exact = bool(re.search(r"(?:===|==|~=|!=|>=|<=|>|<)", requirement))
-    normalized_requirement = re.sub(r"\s+", "", requirement).lower().replace("_", "-")
-    for line in (dockerfile_text or "").splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("RUN "):
-            continue
-        command = stripped[4:].strip()
-        candidate_commands = [command]
-        generated_pip_command = _extract_generated_pip_retry_inner_command(command)
-        if generated_pip_command:
-            candidate_commands.append(generated_pip_command)
-        for candidate_command in candidate_commands:
-            parsed = _split_pip_install_command(candidate_command)
-            if not parsed:
-                continue
-            _, _, requirements = parsed
-            for installed_requirement in requirements:
-                if _pip_requirement_name(installed_requirement) != requirement_name:
-                    continue
-                if not requires_exact:
-                    return True
-                normalized_installed = (
-                    re.sub(r"\s+", "", installed_requirement).lower().replace("_", "-")
-                )
-                if normalized_installed == normalized_requirement:
-                    return True
-    return False
-
-
-def _insert_run_instruction_before_final_command(
-    dockerfile_text: str,
-    instruction: str,
-) -> str:
-    lines = (dockerfile_text or "").rstrip().splitlines()
-    insert_at = len(lines)
-    for index, line in enumerate(lines):
-        if line.strip().upper().startswith(("CMD ", "ENTRYPOINT ")):
-            insert_at = index
-            break
-    if insert_at > 0 and lines[insert_at - 1].strip():
-        lines.insert(insert_at, "")
-        insert_at += 1
-    lines.insert(insert_at, instruction)
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def repair_dockerfile_for_missing_python_modules(
-    dockerfile_text: str,
-    test_execution: Optional[dict[str, Any]],
-    workspace_root: Optional[Path],
-) -> tuple[str, list[str]]:
-    modules = extract_missing_python_modules_from_test_execution(test_execution)
-    if not modules:
-        return dockerfile_text, []
-
-    requirements: list[str] = []
-    seen_requirement_names: set[str] = set()
-    for module in modules:
-        requirement = _requirement_for_missing_module(module, workspace_root)
-        if not requirement or _dockerfile_already_installs_requirement(dockerfile_text, requirement):
-            continue
-        requirement_name = _pip_requirement_name(requirement)
-        if requirement_name in seen_requirement_names:
-            continue
-        seen_requirement_names.add(requirement_name)
-        requirements.append(requirement)
-
-    if not requirements:
-        return dockerfile_text, []
-
-    pip_invocation = _preferred_pip_invocation_for_dockerfile(dockerfile_text)
-    install_command = f"{pip_invocation} install " + " ".join(shlex.quote(item) for item in requirements)
-    instruction = build_resilient_pip_install_run_instruction(install_command)
-    return _insert_run_instruction_before_final_command(dockerfile_text, instruction), requirements
-
-
 def compute_paper_alignment(expected_success: bool, observed_success: bool) -> str:
     if observed_success and expected_success:
         return "matched_success"
@@ -2887,231 +3098,6 @@ def evaluate_built_image(
         "effective_test_command_count": effective_count,
         "all_test_commands_effective": all_effective,
     }
-
-
-def truncate_for_repair_prompt(value: Any, limit: int = DOCKERFILE_REPAIR_LOG_LIMIT) -> str:
-    text = str(value or "")
-    if len(text) <= limit:
-        return text
-    head_limit = limit // 2
-    tail_limit = limit - head_limit
-    return (
-        text[:head_limit]
-        + "\n\n...[truncated for Dockerfile repair prompt]...\n\n"
-        + text[-tail_limit:]
-    )
-
-
-def extract_json_object_candidates(text: str) -> list[str]:
-    objects: list[str] = []
-    if not text:
-        return objects
-
-    search_regions = [
-        match.group(1).strip()
-        for match in re.finditer(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
-    ]
-    search_regions.append(text.strip())
-
-    for region in search_regions:
-        position = 0
-        while position < len(region):
-            start = region.find("{", position)
-            if start == -1:
-                break
-            depth = 0
-            in_string = False
-            escape = False
-            found = False
-            for index in range(start, len(region)):
-                char = region[index]
-                if in_string:
-                    if escape:
-                        escape = False
-                    elif char == "\\":
-                        escape = True
-                    elif char == '"':
-                        in_string = False
-                    continue
-                if char == '"':
-                    in_string = True
-                elif char == "{":
-                    depth += 1
-                elif char == "}":
-                    depth -= 1
-                    if depth == 0:
-                        objects.append(region[start:index + 1])
-                        position = index + 1
-                        found = True
-                        break
-            if not found:
-                break
-    return objects
-
-
-def extract_dockerfile_repair_json(content: str) -> dict[str, Any]:
-    for candidate in extract_json_object_candidates(content):
-        try:
-            parsed = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(parsed, dict):
-            continue
-        dockerfile = str(parsed.get("dockerfile") or "").strip()
-        if dockerfile and re.search(r"(?im)^FROM\s+\S+", dockerfile):
-            confidence = str(parsed.get("confidence") or "medium").strip().lower()
-            if confidence not in {"high", "medium", "low"}:
-                confidence = "medium"
-            return {
-                "dockerfile": dockerfile.rstrip() + "\n",
-                "rationale": str(parsed.get("rationale") or "").strip(),
-                "confidence": confidence,
-            }
-    raise ValueError("Dockerfile repair response did not contain a valid JSON object with a full Dockerfile")
-
-
-def build_dockerfile_repair_input(
-    *,
-    instance: dict[str, Any],
-    workdir: str,
-    dockerfile_text: str,
-    run_summary: Optional[dict[str, Any]],
-    runtime_commands: list[str],
-    test_commands: list[str],
-    docker_build: Optional[dict[str, Any]],
-    test_execution: Optional[dict[str, Any]],
-) -> dict[str, Any]:
-    test_results = []
-    for item in (test_execution or {}).get("results") or []:
-        execution = item.get("execution") or {}
-        test_results.append(
-            {
-                "test_command": item.get("test_command"),
-                "classification": item.get("classification"),
-                "returncode": execution.get("returncode"),
-                "timed_out": execution.get("timed_out"),
-                "stdout": truncate_for_repair_prompt(execution.get("stdout")),
-                "stderr": truncate_for_repair_prompt(execution.get("stderr")),
-            }
-        )
-
-    minimal_run_summary = {
-        "repo_url": (run_summary or {}).get("repo_url"),
-        "base_commit": (run_summary or {}).get("base_commit"),
-        "language": (run_summary or {}).get("language"),
-        "verification_bundle": (run_summary or {}).get("verification_bundle"),
-        "verified_runtime_preparation_commands": (run_summary or {}).get(
-            "verified_runtime_preparation_commands"
-        ),
-        "verified_test_commands": (run_summary or {}).get("verified_test_commands"),
-        "build_recipe": {
-            "source": ((run_summary or {}).get("build_recipe") or {}).get("source"),
-            "build_commands": ((run_summary or {}).get("build_recipe") or {}).get(
-                "build_commands"
-            )
-            or [],
-            "runtime_commands": ((run_summary or {}).get("build_recipe") or {}).get(
-                "runtime_commands"
-            )
-            or [],
-        },
-        "successful_actions": (run_summary or {}).get("successful_actions") or [],
-        "failed_actions": (run_summary or {}).get("failed_actions") or [],
-    }
-
-    return {
-        "task": {
-            "instance_id": instance.get("instance_id"),
-            "full_name": instance.get("full_name"),
-            "sha": instance.get("sha"),
-            "repo_url": instance.get("repo_url"),
-            "workdir": workdir,
-        },
-        "dockerfile": dockerfile_text,
-        "runtime_preparation_commands": runtime_commands,
-        "test_commands": test_commands,
-        "agent_run_summary": minimal_run_summary,
-        "docker_build": {
-            "returncode": (docker_build or {}).get("returncode"),
-            "timed_out": (docker_build or {}).get("timed_out"),
-            "stdout": truncate_for_repair_prompt((docker_build or {}).get("stdout")),
-            "stderr": truncate_for_repair_prompt((docker_build or {}).get("stderr")),
-        },
-        "test_execution": test_results,
-    }
-
-
-def repair_dockerfile_with_llm(
-    *,
-    client: Any,
-    model: str,
-    repair_input: dict[str, Any],
-    artifact_dir: Path,
-    round_index: int,
-) -> dict[str, Any]:
-    usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-    raw_content = ""
-    messages = [
-        {"role": "system", "content": DOCKERFILE_REPAIR_SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": DOCKERFILE_REPAIR_USER_PROMPT.format(
-                repair_input_json=json.dumps(repair_input, ensure_ascii=False, indent=2)
-            ),
-        },
-    ]
-    repair_log_path = artifact_dir / f"dockerfile_repair_round_{round_index}.md"
-    write_text(
-        repair_log_path,
-        "##### LLM INPUT (Dockerfile repair) #####\n"
-        "================================ Human Message =================================\n\n"
-        + "\n\n".join(f"[{message['role'].upper()}]\n{message['content']}" for message in messages)
-        + "\n\n",
-    )
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0,
-        )
-        usage = {
-            "input_tokens": getattr(response.usage, "prompt_tokens", 0),
-            "output_tokens": getattr(response.usage, "completion_tokens", 0),
-            "total_tokens": getattr(response.usage, "total_tokens", 0),
-        }
-        raw_content = response.choices[0].message.content or ""
-        parsed = extract_dockerfile_repair_json(raw_content)
-        result = {
-            "round": round_index,
-            "source": "llm",
-            "error": None,
-            "usage": usage,
-            "raw_content": raw_content,
-            "dockerfile_text": parsed["dockerfile"],
-            "rationale": parsed["rationale"],
-            "confidence": parsed["confidence"],
-            "log_path": str(repair_log_path),
-        }
-    except Exception as exc:
-        result = {
-            "round": round_index,
-            "source": "llm_error",
-            "error": str(exc),
-            "usage": usage,
-            "raw_content": raw_content,
-            "dockerfile_text": None,
-            "rationale": "",
-            "confidence": "low",
-            "log_path": str(repair_log_path),
-        }
-
-    with repair_log_path.open("a", encoding="utf-8") as file_obj:
-        file_obj.write("================================ AI Message =================================\n\n")
-        file_obj.write(f"{raw_content}\n\n")
-        file_obj.write("================================ Parsed Repair =================================\n\n")
-        file_obj.write(json.dumps({k: v for k, v in result.items() if k != "raw_content"}, ensure_ascii=False, indent=2))
-        file_obj.write("\n")
-    return result
 
 
 def parse_args() -> argparse.Namespace:

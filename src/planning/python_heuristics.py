@@ -5,11 +5,13 @@ from src.planning.base_image_planner import BaseImageDecision
 from src.planning.fallback_generator import FallbackGenerator
 from src.planning.repository_evidence import RepositoryEvidence
 from src.planning.schemas import TaskEdge, TaskNode
+from src.evaluation_target import is_ratbench_target, normalize_evaluation_target
 
 
 class PythonHeuristicPlanner:
-    def __init__(self, fallback_generator: FallbackGenerator = None):
+    def __init__(self, fallback_generator: FallbackGenerator = None, evaluation_target: str = "repo2run"):
         self.fallback_generator = fallback_generator or FallbackGenerator()
+        self.evaluation_target = normalize_evaluation_target(evaluation_target)
 
     def build(
         self,
@@ -286,6 +288,30 @@ class PythonHeuristicPlanner:
     def _verification_nodes(self, evidence: RepositoryEvidence) -> List[TaskNode]:
         test_framework = self._detect_test_framework(evidence)
         if test_framework == "pytest":
+            if is_ratbench_target(self.evaluation_target):
+                evidence_items = self._pytest_evidence(evidence)
+                return [
+                    TaskNode(
+                        id="pytest --collect-only -q --disable-warnings",
+                        type="verification",
+                        label="RATBench pytest collection gate",
+                        command_hint="pytest --collect-only -q --disable-warnings",
+                        evidence=evidence_items,
+                        confidence=0.9,
+                        scope="test",
+                        metadata={"ratbench_target": True, "phase": "collect_gate"},
+                    ),
+                    TaskNode(
+                        id="python -m pytest",
+                        type="verification",
+                        label="RATBench full pytest execution",
+                        command_hint="python -m pytest",
+                        evidence=evidence_items,
+                        confidence=0.85,
+                        scope="test",
+                        metadata={"ratbench_target": True, "phase": "full_pytest"},
+                    ),
+                ]
             return [
                 TaskNode(
                     id="pytest --collect-only -q --disable-warnings",

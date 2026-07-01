@@ -3790,6 +3790,8 @@ class Synthesizer:
         positive_patterns = [
             r"collected\s+[1-9]\d*\s+items",
             r"\b[1-9]\d*\s+tests?\s+collected\b",
+            r"^\s*(?:\.?/)?(?:tests?|testing|spec|specs)/[^\s:]+\.py::\S+",
+            r"^\s*(?:\.?/)?(?:tests?|testing|spec|specs)/[^\s:]+\.py:\s+[1-9]\d*\s*$",
             r"ran\s+[1-9]\d*\s+tests?",
             r"\b[1-9]\d*\s+passed\b",
             r"\b[1-9]\d*\s+failed\b",

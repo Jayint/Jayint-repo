@@ -1095,7 +1095,7 @@ failure:
 
 因此 `__VIEW_PLAN__` 应被视为一个轻量控制动作：它不修改 sandbox，不进入 setup trajectory，也不能作为 Verification Bundle 证据；它只让 Build Agent 在 ReAct loop 内重新对齐当前 plan。
 
-当前 v1.3 仍采用 plan-informed ReAct：系统强化 prompt 和可查看 plan 文件，但不在本层设计中加入“每 N 步强制自动查看 plan”的调度器。该调度器可作为后续第三层增强，用于进一步提高 Plan Consultation Rate。
+当前 v1.4 仍采用 plan-informed ReAct，但不再只依赖模型主动输出 `__VIEW_PLAN__`。主控层会在两类情况下自动把 compact plan digest 追加到下一轮 Observation：每隔固定步数进行一次 periodic plan check，以及失败步骤后返回当前 next todo、已完成/失败节点摘要和 plan 文件路径。显式 `Action: __VIEW_PLAN__` 仍保留，用于查看完整 markdown plan；自动 digest 不修改 sandbox，不进入 setup trajectory，也不能作为 Verification Bundle 证据。
 
 当前 Repo2Run 实现建议采用“plan-informed ReAct”，而不是“scripted execution”：
 
@@ -1903,4 +1903,4 @@ P3：service/env/data/asset advanced detection
 18. 对高风险依赖安装路径，应显式生成 `install_strategy` 节点，而不是让 Build Agent 在 sandbox 中盲目试错。
 19. Build Agent 必须保持 environment-only boundary：禁止源码/测试语义修改和 stub creation，允许依赖/环境配置文件修复。
 20. 依赖安装应优先执行 manifest/lock/CI/platform marker 推导出的 `dependency_resolution_plan`，pytest 报错只作为验证和 fallback 信号。
-21. 每 N 步强制查看 plan 或每个 planned step 后自动注入 plan digest 属于后续第三层增强；v1.3 先通过 plan 文件、prompt 约束和执行反馈更新提升 plan usage。
+21. v1.4 已接入半强制 plan consultation：主控层在 fixed-step interval 和失败步骤后自动注入 compact plan digest；成功匹配 planned step 时继续返回 Planning Update。显式 `__VIEW_PLAN__` 仍用于查看完整 plan，run summary 记录 explicit view、automatic digest 和 planning update 次数。

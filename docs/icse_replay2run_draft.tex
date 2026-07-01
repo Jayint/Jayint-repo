@@ -52,7 +52,8 @@
 \usepackage{enumitem}
 
 \newcommand{\tool}{Replay2Run\xspace}
-\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\planner}{Planning Agent\xspace}
+\newcommand{\ttg}{Typed Task Graph\xspace}
 \newcommand{\dgsr}{DGSR\xspace}
 \newcommand{\ebsr}{EBSR\xspace}
 
@@ -62,105 +63,172 @@
 
 \begin{document}
 
-\title{From Agent Trajectories to Reproducible Dockerfiles: Repairing Environment Replay for Repository Execution}
+\title{Planning-Guided Replay for Repository Environment Construction}
 
 \begin{abstract}
-Executable repository environments are a prerequisite for evaluating and training software engineering agents.
-Recent systems such as Repo2Run formulate this problem as automatically building Docker-based test environments for open-source repositories.
-However, an LLM agent that successfully configures an interactive sandbox does not necessarily produce a Dockerfile that can reproduce the same state in a fresh image.
-The gap arises because exploratory trajectories contain failed commands with partial side effects, read-only diagnostics, repeated file patches, runtime-only service starts, and order-sensitive package-manager operations.
-Naively summarizing or optimizing these trajectories can omit replay-critical state changes, while directly replaying raw commands can make Docker builds fail.
+Executable repository environments are a prerequisite for evaluating software engineering agents.
+Benchmarks for issue resolution, test generation, and repository execution assume that a repository can be installed, built, and tested in a reproducible environment.
+Recent work such as Repo2Run formulates this task as automated Docker environment construction for real repositories.
+However, current LLM-based build agents often solve the task through unstructured trial and error: they repeatedly install packages after import failures, mix environment configuration with source-code edits, and finally synthesize a Dockerfile from a noisy interactive trajectory.
+This behavior creates two failures.
+First, the agent may spend many steps in an error-driven installation loop instead of following dependency evidence from manifests and lock files.
+Second, a sandbox that was eventually configured successfully may not replay as a fresh Docker build because the trajectory contains failed commands, diagnostic probes, runtime-only commands, and order-sensitive state changes.
 
-We present \tool, an LLM-based environment configuration framework that focuses on the replay gap between sandbox success and reproducible Dockerfile generation.
-\tool follows the Repo2Run task setting and verification target, but introduces two mechanisms designed for reproducible environment construction.
-First, \tool performs replay-aware trajectory compression: it compresses long setup histories while preserving successful state-changing actions, final verification evidence, and the chronological order needed for Dockerfile replay.
-Second, \tool validates the generated Dockerfile in a fresh build-and-test loop and invokes a bounded Dockerfile repair agent when fresh replay fails.
-The repair agent receives the Dockerfile, build/test logs, and structured trajectory evidence, and is constrained to restore omitted or misordered setup commands rather than invent an unrelated setup strategy.
+This paper presents \tool, a planning-guided framework for repository environment construction.
+\tool introduces a read-only \planner that explores the repository and sandbox before setup, extracts a \ttg of runtime, package-manager, dependency, build, service, environment-variable, and verification requirements, and materializes an ordered todo-list for the build agent.
+The graph is validated and updated as execution succeeds or fails, giving the build agent a persistent plan artifact rather than a one-shot prompt hint.
+\tool further addresses reproducibility with replay-aware trajectory compression and a bounded Dockerfile repair loop.
+Trajectory compression reduces long setup histories while preserving successful state-changing commands, exact package/version evidence, and final verification evidence.
+Dockerfile repair validates the generated Dockerfile in a fresh build-and-test loop and edits only the Dockerfile, using structured trajectory evidence to restore omitted or misordered setup commands.
 
-We plan to evaluate \tool on the 420-repository Repo2Run benchmark using Dockerfile Generation Success Rate and Environment Building Success Rate.
-Our ablation study will quantify the contribution of trajectory compression and Dockerfile repair, and our failure analysis will characterize remaining replay gaps.
-\todo{Replace this paragraph with final quantitative results after the full benchmark completes.}
+We frame two central research questions for ICSE evaluation: whether typed planning improves repository environment construction success, and whether the planning loop reduces unplanned error-driven dependency installation.
+The current artifact snapshot contains 420 Repo2Run result files, with 379 successful executable environments and an overall pass rate of 90.24\%.
+On a rerun set of 52 previously failing instances, the current planning-enabled pipeline produced 12 successful Docker builds and 11 executable environments.
+These results are preliminary and not yet a causal ablation; they motivate the full experimental design, which will compare the full system against variants without typed planning, without plan updates, without replay-aware compression, and without Dockerfile repair.
 \end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10011007.10011074.10011099</concept_id>
+       <concept_desc>Software and its engineering~Software configuration management and version control systems</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011074.10011081</concept_id>
+       <concept_desc>Software and its engineering~Software development process management</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10010147.10010178</concept_id>
+       <concept_desc>Computing methodologies~Artificial intelligence</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Software configuration management and version control systems}
+\ccsdesc[300]{Software and its engineering~Software development process management}
+\ccsdesc[300]{Computing methodologies~Artificial intelligence}
+
+\keywords{repository environments, Dockerfile generation, software engineering agents, planning, trajectory compression}
 
 \maketitle
 
 \section{Introduction}
 
 Software engineering research increasingly depends on executable repositories.
-Benchmarks for issue resolution, test generation, program repair, and code agents require not only source code, but also environments in which tests can be collected and executed.
-Unfortunately, building such environments at scale is difficult.
-Real repositories rely on heterogeneous package managers, system libraries, local services, runtime variables, build tools, and undocumented setup assumptions.
-Manually writing a Dockerfile for each repository is expensive, and automatically recovering the required environment remains an open challenge.
+Benchmarks for issue resolution, program repair, test generation, and autonomous coding agents require more than source code.
+They require a runtime in which dependencies can be installed, tests can be collected, and repository-specific assumptions can be reproduced.
+This requirement is difficult at scale.
+Real repositories combine Python packages, native libraries, optional platform markers, local services, generated assets, package-manager quirks, and undocumented setup steps.
+Manual Dockerfile authoring does not scale to hundreds of repositories, and naive automated setup often fails for reasons that are outside the source code itself.
 
-Repo2Run recently framed this challenge as automated construction of executable repository environments at scale~\cite{hu2025repo2run}.
-Given a repository, an LLM agent iteratively installs dependencies, diagnoses failures, and synthesizes a Dockerfile.
-This formulation is compelling because it turns environment construction into a feedback-driven agent task.
-However, our experience shows that a critical distinction must be made:
-\emph{configuring an exploratory sandbox is not the same as generating a Dockerfile that reproduces the sandbox}.
-The agent may eventually make \texttt{pytest --collect-only -q --disable-warnings} succeed in the sandbox, yet the synthesized Dockerfile may fail in a fresh build or fresh test run.
+Repo2Run recently framed this problem as automated construction of executable environments for code repositories~\cite{hu2025repo2run}.
+Given a repository, an agent explores an environment, installs dependencies, diagnoses failures, and produces a Dockerfile.
+The setting is compelling because it moves repository execution from a manual packaging task to an agentic software engineering task.
+At the same time, our experience with Repo2Run-style pipelines shows that environment construction is not merely a sequence of shell commands.
+It is a planning and replay problem.
 
-The replay gap is caused by the structure of setup trajectories.
-An environment-building agent explores through trial and error.
-Its trajectory mixes successful installs, failed installs, diagnostic probes, package version inspections, file rewrites, service starts, and final test commands.
+The planning problem appears before the first setup command.
+An LLM build agent that starts directly from a shell often follows the shortest visible error.
+If \texttt{pytest} reports \texttt{ModuleNotFoundError: x}, the agent installs \texttt{x}; if the next run reports \texttt{ModuleNotFoundError: y}, it installs \texttt{y}.
+This loop can make progress on simple repositories, but it fails when the real dependency solution is encoded in \texttt{pyproject.toml}, lock files, CI configuration, platform markers, or package-manager constraints.
+It also blurs the boundary between environment repair and code repair.
+Installing a missing package, setting \texttt{PYTHONPATH}, or modifying dependency metadata may be legitimate environment configuration.
+Creating source stubs, rewriting tests, or patching repository semantics usually invalidates the environment-building task.
+
+The replay problem appears after the sandbox succeeds.
+An interactive sandbox trajectory is not a Dockerfile.
+The trajectory contains successful installs, failed installs, diagnostic probes, repeated file edits, service starts, runtime-only commands, and final verification commands.
 Some failed commands leave partial side effects.
 Some successful commands are read-only and should not enter the Dockerfile.
-Some repeated file rewrites are necessary because a later reinstall overwrites an earlier patch.
-Some runtime commands should be executed immediately before tests instead of during image build.
-Therefore, Dockerfile synthesis is not a simple summarization problem.
-It is a replay problem: the system must preserve exactly those state transitions that explain the final verified environment.
+Some repeated file patches are necessary because a later reinstall overwrites an earlier patch.
+As a result, a sandbox can reach a state where \texttt{pytest --collect-only} succeeds, while a synthesized Dockerfile built from the same trajectory fails in a fresh image.
 
-This paper presents \tool, a framework for reproducible repository environment construction.
-\tool follows Repo2Run's benchmark and target semantics: the goal is to generate a Dockerfile that builds successfully and supports Repo2Run-style test collection.
-Its novelty lies in two mechanisms that explicitly address replay:
+This paper presents \tool, a framework that treats repository environment construction as planning-guided replay.
+\tool has three main mechanisms.
+First, a read-only \planner inspects repository evidence and the target sandbox environment before setup.
+It extracts a \ttg whose nodes represent runtime, system package, package manager, install strategy, language dependency, project build, service, environment variable, asset, runtime command, and verification requirements.
+The graph is validated, topologically sorted, and rendered as an ordered todo-list for the build agent.
+The plan is materialized as both JSON and Markdown inside the host logs and the sandbox, so the build agent can inspect the current plan at any point through a dedicated plan-view action.
+The plan is not immutable.
+Execution feedback updates node status, promotes fallback edges when observations contradict the initial plan, and returns the next todo item to the build agent.
+
+Second, \tool uses replay-aware trajectory compression.
+Long trajectories must be reduced before they can be passed to an LLM synthesizer or repair agent, but generic compression can remove replay-critical information.
+\tool therefore preserves successful state-changing commands as separate chronological units, keeps exact package names and versions, records file edits, and keeps final verification evidence.
+Read-only probes and repeated failures can be grouped, but they cannot erase the setup actions that explain the final sandbox state.
+
+Third, \tool validates and repairs Dockerfiles through fresh replay.
+After the initial Dockerfile is generated, the benchmark runner performs a fresh Docker build and runs the verified test command in a new container.
+If build or test replay fails, a bounded repair agent receives the Dockerfile, fresh failure logs, and the structured trajectory evidence.
+The repair agent may edit only the Dockerfile and is instructed to restore omitted or misordered setup commands before inventing a new setup strategy.
+
+The paper targets the following research questions:
+
+\begin{description}[labelwidth=3em,leftmargin=4em,align=left]
+  \item[RQ1:] Does typed planning improve repository environment construction success?
+  \item[RQ2:] Does the planning loop reduce unplanned error-driven dependency installation?
+  \item[RQ3:] How much do replay-aware trajectory compression and bounded Dockerfile repair contribute to fresh replay success?
+  \item[RQ4:] What failure modes remain after planning, compression, and repair?
+\end{description}
+
+This draft reports the current artifact snapshot as preliminary evidence.
+The repository currently contains 420 Repo2Run result files, of which 379 are successful executable environments, corresponding to a 90.24\% overall pass rate.
+For a focused rerun of 52 previously failing instances, the planning-enabled pipeline achieved 12 Docker build successes and 11 executable environments.
+These numbers are useful as a progress indicator, but they are not yet sufficient for causal claims.
+The ICSE-ready evaluation will add controlled ablations for typed planning, dynamic plan updates, replay-aware compression, and Dockerfile repair.
+
+This paper makes four contributions:
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Replay-aware trajectory compression.}
-  \tool compresses long agent histories before Dockerfile synthesis, but it does not compress all steps uniformly.
-  Consecutive read-only inspections and failed attempts are grouped, while successful state-changing steps and final verification commands remain single replayable units in chronological order.
-
-  \item \textbf{Fresh replay validation with bounded Dockerfile repair.}
-  After synthesis, \tool builds the generated Dockerfile in a fresh Docker context and runs the verified test command.
-  If build or test replay fails, a repair agent receives the failure logs and structured trajectory evidence and edits only the Dockerfile.
-  The repair prompt explicitly prioritizes restoring omitted successful setup commands and preserving the original command order.
-\end{itemize}
-
-This design changes the role of the LLM.
-Instead of asking the LLM to freely design a clean Dockerfile, \tool treats the agent trajectory as the primary evidence and asks the LLM to recover a reproducible replay plan.
-When the LLM output is invalid or ambiguous, deterministic fallback logic replays successful persistent setup actions using conservative negative filtering.
-
-This paper makes the following contributions:
-
-\begin{itemize}[leftmargin=*]
-  \item We identify the sandbox-to-Dockerfile replay gap in LLM-based repository environment construction and analyze why sandbox success can fail to reproduce in a fresh Docker image.
-  \item We propose replay-aware trajectory compression that reduces long setup histories while preserving replay-critical state transitions and verification evidence.
-  \item We propose a bounded Dockerfile repair loop that uses fresh build/test feedback and structured trajectory evidence to repair replay failures.
-  \item We implement \tool and design an evaluation on the 420-repository Repo2Run benchmark, including ablations for compression and repair.
+  \item We formulate repository environment construction as a planning-guided replay problem, separating environment configuration from source-code repair and separating sandbox success from Dockerfile reproducibility.
+  \item We introduce a \planner that extracts, validates, materializes, and dynamically updates a \ttg for repository setup.
+  \item We propose replay-aware trajectory compression that reduces setup histories while preserving state-changing commands, package/version evidence, and final verification.
+  \item We implement bounded Dockerfile repair over fresh build/test failures and outline an evaluation protocol for measuring planning quality, error-driven installation behavior, and replay success on Repo2Run.
 \end{itemize}
 
 \section{Background and Motivation}
 
 \subsection{Repository Environment Construction}
 
-Repository environment construction requires creating a runtime in which the repository's tests can be discovered or executed.
-For Python repositories, Repo2Run uses test collection as the core proof of environment readiness: a command such as \texttt{pytest --collect-only -q --disable-warnings} should run without collection, import, or configuration errors.
-This target is weaker than making every test pass.
-It is also more appropriate for environment construction because failing assertions may be repository bugs or expected test outcomes, whereas collection failures usually indicate missing dependencies, incompatible versions, missing services, or invalid configuration.
+Repository environment construction aims to create a runtime in which a target repository can be built and tested.
+For Python repositories, Repo2Run uses pytest collection as a primary readiness signal: the collection command should execute without collection, import, or configuration failures.
+This target differs from requiring all tests to pass.
+Assertion failures may reflect repository bugs or benchmark-specific expectations, whereas collection failures usually indicate environment problems such as missing dependencies, invalid package versions, absent native libraries, or wrong test configuration.
 
-The two metrics used by Repo2Run are:
+Repo2Run-style evaluation commonly reports two metrics:
+
 \begin{itemize}[leftmargin=*]
-  \item \dgsr, Dockerfile Generation Success Rate: whether the produced Dockerfile can be built.
-  \item \ebsr, Environment Building Success Rate: whether the built image can execute the repository's tests.
+  \item \dgsr, Dockerfile Generation Success Rate: the generated Dockerfile builds successfully.
+  \item \ebsr, Environment Building Success Rate: the built image can execute effective test collection or test execution.
 \end{itemize}
 
-\subsection{Why Sandbox Success Is Not Enough}
+\subsection{Why Direct Agent Setup Fails}
 
-LLM agents solve environment setup interactively.
-They issue commands, observe failures, and adjust.
-This process naturally produces noisy trajectories.
-Consider the simplified trajectory in Figure~\ref{fig:replay-gap}.
-The agent installs a package, patches a site-package file, later reinstalls the package, and then patches the file again before test collection succeeds.
-A Dockerfile synthesizer that deduplicates repeated file patches may remove the second patch, producing an image where the final package reinstall has overwritten the fix.
-The sandbox succeeded, but replay fails.
+LLM agents are effective at local diagnosis because they can run commands and react to errors.
+However, a direct ReAct loop~\cite{yao2023react} gives the model a local view of the last observation.
+In environment construction, that local view can be misleading.
+A missing-import traceback is often a symptom rather than a dependency plan.
+The repository may specify an extra, a lockfile may pin a compatible version, CI may install a system package first, or a platform marker may exclude a dependency on Linux.
+Without an explicit plan, the agent may stack packages one at a time until version conflicts accumulate.
+
+The absence of a plan also weakens task boundaries.
+Environment construction should allow changes that make the environment faithful to the repository's intended setup: installing packages, selecting a base image, setting variables, editing dependency metadata, or configuring test paths.
+It should not allow arbitrary source or test rewrites that make tests collect by changing repository semantics.
+A build agent needs this boundary at execution time, not only in the initial prompt.
+
+\subsection{Why Sandbox Success Does Not Guarantee Dockerfile Success}
+
+A successful sandbox is an interactive final state.
+A Dockerfile is a replay program.
+The gap between the two is the central source of fresh replay failures.
+Figure~\ref{fig:replay-gap} shows a simplified example.
+The agent patches an installed package, later reinstalls the package, and patches it again.
+The final sandbox succeeds.
+A synthesizer that deduplicates repeated patches may remove the second patch, but the reinstall has overwritten the first patch.
+The Dockerfile fails even though the sandbox trajectory contained a successful solution.
 
 \begin{figure}[t]
 \centering
@@ -175,134 +243,181 @@ The sandbox succeeded, but replay fails.
 5. \texttt{printf "... KnowledgeBase ..." >> site-packages/bddl/...}\\
 6. \texttt{pytest --collect-only -q --disable-warnings} succeeds\\[0.5em]
 \textbf{Incorrect replay}\\
-Deduplicate step 5 because it looks identical to step 2.\\
+Deduplicate step 5 because it resembles step 2.\\
 Fresh test fails because step 4 overwrote step 2.
 \end{minipage}
 }
-\caption{A replay gap: a successful sandbox trajectory contains an order-sensitive repeated file patch. Removing the repeated patch changes the fresh Docker image.}
+\caption{A replay gap caused by an order-sensitive repeated file patch.}
+\Description{A simplified command sequence showing that removing a repeated patch from a sandbox trajectory can make Dockerfile replay fail.}
 \label{fig:replay-gap}
 \end{figure}
 
-We observed several recurring replay hazards:
-\begin{itemize}[leftmargin=*]
-  \item \textbf{Read-only probes mistaken as setup.} Commands such as \texttt{pip index versions} or \texttt{python -c "import x; print(dir(x))"} can fail in Docker build despite being irrelevant to the environment.
-  \item \textbf{Failed commands with partial side effects.} A failed compound command may have installed packages before a later segment failed.
-  \item \textbf{Over-optimized synthesis.} Reordering or merging package-manager commands can break hidden dependency and build-tool assumptions.
-  \item \textbf{Runtime/build confusion.} A daemon start may be needed before tests but should not be treated as persistent Dockerfile setup.
-  \item \textbf{Truncated output.} Commands ending in \texttt{| tail} or \texttt{| head} can hide the real failure and mislead synthesis.
-\end{itemize}
+We observed five recurring hazards.
+Read-only probes such as \texttt{pip index versions} can fail in Docker builds despite being useful during exploration.
+Failed compound commands can leave partial state.
+Package-manager commands can be order-sensitive.
+Runtime commands, such as service starts, may be needed before tests but inappropriate during image build.
+Output truncation commands such as \texttt{head} or \texttt{tail} can hide the real failure from later synthesis.
+\tool addresses these hazards by making planning and replay evidence explicit.
 
-These hazards motivate treating trajectory processing as a first-class part of the method.
-
-\section{Overview}
+\section{System Overview}
 
 Figure~\ref{fig:architecture} summarizes \tool.
-The system has four stages.
-First, the agent clones the target repository, selects a base image, and starts a Docker sandbox.
-Second, a ReAct-style planner configures the environment step by step.
-Third, \tool compresses the setup trajectory and synthesizes a replay-oriented build recipe.
-Fourth, the benchmark runner validates the generated Dockerfile with a fresh build and test execution, optionally invoking a repair agent.
+The system receives a repository instance and produces a Dockerfile plus evaluation artifacts.
+Its workflow has five stages:
+
+\begin{enumerate}[leftmargin=*]
+  \item The \planner collects repository evidence, probes the host and sandbox environment, selects a base image, and generates a \ttg.
+  \item The build agent executes setup actions in the sandbox while consulting the materialized plan and receiving plan updates.
+  \item The controller records a structured evidence ledger containing successful actions, failed actions, test attempts, and final verification evidence.
+  \item The synthesizer compresses the trajectory and creates a replay-oriented build recipe and Dockerfile.
+  \item The benchmark runner performs fresh build/test validation and invokes bounded Dockerfile repair when replay fails.
+\end{enumerate}
 
 \begin{figure}[t]
 \centering
 \fbox{
 \begin{minipage}{0.95\linewidth}
 \small
-\textbf{Input:} repository, commit, optional benchmark metadata\\
+\textbf{Input:} repository, commit, benchmark metadata\\
 $\Downarrow$\\
-\textbf{Sandbox exploration:} ReAct planner + Docker sandbox + rollback\\
+\textbf{Read-only planning:} repository evidence + host probe + sandbox probe\\
+$\Downarrow$\\
+\textbf{\ttg:} typed nodes, typed edges, ordered todo-list, fallback plan\\
+$\Downarrow$\\
+\textbf{Plan-aware setup:} build agent executes and updates plan status\\
 $\Downarrow$\\
 \textbf{Evidence ledger:} successful actions, failed actions, verification bundle\\
 $\Downarrow$\\
-\textbf{Replay-aware compression:} grouped failures/probes, preserved successful state changes\\
+\textbf{Replay synthesis:} trajectory compression + Dockerfile generation\\
 $\Downarrow$\\
-\textbf{Recipe synthesis:} build commands, runtime commands, test commands\\
-$\Downarrow$\\
-\textbf{Fresh replay:} docker build + docker run pytest collection\\
-$\Downarrow$\\
-\textbf{Bounded repair:} Dockerfile-only edits using failure logs and trajectory evidence
+\textbf{Fresh replay:} Docker build, Docker run, bounded Dockerfile repair
 \end{minipage}
 }
-\caption{\tool architecture. The key distinction from ordinary sandbox agents is that fresh replay is part of the loop, not an afterthought.}
+\caption{\tool architecture. Planning guides the sandbox setup; replay evidence guides Dockerfile synthesis and repair.}
+\Description{A pipeline diagram showing read-only planning, typed task graph generation, plan-aware setup, trajectory evidence, replay synthesis, fresh validation, and repair.}
 \label{fig:architecture}
 \end{figure}
 
-\section{Method}
+\section{Planning Agent}
 
-\subsection{Task Definition}
+\subsection{Design Goals}
 
-Given a repository $R$ at commit $c$, \tool aims to generate a Dockerfile $D$ such that:
-\begin{enumerate}[leftmargin=*]
-  \item $D$ builds successfully in a fresh Docker context.
-  \item The resulting image can run the verified test collection command for $R$.
-\end{enumerate}
+The \planner is a read-only pre-execution module.
+It does not install dependencies, run tests as setup, start long-lived services, or modify repository files.
+Its purpose is to turn repository evidence into an execution map.
+Three design goals shape the module.
 
-For the Repo2Run benchmark, the default final verification command is:
+\textbf{First, planning should be evidence-driven.}
+The module reads manifests, lock files, setup files, CI configuration, pytest configuration, import statements, and platform markers before the build agent reacts to individual traceback messages.
+For Python projects, this encourages a manifest-first dependency strategy.
+The planner prefers dependencies implied by project metadata, lock files, requirements files, setup scripts, and CI setup before installing arbitrary packages one by one.
 
-\begin{lstlisting}[basicstyle=\ttfamily\small]
-pytest --collect-only -q --disable-warnings
-\end{lstlisting}
+\textbf{Second, planning should distinguish execution environments.}
+The planning host may be macOS on arm64, while the target runtime is a Linux Docker container on amd64.
+The \planner records both the host environment and the sandbox runtime environment.
+This distinction helps prevent host-specific assumptions, such as macOS-only dependencies or architecture-specific wheels, from being treated as target requirements.
 
-For Poetry projects, the corresponding command is:
+\textbf{Third, planning should persist beyond the initial prompt.}
+A one-shot paragraph in the build agent prompt is easy to ignore after several observations.
+\tool writes the plan as JSON and Markdown files inside the host logs and the sandbox.
+Inside the sandbox, these files are stored under \path{/tmp} and share the \path{repo2run_environment_plan} prefix.
+The build agent can issue \texttt{\_\_VIEW\_PLAN\_\_} to inspect the current graph, todo-list, risk notes, and fallback plan.
+After each relevant action, the controller updates node status and returns a short plan digest.
 
-\begin{lstlisting}[basicstyle=\ttfamily\small]
-poetry run pytest --collect-only -q --disable-warnings
-\end{lstlisting}
+\subsection{Typed Task Graph}
 
-The method does not require all tests to pass.
-It requires that test collection or test execution be meaningful and not fail due to missing environment configuration.
+The \ttg is the core planning artifact.
+It contains typed nodes, typed edges, risk notes, unresolved questions, an ordered todo-list, and fallback actions.
+Nodes have the following types:
 
-\subsection{Sandbox Exploration and Evidence Ledger}
-
-\tool uses a ReAct-style planner~\cite{yao2023react}.
-At each step, the planner emits exactly one \texttt{Thought} and one shell \texttt{Action}.
-The host executes the action in a Docker sandbox and returns the observation.
-The sandbox maintains a baseline snapshot and successful snapshots, supports explicit rollback, and rejects commands that are likely to corrupt replay evidence, such as commands that combine setup mutations with probes or tests.
-
-The agent records a structured evidence ledger:
 \begin{itemize}[leftmargin=*]
-  \item \texttt{successful\_actions}: commands that exited successfully, their observations, whether they mutate persistent state, and whether they are tests.
-  \item \texttt{failed\_actions}: failed commands and summarized observations.
-  \item \texttt{test\_run\_attempts}: commands that resemble test execution and their effectiveness classification.
-  \item \texttt{verification\_bundle}: the final runtime preparation commands and test commands that were actually observed to succeed.
+  \item \texttt{runtime}: language version, operating system, architecture, and base-image requirements;
+  \item \texttt{system\_package}: native libraries and OS packages;
+  \item \texttt{package\_manager}: pip, poetry, conda, npm, or other package tools;
+  \item \texttt{install\_strategy}: an install mode such as targeted dependencies, editable install, extras, or lockfile-constrained install;
+  \item \texttt{language\_dependency}: Python or language-level dependencies;
+  \item \texttt{project\_build}: build steps such as editable installation or asset generation;
+  \item \texttt{service}: external services or daemons needed for tests;
+  \item \texttt{env\_var}: required environment variables;
+  \item \texttt{asset}: datasets, generated files, or local resources;
+  \item \texttt{runtime\_command}: preparation commands that should run before verification;
+  \item \texttt{verification}: test collection or execution commands.
 \end{itemize}
 
-The verification bundle prevents the planner from merely claiming success.
-Every reported test command must be supported by a previously successful action with an observation showing effective test collection or execution.
+Edges encode ordering and requirement relations.
+Representative edge types cover runtime requirements, package-manager use, strategy-before-dependency, dependency-before-build, build-before-verification, runtime-preparation-before-verification, and verification-after-runtime constraints.
+Edges can be hard or soft.
+Hard edges constrain the topological order.
+Soft edges express likely preferences and can be promoted when execution feedback confirms them.
 
-\subsection{Replay-Aware Trajectory Compression}
+Each node and edge carries evidence, confidence, and optional command hints.
+Command hints are advisory.
+They are not proof that a command should enter the final Dockerfile.
+Only successful sandbox actions and verified setup evidence can become replay commands.
 
-Long trajectories are costly and noisy.
-However, generic summarization can remove exactly the details needed for Dockerfile replay.
-\tool therefore compresses trajectories using a replay-aware schema.
+\subsection{Read-Only Planning Loop}
 
-The compression prompt distinguishes three block types:
-\begin{itemize}[leftmargin=*]
-  \item \textbf{Read-only inspection or repeated failed attempts.}
-  Consecutive commands with the same diagnostic purpose are grouped into a range block.
-  The summary keeps the goal, attempted commands, and failure reasons.
-  \item \textbf{Successful state-changing steps.}
-  Every successful install, file edit, generated artifact, service setup, or source rewrite remains a single-step block with a replayable action line.
-  \item \textbf{Final verification.}
-  The final test collection command and its evidence remain explicit.
-\end{itemize}
+The \planner performs a small loop of read-only probes.
+The first round collects deterministic evidence: runtime files, dependency manifests, lock files, pytest configuration, and import candidates.
+Later rounds are conditional.
+If imports suggest undeclared dependencies, the planner performs a focused import scan.
+If a Poetry project contains platform-specific packages, the planner derives an install strategy that avoids full lockfile installation when it would pull macOS- or Windows-only dependencies into a Linux sandbox.
+If the project exposes service or environment-variable requirements, the planner records them as risk notes and todo items.
 
-The central rule is chronological preservation.
-Successful state-changing commands must stay in the same relative order as the original setup trajectory.
-They are not merged into range summaries, and a successful step is not merged with earlier failed attempts.
+The loop is intentionally limited.
+It can inspect files and execute safe diagnostic commands through a sandbox inspection interface, but it cannot mutate the environment.
+This boundary matters because planning should not consume the same setup budget as the build agent or contaminate replay evidence.
 
-This compression is different from token-only trajectory reduction approaches such as AgentDiet~\cite{xiao2025agentdiet}.
-Our objective is not only to reduce context length, but to preserve replay semantics for Dockerfile synthesis.
-The compressed trajectory is an intermediate artifact consumed by the synthesizer and repair agent.
+\subsection{Plan Materialization and Updates}
+
+The build agent receives the plan through two channels.
+First, the system prompt includes a compact planning context with the next todo item, high-risk constraints, and the path to the full plan file.
+Second, the full plan is materialized in JSON and Markdown.
+The action \texttt{\_\_VIEW\_PLAN\_\_} returns the current plan state.
+
+After the build agent runs a command, the controller checks whether the command advances a planned node.
+Successful planned steps mark nodes as completed or partially completed.
+Failures can promote fallback edges and regenerate the ordered todo-list.
+For example, if a manifest-first install strategy fails because a platform-specific package cannot be installed on Linux, the graph can promote a fallback targeted-dependency strategy.
+The next observation then includes a plan update, which reduces the chance that the build agent continues down an outdated branch.
+
+\subsection{Environment-Only Boundary}
+
+The planner and build agent enforce an environment-only boundary.
+The build agent may install packages, set variables, configure \texttt{PYTHONPATH}, edit dependency metadata, or adjust repository configuration files such as \texttt{pyproject.toml}, lock files, requirements files, \texttt{setup.cfg}, \texttt{tox.ini}, and \texttt{pytest.ini}.
+These files define how the environment is built.
+The agent should not create source stubs, rewrite tests, or patch application semantics simply to make collection pass.
+This distinction is important for ICSE evaluation because otherwise the system could succeed by changing the program under test rather than building its intended environment.
+
+\section{Replay-Aware Trajectory Compression}
+
+The build agent's trajectory can exceed the context budget of later synthesis and repair steps.
+However, ordinary summarization is unsafe for replay.
+If compression hides a successful install, removes an exact version, or merges two order-sensitive file edits, the generated Dockerfile may fail.
+\tool therefore uses a replay-aware compression schema.
+
+The schema separates trajectory content into three classes.
+Read-only inspections and repeated failed attempts may be grouped into concise blocks.
+Successful state-changing actions remain explicit single-step blocks.
+Final verification commands and their effective-test evidence remain explicit.
+The compressor is also instructed to preserve package-manager identity, exact package names and versions, installed and already-satisfied package lists, generated files, file edits, warning/error messages that explain dependency choices, and chronological order.
+
+This objective differs from general trajectory reduction work such as AgentDiet~\cite{xiao2025agentdiet}.
+The goal is not only to reduce token cost.
+The goal is to produce a compressed artifact from which a Dockerfile can be replayed.
+For that reason, \tool allows a compressed summary to keep more information than a minimal natural-language summary would keep.
+Replay fidelity is preferred over brevity when the two conflict.
+
+\section{Dockerfile Synthesis and Repair}
 
 \subsection{Build Recipe Synthesis}
 
-The synthesizer turns the compressed trajectory and evidence ledger into a build recipe:
+The synthesizer converts the compressed trajectory and evidence ledger into a structured build recipe:
 
 \begin{lstlisting}[basicstyle=\ttfamily\small]
 {
   "build_commands": [...],
-  "post_test_patch_commands": [...],
   "runtime_preparation_commands": [...],
   "test_commands": [...],
   "excluded_commands": [...],
@@ -311,239 +426,259 @@ The synthesizer turns the compressed trajectory and evidence ledger into a build
 }
 \end{lstlisting}
 
-\texttt{build\_commands} become Dockerfile \texttt{RUN} instructions.
-\texttt{runtime\_preparation\_commands} are executed in the container immediately before tests when the effect is ephemeral, such as starting a daemon.
-\texttt{test\_commands} are the final verified Repo2Run-style commands.
+Build commands become Dockerfile \texttt{RUN} instructions.
+Runtime preparation commands run inside the container immediately before tests when their effects are ephemeral, such as starting a service.
+Test commands are the final verified commands.
+Excluded commands record read-only diagnostics, failed attempts, or commands whose effects should not be replayed.
 
-The synthesis stage follows a conservative principle:
-\begin{quote}
-Only delete a successful command when there is clear evidence that it should not enter the Dockerfile. Ambiguous successful mutations are kept.
-\end{quote}
-
-This principle is implemented with negative filtering.
-\tool drops commands that are clearly read-only, test-only, runtime-only, or non-replayable.
-It preserves package-manager commands, file edits, generated stubs, build-tool invocations, and other persistent setup actions.
-When commands are duplicated, \tool normally deduplicates them, but repeated file rewrites are preserved because later package-manager operations may overwrite earlier patches.
-
-If the LLM returns invalid recipe JSON, \tool falls back to a deterministic recipe constructed from successful persistent setup actions.
-This fallback favors completeness over elegance.
-The generated Dockerfile may be longer, but it is more likely to reproduce the sandbox state.
+The synthesizer follows a conservative replay rule: preserve successful persistent setup actions unless there is clear evidence that the command is read-only, test-only, runtime-only, or non-replayable.
+This rule makes generated Dockerfiles less elegant, but it reduces the risk of losing state that made the sandbox work.
+When the LLM returns invalid recipe JSON, deterministic fallback logic extracts successful persistent setup commands and renders a replay-first Dockerfile.
 
 \subsection{Fresh Replay Validation}
 
-After Dockerfile generation, \tool does not assume success.
-The benchmark runner constructs an evaluation Dockerfile, performs a fresh \texttt{docker build}, then runs the verified test commands in a new container.
-This stage measures the actual reproducibility of the Dockerfile.
-
-The runner records:
-\begin{itemize}[leftmargin=*]
-  \item build command, stdout, stderr, timeout status, and exit code;
-  \item runtime preparation commands and test commands;
-  \item test stdout/stderr and whether output contains effective test execution signals;
-  \item per-instance result JSON and human-readable debug logs.
-\end{itemize}
+The benchmark runner validates the generated Dockerfile in a fresh Docker context.
+It records build stdout, build stderr, timeout status, test stdout, test stderr, runtime preparation commands, and the final execution status.
+This step is part of the method, not a post-hoc check.
+It is the only way to know whether the synthesized Dockerfile reproduces the sandbox.
 
 \subsection{Bounded Dockerfile Repair}
 
-When fresh replay fails, \tool invokes a Dockerfile repair agent.
-The repair agent receives:
-\begin{itemize}[leftmargin=*]
-  \item the current Dockerfile;
-  \item fresh Docker build logs or test execution logs;
-  \item the structured \texttt{agent\_run\_summary};
-  \item the build recipe and final verification bundle.
-\end{itemize}
+If fresh replay fails, \tool invokes a bounded Dockerfile repair agent.
+The repair agent receives the current Dockerfile, fresh build/test logs, \texttt{agent\_run\_summary}, the build recipe, successful actions, failed actions, and the verification bundle.
+It must output a complete replacement Dockerfile as JSON.
+It may not edit repository source files outside Dockerfile commands.
+It is instructed to restore omitted successful setup commands, preserve original command order, avoid unrelated setup strategies, and keep the base image unless the logs show that the base image is the failure cause.
 
-The repair agent is deliberately constrained.
-It must output a complete replacement Dockerfile, and it must repair replay gaps rather than invent a new strategy.
-The prompt prioritizes restoring omitted successful setup commands, preserving command order, and avoiding source-code changes outside Dockerfile commands.
-This bounded design is intended to make repair a replay correction step, not a second unconstrained environment-building agent.
+This design keeps repair tied to evidence.
+An unconstrained repair agent could repeat the same unplanned trial-and-error behavior as the original setup agent.
+The bounded repair agent instead treats failure logs as feedback about the replay program.
+Its preferred fix is to make the Dockerfile match the successful sandbox trajectory more faithfully.
 
 \section{Implementation}
 
-We implemented \tool in Python.
-The main components are:
+\tool is implemented in Python.
+The top-level controller constructs an \texttt{EnvironmentPlanningAgent}, obtains an initial plan before sandbox execution, refines it with read-only sandbox exploration, and writes the current plan to both host logs and the sandbox.
+The ReAct-style planner prompt includes the planning context, the environment-only boundary, the manifest-first dependency rule, and the plan-view action.
+During setup, the controller updates the plan after command success or failure and injects a compact plan digest into later observations.
 
+The \planner contains six main components:
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Agent controller.}
-  The controller clones the repository, checks out the target commit, selects a base image, starts the sandbox, runs the ReAct loop, records evidence, and writes \texttt{agent\_run\_summary.json}.
-
-  \item \textbf{Sandbox executor.}
-  The sandbox uses Docker to run commands in an isolated container.
-  It seeds the repository into \texttt{/app}, configures apt retries, enforces per-command timeouts, retries transient pip failures, and supports explicit rollback.
-
-  \item \textbf{Planner.}
-  The planner prompt enforces atomic setup actions, forbids output truncation filters, discourages \texttt{sudo}, and defines Repo2Run-style final verification.
-
-  \item \textbf{Observation compression.}
-  Long observations can be compressed before being fed back to the planner.
-  Compression failures are treated as non-fatal: the raw or safety-compressed observation remains available.
-
-  \item \textbf{Synthesizer.}
-  The synthesizer summarizes setup logs, extracts recipe JSON, normalizes build commands, filters read-only probes, preserves order-sensitive file rewrites, and renders Dockerfiles.
-
-  \item \textbf{Benchmark runner.}
-  The runner loads the Repo2Run dataset, executes the agent, performs fresh build/test validation, optionally repairs Dockerfiles, and writes per-instance artifacts.
+  \item repository evidence collection for manifests, lock files, CI files, pytest configuration, and import statements;
+  \item base-image planning, which replaces the earlier standalone image selector and records image evidence inside the plan;
+  \item host environment probing before sandbox creation;
+  \item bounded read-only sandbox exploration;
+  \item graph validation for typed nodes, typed edges, references, and ordering constraints;
+  \item graph updates that promote fallback plans and recompute todo-lists from execution feedback.
 \end{itemize}
 
-\section{Evaluation Plan}
+Trajectory handling is split across online and offline compression.
+During the ReAct loop, long observations can be safety-compressed or LLM-compressed before being returned to the planner.
+After setup, the system creates a setup-log summary for Dockerfile synthesis.
+Both compression stages preserve package/version details, real errors, test evidence, and successful state-changing commands.
+
+The benchmark runner integrates Dockerfile generation, fresh replay validation, and repair.
+It loads the Repo2Run dataset, executes the agent, validates Docker build and test execution, writes per-instance artifacts, and records aggregate \dgsr and \ebsr metrics.
+
+\section{Evaluation}
 
 \subsection{Research Questions}
 
-We will evaluate \tool using the following research questions:
+The final ICSE evaluation will answer four questions:
 
-\begin{description}[leftmargin=*]
-  \item[RQ1:] How effective is \tool at generating Dockerfiles and executable environments on the Repo2Run benchmark?
-  \item[RQ2:] How much do replay-aware trajectory compression and Dockerfile repair contribute to success?
-  \item[RQ3:] What failure modes remain after replay-aware synthesis and repair?
-  \item[RQ4:] What is the cost of trajectory compression and repair in terms of LLM calls, tokens, and wall-clock time?
+\begin{description}[labelwidth=3em,leftmargin=4em,align=left]
+  \item[RQ1:] Does the \ttg improve \dgsr and \ebsr compared with a build agent that receives no typed plan?
+  \item[RQ2:] Does the planning loop reduce unplanned error-driven installation behavior?
+  \item[RQ3:] How much do trajectory compression and Dockerfile repair contribute to fresh replay success?
+  \item[RQ4:] What categories of failures remain?
 \end{description}
 
-\subsection{Dataset}
+\subsection{Dataset and Metrics}
 
-We use the Repo2Run benchmark of 420 Python repositories~\cite{hu2025repo2run}.
-Each instance contains a GitHub repository, a target commit, and the success label reported by Repo2Run.
-We follow the same high-level task target: construct an environment in which repository tests can be collected or executed.
+We use the 420-instance Repo2Run benchmark~\cite{hu2025repo2run}.
+Each instance specifies a repository and target commit.
+Following Repo2Run, we measure \dgsr and \ebsr.
+\dgsr counts instances for which the generated Dockerfile builds successfully.
+\ebsr counts instances for which the built image executes an effective test collection or test execution command.
 
-\subsection{Metrics}
+For RQ2, \dgsr and \ebsr are not enough.
+We will measure planning behavior directly:
 
-We report:
 \begin{itemize}[leftmargin=*]
-  \item \dgsr: percentage of instances whose generated Dockerfile builds successfully.
-  \item \ebsr: percentage of instances whose built image can run effective test collection or execution.
-  \item Repair success rate: percentage of initial replay failures fixed by the repair loop.
-  \item Token cost: planner, compression, synthesis, and repair tokens.
-  \item Runtime: wall-clock time per instance and per stage.
+  \item plan consultation rate: number of \texttt{\_\_VIEW\_PLAN\_\_} actions and automatic plan digests per instance;
+  \item planned-step completion rate: fraction of completed setup actions matched to graph nodes;
+  \item manifest-backed dependency ratio: fraction of dependency installs justified by manifests, lock files, CI, or planned fallback nodes;
+  \item error-driven install count: number of dependency installs justified only by the immediately preceding import error;
+  \item diagnostic waste: repeated failed probes, output-truncation commands, and commands rejected by the sandbox guard;
+  \item plan revision count: number of graph/todo updates triggered by execution feedback.
 \end{itemize}
 
-\subsection{Baselines and Ablations}
+\subsection{Preliminary Artifact Snapshot}
 
-We plan to compare:
-\begin{itemize}[leftmargin=*]
-  \item \textbf{Repo2Run baseline.} The original Repo2Run method and reported benchmark numbers.
-  \item \textbf{\tool full.} Replay-aware compression plus fresh replay validation and repair.
-  \item \textbf{No compression.} Use raw or safety-truncated setup history for synthesis.
-  \item \textbf{Generic compression.} Compress trajectories without preserving successful state-changing commands as atomic replay units.
-  \item \textbf{No repair.} Generate one Dockerfile and stop after first fresh replay failure.
-  \item \textbf{No trajectory-first fallback.} Rely only on LLM recipe JSON without deterministic replay fallback.
-\end{itemize}
+Table~\ref{tab:prelim-main} reports the current artifact snapshot in the repository.
+These numbers are preliminary because the ablation variants have not yet been run and the result set combines existing benchmark artifacts with recent reruns.
+They are included to document current system behavior and to guide the remaining experimental work.
 
 \begin{table}[t]
 \centering
-\caption{Planned main results on the Repo2Run benchmark.}
-\label{tab:main-results}
-\begin{tabular}{lrrrr}
+\caption{Current artifact snapshot. These numbers are preliminary and should not be interpreted as causal evidence for any single component.}
+\label{tab:prelim-main}
+\begin{tabular}{lrr}
 \toprule
-Method & \#Repos & \dgsr & \ebsr & Avg. Cost \\
+Result set & Count & Rate \\
 \midrule
-Repo2Run reported & 420 & \todo{86.0\% from paper} & \todo{fill} & -- \\
-\tool full & 420 & \todo{fill} & \todo{fill} & \todo{fill} \\
-No compression & 420 & \todo{fill} & \todo{fill} & \todo{fill} \\
-No repair & 420 & \todo{fill} & \todo{fill} & \todo{fill} \\
+All Repo2Run result files & 420 & -- \\
+Executable environments & 379 & 90.24\% \\
+Remaining failures & 41 & 9.76\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+Table~\ref{tab:prelim-rerun} reports a focused rerun over 52 instances that were previously failing.
+The current planning-enabled pipeline built Dockerfiles for 12 instances and produced executable environments for 11.
+The failure distribution indicates that many remaining cases still fail before Dockerfile generation, suggesting that the next improvement target is the planning and setup loop rather than only Dockerfile repair.
+
 \begin{table}[t]
 \centering
-\caption{Planned ablation for replay failures.}
-\label{tab:ablation}
-\begin{tabular}{lrrr}
+\caption{Focused rerun over 52 previously failing instances.}
+\label{tab:prelim-rerun}
+\begin{tabular}{lrr}
 \toprule
-Configuration & Initial Replay Failures & Repaired & Final Success \\
+Metric & Success / Total & Rate \\
 \midrule
-No repair & \todo{fill} & 0 & \todo{fill} \\
-Repair without trajectory evidence & \todo{fill} & \todo{fill} & \todo{fill} \\
-\tool repair & \todo{fill} & \todo{fill} & \todo{fill} \\
+\dgsr & 12 / 52 & 23.08\% \\
+\ebsr & 11 / 52 & 21.15\% \\
+Docker build failed & 2 / 52 & 3.85\% \\
+Dockerfile missing & 38 / 52 & 73.08\% \\
+Test execution failed & 1 / 52 & 1.92\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Failure Analysis}
+\subsection{Planned Ablations}
 
-For RQ3, we will manually classify remaining failures into categories:
+The ICSE submission needs controlled ablations before making strong claims.
+We plan the following variants:
+
 \begin{itemize}[leftmargin=*]
-  \item incomplete sandbox setup;
-  \item invalid or missing verification evidence;
-  \item Docker build failure;
-  \item fresh test collection failure;
-  \item service-dependent setup failure;
-  \item network or infrastructure failure;
-  \item benchmark mismatch or no effective tests.
+  \item \textbf{No typed plan.} The build agent receives the standard prompt and repository context, but no \ttg, plan files, or plan-view action.
+  \item \textbf{Static plan only.} The build agent receives the initial typed plan, but execution feedback does not update node status or todo order.
+  \item \textbf{No planning probes.} The graph is built from repository files only, without host/sandbox environment probes.
+  \item \textbf{No replay-aware compression.} Dockerfile synthesis receives raw or generic-compressed trajectory evidence.
+  \item \textbf{No repair.} The system stops after the first generated Dockerfile fails fresh replay.
+  \item \textbf{Full \tool.} Typed planning, dynamic updates, replay-aware compression, fresh validation, and bounded repair.
 \end{itemize}
 
-\section{Case Studies}
+For each variant, we will report \dgsr, \ebsr, token cost, wall-clock time, plan metrics, and failure categories.
+The key causal tests are whether typed planning improves success and whether plan updates reduce error-driven installs.
 
-\subsection{Order-Sensitive File Patches}
+\subsection{Failure Analysis Protocol}
 
-In some repositories, final test collection succeeds only after patching installed third-party packages or generated stubs.
-If the package is later reinstalled, the patch must be repeated.
-\tool preserves repeated file rewrite commands when they are order-sensitive.
-This addresses failures where a Dockerfile loses a patch that existed in the sandbox's final state.
+Remaining failures will be manually classified into:
 
-\subsection{Read-Only Probes in Dockerfiles}
+\begin{itemize}[leftmargin=*]
+  \item incomplete dependency plan;
+  \item platform-specific dependency conflict;
+  \item native/system package failure;
+  \item package-manager solver failure;
+  \item source/test semantic modification blocked by environment-only guard;
+  \item missing service, environment variable, or asset;
+  \item Dockerfile replay gap;
+  \item Docker infrastructure or network failure;
+  \item no effective test signal.
+\end{itemize}
 
-Some trajectories include diagnostic commands such as \texttt{pip index versions package} or \texttt{python -c "import x; print(dir(x))"}.
-These commands are useful during exploration but can fail in Docker build due to graphical libraries, missing displays, or external index state.
-\tool classifies such commands as read-only probes and removes them from \texttt{build\_commands}.
+For RQ2, we will also classify install commands by evidence source: manifest/lock/CI-backed, plan-fallback-backed, traceback-only, or unrelated.
+This classification directly tests whether the planning loop reduces unplanned error-driven installation.
 
-\subsection{Transient LLM Failures After Verification}
+\section{Discussion}
 
-An agent may successfully run the final test collection command and then fail due to an LLM timeout before emitting a final answer.
-\tool can auto-finalize from recorded verified tests when the evidence ledger already contains a valid verification command.
-This avoids discarding successful sandbox work because of a post-verification transport error.
+\subsection{What Planning Changes}
+
+The \planner changes the build agent's role.
+Without planning, the agent must infer the repository's dependency structure while reacting to shell output.
+With planning, the agent receives an explicit graph, a next todo item, risk notes, and a fallback plan.
+This does not remove the need for exploration.
+Repository environments are incomplete and sometimes contradictory.
+However, planning can make exploration more directed: the agent should first execute manifest-backed dependency strategies, then validate with tests, then promote fallback paths when observations contradict the graph.
+
+This shift is important for ICSE because it gives the system measurable internal structure.
+The plan can be inspected, validated, updated, and evaluated.
+Instead of only asking whether the final Dockerfile works, we can ask whether the agent followed planned dependencies, whether it ignored platform-specific risks, and whether failed actions caused rational plan revisions.
+
+\subsection{Why Repair Is Still Needed}
+
+Planning improves setup, but it does not solve replay by itself.
+Even a well-planned sandbox can contain order-sensitive actions that are hard to synthesize into a Dockerfile.
+Fresh replay validation and Dockerfile repair therefore remain necessary.
+The repair agent serves a different role from the build agent.
+It does not explore the repository.
+It repairs a concrete replay program using fresh failure logs and the recorded setup evidence.
+
+\subsection{Limitations}
+
+The current implementation is strongest for Python repositories.
+The \ttg schema is language-agnostic, but many evidence collectors and verification heuristics are Python-specific.
+The preliminary numbers are not yet an ablation study.
+They show that the current pipeline can solve many instances and recover some prior failures, but they do not isolate the effect of typed planning, compression, or repair.
+The final paper should include repeated runs or cache-control procedures because package indexes and network state can drift over time.
 
 \section{Threats to Validity}
 
 \textbf{Internal validity.}
-The repair agent uses LLMs and may be sensitive to prompt wording.
-To mitigate this, repair is bounded by structured evidence and fresh failure logs.
-We will report repair prompts, logs, and ablations.
-
-\textbf{External validity.}
-The main benchmark contains Python repositories.
-Although the architecture is language-agnostic, the verification target and many heuristics are Python-specific.
-Future work should evaluate JavaScript, Java, Rust, and multi-service repositories.
+The current preliminary results combine multiple output artifacts and do not isolate individual components.
+The planned ablations are needed before attributing success to typed planning, trajectory compression, or repair.
+LLM behavior may also vary across model versions.
+We will report prompts, model identifiers, and per-instance logs.
 
 \textbf{Construct validity.}
-\ebsr measures whether tests can be executed or collected, not whether all tests pass.
-This follows the environment construction goal, but it does not prove functional correctness of the repository.
+\ebsr measures whether tests can be collected or executed, not whether all tests pass.
+This matches the environment construction goal, but it does not prove functional correctness.
+The RQ2 metrics for error-driven installation require careful annotation rules so that manifest-backed fallback installs are not misclassified as traceback-only installs.
+
+\textbf{External validity.}
+Repo2Run focuses on Python repositories.
+The approach should transfer to other ecosystems, but Node.js, Java, Rust, and multi-service repositories require additional evidence collectors and verification targets.
 
 \textbf{Reliability.}
-Network instability, package index drift, and Docker cache state can affect outcomes.
-We log command outputs, Docker build logs, selected base images, and per-instance artifacts to support reproduction and diagnosis.
+Docker builds depend on network availability, package indexes, base-image state, and architecture.
+\tool records host environment, sandbox environment, selected base image, command logs, build logs, and test logs to support reproduction.
 
 \section{Related Work}
 
 \textbf{Repository environment construction.}
-Repo2Run introduced the task of automatically building executable environments for repositories at scale~\cite{hu2025repo2run}.
-\tool follows its benchmark and target semantics, but focuses on the replay gap between interactive setup and fresh Dockerfile reproducibility.
+Repo2Run introduced automated Docker environment construction for repository execution at scale~\cite{hu2025repo2run}.
+\tool follows the same high-level benchmark target but adds typed preplanning, plan updates, replay-aware trajectory compression, and bounded Dockerfile repair.
 
 \textbf{LLM agents for software engineering.}
-ReAct-style agents combine reasoning and tool use~\cite{yao2023react}.
-SWE-agent demonstrated that agent-computer interfaces can improve automated software engineering~\cite{yang2024sweagent}.
+ReAct combines reasoning and acting for tool-using language models~\cite{yao2023react}.
+SWE-agent shows that agent-computer interfaces can improve automated software engineering performance~\cite{yang2024sweagent}.
 SWE-bench evaluates issue resolution on real GitHub repositories~\cite{jimenez2024swebench}.
-These systems require executable environments, making environment construction complementary to issue solving and program repair.
+These systems rely on executable environments.
+Our work targets that prerequisite rather than issue patch generation.
 
 \textbf{Trajectory reduction.}
-AgentDiet reduces LLM agent cost by removing redundant trajectory content~\cite{xiao2025agentdiet}.
+AgentDiet studies trajectory reduction for lowering LLM agent cost~\cite{xiao2025agentdiet}.
 \tool also compresses trajectories, but its compression objective is replay preservation.
-It treats successful state-changing commands as evidence that must survive compression.
+Successful state-changing commands and verification evidence are preserved because they define the Dockerfile synthesis target.
 
 \textbf{Containers and reproducibility.}
-Docker containers are widely used for consistent development and deployment environments~\cite{merkel2014docker}.
-However, generating a correct Dockerfile from an exploratory setup process remains difficult because Docker build layers do not preserve interactive runtime state or failed-command side effects.
+Docker containers are widely used to package software environments~\cite{merkel2014docker}.
+Repository environment construction requires more than using Docker as a runtime.
+The challenge is to infer a correct Dockerfile from incomplete repository evidence and a noisy interactive setup trajectory.
 
 \section{Conclusion}
 
-This paper drafts \tool, a replay-oriented framework for automated repository environment construction.
-The key insight is that sandbox success is insufficient: the final artifact must be a Dockerfile that can reproduce the successful environment in a fresh build.
-\tool addresses this gap with replay-aware trajectory compression and bounded Dockerfile repair.
-The planned evaluation on the Repo2Run benchmark will quantify how these mechanisms affect Dockerfile generation success, environment building success, and repair effectiveness.
+This paper presents \tool, a planning-guided replay framework for repository environment construction.
+The central claim is that environment setup agents need both an explicit plan before execution and replay evidence after execution.
+The \planner extracts and updates a \ttg that guides the build agent away from unplanned error-driven installation.
+Replay-aware trajectory compression and bounded Dockerfile repair then turn the successful sandbox trajectory into a Dockerfile that can be validated in a fresh build.
+The current artifact snapshot shows a 90.24\% pass rate across 420 Repo2Run result files and 11 recovered executable environments among 52 previously failing instances.
+The next step is a controlled ablation study that isolates typed planning, dynamic plan updates, trajectory compression, and Dockerfile repair.
 
 \section*{Data Availability}
 
-\todo{For submission, provide an anonymized artifact link containing source code, benchmark runner, prompts, generated per-instance logs, and scripts for reproducing tables.}
+For submission, we will provide an anonymized artifact containing source code, benchmark scripts, prompts, generated plans, setup logs, Dockerfiles, repair logs, and scripts for reproducing all tables.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{replay2run_refs}

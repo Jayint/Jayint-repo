@@ -3,6 +3,7 @@ import os
 from typing import Any, Dict, Optional
 from src.language_handlers import LanguageHandler
 from src.constants import DEFAULT_LLM_MODEL
+from src.evaluation_target import is_ratbench_target, normalize_evaluation_target
 
 
 class Planner:
@@ -46,6 +47,7 @@ class Planner:
         self.history_token_budget = history_token_budget
         self.enable_long_term_memory = enable_long_term_memory
         self.benchmark_evaluation_target = benchmark_evaluation_target or {}
+        self.evaluation_target = normalize_evaluation_target(self.benchmark_evaluation_target)
         self.environment_plan_context = environment_plan_context or ""
         
         # Create log directory if specified
@@ -111,8 +113,8 @@ class Planner:
             "- Do not simulate command execution results. Your response must end immediately after the Action line.",
 
             "READ THESE FIRST (highest-priority rules):\n"
-            "- **No Excuses Rule**: You CANNOT output 'Final Answer: Success' unless the final verification command(s) you will report have been executed for real and prove the repository's tests are collectable in the configured environment. For ordinary Python setup, this means `pytest --collect-only -q --disable-warnings` succeeds from the repository root; for Poetry projects, use `poetry run pytest --collect-only -q --disable-warnings`. You do NOT need to run the full test suite or make all tests pass. Collection/import/config errors, missing dependencies, missing services, bad paths, bad locale, or other fixable environment defects are still setup failures and must be fixed. If a `Benchmark Evaluation Target` is provided, use the metadata only as a clue for relevant test framework/files; the final proof should still be Repo2Run-style pytest collection success.\n"
-            "- **No Bypassing Tests**: Run real pytest collection for the project. Do not create substitute tests or claim success from manual import checks alone.\n"
+            f"{self._no_excuses_rule()}\n"
+            f"{self._no_bypassing_tests_rule()}\n"
             "- **Environment-Only Boundary**: Do not create stubs, rewrite tests, or modify source files to make imports pass. You may edit dependency/environment configuration files such as `pyproject.toml`, `.lock` files, `requirements*.txt`, `setup.cfg`, `tox.ini`, or pytest config when they contain dependency or environment conflicts. Fix missing local imports with `PYTHONPATH`, editable install, or package discovery configuration rather than changing source semantics.\n"
             "- **Manifest-First Dependencies**: For Python/Poetry projects, derive dependency installs from `pyproject.toml`, lock files, requirements files, CI, and platform markers before reacting to individual pytest import errors. If the Planning Agent provides a manifest-driven dependency resolution plan, execute its setup steps first. Use pytest errors only to validate or promote a manifest-backed fallback; do not stack arbitrary packages in a long error-driven loop.\n"
             "- **No `sudo` In This Container**: Do not use `sudo`. In this container, `sudo` may be unavailable even when you already have permission to install packages directly. If you need a system package such as PostgreSQL, first try installing it directly with commands like `apt-get update && apt-get install -y <package>`.\n"
@@ -129,7 +131,7 @@ class Planner:
             "2. Use the Planning Agent todo-list as your execution map. After a successful planned setup step, inspect the updated next todo with `Action: __VIEW_PLAN__` before starting an unrelated branch.\n"
             "3. Install dependencies from the manifest/lock/CI-derived plan before adding pytest-error-derived packages. If the manifest or lock is internally inconsistent for Linux, repair the dependency configuration and retry from a clean dependency strategy.\n"
             "4. Install the tools and local services needed by the repository.\n"
-            "5. Run Repo2Run-style verification: `pytest --collect-only -q --disable-warnings` or, for Poetry projects, `poetry run pytest --collect-only -q --disable-warnings`. If tools, test dependencies, or services are missing, fix the environment rather than bypassing tests. Temporary `--ignore` flags are only for diagnosis; they do NOT count as final proof unless you also change the repository/test configuration so the plain Repo2Run command now succeeds.\n"
+            f"5. {self._workflow_verification_step()}\n"
             "6. Missing secrets/API keys may be documented only when the remaining failures are clearly secret-only.",
 
             "ROLLBACK STRATEGY:\n"
@@ -158,14 +160,13 @@ class Planner:
             "- **Do Not Misclassify Service Failures As Acceptable**: Errors such as database connection refused, missing local broker/storage endpoints, failed migrations caused by unavailable infrastructure, or application boot failures due to missing services are setup failures, not acceptable final-test failures.",
 
             "FINAL VERIFICATION AND SUCCESS:\n"
-            "- **Final Verification Block**: Before declaring success, run the Repo2Run-style pytest collection command in one final verification step. Avoid doing new setup/build steps after the last successful verification command.\n"
+            f"{self._final_verification_rules()}\n"
             "- **Do Not Truncate Verification Output**: Do NOT pipe the collection command through `head`, `tail`, or similar output-limiting filters when deciding whether the environment works. This same rule applies to setup and install commands. Run the full command; long output will be handled by observation compression.\n"
-            "- **Target Outcome For Final Verification**: The target is successful pytest collection, not test execution or test passing. Prefer `pytest --collect-only -q --disable-warnings`; use `poetry run pytest --collect-only -q --disable-warnings` when the project uses Poetry. If collection succeeds, you may use that command in the final `Verification Bundle`.\n"
-            "- **No Final Ignore-Flag Shortcut**: `--ignore`, `-k`, or similar narrowing flags may help diagnose failures, but they are not an acceptable final verification shortcut by themselves. Final success means the plain Repo2Run collection command succeeds in the configured repository.\n"
-            "- **Service-Dependent Projects Still Need Real Environment Fixes**: If pytest collection fails because repository imports/configuration require local services, do NOT ignore or mock those failures unless the project documents an official test profile/fallback. Configure the required service or supported test mode until collection succeeds.\n"
+            f"{self._final_ignore_shortcut_rule()}\n"
+            f"{self._service_dependent_rule()}\n"
             "- Immediately before `Final Answer: Success`, you MUST emit a `Verification Bundle:` JSON object with EXACTLY these keys: `runtime_preparation_commands` and `test_commands`.\n"
             "- `runtime_preparation_commands`: exact previously successful commands that must be run again in the eval container immediately before tests because their effects do NOT persist from image build into test execution. Use `[]` if none are required. Exclude read-only checks such as `redis-cli ping`, and do NOT include installation, dependency, checkout, clone, build, or other Dockerfile-persistent setup commands.\n"
-            "- `test_commands`: exact previously successful Repo2Run-style collection command whose output proved pytest can collect the repository tests in the final environment. Every command inside the bundle must exactly match a command you already executed successfully.\n"
+            f"{self._test_command_bundle_rule()}\n"
             "- `runtime_preparation_commands` should usually be short and often empty. It is only for ephemeral runtime actions such as starting a local service, exporting a runtime variable, or preparing a daemon needed by the final tests.\n"
             "- Success responses must follow this exact shape:\n"
             "  Thought: <brief final reasoning>\n"
@@ -175,6 +176,137 @@ class Planner:
         ])
 
         self.system_prompt = "\n\n".join(prompt_sections)
+
+    def _is_ratbench_target(self) -> bool:
+        return is_ratbench_target(self.evaluation_target)
+
+    def _no_excuses_rule(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- **No Excuses Rule**: You CANNOT output 'Final Answer: Success' unless the final "
+                "verification command(s) you will report have been executed for real and prove that "
+                "pytest tests can run in the configured environment. RATBench/ESSR scores full pytest "
+                "execution pass rate, not only collection. For ordinary Python setup, first make "
+                "`pytest --collect-only -q --disable-warnings` succeed when possible, then run full "
+                "pytest (for example `python -m pytest` or the project-native pytest command). "
+                "Continue fixing dependency, service, import, configuration, locale, and path failures "
+                "that prevent tests from running or unnecessarily reduce pass rate. You may stop with "
+                "remaining failures only when pytest has genuinely executed tests and the residual "
+                "failures appear to be project logic/assertion issues outside the environment boundary."
+            )
+        return (
+            "- **No Excuses Rule**: You CANNOT output 'Final Answer: Success' unless the final "
+            "verification command(s) you will report have been executed for real and prove the "
+            "repository's tests are collectable in the configured environment. For ordinary Python "
+            "setup, this means `pytest --collect-only -q --disable-warnings` succeeds from the "
+            "repository root; for Poetry projects, use `poetry run pytest --collect-only -q "
+            "--disable-warnings`. You do NOT need to run the full test suite or make all tests pass. "
+            "Collection/import/config errors, missing dependencies, missing services, bad paths, bad "
+            "locale, or other fixable environment defects are still setup failures and must be fixed. "
+            "If a `Benchmark Evaluation Target` is provided, use the metadata only as a clue for "
+            "relevant test framework/files; the final proof should still be Repo2Run-style pytest "
+            "collection success."
+        )
+
+    def _workflow_verification_step(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "Run RATBench-style verification in two phases: first use pytest collection "
+                "(`pytest --collect-only -q --disable-warnings` or the project-native equivalent) "
+                "to diagnose import/config errors, then run full pytest without `--collect-only` to "
+                "measure and improve pass rate. If tools, test dependencies, or services are missing, "
+                "fix the environment rather than bypassing tests. Temporary `--ignore`, `-k`, or "
+                "`--maxfail` narrowing flags are diagnosis only and do not count as final proof."
+            )
+        return (
+            "Run Repo2Run-style verification: `pytest --collect-only -q --disable-warnings` or, "
+            "for Poetry projects, `poetry run pytest --collect-only -q --disable-warnings`. If tools, "
+            "test dependencies, or services are missing, fix the environment rather than bypassing "
+            "tests. Temporary `--ignore` flags are only for diagnosis; they do NOT count as final "
+            "proof unless you also change the repository/test configuration so the plain Repo2Run "
+            "command now succeeds."
+        )
+
+    def _no_bypassing_tests_rule(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- **No Bypassing Tests**: Run real pytest collection and real full pytest execution "
+                "for the project. Do not create substitute tests, delete tests, rewrite tests, or claim "
+                "success from manual import checks alone."
+            )
+        return (
+            "- **No Bypassing Tests**: Run real pytest collection for the project. Do not create "
+            "substitute tests or claim success from manual import checks alone."
+        )
+
+    def _final_verification_rules(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- **Final Verification Block**: Before declaring success, run a full pytest command "
+                "without `--collect-only` in one final verification step. Avoid doing new setup/build "
+                "steps after the last full pytest execution.\n"
+                "- **Target Outcome For Final Verification**: The target is real pytest execution and "
+                "maximum environment-achievable pass rate. Prefer a project-native full pytest command "
+                "such as `python -m pytest`, `pytest`, or `poetry run pytest`. Collection-only commands "
+                "are useful gates but are not final proof for RATBench/ESSR."
+            )
+        return (
+            "- **Final Verification Block**: Before declaring success, run the Repo2Run-style pytest "
+            "collection command in one final verification step. Avoid doing new setup/build steps after "
+            "the last successful verification command.\n"
+            "- **Target Outcome For Final Verification**: The target is successful pytest collection, "
+            "not test execution or test passing. Prefer `pytest --collect-only -q --disable-warnings`; "
+            "use `poetry run pytest --collect-only -q --disable-warnings` when the project uses Poetry. "
+            "If collection succeeds, you may use that command in the final `Verification Bundle`."
+        )
+
+    def _final_ignore_shortcut_rule(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- **No Final Narrowing Shortcut**: `--ignore`, `-k`, `--maxfail`, or similar narrowing "
+                "flags may help diagnose failures, but they are not an acceptable final verification "
+                "shortcut by themselves. Final RATBench proof should run the repository's normal pytest "
+                "suite as broadly as the configured environment permits."
+            )
+        return (
+            "- **No Final Ignore-Flag Shortcut**: `--ignore`, `-k`, or similar narrowing flags may help "
+            "diagnose failures, but they are not an acceptable final verification shortcut by themselves. "
+            "Final success means the plain Repo2Run collection command succeeds in the configured repository."
+        )
+
+    def _service_dependent_rule(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- **Service-Dependent Projects Still Need Real Environment Fixes**: If pytest collection "
+                "or full pytest execution fails because repository imports/configuration require local "
+                "services, do NOT ignore or mock those failures unless the project documents an official "
+                "test profile/fallback. Configure the required service or supported test mode until tests "
+                "execute and environment-caused pass-rate loss is minimized."
+            )
+        return (
+            "- **Service-Dependent Projects Still Need Real Environment Fixes**: If pytest collection fails "
+            "because repository imports/configuration require local services, do NOT ignore or mock those "
+            "failures unless the project documents an official test profile/fallback. Configure the "
+            "required service or supported test mode until collection succeeds."
+        )
+
+    def _test_command_bundle_rule(self) -> str:
+        if self._is_ratbench_target():
+            return (
+                "- `test_commands`: exact full pytest command(s), without `--collect-only`, that were "
+                "previously executed in the final environment and produced real test execution output. "
+                "A nonzero exit is acceptable only when tests genuinely ran and the remaining failures "
+                "are not environment/setup defects you can fix. Every command inside the bundle must "
+                "exactly match a command you already executed. If the verified pytest command used "
+                "inline environment variables such as `PATH=... python -m pytest`, keep that inline "
+                "prefix in `test_commands` unless the environment assignment was separately executed "
+                "successfully as its own runtime preparation command."
+            )
+        return (
+            "- `test_commands`: exact previously successful Repo2Run-style collection command whose output "
+            "proved pytest can collect the repository tests in the final environment. Every command inside "
+            "the bundle must exactly match a command you already executed successfully."
+        )
 
     def plan(self, repo_url=None, last_observation=None, manage_history=True):
         """
@@ -283,27 +415,44 @@ class Planner:
             for clue in target.get("test_framework_clues", []) or []
             if str(clue).strip()
         ]
-        if not changed_test_files and not framework_clues:
+        if not changed_test_files and not framework_clues and not self._is_ratbench_target():
             return ""
 
         lines = [
             "Benchmark Evaluation Target:",
-            "Multi-Docker-Eval will later apply a benchmark test patch. You are doing environment setup only.",
+            f"Evaluation target: {self.evaluation_target}.",
+            "You are doing environment setup only.",
             "Do NOT apply the benchmark test patch. Do NOT modify project source/test semantics to satisfy it.",
             "Environment compatibility edits needed only to run the existing test harness are allowed if verified.",
-            "Use the following metadata only as clues for the relevant test framework/files when making pytest collection succeed.",
         ]
+        if self._is_ratbench_target():
+            lines.append(
+                "RATBench/ESSR will execute pytest and score pass rate. Treat collection as a diagnostic "
+                "gate, then run full pytest and fix environment-caused failures that reduce pass rate."
+            )
+        else:
+            lines.append(
+                "Use the following metadata only as clues for the relevant test framework/files when "
+                "making pytest collection succeed."
+            )
         if changed_test_files:
             lines.append("Changed test files from the benchmark test patch:")
             lines.extend(f"- {path}" for path in changed_test_files[:20])
         if framework_clues:
             lines.append("Test framework clues observed in the benchmark test patch:")
             lines.extend(f"- {clue}" for clue in framework_clues[:12])
-        lines.append(
-            "Before declaring success, the final proof should be successful Repo2Run-style pytest collection "
-            "from the repository root. Use the changed-file and framework metadata to diagnose collection "
-            "errors, but you do not need to execute or pass those tests."
-        )
+        if self._is_ratbench_target():
+            lines.append(
+                "Before declaring success, the final proof should include a full pytest execution command "
+                "from the repository root or project-native test environment. The command should not use "
+                "`--collect-only`."
+            )
+        else:
+            lines.append(
+                "Before declaring success, the final proof should be successful Repo2Run-style pytest collection "
+                "from the repository root. Use the changed-file and framework metadata to diagnose collection "
+                "errors, but you do not need to execute or pass those tests."
+            )
         return "\n".join(lines)
 
     def append_step(self, step_id, assistant_content, observation_content):

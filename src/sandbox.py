@@ -5,6 +5,7 @@ import shlex
 import tarfile
 import docker
 from src.synthesizer import Synthesizer
+from src.evaluation_target import is_ratbench_target, normalize_evaluation_target
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
 
@@ -79,6 +80,7 @@ class Sandbox:
         apt_http_timeout_seconds=120,
         apt_https_timeout_seconds=120,
         docker_client_timeout_seconds=None,
+        evaluation_target="repo2run",
     ):
         self.client = docker.from_env(timeout=docker_client_timeout_seconds)
         self.base_image = base_image
@@ -95,6 +97,7 @@ class Sandbox:
         self.runtime_replay_commands = []
         self.package_manager_broken_failure_streak = 0
         self._command_classifier = Synthesizer()
+        self.evaluation_target = normalize_evaluation_target(evaluation_target)
         self.apt_mirror_url = self._resolve_apt_mirror_url(apt_mirror_url)
         self.apt_retries = apt_retries
         self.apt_http_timeout_seconds = apt_http_timeout_seconds
@@ -698,11 +701,7 @@ class Sandbox:
             failed_count = tap_fail.group(1)
             return (
                 f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
-                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                f"from this failed command. Repo2Run success requires a real "
-                f"`pytest --collect-only -q --disable-warnings` verification, or the Poetry "
-                f"equivalent, that proves tests are collectable. Full test failures do not need "
-                f"to pass if collection succeeds.\n\n"
+                f"{self._test_failure_guidance()}\n\n"
             )
 
         # pytest / unittest 格式失败
@@ -711,9 +710,7 @@ class Sandbox:
             failed_count = pytest_fail.group(1)
             return (
                 f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {failed_count} test(s) FAILED.\n"
-                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                f"from this failed command. If full test execution fails, rerun the Repo2Run "
-                f"collection command and use it as final proof only if collection succeeds.\n\n"
+                f"{self._test_failure_guidance()}\n\n"
             )
 
         pytest_error = re.search(r'([1-9]\d*) errors?', output, re.IGNORECASE)
@@ -721,17 +718,13 @@ class Sandbox:
             error_count = pytest_error.group(1)
             return (
                 f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {error_count} test error(s) reported.\n"
-                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                f"until Repo2Run-style pytest collection succeeds without collection/import/config "
-                f"errors.\n\n"
+                f"{self._test_failure_guidance(error=True)}\n\n"
             )
 
         if self._command_classifier.observation_has_test_failure_signal(output):
             return (
                 "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
-                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                "from this failed command. Final proof must be a successful Repo2Run-style "
-                "pytest collection command, not a failed full test run.\n\n"
+                f"{self._test_failure_guidance()}\n\n"
             )
 
         # 通用失败关键词。只匹配测试用例行，避免把 "Failed: 0" 当成失败。
@@ -741,12 +734,40 @@ class Sandbox:
         ):
             return (
                 "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
-                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
-                "from this failed command. Final proof must be a successful Repo2Run-style "
-                "pytest collection command.\n\n"
+                f"{self._test_failure_guidance()}\n\n"
             )
 
         return ""
+
+    def _test_failure_guidance(self, error=False):
+        if is_ratbench_target(self.evaluation_target):
+            if error:
+                return (
+                    "[SYSTEM] RATBench/ESSR scores full pytest execution pass rate. Treat test "
+                    "errors as environment/setup failures when they are caused by missing modules, "
+                    "services, config, paths, locale, or import/setup problems; keep fixing those. "
+                    "If pytest genuinely executed tests and only project logic/assertion failures "
+                    "remain, you may use that full pytest command as final proof for pass-rate scoring. "
+                    "Do not fall back to collect-only as final proof."
+                )
+            return (
+                "[SYSTEM] RATBench/ESSR scores full pytest execution pass rate. Do not treat "
+                "collect-only success as final proof. Continue fixing environment-caused failures "
+                "that reduce pass rate. If pytest genuinely executed tests and remaining failures "
+                "look like project logic/assertion failures outside the environment boundary, you may "
+                "report the full pytest command as final proof even if its exit code is nonzero."
+            )
+        if error:
+            return (
+                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                "until Repo2Run-style pytest collection succeeds without collection/import/config "
+                "errors."
+            )
+        return (
+            "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' from "
+            "this failed command. Final proof must be a successful Repo2Run-style pytest collection "
+            "command, not a failed full test run."
+        )
 
     def _get_truncated_test_output_prefix(self, command):
         """Warn when a test command is piped through a lossy output filter."""

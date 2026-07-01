@@ -402,6 +402,28 @@ class SynthesizerTests(unittest.TestCase):
         self.assertEqual(analysis["reason"], "observed_test_execution_signal")
         self.assertFalse(synthesizer.observation_has_test_failure_signal(observation))
 
+    def test_pytest_collect_q_listing_is_effective_signal_without_summary_line(self):
+        synthesizer = Synthesizer()
+        observation = "\n".join(
+            [
+                "tests/spark/test_warnings.py::test_muted_warnings[append]",
+                "tests/steps/test_http.py::test_http_step[httpDeleteStep_success]",
+                "tests/core/test_logger.py: 4",
+            ]
+        )
+
+        analysis = synthesizer.analyze_test_run(
+            (
+                "cd /app && pytest --collect-only -q --disable-warnings "
+                "--ignore=tests/spark/integrations/tableau/test_hyper.py"
+            ),
+            observation,
+        )
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertTrue(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "observed_test_execution_signal")
+
     def test_pytest_collect_cache_hint_does_not_hide_real_collection_error(self):
         synthesizer = Synthesizer()
         observation = "\n".join(

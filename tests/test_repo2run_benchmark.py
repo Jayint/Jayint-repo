@@ -2,26 +2,29 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+from src.dockerfile_repair import (
+    build_dockerfile_repair_input,
+    extract_dockerfile_repair_json,
+    repair_generated_dockerfile,
+    repair_dockerfile_for_missing_python_modules,
+    repair_dockerfile_with_llm,
+)
 from run_repo2run_benchmark import (
     REPO2RUN_PDM_COLLECT_COMMAND,
     REPO2RUN_POETRY_COLLECT_COMMAND,
     REPO2RUN_PYTEST_COLLECT_COMMAND,
     REPO2RUN_UV_COLLECT_COMMAND,
     build_agent_command,
-    build_dockerfile_repair_input,
     classify_test_execution,
     derive_repo2run_collect_commands,
     docker_build_failed_due_to_unavailable_daemon,
     ensure_eval_dockerignore_includes_test_artifacts,
     evaluate_built_image,
     extract_observed_pip_install_constraints_from_text,
-    extract_dockerfile_repair_json,
     infer_workdir_from_dockerfile,
     normalize_eval_dockerfile_for_replay,
     prepare_eval_build_context,
     render_eval_dockerfile,
-    repair_dockerfile_for_missing_python_modules,
-    repair_dockerfile_with_llm,
     resolve_benchmark_platform,
     run_command,
     select_repo2run_collect_command_from_run_summary,
@@ -49,7 +52,8 @@ RUN pip install -e .
 
     rendered = render_eval_dockerfile(agent_dockerfile)
 
-    assert "RUN (python -m pip install pytest pytest-xdist poetry" in rendered
+    assert "python -m pip install --no-cache-dir --trusted-host pypi.org" in rendered
+    assert "pytest pytest-xdist poetry" in rendered
     assert "WORKDIR /app\nCOPY . /app\n\nRUN pip install -e ." in rendered
 
 
@@ -150,6 +154,31 @@ def test_normalize_eval_dockerfile_splits_broad_torch_to_cpu_index():
     assert "pip install -q einops x-transformers vector-quantize-pytorch pytest" in normalized
 
 
+def test_normalize_eval_dockerfile_pins_observed_torch_instead_of_cpu_index():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.6\n"
+        "RUN python -m pip install torch --no-cache-dir "
+        "--trusted-host pypi.org --trusted-host files.pythonhosted.org\n",
+        pip_constraints={"torch": "1.10.2"},
+    )
+
+    assert "torch==1.10.2" in normalized
+    assert "https://download.pytorch.org/whl/cpu" not in normalized
+
+
+def test_normalize_eval_dockerfile_pins_observed_torch_inside_generated_retry():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.6\n"
+        "RUN JAYINT_PIP_ATTEMPT=1; while false; do :; done; "
+        "/bin/sh -lc 'python -m pip install --index-url "
+        "https://download.pytorch.org/whl/cpu torch'\n",
+        pip_constraints={"torch": "1.10.2"},
+    )
+
+    assert "torch==1.10.2" in normalized
+    assert "https://download.pytorch.org/whl/cpu" not in normalized
+
+
 def test_normalize_eval_dockerfile_adds_no_deps_to_known_force_reinstall():
     normalized = normalize_eval_dockerfile_for_replay(
         "FROM python:3.9\n"
@@ -240,6 +269,76 @@ def test_normalize_eval_dockerfile_drops_generated_pypi_retry_after_local_source
 
     assert "pip install /tmp/bddl" in normalized
     assert "pip install bddl>=3.6.0" not in normalized
+
+
+def test_normalize_eval_dockerfile_drops_redundant_clone_into_copied_context():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "WORKDIR /app\n"
+        "COPY . /app\n"
+        "RUN git clone --depth 1 https://github.com/Nitrokey/pynitrokey.git /app\n"
+        "RUN python -m pip install -e /app --no-deps\n"
+    )
+
+    assert "git clone --depth 1 https://github.com/Nitrokey/pynitrokey.git /app" not in normalized
+    assert "COPY . /app" in normalized
+    assert "pip install -e /app --no-deps" in normalized
+
+
+def test_normalize_eval_dockerfile_drops_redundant_git_retry_clone_into_context():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "WORKDIR /app\n"
+        "COPY . /app\n"
+        "RUN JAYINT_GIT_ATTEMPT=1; JAYINT_GIT_MAX_ATTEMPTS=3; "
+        "while [ \"$JAYINT_GIT_ATTEMPT\" -le \"$JAYINT_GIT_MAX_ATTEMPTS\" ]; do "
+        "git clone --depth 1 https://github.com/docling-project/docling.git /app "
+        "&& JAYINT_GIT_STATUS=0 && break; done\n"
+        "RUN cd /app && python -m pip install -e .\n"
+    )
+
+    assert "git clone --depth 1 https://github.com/docling-project/docling.git /app" not in normalized
+    assert "RUN cd /app && python -m pip install -e ." in normalized
+
+
+def test_normalize_eval_dockerfile_keeps_dependency_clone_outside_copied_context():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "WORKDIR /app\n"
+        "COPY . /app\n"
+        "RUN git clone --depth 1 https://example.test/bddl.git /tmp/bddl\n"
+        "RUN pip install /tmp/bddl\n"
+    )
+
+    assert "git clone --depth 1 https://example.test/bddl.git /tmp/bddl" in normalized
+    assert "pip install /tmp/bddl" in normalized
+
+
+def test_normalize_eval_dockerfile_drops_read_only_diagnostic_run_commands():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "WORKDIR /app\n"
+        "COPY . /app\n"
+        "RUN ls -la /app/test/\n"
+        "RUN sed -n '360,370p' pygo/stubs.py\n"
+        "RUN python3 -c \"import sys; sys.path.insert(0, '/app/backend'); "
+        "from consts.model import AgentRequest; print('Success')\"\n"
+        "RUN python -m pip install pytest\n"
+    )
+
+    assert "RUN ls -la /app/test/" not in normalized
+    assert "RUN sed -n '360,370p' pygo/stubs.py" not in normalized
+    assert "AgentRequest" not in normalized
+    assert "/bin/sh -lc 'python -m pip install pytest'" in normalized
+
+
+def test_normalize_eval_dockerfile_keeps_mutating_find_commands():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "RUN find . -name '*.pyc' -delete\n"
+    )
+
+    assert "RUN find . -name '*.pyc' -delete" in normalized
 
 
 def test_normalize_eval_dockerfile_adds_no_deps_to_cuda_skipped_source_install():
@@ -428,16 +527,44 @@ def test_normalize_eval_dockerfile_repairs_malformed_generated_apt_retry_status(
     malformed = (
         "FROM python:3.12\n"
         "RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; "
-        "while [ \"$JAYINT_APT_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do "
+        "while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; do "
         "DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y postgresql' "
         "&& JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; "
+        "if [ \"$JAYINT_PIP_ATTEMPT\" -eq \"$JAYINT_PIP_MAX_ATTEMPTS\" ]; then "
+        "exit \"$JAYINT_PIP_STATUS\"; fi; "
+        "JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); "
         "done; exit \"$JAYINT_PIP_STATUS\"\n"
     )
 
     normalized = normalize_eval_dockerfile_for_replay(malformed)
 
+    assert 'while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]' in normalized
+    assert 'if [ "$JAYINT_APT_ATTEMPT" -eq "$JAYINT_APT_MAX_ATTEMPTS" ]' in normalized
+    assert "JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1))" in normalized
     assert 'exit "$JAYINT_APT_STATUS"' in normalized
+    assert "JAYINT_PIP_ATTEMPT" not in normalized
+    assert "JAYINT_PIP_MAX_ATTEMPTS" not in normalized
     assert "JAYINT_PIP_STATUS" not in normalized
+
+
+def test_normalize_eval_dockerfile_repairs_generated_apt_retry_attempt_only_typo():
+    malformed = (
+        "FROM python:3.12\n"
+        "RUN JAYINT_APT_ATTEMPT=1; JAYINT_APT_MAX_ATTEMPTS=3; JAYINT_APT_STATUS=1; "
+        "while [ \"$JAYINT_PIP_ATTEMPT\" -le \"$JAYINT_APT_MAX_ATTEMPTS\" ]; do "
+        "DEBIAN_FRONTEND=noninteractive /bin/sh -lc 'apt-get update && apt-get install -y postgresql' "
+        "&& JAYINT_APT_STATUS=0 && break; JAYINT_APT_STATUS=$?; "
+        "if [ \"$JAYINT_APT_ATTEMPT\" -eq \"$JAYINT_APT_MAX_ATTEMPTS\" ]; then "
+        "exit \"$JAYINT_APT_STATUS\"; fi; "
+        "JAYINT_PIP_ATTEMPT=$((JAYINT_PIP_ATTEMPT + 1)); "
+        "done; exit \"$JAYINT_APT_STATUS\"\n"
+    )
+
+    normalized = normalize_eval_dockerfile_for_replay(malformed)
+
+    assert 'while [ "$JAYINT_APT_ATTEMPT" -le "$JAYINT_APT_MAX_ATTEMPTS" ]' in normalized
+    assert "JAYINT_APT_ATTEMPT=$((JAYINT_APT_ATTEMPT + 1))" in normalized
+    assert "JAYINT_PIP_ATTEMPT" not in normalized
 
 
 def test_normalize_eval_dockerfile_wraps_multiline_apt_install_without_orphan_packages():
@@ -456,6 +583,77 @@ def test_normalize_eval_dockerfile_wraps_multiline_apt_install_without_orphan_pa
     ) in normalized
     assert "\n    build-essential \\" not in normalized
     assert "\n    libmagic-dev \\" not in normalized
+
+
+def test_normalize_eval_dockerfile_creates_parent_dirs_for_absolute_touch():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.7\n"
+        "RUN touch /usr/local/lib/python3.7/site-packages/habitat_sim/__init__.py\n"
+    )
+
+    assert (
+        "RUN mkdir -p /usr/local/lib/python3.7/site-packages/habitat_sim && "
+        "touch /usr/local/lib/python3.7/site-packages/habitat_sim/__init__.py"
+    ) in normalized
+
+
+def test_normalize_eval_dockerfile_creates_parent_dirs_for_multi_touch():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.7\n"
+        "RUN touch /opt/pkg/a/__init__.py /opt/pkg/b/__init__.py\n"
+    )
+
+    assert (
+        "RUN mkdir -p /opt/pkg/a /opt/pkg/b && "
+        "touch /opt/pkg/a/__init__.py /opt/pkg/b/__init__.py"
+    ) in normalized
+
+
+def test_normalize_eval_dockerfile_drops_habitat_sim_conda_residue_when_stubbed():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.7\n"
+        "RUN /opt/conda/bin/conda --version\n"
+        "RUN /opt/conda/bin/conda install -y -c aihabitat habitat-sim=0.2.2 "
+        "-c pytorch pytorch=1.11.0 -c conda-forge quaternion=2023.0.3\n"
+        "RUN /opt/conda/bin/conda tos accept --override-channels "
+        "--channel https://repo.anaconda.com/pkgs/main\n"
+        "RUN /opt/conda/bin/conda search habitat-sim -c aihabitat\n"
+        "RUN touch /usr/local/lib/python3.7/site-packages/habitat_sim/__init__.py\n"
+    )
+
+    assert "/opt/conda/bin/conda" not in normalized
+    assert "Miniconda3-latest-Linux" not in normalized
+    assert (
+        "RUN mkdir -p /usr/local/lib/python3.7/site-packages/habitat_sim && "
+        "touch /usr/local/lib/python3.7/site-packages/habitat_sim/__init__.py"
+    ) in normalized
+
+
+def test_normalize_eval_dockerfile_installs_miniconda_before_required_conda_use():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "RUN /opt/conda/bin/conda search numpy -c conda-forge\n"
+        "RUN /opt/conda/bin/conda install -y -c conda-forge numpy=1.26\n"
+    )
+
+    assert "Miniconda3-latest-Linux-${JAYINT_CONDA_ARCH}.sh" in normalized
+    assert normalized.index("Miniconda3-latest-Linux") < normalized.index(
+        "RUN /opt/conda/bin/conda search numpy -c conda-forge || true"
+    )
+    assert "RUN /opt/conda/bin/conda install -y -c conda-forge numpy=1.26" in normalized
+
+
+def test_normalize_eval_dockerfile_does_not_duplicate_existing_miniconda_bootstrap():
+    normalized = normalize_eval_dockerfile_for_replay(
+        "FROM python:3.10\n"
+        "RUN curl -fsSL -o /tmp/miniconda.sh "
+        "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh "
+        "&& bash /tmp/miniconda.sh -b -p /opt/conda\n"
+        "RUN /opt/conda/bin/conda install -y -c conda-forge numpy=1.26\n"
+    )
+
+    assert normalized.count("Miniconda3-latest-Linux") == 1
+    assert "RUN /opt/conda/bin/conda install -y -c conda-forge numpy=1.26" in normalized
 
 
 def test_normalize_eval_dockerfile_repairs_generated_apt_retry_with_orphan_packages():
@@ -674,6 +872,20 @@ def test_repair_dockerfile_with_llm_writes_log_and_returns_replacement(tmp_path)
     assert result["usage"]["total_tokens"] == 5
     assert "RUN pip install pybullet" in result["dockerfile_text"]
     assert Path(result["log_path"]).read_text(encoding="utf-8").count("Dockerfile repair") >= 1
+
+
+def test_repair_generated_dockerfile_returns_structured_error_for_missing_file(tmp_path):
+    report = repair_generated_dockerfile(
+        dockerfile_path=tmp_path / "missing.Dockerfile",
+        context_dir=tmp_path,
+        client=None,
+        model="fake-model",
+        run_summary={},
+    )
+
+    assert report["enabled"] is True
+    assert report["final_success"] is False
+    assert "Could not read Dockerfile" in report["error"]
 
 
 def test_build_dockerfile_repair_input_includes_failure_logs_and_trajectory():
@@ -1158,6 +1370,36 @@ def test_derive_repo2run_collect_commands_keeps_env_prefixed_python_module_pytes
     assert source == "repo2run_pytest_collect_only_agent_verified"
 
 
+def test_derive_repo2run_collect_commands_preserves_cd_env_assignment_prefix(tmp_path):
+    verified_command = (
+        "cd /app && PYTHONPATH=/app:$PYTHONPATH "
+        "python -m pytest --collect-only -q --disable-warnings"
+    )
+    expected_command = (
+        "PYTHONPATH=/app:$PYTHONPATH python -m pytest --collect-only -q --disable-warnings"
+    )
+
+    runtime_commands, test_commands, source = derive_repo2run_collect_commands(
+        tmp_path,
+        {
+            "verification_bundle": {
+                "test_commands": [verified_command],
+            },
+            "verified_test_commands": [verified_command],
+            "successful_actions": [
+                {
+                    "command": verified_command,
+                    "observation_summary": "84 tests collected in 0.55s\n",
+                }
+            ],
+        },
+    )
+
+    assert runtime_commands == []
+    assert test_commands == [expected_command]
+    assert source == "repo2run_pytest_collect_only_agent_verified"
+
+
 def test_derive_repo2run_collect_commands_prefers_uv_wrapper_over_plain_pytest_fallback(tmp_path):
     runtime_commands, test_commands, source = derive_repo2run_collect_commands(
         tmp_path,
@@ -1253,6 +1495,48 @@ def test_derive_repo2run_collect_commands_keeps_agent_verified_collect_with_extr
     assert runtime_commands == []
     assert test_commands == [verified_command]
     assert source == "repo2run_uv_collect_only_agent_verified"
+
+
+def test_derive_repo2run_collect_commands_keeps_agent_verified_ignore_files_from_q_output(
+    tmp_path,
+):
+    verified_command = (
+        "cd /app && pytest --collect-only -q --disable-warnings "
+        "--ignore=tests/spark/integrations/tableau/test_hyper.py "
+        "--ignore=tests/spark/integrations/tableau/test_server.py"
+    )
+    expected_command = (
+        "pytest --collect-only -q --disable-warnings "
+        "--ignore=tests/spark/integrations/tableau/test_hyper.py "
+        "--ignore=tests/spark/integrations/tableau/test_server.py"
+    )
+
+    runtime_commands, test_commands, source = derive_repo2run_collect_commands(
+        tmp_path,
+        {
+            "verification_bundle": {
+                "runtime_preparation_commands": [],
+                "test_commands": [verified_command],
+            },
+            "verified_test_commands": [verified_command],
+            "successful_actions": [
+                {
+                    "command": verified_command,
+                    "observation_summary": "\n".join(
+                        [
+                            "tests/spark/test_warnings.py::test_muted_warnings[append]",
+                            "tests/steps/test_http.py::test_http_step[httpDeleteStep_success]",
+                            "tests/core/test_logger.py: 4",
+                        ]
+                    ),
+                }
+            ],
+        },
+    )
+
+    assert runtime_commands == []
+    assert test_commands == [expected_command]
+    assert source == "repo2run_pytest_collect_only_agent_verified"
 
 
 def test_derive_repo2run_collect_commands_keeps_agent_verified_import_mode_option(tmp_path):

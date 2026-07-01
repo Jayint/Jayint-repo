@@ -15,12 +15,14 @@ from src.planning.sandbox_explorer import SandboxPlanningExplorer
 from src.planning.schemas import EnvironmentBuildPlan
 from src.planning.todo_generator import TodoListGenerator
 from src.planning.topo_sorter import TopologicalSorter
+from src.evaluation_target import normalize_evaluation_target
 
 
 class EnvironmentPlanningAgent:
-    def __init__(self, client=None, model: str = DEFAULT_LLM_MODEL):
+    def __init__(self, client=None, model: str = DEFAULT_LLM_MODEL, evaluation_target: str = "repo2run"):
         self.client = client
         self.model = model
+        self.evaluation_target = normalize_evaluation_target(evaluation_target)
         self.evidence_collector = RepositoryEvidenceCollector()
         self.base_image_planner = BaseImagePlanner(client=client, model=model)
         self.host_environment_probe = PlanningHostEnvironmentProbe()
@@ -123,6 +125,7 @@ class EnvironmentPlanningAgent:
             fallback_plan,
             unresolved_questions,
         ) = graph_planner.build(evidence, decision)
+        repo_summary["evaluation_target"] = self.evaluation_target
         self._attach_host_environment(
             nodes,
             repo_summary,
@@ -308,7 +311,7 @@ class EnvironmentPlanningAgent:
     def _graph_planner_for_language(self, language: str):
         if language != "python":
             return GenericHeuristicPlanner()
-        return PythonHeuristicPlanner()
+        return PythonHeuristicPlanner(evaluation_target=self.evaluation_target)
 
     def _attach_host_environment(
         self,

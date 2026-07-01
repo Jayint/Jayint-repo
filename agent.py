@@ -10,9 +10,16 @@ from openai import OpenAI
 from src.sandbox import Sandbox
 from src.planner import Planner
 from src.synthesizer import Synthesizer
+from src.dockerfile_repair import repair_generated_dockerfile
 from src.planning import EnvironmentPlanningAgent
 from src.verification_bundle import derive_supported_verification_bundle
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
+from src.evaluation_target import (
+    RATBENCH_TARGET,
+    coerce_benchmark_target,
+    is_ratbench_target,
+    normalize_evaluation_target,
+)
 from src.memory_manager import LongTermMemoryManager
 from src.observation_compressor import (
     AgentStep,
@@ -108,6 +115,8 @@ SETUP_LOG_RAW_AI_MESSAGE_HEADER = "================================ Raw AI Messa
 SETUP_LOG_SUMMARY_THOUGHT_MAX_CHARS = 1200
 SETUP_LOG_SUMMARY_OBSERVATION_MAX_CHARS = 1600
 MAX_INVALID_FINAL_BUNDLE_REPORTS = 3
+PLAN_AUTO_DIGEST_INTERVAL_STEPS = 3
+PLAN_CONSULTATION_TRIGGER_LOG_LIMIT = 200
 
 class DockerAgent:
     def __init__(
@@ -126,13 +135,16 @@ class DockerAgent:
         memory_path=None,
         memory_embedding_model=DEFAULT_MEMORY_EMBEDDING_MODEL,
         command_timeout_seconds=1800,
+        enable_dockerfile_repair=False,
+        dockerfile_repair_rounds=1,
     ):
         self.repo_url = repo_url
         self.model = model
         self.base_commit = base_commit
         self.problem_statement = problem_statement or ""
         self.test_patch = test_patch or ""
-        self.benchmark_evaluation_target = benchmark_evaluation_target or {}
+        self.evaluation_target = normalize_evaluation_target(benchmark_evaluation_target)
+        self.benchmark_evaluation_target = coerce_benchmark_target(benchmark_evaluation_target)
         self.language = language or ""
         self.workplace = os.path.abspath(workplace)
         self.successful_test_commands = []
@@ -161,6 +173,8 @@ class DockerAgent:
             "node_attempts": {},
             "last_feedback": None,
         }
+        self.plan_auto_digest_interval_steps = PLAN_AUTO_DIGEST_INTERVAL_STEPS
+        self.planning_consultation_stats = self._default_planning_consultation_stats()
         self.planning_warnings = []
         self.planning_source = None
         self.run_summary_path = os.path.join(self.workplace, "agent_run_summary.json")
@@ -171,6 +185,9 @@ class DockerAgent:
         self.memory_path = memory_path
         self.memory_embedding_model = memory_embedding_model
         self.command_timeout_seconds = command_timeout_seconds
+        self.enable_dockerfile_repair = bool(enable_dockerfile_repair)
+        self.dockerfile_repair_rounds = max(0, int(dockerfile_repair_rounds or 0))
+        self.dockerfile_repair_report = {"enabled": self.enable_dockerfile_repair}
         self.memory_manager = None
         self.last_failed_memory_context = None
         self.memory_stats = {
@@ -249,7 +266,11 @@ class DockerAgent:
         planning_log_dir = os.path.join(self.logs_dir, "planning_logs")
         self.planning_log_dir = planning_log_dir
         print("[DockerAgent] Building initial environment plan...")
-        environment_planner = EnvironmentPlanningAgent(self.client, model)
+        environment_planner = EnvironmentPlanningAgent(
+            self.client,
+            model,
+            evaluation_target=self.evaluation_target,
+        )
         self.environment_planner = environment_planner
         base_image_override = None if base_image == "auto" else base_image
         environment_plan = environment_planner.create_initial_plan(
@@ -1005,6 +1026,18 @@ class DockerAgent:
                         prompt_observation,
                         planning_feedback,
                     )
+                if not (is_rollback_action or is_memory_retrieval_action or is_plan_view_action):
+                    automatic_plan_digest = self._maybe_auto_environment_plan_digest(
+                        step_index=step + 1,
+                        action=execution_action,
+                        success=success,
+                        planning_feedback_emitted=bool(planning_feedback),
+                    )
+                    if automatic_plan_digest:
+                        prompt_observation = self._append_system_note(
+                            prompt_observation,
+                            automatic_plan_digest,
+                        )
 
                 if self.enable_observation_compression:
                     self._record_agent_step(
@@ -1031,8 +1064,10 @@ class DockerAgent:
                 if self._synthesize_final_build_recipe():
                     # 生成 Dockerfile 到 workplace 目录
                     dockerfile_path = os.path.join(self.workplace, "Dockerfile")
-                    self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
-                    self._maybe_generate_long_term_memories(configuration_success)
+                    if self._generate_final_dockerfile(dockerfile_path):
+                        self._maybe_generate_long_term_memories(configuration_success)
+                    else:
+                        configuration_success = False
                 else:
                     configuration_success = False
                     print("[Warning] Build recipe synthesis failed. No Dockerfile will be generated.")
@@ -1054,8 +1089,10 @@ class DockerAgent:
                 try:
                     if self._synthesize_final_build_recipe():
                         dockerfile_path = os.path.join(self.workplace, "Dockerfile")
-                        self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
-                        self._maybe_generate_long_term_memories(configuration_success)
+                        if self._generate_final_dockerfile(dockerfile_path):
+                            self._maybe_generate_long_term_memories(configuration_success)
+                        else:
+                            configuration_success = False
                     else:
                         configuration_success = False
                         print("[Warning] Build recipe synthesis failed after auto-finalization.")
@@ -1117,6 +1154,7 @@ class DockerAgent:
             platform=platform_override,  # Use linux/amd64 if ARM64 issues detected
             seed_dir=self.workplace,
             command_timeout_seconds=self.command_timeout_seconds,
+            evaluation_target=self.evaluation_target,
         )
 
     def _is_explicit_rollback_action(self, action):
@@ -1200,6 +1238,55 @@ class DockerAgent:
             "node_attempts": {},
             "last_feedback": None,
         }
+
+    def _default_planning_consultation_stats(self):
+        return {
+            "explicit_view_requests": 0,
+            "automatic_plan_digests": 0,
+            "planning_update_feedback": 0,
+            "auto_digest_interval_steps": getattr(
+                self,
+                "plan_auto_digest_interval_steps",
+                PLAN_AUTO_DIGEST_INTERVAL_STEPS,
+            ),
+            "last_consultation_step": None,
+            "triggers": [],
+        }
+
+    def _ensure_planning_consultation_stats(self):
+        stats = getattr(self, "planning_consultation_stats", None)
+        if not isinstance(stats, dict):
+            stats = self._default_planning_consultation_stats()
+            self.planning_consultation_stats = stats
+        defaults = self._default_planning_consultation_stats()
+        for key, value in defaults.items():
+            stats.setdefault(key, value if not isinstance(value, list) else [])
+        stats["auto_digest_interval_steps"] = getattr(
+            self,
+            "plan_auto_digest_interval_steps",
+            PLAN_AUTO_DIGEST_INTERVAL_STEPS,
+        )
+        return stats
+
+    def _record_plan_consultation(self, kind, trigger, step_index=None):
+        stats = self._ensure_planning_consultation_stats()
+        if kind == "explicit_view":
+            stats["explicit_view_requests"] += 1
+        elif kind == "automatic_digest":
+            stats["automatic_plan_digests"] += 1
+        elif kind == "planning_update_feedback":
+            stats["planning_update_feedback"] += 1
+        stats["last_consultation_step"] = step_index
+        triggers = stats.setdefault("triggers", [])
+        triggers.append(
+            {
+                "kind": kind,
+                "trigger": trigger,
+                "step_index": step_index,
+            }
+        )
+        if len(triggers) > PLAN_CONSULTATION_TRIGGER_LOG_LIMIT:
+            del triggers[: len(triggers) - PLAN_CONSULTATION_TRIGGER_LOG_LIMIT]
 
     def _refresh_environment_plan(self, plan, reason, step_index=None):
         self.environment_build_plan_obj = plan
@@ -1382,6 +1469,11 @@ class DockerAgent:
     def _view_environment_plan_observation(self):
         if not self.environment_build_plan_obj:
             return "[SYSTEM] No Planning Agent plan is available yet."
+        self._record_plan_consultation(
+            "explicit_view",
+            trigger="agent requested __VIEW_PLAN__",
+            step_index=None,
+        )
         self._write_environment_plan_files(
             reason="agent requested current plan view",
             step_index=None,
@@ -1401,6 +1493,91 @@ class DockerAgent:
             "the next setup action, unless the latest real Observation proves the plan is wrong.\n\n"
             f"{self._truncate_for_recipe(markdown, 16000)}"
         )
+
+    def _maybe_auto_environment_plan_digest(
+        self,
+        step_index,
+        action,
+        success,
+        planning_feedback_emitted=False,
+    ):
+        if not self.environment_build_plan_obj:
+            return ""
+
+        triggers = []
+        matched_node_id = self._match_plan_node_for_action(action)
+        if success and matched_node_id and not planning_feedback_emitted:
+            triggers.append("successful planned step")
+        elif not success:
+            triggers.append("failed setup step")
+
+        interval = getattr(
+            self,
+            "plan_auto_digest_interval_steps",
+            PLAN_AUTO_DIGEST_INTERVAL_STEPS,
+        )
+        if interval and step_index and step_index % interval == 0:
+            triggers.append(f"periodic {interval}-step check")
+
+        if not triggers:
+            return ""
+
+        trigger = "; ".join(triggers)
+        self._record_plan_consultation(
+            "automatic_digest",
+            trigger=trigger,
+            step_index=step_index,
+        )
+        self._write_environment_plan_files(
+            reason=f"automatic plan digest after step {step_index}: {trigger}",
+            step_index=step_index,
+        )
+        return self._format_environment_plan_digest(
+            trigger=trigger,
+            step_index=step_index,
+            matched_node_id=matched_node_id,
+        )
+
+    def _format_environment_plan_digest(self, trigger, step_index, matched_node_id=None):
+        state = self.planning_execution_state or {}
+        completed = list(state.get("completed_node_ids") or [])
+        failed = list(state.get("failed_node_ids") or [])
+        next_todo = self._next_plan_todo_item()
+        next_text = "no remaining planned todo item"
+        if next_todo:
+            next_text = (
+                f"{next_todo.get('step')}. [{next_todo.get('task_type')}] "
+                f"{next_todo.get('node_id')}"
+            )
+            if next_todo.get("command_hint"):
+                next_text += f" | hint: {next_todo.get('command_hint')}"
+
+        lines = [
+            "[Automatic Plan Digest]",
+            f"- Trigger: {trigger} after step {step_index}.",
+            f"- Last matched planned node: {matched_node_id or 'none'}.",
+            f"- Next todo: {next_text}.",
+            f"- Completed planned nodes: {len(completed)}{self._format_plan_node_preview(completed)}.",
+        ]
+        if failed:
+            lines.append(
+                f"- Failed planned nodes: {len(failed)}{self._format_plan_node_preview(failed)}."
+            )
+        lines.extend(
+            [
+                f"- Full plan: `{self.environment_plan_container_md}` (`Action: __VIEW_PLAN__`).",
+                "- Next action should advance the NEXT todo, or explicitly request `__VIEW_PLAN__` before switching strategy.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def _format_plan_node_preview(self, node_ids, limit=4):
+        if not node_ids:
+            return ""
+        preview = ", ".join(str(node_id) for node_id in node_ids[:limit])
+        if len(node_ids) > limit:
+            preview += f", +{len(node_ids) - limit} more"
+        return f" ({preview})"
 
     def _update_environment_plan_after_execution(
         self,
@@ -1456,6 +1633,11 @@ class DockerAgent:
         if not should_emit_feedback:
             return ""
 
+        self._record_plan_consultation(
+            "planning_update_feedback",
+            trigger="plan state changed after execution feedback",
+            step_index=step_index,
+        )
         next_text = "no remaining planned todo item"
         if next_todo:
             next_text = (
@@ -1471,7 +1653,8 @@ class DockerAgent:
             "[Planning Update]\n"
             f"- Step {step_index} {status}; matched planned node: {matched_text}.\n"
             f"- Next todo: {next_text}.\n"
-            f"- Full plan: `{self.environment_plan_container_md}` (`Action: __VIEW_PLAN__`)."
+            f"- Full plan: `{self.environment_plan_container_md}` (`Action: __VIEW_PLAN__`).\n"
+            "- Next action should advance this NEXT todo, or request `__VIEW_PLAN__` before changing strategy."
         )
 
     def _record_plan_node_attempt(self, node_id, step_index, action, success):
@@ -1620,6 +1803,110 @@ class DockerAgent:
 
         self.memory_stats["retrieval_hits"] += len(results)
         return self.memory_manager.format_retrieval_results(results)
+
+    def _generate_final_dockerfile(self, dockerfile_path):
+        self.synthesizer.generate_dockerfile(file_path=dockerfile_path)
+        return self._maybe_repair_generated_dockerfile(dockerfile_path)
+
+    def _maybe_repair_generated_dockerfile(self, dockerfile_path):
+        if not self.enable_dockerfile_repair:
+            self.dockerfile_repair_report = {"enabled": False}
+            return True
+
+        if not self.verified_test_commands:
+            self.dockerfile_repair_report = {
+                "enabled": True,
+                "final_success": False,
+                "error": "Dockerfile repair was enabled but no verified test commands are available.",
+            }
+            print("[Dockerfile Repair] Skipped: no verified test commands are available.")
+            return False
+
+        artifact_dir = Path(self.logs_dir) / "dockerfile_repair_logs"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        report_path = artifact_dir / "dockerfile_repair_report.json"
+        print(
+            "[Dockerfile Repair] Validating generated Dockerfile with fresh image build "
+            f"and up to {self.dockerfile_repair_rounds} repair round(s)."
+        )
+
+        try:
+            full_report = repair_generated_dockerfile(
+                dockerfile_path=Path(dockerfile_path),
+                context_dir=Path(self.workplace),
+                client=self.client,
+                model=self.model,
+                run_summary=self._build_run_summary(configuration_success=True, run_error=None),
+                repo_url=self.repo_url,
+                base_commit=self.base_commit,
+                workdir=getattr(self.synthesizer, "workdir", "/app"),
+                runtime_commands=list(self.verified_runtime_preparation_commands),
+                test_commands=list(self.verified_test_commands),
+                evaluation_target=self.evaluation_target,
+                artifact_dir=artifact_dir,
+                max_repair_rounds=self.dockerfile_repair_rounds,
+                build_timeout_seconds=self.command_timeout_seconds,
+                test_timeout_seconds=self.command_timeout_seconds,
+                docker_platform=getattr(self, "platform_override", None),
+            )
+            with report_path.open("w", encoding="utf-8") as report_file:
+                json.dump(full_report, report_file, indent=2, ensure_ascii=False)
+            self.dockerfile_repair_report = self._compact_dockerfile_repair_report(
+                full_report,
+                report_path,
+            )
+        except Exception as exc:
+            self.dockerfile_repair_report = {
+                "enabled": True,
+                "final_success": False,
+                "error": str(exc),
+                "report_path": str(report_path),
+            }
+            print(f"[Dockerfile Repair] Failed with error: {exc}")
+            return False
+
+        if self.dockerfile_repair_report.get("final_success"):
+            print(
+                "[Dockerfile Repair] Fresh image validation succeeded "
+                f"after {self.dockerfile_repair_report.get('attempt_count', 0)} attempt(s)."
+            )
+            return True
+
+        print(
+            "[Dockerfile Repair] Fresh image validation failed. "
+            f"Full report: {self.dockerfile_repair_report.get('report_path')}"
+        )
+        return False
+
+    def _compact_dockerfile_repair_report(self, report, report_path):
+        attempts = list((report or {}).get("attempts") or [])
+        repair_rounds = list((report or {}).get("repair_rounds") or [])
+        last_attempt = attempts[-1] if attempts else {}
+        last_build = last_attempt.get("docker_build") or {}
+        last_test_execution = last_attempt.get("test_execution") or {}
+
+        return {
+            "enabled": True,
+            "final_success": bool((report or {}).get("final_success")),
+            "error": (report or {}).get("error"),
+            "report_path": str(report_path),
+            "attempt_count": len(attempts),
+            "repair_round_count": len(repair_rounds),
+            "image_tag": (report or {}).get("image_tag"),
+            "last_attempt": {
+                "success": bool(last_attempt.get("success")),
+                "docker_build_returncode": last_build.get("returncode"),
+                "docker_build_timed_out": last_build.get("timed_out"),
+                "test_all_effective": last_test_execution.get("all_test_commands_effective")
+                if last_test_execution
+                else None,
+                "effective_test_command_count": last_test_execution.get(
+                    "effective_test_command_count"
+                )
+                if last_test_execution
+                else None,
+            },
+        }
 
     def _synthesize_final_build_recipe(self):
         recipe_input = self._build_recipe_synthesis_input()
@@ -1874,6 +2161,7 @@ class DockerAgent:
         )
 
     def _record_failed_action(self, step_index, action, observation):
+        analysis = self.synthesizer.analyze_test_run(action or "", observation or "")
         self.failed_actions.append({
             "step_index": step_index,
             "command": action or "",
@@ -1884,8 +2172,14 @@ class DockerAgent:
             "is_readonly": self.synthesizer.is_readonly_command(action or ""),
             "is_runtime_service": self.synthesizer.is_runtime_service_command(action or ""),
             "is_runtime_healthcheck": self.synthesizer.is_runtime_healthcheck_command(action or ""),
-            "test_analysis": self.synthesizer.analyze_test_run(action or "", observation or ""),
+            "test_analysis": analysis,
         })
+        if self._test_command_satisfies_final_target(action or "", observation or "", analysis):
+            self._record_final_verification_command(
+                action or "",
+                analysis,
+                source="failed_command_with_executed_tests",
+            )
 
     def _maybe_generate_long_term_memories(self, configuration_success):
         if not configuration_success or not self.enable_long_term_memory or not self.memory_manager:
@@ -2126,11 +2420,48 @@ class DockerAgent:
             return
 
         self.successful_test_commands.append(action)
+        if not self._test_command_satisfies_final_target(action, observation, analysis):
+            print(
+                f"[Recorded Diagnostic Test Command] {action} "
+                f"(not final proof for {self.evaluation_target})."
+            )
+            return
+
+        self._record_final_verification_command(action, analysis, source="successful_command")
+
+    def _record_final_verification_command(self, action, analysis, source):
+        if action in self.verified_test_commands:
+            return
         self._current_verification_group.append(action)
         self.verified_test_commands = list(self._current_verification_group)
         self.verified_test_command = self.verified_test_commands[-1]
-        print(f"[Recorded Test Command] {action}")
+        print(f"[Recorded Test Command] {action} ({source}; {analysis['reason']})")
         print(f"[Verification Block] {len(self.verified_test_commands)} command(s) in final candidate block.")
+
+    def _test_command_satisfies_final_target(self, action, observation, analysis):
+        if not analysis.get("is_test_command"):
+            return False
+        if not is_ratbench_target(self.evaluation_target):
+            return bool(analysis.get("is_effective_test_run"))
+        if self._is_collect_only_test_command(action):
+            return False
+        return self.synthesizer.observation_has_effective_test_signal(observation)
+
+    def _verified_commands_satisfy_evaluation_target(self, test_commands):
+        commands = [command for command in test_commands or [] if command]
+        if not commands:
+            return False
+        if not is_ratbench_target(self.evaluation_target):
+            return True
+        return any(
+            self.synthesizer.is_test_command(command)
+            and not self._is_collect_only_test_command(command)
+            for command in commands
+        )
+
+    def _is_collect_only_test_command(self, command):
+        normalized = " " + re.sub(r"\s+", " ", command or "").strip() + " "
+        return " --collect-only " in normalized or " --co " in normalized
 
     def _observation_contains_final_success_bundle(self, observation):
         if not observation:
@@ -2142,6 +2473,8 @@ class DockerAgent:
 
     def _auto_finalize_from_verified_tests(self, source):
         if not self.verified_test_commands:
+            return False
+        if not self._verified_commands_satisfy_evaluation_target(self.verified_test_commands):
             return False
 
         self.verification_source = source
@@ -2190,12 +2523,15 @@ class DockerAgent:
                     "runtime_preparation_commands": list(runtime_commands),
                     "test_commands": list(test_commands),
                 },
+                "benchmark_evaluation_target": self.benchmark_evaluation_target,
                 "verified_runtime_preparation_commands": self.verified_runtime_preparation_commands,
                 "verified_test_commands": self.verified_test_commands,
                 "verified_test_command": self.verified_test_command,
                 "successful_actions": self.successful_actions,
+                "failed_actions": self.failed_actions,
             },
             synthesizer=self.synthesizer,
+            evaluation_target=self.evaluation_target,
         )
         supported_runtime_commands = list(supported_bundle.get("runtime_preparation_commands") or [])
         supported_test_commands = list(supported_bundle.get("test_commands") or [])
@@ -2204,6 +2540,12 @@ class DockerAgent:
             print(
                 "[Verification Bundle] Rejected agent-reported bundle because at least one command "
                 "was not previously observed succeeding in the final environment."
+            )
+            return False
+        if not self._verified_commands_satisfy_evaluation_target(supported_test_commands):
+            print(
+                "[Verification Bundle] Rejected agent-reported bundle because it does not "
+                f"satisfy the {self.evaluation_target} final verification target."
             )
             return False
 
@@ -2373,6 +2715,7 @@ class DockerAgent:
             "configuration_success": configuration_success,
             "base_image": getattr(getattr(self, "synthesizer", None), "base_image", None),
             "platform_override": getattr(self, "platform_override", None),
+            "evaluation_target": self.evaluation_target,
             "verified_test_command": self.verified_test_command,
             "verified_test_commands": self.verified_test_commands,
             "verified_runtime_preparation_commands": self.verified_runtime_preparation_commands,
@@ -2394,11 +2737,17 @@ class DockerAgent:
             },
             "planning_logs_dir": getattr(self, "planning_log_dir", None),
             "planning_execution_state": getattr(self, "planning_execution_state", {}),
+            "planning_consultation_stats": self._ensure_planning_consultation_stats(),
             "planning_warnings": getattr(self, "planning_warnings", []),
             "planning_source": getattr(self, "planning_source", None),
             "build_recipe": getattr(self, "build_recipe", None),
             "build_recipe_source": getattr(self, "build_recipe_source", None),
             "build_recipe_error": getattr(self, "build_recipe_error", None),
+            "dockerfile_repair": getattr(
+                self,
+                "dockerfile_repair_report",
+                {"enabled": getattr(self, "enable_dockerfile_repair", False)},
+            ),
             "required_local_services": sorted(getattr(self, "required_local_services", set())),
             "observation_compression_enabled": self.enable_observation_compression,
             "compression_stats": self.compression_stats,
@@ -2488,6 +2837,29 @@ if __name__ == "__main__":
         default=1800,
         help="Per-command timeout inside the sandbox in seconds. Defaults to 1800.",
     )
+    parser.add_argument(
+        "--enable-dockerfile-repair",
+        action="store_true",
+        help=(
+            "After generating the Dockerfile, build a fresh image, run the verified "
+            "test command(s), and repair the Dockerfile on failure."
+        ),
+    )
+    parser.add_argument(
+        "--dockerfile-repair-rounds",
+        type=int,
+        default=1,
+        help="Maximum Dockerfile repair rounds when --enable-dockerfile-repair is set. Defaults to 1.",
+    )
+    parser.add_argument(
+        "--evaluation-target",
+        choices=["repo2run", RATBENCH_TARGET],
+        default="repo2run",
+        help=(
+            "Final verification semantics. repo2run keeps collect-only EBSR proof; "
+            "ratbench targets full pytest execution/pass-rate evidence for ESSR."
+        ),
+    )
     
     args = parser.parse_args()
     
@@ -2502,5 +2874,8 @@ if __name__ == "__main__":
         memory_path=args.memory_path,
         memory_embedding_model=args.memory_embedding_model,
         command_timeout_seconds=args.command_timeout,
+        enable_dockerfile_repair=args.enable_dockerfile_repair,
+        dockerfile_repair_rounds=args.dockerfile_repair_rounds,
+        benchmark_evaluation_target={"evaluation_target": args.evaluation_target},
     )
     agent.run(max_steps=args.steps, keep_container=args.keep_container)

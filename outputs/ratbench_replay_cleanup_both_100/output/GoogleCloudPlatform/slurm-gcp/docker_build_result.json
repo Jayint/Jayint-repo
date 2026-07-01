@@ -1,0 +1,16 @@
+{
+  "command": [
+    "docker",
+    "build",
+    "--pull=false",
+    "-f",
+    "outputs/ratbench_replay_cleanup_both_100/output/GoogleCloudPlatform/slurm-gcp/eval_build/Dockerfile",
+    "-t",
+    "dockeragent-eval-googlecloudplatform-slurm-gcp",
+    "outputs/ratbench_replay_cleanup_both_100/workplaces/GoogleCloudPlatform__slurm-gcp"
+  ],
+  "returncode": 127,
+  "timed_out": false,
+  "stdout": "Sending build context to Docker daemon  11.69MB\n\nStep 1/14 : FROM rust:1.80\n ---> 8219a5ff56d4\nStep 2/14 : RUN (python -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || python3 -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry)\n ---> Running in 10cb128aa29a\n\u001b[91m/bin/sh: 1: python: not found\n\u001b[0m\u001b[91m/usr/bin/python3: No module named pip\n\u001b[0m\u001b[91m/bin/sh: 1: pip: not found\n\u001b[0m",
+  "stderr": "DEPRECATED: The legacy builder is deprecated and will be removed in a future release.\n            BuildKit is currently disabled; enable it by removing the DOCKER_BUILDKIT=0\n            environment-variable.\n\nThe command '/bin/sh -c (python -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || python3 -m pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry || pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org pytest pytest-xdist poetry)' returned a non-zero code: 127\n"
+}

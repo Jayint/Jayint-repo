@@ -141,6 +141,10 @@ class AgentVerificationAggregationTests(unittest.TestCase):
             self.assertIn("/tmp/repo2run_environment_plan.md", agent.sandbox.writes)
             view = agent._view_environment_plan_observation()
             self.assertIn("NEXT: 2. [package_manager] pip", view)
+            self.assertEqual(
+                agent.planning_consultation_stats["explicit_view_requests"],
+                1,
+            )
 
             feedback = agent._update_environment_plan_after_execution(
                 step_index=1,
@@ -151,7 +155,116 @@ class AgentVerificationAggregationTests(unittest.TestCase):
 
             self.assertIn("pip", agent.planning_execution_state["completed_node_ids"])
             self.assertIn("Next todo: 3. [language_dependency] requirements.txt", feedback)
+            self.assertEqual(
+                agent.planning_consultation_stats["planning_update_feedback"],
+                1,
+            )
             self.assertIn("NEXT: 3. [language_dependency] requirements.txt", agent.sandbox.writes["/tmp/repo2run_environment_plan.md"])
+
+    def test_automatic_plan_digest_is_emitted_for_failures_and_periodic_checks(self):
+        class FakeEnvironmentPlanner:
+            def format_initial_plan(self, plan):
+                return "formatted current plan"
+
+            def update_plan_from_execution_feedback(self, plan, failed_action, observation):
+                return plan
+
+        class FakeSandbox:
+            def __init__(self):
+                self.writes = {}
+
+            def write_text_file(self, path, content):
+                self.writes[path] = content
+                return True, f"wrote {path}"
+
+        plan = EnvironmentBuildPlan(
+            plan_source="test",
+            repo_summary={
+                "primary_language": "python",
+                "package_manager": "pip",
+                "test_framework": "pytest",
+                "recommended_base_image": "python:3.11",
+            },
+            nodes=[
+                TaskNode("python:3.11", "runtime", ["pyproject.toml"], 0.9),
+                TaskNode("pip", "package_manager", ["requirements.txt"], 0.9, command_hint="python -m pip install --upgrade pip"),
+                TaskNode("requirements.txt", "language_dependency", ["requirements.txt"], 0.9, command_hint="pip install -r requirements.txt"),
+            ],
+            edges=[],
+            ordered_todo_list=[
+                {
+                    "step": 1,
+                    "node_id": "python:3.11",
+                    "task_type": "runtime",
+                    "description": "Select runtime.",
+                    "command_hint": "FROM python:3.11",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["pyproject.toml"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+                {
+                    "step": 2,
+                    "node_id": "pip",
+                    "task_type": "package_manager",
+                    "description": "Prepare package manager.",
+                    "command_hint": "python -m pip install --upgrade pip",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["requirements.txt"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+                {
+                    "step": 3,
+                    "node_id": "requirements.txt",
+                    "task_type": "language_dependency",
+                    "description": "Install dependencies.",
+                    "command_hint": "pip install -r requirements.txt",
+                    "command_hint_is_advisory": True,
+                    "evidence": ["requirements.txt"],
+                    "confidence": 0.9,
+                    "notes": [],
+                },
+            ],
+            risk_notes=[],
+            fallback_plan=[],
+            unresolved_questions=[],
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = DockerAgent.__new__(DockerAgent)
+            agent.workplace = tmpdir
+            agent.logs_dir = os.path.join(tmpdir, "logs")
+            agent.environment_planner = FakeEnvironmentPlanner()
+            agent.sandbox = FakeSandbox()
+            agent.environment_plan_container_json = "/tmp/repo2run_environment_plan.json"
+            agent.environment_plan_container_md = "/tmp/repo2run_environment_plan.md"
+            agent.plan_auto_digest_interval_steps = 3
+            agent._initialize_planning_execution_state(plan)
+            agent._refresh_environment_plan(plan, reason="test initial plan", step_index=0)
+
+            failed_digest = agent._maybe_auto_environment_plan_digest(
+                step_index=2,
+                action="pip install missing-package",
+                success=False,
+                planning_feedback_emitted=False,
+            )
+            self.assertIn("[Automatic Plan Digest]", failed_digest)
+            self.assertIn("failed setup step", failed_digest)
+            self.assertIn("Next todo: 2. [package_manager] pip", failed_digest)
+
+            periodic_digest = agent._maybe_auto_environment_plan_digest(
+                step_index=3,
+                action="python --version",
+                success=True,
+                planning_feedback_emitted=False,
+            )
+            self.assertIn("periodic 3-step check", periodic_digest)
+            self.assertEqual(
+                agent.planning_consultation_stats["automatic_plan_digests"],
+                2,
+            )
+            self.assertIn("automatic plan digest after step 3", agent.sandbox.writes["/tmp/repo2run_environment_plan.md"])
 
     def test_output_filter_is_removed_before_sandbox_execution(self):
         class FakeSandbox:
