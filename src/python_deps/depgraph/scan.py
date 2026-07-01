@@ -93,6 +93,11 @@ def _local_module_names(repo_path: str) -> frozenset[str]:
     return frozenset(names)
 
 
+def local_module_names(repo_path: str) -> frozenset[str]:
+    """Public alias for :func:`_local_module_names` (used by the diagnosis router)."""
+    return _local_module_names(repo_path)
+
+
 def _import_check_command(name: str) -> str:
     return f'python -c "import {name}"'
 
