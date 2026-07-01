@@ -269,6 +269,35 @@ def test_discover_task_runs_gate_not_agent(_v3_discover_fixture):
     )
 
 
+def test_discover_gate_records_ledger_evidence(monkeypatch):
+    """Task 5b: the discover gate appends exactly ONE ActionEvent per cycle,
+    carrying the VERIFY_TEST_CMD command + raw output as evidence, and mutates
+    nothing (env_revision does not advance).
+    """
+    inputs = _make_run_v3_inputs(task=_discover_task())
+    fail_out = "E   ModuleNotFoundError: No module named 'requests'"
+
+    def _failing_sandbox(cmd: str):
+        return (False, fail_out)
+
+    inputs["sandbox_execute"] = _failing_sandbox
+
+    bundle = _FixtureBundle(inputs, _discover_task(), monkeypatch)
+    bundle.run()
+
+    gate_events = [e for e in bundle.events() if e.cmd == orchestrator.VERIFY_TEST_CMD]
+    assert len(gate_events) == 1, (
+        f"expected exactly one VERIFY_TEST_CMD ledger event, got {len(gate_events)}"
+    )
+    evt = gate_events[0]
+    assert evt.rc == 1
+    assert fail_out in evt.stdout
+    assert evt.mutation_class is None, "discover gate mutates nothing"
+    assert evt.env_revision_before == evt.env_revision_after, (
+        "discover gate mutates nothing; env revision must not advance"
+    )
+
+
 def test_b3_ablation_now_raises():
     """Phase 4: enable_script_materialization=False is a deprecated no-op-or-raise
     flag — run_v3 has exactly one executor (fresh full-script replay), so the old
