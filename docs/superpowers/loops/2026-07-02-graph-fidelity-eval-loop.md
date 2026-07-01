@@ -48,6 +48,17 @@ Grade **three deltas**, and always attribute a failure to exactly one:
 If (1) is clean but (3) fails → renderer. If (1) fails → construction. That split names the
 module to open every time.
 
+**Numbers alone mislead — grade qualitatively too.** The honest `pass_rate` is a coarse binary: a
+repo can pass by luck (base image pre-ships a dep) or fail on one trivial gap while the graph is 90%
+right, and the number tells you neither. So every scored repo ALSO gets a **qualitative judge**
+(§3.7): a cheap LLM reads the held-out recipe (what a working setup actually does) + the baseline
+outcome, next to OUR graph + rendered `setup.sh`, and reports where they diverge — missing / spurious
+/ mis-tiered needs, wrong apt name or pin, and the *likely* failure cause. This is the semantic lens
+the deterministic string-diff misses (`libgl1` ≡ `libgl1-mesa-glx` ≡ soname `libGL.so.1`; a pin
+that is semantically fine but textually different). The judge is a **diagnostic that drives what to
+fix and flags pass-by-luck / near-miss-fail — it never sets the headline metric** (that stays honest
+`compute_essr`; §7).
+
 ---
 
 ## 2. Ground truth (approach A + existing VM baselines)
@@ -117,15 +128,29 @@ Reuse existing modules — do not reimplement: `build_dep_graph`, `render_build_
 3. `scorecard.py` — per repo: `choose_base_image` (-slim) → `build_dep_graph` (repair OFF) →
    grade graph-vs-oracle → `render_build_script` → grade render-fidelity → fresh `-slim`
    container, run `setup.sh` once, capture rc + stderr, classify via `runtime_classify` →
-   if rc=0 run `pytest`, score via `compute_essr` → emit per-repo JSON (schema in §6).
+   if rc=0 run `pytest`, score via `compute_essr` → also invoke `qualitative_judge` (item 7) on the
+   held-out recipe vs the rendered `setup.sh` → emit per-repo JSON (schema in §6).
 4. `gaps.py` — from scorecard + oracle-diff → typed gaps `{type, tier, id, stage, evidence}`,
    attributed to a constructor stage (scan / detect_target_env / select_roots /
    resolve_closure / reconcile_apt_names / certify / render).
 5. `report.py` — aggregate → per-class + pooled rates, peer/ceiling comparison, and **gap
    clusters ranked by (stage, type, count)**. The top cluster is the next fix.
 6. `run_eval.py` — CLI: `python -m scripts.eval.graph_fidelity.run_eval --corpus medlarge15
-   [--repos ...] [--seed]`. Caches per-repo results keyed by `(repo_sha, construction_commit)`
-   so unchanged repos aren't re-executed.
+   [--repos ...] [--seed] [--edge-cases]`. Caches per-repo results keyed by `(repo_sha,
+   construction_commit)` so unchanged repos aren't re-executed.
+7. `qualitative_judge.py` — the semantic lens (§1). Given the held-out recipe files + the baseline
+   outcome + OUR graph node set + rendered `setup.sh` + first-pass run stderr / error-class, dispatch
+   a **cheap** model (Haiku, or Sonnet for hard repos) to return structured findings: `{verdict:
+   match|minor_gaps|major_gaps, missing_needs[], spurious[], mis_tiered[], content_errors[],
+   likely_failure_cause, pass_by_luck:bool, confidence}`. Run 2–3 judges and keep the consensus where
+   it matters (adversarial-verify). Reuse the repo's existing LLM client (the one
+   `env_classifier` / `choose_base_image` use). **This is a GRADER — the minimal-LLM rule (§7) binds
+   the graph BUILDER, not the measurement.** Never let its output change the honest `pass_rate`.
+8. `edge_cases/` — a hand-crafted corpus of tiny synthetic repos, each isolating ONE known-hard gap
+   class against a KNOWN-answer oracle, run through the same scorecard grade (graph-vs-oracle +
+   install-only container `python -c "import X"`; most have no real test suite). Catalog in
+   Appendix A. Purpose: fast deterministic signal between slow real-repo runs, validation that the
+   qualitative judge agrees with known truth, and a regression guard every fix must keep green.
 
 **Start on the seed** (`--seed` = ~8 hand-verifiable repos: typer, anthropic-sdk-python,
 slither, postgres-mcp, mvt, python-semantic-release, vizro, darts). Get the harness trusted on
@@ -215,6 +240,11 @@ Per-iteration subagent pipeline (maps to §4 steps) — inputs are passed **by p
 The orchestrator's own footprint per iteration = chosen cluster + one-line diagnosis + commit sha
 + verdict → **one ledger line.** Nothing else.
 
+The eval-runner's scorecard pass invokes BOTH graders per repo: the deterministic `oracle`-diff AND
+the `qualitative_judge` (cheap model). `report.md` presents the honest numbers and the qualitative
+gaps side by side, and the top cluster is picked from BOTH signals — a class the number can't see
+(pass-by-luck, a 90%-right graph failing on one apt name) surfaces through the judge.
+
 **Context-hygiene rules (the levers):**
 - The orchestrator **never `Read`s** scorecards, logs, pytest output, or full diffs directly — it
   asks a subagent for a summary/verdict. Its own `Read` is limited to the ledger and small briefs.
@@ -272,7 +302,10 @@ context forgets them.
                       "ccdf": {"honest_pass": true}, "radical": {"honest_pass": false}},
   "feasible": true,
   "gaps": [{"type": "missing_node", "tier": "SYSTEM_LIB", "id": "libGL",
-            "stage": "reconcile_apt_names", "evidence": "ldd: libGL.so.1 not found"}]
+            "stage": "reconcile_apt_names", "evidence": "ldd: libGL.so.1 not found"}],
+  "qualitative": {"verdict": "minor_gaps", "pass_by_luck": false, "confidence": 0.0, "judges": 3,
+                  "missing_needs": [{"tier": "SYSTEM_LIB", "id": "libGL", "would_cause_failure": true}],
+                  "spurious": [], "mis_tiered": [], "content_errors": [], "likely_failure_cause": "…"}
 }
 ```
 
@@ -305,6 +338,14 @@ context forgets them.
 - **Methodology stays paper-honest.** Held-out oracle (no leakage), `compute_essr` from raw
   pytest, feasibility gate, stratified per-class reporting, pass-by-luck flagged. Do not "fix" a
   gap by corrupting the measurement.
+- **Numbers are not the whole truth (user directive 2026-07-02).** Every scored repo also gets the
+  qualitative recipe-vs-`setup.sh` judge (§1, §3.7). Report honest numbers AND qualitative gaps
+  together; flag pass-by-luck and near-miss-fail. The honest `compute_essr` pass_rate stays the
+  headline metric; the judge is diagnostic and drives *what to fix*. LLM-as-judge is measurement —
+  exempt from the minimal-LLM rule, which binds only the graph BUILDER.
+- **Keep the edge-case corpus green.** The hand-crafted `edge_cases/` (Appendix A) isolate known
+  hard gap classes with known answers; every fix must keep them green (regression guard), and a new
+  gap class discovered in a real repo gets a new edge case added.
 - **Never edit tests to pass**; fix the implementation (unless the test is provably wrong).
 - **Do NOT push.** Commit locally only.
 - **VM is bootstrap-only.** No SSH in the hot loop. Never echo `.env` secrets.
@@ -325,3 +366,27 @@ for input — these are halts, not questions):
 
 On stop, write a final ledger block with the before/after metric table (our first-pass rate vs
 repo2run / ccdf peers and the RAT ceiling) — that comparison is the deliverable.
+
+---
+
+## Appendix A — Edge-case corpus (hand-crafted, known-answer)
+
+Each is a minimal synthetic repo at `scripts/eval/graph_fidelity/edge_cases/<id>/` with a tiny
+`pyproject.toml`/`requirements.txt`, a one-import source file, and a held-out `Dockerfile` = the
+KNOWN-answer oracle (the apt/pip a human writes). `edge_cases/manifest.json` records each case's
+expected node set so grading needs no network. Graded graph-vs-oracle + install-only
+(`python -c "import <mod>"` in a fresh `-slim`). They isolate the graph's known-hard classes so a fix
+can be proven on a controlled case before/after the messy real repos:
+
+| id | isolates | source import | oracle (held-out) declares | correct graph must |
+|---|---|---|---|---|
+| `soname_opencv` | soname→apt (the recurring non-convergence) | `import cv2` (opencv-python) | apt `libgl1` (+ `libglib2.0-0`) | SYSTEM_LIB `libGL.so.1` → apt `libgl1`, HARD edge to the pip pkg |
+| `pgconfig_psycopg2` | build-time header/tool syslib | `import psycopg2` (source, not -binary) | apt `libpq-dev` | TOOL `pg_config` + SYSTEM_LIB `libpq-dev` before the pip build |
+| `nowheel_buildessential` | no-wheel→sdist→compiler (cluster 1a) | a pin with no manylinux wheel for target py | apt `build-essential` | seed `build-essential` from the wheel-oracle prior |
+| `marker_target_vs_host` | platform / py markers eval'd vs TARGET not host | dep `; sys_platform=='linux'` + `; python_version<'3.11'` | included on linux / target-minor | evaluate markers against the target env, not the mac host |
+| `extras_closure` | extras expansion | `pkg[extra]` | the extra's transitive deps | expand the extra's closure and pin all |
+| `requirespy_floor` | requires-python floor-trap | `.python-version`=3.12, `requires-python>=3.9` | py 3.12 | pick the pinned 3.12, NOT the 3.9 floor |
+| `pil_pillow` | import-name→dist-name | `from PIL import Image` | pip `Pillow` | map import `PIL` → dist `Pillow`, not a pkg named `image`/`PIL` |
+
+The orchestrator owns this catalog's design; a subagent materializes the fixtures. New hard classes
+found in real repos get appended here as a fixture + expected oracle.
