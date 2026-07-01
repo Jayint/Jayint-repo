@@ -135,3 +135,90 @@ def test_detect_target_env_never_crashes_on_executor_exception():
     t = detect_target_env(_RaisingExecutor())
     assert t.sys_platform == "linux"
     assert t.os_name == "posix"
+
+
+# ── python3 -> python fallback (review P2, bug 1) ────────────────────────────
+#
+# Some target images (e.g. slim bases) ship a working `python` but no
+# `python3`. The probe must try `python3` first and fall back to `python`,
+# not silently default the whole TargetEnv (wrong interpreter/platform).
+
+
+def test_probe_command_falls_back_to_python():
+    """The command detection sends to the executor tries `python3` first and
+    falls back to `python` in the same shell round trip (mirrors the existing
+    ``--python-platform`` string-presence style test)."""
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "3.11.4 posix linux x86_64 Linux\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    detect_target_env(ex)
+    assert ex.calls, "detect_target_env never invoked the executor"
+    probe_cmd = ex.calls[0]
+    assert probe_cmd.startswith("python3 -c")
+    assert " || python -c" in probe_cmd
+
+
+def test_probe_falls_back_to_python_when_python3_absent(monkeypatch, tmp_path):
+    """Real shell-level fallback: PATH has no ``python3`` at all, only a
+    ``python`` shim. If the ``||`` fallback did not fire, ``detect_target_env``
+    would silently return the hardcoded default TargetEnv instead of these
+    (deliberately distinctive) probed facts."""
+    from python_deps.depgraph.executor import LocalSubprocessExecutor
+
+    shim = tmp_path / "python"
+    shim.write_text("#!/bin/sh\necho '9.9.9 posix testplatform arm64 TestSystem'\n")
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    t = detect_target_env(LocalSubprocessExecutor())
+    assert t.python_full == "9.9.9"
+    assert t.sys_platform == "testplatform"
+    assert t.platform_system == "TestSystem"
+    # Alias normalization applies on the fallback path too.
+    assert t.platform_machine == "aarch64"
+
+
+# ── machine-alias normalization (review P2, bug 2) ───────────────────────────
+#
+# The target is always a Linux container: `arm64`/`amd64` are non-canonical
+# aliases some images report instead of `aarch64`/`x86_64` — the values wheel
+# tags and PEP 508 `platform_machine` markers actually expect.
+
+
+def test_machine_alias_arm64_normalized():
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "3.12.1 posix linux arm64 Linux\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
+    assert t.platform_machine == "aarch64"
+    assert t.python_platform_tag.startswith("aarch64-")
+
+
+def test_machine_alias_amd64_normalized():
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "3.12.1 posix linux amd64 Linux\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
+    assert t.platform_machine == "x86_64"
+    assert t.python_platform_tag.startswith("x86_64-")

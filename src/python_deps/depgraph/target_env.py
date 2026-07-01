@@ -24,12 +24,16 @@ from dataclasses import dataclass
 from python_deps.depgraph.executor import Executor
 
 # Single probe: version, os.name, sys.platform, machine, platform.system — one
-# process, one round trip into the container.
-_PROBE_CMD = (
-    'python3 -c "import platform,sys,os; '
+# process, one round trip into the container. Tries `python3` first and falls
+# back to `python` — some target images (e.g. slim bases) only ship the latter,
+# and silently defaulting the whole TargetEnv on a missing `python3` resolves
+# for the wrong interpreter/platform.
+_PROBE_BODY = (
+    "import platform,sys,os; "
     "print(sys.version.split()[0], os.name, sys.platform, "
-    'platform.machine(), platform.system())"'
+    "platform.machine(), platform.system())"
 )
+_PROBE_CMD = f'python3 -c "{_PROBE_BODY}" || python -c "{_PROBE_BODY}"'
 _LIBC_PROBE_CMD = "ldd --version"
 
 # Defaults used both as the "never crash" fallback and as the base target this
@@ -44,6 +48,17 @@ _DEFAULT_OS_NAME = "posix"
 _DEFAULT_PLATFORM_SYSTEM = "Linux"
 _GLIBC_TAG = "manylinux_2_28"
 _MUSL_TAG = "musllinux_1_2"
+
+# `platform.machine()` inside the container is always Linux (the target is
+# always a Linux container), but some images/kernels report non-canonical
+# aliases (`arm64`, `amd64`) instead of the `aarch64`/`x86_64` values wheel
+# tags and PEP 508 `platform_machine` markers expect. Normalize before use so
+# platform-gated deps and wheel-vs-sdist selection are never mis-evaluated.
+_MACHINE_ALIASES = {"arm64": "aarch64", "amd64": "x86_64", "x86-64": "x86_64"}
+
+
+def _normalize_machine(machine: str) -> str:
+    return _MACHINE_ALIASES.get(machine.strip().lower(), machine.strip())
 
 
 @dataclass(frozen=True)
@@ -132,6 +147,7 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         return _default_target_env()
 
     python_full, os_name, sys_platform, machine, platform_system = parts[:5]
+    machine = _normalize_machine(machine)
     version_parts = python_full.split(".")
     python_version = (
         ".".join(version_parts[:2]) if len(version_parts) >= 2 else python_full
