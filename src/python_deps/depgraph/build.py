@@ -44,7 +44,6 @@ from python_deps.depgraph.pins import compute_exclude_newer
 from python_deps.depgraph.probe import import_probe, install_closure
 from python_deps.depgraph.relink import certified_import_links
 from python_deps.depgraph.resolve import (
-    DEFAULT_TARGET_PLATFORM,
     link_imports_to_packages,
     resolve_closure,
 )
@@ -61,6 +60,7 @@ from python_deps.depgraph.schema import (
     State,
 )
 from python_deps.depgraph.seed import seed_predicted_native
+from python_deps.depgraph.target_env import detect_target_env
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
 
@@ -70,15 +70,6 @@ _SCAN_CYCLE = 1
 _RESOLVER_CYCLE = 2
 _PROBE_CYCLE = 3
 _CERTIFY_CYCLE = 4
-
-# uname -m arch token -> modern manylinux target. NEVER manylinux2014 (it silently
-# downgrades wheels, e.g. numpy); the 2_28 baseline matches Debian bookworm slim.
-_ARCH_TO_PLATFORM: dict[str, str] = {
-    "x86_64": "x86_64-manylinux_2_28",
-    "amd64": "x86_64-manylinux_2_28",
-    "aarch64": "aarch64-manylinux_2_28",
-    "arm64": "aarch64-manylinux_2_28",
-}
 
 
 def _restamp(graph: DepGraph, node_ids: set[str], cycle: int) -> DepGraph:
@@ -164,15 +155,15 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     return graph
 
 
-def _detect_target_platform(container_executor: Executor) -> str:
-    """Probe the container's arch once and map it to a manylinux target.
+def _pad_python_full(target_python: str) -> str:
+    """``"3.13"`` -> ``"3.13.0"`` (padding for a caller-supplied override).
 
-    Falls back to ``DEFAULT_TARGET_PLATFORM`` when the probe fails or the arch is
-    unrecognized (never ``manylinux2014``).
+    Mirrors the padding ``resolve_lock._target_env_for`` applies so an
+    overridden ``target_python`` still produces a valid ``python_full_version``
+    for marker evaluation (``python_full_version < '3.12'`` style forks).
     """
-    result = container_executor.run("uname -m")
-    arch = (result.stdout or "").strip().lower() if result.ok else ""
-    return _ARCH_TO_PLATFORM.get(arch, DEFAULT_TARGET_PLATFORM)
+    parts = [p for p in target_python.split(".") if p]
+    return ".".join((parts + ["0", "0"])[:3]) if parts else target_python
 
 
 # Minor-version token in a ``Python 3.13.14`` banner.
@@ -186,12 +177,18 @@ def _detect_target_python(
 ) -> str:
     """Probe the container's interpreter minor version (e.g. ``"3.13"``).
 
-    Mirrors :func:`_detect_target_platform`: the resolve MUST target the python the
-    container actually runs, or it pins versions that have no wheel for that
-    interpreter (observed: a 3.11-resolved ``pyarrow==2.0.0`` cannot build on a 3.13
-    container). Tries ``python3`` then ``python``, reading both streams (``--version``
-    historically printed to stderr). Falls back to ``default`` when nothing parses,
-    so a fake/empty executor preserves the legacy 3.11 target.
+    The resolve MUST target the python the container actually runs, or it pins
+    versions that have no wheel for that interpreter (observed: a
+    3.11-resolved ``pyarrow==2.0.0`` cannot build on a 3.13 container). Tries
+    ``python3`` then ``python``, reading both streams (``--version``
+    historically printed to stderr). Falls back to ``default`` when nothing
+    parses, so a fake/empty executor preserves the legacy 3.11 target.
+
+    Superseded in :func:`build_dep_graph` by :func:`target_env.detect_target_env`
+    (Task 7, one combined probe covering python + platform); kept standalone
+    (directly unit-tested) as it captures a slightly different signal (a
+    ``--version`` banner rather than ``sys.version``) that some callers may
+    still want in isolation.
     """
     for cmd in ("python3 --version", "python --version"):
         result = container_executor.run(cmd)
@@ -216,13 +213,17 @@ def build_dep_graph(
 
     ``container_executor`` runs install/probe/certify inside the target container;
     ``host_executor`` (default :class:`LocalSubprocessExecutor`) runs the
-    host-side ``uv`` resolve.  ``target_python`` and ``target_platform`` BOTH
-    default to the container's actual interpreter/arch (detected once via
-    ``python3 --version`` / ``uname -m``) so the resolved closure is installable on
-    the real target — a hardcoded python would pin wheels for the wrong interpreter.
-    See the module docstring for the staged pipeline.  Returns the final immutable
-    ``DepGraph``; certificates produced here are provisional (scratch-container
-    scope) per design section 4.6.
+    host-side ``uv`` resolve.  A single :class:`TargetEnv` (Task 7) is detected
+    from the container (``detect_target_env`` — one probe covering interpreter
+    version, ``sys_platform``/``os_name``/``platform_machine``, and a glibc/musl
+    guess for the ``uv lock --python-platform`` tag) so the resolve — and every
+    PEP 508 marker it evaluates — targets the CONTAINER, never the host running
+    this function.  ``target_python`` / ``target_platform`` remain accepted as
+    caller overrides that patch the detected env (a hardcoded python would pin
+    wheels for the wrong interpreter; an unset default would leak the dev host's
+    own platform into the resolve).  See the module docstring for the staged
+    pipeline.  Returns the final immutable ``DepGraph``; certificates produced
+    here are provisional (scratch-container scope) per design section 4.6.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -240,10 +241,26 @@ def build_dep_graph(
     if exclude_newer is None:
         exclude_newer = compute_exclude_newer(roots)
 
-    # Stage 3 — HOST-side uv resolve, targeted at the container.
-    if target_python is None:
-        target_python = _detect_target_python(container_executor)
-    platform = target_platform or _detect_target_platform(container_executor)
+    # Stage 3 — HOST-side uv resolve, targeted at the container. ONE detected
+    # TargetEnv replaces the previous two independent probes; explicit
+    # target_python/target_platform (if given) patch the detected env rather
+    # than skipping detection, so every other target-honest field (used by
+    # marker evaluation in resolve_lock.py) still reflects the real container.
+    target_env = detect_target_env(container_executor)
+    if target_python:
+        target_env = replace(
+            target_env,
+            python_version=target_python,
+            python_full=_pad_python_full(target_python),
+        )
+    if target_platform:
+        target_env = replace(
+            target_env,
+            platform_machine=target_platform.split("-", 1)[0] or target_env.platform_machine,
+            python_platform_tag=target_platform,
+        )
+    target_python = target_env.python_version
+    platform = target_env.python_platform_tag
 
     # Runtime-tier obligation: the container must run the targeted python minor.
     # Certified later by a host check (rc 0 iff sys.version_info matches); discovery

@@ -106,6 +106,14 @@ def _is_non_distribution(import_name: str) -> bool:
         return True
     # Stdlib for the running interpreter (proxy for the target). scan.py already
     # drops py3 stdlib, but this defends the manifest path and odd classifications.
+    # TODO(target-stdlib): this is the HOST interpreter's stdlib set, not the
+    # TARGET container's (Task 7 threads a TargetEnv through resolve/marker-eval
+    # but this filter runs at root-selection time, before any container is
+    # probed, and the target's stdlib set isn't available here). A host running
+    # a different python minor than the target could under/over-filter modules
+    # that moved in/out of stdlib between versions (e.g. `tomllib` 3.11+,
+    # `distutils` removed in 3.12). Low blast radius today (root-selection only
+    # drops names it is CONFIDENT aren't distributions), but not target-honest.
     if top in sys.stdlib_module_names:
         return True
     # Leading-underscore private/dunder modules are not distributions.
