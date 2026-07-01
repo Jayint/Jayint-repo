@@ -549,7 +549,7 @@ def test_parse_error_build_failure_is_attributed_as_missing():
     assert names == {"factory": "1.2"}
     assert "Failed to build" in diag.missing[0].evidence
     # and it must be reported as an offending root so the loop drops it.
-    assert "factory" in _offending_root_names(diag)
+    assert "factory" in _offending_root_names(diag, set())
 
 
 def test_parse_error_build_failure_emits_missing_node():
@@ -597,7 +597,7 @@ def test_parse_error_yanked_root_cannot_be_used():
     attributed so the drop-retry can drop it (RATBench mcp-atlassian)."""
     diag = parse_resolver_error(YANKED_STDERR)
     assert "atlassian" in {m.name for m in diag.missing}
-    assert "atlassian" in _offending_root_names(diag)
+    assert "atlassian" in _offending_root_names(diag, set())
 
 
 def test_parse_error_requires_python_unusable_root_wrapped():
@@ -605,7 +605,7 @@ def test_parse_error_requires_python_unusable_root_wrapped():
     attributed even when uv wraps "cannot\\n be used" across a line (docling)."""
     diag = parse_resolver_error(REQUIRES_PYTHON_UNUSABLE_STDERR)
     assert "nemotron-ocr" in {m.name for m in diag.missing}
-    assert "nemotron-ocr" in _offending_root_names(diag)
+    assert "nemotron-ocr" in _offending_root_names(diag, set())
 
 
 def test_parse_error_version_conflict_not_misread_as_unusable():
@@ -619,11 +619,11 @@ def test_parse_error_version_conflict_not_misread_as_unusable():
 
 
 def test_conflict_drops_shared_package_not_imposers():
-    """A conflict drop-retry must drop only the shared/conflicted package (and
-    genuinely missing packages), never the imposing roots. Dropping an imposer
-    collapses its whole subtree to a diagnostic stub instead of letting uv pull
-    a consistent version transitively and recording the conflict as an
-    advisory edge."""
+    """A conflict drop-retry must drop only the shared/conflicted package when it
+    is itself a current root (a direct pin), never the imposing roots. Dropping
+    an imposer collapses its whole subtree to a diagnostic stub instead of
+    letting uv pull a consistent version transitively and recording the
+    conflict as an advisory edge."""
     # project pins a<2.0 ; package-b requires a>=2.0  -> shared package = "a"
     conflict = SimpleNamespace(
         package="a",
@@ -631,9 +631,32 @@ def test_conflict_drops_shared_package_not_imposers():
         right=SimpleNamespace(imposed_by="package-b"),
     )
     diag = SimpleNamespace(missing=[], conflicts=[conflict])
-    names = _offending_root_names(diag)
+    # "a" is itself a current root (a direct pin), so it is the one dropped.
+    names = _offending_root_names(diag, {"a", "package-b"})
     assert "a" in names                 # the pin/shared root is dropped and retried
     assert "package-b" not in names     # the imposing root must be KEPT
+
+
+def test_transitive_conflict_drops_one_imposer_not_shared():
+    """When the conflicted package is purely TRANSITIVE (nobody's root), dropping
+    its own name would not shrink the root set at all — the retry loop would see
+    `remaining == current` and break, collapsing the whole closure to the
+    degraded fallback (review P1 regression). Instead exactly ONE imposing root
+    must be dropped so the retry can make progress, while the other imposer's
+    subtree survives."""
+    # package-b requires a>=2.0 ; package-c requires a<2.0 -> shared package "a"
+    # is nobody's root (purely transitive).
+    conflict = SimpleNamespace(
+        package="a",
+        left=SimpleNamespace(imposed_by="package-b"),
+        right=SimpleNamespace(imposed_by="package-c"),
+    )
+    diag = SimpleNamespace(missing=[], conflicts=[conflict])
+    names = _offending_root_names(diag, {"package-b", "package-c"})
+    assert "a" not in names  # dropping it wouldn't shrink the root set anyway
+    # exactly one imposer is dropped so the retry still makes progress, and the
+    # other imposer's subtree survives.
+    assert len(names & {"package-b", "package-c"}) == 1
 
 
 # --------------------------------------------------------------------------- #

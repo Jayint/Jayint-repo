@@ -351,13 +351,21 @@ def _diagnosis_to_graph(diag: ResolverDiagnosis) -> tuple[list[Node], list[Edge]
     return nodes, edges
 
 
-def _offending_root_names(diag: ResolverDiagnosis) -> set[str]:
-    """Canonical names of ROOTS to drop for a retry: missing packages and the
-    shared/conflicted package itself. Imposers are NOT dropped — dropping the
-    pin root and retrying lets uv pull a consistent version transitively, and
-    the conflict is recorded as an advisory edge rather than collapsing both
-    subtrees."""
+def _offending_root_names(diag: ResolverDiagnosis, current_root_names: set[str]) -> set[str]:
+    """Canonical names of ROOTS to drop for a retry. Missing packages are always
+    dropped. For a version conflict: if the conflicted package is itself a root
+    (a direct pin), drop it and KEEP the imposers (avoids collapsing both
+    subtrees). If it is purely transitive (not a current root), dropping its
+    name would not shrink the root set, so drop ONE imposing root instead so the
+    retry can still make progress and the other subtree survives. The conflict is
+    recorded as an advisory edge either way."""
     names: set[str] = {_canon(m.name) for m in diag.missing}
     for c in diag.conflicts:
-        names.add(_canon(c.package))
+        pkg = _canon(c.package)
+        if pkg in current_root_names:
+            names.add(pkg)
+        else:
+            imp = _real_imposer(c.left.imposed_by) or _real_imposer(c.right.imposed_by)
+            if imp:
+                names.add(_canon(imp))
     return names

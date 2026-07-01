@@ -238,7 +238,8 @@ def resolve_closure(
             dn, de = _diagnosis_to_graph(diag)
             diag_nodes, diag_edges = _merge(diag_nodes, diag_edges, dn, de)
 
-            offending = _offending_root_names(diag)
+            current_root_names = {_canon(_req_name(r[1])) for r in current}
+            offending = _offending_root_names(diag, current_root_names)
             remaining = [
                 r for r in current if _canon(_req_name(r[1])) not in offending
             ]
