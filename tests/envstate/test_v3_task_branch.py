@@ -9,10 +9,12 @@
     bounded by the existing _sched_stuck counter (Task 5c) rather than the
     LLM-repair budget.
 
-Phase 4 (fresh-replay-only run_v3): enable_script_materialization=False is a
-deprecated no-op-or-raise flag now — the B3 ablation (obligation task on the
-free-text path) is no longer reachable through run_v3 with this flag; a
-dedicated raise-test replaces the old B3-ablation behavioral test.
+Phase 4 (fresh-replay-only run_v3): the old B3 ablation (obligation task
+forced onto the free-text path) is not reachable through run_v3 at all —
+there is exactly one executor (fresh full-script replay). Phase 9 removed
+the vestigial ``enable_script_materialization``/``enable_binding_install``
+deprecation-raise flags (and their dedicated raise-tests) entirely, since
+the params no longer exist on run_v3's signature to reject.
 
 Harness mirrors tests/envstate/test_v3_repair_wiring.py.
 
@@ -324,17 +326,6 @@ def test_repeated_unclassified_discover_gives_up(monkeypatch):
         "discover gate ran for the full max_cycles budget instead of giving up "
         "via the bounded _sched_stuck counter"
     )
-
-
-def test_b3_ablation_now_raises():
-    """Phase 4: enable_script_materialization=False is a deprecated no-op-or-raise
-    flag — run_v3 has exactly one executor (fresh full-script replay), so the old
-    B3 ablation (obligation task forced onto the free-text path) is no longer
-    reachable through run_v3 at all. Pin the deprecation contract instead.
-    """
-    inputs = _make_run_v3_inputs(task=_obligation_task())
-    with pytest.raises(ValueError, match="deprecated"):
-        orchestrator.run_v3(**inputs, enable_script_materialization=False)
 
 
 def test_obligation_task_without_exec_readonly_gives_up(monkeypatch):
