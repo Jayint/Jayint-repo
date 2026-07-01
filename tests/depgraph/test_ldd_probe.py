@@ -45,17 +45,21 @@ def _package(name: str, version: str) -> Node:
     )
 
 
-def _predicted_syslib(apt: str) -> Node:
-    """A resolver-predicted SystemLib node (id keyed by apt name)."""
+def _predicted_syslib(key: str) -> Node:
+    """A resolver-predicted SystemLib node (id keyed by ``key``).
+
+    Post Task 9, callers pass the canonical SONAME (e.g. ``libGL.so.1``) — this
+    mirrors what ``seed._predicted_syslib_node`` now actually builds.
+    """
     return Node(
-        id=syslib_id(apt),
+        id=syslib_id(key),
         type=NodeType.SYSTEM_LIB,
-        name=apt,
+        name=key,
         layer=Layer.SYSTEM,
         discovered_by=DiscoveredBy.RESOLVER,
         state=State.UNKNOWN,
-        check_command=f"dpkg -s {apt}",
-        fix_candidates=(f"apt:{apt}",),
+        check_command=f"dpkg -s {key}",
+        fix_candidates=(f"apt:{key}",),
     )
 
 
@@ -341,13 +345,14 @@ def test_ldd_probe_pure_python_no_syslib(fake_executor, make_result_fixture):
 def test_ldd_probe_reconciles_resolver_prediction_keeps_discovered_by(
     fake_executor, make_result_fixture
 ):
-    """When a RESOLVER seed prediction exists for the same apt id, reconcile_predicted
-    is called: discovered_by stays RESOLVER (not PROBE), and no duplicate node is
-    created for the soname-keyed id.
+    """When a RESOLVER seed prediction exists for the same canonical soname id,
+    reconcile_predicted is called: discovered_by stays RESOLVER (not PROBE), and
+    no duplicate node is created.
     """
     pkg = _package("opencv-python", "4.9.0.80")
-    # Seed stage pre-emitted a prediction keyed by apt name "libgl1".
-    predicted = _predicted_syslib("libgl1")  # id = syslib:libgl1
+    # Seed stage pre-emitted a prediction keyed by the canonical SONAME (post
+    # Task 9: the soname is the SystemLib identity, not the apt name).
+    predicted = _predicted_syslib("libGL.so.1")  # id = syslib:libGL.so.1
     graph = (
         DepGraph()
         .with_node(pkg)
@@ -372,15 +377,13 @@ def test_ldd_probe_reconciles_resolver_prediction_keeps_discovered_by(
 
     out = ldd_probe(graph, fake_executor)
 
-    # Prediction reconciled in-place: keeps RESOLVER origin.
-    node = out.get(syslib_id("libgl1"))
+    # Prediction reconciled in-place: keeps RESOLVER origin, ONE node total.
+    node = out.get(syslib_id("libGL.so.1"))
     assert node is not None
     assert node.discovered_by is DiscoveredBy.RESOLVER
+    assert len([n for n in out.nodes if n.type is NodeType.SYSTEM_LIB]) == 1
 
-    # No duplicate soname-keyed node.
-    assert out.get(syslib_id("libGL.so.1")) is None
-
-    # check_command updated from dpkg -s to the real ldconfig check.
+    # check_command updated from the seed's dpkg -s to the real ldconfig check.
     assert node.check_command == "ldconfig -p | grep libGL.so.1"
 
     # Edge from pkg→prediction deduped to exactly one (seed + ldd = same key).
@@ -388,10 +391,105 @@ def test_ldd_probe_reconciles_resolver_prediction_keeps_discovered_by(
         e
         for e in out.edges
         if e.src == pkg.id
-        and e.dst == syslib_id("libgl1")
+        and e.dst == syslib_id("libGL.so.1")
         and e.relation is EdgeType.REQUIRES
     ]
     assert len(requires_to_predicted) == 1
+
+
+def test_seed_and_ldd_produce_one_node_for_libgl(fake_executor, make_result_fixture):
+    """The exact opencv/libGL production case (Task 9 regression): seed predicts
+    opencv-python needs libGL (canonical soname node, apt package in
+    chosen_fix); ldd_probe then observes ``libGL.so.1 => not found``. After BOTH
+    stages there is exactly ONE SystemLib node for libGL, and opencv-python's
+    REQUIRES edge points at it.
+    """
+    from python_deps.depgraph.seed import seed_predicted_native
+
+    pkg = _package("opencv-python", "4.9.0.80")
+    graph = seed_predicted_native(DepGraph().with_node(pkg))
+    fake_executor.responses = {
+        "locate_file": make_result_fixture(
+            stdout=json.dumps({"opencv-python": [_CV2_SO]})
+        ),
+        "ldd ": make_result_fixture(stdout=_OPENCV_LDD_OUTPUT),
+    }
+
+    out = ldd_probe(graph, fake_executor)
+
+    syslibs = [n for n in out.nodes if n.type is NodeType.SYSTEM_LIB and "GL" in n.id]
+    assert len(syslibs) == 1
+    gl = syslibs[0]
+    assert gl.id == syslib_id("libGL.so.1")  # soname-canonical identity
+    assert gl.chosen_fix == "apt:libgl1"  # apt lives in chosen_fix, not the id
+    assert gl.discovered_by is DiscoveredBy.RESOLVER  # seed prediction reconciled
+
+    edges = [e for e in out.edges if e.dst == gl.id and e.relation is EdgeType.REQUIRES]
+    assert edges and any(e.src == pkg.id for e in edges)
+
+
+def test_seed_and_ldd_reconcile_even_when_apt_resolution_unresolved(
+    fake_executor, make_result_fixture
+):
+    """Worst-case opencv/libGL production bug: soname->apt resolution is ABSENT
+    at ldd time (table miss AND apt-file unavailable/uninstalled). Before the
+    canonical-soname fix, reconciliation was keyed by the (possibly
+    unresolvable) apt name, so an apt-resolution failure meant the observation
+    could never find the seed's node and a rival PROBE node was created
+    instead — two nodes, neither one ever gets installed. Canonical identity is
+    the soname, so reconciliation succeeds by string match alone, independent
+    of apt resolution.
+    """
+    # A soname NOT in NATIVE_LIB_TO_APT, so seed's own apt lookup already came
+    # up empty (mirrors a real curated-table gap) and ldd's resolve_soname_apt
+    # will also fail (FakeExecutor has no apt-file response registered ->
+    # rc=127 -> "unresolved").
+    predicted = Node(
+        id=syslib_id("libcustomthing.so.2"),
+        type=NodeType.SYSTEM_LIB,
+        name="libcustomthing.so.2",
+        layer=Layer.SYSTEM,
+        discovered_by=DiscoveredBy.RESOLVER,
+        state=State.UNKNOWN,
+        check_command="ldconfig -p | grep libcustomthing.so.2",
+        fix_candidates=(),
+        chosen_fix=None,
+    )
+    pkg = _package("somepkg", "1.0.0")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(predicted)
+        .with_edge(
+            Edge(
+                src=pkg.id,
+                dst=predicted.id,
+                relation=EdgeType.REQUIRES,
+                origin="resolver",
+            )
+        )
+    )
+    _so = "/usr/local/lib/python3.11/dist-packages/somepkg/foo.cpython-311-x86_64-linux-gnu.so"
+    fake_executor.responses = {
+        "locate_file": make_result_fixture(stdout=json.dumps({"somepkg": [_so]})),
+        "ldd ": make_result_fixture(
+            stdout=f"{_so}:\n\tlibcustomthing.so.2 => not found\n"
+        ),
+        # No "sysconfig"/"apt-file" response registered -> resolve_soname_apt
+        # returns (None, "unresolved") too, at ldd time as well as at seed time.
+    }
+
+    out = ldd_probe(graph, fake_executor)
+
+    syslibs = [n for n in out.nodes if n.id == syslib_id("libcustomthing.so.2")]
+    assert len(syslibs) == 1  # single canonical node, no rival PROBE node
+    node = syslibs[0]
+    assert node.discovered_by is DiscoveredBy.RESOLVER  # reconciled, not replaced
+    edges = [
+        e for e in out.edges if e.dst == node.id and e.relation is EdgeType.REQUIRES
+    ]
+    assert len(edges) == 1
+    assert edges[0].src == pkg.id
 
 
 def test_ldd_probe_unknown_soname_empty_fix_candidates(fake_executor, make_result_fixture):

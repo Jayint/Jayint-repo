@@ -263,13 +263,12 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
         check = f"ldconfig -p | grep {soname}"
         evidence = _first_line_with(stderr, soname)
         apt, _apt_source = resolve_soname_apt(soname, executor)
-        predicted_id = syslib_id(apt) if apt else None
-        reconciled = (
-            reconcile_predicted(
-                new, predicted_id, check=check, evidence=evidence, command=command
-            )
-            if predicted_id
-            else None
+        # Canonical id (Task 9): the soname IS the SystemLib identity (see
+        # seed.py "canonical rule"), so reconciliation is keyed by the soname
+        # itself — independent of whether resolve_soname_apt succeeds.
+        predicted_id = syslib_id(soname)
+        reconciled = reconcile_predicted(
+            new, predicted_id, check=check, evidence=evidence, command=command
         )
         if reconciled is not None:
             node_id = reconciled.id
@@ -298,12 +297,16 @@ def reconcile_predicted(
 ) -> Node | None:
     """Reconcile an observed gap with a resolver *prediction* of the same id.
 
-    When the resolver pre-emitted a predicted ``Tool``/``SystemLib`` (seed stage)
-    for the apt package that provides this observed gap, return a NEW node that
-    keeps the predicted node's id + discovery origin (``discovered_by`` stays
-    RESOLVER per the spec) but adopts the real observed ``check_command`` /
-    ``evidence`` and records the failing probe attempt.  ``state`` is left for the
-    host certifier to flip — discovery never certifies (design 3.1).
+    ``predicted_id`` is the CANONICAL id for the observed gap: apt-keyed
+    (``tool_id``) for a build-time ``Tool``, soname-keyed (``syslib_id``) for a
+    run-time ``SystemLib`` (Task 9 — the soname is the SystemLib's identity, not
+    the apt name, so callers must pass ``syslib_id(soname)`` here, never
+    ``syslib_id(apt)``).  When the resolver pre-emitted a predicted node (seed
+    stage) at that same id, return a NEW node that keeps the predicted node's
+    id + discovery origin (``discovered_by`` stays RESOLVER per the spec) but
+    adopts the real observed ``check_command`` / ``evidence`` and records the
+    failing probe attempt.  ``state`` is left for the host certifier to flip —
+    discovery never certifies (design 3.1).
 
     Returns ``None`` when there is no matching prediction (caller then creates a
     fresh probe-discovered node), so existing observed-only behavior is preserved.

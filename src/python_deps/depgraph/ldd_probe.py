@@ -125,11 +125,19 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
     """Stage 4.5: discover run-time native-lib gaps via ldd on extension modules.
 
     For each Package node: batch-ldd its extension ``.so`` files; collect
-    ``=> not found`` sonames; resolve soname → apt via ``resolve_soname_apt``;
-    then either reconcile with a seed RESOLVER prediction of the same id
-    (keeping ``discovered_by=RESOLVER``) or create a fresh
-    ``discovered_by=PROBE`` node.  Adds a ``requires`` edge Package→SystemLib.
-    Returns a NEW graph; no-op for packages with no extension modules.
+    ``=> not found`` sonames; resolve soname → apt via ``resolve_soname_apt``
+    (fills ``chosen_fix`` only — never the id); then either reconcile with a
+    seed RESOLVER prediction of the same CANONICAL SONAME id (keeping
+    ``discovered_by=RESOLVER``) or create a fresh ``discovered_by=PROBE`` node.
+    Adds a ``requires`` edge Package→SystemLib.  Returns a NEW graph; no-op for
+    packages with no extension modules.
+
+    Canonical identity (Task 9): the soname IS the SystemLib node's id (see
+    ``seed.py`` module docstring "canonical rule").  Reconciliation is keyed by
+    the soname, so the seed prediction and this observation always collapse
+    onto ONE node — independent of whether ``resolve_soname_apt`` succeeds this
+    round (the prior apt-keyed reconciliation split into two nodes whenever
+    resolution failed; this cannot happen anymore).
 
     Option A: ``resolve_soname_apt`` is table-first with an apt-file fallback
     ABSENT on slim images.  An unknown soname (not in ``NATIVE_LIB_TO_APT``)
@@ -163,20 +171,12 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             check = f"ldconfig -p | grep {soname}"
             evidence = _first_line_with(ldd_result.stdout or "", soname)
 
-            # Reconcile with a RESOLVER seed prediction of the same apt-keyed id
-            # (keeps discovered_by=RESOLVER per the spec); fall back to a fresh
-            # PROBE node using the soname as the id.
-            predicted_id = syslib_id(apt) if apt else None
-            reconciled = (
-                reconcile_predicted(
-                    new,
-                    predicted_id,
-                    check=check,
-                    evidence=evidence,
-                    command=ldd_cmd,
-                )
-                if predicted_id
-                else None
+            # Reconcile with a RESOLVER seed prediction of the same CANONICAL
+            # SONAME id (keeps discovered_by=RESOLVER per the spec); fall back
+            # to a fresh PROBE node using the soname as the id.
+            predicted_id = syslib_id(soname)
+            reconciled = reconcile_predicted(
+                new, predicted_id, check=check, evidence=evidence, command=ldd_cmd
             )
             if reconciled is not None:
                 node_id = reconciled.id
@@ -188,7 +188,7 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
                 # this package's attempt to the existing node instead of replacing
                 # it wholesale, which would silently drop the earlier package's
                 # attempt history (review MEDIUM-1).
-                existing = new.get(syslib_id(soname))
+                existing = new.get(predicted_id)
                 if existing is not None:
                     node = existing.with_attempt(
                         Attempt(command=ldd_cmd, outcome="failed", check=check)

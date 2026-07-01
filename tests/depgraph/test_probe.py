@@ -437,16 +437,19 @@ def test_import_probe_native_risk_package_probed_by_name(fake_executor, make_res
     assert any(d.id == syslib_id("libpq.so.5") for d in deps)
 
 
-def _predicted_syslib(apt: str) -> Node:
+def _predicted_syslib(key: str) -> Node:
+    """A resolver-predicted SystemLib node keyed by ``key`` — post Task 9,
+    callers pass the canonical SONAME (mirrors ``seed._predicted_syslib_node``).
+    """
     return Node(
-        id=syslib_id(apt),
+        id=syslib_id(key),
         type=NodeType.SYSTEM_LIB,
-        name=apt,
+        name=key,
         layer=Layer.SYSTEM,
         discovered_by=DiscoveredBy.RESOLVER,  # a prediction
         state=State.UNKNOWN,
-        check_command=f"dpkg -s {apt}",
-        fix_candidates=(f"apt:{apt}",),
+        check_command=f"dpkg -s {key}",
+        fix_candidates=(f"apt:{key}",),
     )
 
 
@@ -467,10 +470,11 @@ def _predicted_tool(apt: str) -> Node:
 # Reconciliation: probe observation merges into a resolver prediction          #
 # --------------------------------------------------------------------------- #
 def test_import_probe_reconciles_predicted_syslib(fake_executor, make_result_fixture):
-    # opencv predicted libgl1 (apt-keyed); probe observes libGL.so.1 (soname).
+    # opencv predicted the canonical soname node (Task 9); probe observes the
+    # SAME soname libGL.so.1, so reconciliation lands on ONE node.
     pkg = _package("opencv-python", "4.9.0.80")
     imp = _import("cv2")
-    predicted = _predicted_syslib("libgl1")
+    predicted = _predicted_syslib("libGL.so.1")
     graph = (
         DepGraph()
         .with_node(pkg)
@@ -488,17 +492,51 @@ def test_import_probe_reconciles_predicted_syslib(fake_executor, make_result_fix
 
     out = import_probe(graph, fake_executor)
 
-    # No duplicate observed node — the prediction is reconciled in place.
-    assert out.get(syslib_id("libGL.so.1")) is None
-    node = out.get(syslib_id("libgl1"))
+    node = out.get(syslib_id("libGL.so.1"))
     assert node is not None
     assert node.discovered_by is DiscoveredBy.RESOLVER  # discovery origin kept
     assert node.check_command == "ldconfig -p | grep libGL.so.1"  # real check
     assert "libGL.so.1" in (node.evidence or "")
     assert node.attempts and node.attempts[-1].outcome == "failed"
+    assert len([n for n in out.nodes if n.type is NodeType.SYSTEM_LIB]) == 1
     # single requires edge from the owning package (deduped)
-    libs = [d for d in out.requires_of(pkg.id) if d.id == syslib_id("libgl1")]
+    libs = [d for d in out.requires_of(pkg.id) if d.id == syslib_id("libGL.so.1")]
     assert len(libs) == 1
+
+
+def test_import_probe_reconciles_even_when_apt_resolution_unresolved(
+    fake_executor, make_result_fixture
+):
+    # Task 9 regression: canonical identity is the soname, so reconciliation
+    # succeeds even when soname->apt resolution is ABSENT at probe time (table
+    # miss + apt-file unavailable) -- no rival PROBE node.
+    pkg = _package("somepkg", "1.0.0")
+    imp = _import("somepkg")
+    predicted = _predicted_syslib("libcustomthing.so.2")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_node(predicted)
+        .with_edge(Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver"))
+        .with_edge(
+            Edge(src=pkg.id, dst=predicted.id, relation=EdgeType.REQUIRES, origin="resolver")
+        )
+    )
+    fake_executor.responses = {
+        'import somepkg': make_result_fixture(
+            returncode=1,
+            stderr="ImportError: libcustomthing.so.2: cannot open shared object file",
+        )
+        # No "apt-file"/"sysconfig" response registered -> resolve_soname_apt
+        # returns (None, "unresolved").
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    syslibs = [n for n in out.nodes if n.id == syslib_id("libcustomthing.so.2")]
+    assert len(syslibs) == 1  # single canonical node, no rival PROBE node
+    assert syslibs[0].discovered_by is DiscoveredBy.RESOLVER
 
 
 def test_install_closure_reconciles_predicted_tool(fake_executor, make_result_fixture):
