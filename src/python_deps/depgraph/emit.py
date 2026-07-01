@@ -61,9 +61,17 @@ def _conflicted_ids(graph: DepGraph) -> set[str]:
 
 
 def _toolchain_ready(graph: DepGraph, pkg: Node) -> bool:
-    """True when every SystemLib/Tool this package requires is already SATISFIED."""
-    for dep in graph.requires_of(pkg.id):
-        if dep.type in (NodeType.SYSTEM_LIB, NodeType.TOOL) and dep.state is not State.SATISFIED:
+    """True when every SystemLib/Tool this package HARD-requires is already
+    SATISFIED. Soft requires edges (``Edge.data["hard"] is False``) are advisory
+    hints and never block emission (invariant #10; mirrors
+    schedule._dependencies_satisfied)."""
+    for edge in graph.edges:
+        if not (edge.src == pkg.id and edge.relation is EdgeType.REQUIRES
+                and edge.data.get("hard", True)):
+            continue
+        dep = graph.get(edge.dst)
+        if (dep is not None and dep.type in (NodeType.SYSTEM_LIB, NodeType.TOOL)
+                and dep.state is not State.SATISFIED):
             return False
     return True
 

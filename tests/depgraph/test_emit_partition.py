@@ -97,6 +97,24 @@ def test_wheel_package_waits_for_its_runtime_syslib():
     assert "pkg:opencv-python" not in emittable_ids  # BUG today: it IS emittable
 
 
+def test_soft_syslib_edge_does_not_block_package_emission():
+    # An advisory/LLM-proposed SOFT Package -> SystemLib hint (Edge.data["hard"]
+    # is False) must never block emission (invariant #10; mirrors
+    # schedule._dependencies_satisfied / test_soft_edge_seam.py). Only HARD
+    # requires edges gate _toolchain_ready.
+    numpy = _pkg("numpy", version="1.26.0", bfs=False)
+    libfoo = Node(id="syslib:libfoo.so.1", type=NodeType.SYSTEM_LIB, name="libfoo.so.1",
+                  layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+                  check_command="ldconfig -p | grep libfoo.so.1")
+    g = DepGraph(
+        nodes=(numpy, libfoo),
+        edges=(Edge(src="pkg:numpy", dst="syslib:libfoo.so.1", relation=EdgeType.REQUIRES,
+                     data={"hard": False}),),
+    )
+    part = partition(g)
+    assert "pkg:numpy" in {n.id for n in part.emittable}
+
+
 def test_partition_demotes_repeatedly_failed_emit_to_frontier():
     # Fix #3: a resolved package that has failed to emit MAX_EMIT_ATTEMPTS times must
     # stop being emittable and escalate to the frontier (no infinite re-emit loop).
