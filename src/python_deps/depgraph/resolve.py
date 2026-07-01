@@ -158,10 +158,19 @@ def _lock_command(
     workdir: str,
     target_python: str,
     exclude_newer: str | None,
+    python_platform_tag: str,
 ) -> str:
+    """Build the ``uv lock`` shell command, ALWAYS targeted at the container.
+
+    ``--python-platform`` (Task 7) is what stops ``uv`` from resolving for the
+    HOST's platform: without it a dev host's own OS/arch tags leak into the
+    lock's wheel selection and marker environment, silently diverging from the
+    container being built.
+    """
     parts = [shlex.quote(UV_BIN), "lock", "--python", shlex.quote(target_python)]
     if exclude_newer:
         parts += ["--exclude-newer", shlex.quote(exclude_newer)]
+    parts += ["--python-platform", shlex.quote(python_platform_tag)]
     return f"cd {shlex.quote(workdir)} && {' '.join(parts)}"
 
 
@@ -212,13 +221,15 @@ def resolve_closure(
                 break
             _write_pyproject(workdir, names, target_python)
             result = host_executor.run(
-                _lock_command(workdir, target_python, exclude_newer)
+                _lock_command(workdir, target_python, exclude_newer, platform)
             )
             lock_text = _read_lock(workdir) if result.ok else None
 
             if lock_text:
                 try:
-                    nodes, edges = parse_uv_lock(lock_text, target_python)
+                    nodes, edges = parse_uv_lock(
+                        lock_text, target_python, target_platform=platform
+                    )
                     risk = native_risk_from_lock(
                         lock_text, platform, target_python
                     )
