@@ -60,7 +60,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.seed import seed_predicted_native
+from python_deps.depgraph.seed import seed_wheel_oracle_prior
 from python_deps.depgraph.target_env import detect_target_env
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
@@ -344,7 +344,7 @@ def build_dep_graph(
     # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
     # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail
     # hint); Stage 4.5 ldd_probe is the authoritative run-time native-lib source.
-    graph = seed_predicted_native(graph)
+    graph = seed_wheel_oracle_prior(graph)
     resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 

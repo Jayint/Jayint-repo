@@ -10,12 +10,13 @@ Test / Import / Package / SystemLib / Tool.
 Resolution is HOST-side and install/probe/certify are CONTAINER-side; the unit
 test injects the SAME ``FakeExecutor`` for both (``host_executor=`` kwarg).
 
-Native gaps here all reconcile with a resolver *prediction* (opencv-python and
-psycopg2 are both in ``PACKAGE_TO_SYSTEM_DEPS``): the observed ``libGL.so.1`` /
-``pg_config`` gaps merge into the predicted nodes ``syslib:libGL.so.1`` (the
-canonical SONAME id — Task 9) / ``tool:libpq-dev`` (apt-keyed; Tool is
-unaffected by the soname migration) — no duplicate node — so they keep their
-RESOLVER discovery origin while gaining the real check + a probe attempt.
+Native gaps here surface as fresh ``discovered_by=PROBE`` nodes (soname/tool-
+name keyed): this fixture's closure is ``uv pip compile``-style text (no
+``build_from_source`` signal), so ``seed_wheel_oracle_prior`` (construction-
+enrichment cluster 1a; the curated package->syslib table is gone) predicts
+nothing for opencv-python/psycopg2. See
+``test_build_native_gaps_are_fresh_probe_nodes_without_a_prior`` for the
+documented coverage tradeoff.
 """
 
 from __future__ import annotations
@@ -114,12 +115,13 @@ def test_build_produces_all_node_types(tmp_path):
     assert graph.get(package_id("numpy", "1.26.4")) is not None
     assert graph.get(package_id("Pillow", "10.3.0")) is not None
     assert graph.get(package_id("psycopg2", "2.9.9")) is not None
-    # SystemLib + Tool — the observed gaps reconcile into the predictions (no
-    # duplicate node is created). SystemLib is soname-keyed (canonical id);
-    # Tool stays apt-keyed (a -dev header is never ldd-observable).
+    # SystemLib + Tool — no RESOLVER prediction to reconcile into (no curated
+    # table, no build_from_source signal in this fixture), so the observed
+    # gaps surface as FRESH PROBE nodes, keyed by soname/tool name.
     assert graph.get(syslib_id("libGL.so.1")) is not None
-    assert graph.get(tool_id("libpq-dev")) is not None
-    assert graph.get(tool_id("pg_config")) is None
+    assert graph.get(tool_id("pg_config")) is not None
+    assert graph.get(syslib_id("libgl1")) is None
+    assert graph.get(tool_id("libpq-dev")) is None
 
 
 def test_build_requires_topology(tmp_path):
@@ -137,12 +139,12 @@ def test_build_requires_topology(tmp_path):
         package_id("opencv-python", "4.9.0.80"),
         package_id("numpy", "1.26.4"),
     ) in edges
-    # Package -> SystemLib / Tool (predicted at resolve, reconciled by probe)
+    # Package -> SystemLib / Tool (fresh PROBE discovery, no prior to reconcile into)
     assert (
         package_id("opencv-python", "4.9.0.80"),
         syslib_id("libGL.so.1"),
     ) in edges
-    assert (package_id("psycopg2", "2.9.9"), tool_id("libpq-dev")) in edges
+    assert (package_id("psycopg2", "2.9.9"), tool_id("pg_config")) in edges
 
 
 def test_build_certified_states(tmp_path):
@@ -158,25 +160,27 @@ def test_build_certified_states(tmp_path):
     assert graph.get(import_id("psycopg2")).state is State.MISSING
 
     assert graph.get(syslib_id("libGL.so.1")).state is State.MISSING
-    assert graph.get(tool_id("libpq-dev")).state is State.MISSING
+    assert graph.get(tool_id("pg_config")).state is State.MISSING
     assert graph.get(TEST_NODE_ID).state is State.MISSING
 
 
-def test_build_reconciled_predictions_keep_resolver_origin(tmp_path):
+def test_build_native_gaps_are_fresh_probe_nodes_without_a_prior(tmp_path):
+    """No curated table and no build_from_source signal in this fixture ->
+    seed_wheel_oracle_prior predicts nothing, so the observed native gaps have
+    no RESOLVER prediction to reconcile into and surface as fresh
+    discovered_by=PROBE nodes (the design's documented coverage tradeoff —
+    Risk #2 in the construction-enrichment design)."""
     graph = _build(tmp_path)
 
-    libgl1 = graph.get(syslib_id("libGL.so.1"))
-    libpq = graph.get(tool_id("libpq-dev"))
-    # discovery origin is preserved across reconciliation (spec: discovered_by
-    # stays the discovery origin; only the certifier flips state).
-    assert libgl1.discovered_by is DiscoveredBy.RESOLVER
-    assert libpq.discovered_by is DiscoveredBy.RESOLVER
-    # but the observed check + probe attempt prove the probe reconciled them.
-    assert libgl1.check_command == "ldconfig -p | grep libGL.so.1"
-    assert libpq.check_command == "command -v pg_config"
-    assert libgl1.fix_candidates == ("apt:libgl1",)
-    assert libpq.fix_candidates == ("apt:libpq-dev",)
-    assert any(a.outcome == "failed" for a in libgl1.attempts)
+    libgl = graph.get(syslib_id("libGL.so.1"))
+    pg_config = graph.get(tool_id("pg_config"))
+    assert libgl.discovered_by is DiscoveredBy.PROBE
+    assert pg_config.discovered_by is DiscoveredBy.PROBE
+    assert libgl.check_command == "ldconfig -p | grep libGL.so.1"
+    assert pg_config.check_command == "command -v pg_config"
+    assert libgl.fix_candidates == ("apt:libgl1",)        # NATIVE_LIB_TO_APT still resolves it
+    assert pg_config.fix_candidates == ("apt:libpq-dev",)  # TOOL_TO_APT still resolves it
+    assert any(a.outcome == "failed" for a in libgl.attempts)
 
 
 def test_build_discovered_by_stamping(tmp_path):
@@ -198,9 +202,9 @@ def test_build_discovered_cycle_per_stage(tmp_path):
     assert graph.get(import_id("cv2")).discovered_cycle == 1
     # stage 2 (resolver): Packages and predicted native nodes
     assert graph.get(package_id("numpy", "1.26.4")).discovered_cycle == 2
-    # predicted-then-reconciled nodes keep the resolver discovery cycle (2)
-    assert graph.get(syslib_id("libGL.so.1")).discovered_cycle == 2
-    assert graph.get(tool_id("libpq-dev")).discovered_cycle == 2
+    # no RESOLVER prediction to reconcile into -> fresh PROBE-cycle (3) nodes.
+    assert graph.get(syslib_id("libGL.so.1")).discovered_cycle == 3
+    assert graph.get(tool_id("pg_config")).discovered_cycle == 3
 
 
 def test_build_empty_repo_yields_only_test_node(tmp_path):
@@ -277,12 +281,16 @@ _CV2_SO_BUILD = (
 )
 
 
-def test_build_ldd_probe_reconciles_seed_prediction(tmp_path):
+def test_build_ldd_probe_creates_fresh_node_without_a_prior(tmp_path):
     """Stage 4.5 is LIVE in the pipeline: when install AND import both succeed,
-    ldd_probe (not import_probe) discovers ``libGL.so.1`` from the installed
-    binary and reconciles it into the seed's canonical soname-keyed prediction
-    ``syslib:libGL.so.1`` — one node total, RESOLVER origin retained, the
-    observed ldconfig check adopted. Proves ldd↔seed reconcile end-to-end."""
+    ldd_probe discovers ``libGL.so.1`` from the installed binary. This
+    fixture's closure carries no ``build_from_source`` signal, so
+    ``seed_wheel_oracle_prior`` predicts nothing here and there is no RESOLVER
+    node to reconcile into — ldd_probe creates a FRESH ``discovered_by=PROBE``
+    node (soname-keyed id, apt-resolved fix-candidate via NATIVE_LIB_TO_APT).
+    (Declaration mining, which would restore reconciliation for a repo that
+    DOES declare its apt deps, is cluster 1b — deferred, not part of this
+    plan.)"""
     import json
 
     from conftest import FakeExecutor  # type: ignore
@@ -292,35 +300,25 @@ def test_build_ldd_probe_reconciles_seed_prediction(tmp_path):
         responses={
             "uv pip compile": _r(stdout=_LDD_CLOSURE),
             "pip install": _r(returncode=0),  # install SUCCEEDS
-            # EXT_SO_MAP_CMD (matched by the unique "locate_file" substring).
             "locate_file": _r(stdout=json.dumps({"opencv-python": [_CV2_SO_BUILD]})),
             "ldd ": _r(stdout=f"{_CV2_SO_BUILD}:\n\tlibGL.so.1 => not found\n"),
             "apt-cache show libgl1": _r(stdout="Package: libgl1\n"),
         },
-        default=_r(returncode=0),  # every other command 'succeeds' inertly
+        default=_r(returncode=0),
     )
 
     graph = build_dep_graph(
         str(tmp_path), ex, host_executor=ex, exclude_newer="2024-01-01"
     )
 
-    # Stage 4.5 actually ran (a bare `ldd <path>` was issued in the pipeline).
     assert any(c.startswith("ldd ") for c in ex.calls)
 
-    libgl1 = graph.get(syslib_id("libGL.so.1"))
-    assert libgl1 is not None
-    assert libgl1.discovered_by is DiscoveredBy.RESOLVER  # seed origin retained
-    # exactly one node for libGL specifically (opencv-python also seeds a
-    # SEPARATE, distinct predicted libglib-2.0.so.0 node — unrelated to this
-    # soname, not itself observed by this test's canned ldd output).
-    gl_nodes = [
-        n for n in graph.nodes if n.type is NodeType.SYSTEM_LIB and "GL" in n.id
-    ]
-    assert len(gl_nodes) == 1
-    # The observed ldd check replaced the seed's `dpkg -s` check — proving it was
-    # ldd_probe (not import_probe; `import cv2` succeeded) that reconciled here.
-    assert libgl1.check_command == "ldconfig -p | grep libGL.so.1"
-    assert libgl1.fix_candidates == ("apt:libgl1",)
+    libgl = graph.get(syslib_id("libGL.so.1"))
+    assert libgl is not None
+    assert libgl.discovered_by is DiscoveredBy.PROBE  # no prior to reconcile into
+    assert graph.get(syslib_id("libgl1")) is None       # no apt-keyed prediction exists
+    assert libgl.check_command == "ldconfig -p | grep libGL.so.1"
+    assert libgl.fix_candidates == ("apt:libgl1",)
     assert (
         package_id("opencv-python", "4.9.0.80"),
         syslib_id("libGL.so.1"),

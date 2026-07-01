@@ -1,15 +1,15 @@
-"""Predicted native-node seeding (``seed.py``).
+"""Wheel-oracle prior seeding (``seed.py``, construction-enrichment cluster 1a).
 
-After resolve, packages with a known native footprint (a
-``tables.PACKAGE_TO_SYSTEM_DEPS`` hit) or a from-source build risk get
-*predicted* ``Tool`` / ``SystemLib`` nodes BEFORE the build runs.  Predictions
-are resolver-origin, ``UNKNOWN`` state, carry a non-empty apt fix candidate, and
-hang off the owning ``Package`` by a ``requires`` edge.  All pure (no executor).
+Replaces the old curated-table prediction: the ONLY signal is the resolver's
+own ``build_from_source`` flag. A from-source package predicts a generic
+compiler toolchain (``tool:build-essential``); it does NOT predict specific
+``-dev`` headers (that used to come from ``PACKAGE_TO_SYSTEM_DEPS``, now
+deleted — see the design doc's "What this loses, honestly").
 """
 
 from __future__ import annotations
 
-from python_deps.depgraph.ids import package_id, syslib_id, tool_id
+from python_deps.depgraph.ids import package_id, tool_id
 from python_deps.depgraph.schema import (
     DepGraph,
     DiscoveredBy,
@@ -19,7 +19,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.seed import _predicted_syslib_node, seed_predicted_native
+from python_deps.depgraph.seed import seed_wheel_oracle_prior
 
 
 def _package(name: str, version: str, *, build_from_source=None) -> Node:
@@ -35,121 +35,81 @@ def _package(name: str, version: str, *, build_from_source=None) -> Node:
     )
 
 
-def test_seed_predicts_runtime_syslib_for_opencv():
-    pkg = _package("opencv-python", "4.9.0.80")
+def test_seed_predicts_build_essential_for_from_source_package():
+    pkg = _package("psycopg2", "2.9.9", build_from_source=True)
     graph = DepGraph().with_node(pkg)
 
-    out = seed_predicted_native(graph)
-
-    # Canonical rule: the SONAME is the identity for a SystemLib node (it is the
-    # observable ldd/import_probe key); the apt package lives in chosen_fix, not
-    # the id — so seed and the later probe stages land on the SAME node.
-    lib = out.get(syslib_id("libGL.so.1"))
-    assert lib is not None
-    assert lib.type is NodeType.SYSTEM_LIB
-    assert lib.layer is Layer.SYSTEM
-    assert lib.discovered_by is DiscoveredBy.RESOLVER  # a prediction
-    assert lib.state is State.UNKNOWN
-    assert lib.name == "libGL.so.1"
-    assert lib.fix_candidates == ("apt:libgl1",)
-    assert lib.chosen_fix == "apt:libgl1"
-    # and the second runtime lib in the chain
-    assert out.get(syslib_id("libglib-2.0.so.0")) is not None
-    # owning package requires the predicted lib
-    deps = {d.id for d in out.requires_of(pkg.id)}
-    assert syslib_id("libGL.so.1") in deps
-    assert syslib_id("libglib-2.0.so.0") in deps
-
-
-def test_predicted_syslib_node_unresolved_apt_soname():
-    """Worst-case seed path: a curated soname with NO ``NATIVE_LIB_TO_APT`` hit.
-
-    ``apt_for_soname`` misses (the fictitious ``libfoo.so.99`` is absent from
-    the curated table), so the predicted node must still be soname-keyed (the
-    *need* is surfaced) with an EMPTY apt resolution (the *name* is not) —
-    ``chosen_fix is None`` / ``fix_candidates == ()``. This end-to-end
-    unresolved-apt case at the seed layer was previously untested.
-    """
-    node = _predicted_syslib_node("libfoo.so.99")
-
-    assert node.id == syslib_id("libfoo.so.99")
-    assert node.type is NodeType.SYSTEM_LIB
-    assert node.chosen_fix is None
-    assert node.fix_candidates == ()
-
-
-def test_seed_predicts_build_tool_for_psycopg2():
-    pkg = _package("psycopg2", "2.9.9")
-    graph = DepGraph().with_node(pkg)
-
-    out = seed_predicted_native(graph)
-
-    tool = out.get(tool_id("libpq-dev"))
-    assert tool is not None
-    assert tool.type is NodeType.TOOL  # -dev package -> build toolchain need
-    assert tool.layer is Layer.TOOLCHAIN
-    assert tool.discovered_by is DiscoveredBy.RESOLVER
-    assert tool.state is State.UNKNOWN
-    assert tool.fix_candidates == ("apt:libpq-dev",)
-    deps = {d.id for d in out.requires_of(pkg.id)}
-    assert tool_id("libpq-dev") in deps
-
-
-def test_seed_predicts_generic_toolchain_for_from_source_only():
-    # A from-source package with no table hit still predicts a compiler toolchain.
-    pkg = _package("obscurelib", "1.0.0", build_from_source=True)
-    graph = DepGraph().with_node(pkg)
-
-    out = seed_predicted_native(graph)
+    out = seed_wheel_oracle_prior(graph)
 
     tool = out.get(tool_id("build-essential"))
     assert tool is not None
     assert tool.type is NodeType.TOOL
+    assert tool.layer is Layer.TOOLCHAIN
+    assert tool.discovered_by is DiscoveredBy.RESOLVER
+    assert tool.state is State.UNKNOWN
     assert tool.fix_candidates == ("apt:build-essential",)
+    assert tool.chosen_fix == "apt:build-essential"
     deps = {d.id for d in out.requires_of(pkg.id)}
     assert tool_id("build-essential") in deps
 
 
-def test_seed_no_prediction_for_pure_python_package():
-    pkg = _package("requests", "2.31.0")  # no table hit, not from-source
+def test_seed_no_prediction_when_build_from_source_false():
+    pkg = _package("requests", "2.31.0", build_from_source=False)
     graph = DepGraph().with_node(pkg)
 
-    out = seed_predicted_native(graph)
+    out = seed_wheel_oracle_prior(graph)
 
-    assert [n for n in out.nodes if n.type in (NodeType.TOOL, NodeType.SYSTEM_LIB)] == []
+    assert [n for n in out.nodes if n.type is NodeType.TOOL] == []
 
 
-def test_seed_dedupes_shared_predicted_node_across_packages():
-    a = _package("opencv-python", "4.9.0.80")
-    b = _package("opencv-python-headless", "4.9.0.80")
+def test_seed_no_prediction_when_build_from_source_none():
+    pkg = _package("requests", "2.31.0")  # default None (unknown)
+    graph = DepGraph().with_node(pkg)
+
+    out = seed_wheel_oracle_prior(graph)
+
+    assert [n for n in out.nodes if n.type is NodeType.TOOL] == []
+
+
+def test_seed_dedupes_build_essential_across_multiple_from_source_packages():
+    a = _package("psycopg2", "2.9.9", build_from_source=True)
+    b = _package("lxml", "5.2.0", build_from_source=True)
     graph = DepGraph().with_node(a).with_node(b)
 
-    out = seed_predicted_native(graph)
+    out = seed_wheel_oracle_prior(graph)
 
-    # opencv-python-headless is not in the table; only opencv-python predicts.
-    libs = [n for n in out.nodes if n.id == syslib_id("libGL.so.1")]
-    assert len(libs) == 1
+    tools = [n for n in out.nodes if n.id == tool_id("build-essential")]
+    assert len(tools) == 1
+    a_deps = {d.id for d in out.requires_of(a.id)}
+    b_deps = {d.id for d in out.requires_of(b.id)}
+    assert tool_id("build-essential") in a_deps
+    assert tool_id("build-essential") in b_deps
 
 
-def test_seed_predicted_edges_are_resolver_origin():
-    pkg = _package("opencv-python", "4.9.0.80")
+def test_seed_predicted_edge_is_resolver_origin():
+    pkg = _package("psycopg2", "2.9.9", build_from_source=True)
     graph = DepGraph().with_node(pkg)
 
-    out = seed_predicted_native(graph)
+    out = seed_wheel_oracle_prior(graph)
 
-    pred_edges = [
-        e
-        for e in out.edges
-        if e.dst == syslib_id("libGL.so.1") and e.relation is EdgeType.REQUIRES
+    edges = [
+        e for e in out.edges
+        if e.dst == tool_id("build-essential") and e.relation is EdgeType.REQUIRES
     ]
-    assert pred_edges and all(e.origin == "resolver" for e in pred_edges)
+    assert edges and all(e.origin == "resolver" for e in edges)
+
+
+def test_seed_no_op_when_no_packages_need_a_build():
+    graph = DepGraph()
+    out = seed_wheel_oracle_prior(graph)
+    assert out.nodes == ()
 
 
 def test_seed_returns_new_graph_originals_unchanged():
-    pkg = _package("opencv-python", "4.9.0.80")
+    pkg = _package("psycopg2", "2.9.9", build_from_source=True)
     graph = DepGraph().with_node(pkg)
 
-    out = seed_predicted_native(graph)
+    out = seed_wheel_oracle_prior(graph)
 
     assert out is not graph
-    assert graph.get(syslib_id("libGL.so.1")) is None
+    assert graph.get(tool_id("build-essential")) is None

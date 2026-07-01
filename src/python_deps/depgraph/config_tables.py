@@ -1,5 +1,6 @@
-"""Curated `package -> config-obligation` table (tier-6 analogue of
-``tables.PACKAGE_TO_SYSTEM_DEPS``).  A distribution that, once installed, reads
+"""Curated `package -> config-obligation` table (this is a config-tier table,
+unrelated to native/system deps — see construction-enrichment cluster 1a for
+why the analogous native-deps table was deleted).  A distribution that, once installed, reads
 an env var to function induces a Config *need*: ``django`` reads
 ``DJANGO_SETTINGS_MODULE``, ``celery`` reads a broker URL, etc.  Keyed by PyPI
 distribution name; lookups are normalized so case/separators don't matter.

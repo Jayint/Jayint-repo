@@ -7,11 +7,10 @@ tool / header onto the apt package that provides it.
 
 Targeting Debian/Ubuntu only in V1 (design 10.5).  An unknown soname/tool maps to
 ``None`` (no LLM fallback in this plan; the node stays ``missing`` with evidence).
+PACKAGE_TO_SYSTEM_DEPS (the curated package->syslib prediction table) was deleted 2026-07-01 — see construction-enrichment cluster 1a; the one remaining pre-install native prediction derives only from the resolver's wheel/sdist signal (seed.py).
 """
 
 from __future__ import annotations
-
-from python_deps.import_mapping import normalize_package_name
 
 # Fast offline cache: known soname -> apt package.  apt-file fills misses at runtime
 # (option B lazy install).  Do NOT delete entries — they short-circuit executor calls.
@@ -61,36 +60,6 @@ NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
 )
 
 
-# Distribution -> curated native needs it triggers at resolve time (proactive
-# prediction, before the build/import runs).  Keyed by the PyPI distribution
-# name; lookups are normalized so case/separators don't matter.
-#
-# Entry SHAPE matters (``seed._predicted_node`` dispatches on it):
-#   * an apt name ending in ``-dev`` (or ``build-essential``) is a BUILD-time
-#     toolchain header/lib -> a ``Tool`` node, keyed by that apt name.  A
-#     ``-dev`` package is never ``ldd``-observable (no wheel/binary dlopens a
-#     header), so it needs no soname reconciliation.
-#   * anything else is a RUN-time shared-library soname (e.g. ``libGL.so.1``)
-#     -> a ``SystemLib`` node keyed by the SONAME, not an apt name.  The soname
-#     is the identity because it is what ``ldd_probe``/``import_probe`` OBSERVE
-#     on the installed binary (``NATIVE_LIB_TO_APT`` fills the apt package into
-#     ``chosen_fix``); keying by soname makes the seed prediction and the real
-#     observation land on the SAME node instead of splitting into two whenever
-#     soname->apt resolution is uncertain or absent.
-PACKAGE_TO_SYSTEM_DEPS: dict[str, list[str]] = {
-    "psycopg2": ["libpq-dev"],
-    "mysqlclient": ["default-libmysqlclient-dev"],
-    "lxml": ["libxml2-dev", "libxslt1-dev"],
-    "Pillow": ["libjpeg-dev", "zlib1g-dev"],
-    "opencv-python": ["libGL.so.1", "libglib-2.0.so.0"],
-}
-
-# Precomputed normalized-name index for O(1), case-insensitive lookups.
-_NORMALIZED_PACKAGE_SYSTEM_DEPS: dict[str, list[str]] = {
-    normalize_package_name(name): deps for name, deps in PACKAGE_TO_SYSTEM_DEPS.items()
-}
-
-
 def apt_for_soname(soname: str) -> str | None:
     """Apt package providing ``soname`` (e.g. ``libGL.so.1`` -> ``libgl1``)."""
     return NATIVE_LIB_TO_APT.get(soname)
@@ -99,12 +68,3 @@ def apt_for_soname(soname: str) -> str | None:
 def apt_for_tool(tool: str) -> str | None:
     """Apt package providing a build tool/header (e.g. ``pg_config`` -> ``libpq-dev``)."""
     return TOOL_TO_APT.get(tool)
-
-
-def system_deps_for_package(name: str) -> list[str]:
-    """Apt system-dev packages a distribution needs, or ``[]`` if unknown.
-
-    The lookup is name-normalized (``Pillow`` == ``pillow``) and returns a FRESH
-    list each call so callers can mutate the result without corrupting the table.
-    """
-    return list(_NORMALIZED_PACKAGE_SYSTEM_DEPS.get(normalize_package_name(name), ()))

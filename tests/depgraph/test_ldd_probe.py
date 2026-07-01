@@ -397,37 +397,6 @@ def test_ldd_probe_reconciles_resolver_prediction_keeps_discovered_by(
     assert len(requires_to_predicted) == 1
 
 
-def test_seed_and_ldd_produce_one_node_for_libgl(fake_executor, make_result_fixture):
-    """The exact opencv/libGL production case (Task 9 regression): seed predicts
-    opencv-python needs libGL (canonical soname node, apt package in
-    chosen_fix); ldd_probe then observes ``libGL.so.1 => not found``. After BOTH
-    stages there is exactly ONE SystemLib node for libGL, and opencv-python's
-    REQUIRES edge points at it.
-    """
-    from python_deps.depgraph.seed import seed_predicted_native
-
-    pkg = _package("opencv-python", "4.9.0.80")
-    graph = seed_predicted_native(DepGraph().with_node(pkg))
-    fake_executor.responses = {
-        "locate_file": make_result_fixture(
-            stdout=json.dumps({"opencv-python": [_CV2_SO]})
-        ),
-        "ldd ": make_result_fixture(stdout=_OPENCV_LDD_OUTPUT),
-    }
-
-    out = ldd_probe(graph, fake_executor)
-
-    syslibs = [n for n in out.nodes if n.type is NodeType.SYSTEM_LIB and "GL" in n.id]
-    assert len(syslibs) == 1
-    gl = syslibs[0]
-    assert gl.id == syslib_id("libGL.so.1")  # soname-canonical identity
-    assert gl.chosen_fix == "apt:libgl1"  # apt lives in chosen_fix, not the id
-    assert gl.discovered_by is DiscoveredBy.RESOLVER  # seed prediction reconciled
-
-    edges = [e for e in out.edges if e.dst == gl.id and e.relation is EdgeType.REQUIRES]
-    assert edges and any(e.src == pkg.id for e in edges)
-
-
 def test_seed_and_ldd_reconcile_even_when_apt_resolution_unresolved(
     fake_executor, make_result_fixture
 ):

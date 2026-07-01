@@ -1,12 +1,12 @@
-"""Task 4 — Docker integration test: ldd-derived table-independent KNOWLEDGE.
+"""Task 4 — Docker integration test: ldd-derived discovery.
 
-Proves that ``ldd_probe`` can discover native library gaps for a package that is
-**not** in ``PACKAGE_TO_SYSTEM_DEPS``, so the knowledge comes purely from
-inspecting the installed binary — not from the curated table.
+Proves that ``ldd_probe`` discovers native library gaps purely from inspecting
+the installed binary — there is no curated table to compare against any more
+(construction-enrichment cluster 1a deleted it); this test now exercises
+binary-inspection discovery + release-correct apt naming directly.
 
 Package under test: ``pygame``.
 
-* ``pygame`` is NOT in ``PACKAGE_TO_SYSTEM_DEPS`` (verified inline).
 * Its extension module ``.cpython-NNN*.so`` links against
   ``libgthread-2.0.so.0`` / ``libglib-2.0.so.0`` (both in ``NATIVE_LIB_TO_APT``),
   so ``ldd_probe`` surfaces them as ``SystemLib`` nodes with
@@ -37,11 +37,7 @@ if str(_SRC) not in sys.path:
 from python_deps.depgraph.build import build_dep_graph  # noqa: E402
 from python_deps.depgraph.executor import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from python_deps.depgraph.schema import DiscoveredBy, NodeType  # noqa: E402
-from python_deps.depgraph.tables import (  # noqa: E402
-    NATIVE_LIB_TO_APT,
-    PACKAGE_TO_SYSTEM_DEPS,
-)
-from python_deps.import_mapping import normalize_package_name  # noqa: E402
+from python_deps.depgraph.tables import NATIVE_LIB_TO_APT  # noqa: E402
 
 # ── constants ──────────────────────────────────────────────────────────────────
 
@@ -86,30 +82,18 @@ def _make_pygame_repo(tmp_path: Path) -> str:
 
 @pytest.mark.docker
 def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
-    """ldd_probe discovers pygame's native library gaps WITHOUT a table entry.
+    """ldd_probe discovers pygame's native library gaps from binary inspection.
 
     Assertions:
-    1. ``pygame`` is NOT in ``PACKAGE_TO_SYSTEM_DEPS`` — confirms the knowledge
-       cannot have come from the curated table.
-    2. At least one ``SystemLib`` node exists with ``discovered_by=PROBE`` —
+    1. At least one ``SystemLib`` node exists with ``discovered_by=PROBE`` —
        proves ldd_probe (or import_probe as backstop) surfaced the dependency.
-    3. At least one PROBE ``SystemLib`` node has a non-empty ``apt:``
+    2. At least one PROBE ``SystemLib`` node has a non-empty ``apt:``
        fix-candidate whose soname resolves via ``NATIVE_LIB_TO_APT`` —
-       proves option-A release-correct naming (table-independent *knowledge*,
+       proves option-A release-correct naming (binary-inspection *discovery*,
        release-correct *names* for known sonames).
     """
     if not _docker_available():
         pytest.skip("Docker binary not on PATH — skipping Docker integration test")
-
-    # ── Assertion 1: table independence ───────────────────────────────────────
-    # pygame must NOT be in PACKAGE_TO_SYSTEM_DEPS (normalized keys).
-    normalized_table_keys = {
-        normalize_package_name(k) for k in PACKAGE_TO_SYSTEM_DEPS
-    }
-    assert normalize_package_name(_TEST_PACKAGE) not in normalized_table_keys, (
-        f"{_TEST_PACKAGE!r} must NOT appear in PACKAGE_TO_SYSTEM_DEPS; "
-        "if it was added, pick a different not-in-table package for this test"
-    )
 
     # ── Run the full pipeline in a real Docker container ──────────────────────
     repo_path = _make_pygame_repo(tmp_path)
@@ -123,7 +107,7 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
             target_python="3.11",
         )
 
-    # ── Assertion 2: at least one PROBE SystemLib node was discovered ─────────
+    # ── Assertion 1: at least one PROBE SystemLib node was discovered ─────────
     probe_syslibs = [
         n
         for n in graph.nodes
@@ -138,7 +122,7 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
         + str([(n.id, n.discovered_by.value) for n in graph.nodes if n.type is NodeType.SYSTEM_LIB])
     )
 
-    # ── Assertion 3: at least one PROBE node has a release-correct apt fix ────
+    # ── Assertion 2: at least one PROBE node has a release-correct apt fix ────
     # A PROBE node with a non-empty apt: fix-candidate proves two things:
     #   (a) resolve_soname_apt matched the soname via NATIVE_LIB_TO_APT (or
     #       apt-file fallback), i.e. the soname is in the table.
