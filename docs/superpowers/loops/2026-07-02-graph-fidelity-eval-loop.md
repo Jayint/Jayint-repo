@@ -128,8 +128,8 @@ Reuse existing modules — do not reimplement: `build_dep_graph`, `render_build_
 3. `scorecard.py` — per repo: `choose_base_image` (-slim) → `build_dep_graph` (repair OFF) →
    grade graph-vs-oracle → `render_build_script` → grade render-fidelity → fresh `-slim`
    container, run `setup.sh` once, capture rc + stderr, classify via `runtime_classify` →
-   if rc=0 run `pytest`, score via `compute_essr` → also invoke `qualitative_judge` (item 7) on the
-   held-out recipe vs the rendered `setup.sh` → emit per-repo JSON (schema in §6).
+   if rc=0 run `pytest`, score via `compute_essr` → write the judge-inputs (item 7) to disk for the
+   orchestrator's Haiku-subagent judge pass → emit per-repo JSON (schema in §6).
 4. `gaps.py` — from scorecard + oracle-diff → typed gaps `{type, tier, id, stage, evidence}`,
    attributed to a constructor stage (scan / detect_target_env / select_roots /
    resolve_closure / reconcile_apt_names / certify / render).
@@ -138,14 +138,17 @@ Reuse existing modules — do not reimplement: `build_dep_graph`, `render_build_
 6. `run_eval.py` — CLI: `python -m scripts.eval.graph_fidelity.run_eval --corpus medlarge15
    [--repos ...] [--seed] [--edge-cases]`. Caches per-repo results keyed by `(repo_sha,
    construction_commit)` so unchanged repos aren't re-executed.
-7. `qualitative_judge.py` — the semantic lens (§1). Given the held-out recipe files + the baseline
-   outcome + OUR graph node set + rendered `setup.sh` + first-pass run stderr / error-class, dispatch
-   a **cheap** model (Haiku, or Sonnet for hard repos) to return structured findings: `{verdict:
-   match|minor_gaps|major_gaps, missing_needs[], spurious[], mis_tiered[], content_errors[],
-   likely_failure_cause, pass_by_luck:bool, confidence}`. Run 2–3 judges and keep the consensus where
-   it matters (adversarial-verify). Reuse the repo's existing LLM client (the one
-   `env_classifier` / `choose_base_image` use). **This is a GRADER — the minimal-LLM rule (§7) binds
-   the graph BUILDER, not the measurement.** Never let its output change the honest `pass_rate`.
+7. `qualitative_judge.py` — the semantic lens (§1), a **pure** helper: `build_judge_prompt(inputs)
+   -> str`, `parse_judge_response(text) -> JudgeResult`, `consensus(results) -> JudgeResult`, plus the
+   `JudgeResult` schema. It does **NOT call any model itself.** The model call is a **Claude Code Haiku
+   subagent dispatched by the orchestrator** (`Agent` tool, `model="haiku"`) — it runs on the Claude
+   Code plan, NOT the metered OpenRouter/OpenAI API, so judging costs **no API credits** (user directive
+   2026-07-02). Inputs (by path): held-out recipe + baseline outcome + OUR graph node set + rendered
+   `setup.sh` + first-pass run error-class. `JudgeResult` = `{verdict: match|minor_gaps|major_gaps,
+   missing_needs[], spurious[], mis_tiered[], content_errors[], likely_failure_cause, pass_by_luck:bool,
+   confidence}`. Dispatch 2–3 Haiku judges per repo and `consensus()` them (adversarial-verify). **This
+   is a GRADER — the minimal-LLM rule (§7) binds the graph BUILDER, not the measurement.** Never let its
+   output change the honest `pass_rate`.
 8. `edge_cases/` — a hand-crafted corpus of tiny synthetic repos, each isolating ONE known-hard gap
    class against a KNOWN-answer oracle, run through the same scorecard grade (graph-vs-oracle +
    install-only container `python -c "import X"`; most have no real test suite). Catalog in
@@ -231,7 +234,8 @@ Per-iteration subagent pipeline (maps to §4 steps) — inputs are passed **by p
 
 | §4 step | Subagent (fresh each time) | Model | Inputs (by path) | Returns to orchestrator (small) |
 |---|---|---|---|---|
-| 1 run eval | eval-runner | Sonnet | runs `run_eval.py`; writes scorecards + `report.md` | `{test_rate, install_rate, top3_clusters:[{stage,type,count,repos}], report_path}` |
+| 1 run eval | eval-runner | Sonnet | runs `run_eval.py`; writes scorecards + judge-inputs + `report.md` | `{test_rate, install_rate, top3_clusters:[{stage,type,count,repos}], report_path}` |
+| 1b judge | qualitative judge (per repo) | **Haiku** | judge-inputs on disk + `build_judge_prompt` | `JudgeResult` per repo, merged into the scorecard (no API credits) |
 | 3–4 diagnose | root-cause researcher (read-only) | Sonnet | `report.md` + the cluster's scorecards + depgraph source | `{stage, invariant, why_class, construction\|render, approach, files, planned_enrichment?, leakage_risk}` (also written to a brief file) |
 | 5 fix (TDD) | implementer | Sonnet | the diagnosis **brief file** + §7 bar | `{status, commit_sha, test_summary, concerns}` (full report → file) |
 | 6 review | reviewer (independent) | Sonnet | `review-package` **diff file** + §4.6/§7 checklist | `{verdict, findings[]}` |
@@ -240,10 +244,14 @@ Per-iteration subagent pipeline (maps to §4 steps) — inputs are passed **by p
 The orchestrator's own footprint per iteration = chosen cluster + one-line diagnosis + commit sha
 + verdict → **one ledger line.** Nothing else.
 
-The eval-runner's scorecard pass invokes BOTH graders per repo: the deterministic `oracle`-diff AND
-the `qualitative_judge` (cheap model). `report.md` presents the honest numbers and the qualitative
-gaps side by side, and the top cluster is picked from BOTH signals — a class the number can't see
-(pass-by-luck, a 90%-right graph failing on one apt name) surfaces through the judge.
+Two graders run per repo. (1) The eval-runner's scorecard (python) does the deterministic `oracle`-diff
+and the container run. (2) The **qualitative judge is a separate orchestrator pass**: a python process
+cannot dispatch a Claude Code agent, so after scorecards land the orchestrator dispatches one **Haiku
+subagent** per repo (`Agent`, `model="haiku"`) over the judge-inputs on disk, parses each reply with
+`qualitative_judge.parse_judge_response`, and merges the `JudgeResult` into the scorecard JSON. Haiku
+judging runs on the Claude Code plan → **no metered API credits.** `report.md` shows the honest numbers
+and the qualitative gaps side by side; the top cluster is picked from BOTH — a class the number can't
+see (pass-by-luck, a 90%-right graph failing on one apt name) surfaces through the judge.
 
 **Context-hygiene rules (the levers):**
 - The orchestrator **never `Read`s** scorecards, logs, pytest output, or full diffs directly — it
@@ -342,7 +350,8 @@ context forgets them.
   qualitative recipe-vs-`setup.sh` judge (§1, §3.7). Report honest numbers AND qualitative gaps
   together; flag pass-by-luck and near-miss-fail. The honest `compute_essr` pass_rate stays the
   headline metric; the judge is diagnostic and drives *what to fix*. LLM-as-judge is measurement —
-  exempt from the minimal-LLM rule, which binds only the graph BUILDER.
+  exempt from the minimal-LLM rule, which binds only the graph BUILDER. The judge runs as **Haiku
+  Claude Code subagents** (`Agent` tool), not the metered API — no credit cost (user directive).
 - **Keep the edge-case corpus green.** The hand-crafted `edge_cases/` (Appendix A) isolate known
   hard gap classes with known answers; every fix must keep them green (regression guard), and a new
   gap class discovered in a real repo gets a new edge case added.
