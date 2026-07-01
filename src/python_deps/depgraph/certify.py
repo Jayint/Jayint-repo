@@ -22,7 +22,10 @@ from python_deps.depgraph.schema import DepGraph, Layer, NodeType, State
 
 # Execution layer priority (design section 6). Runtime joins the walk first: the
 # interpreter minor is the platform floor every later layer assumes.
-_LAYER_ORDER: tuple[Layer, ...] = (
+#
+# Public: also consumed by build_script.py so the rendered artifact's section
+# order never contradicts the order certify actually walks the graph in.
+EXECUTION_LAYER_ORDER: tuple[Layer, ...] = (
     Layer.RUNTIME,
     Layer.INTERPRETER,
     Layer.SYSTEM,
@@ -32,6 +35,7 @@ _LAYER_ORDER: tuple[Layer, ...] = (
     Layer.CONFIG,
     Layer.TESTS,
 )
+_LAYER_ORDER = EXECUTION_LAYER_ORDER  # backwards-compat alias
 
 # Services join the walk LAST (after the server binary/SystemLib is installed);
 # only used on the live in-image path (arm v3). Never used off-arm.

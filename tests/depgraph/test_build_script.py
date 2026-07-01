@@ -3,7 +3,7 @@ import re
 from python_deps.depgraph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
-from python_deps.depgraph.build_script import render_build_script
+from python_deps.depgraph.build_script import render_build_script, _LAYER_ORDER
 from python_deps.depgraph.block import Block, compile_replay_blocks
 from python_deps.depgraph.emit import _is_reciped, _apt_name, _pip_spec
 
@@ -338,3 +338,22 @@ def test_golden_snapshot_byte_for_byte():
         "#     (no command — propose a governed block to satisfy this)\n"
     )
     assert normalized == expected
+
+
+def test_runtime_and_interpreter_precede_pip():
+    # base python (RUNTIME) + interpreter floor must be laid down BEFORE pip installs
+    assert _LAYER_ORDER.index(Layer.RUNTIME) < _LAYER_ORDER.index(Layer.PIP)
+    assert _LAYER_ORDER.index(Layer.INTERPRETER) < _LAYER_ORDER.index(Layer.PIP)
+
+
+def test_config_precedes_tests():
+    # env/config tier must be set up before the test tier runs
+    assert _LAYER_ORDER.index(Layer.CONFIG) < _LAYER_ORDER.index(Layer.TESTS)
+
+
+def test_build_script_order_agrees_with_certify_on_shared_tiers():
+    from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER  # created in Step 3
+
+    positions = [_LAYER_ORDER.index(L) for L in EXECUTION_LAYER_ORDER]
+    assert positions == sorted(positions), (
+        "build_script section order must not contradict certify execution order")

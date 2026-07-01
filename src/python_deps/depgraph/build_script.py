@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from python_deps.depgraph.block import Block
 
+from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER
 from python_deps.depgraph.emit import _is_reciped, _apt_name, topo_order
 from python_deps.depgraph.populate import populate_setup_commands
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
@@ -26,7 +27,12 @@ _BANNER = (
     "# Edit the graph and re-render; this file is an artifact, not a source.",
     "#",
 )
-_LAYER_ORDER: tuple[Layer, ...] = tuple(Layer)  # enum order == rank order
+# Shared with certify's execution-layer walk so the rendered artifact's section
+# order never contradicts host certification order; any Layer not part of the
+# certified walk (e.g. SERVICES) is appended so no section is silently dropped.
+_LAYER_ORDER: tuple[Layer, ...] = EXECUTION_LAYER_ORDER + tuple(
+    L for L in Layer if L not in EXECUTION_LAYER_ORDER
+)
 
 
 def _section_header(layer: Layer) -> str:
