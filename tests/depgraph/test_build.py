@@ -344,3 +344,57 @@ def test_build_invokes_certified_relink_stage(tmp_path):
     assert relink_idx < import_idx
 
 
+# --------------------------------------------------------------------------- #
+# Task 8 — targeted extras: build_dep_graph threads needed_extras into both
+# select_roots and resolve_closure (the seam cluster-1 discovery will source).
+# --------------------------------------------------------------------------- #
+def test_build_dep_graph_threads_needed_extras_into_roots_and_resolve(tmp_path):
+    from unittest.mock import patch
+
+    import python_deps.depgraph.build as build_mod
+
+    ex = _make_executor()
+    calls: dict = {}
+    orig_select_roots = build_mod.select_roots
+    orig_resolve_closure = build_mod.resolve_closure
+
+    def spy_select_roots(repo_path, graph, needed_extras=frozenset()):
+        calls["select_roots_needed_extras"] = needed_extras
+        return orig_select_roots(repo_path, graph, needed_extras=needed_extras)
+
+    def spy_resolve_closure(*args, **kwargs):
+        calls["resolve_closure_extras"] = kwargs.get("extras")
+        return orig_resolve_closure(*args, **kwargs)
+
+    with patch.object(build_mod, "select_roots", side_effect=spy_select_roots), patch.object(
+        build_mod, "resolve_closure", side_effect=spy_resolve_closure
+    ):
+        build_dep_graph(
+            _make_repo(tmp_path), ex, host_executor=ex, needed_extras=frozenset({"test"})
+        )
+
+    assert calls["select_roots_needed_extras"] == frozenset({"test"})
+    assert calls["resolve_closure_extras"] == frozenset({"test"})
+
+
+def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
+    from unittest.mock import patch
+
+    import python_deps.depgraph.build as build_mod
+
+    ex = _make_executor()
+    calls: dict = {}
+    orig_select_roots = build_mod.select_roots
+
+    def spy_select_roots(repo_path, graph, needed_extras=frozenset()):
+        calls["select_roots_needed_extras"] = needed_extras
+        return orig_select_roots(repo_path, graph, needed_extras=needed_extras)
+
+    with patch.object(build_mod, "select_roots", side_effect=spy_select_roots):
+        build_dep_graph(_make_repo(tmp_path), ex, host_executor=ex)
+
+    # No caller override -> the default is runtime-only, NOT a union of every
+    # declared optional-dependencies group.
+    assert calls["select_roots_needed_extras"] == frozenset()
+
+

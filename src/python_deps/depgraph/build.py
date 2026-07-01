@@ -26,6 +26,7 @@ stage returns a NEW immutable graph; this function only ever rebinds ``graph``.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import replace
@@ -63,6 +64,8 @@ from python_deps.depgraph.seed import seed_predicted_native
 from python_deps.depgraph.target_env import detect_target_env
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
+
+logger = logging.getLogger(__name__)
 
 # discovered_cycle stamps, one per discovery stage (design 5.2 example uses 3 for
 # probe-discovered SystemLibs).
@@ -208,6 +211,7 @@ def build_dep_graph(
     target_python: str | None = None,
     target_platform: str | None = None,
     exclude_newer: str | None = None,
+    needed_extras: frozenset[str] = frozenset(),
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -228,6 +232,19 @@ def build_dep_graph(
     the module docstring for the staged pipeline.  Returns the final immutable
     ``DepGraph``; certificates produced here are provisional (scratch-container
     scope) per design section 4.6.
+
+    ``needed_extras`` (Task 8, targeted extras) is the set of
+    ``[project.optional-dependencies]`` / ``extras_require`` group names this
+    build actually needs (e.g. ``{"test"}`` when the goal is running the test
+    suite). It is threaded, unchanged, into both :func:`select_roots` (which
+    gates which optional groups become roots at all — fixing the prior
+    "union every group" bug) and :func:`resolve_closure` (which records the
+    chosen groups' scope in the resolver's temp pyproject). The default is
+    deliberately runtime-only (``frozenset()``), NOT a union of every declared
+    group. **Seam, not policy**: this function does not itself discover which
+    extras a repo's CI/tox/Makefile actually invokes (e.g. `pip install -e
+    .[test]`) — that discovery is separate future enrichment (cluster-1); a
+    caller that already knows the needed groups passes them here.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -236,7 +253,10 @@ def build_dep_graph(
     graph = _restamp(graph, {n.id for n in graph.nodes}, _SCAN_CYCLE)
 
     # Stage 2 — manifest-first, scan-gap-filled, filtered resolver roots.
-    roots = select_roots(repo_path, graph)
+    # needed_extras gates which optional-dependency groups become roots at all
+    # (Task 8) -- logged here since it silently determines closure membership.
+    logger.info("build_dep_graph: needed_extras=%s", sorted(needed_extras))
+    roots = select_roots(repo_path, graph, needed_extras=needed_extras)
 
     # Stage 2a — anchor the resolve cutoff to the project's pinned era (HOST,
     # PyPI). A pinned old root (opencv-python==4.9.0.80) otherwise lets uv pull an
@@ -293,6 +313,7 @@ def build_dep_graph(
         host_executor,
         target_env=target_env,
         exclude_newer=exclude_newer,
+        extras=needed_extras,
     )
     pre_resolve_ids = {n.id for n in graph.nodes}
     for node in pkg_nodes:
