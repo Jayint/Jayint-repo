@@ -15,5 +15,20 @@ Resume from the first unchecked item. Trust this ledger + `git log` over memory.
 - [ ] Seed trusted (harness output hand-verified on the ~8 seed repos)
 - [ ] Expanded to all 15
 
+> Phase-B note: `scorecard.py` / `gaps.py` / `report.py` / `run_eval.py` + seed/expand above are the
+> GRADING harness (Phase B), gated on construction working e2e.
+
+## Phase A — construction e2e (co-owned; user's construction agent + my seed smoke test)
+- [~] Seed construction smoke test (typer + postgres-mcp), construction-only, NO agent — af1675a running; yields construction entrypoints + Docker/LLM integration reqs for scorecard.
+- Construction corpus-wide verification/fixes: **OWNED BY USER'S AGENT** — do NOT duplicate.
+- GATE: construction green e2e → run the Phase-B autonomous sequence below.
+
+## Phase B — autonomous sequence (run once construction is green; user directive 2026-07-02)
+- [ ] 1. Refactor `qualitative_judge.py` → pure helper (drop `complete_with_retry`); model call = orchestrator Haiku subagent.
+- [ ] 2. `scorecard.py` — construction path + oracle-diff + `-slim` container run + `compute_essr` + write judge-inputs (TDD).
+- [ ] 3. `gaps.py` + `report.py` + `run_eval.py` (TDD).
+- [ ] 4. Front-load Haiku holes-preview on seed repos → gap punch-list.
+- [ ] 5. Start measured improve iterations (§4).
+
 ## Improve iterations
 <!-- append one Observation/Why/What/Verification block per iteration -->

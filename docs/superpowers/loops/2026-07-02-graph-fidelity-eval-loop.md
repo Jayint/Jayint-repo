@@ -9,6 +9,23 @@ root-cause gap in the graph, fix the **constructor** (not the repo), re-verify, 
 > is explicitly OUT of scope — we nail graph generation first. Do NOT run or improve
 > `repair_loop.py` here.
 
+> **Current phase — A (construction end-to-end), before any grading iteration (user directive 2026-07-02).**
+> First establish that the construction path (`choose_base_image` → `build_dep_graph` (repair OFF) →
+> `render_build_script`) runs end-to-end and emits a sane graph + `setup.sh` for **every** corpus repo.
+> In this phase: **NO build agent, NO `setup.sh` execution, NO fidelity grading.** A construction crash /
+> empty-graph / integration break IS the fix target — root-caused and fixed paper-clean (§7), one class
+> per commit. Only when construction is reliable across the corpus do we advance to Phase B (the
+> grading / improve iterations in §4). The eval harness already built (oracle / qualitative_judge /
+> edge_cases / baseline_labels) is **Phase-B machinery** — leave it in place, do not run its
+> execution / grading path yet.
+>
+> **Trigger to advance:** once construction is confirmed e2e (the user's construction agent + the seed
+> smoke test), proceed AUTONOMOUSLY through the Phase-B sequence — (1) refactor `qualitative_judge` to
+> the pure helper (drop the API transport); (2) `scorecard.py` (construction path + oracle-diff + `-slim`
+> container run + `compute_essr` + write judge-inputs); (3) `gaps.py` + `report.py` + `run_eval.py`;
+> (4) front-load the Haiku holes-preview on the seed repos; (5) start the measured improve iterations (§4).
+> Do NOT launch a parallel corpus-wide construction sweep — the user's agent owns construction fixes.
+
 ---
 
 ## 0. Resume first (durable progress)
