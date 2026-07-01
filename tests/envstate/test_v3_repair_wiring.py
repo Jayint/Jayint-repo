@@ -1,6 +1,13 @@
-"""Test that a failed block_emit triggers run_structured_repair in the v3 path.
+"""Test that a fresh-replay install failure triggers run_structured_repair in the v3 path.
 
-Mirrors the harness in tests/test_v3_block_emit_wiring.py.
+Phase 4 (fresh-replay-only run_v3): the emit under test is the ONLY executor
+(orchestrator._binding_emit — render whole graph -> reset_to_base ->
+run_install_script -> certify_reciped_only), not block_emit (removed from
+run_v3's _dep_emit_phase). Harness fake style originally mirrored
+tests/test_v3_block_emit_wiring.py (removed in Phase 9 — it existed solely
+to pin the now-deleted enable_script_materialization/enable_binding_install
+deprecation-raise), but exercises reset_to_base/run_install_script instead of
+monkeypatching block_emit.
 """
 import sys
 from pathlib import Path
@@ -11,20 +18,20 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.envstate.block_emit as be
 import src.envstate.orchestrator as orch
 from src.envstate import orchestrator
 from src.envstate.ledger import ActionLedger
 from src.envstate.repair_loop import RepairOutcome
 from src.envstate.world_model import TaskReport, initial_map, merge_map
-from python_deps.depgraph.evidence_log import EvidenceBundle
+from src.sandbox import InstallResult
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 
 
 # ---------------------------------------------------------------------------
-# Fakes (mirrored from test_v3_block_emit_wiring.py with .client added)
+# Fakes (originally mirrored from the now-removed test_v3_block_emit_wiring.py,
+# with .client added)
 # ---------------------------------------------------------------------------
 
 class _FakeClient:
@@ -56,7 +63,8 @@ class _NoopMaintainer:
 
 
 def _syslib_map():
-    """A WorldModelMap with one MISSING SystemLib (same as in test_v3_block_emit_wiring)."""
+    """A WorldModelMap with one MISSING SystemLib (same fixture shape as the
+    now-removed test_v3_block_emit_wiring.py used)."""
     node = Node(
         id="syslib:libpq.so",
         type=NodeType.SYSTEM_LIB,
@@ -78,15 +86,30 @@ def _syslib_map():
 
 
 def _build_inputs():
-    """Construct all-callable fakes for run_v3."""
+    """Construct all-callable fakes for run_v3.
+
+    exec_readonly always reports the check_command as failing (rc=1), so the
+    node stays MISSING through both certify_refresh AND certify_reciped_only
+    (inside _binding_emit) regardless of the install outcome — this is what
+    makes _binding_emit return a non-None failed_node and trigger the repair
+    guard. run_install_script reports a clean (rc=0) install: the node is
+    "unsatisfied after an ostensibly successful install", the scenario
+    run_structured_repair exists to resolve.
+    """
     led = ActionLedger()
 
     def sandbox(cmd):
         return (True, "ok")
 
     def ro(cmd):
-        # Node stays MISSING through certify_refresh so block_emit is called.
+        # Node stays MISSING through certify_refresh AND certify_reciped_only.
         return (1, "")
+
+    def reset_to_base():
+        pass
+
+    def run_install_script(script):
+        return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
 
     return dict(
         build_agent=_RecordingBuildAgent(),
@@ -97,6 +120,8 @@ def _build_inputs():
         max_cycles=1,
         exec_readonly=ro,
         enable_dep_emit=True,
+        reset_to_base=reset_to_base,
+        run_install_script=run_install_script,
     )
 
 
@@ -104,22 +129,12 @@ def _build_inputs():
 # Test
 # ---------------------------------------------------------------------------
 
-def test_failed_block_invokes_structured_repair(monkeypatch):
-    """When block_emit returns a non-None failed_id and build_agent.client is
-    not None, run_structured_repair must be called at least once.
-
-    Confirm RED before wiring: with Slice-A code the stub is never called
-    because the failed block is discarded.  After wiring (Slice B Task 10)
-    the test turns GREEN.
+def test_failed_install_invokes_structured_repair(monkeypatch):
+    """When the fresh-replay emit certifies a node as still unsatisfied after
+    install and build_agent.client is not None, run_structured_repair must be
+    called at least once.
     """
     calls = {"repair": 0}
-
-    # --- mock block_emit: always return a failed block id -------------------
-    def _fake_block_emit(graph, sandbox_execute, exec_readonly, ledger, cycle,
-                         *, manual_blocks=()):
-        return (graph, EvidenceBundle(), "system.libpq.so")
-
-    monkeypatch.setattr(be, "block_emit", _fake_block_emit)
 
     # --- mock run_structured_repair: record the call and return success -----
     def _fake_repair(graph, failed_id, bundle, cycle, **kwargs):
@@ -137,10 +152,10 @@ def test_failed_block_invokes_structured_repair(monkeypatch):
 
     # --- run -------------------------------------------------------------------
     inputs = _build_inputs()
-    orchestrator.run_v3(**inputs, enable_script_materialization=True)
+    orchestrator.run_v3(**inputs)
 
     # --- assert ----------------------------------------------------------------
     assert calls["repair"] >= 1, (
-        "run_structured_repair was never called; "
-        "failed block is still being discarded (wiring not yet applied)"
+        "run_structured_repair was never called; a node still unsatisfied "
+        "after the fresh-replay install should trigger typed repair"
     )

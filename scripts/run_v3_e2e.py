@@ -2,17 +2,22 @@
 
 This is the whole story in one driver:
 
-  1. BELIEF      build the dependency graph (static evidence + a bounded LLM
+  1. SELECT      pick (or honor an explicit) base image, pin it to the repo's
+                 ``requires-python``, and normalize to a ``-slim`` variant —
+                 one decision feeds the sandbox boot AND the dep-graph build.
+  2. BELIEF      build the dependency graph (static evidence + a bounded LLM
                  classifier that proposes typed Config/Service/DataAsset nodes).
-  2. PROJECTION  the graph is materialized into ONE install-only setup.sh.
-  3. INNER LOOP  run_v3 executes the script block-by-block, the host certifies
+  3. PROJECTION  the graph is materialized into ONE install-only setup.sh.
+  4. INNER LOOP  run_v3 executes the script block-by-block, the host certifies
                  each node, and on a failed block the V3BuildAgent proposes ONE
                  typed PatchProposal (gated by PatchGate, bounded by repair_loop).
-  4. INSTALL GATE  enable_binding_install resets the container to a clean base,
-                 runs the whole rendered setup.sh, and certifies reciped nodes
-                 (the fresh-replay installability proof).
-  5. TEST GATE   the done-gate runs real pytest; observability reports both gates.
-  6. ARTIFACT    the final certified graph is rendered to setup.sh.
+  5. INSTALL GATE  every cycle resets the container to a clean base and
+                 replays the whole rendered setup.sh (Model B — run_v3's sole
+                 executor, unconditional); the LATEST cycle's replay result is
+                 the binding installability proof (no separate terminal-replay
+                 step — see ``src.envstate.gates.evaluate_installability_gate``).
+  6. TEST GATE   the done-gate runs real pytest; observability reports both gates.
+  7. ARTIFACT    the final certified graph is rendered to setup.sh.
 
 The agent has proposal power only: every path to a certified node runs through
 PatchGate -> rendered block -> host execution -> deterministic host check.
@@ -23,15 +28,21 @@ NOT run in CI — requires Docker + a real LLM API key
 Usage:
   python scripts/run_v3_e2e.py <repo_path> [--model <slug>]
          [--base-image auto|python:3.11-slim] [--out setup.sh]
-         [--no-binding-install]   # ablate the fresh-replay install gate
+         [--trace-out trace.json]
 
   --base-image defaults to "auto" (LLM-selected, then pinned to
   requires-python and normalized to a -slim variant); pass an explicit
   tag (e.g. python:3.11-slim) to override verbatim.
+
+  --trace-out, if given, builds a RunTracer, threads it through run_v3, and
+  on exit writes the run's RunTrace JSON plus prints the
+  verify_canonical_trace / verify_artifact_consistency / local-import-guard
+  results. Omitted -> no tracer is built and behavior is unchanged.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -56,24 +67,38 @@ from src.envstate.manifest import parse_manifests
 from src.envstate.llm_response import complete_with_retry
 from src.envstate.env_classifier import make_construction_classifier
 from src.envstate.base_image_selection import choose_base_image
+from src.envstate.run_trace import RunTracer
+from src.envstate.proof import finalize_trace
 from python_deps.depgraph.advise import build_advisory_for_repo
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.schema import State
 
 
-def _parse_args(argv):
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Pure argparse construction. All of this module's non-stdlib imports
+    happen at module import time above (needed so tests can monkeypatch
+    ``choose_base_image``/``Sandbox``/``run_v3``/etc. on the module), but none
+    of them talk to Docker or an LLM API to *import* — only to *use* — so
+    building/parsing against this parser stays safe in a test process with no
+    Docker or LLM key (Task 8d smoke test: parses ``--trace-out`` without
+    exercising the Docker/LLM path).
+    """
     ap = argparse.ArgumentParser(description="v3 (GSM) environment builder — end to end.")
     ap.add_argument("repo", help="Path to the target repository")
     ap.add_argument("--model", default=None, help="LLM model slug")
-    ap.add_argument("--base-image", default="auto", dest="base_image")
+    ap.add_argument(
+        "--base-image", default="auto", dest="base_image",
+        help='"auto" (default) selects + pins a base image via the LLM '
+             "selector; pass an explicit tag (e.g. python:3.11-slim) to "
+             "override verbatim.",
+    )
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
     ap.add_argument(
-        "--no-binding-install",
-        action="store_false",
-        dest="binding_install",
-        help="Ablate the fresh-replay installability gate (inner loop only).",
+        "--trace-out", default=None, dest="trace_out",
+        help="Where to write the run's RunTrace JSON (Task 8 proof harness). "
+             "Omitted -> no tracer is built and behavior is unchanged.",
     )
-    return ap.parse_args(argv)
+    return ap
 
 
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
@@ -124,10 +149,15 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         repo_layout=(), dep_graph=graph,
     )
 
-    # ── 3-5. Real container + the v3 loop ────────────────────────────────────
+    # ── 3-6. Real container + the v3 loop ────────────────────────────────────
     sandbox = Sandbox(base_image=base_image, workdir="/app",
                        platform=choice.platform_override, seed_dir=args.repo)
     gates_seen: list = []
+    # Task 8d: only built when --trace-out is given — RunTracer only OBSERVES
+    # (see run_trace.py's module docstring), so passing tracer=None (the
+    # run_v3 default) when --trace-out is omitted keeps this driver's
+    # behavior byte-identical to before Task 8d.
+    tracer = RunTracer(repo=args.repo) if args.trace_out else None
     try:
         final_map, stop = run_v3(
             V3BuildAgent(client, model),
@@ -138,12 +168,12 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
             probe=lambda: probe_env(sandbox.exec_readonly),
             manifest=manifest,
             exec_readonly=sandbox.exec_readonly,
-            enable_script_materialization=True,        # v3: graph -> setup.sh, host-certified
-            enable_binding_install=args.binding_install,  # fresh-replay installability gate
             reset_to_base=sandbox.reset_to_base,
             run_install_script=sandbox.run_install_script,
             enable_gate_observability=True,            # report both maturity gates on exit
             gate_observer=gates_seen.append,
+            repo_path=args.repo,                       # seeds the diagnosis router's RepoContext
+            tracer=tracer,
         )
     finally:
         try:
@@ -153,13 +183,15 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         except Exception:
             pass
 
-    # ── 6. ARTIFACT + report ─────────────────────────────────────────────────
+    # ── 7. ARTIFACT + report ─────────────────────────────────────────────────
     dep_graph = getattr(final_map, "dep_graph", None)
     unresolved = ([n.id for n in dep_graph.nodes if n.state is State.MISSING]
                   if dep_graph is not None else [])
+    script_text = ""
     if dep_graph is not None:
+        script_text = render_build_script(dep_graph, getattr(final_map, "manual_blocks", ()))
         with open(args.out, "w") as fh:
-            fh.write(render_build_script(dep_graph))
+            fh.write(script_text)
         print(f"[v3] wrote certified setup.sh -> {args.out}")
 
     if gates_seen:
@@ -168,11 +200,24 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     print(f"stop_reason={stop} unresolved={unresolved}")
     ok = stop in ("done", "done_flag", "planner_done") and not unresolved
     print("V3 E2E:", "PASS" if ok else "FAIL")
+
+    # ── Task 8d: emit the RunTrace + verify report (ADDITIVE — the PASS/FAIL
+    # logic above is unchanged; this only fires when --trace-out was given,
+    # since `tracer` is None otherwise and there is nothing to snapshot).
+    if tracer is not None:
+        trace, report = finalize_trace(tracer, stop, gates_seen, script_text)
+        with open(args.trace_out, "w") as fh:
+            json.dump(trace.to_dict(), fh, indent=2)
+        print(f"[v3] wrote run trace -> {args.trace_out}")
+        for key in ("canonical", "artifact", "local_import"):
+            errs = report[key]
+            print(f"[v3] verify_{key}: {'CLEAN' if not errs else errs}")
+
     return 0 if ok else 1
 
 
 def main_with_args(argv) -> int:
-    args = _parse_args(argv)
+    args = _build_arg_parser().parse_args(argv)
     return _run(args)
 
 

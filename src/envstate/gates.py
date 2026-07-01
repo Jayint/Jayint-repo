@@ -1,6 +1,10 @@
-"""Two-gate observability (Stage 1): derive the maturity gates as named results.
+"""Two-gate observability (Stage 1+7): derive the maturity gates as named results.
 
-installability (= ebsr)  — provisional, derived from the graph's installable partition.
+installability (= ebsr) — BINDING when a real per-cycle replay result is
+    available (Model B: run_v3's sole executor is fresh full-script replay
+    every cycle, so the canonical path always has one — see orchestrator.py's
+    ``_last_replay_result``). Falls back to the provisional graph-frontier
+    heuristic only when no replay is supplied (the ``block_emit`` ablation).
 testability   (= pass_rate) — binding, wraps the existing host-verified test run.
 
 Pure / read-only: nothing is written back to the graph. Gate state is DERIVED,
@@ -11,10 +15,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from python_deps.depgraph.emit import partition
 from python_deps.depgraph.schema import DepGraph
 from src.envstate.constants import VERIFY_TEST_CMD
+
+if TYPE_CHECKING:
+    from src.sandbox import InstallResult
 
 _EVIDENCE_CAP = 500
 
@@ -49,15 +57,35 @@ def evaluate_testability_gate(run_tests_verified: Callable[[], bool]) -> GateRes
     )
 
 
-def evaluate_installability_gate(graph: "DepGraph | None") -> GateResult:
-    """Provisional installability (= ebsr) derived from the graph's installable partition.
+def evaluate_installability_gate(
+    graph: "DepGraph | None",
+    replay: "InstallResult | None" = None,
+) -> GateResult:
+    """Installability (= ebsr) gate.
 
-    Passed ⇔ nothing emittable AND nothing stuck in the installable frontier
-    (every installable node is SATISFIED). PROVISIONAL: the binding ebsr is a
-    fresh-from-base replay of the rendered setup.sh (later stage); a live, already-
-    populated container makes a full-script run hollow (installs are no-ops, so
-    ordering bugs hide). Read-only: never written back to the graph.
+    BINDING path (``replay is not None``): under Model B, ``run_v3``'s sole
+    executor is a fresh full-script replay from base every cycle — there is no
+    separate terminal-replay step, so the latest cycle's ``InstallResult`` IS
+    the installability proof. ``passed`` is exactly ``replay.rc == 0``.
+
+    PROVISIONAL fallback (``replay is None``): derived from the graph's
+    installable partition — passed ⇔ nothing emittable AND nothing stuck in
+    the installable frontier (every installable node is SATISFIED). Used only
+    by the ``block_emit`` ablation, which has no per-cycle replay to bind to.
+    Read-only in both paths: never written back to the graph.
     """
+    if replay is not None:
+        if replay.rc == 0:
+            evidence = "fresh replay rc=0"
+        else:
+            evidence = f"fresh replay failed: {replay.failing_command}"
+        return GateResult(
+            name="installability",
+            passed=(replay.rc == 0),
+            command="fresh-from-base setup.sh replay",
+            provisional=False,
+            evidence=evidence[:_EVIDENCE_CAP],
+        )
     if graph is None:
         return GateResult(
             name="installability",
@@ -85,9 +113,16 @@ def evaluate_installability_gate(graph: "DepGraph | None") -> GateResult:
 def evaluate_gates(
     graph: "DepGraph | None",
     run_tests_verified: Callable[[], bool],
+    replay: "InstallResult | None" = None,
 ) -> tuple[GateResult, GateResult]:
-    """The two gates in ladder order: (installability, testability)."""
+    """The two gates in ladder order: (installability, testability).
+
+    ``replay`` threads the orchestrator's latest per-cycle replay result
+    (``run_v3``'s ``_last_replay_result``) into the installability gate so it
+    is binding on the canonical path. ``None`` only on the ``block_emit``
+    ablation, which falls back to the provisional graph-frontier heuristic.
+    """
     return (
-        evaluate_installability_gate(graph),
+        evaluate_installability_gate(graph, replay=replay),
         evaluate_testability_gate(run_tests_verified),
     )

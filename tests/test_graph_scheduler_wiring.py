@@ -1,11 +1,18 @@
 """Wiring test: verify the graph scheduler gates run_v1's decision.
 
 Uses synthetic planner/build_agent/maintainer stubs (no Docker/LLM). Confirms:
-  - flag OFF -> planner.decide drives the cycle (byte-identical to today)
-  - flag ON  -> the scheduler drives; planner.decide is never called; the
-    build_agent receives a graph-derived task with a host `check`
-  - flag ON  -> the deterministic emit_drain is suppressed; flag OFF runs it
-  - flag ON  -> a sufficiency-stuck run gives up (does not run to max_cycles)
+  - run_v1  -> planner.decide drives the cycle (byte-identical to today)
+  - run_v3  -> the scheduler drives; planner.decide is never called (run_v3
+    has no planner param at all); a targeted obligation task with no
+    build_agent.client gives up honestly (GIVEUP_CONFIG) rather than
+    silently falling back to build_agent.run — Task 5a removed run_v3's
+    free-text fallback entirely (see tests/envstate/test_v3_task_branch.py
+    for the full 3-way-dispatch coverage)
+  - run_v1  -> the deterministic emit_drain runs as a prefix (Phase 4: run_v3
+    has no emit_drain branch at all — it has exactly one executor, fresh
+    full-script replay; Phase 9 removed the vestigial deprecation-raise
+    flags/tests that used to pin this)
+  - run_v3  -> a sufficiency-stuck run gives up (does not run to max_cycles)
 """
 from __future__ import annotations
 
@@ -29,9 +36,22 @@ from src.envstate.world_model import (
     initial_map,
     merge_map,
 )
+from src.sandbox import InstallResult
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
+
+
+# run_v3 is fresh-replay-only (Phase 4): reset_to_base/run_install_script are
+# mandatory. These fixtures build no-op fakes so tests unrelated to the
+# install-executor mechanics don't need a real sandbox — the run_v3 fakes in
+# this file target the graph-scheduler decision loop, not the emit executor.
+def _noop_reset_to_base():
+    pass
+
+
+def _noop_run_install_script(script):
+    return InstallResult(rc=0, failing_command=None, lineno=None, stderr="")
 
 
 # ── Stubs ────────────────────────────────────────────────────────────────────
@@ -138,11 +158,21 @@ def test_flag_off_planner_drives():
     assert stop == "planner_done"
 
 
-# ── 2. flag ON: scheduler drives, planner untouched ──────────────────────────
+# ── 2. flag ON: scheduler drives, no free-text fallback ──────────────────────
+#
+# Historically this test asserted that a targeted obligation task with no
+# build_agent.client fell back to build_agent.run (free-text path) — the old
+# run_v3 dispatch condition silently downgraded when `.client` was absent.
+# Task 5a (orchestrator.py task-dispatch consolidation) removed that fallback
+# entirely: run_v3 now has ZERO free-text mutation. A target-bearing task
+# with no client (or no exec_readonly) gives up honestly via GIVEUP_CONFIG
+# instead. build_agent.run is asserted NEVER called — this is the correct
+# updated pin for "scheduler drives" (there is no planner param on run_v3 to
+# begin with, so "planner untouched" was always structurally guaranteed).
 
-def test_flag_on_scheduler_drives_planner_untouched():
+def test_flag_on_scheduler_gives_up_without_client():
     build_agent = _RecordingBuildAgent()
-    run_v3(
+    final_map, stop = run_v3(
         build_agent=build_agent,
         maintainer=_NoopMaintainer(),
         initial_world_map=_missing_node_map(),
@@ -151,27 +181,36 @@ def test_flag_on_scheduler_drives_planner_untouched():
         max_cycles=1,
         exec_readonly=lambda cmd: (1, "missing"),   # keep node MISSING -> frontier non-empty
         enable_dep_emit=True,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
-    assert build_agent.tasks, "build_agent.run must be invoked with the frontier task"
-    task = build_agent.tasks[0]
-    assert task.target_node_ids == ("pkg:requests",)
-    assert build_agent.checks[0] == task.done_when
+    assert stop == "planner_giveup", (
+        f"targeted obligation task with no build_agent.client must give up "
+        f"honestly (GIVEUP_CONFIG), got {stop!r}"
+    )
+    assert build_agent.tasks == [], (
+        "build_agent.run must never be called from run_v3 (Task 5a removed the "
+        "free-text fallback entirely)"
+    )
 
 
-# ── 3. drain runs as deterministic prefix under the flag (emit-prefix decision) ─
+# ── 3. v1's deterministic drain runs as a prefix (unchanged) ────────────────
 #
 # Spec: docs/superpowers/specs/2026-06-26-unified-executor-loop-delta.md §0
 #
-# INVERTED from the old "drain suppressed under scheduler" test.  emit_drain now
-# runs as a deterministic prefix regardless of enable_graph_scheduler so the LLM
-# only ever sees the irreducible non-emittable residual.  This reverses the
-# original "no deterministic tier under the scheduler" decision — intentional.
+# Phase 4 (fresh-replay-only run_v3): the "emit_drain under the flag" half of
+# this test is gone — run_v3 has exactly one executor (fresh full-script
+# replay) and never had an emit_drain branch. Phase 9 removed the vestigial
+# enable_script_materialization/enable_binding_install deprecation-raise
+# flags (and tests/test_v3_block_emit_wiring.py, which existed solely to pin
+# that raise) entirely. Only the v1 half survives, renamed to make the split
+# explicit.
 
-def test_drain_runs_under_flag_as_prefix(monkeypatch):
-    """emit_drain MUST run under the graph scheduler (emit-prefix path).
+def test_v1_drain_runs_as_prefix(monkeypatch):
+    """emit_drain MUST run under run_v1's dep_emit phase (emit-prefix path).
 
     Rationale: the batch drain handles all reciped/emittable nodes deterministically
-    before the scheduler's LLM turn; the LLM only receives the non-emittable residual.
+    before the LLM turn; the LLM only receives the non-emittable residual.
     See emit-prefix-plan.md Edit A and spec §0.
     """
     calls = {"n": 0}
@@ -184,23 +223,6 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
 
     monkeypatch.setattr(live, "emit_drain", _spy)
 
-    # V3 arm (scheduler): drain MUST run (emit-prefix decision).
-    # B5 default flips run_v3 to block_emit; pin the emit_drain (B3) path under test.
-    run_v3(
-        build_agent=_RecordingBuildAgent(),
-        maintainer=_NoopMaintainer(),
-        initial_world_map=_missing_node_map(),
-        ledger=ActionLedger(),
-        sandbox_execute=_sandbox_ok,
-        max_cycles=1,
-        exec_readonly=lambda cmd: (1, "missing"),
-        enable_dep_emit=True,
-        enable_script_materialization=False,
-    )
-    assert calls["n"] >= 1, "emit_drain MUST run in run_v3 (emit-prefix)"
-
-    # Contrast: V1 arm (dep_emit on) also runs the drain — unchanged.
-    before = calls["n"]
     run_v1(
         planner=_QueuePlanner([PlannerDecision(action="done")]),
         build_agent=_RecordingBuildAgent(),
@@ -212,7 +234,7 @@ def test_drain_runs_under_flag_as_prefix(monkeypatch):
         exec_readonly=lambda cmd: (1, "missing"),
         enable_dep_emit=True,
     )
-    assert calls["n"] > before, "emit_drain MUST run with dep_emit on in run_v1"
+    assert calls["n"] >= 1, "emit_drain MUST run with dep_emit on in run_v1"
 
 
 # ── 4. stuck -> giveup ───────────────────────────────────────────────────────
@@ -227,6 +249,8 @@ def test_stuck_yields_giveup_before_max_cycles():
         max_cycles=4,
         exec_readonly=lambda cmd: (1, ""),     # certify reveals nothing new
         enable_dep_emit=True,
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
     assert stop == "planner_giveup", f"expected stuck->giveup, got {stop!r}"
 
@@ -251,6 +275,8 @@ def test_stuck_path_fires_on_cycle_callback():
         exec_readonly=lambda cmd: (1, ""),
         enable_dep_emit=True,
         on_cycle=lambda *a: calls.append(a),
+        reset_to_base=_noop_reset_to_base,
+        run_install_script=_noop_run_install_script,
     )
     assert stop == "planner_giveup"
     assert calls, "on_cycle must be called on the GIVEUP_STUCK path"
