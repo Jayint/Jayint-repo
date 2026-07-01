@@ -26,14 +26,19 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import TYPE_CHECKING
 
 from python_deps.depgraph.naming import package_roots
+from python_deps.depgraph.resolve_lock import _marker_applies
 from python_deps.depgraph.schema import DepGraph
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import (
     normalize_package_name,
     top_level_import_name,
 )
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, avoids any import-order risk
+    from python_deps.depgraph.target_env import TargetEnv
 
 # Python-2 modules that survive a py3 static scan as "external" (they are neither
 # py3 stdlib nor project-local) but are NOT installable PyPI distributions.
@@ -141,10 +146,48 @@ def _is_non_distribution(import_name: str) -> bool:
     return False
 
 
+def _env_marker_excludes(req, target_env: "TargetEnv | None") -> bool:
+    """True only when we are CONFIDENT ``req`` must not be a root for the target.
+
+    Conservative-skip rule (review "no silent shrink" constraint): a dep is
+    excluded ONLY when ALL of the following hold —
+
+    * a real ``target_env`` was given (no target -> nothing is filterable),
+    * the requirement HAS a marker at all,
+    * the marker does NOT reference ``extra`` — ``extra == "..."`` markers
+      gate optional-dependency GROUPS, which are already handled by the
+      ``needed_extras`` mechanism above; this function must never re-judge
+      them, or it would silently drop an extra's dep for a reason unrelated
+      to environment (the exact silent-shrink this review flags against), and
+    * the marker EVALUATES to False against ``target_env.marker_env()``.
+
+    Every other case — no target_env, no marker, an extra-referencing marker,
+    a True evaluation, or any evaluation error (``_marker_applies`` returns
+    ``None`` on ``packaging`` absence or a malformed marker) — KEEPS the dep.
+    Keeping on uncertainty is the point: an over-eager filter here would
+    silently shrink the closure fed to ``uv``, which is worse than resolving
+    one extra unneeded root.
+    """
+    if target_env is None:
+        return False
+    marker = getattr(req, "marker", "") or ""
+    if not marker:
+        return False
+    if "extra" in marker:
+        return False
+    try:
+        verdict = _marker_applies(marker, target_env.marker_env())
+    except Exception:
+        return False
+    return verdict is False
+
+
 def select_roots(
     repo_path: str,
     graph: DepGraph,
     needed_extras: frozenset[str] = frozenset(),
+    *,
+    target_env: "TargetEnv | None" = None,
 ) -> list[tuple[str | None, str]]:
     """Return ``(import_id | None, distribution_name)`` resolver roots.
 
@@ -164,6 +207,13 @@ def select_roots(
     ``build.py`` for the seam that would eventually source this set from
     discovered CI/tox/Makefile ``pip install -e .[...]`` invocations
     (cluster-1 enrichment, not this task).
+
+    ``target_env`` (Task 8 review fix), when given, additionally drops a
+    manifest dependency whose PEP 508 environment marker evaluates False for
+    the TARGET (e.g. ``foo ; sys_platform == 'win32'`` on a Linux target) —
+    see :func:`_env_marker_excludes` for the conservative "keep unless
+    certain" rule. Default ``None`` preserves the pre-Task-8-review behavior
+    for every existing caller (``advise.py`` and current tests).
     """
     evidence = collect_python_dependency_evidence(repo_path)
     declared_names = {req.name for req in evidence.declared_dependencies}
@@ -176,6 +226,8 @@ def select_roots(
         if getattr(req, "kind", "dependency") == "optional_dependency":
             if _requirement_group(req.source) not in needed_extras:
                 continue
+        if _env_marker_excludes(req, target_env):
+            continue
         normalized = normalize_package_name(req.name)
         if normalized in seen:
             continue

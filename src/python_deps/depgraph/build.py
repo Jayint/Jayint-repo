@@ -252,28 +252,18 @@ def build_dep_graph(
     graph = scan_to_nodes(repo_path)
     graph = _restamp(graph, {n.id for n in graph.nodes}, _SCAN_CYCLE)
 
-    # Stage 2 — manifest-first, scan-gap-filled, filtered resolver roots.
-    # needed_extras gates which optional-dependency groups become roots at all
-    # (Task 8) -- logged here since it silently determines closure membership.
-    logger.info("build_dep_graph: needed_extras=%s", sorted(needed_extras))
-    roots = select_roots(repo_path, graph, needed_extras=needed_extras)
-
-    # Stage 2a — anchor the resolve cutoff to the project's pinned era (HOST,
-    # PyPI). A pinned old root (opencv-python==4.9.0.80) otherwise lets uv pull an
-    # ABI-incompatible latest transitive dep (numpy 2.x); resolving as-of the pin
-    # era keeps the closure compatible. Unset/unpinned -> None -> resolve latest.
-    if exclude_newer is None:
-        exclude_newer = compute_exclude_newer(roots)
-
-    # Stage 3 — HOST-side uv resolve, targeted at the container. ONE detected
+    # Stage 1.5 — detect the TARGET container's env (Task 7) BEFORE root
+    # selection (moved ahead of Stage 2, review fix: Stage 2's environment-
+    # marker filter needs a real TargetEnv to evaluate against). ONE detected
     # TargetEnv replaces the previous two independent probes; explicit
     # target_python/target_platform (if given) patch the detected env rather
     # than skipping detection, so every other target-honest field (used by
-    # marker evaluation in resolve_lock.py) still reflects the real container.
-    # The resulting `target_env` OBJECT (never decomposed into separate
-    # strings) is what gets passed to resolve_closure below, so its RAW
-    # `platform_machine` (e.g. a container reporting "arm64") reaches PEP 508
-    # marker evaluation instead of being lost to a normalized wheel-tag split.
+    # marker evaluation in resolve_lock.py and roots.py) still reflects the
+    # real container. The resulting `target_env` OBJECT (never decomposed into
+    # separate strings) is what gets passed to select_roots below and
+    # resolve_closure further down, so its RAW `platform_machine` (e.g. a
+    # container reporting "arm64") reaches PEP 508 marker evaluation instead
+    # of being lost to a normalized wheel-tag split.
     target_env = detect_target_env(container_executor)
     if target_python:
         target_env = replace(
@@ -288,6 +278,26 @@ def build_dep_graph(
             python_platform_tag=target_platform,
         )
     target_python = target_env.python_version
+
+    # Stage 2 — manifest-first, scan-gap-filled, filtered resolver roots.
+    # needed_extras gates which optional-dependency groups become roots at all
+    # (Task 8) -- logged here since it silently determines closure membership.
+    # target_env (Task 8 review fix) additionally drops a manifest dep whose
+    # PEP 508 environment marker evaluates False for the TARGET (e.g. `foo ;
+    # sys_platform == 'win32'` on a Linux target); see
+    # roots._env_marker_excludes for the conservative keep-unless-certain rule
+    # (extra-gated markers are left untouched -- that's needed_extras' job).
+    logger.info("build_dep_graph: needed_extras=%s", sorted(needed_extras))
+    roots = select_roots(
+        repo_path, graph, needed_extras=needed_extras, target_env=target_env
+    )
+
+    # Stage 2a — anchor the resolve cutoff to the project's pinned era (HOST,
+    # PyPI). A pinned old root (opencv-python==4.9.0.80) otherwise lets uv pull an
+    # ABI-incompatible latest transitive dep (numpy 2.x); resolving as-of the pin
+    # era keeps the closure compatible. Unset/unpinned -> None -> resolve latest.
+    if exclude_newer is None:
+        exclude_newer = compute_exclude_newer(roots)
 
     # Runtime-tier obligation: the container must run the targeted python minor.
     # Certified later by a host check (rc 0 iff sys.version_info matches); discovery

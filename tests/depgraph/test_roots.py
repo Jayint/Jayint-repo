@@ -7,6 +7,7 @@ from pathlib import Path
 
 from python_deps.depgraph.roots import select_roots
 from python_deps.depgraph.scan import scan_to_nodes
+from python_deps.depgraph.target_env import TargetEnv
 
 
 def _write(repo: Path, rel: str, body: str) -> None:
@@ -267,3 +268,106 @@ def test_per_dep_extra_specifier_is_preserved(tmp_path):
     names = {tok for _imp, tok in roots}
     assert any("uvicorn[standard]" in t for t in names)   # extra NOT stripped
     assert not any(t == "uvicorn" for t in names)          # not silently bare
+
+
+# --------------------------------------------------------------------------- #
+# Task 8 review fix — target_env-conditioned environment-marker filtering.
+#
+# CRITICAL: "no silent shrink" — a marker'd dep must be dropped ONLY when a
+# target_env is present, the marker has no `extra` reference, and it evaluates
+# False for that target. Every other case (no target_env, no marker, an
+# extra-gated marker, a True evaluation) must KEEP the dep.
+# --------------------------------------------------------------------------- #
+_LINUX_TARGET_ENV = TargetEnv(
+    python_full="3.11.0",
+    python_version="3.11",
+    platform_machine="x86_64",
+    sys_platform="linux",
+    os_name="posix",
+    platform_system="Linux",
+    python_platform_tag="x86_64-manylinux_2_28",
+)
+
+
+def _fixture_repo_with_marker_dep(tmp_path: Path, marker: str) -> Path:
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        f"""
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["foo ; {marker}"]
+        """,
+    )
+    _write(repo, "proj/app.py", "")
+    return repo
+
+
+def test_env_marker_false_dep_skipped_for_target(tmp_path):
+    repo = _fixture_repo_with_marker_dep(tmp_path, "sys_platform == 'win32'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" not in dists
+
+
+def test_env_marker_true_dep_kept_for_target(tmp_path):
+    repo = _fixture_repo_with_marker_dep(tmp_path, "sys_platform == 'linux'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_extra_marker_dep_not_dropped_by_env_filter(tmp_path):
+    # An extra-gated marker must NEVER be judged by the env filter — that is
+    # needed_extras' job. Even with a target_env given (and no needed_extras
+    # requested), the env filter itself must not be the reason it's dropped;
+    # to isolate that, request the "x" extra so the ONLY question left is
+    # whether the env filter wrongly re-excludes it.
+    repo = _fixture_repo_with_marker_dep(tmp_path, "extra == 'x'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(
+        str(repo),
+        graph,
+        needed_extras=frozenset({"x"}),
+        target_env=_LINUX_TARGET_ENV,
+    )
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_no_target_env_keeps_marker_deps(tmp_path):
+    repo = _fixture_repo_with_marker_dep(tmp_path, "sys_platform == 'win32'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph)  # target_env=None (default)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_unmarked_dep_always_kept(tmp_path):
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["foo"]
+        """,
+    )
+    _write(repo, "proj/app.py", "")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists

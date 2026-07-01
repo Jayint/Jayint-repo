@@ -358,9 +358,11 @@ def test_build_dep_graph_threads_needed_extras_into_roots_and_resolve(tmp_path):
     orig_select_roots = build_mod.select_roots
     orig_resolve_closure = build_mod.resolve_closure
 
-    def spy_select_roots(repo_path, graph, needed_extras=frozenset()):
+    def spy_select_roots(repo_path, graph, needed_extras=frozenset(), **kwargs):
         calls["select_roots_needed_extras"] = needed_extras
-        return orig_select_roots(repo_path, graph, needed_extras=needed_extras)
+        return orig_select_roots(
+            repo_path, graph, needed_extras=needed_extras, **kwargs
+        )
 
     def spy_resolve_closure(*args, **kwargs):
         calls["resolve_closure_extras"] = kwargs.get("extras")
@@ -386,9 +388,11 @@ def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
     calls: dict = {}
     orig_select_roots = build_mod.select_roots
 
-    def spy_select_roots(repo_path, graph, needed_extras=frozenset()):
+    def spy_select_roots(repo_path, graph, needed_extras=frozenset(), **kwargs):
         calls["select_roots_needed_extras"] = needed_extras
-        return orig_select_roots(repo_path, graph, needed_extras=needed_extras)
+        return orig_select_roots(
+            repo_path, graph, needed_extras=needed_extras, **kwargs
+        )
 
     with patch.object(build_mod, "select_roots", side_effect=spy_select_roots):
         build_dep_graph(_make_repo(tmp_path), ex, host_executor=ex)
