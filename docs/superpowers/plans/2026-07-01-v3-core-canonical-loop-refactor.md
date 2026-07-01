@@ -743,11 +743,11 @@ def canonical_success(trace, script_text) -> bool:
 
 Only after Phases 1–8 are green and a benchmark sanity run shows `legacy_path_violations: 0` and `used_block_emit == False` across method runs.
 
-- [ ] Remove the `enable_script_materialization` and `enable_binding_install` parameters from `run_v3` entirely (fresh replay is the only path); delete the interim `ValueError` guards from Phase 4.
-- [ ] Expose incremental `block_emit` as an explicitly named fast **ablation** entrypoint — e.g. `run_v3_block_emit_ablation(...)` (or a thin `variant=` wrapper), NOT a hidden flag inside `run_v3`. It calls `tracer.mark_block_emit()` so ablation runs are self-identifying and can never be confused with the method.
-- [ ] Keep `emit_drain`/`repair_failed_nodes` for `run_v1` only (already in `depgraph_live.py`); ensure no `run_v3`-adjacent code imports them.
-- [ ] Rename per the concept map: `v1_emit_drain_baseline`, `react_build_agent_baseline`, `block_emit_ablation`; the canonical fresh-replay path is just `run_v3`.
-- [ ] Commit. `git commit -m "refactor: quarantine block_emit/emit_drain/react as named ablations; run_v3 is fresh-replay single-path"`
+- [ ] Remove the `enable_script_materialization` and `enable_binding_install` parameters from `run_v3` entirely (fresh replay is the only path); delete the interim `ValueError` guards from Phase 4. Update all call sites (the ~8 test files + `scripts/run_v3_e2e.py`) to stop passing them.
+- [ ] **Quarantine-mark `block_emit` as an ablation baseline** — add a module-level docstring/marker to `src/envstate/block_emit.py` stating it is the incremental fast **ablation** baseline, NOT the canonical method (which is fresh replay in `run_v3`), and confirm via grep that no `run_v3`-adjacent code imports/calls `block_emit` (only its own tests / a future ablation harness). (Building a full `run_v3_block_emit_ablation` loop is descoped to Future Work — YAGNI; block_emit is already out of the method, and a comparison harness is a separate experiment, not needed for the canonical claim.)
+- [ ] Confirm `emit_drain`/`repair_failed_nodes` are used by `run_v1` only (already in `depgraph_live.py`); ensure no `run_v3`-adjacent code imports them.
+- [ ] Verify the trace invariant holds: `used_block_emit`/`used_emit_drain`/`used_build_agent_run` are all `False` for `run_v3` (the `mark_*` hooks live only in the ablation/`run_v1` code, so a regression that re-introduces them into `run_v3` trips `verify_canonical_trace`).
+- [ ] Commit. `git commit -m "refactor: remove dead executor flags from run_v3; quarantine-mark block_emit as ablation baseline"`
 
 ---
 
@@ -758,6 +758,8 @@ Only after Phases 1–8 are green and a benchmark sanity run shows `legacy_path_
 - Render the graph+manual-blocks as a **Dockerfile** (layer boundaries at wave granularity) and execute via `docker build` instead of `run_install_script(bash)`. Docker's layer cache is provably equivalent to re-running from scratch, so the **invariant is preserved** (`env = f(base, graph, blocks)`, still from-scratch-certified) while a repair attempt that only changes a late line re-runs only that line onward — near-incremental cost.
 - Host certification stays honest: `docker build` (cached) → `docker run` the image → exec host certifiers + gate in the fresh container.
 - This is the repo2docker / Repo2Run pattern. It swaps only the executor mechanism (the `_binding_emit` body) — no change to the diagnosis router, PatchGate, repair loop, or trace layer. `block_emit` could then be retired entirely (its only advantage was speed).
+
+**Also deferred: a `block_emit` ablation harness.** Phase 9 quarantine-marks `block_emit` as an ablation baseline but does NOT build a `run_v3_block_emit_ablation` loop. If the paper needs an incremental-vs-fresh-replay comparison, that harness (a loop variant whose emit is `block_emit`, wiring `tracer.mark_block_emit()`) is a separate experiment to build then — the canonical claim needs only the fresh-replay `run_v3`.
 
 ---
 
