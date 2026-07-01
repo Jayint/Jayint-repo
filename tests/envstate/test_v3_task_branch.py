@@ -29,8 +29,6 @@ for p in (str(_ROOT), str(_SRC)):
 
 import pytest
 
-import pytest
-
 import src.envstate.graph_scheduler as gs_module
 import src.envstate.orchestrator as orch
 from src.envstate import orchestrator

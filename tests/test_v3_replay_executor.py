@@ -5,10 +5,11 @@ replay from base (Model B). Confirms the collapsed `_dep_emit_phase` body:
     `reset_to_base` + `run_install_script` (`orchestrator._binding_emit`), NOT
     `block_emit`/`emit_drain` (both removed from `_dep_emit_phase`; they
     survive only in `run_v1` / a future ablation entry point).
-  - the render-hash memoization (Step 2): a cycle whose rendered script is
-    byte-identical to the last real replay (graph + manual_blocks unchanged)
-    SKIPS `reset_to_base`/`run_install_script` — the container already
-    reflects it.
+  - there is NO render-hash memoization/skip: every cycle does a real fresh
+    replay from base, unconditionally. Each cycle must produce a fresh
+    evidence bundle for `run_structured_repair`, so a byte-identical render
+    is still replayed for real (caching is deferred to a future cached
+    `docker build`, out of scope here).
 
 The harness is a discover-task-only scenario (VERIFY_TEST_CMD always "fails")
 so the scheduler never hands out a targeted obligation task — the task branch
@@ -111,11 +112,12 @@ def _build_harness():
 
 
 def test_run_v3_uses_fresh_replay_each_cycle(monkeypatch):
-    """Cycle 1 (render hash CHANGED — first real replay): reset_to_base +
-    run_install_script are invoked, and block_emit/emit_drain are NOT.
-    Cycle 2 (render hash UNCHANGED — graph + manual_blocks identical to the
-    last replay): the memoized skip fires, so reset_to_base/run_install_script
-    are NOT called again.
+    """Every cycle (both cycle 1 and cycle 2) does a real fresh replay: no
+    memoization/skip, even though cycle 2's render is byte-identical to
+    cycle 1's (graph + manual_blocks unchanged). reset_to_base and
+    run_install_script are invoked once per _dep_emit_phase call — 2 calls
+    total across the 2-cycle run — and block_emit/emit_drain are never
+    called from run_v3's dep-emit phase.
     """
     block_calls = {"n": 0}
     drain_calls = {"n": 0}
@@ -139,14 +141,14 @@ def test_run_v3_uses_fresh_replay_each_cycle(monkeypatch):
     # discover/free-text path and exhausts the LLM-turn budget on cycle 2.
     assert stop == "planner_giveup", f"expected the LLM-turn budget to exhaust on cycle 2, got {stop!r}"
 
-    # Exactly one real replay across the 2 cycles: cycle 1 replays (hash
-    # changed from the initial None), cycle 2's re-render is byte-identical
-    # (nothing about the graph/manual_blocks changed) -> memoized skip.
-    assert calls["reset"] == 1, (
-        f"expected exactly 1 real replay (2nd cycle memoized), got {calls['reset']} reset_to_base call(s)"
+    # Two real replays across the 2 cycles: no memoization, so cycle 2's
+    # byte-identical re-render is STILL replayed for real (every cycle must
+    # produce a fresh evidence bundle for run_structured_repair).
+    assert calls["reset"] == 2, (
+        f"expected a real replay every cycle (no memoization), got {calls['reset']} reset_to_base call(s)"
     )
-    assert calls["install"] == 1, (
-        f"expected exactly 1 real replay (2nd cycle memoized), got {calls['install']} run_install_script call(s)"
+    assert calls["install"] == 2, (
+        f"expected a real replay every cycle (no memoization), got {calls['install']} run_install_script call(s)"
     )
 
     # block_emit/emit_drain are not part of run_v3's dep-emit executor anymore

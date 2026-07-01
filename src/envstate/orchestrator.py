@@ -418,7 +418,6 @@ def run_v3(
     _budget_exhausted: bool = False
     _known_invalid: set[str] = set()
     _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
-    _last_replay_key: tuple | None = None  # memoizes the last real fresh-replay (render hash)
     MAX_REPAIRS_PER_BLOCK: int = 5
 
     def _run_tests_verified() -> bool:
@@ -458,17 +457,8 @@ def run_v3(
         ``run_structured_repair`` retry call through this SAME closure — one
         replay implementation, no duplicated render/reset/install logic.
 
-        Memoization (Step 2): if the rendered script is byte-identical to the
-        last real replay (graph + manual_blocks unchanged), the
-        ``reset_to_base``/``run_install_script`` pair is skipped — the
-        container already reflects it, and re-running is wasteful. The repair
-        loop's inner retries still re-replay on every attempt because each
-        attempt changes ``manual_blocks`` (a new patch) or the graph, so the
-        hash differs and the skip does not fire there.
-
         Returns ``(graph, evidence_bundle_or_None, failed_node_id_or_None)``.
         """
-        nonlocal _last_replay_key
         from python_deps.depgraph.build_script import render_build_script
         from python_deps.depgraph.emit import _is_reciped
         from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
@@ -478,14 +468,13 @@ def run_v3(
             raise ValueError(
                 f"binding-install repair: reciped nodes lack a check_command: {_missing}")
         script = render_build_script(graph, manual_blocks)
-        key = (hash(script),)
-        result = None
-        if key != _last_replay_key:
-            reset_to_base()
-            result = run_install_script(script)
-            _last_replay_key = key
+        # Model B: every cycle is a real fresh replay from base — no skip/memoization
+        # (the replay produces the current evidence bundle; caching is deferred to
+        # the docker-build future work).
+        reset_to_base()
+        result = run_install_script(script)
         graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
-        if result is not None and result.rc != 0:
+        if result.rc != 0:
             _node = (localize_install_failure(script, result.failing_command).node_id
                      or (unsat[0] if unsat else None))
             # Carry the fresh install stderr as evidence into the next repair scope.
