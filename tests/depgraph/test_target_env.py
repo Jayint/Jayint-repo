@@ -181,18 +181,24 @@ def test_probe_falls_back_to_python_when_python3_absent(monkeypatch, tmp_path):
     assert t.python_full == "9.9.9"
     assert t.sys_platform == "testplatform"
     assert t.platform_system == "TestSystem"
-    # Alias normalization applies on the fallback path too.
-    assert t.platform_machine == "aarch64"
+    # platform_machine stays RAW (markers compare verbatim); only the
+    # wheel/uv tag is alias-normalized, and only on the fallback path too.
+    assert t.platform_machine == "arm64"
+    assert t.python_platform_tag.startswith("aarch64-")
 
 
-# ── machine-alias normalization (review P2, bug 2) ───────────────────────────
+# ── machine-alias normalization: tag-only, NOT the marker value (review P2 fix) ─
 #
 # The target is always a Linux container: `arm64`/`amd64` are non-canonical
 # aliases some images report instead of `aarch64`/`x86_64` — the values wheel
-# tags and PEP 508 `platform_machine` markers actually expect.
+# tags expect. But `packaging` evaluates PEP 508 `platform_machine` markers
+# against `platform.machine()` VERBATIM, so `TargetEnv.platform_machine` must
+# stay RAW (un-normalized) or a marker like `platform_machine == 'arm64'`
+# would wrongly evaluate False. Normalization applies ONLY to
+# `python_platform_tag` (the wheel/uv `--python-platform` naming).
 
 
-def test_machine_alias_arm64_normalized():
+def test_machine_alias_arm64_kept_raw_for_marker_but_tag_normalized():
     ex = _FakeExecutor(
         {
             "import platform,sys,os": (
@@ -204,11 +210,13 @@ def test_machine_alias_arm64_normalized():
         }
     )
     t = detect_target_env(ex)
-    assert t.platform_machine == "aarch64"
+    # RAW — feeds marker_env() / PEP 508 evaluation verbatim.
+    assert t.platform_machine == "arm64"
+    # Normalized — feeds the wheel/uv --python-platform tag only.
     assert t.python_platform_tag.startswith("aarch64-")
 
 
-def test_machine_alias_amd64_normalized():
+def test_machine_alias_amd64_kept_raw_for_marker_but_tag_normalized():
     ex = _FakeExecutor(
         {
             "import platform,sys,os": (
@@ -220,5 +228,47 @@ def test_machine_alias_amd64_normalized():
         }
     )
     t = detect_target_env(ex)
+    assert t.platform_machine == "amd64"
+    assert t.python_platform_tag.startswith("x86_64-")
+
+
+def test_machine_x86_64_probe_raw_and_tag_both_x86_64():
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "3.12.1 posix linux x86_64 Linux\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
     assert t.platform_machine == "x86_64"
     assert t.python_platform_tag.startswith("x86_64-")
+
+
+# ── Python-2 fallback rejection (review P2, bug 2) ───────────────────────────
+#
+# The `python3 -> python` shell fallback exists so images shipping only a
+# Python-3 `python` are still detected. But a legacy `python` == 2.7 must NOT
+# be accepted: it would make `uv lock --python 2.7` disagree with build.py's
+# runtime node (always python3), a self-inconsistent graph. Degrade to the
+# known-good default instead.
+
+
+def test_python2_probe_falls_back_to_default():
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "2.7.18 posix linux x86_64 Linux\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
+    assert t.python_version == "3.11"
+    assert t.python_full == "3.11.0"
+    assert t.platform_machine == "x86_64"

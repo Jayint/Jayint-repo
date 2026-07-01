@@ -52,8 +52,10 @@ _MUSL_TAG = "musllinux_1_2"
 # `platform.machine()` inside the container is always Linux (the target is
 # always a Linux container), but some images/kernels report non-canonical
 # aliases (`arm64`, `amd64`) instead of the `aarch64`/`x86_64` values wheel
-# tags and PEP 508 `platform_machine` markers expect. Normalize before use so
-# platform-gated deps and wheel-vs-sdist selection are never mis-evaluated.
+# tags expect. Normalize ONLY for the wheel/uv `--python-platform` tag —
+# `packaging` compares PEP 508 `platform_machine` markers against
+# `platform.machine()` VERBATIM, so `TargetEnv.platform_machine` must stay RAW
+# or a marker like `platform_machine == 'arm64'` would wrongly evaluate False.
 _MACHINE_ALIASES = {"arm64": "aarch64", "amd64": "x86_64", "x86-64": "x86_64"}
 
 
@@ -147,19 +149,30 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         return _default_target_env()
 
     python_full, os_name, sys_platform, machine, platform_system = parts[:5]
-    machine = _normalize_machine(machine)
     version_parts = python_full.split(".")
     python_version = (
         ".".join(version_parts[:2]) if len(version_parts) >= 2 else python_full
     )
 
+    # Reject Python 2 (the `python` fallback below may resolve to a legacy
+    # `python` == 2.7 interpreter on some images). A 2.x TargetEnv would make
+    # `uv lock --python 2.7` disagree with build.py's runtime node, which is
+    # always python3 — degrade to the known-good default instead of building
+    # a self-inconsistent graph.
+    major = version_parts[0]
+    if not major.isdigit() or int(major) < 3:
+        return _default_target_env()
+
     libc = _detect_libc(executor)
     return TargetEnv(
         python_full=python_full,
         python_version=python_version,
+        # RAW machine, verbatim from `platform.machine()` — packaging compares
+        # PEP 508 `platform_machine` markers against this exact string; only
+        # the wheel/uv `--python-platform` TAG below needs normalization.
         platform_machine=machine,
         sys_platform=sys_platform,
         os_name=os_name,
         platform_system=platform_system,
-        python_platform_tag=_platform_tag(machine, libc),
+        python_platform_tag=_platform_tag(_normalize_machine(machine), libc),
     )
