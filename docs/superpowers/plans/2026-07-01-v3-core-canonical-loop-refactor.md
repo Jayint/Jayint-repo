@@ -1,12 +1,14 @@
-# V3-Core Canonical Loop Refactor — Implementation Plan (v2)
+# V3-Core Canonical Loop Refactor — Implementation Plan (v3 — Model B: fresh-replay executor)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **v2 supersedes the v1 strategy draft.** v1 was a directionally-correct strategy doc; three independent reviews (code-grounding / architecture / executability) found it accurate on facts but deferring the real decisions. v2 resolves every deferred decision to a concrete signature, renumbers phases to execution order, and folds in the e2e proof layer.
+> **v3 (Model B) supersedes v2.** v2 committed to incremental block-emit + a terminal replay proof; after design discussion the user chose **Model B** — fresh full-script replay as the SOLE executor (graph = source of truth; every certification is from-scratch). **Phases 1–3 (PatchGate hardening, `manual_blocks` persistence, diagnosis router) were already executed and are executor-independent** (commits through `5183f24`); **Phases 4–9 below are rewritten for the fresh-replay executor.** (v2 itself superseded the v1 strategy draft after three independent reviews, resolving every deferred decision to a concrete signature and folding in the e2e proof layer.)
 
-**Goal:** Make `run_v3` read as one canonical paper loop — `build graph → render/emit from graph → diagnose failure → typed LLM patch → PatchGate → graph/manual-block update → host certify → gate → terminal fresh replay` — with every legacy branch removed from the method and proven-absent by an e2e trace.
+**Goal:** Make `run_v3` read as one canonical paper loop — `build graph → render setup.sh → fresh-replay from base → host certify → (on failure) diagnose → typed LLM patch → PatchGate → graph/manual-block update` — where **fresh replay is the sole executor**, every legacy/ablation branch is removed from the method, and its absence is proven by an e2e trace.
 
-**Architecture:** The canonical loop has exactly **one in-loop execution strategy** (incremental block-emit onto the live container) and **one terminal proof** (a mandatory fresh-from-base replay of the rendered `setup.sh`, run once at convergence, that flips the installability gate from provisional to binding). The legacy `emit_drain` + `repair_failed_nodes` branch and the free-text `build_agent.run` fallback are removed from `run_v3` (kept only as named `run_v1`/baseline code). A pure diagnosis router classifies each failure before repair so the graph never learns a fake environment requirement (e.g. a repo-local import). A `RunTracer` records which path actually executed so tests can *prove* the legacy paths are dead.
+**Architecture (Model B — settled 2026-07-01):** The canonical loop has exactly **one execution strategy**: fresh full-script replay from base every cycle — `reset_to_base()` → `run_install_script(render_build_script(graph, manual_blocks))` → host-certify against the fresh container. The graph/script is the source of truth; the container carries **no cross-cycle state**. Invariant: **env = f(base image, requirement graph, governed manual blocks)**, so `SATISFIED` means "satisfied after replay from scratch" and the emitted `setup.sh` *is* exactly what ran — there is no separate terminal proof, the latest cycle's replay is the proof, and the installability gate is binding by construction. Incremental `block_emit`, legacy `emit_drain`/`repair_failed_nodes`, and the free-text `build_agent.run` fallback are all removed from `run_v3` and kept only as named ablation / `run_v1` baselines. A pure diagnosis router classifies each failure before repair so the graph never learns a fake environment requirement (e.g. a repo-local import). A `RunTracer` records which path actually executed so tests can *prove* the ablation/legacy paths are dead in the method.
+
+**Future optimization (recorded, NOT built — see end):** replace `reset_to_base + bash setup.sh` with rendered-Dockerfile + `docker build` for layer-cached replays — preserves the invariant, dissolves the per-repair-attempt full-reinstall cost. Deferred; the executor here is `reset_to_base + run_install_script`.
 
 **Tech Stack:** Python 3, stdlib `dataclasses`/`enum`/`re`, pytest. No new dependencies.
 
@@ -17,25 +19,24 @@
 The v1 draft left this implicit; v2 commits to it. A paper reader opening `run_v3` must see **one** loop.
 
 ```text
-IN-LOOP (repeated each cycle) — single execution strategy:
-    certify graph (host, sole SATISFIED writer)
-    emit: block_emit(...) incrementally on the LIVE container
-    on failure: diagnose -> route -> typed PatchProposal -> PatchGate -> graph/manual-block update
+EACH CYCLE — a single execution strategy (fresh replay is the ONLY executor):
+    script = render_build_script(graph, manual_blocks)     # whole setup.sh
+    reset_to_base(); run_install_script(script)            # fresh from base, every cycle
+    host-certify every node against the FRESH container    # sole SATISFIED writer
+    if setup rc==0 AND gate/tests pass -> return done      # installability BINDING by construction
+    else:
+        diagnose the failing command -> route
+        ENVIRONMENT -> typed PatchProposal -> PatchGate -> graph/manual-block update
+        (inner repair: re-render -> fresh replay -> re-check, per attempt)
     scheduler next_decision: task | done | giveup
 
-TERMINAL (once, when the scheduler says done) — single proof:
-    render_build_script(graph, manual_blocks)      # full setup.sh
-    reset_to_base()                                # fresh base container
-    run_install_script(setup.sh)                   # from scratch
-    host-certify every node against the fresh container
-    evaluate installability (now BINDING) + testability gates
-    all pass  -> return done
-    any fail  -> the fresh-replay failure is authoritative -> return non-done + record failing command
+INVARIANT: env = f(base image, requirement graph, governed manual blocks).
+No hidden live-container state; SATISFIED == satisfied after replay from scratch;
+the emitted setup.sh IS exactly what ran. There is NO separate terminal proof —
+the latest cycle's replay is the proof.
 ```
 
-**What this replaces:** today `enable_binding_install=True` runs a fresh replay *every cycle* as an alternate loop mode (`orchestrator.py:468`), competing with the incremental block-emit mode (`:516`) and the legacy `emit_drain` mode (`:540`). v2 demotes fresh-replay from "alternate loop mode" to "terminal proof", so the in-loop path is singular. This is **lower blast-radius** than the v1 draft's "flip `enable_binding_install` default" (which would make every cycle pay a from-base rebuild) and it gives a crisp "converge incrementally, then prove from scratch" narrative.
-
-> **Reversible alternative (if you reject the above):** keep the two in-loop emit strategies but name them explicitly (`# canonical: incremental block-emit` / `# ablation: per-cycle fresh replay`) and still make a single terminal replay mandatory. This preserves the fork but labels it. v2 assumes the collapse (Phase 7); if the collapse is rejected, Phase 7 degrades to "label + mandatory terminal replay" and Phase 6's single repair-entry still applies.
+**What this replaces:** today `_dep_emit_phase` has three in-loop branches — fresh replay (`enable_binding_install`, `orchestrator.py:468`), incremental block-emit (`:516`), and legacy `emit_drain` (`:540`). Model B makes the **fresh-replay branch the sole executor** and deletes the other two from `run_v3`. This is the user-chosen canonical model: the reproducibility invariant holds *per certification*, not just at the end, and there is no dirty-container drift. Cost is the per-repair-attempt full reinstall — bounded by (a) rendering-hash memoization that skips a replay when `(graph, manual_blocks)` is unchanged since the last replay, and (b) the recorded future Dockerfile-cache optimization. `block_emit` survives ONLY as a named fast ablation (Phase 9), never inside the method.
 
 ---
 
@@ -63,7 +64,7 @@ Phases below are numbered **in execution order** (v1's mismatch between headings
 | 1 | Tighten PatchGate + forbid unscheduled blocks | bad blocks can't enter the artifact | — |
 | 2 | Persist `manual_blocks` in final artifact | exported `setup.sh` includes governed blocks | 1 |
 | 3 | Diagnosis router (companion Phase 1) | repo-local imports never ingested as packages | — |
-| 4 | Remove legacy `emit_drain`/`repair_failed_nodes` from `run_v3` | one less in-loop branch | — |
+| 4 | Make fresh replay the sole executor (drop block_emit + emit_drain from `run_v3`) | one execution strategy; graph = source of truth | — |
 | 5 | Single task-dispatch branch (gate-evidence / typed-repair / give-up) | no free-text mutation in `run_v3` | 3, 4 |
 | 6 | Unify repair entry + wire diagnosis routing through all sites | every repair is mode-routed identically | 3, 5 |
 | 7 | Collapse fork: block-emit in-loop + mandatory terminal fresh replay | one in-loop path; binding installability gate | 2, 4, 6 |
@@ -268,44 +269,47 @@ def diagnose_all(observations: tuple[tuple[str, str], ...], ctx: RepoContext) ->
 
 ---
 
-## Phase 4: Remove legacy `emit_drain`/`repair_failed_nodes` from `run_v3`
+## Phase 4: Make fresh replay the sole canonical executor
 
-Make block-emit the only non-terminal emit path. (Terminal fresh-replay arrives in Phase 7.)
+Collapse `_dep_emit_phase`'s three-branch structure to one: **fresh full-script replay from base, every cycle.** The `if ... enable_binding_install:` fresh-replay branch (`orchestrator.py:468-515`) already renders → `reset_to_base` → `run_install_script` → `certify_reciped_only` → repair via `run_structured_repair` with `_binding_emit`. Make it unconditional; delete the incremental `block_emit` branch (`:516-539`) and the legacy `emit_drain` branch (`:540-559`) from `run_v3`. `block_emit`/`emit_drain` survive only as ablation / `run_v1` baselines (Phase 9).
 
 **Files:**
-- Modify: `src/envstate/orchestrator.py` (`_dep_emit_phase`, delete the `else:` legacy branch `:540-559`; keep the `elif enable_script_materialization:` block-emit branch as the sole in-loop path — see Phase 7 for removing the `if ... enable_binding_install:` branch)
+- Modify: `src/envstate/orchestrator.py` (`_dep_emit_phase` `:431-580`; keep the `_binding_emit` local `:448-466` — it is the canonical emit closure)
 - Modify: tests listed below
-- Test: existing suites updated
 
 **Steps:**
 
-- [ ] **Step 1:** In `_dep_emit_phase`, the current structure is `if binding: ... elif materialization: block_emit ... else: emit_drain + repair_failed_nodes`. Delete the `else:` branch (`orchestrator.py:540-559`) and the now-unused `from src.envstate.depgraph_live import ... emit_drain` / `repair_failed_nodes` imports inside this function. Because `enable_script_materialization` defaults `True` and only tests pass `False` (verified: no production caller passes `False`), the block-emit branch becomes the sole in-loop path once Phase 7 removes the binding branch. **Interim:** make `enable_script_materialization=False` raise (consistent with the existing `ValueError` precedent at `orchestrator.py:385-387`) rather than silently no-op:
+- [ ] **Step 1: Make the fresh-replay body unconditional.** In `_dep_emit_phase`, remove the branch selection so the body is always: start-of-cycle `certify_refresh` → `_binding_emit`-style render/reset/install/certify → on failure `run_structured_repair(..., emit=lambda g, mb: _binding_emit(g, mb, cycle))` (Phase 6 replaces this call with `_repair_or_route`). Delete the `elif enable_script_materialization: block_emit(...)` block and the `else: emit_drain(...) + repair_failed_nodes(...)` block entirely, plus their now-unused imports inside this function.
+  - **Hoist `_binding_emit`** out of `_dep_emit_phase` up to `run_v3` scope (a sibling closure over `exec_readonly`/`reset_to_base`/`run_install_script`/`sandbox_execute`), signature `(graph, manual_blocks, cycle) -> (graph, evidence_bundle_or_None, failed_node)`. Both `_dep_emit_phase` and Phase 6's `_repair_or_route` must call the SAME replay emit; if it stays nested, `_repair_or_route` can't see it.
+
+- [ ] **Step 2: Add rendering-hash memoization (bounds outer-loop cost).** Keep a `nonlocal _last_replay_key`. Compute `key = (hash(render_build_script(graph, _manual_blocks)),)`; if `key == _last_replay_key` (graph + manual_blocks unchanged since the last replay), SKIP the `reset_to_base`/`run_install_script` this cycle — the container already reflects it, and re-running is wasteful. Set `_last_replay_key = key` after each real replay. (The repair INNER loop still re-replays per attempt because the graph changes each attempt — that cost is the recorded Dockerfile-cache future-work's target, not this memoization's.)
+
+- [ ] **Step 3: Require the executor callables.** `reset_to_base` and `run_install_script` are no longer optional — the canonical executor needs them. Near the top of `run_v3` (replacing the old `enable_binding_install`/`enable_script_materialization` contradiction guard at `:385-387`):
 
 ```python
-    if not enable_script_materialization:
-        raise ValueError("enable_script_materialization=False is no longer supported in run_v3 "
-                         "(legacy emit_drain path removed); use run_v1 for the deterministic baseline")
+    if reset_to_base is None or run_install_script is None:
+        raise ValueError("run_v3 is fresh-replay-only: reset_to_base and run_install_script are required "
+                         "(use the block_emit ablation or run_v1 for incremental/legacy execution)")
 ```
 
-(Phase 9 removes the parameter entirely once all callers stop passing it.)
+Make `enable_script_materialization`/`enable_binding_install` deprecated no-op-or-raise: if either is passed `False`, raise the same ValueError. (Phase 9 deletes the parameters.) Remove `_repaired_ids` (`:397`) — only `repair_failed_nodes` read it.
 
-- [ ] **Step 2:** Remove `_repaired_ids` from `run_v3` (`orchestrator.py:397`) — it was only read by `repair_failed_nodes`.
+- [ ] **Step 4: Update tests** (grounding-verified targets):
+  - `tests/test_v3_block_emit_wiring.py` — `test_toggle_off_uses_emit_drain_and_repair` (`:88`) → `test_toggle_off_now_raises` (asserting `pytest.raises(ValueError)`); any assertion that `block_emit` runs inside canonical `run_v3` → move to the ablation test (Phase 9) OR replace with the replay-executor assertion below.
+  - `tests/test_graph_scheduler_wiring.py` — **split** `test_drain_runs_under_flag_as_prefix` (`:170-215`, ONE function): drop the v3 half (`:189-200`), keep the v1 half (`:202-215`) as `test_v1_drain_runs_as_prefix`.
+  - `tests/test_run_v1_turn_budget.py` — invert the source-level `emit_drain`-in-`run_v3` assertion (now must be ABSENT).
+  - **New** `tests/test_v3_replay_executor.py::test_run_v3_uses_fresh_replay_each_cycle` — with a fake sandbox recording calls, assert `reset_to_base` + `run_install_script` are invoked (and `block_emit`/`emit_drain` are NOT) on a cycle where the render hash changed; assert the replay is SKIPPED when the render hash is unchanged.
+  - `emit_drain()` / `repair_failed_nodes()` / `block_emit()` stay in their modules for `run_v1`/ablation + their direct tests — untouched.
 
-- [ ] **Step 3: Update tests** (grounding-verified exact targets):
-  - `tests/test_v3_block_emit_wiring.py` — remove/replace `test_toggle_off_uses_emit_drain_and_repair` (`:88`) with `test_toggle_off_now_raises` asserting `pytest.raises(ValueError)` when `enable_script_materialization=False`.
-  - `tests/test_graph_scheduler_wiring.py` — `test_drain_runs_under_flag_as_prefix` (`:170-215`) is **one** function containing BOTH a v3 assertion (`:189-200`, `enable_script_materialization=False` runs `emit_drain`) and a v1 assertion (`:202-215`). **Split it:** delete the v3 half; keep the v1 half as `test_v1_drain_runs_as_prefix`. (v1 correction: this is a split, not a delete-one/keep-other.)
-  - `tests/test_run_v1_turn_budget.py` — the source-level assertion searching for `"graph, _reports, steps = emit_drain"` inside `run_v3` will break; update it to assert `emit_drain` is **absent** from `run_v3`'s source (invert the check).
-  - `emit_drain()` / `repair_failed_nodes()` themselves stay in `depgraph_live.py` for `run_v1` + their direct tests — untouched.
-
-- [ ] **Step 4: Run** `python -m pytest tests/test_v3_block_emit_wiring.py tests/test_graph_scheduler_wiring.py tests/test_run_v1_turn_budget.py -q` — expect PASS.
-
-- [ ] **Step 5: Commit.** `git commit -m "refactor(orchestrator): remove legacy emit_drain/repair_failed_nodes branch from run_v3 (block-emit is the sole in-loop path)"`
+- [ ] **Step 5: Run + Commit.** `python3 -m pytest tests/test_v3_block_emit_wiring.py tests/test_graph_scheduler_wiring.py tests/test_run_v1_turn_budget.py tests/test_v3_replay_executor.py -q`; `git commit -m "refactor(orchestrator): fresh full-script replay is the sole run_v3 executor (drop block_emit + emit_drain from the method)"`
 
 ---
 
 ## Phase 5: Single task-dispatch branch — gate evidence / typed repair / explicit give-up
 
 Replace the free-text `build_agent.run` fallback (`orchestrator.py:792-796`) with one legible branch. Split into three independently-testable tasks.
+
+**Model-B note:** the task-branch's typed-repair `_emit` closure changes from `block_emit(...)` to the **replay emit** `lambda g, mb: _binding_emit(g, mb, cycle)`, so `block_emit` is fully gone from `run_v3` after this phase (Phase 6 then factors the two replay-repair calls into one router). The discover gate (Task 5b) runs `VERIFY_TEST_CMD` via `sandbox_execute`, which — because the sandbox is a single container object that `_dep_emit_phase` just `reset_to_base`+replayed at the top of the cycle — automatically executes against the **fresh post-replay container**; no separate replay is needed in the discover path.
 
 **Files:** `src/envstate/orchestrator.py` (task branch `:756-801`), `tests/envstate/test_v3_task_branch.py`.
 
@@ -402,41 +406,45 @@ The existing `_sched_stuck` counter (`orchestrator.py:732-739`) already returns 
 
 ---
 
-## Phase 6: Unify the repair entry + route diagnosis through every repair site
+## Phase 6: Unify the repair entry + route diagnosis through both repair sites
 
-**Problem (arch MAJOR 3):** post-Phase-4/5 there are still two `run_structured_repair` call sites — the in-loop block-emit repair (`orchestrator.py:526-539`) and the task-branch repair (`:770-782`). If diagnosis routing wires into only one, the method is inconsistent again. Collapse both into one helper that diagnoses first.
+**Problem:** post-Phase-4/5 there are two `run_structured_repair` call sites — the main-loop replay repair (inside `_dep_emit_phase`) and the task-branch replay repair. Both now use the replay emit `_binding_emit`, but diagnosis routing must wire into BOTH identically or the method is inconsistent. Collapse them into one helper that diagnoses first.
 
-**Files:** `src/envstate/orchestrator.py`, `src/envstate/repair_loop.py` (read `known_invalid`), `tests/envstate/test_repair_routing.py`.
+**Files:** `src/envstate/orchestrator.py`, `tests/envstate/test_repair_routing.py`.
 
-**Add a single in-`run_v3` helper** (closure over the loop state) used by both sites:
+**Build `RepoContext` correctly (Task-3 reviewer Minors #1/#2 folded in):** `RepoContext.invalid_names` normalization is a CALLER contract — `diagnose.RepoContext` does not self-normalize. The orchestrator MUST normalize disproven names before constructing it, using the SAME normalizer the mapping layer uses: `python_deps.import_mapping.normalize_package_name` (`re.sub(r"[-_.]+","-",name).lower()`, which folds `.` — stronger than `diagnose._norm`). Build the local-names set once at loop start from `scan.local_module_names(repo_path)`; rebuild the context whenever a disproven name is added.
+
+**Add a single in-`run_v3` helper** (closure over loop state), emit = replay:
 
 ```python
-    _repo_ctx_holder = {"ctx": RepoContext()}   # rebuilt when invalid_names grows
+    from python_deps.depgraph.diagnose import RepoContext, Mode, diagnose_all
+    from python_deps.depgraph import scan
+    from python_deps.import_mapping import normalize_package_name
+    _local_names = frozenset(scan.local_module_names(repo_path)) if repo_path else frozenset()
+    _invalid_names: set[str] = set()
+    def _repo_ctx() -> RepoContext:
+        return RepoContext(local_names=_local_names, invalid_names=frozenset(_invalid_names))
 
     def _repair_or_route(graph, failed_id, bundle, cycle, *, target_hint=None, cap_failed_id=False):
         """Diagnose the failure that produced `bundle` BEFORE typed repair.
-        ENVIRONMENT -> run_structured_repair (typed patch).
-        REPO_INTERNAL_REF / RESIDUAL -> record out-of-scope; no repair (returns graph unchanged).
-        INVALID_ATTEMPT -> add the disproven name to invalid_names; no repair.
-        AMBIGUOUS -> allow the read-only probe turns already inside v3_build_agent.propose.
+        ENVIRONMENT / AMBIGUOUS -> run_structured_repair (AMBIGUOUS uses propose's read-only turns).
+        REPO_INTERNAL_REF / RESIDUAL -> non-environment: return graph unchanged (no repair).
+        INVALID_ATTEMPT (and nothing environment-shaped) -> record normalized disproven name; no repair.
         """
         nonlocal _manual_blocks, _known_invalid, _repair_turns, _budget_exhausted
-        ctx = _repo_ctx_holder["ctx"]
-        diags = diagnose_all(tuple((c.cmd, c.output) for c in bundle.commands), ctx) if bundle else ()
+        diags = diagnose_all(tuple((c.cmd, c.output) for c in bundle.commands), _repo_ctx()) if bundle else ()
         modes = {d.mode for d in diags}
         if Mode.REPO_INTERNAL_REF in modes or Mode.RESIDUAL in modes:
-            # non-environment residual: do not mutate the graph via repair
             return graph
-        if Mode.INVALID_ATTEMPT in modes:
+        if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
             for d in diags:
-                if d.mode is Mode.INVALID_ATTEMPT and d.discovery is None:
-                    pass  # name already carried via classify; add to invalid_names below
-            # (record disproven names into ctx for next cycle)
-        # ENVIRONMENT (or AMBIGUOUS -> propose's own read-only turns) -> typed repair
+                if d.mode is Mode.INVALID_ATTEMPT and d.discovery is not None:
+                    _invalid_names.add(normalize_package_name(d.discovery.name))
+            return graph
         _out = run_structured_repair(
             graph, failed_id, bundle, cycle,
             propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
-            emit=lambda g, mb: block_emit(g, sandbox_execute, exec_readonly, ledger, cycle, manual_blocks=mb),
+            emit=lambda g, mb: _binding_emit(g, mb, cycle),   # REPLAY emit (Model B)
             manual_blocks=_manual_blocks, known_invalid=_known_invalid,
             max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
             target_hint=target_hint, cap_failed_id=cap_failed_id)
@@ -448,7 +456,7 @@ The existing `_sched_stuck` counter (`orchestrator.py:732-739`) already returns 
         return _out.graph
 ```
 
-Replace both call sites (the block-emit branch repair and the task-branch repair) with `_repair_or_route(...)`. The `bundle` is the `EvidenceBundle`/`_bundle` each site already has (its `.commands` carry `(cmd, rc, output)` — confirm `EvidenceBundle`'s command record exposes `.cmd`/`.output`; adapt the tuple accessor if the field names differ). Build `RepoContext` once from `scan.local_module_names(repo_path)` at loop start and rebuild when `invalid_names` grows.
+Replace both `run_structured_repair(...)` call sites with `_repair_or_route(...)`. `bundle.commands` carry `(cmd, rc, output)` — confirm `EvidenceBundle`'s command record exposes `.cmd`/`.output` and adapt the accessor if the field names differ. Thread `repo_path` into `run_v3` (add param; the driver passes the repo dir — `run_v3_e2e.py` has `args.repo`).
 
 - [ ] **Tests** (`tests/envstate/test_repair_routing.py`):
 
@@ -457,47 +465,33 @@ def test_repo_internal_ref_bundle_skips_repair():
     # bundle whose only failure is ModuleNotFoundError: docs_src (docs_src local)
     # -> _repair_or_route returns graph unchanged, propose never called.
     ...
-def test_environment_bundle_invokes_typed_repair():
+def test_invalid_attempt_records_normalized_name_no_repair():
+    # bundle: "No matching distribution found for Frobnicate_9000"
+    # -> propose NOT called; "frobnicate-9000" now in the next RepoContext.invalid_names.
+    ...
+def test_environment_bundle_invokes_typed_repair_with_replay_emit():
     # bundle with ModuleNotFoundError: requests -> propose IS called.
     ...
-def test_both_repair_sites_use_the_same_router():
+def test_single_repair_call_site_and_no_block_emit_in_source():
     import inspect, src.envstate.orchestrator as o
     src = inspect.getsource(o.run_v3)
     assert src.count("run_structured_repair(") == 1   # only inside _repair_or_route
+    assert "block_emit(" not in src                   # replay is the only executor
 ```
 
-- [ ] Implement, run full `tests/envstate/ -q`, commit. `git commit -m "refactor(orchestrator): single diagnosis-routed repair entry (_repair_or_route) for all repair sites"`
+- [ ] Implement, run `tests/envstate -q`, commit. `git commit -m "refactor(orchestrator): single diagnosis-routed replay repair entry (_repair_or_route) for both sites"`
 
 ---
 
-## Phase 7: Collapse the fork — block-emit in-loop + mandatory terminal fresh replay
+## Phase 7: Installability gate binding by construction (from the per-cycle replay)
 
-This is the keystone that makes "one loop" true and turns the installability gate binding.
+Under Model B the executor is already fresh replay (Phase 4), so there is **no separate terminal-replay step** — the latest cycle's replay result *is* the installability proof. This phase makes the gate read that result and drops the provisional graph-heuristic from the canonical path.
 
-**Files:** `src/envstate/orchestrator.py` (remove the `if ... enable_binding_install:` in-loop branch `:468-515`; add a terminal replay step after the loop), `src/envstate/gates.py` (`evaluate_installability_gate` accepts a real replay result), `scripts/run_v3_e2e.py` (always terminal-replay), `tests/envstate/test_terminal_replay.py`, `tests/envstate/test_gates.py`.
+**Files:** `src/envstate/orchestrator.py` (carry the latest replay `InstallResult`), `src/envstate/gates.py`, `scripts/run_v3_e2e.py`, `tests/envstate/test_gates.py`.
 
-- [ ] **Step 1: Remove the in-loop binding branch.** Delete `orchestrator.py:468-515` (the `if enable_script_materialization and enable_binding_install:` branch and its `_binding_emit` local at `:448-466`). The block-emit branch (`elif` → now the sole branch) stays. `reset_to_base`/`run_install_script` are no longer used in-loop; they move to the terminal step.
+- [ ] **Step 1: Carry the latest replay result.** In `run_v3`, keep `nonlocal _last_replay_result` (an `InstallResult | None`). `_dep_emit_phase` sets it after each real replay (skip-memoized cycles keep the prior result). It answers "does the current graph+blocks build from base."
 
-- [ ] **Step 2: Add a terminal replay function** run once when the scheduler returns `done` (inside `_finish`, or just before returning `DONE`):
-
-```python
-    def _terminal_fresh_replay():
-        """Render full setup.sh, replay from a fresh base, host-certify, return an InstallResult+certs.
-        This is the BINDING installability proof (not the provisional graph heuristic)."""
-        from python_deps.depgraph.build_script import render_build_script
-        from src.envstate.install_localizer import certify_reciped_only, localize_install_failure
-        script = render_build_script(current_map.dep_graph, _manual_blocks)
-        reset_to_base()
-        result = run_install_script(script)
-        graph2, unsat = certify_reciped_only(current_map.dep_graph, exec_readonly, 10_000)
-        failing = None if result.rc == 0 else (
-            localize_install_failure(script, result.failing_command).node_id or (unsat[0] if unsat else None))
-        return result, graph2, unsat, failing
-```
-
-Make it **mandatory**: when `reset_to_base`/`run_install_script` are provided, run it on the DONE path; fold its result into the gates and into the `RunTracer` (Phase 8). If the replay fails, return a non-done stop reason (`GIVEUP_REPLAY`) with the failing command recorded — the fresh replay is authoritative.
-
-- [ ] **Step 3: Make the installability gate binding.** Extend `evaluate_installability_gate` to accept an optional real replay result:
+- [ ] **Step 2: Make the installability gate binding.** Extend `evaluate_installability_gate` to accept the real replay result:
 
 ```python
 def evaluate_installability_gate(graph, replay=None) -> GateResult:
@@ -507,17 +501,18 @@ def evaluate_installability_gate(graph, replay=None) -> GateResult:
             provisional=False,
             evidence=("fresh replay rc=0" if replay.rc == 0
                       else f"fresh replay failed: {replay.failing_command}")[:_EVIDENCE_CAP])
-    # ... existing provisional path unchanged ...
+    # ... existing provisional graph-frontier path unchanged (used only by the block_emit ablation) ...
 ```
 
-Thread the terminal `result` into `evaluate_gates(graph, run_tests_verified, replay=result)` on the DONE path.
+Thread `_last_replay_result` into `evaluate_gates(graph, run_tests_verified, replay=_last_replay_result)` inside `_finish` (`orchestrator.py:423-427`). On the canonical path `replay` is always non-None (Phase 4 guarantees the executor ran), so the gate is always binding.
 
-- [ ] **Step 4: Driver.** In `scripts/run_v3_e2e.py`, stop advertising `--no-binding-install` as an ablation; pass replay unconditionally (keep the flag only as a deprecated hidden no-op if any caller depends on it). The final `render_build_script(dep_graph, final_map.manual_blocks)` (Phase 2) is already the artifact.
+- [ ] **Step 3: `done` requires a green replay (authoritative).** Tests run in the fresh-replayed container, so a `done` already implies the latest replay rc==0 — but assert it defensively: if `decision.action == "done"` while `_last_replay_result is None or _last_replay_result.rc != 0`, return `GIVEUP_REPLAY` with the failing command recorded. Never report done on a build that didn't reproduce from base.
 
-- [ ] **Step 5: Tests.**
+- [ ] **Step 4: Driver.** `scripts/run_v3_e2e.py`: drop `--no-binding-install` (replay is unconditional). The final `render_build_script(dep_graph, final_map.manual_blocks)` (Phase 2) is the artifact and equals what ran.
+
+- [ ] **Step 5: Tests** (`tests/envstate/test_gates.py`):
 
 ```python
-# tests/envstate/test_gates.py
 def test_installability_gate_binding_on_real_replay():
     class _R: rc = 0; failing_command = None
     g = evaluate_installability_gate(None, replay=_R())
@@ -528,14 +523,12 @@ def test_installability_gate_binding_fail():
     g = evaluate_installability_gate(None, replay=_R())
     assert not g.passed and not g.provisional and "libpq-dev" in g.evidence
 
-# tests/envstate/test_terminal_replay.py
-def test_done_path_runs_terminal_replay_and_reports_binding_gate():
-    trace = _run_v3_to_done_with_fake_sandbox()
-    assert trace.fresh_replay is not None and trace.fresh_replay.ran
+def test_done_reports_binding_gate_not_provisional():
+    trace = _run_v3_to_done_with_fake_sandbox()   # fake replay returns rc=0
     assert trace.gates["installability"]["provisional"] is False
 ```
 
-- [ ] **Step 6: Run + commit.** `git commit -m "feat(orchestrator): collapse binding/block-emit fork — block-emit in-loop, mandatory terminal fresh-replay as binding installability gate"`
+- [ ] **Step 6: Run + commit.** `git commit -m "feat(gates): installability binding from the per-cycle fresh replay (no provisional path in the method)"`
 
 ---
 
@@ -593,14 +586,19 @@ class RunTrace:
     used_emit_drain: bool = False
     used_repair_failed_nodes: bool = False
     used_build_agent_run: bool = False
+    used_block_emit: bool = False          # block_emit lives only in the ablation; MUST be False in the method
     patchgate: tuple[PatchGateRecord, ...] = ()
     discover: tuple[DiscoverRecord, ...] = ()
-    fresh_replay: FreshReplayRecord | None = None
+    replays: tuple[FreshReplayRecord, ...] = ()   # one per cycle that actually replayed (Model B)
     manual_block_ids: tuple[str, ...] = ()
     stop_reason: str = ""
     gates: dict = field(default_factory=dict)
 
-    def to_dict(self) -> dict: ...   # dataclasses.asdict + serialize fresh_replay
+    @property
+    def last_replay(self) -> "FreshReplayRecord | None":
+        return self.replays[-1] if self.replays else None
+
+    def to_dict(self) -> dict: ...   # dataclasses.asdict + serialize replays
 
 class RunTracer:
     """Append-only host-owned recorder (same mutability exception as ActionLedger)."""
@@ -609,33 +607,35 @@ class RunTracer:
         self._used_emit_drain = False
         self._used_repair_failed_nodes = False
         self._used_build_agent_run = False
+        self._used_block_emit = False
         self._patchgate: list[PatchGateRecord] = []
         self._discover: list[DiscoverRecord] = []
-        self._fresh_replay: FreshReplayRecord | None = None
+        self._replays: list[FreshReplayRecord] = []
         self._manual_block_ids: tuple[str, ...] = ()
     def mark_emit_drain(self) -> None: self._used_emit_drain = True
     def mark_repair_failed_nodes(self) -> None: self._used_repair_failed_nodes = True
     def mark_build_agent_run(self) -> None: self._used_build_agent_run = True
+    def mark_block_emit(self) -> None: self._used_block_emit = True
     def record_patchgate(self, r: PatchGateRecord) -> None: self._patchgate.append(r)
     def record_discover(self, r: DiscoverRecord) -> None: self._discover.append(r)
-    def record_fresh_replay(self, r: FreshReplayRecord) -> None: self._fresh_replay = r
+    def record_replay(self, r: FreshReplayRecord) -> None: self._replays.append(r)
     def set_manual_blocks(self, ids: tuple[str, ...]) -> None: self._manual_block_ids = tuple(ids)
     def snapshot(self, *, stop_reason: str, gates: dict) -> RunTrace:
         return RunTrace(repo=self._repo, used_emit_drain=self._used_emit_drain,
             used_repair_failed_nodes=self._used_repair_failed_nodes,
-            used_build_agent_run=self._used_build_agent_run,
+            used_build_agent_run=self._used_build_agent_run, used_block_emit=self._used_block_emit,
             patchgate=tuple(self._patchgate), discover=tuple(self._discover),
-            fresh_replay=self._fresh_replay, manual_block_ids=self._manual_block_ids,
+            replays=tuple(self._replays), manual_block_ids=self._manual_block_ids,
             stop_reason=stop_reason, gates=gates)
 ```
 
 **Wire (all guarded by `if tracer is not None:` → byte-identical when off):**
 - `run_v3(..., tracer: RunTracer | None = None)`.
-- In `_repair_or_route`: after `admit_proposal`/`run_structured_repair`, `tracer.record_patchgate(PatchGateRecord(...))` from `_out` (accepted node/block ids, errors).
+- In `_repair_or_route`: after `run_structured_repair`, `tracer.record_patchgate(PatchGateRecord(...))` from `_out` (accepted node/block ids, errors).
 - In `_run_discover_gate` + next-cycle ingest: `tracer.record_discover(DiscoverRecord(cycle, VERIFY_TEST_CMD, used_llm_mutation=False, new_node_ids=..., diagnosis_modes=[d.mode.value for d in diags]))`.
-- In `_terminal_fresh_replay`: `tracer.record_fresh_replay(FreshReplayRecord(ran=True, setup_rc=result.rc, ...))`.
+- In `_dep_emit_phase`, after EACH real replay (skip-memoized cycles record nothing): `tracer.record_replay(FreshReplayRecord(ran=True, setup_rc=result.rc, failing_command=..., certified_node_ids=..., unsatisfied_node_ids=..., test_rc=..., test_summary=...))`. This yields one record per replaying cycle (Model B).
 - On exit in `_finish`: `tracer.set_manual_blocks(tuple(b.block_id for b in _manual_blocks))`.
-- The `mark_emit_drain`/`mark_repair_failed_nodes`/`mark_build_agent_run` hooks stay wired at those (now-removed-from-`run_v3`) call sites in `run_v1`/baseline code, so a regression that re-introduces them into `run_v3` trips the verifier.
+- The `mark_emit_drain`/`mark_repair_failed_nodes`/`mark_build_agent_run`/`mark_block_emit` hooks stay wired at those (now-removed-from-`run_v3`) call sites in `run_v1`/ablation code, so a regression that re-introduces any of them into `run_v3` trips the verifier.
 
 - [ ] TDD: `test_run_trace.py` — construct a `RunTracer`, record each kind, assert `snapshot()` is frozen and `to_dict()` round-trips. Commit.
 
@@ -651,12 +651,15 @@ def verify_canonical_trace(t: RunTrace) -> list[str]:
     if t.used_emit_drain:            errs.append("legacy emit_drain executed in canonical run")
     if t.used_repair_failed_nodes:   errs.append("legacy repair_failed_nodes executed")
     if t.used_build_agent_run:       errs.append("free-text build_agent.run executed")
+    if t.used_block_emit:            errs.append("block_emit ablation executed inside the method")
     if t.loop_mode != "v3_graph_typed_repair": errs.append(f"non-canonical loop_mode {t.loop_mode!r}")
+    if not t.replays:                errs.append("no fresh replay ran (fresh replay is the sole executor)")
     if t.stop_reason in ("done", "planner_done", "done_flag"):
-        if t.fresh_replay is None or not t.fresh_replay.ran:
-            errs.append("done reached without a terminal fresh replay")
-        elif t.fresh_replay.setup_rc != 0:
-            errs.append(f"done reached but fresh replay failed: {t.fresh_replay.failing_command}")
+        last = t.last_replay
+        if last is None or not last.ran:
+            errs.append("done reached without a fresh replay")
+        elif last.setup_rc != 0:
+            errs.append(f"done reached but latest fresh replay failed: {last.failing_command}")
         if t.gates.get("installability", {}).get("provisional", True):
             errs.append("installability gate still provisional on a done run")
     for d in t.discover:
@@ -694,7 +697,7 @@ Each fixture drives `run_v3` with a scripted fake `sandbox_execute`/`exec_readon
 | `test_missing_external_pkg` | `ModuleNotFoundError: requests` from the discover gate | next-cycle ingest adds `pkg:requests`; typed repair installs; host-certifies |
 | `test_repo_local_import_guard` | `ModuleNotFoundError: docs_src` (docs_src local) | `Mode.REPO_INTERNAL_REF`; NO `pkg:docs-src`; NO `pip install docs-src`; `verify_local_import_guard == []` |
 | `test_bad_provider_not_retried` | `apt-get install libplacebodev` → no candidate; `libplacebo-dev` valid | invalid name recorded in `invalid_names`, not retried; replacement accepted |
-| `test_manual_block_artifact_preserved` | force an LLM `ScriptPatch` | `manual_block_ids` non-empty; block executed in-loop; block present in final `render_build_script`; present in the terminal replay script |
+| `test_manual_block_artifact_preserved` | force an LLM `ScriptPatch` | `manual_block_ids` non-empty; block present in the per-cycle replay script AND in the final `render_build_script(graph, manual_blocks)` |
 
 - [ ] Write each scenario as a failing test, run against the (now real) canonical loop, commit per scenario.
 
@@ -710,26 +713,38 @@ plus aggregate: `canonical_loop_runs`, `legacy_path_violations` (MUST be 0), `fr
 
 ```python
 def canonical_success(trace, script_text) -> bool:
+    last = trace.last_replay
     return (trace.stop_reason in ("done", "planner_done", "done_flag")
-        and trace.fresh_replay and trace.fresh_replay.setup_rc == 0
-        and trace.fresh_replay.test_rc == 0
-        and not verify_canonical_trace(trace)                       # no legacy path
+        and last and last.setup_rc == 0
+        and last.test_rc == 0
+        and not verify_canonical_trace(trace)                       # no legacy/ablation path
         and not verify_artifact_consistency(script_text, trace.manual_block_ids)  # artifact complete
-        and not trace.fresh_replay.unsatisfied_node_ids)            # host certifiers all satisfied
+        and not last.unsatisfied_node_ids)                          # host certifiers all satisfied
 ```
 
 - [ ] Wire `scripts/run_v3_e2e.py` to build a `RunTracer`, pass it, and on exit write `trace.to_dict()` to `--trace-out` and print `verify_canonical_trace`/`verify_artifact_consistency` results. Commit. (`run_v3_proof.py` itself is a thin loop over `run_v3_e2e`; no unit test — it's the reporting driver.)
 
 ---
 
-## Phase 9: Quarantine legacy paths into named baseline/ablation modules
+## Phase 9: Quarantine ablation/legacy paths into named entrypoints
 
-Only after Phases 1–8 are green and a benchmark sanity run shows `legacy_path_violations: 0`.
+Only after Phases 1–8 are green and a benchmark sanity run shows `legacy_path_violations: 0` and `used_block_emit == False` across method runs.
 
-- [ ] Remove the `enable_script_materialization` parameter from `run_v3` entirely (all callers now rely on the canonical path); delete the interim `ValueError` guard from Phase 4.
-- [ ] Move `emit_drain`/`repair_failed_nodes` usage into an explicitly named `run_v1` baseline surface (they already live in `depgraph_live.py`; ensure no `run_v3`-adjacent code imports them).
-- [ ] Rename per the concept map: `v1_emit_drain_baseline`, `react_build_agent_baseline`, `v3_graph_typed_repair` (the canonical path is just `run_v3`).
-- [ ] Commit. `git commit -m "refactor: quarantine legacy emit/react paths as named baselines; run_v3 is single-path"`
+- [ ] Remove the `enable_script_materialization` and `enable_binding_install` parameters from `run_v3` entirely (fresh replay is the only path); delete the interim `ValueError` guards from Phase 4.
+- [ ] Expose incremental `block_emit` as an explicitly named fast **ablation** entrypoint — e.g. `run_v3_block_emit_ablation(...)` (or a thin `variant=` wrapper), NOT a hidden flag inside `run_v3`. It calls `tracer.mark_block_emit()` so ablation runs are self-identifying and can never be confused with the method.
+- [ ] Keep `emit_drain`/`repair_failed_nodes` for `run_v1` only (already in `depgraph_live.py`); ensure no `run_v3`-adjacent code imports them.
+- [ ] Rename per the concept map: `v1_emit_drain_baseline`, `react_build_agent_baseline`, `block_emit_ablation`; the canonical fresh-replay path is just `run_v3`.
+- [ ] Commit. `git commit -m "refactor: quarantine block_emit/emit_drain/react as named ablations; run_v3 is fresh-replay single-path"`
+
+---
+
+## Future Work (recorded, NOT in scope of this plan): cached `docker build` executor
+
+**Decision (2026-07-01):** do **A** now (`reset_to_base + run_install_script`); save **B** for later. The reset+bash executor gets zero build-cache benefit, so every repair attempt reinstalls apt+pip from base — slow. Escape hatch, to be scoped as its own plan if benchmark throughput bites:
+
+- Render the graph+manual-blocks as a **Dockerfile** (layer boundaries at wave granularity) and execute via `docker build` instead of `run_install_script(bash)`. Docker's layer cache is provably equivalent to re-running from scratch, so the **invariant is preserved** (`env = f(base, graph, blocks)`, still from-scratch-certified) while a repair attempt that only changes a late line re-runs only that line onward — near-incremental cost.
+- Host certification stays honest: `docker build` (cached) → `docker run` the image → exec host certifiers + gate in the fresh container.
+- This is the repo2docker / Repo2Run pattern. It swaps only the executor mechanism (the `_binding_emit` body) — no change to the diagnosis router, PatchGate, repair loop, or trace layer. `block_emit` could then be retired entirely (its only advantage was speed).
 
 ---
 
@@ -743,7 +758,7 @@ Only after Phases 1–8 are green and a benchmark sanity run shows `legacy_path_
 - `tests/depgraph/test_build_script.py` — replace `test_block_with_unknown_wave_lands_in_catch_all` (`:185`) → `test_block_with_unknown_wave_raises`.
 - `tests/envstate/test_gates.py` — add binding-replay gate cases (Phase 7).
 
-New test files: `test_manual_blocks_persist.py`, `test_diagnose_*` (companion), `test_repair_routing.py`, `test_terminal_replay.py`, `test_run_trace.py`, `test_trace_verify.py`, `scenarios/*`.
+New test files: `test_manual_blocks_persist.py` (done), `test_diagnose_*` (done, companion), `test_v3_replay_executor.py` (Phase 4), `test_repair_routing.py` (Phase 6), `test_run_trace.py` + `test_trace_verify.py` (Phase 8), `scenarios/*` (Phase 8).
 
 ---
 
@@ -755,7 +770,7 @@ New test files: `test_manual_blocks_persist.py`, `test_diagnose_*` (companion), 
 
 **Type consistency:** `Block` fields (`block_id/wave/commands/target_node_ids/provider_ids/check_commands/evidence_refs`) match `patch_gate._script_patch_to_block`. `Discovery | None` is the ingest seam type throughout. `GateResult` gains a `replay=` param, not a new field. `make_action_event` keyword signature matches `ledger.py:24-49`. `RunTracer` mirrors `ActionLedger`'s append-only shape.
 
-**Open decision flagged to the user:** the Canonical Model (block-emit in-loop + terminal replay) is a committed architectural choice with a stated reversible alternative. If rejected, Phase 7 degrades to "label the fork + mandatory terminal replay" and Phases 1–6/8 are unaffected.
+**Canonical Model — SETTLED (Model B, user-chosen 2026-07-01):** fresh full-script replay is the SOLE executor; `block_emit` is a named ablation; there is NO separate terminal replay (the per-cycle replay is the proof); installability is binding by construction. Executor mechanism = `reset_to_base + run_install_script` (option A); cached `docker build` (option B) is recorded as Future Work, not built. Phases 4–9 reflect Model B; Phases 1–3 were executor-independent and are already done.
 
 ---
 
