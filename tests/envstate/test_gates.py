@@ -150,3 +150,106 @@ def test_done_reports_binding_gate_not_provisional():
     assert trace.gates["installability"]["provisional"] is False
     assert trace.gates["installability"]["passed"] is True
     assert "fresh replay rc=0" in trace.gates["installability"]["evidence"]
+
+
+# ---------------------------------------------------------------------------
+# 3. Review fix wave: BOTH success doors (scheduler "done" AND maintainer
+#    done_flag) must be bound to a green replay via `_finalize_if_replayed`.
+# ---------------------------------------------------------------------------
+
+def test_done_with_failed_replay_gives_up():
+    """Scheduler reaches action='done' (trivially-satisfiable empty graph +
+    passing tests) on cycle 1, but the SAME cycle's fresh replay that ran
+    just before the decision returned rc=1. The old inline done-guard covered
+    this branch in theory but had zero test coverage — this pins it: 'done'
+    must downgrade to GIVEUP_REPLAY (stop == 'planner_giveup'), never
+    'planner_done'.
+    """
+    node = Node(
+        id="pkg:requests", type=NodeType.PACKAGE, name="requests", version="2.31.0",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.SATISFIED,
+        check_command="python3 -c 'import requests'",
+    )
+    base = initial_map(base_image="python:3.11-slim", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    # Already-SATISFIED node -> scheduler_frontier is empty from cycle 1 -> the
+    # scheduler decides "done" purely from frontier+tests, independent of the
+    # replay outcome recorded this same cycle.
+    world = merge_map(base, dep_graph=DepGraph().with_node(node))
+
+    def sandbox_execute(cmd):
+        if cmd == VERIFY_TEST_CMD:
+            return (True, "1 passed in 0.01s")
+        return (True, "ok")
+
+    def exec_readonly(cmd):
+        return (0, "") if "import requests" in cmd else (1, "")
+
+    def reset_to_base():
+        pass
+
+    def run_install_script(script):
+        # The fresh replay itself fails even though every node was already
+        # certified SATISFIED going in (e.g. a system-level regression) —
+        # the "done" decision must not be trusted over this.
+        return InstallResult(rc=1, failing_command="pip install -r requirements.txt",
+                             lineno=None, stderr="boom")
+
+    final_map, stop = run_v3(
+        build_agent=_NoClientBuildAgent(),
+        maintainer=_NoopMaintainer(),
+        initial_world_map=world,
+        ledger=ActionLedger(),
+        sandbox_execute=sandbox_execute,
+        max_cycles=3,
+        exec_readonly=exec_readonly,
+        enable_dep_emit=True,
+        reset_to_base=reset_to_base,
+        run_install_script=run_install_script,
+    )
+    assert stop == "planner_giveup"
+    assert stop != "planner_done"
+
+
+def test_done_flag_without_green_replay_gives_up():
+    """Mirrors the run_v1 done_flag tests (pre-set done_flag=True on the
+    initial map, NoopMaintainer preserves it). With ``dep_graph=None``,
+    ``_dep_emit_phase`` never calls ``_binding_emit`` (existing R3(c) guard),
+    so ``_last_replay_result`` stays None for the whole run even though
+    done_flag is set going into cycle 1's task branch. Before the fix, the
+    ``current_map.done_flag`` hard-stop returned TerminationReason.DONE_FLAG
+    unconditionally — a second, ungrounded success door alongside the
+    scheduler's 'done' decision. Now it must route through the same
+    ``_finalize_if_replayed`` guard and give up instead.
+    """
+    base = initial_map(base_image="python:3.11-slim", workdir="/repo", language="python",
+                       build_system="pip", repo_layout=())
+    # dep_graph stays None (default) so _dep_emit_phase/_binding_emit never runs
+    # and reset_to_base/run_install_script must never be called either.
+    world = merge_map(base, done_flag=True)
+
+    def sandbox_execute(cmd):
+        # Tests never pass, so the scheduler's own "done" decision is
+        # unreachable (frontier is empty for a None graph too, but
+        # run_tests() must be False here to force the "task" -> discover
+        # branch, where the pre-set done_flag is what triggers the exit).
+        return (False, "not ready")
+
+    def reset_to_base():
+        raise AssertionError("reset_to_base must never be called: dep_graph is None")
+
+    def run_install_script(script):
+        raise AssertionError("run_install_script must never be called: dep_graph is None")
+
+    final_map, stop = run_v3(
+        build_agent=_NoClientBuildAgent(),
+        maintainer=_NoopMaintainer(),
+        initial_world_map=world,
+        ledger=ActionLedger(),
+        sandbox_execute=sandbox_execute,
+        max_cycles=3,
+        reset_to_base=reset_to_base,
+        run_install_script=run_install_script,
+    )
+    assert stop not in ("planner_done", "done_flag")
+    assert stop == "planner_giveup"

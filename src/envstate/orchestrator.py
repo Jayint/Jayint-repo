@@ -69,10 +69,12 @@ class TerminationReason(enum.Enum):
     GIVEUP_CONFIG   = "giveup_config"     # targeted obligation but no exec_readonly/client:
                                            # typed repair is impossible, and there is no
                                            # free-text fallback to silently downgrade to
-    GIVEUP_REPLAY   = "giveup_replay"     # scheduler decided "done" but the latest
-                                           # per-cycle replay (Model B's sole executor)
-                                           # did not reproduce from base (rc!=0) — a
-                                           # build that doesn't build is never "done"
+    GIVEUP_REPLAY   = "giveup_replay"     # a success door (scheduler "done" OR maintainer
+                                           # done_flag) opened but the latest per-cycle
+                                           # replay (Model B's sole executor) did not
+                                           # reproduce from base (None or rc!=0) — a build
+                                           # that doesn't build is never reported as success
+                                           # (guarded by `_finalize_if_replayed` in run_v3)
     MAX_CYCLES      = "max_cycles"
 
 
@@ -503,6 +505,33 @@ def run_v3(
         _stop = _to_stop_reason(reason)
         return current_map, _stop
 
+    def _finalize_if_replayed(reason):
+        """Shared guard for EVERY success-reason exit (Phase 7 gap-fix).
+
+        There are two success doors out of run_v3: the scheduler deciding
+        action='done' (-> TerminationReason.DONE) and the maintainer setting
+        WorldModelMap.done_flag in the task branch (-> TerminationReason.
+        DONE_FLAG). Both must be equally bound to a green fresh replay — a
+        run must never report success (`planner_done` / `done_flag`) unless
+        the latest per-cycle replay (`_last_replay_result`, set by
+        `_binding_emit`, Model B's sole executor) actually reproduced the
+        environment from base. Any other exit reason (budget/residual/stuck/
+        config giveups, max_cycles) is already a terminal failure and is NOT
+        routed through this guard — only success reasons need downgrading.
+        """
+        if _last_replay_result is None or _last_replay_result.rc != 0:
+            import logging
+            logging.getLogger(__name__).warning(
+                "graph-scheduler: %s decided but the latest fresh replay "
+                "did not reproduce from base (rc=%s, failing_command=%r) — "
+                "giving up instead of reporting success",
+                reason,
+                _last_replay_result.rc if _last_replay_result is not None else None,
+                _last_replay_result.failing_command if _last_replay_result is not None else None,
+            )
+            return _finish(TerminationReason.GIVEUP_REPLAY)
+        return _finish(reason)
+
     def _binding_emit(graph, manual_blocks, cycle):
         """Canonical fresh-replay executor (Phase 4 — Model B, the SOLE run_v3 executor).
 
@@ -827,22 +856,12 @@ def run_v3(
             # Tests already run inside that same fresh-replayed container, so
             # rc!=0 here should never coincide with a real "done" — this is a
             # defensive assertion, not the normal path. Never report done on a
-            # build that didn't build.
-            if _last_replay_result is None or _last_replay_result.rc != 0:
-                import logging
-                logging.getLogger(__name__).warning(
-                    "graph-scheduler: 'done' decided but the latest fresh replay "
-                    "did not reproduce from base (rc=%s, failing_command=%r) — "
-                    "giving up instead of reporting done",
-                    _last_replay_result.rc if _last_replay_result is not None else None,
-                    _last_replay_result.failing_command if _last_replay_result is not None else None,
-                )
-                if on_cycle is not None:
-                    on_cycle(cycle, current_map, decision, None)
-                return _finish(TerminationReason.GIVEUP_REPLAY)
+            # build that didn't build. `_finalize_if_replayed` is the SAME
+            # guard used by the done_flag exit below — one implementation for
+            # both success doors (review fix wave).
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)
-            return _finish(TerminationReason.DONE)
+            return _finalize_if_replayed(TerminationReason.DONE)
 
         if decision.action == "giveup":
             if on_cycle is not None:
@@ -906,8 +925,12 @@ def run_v3(
             on_cycle(cycle, current_map, decision, report)
 
         # ── 6. Hard-stop on done_flag — do NOT re-enter scheduler ────────────
+        # Review fix wave: done_flag is the SECOND success door (the maintainer
+        # can set it in the task branch independently of the scheduler's "done"
+        # decision) — it must be bound to a green replay exactly like DONE is,
+        # via the same `_finalize_if_replayed` guard, not left ungated.
         if current_map.done_flag:
-            return _finish(TerminationReason.DONE_FLAG)
+            return _finalize_if_replayed(TerminationReason.DONE_FLAG)
 
     # Exhausted all cycles without termination.
     return _finish(TerminationReason.MAX_CYCLES)
