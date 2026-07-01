@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import enum
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from python_deps.depgraph.runtime_classify import Discovery, classify_observation
@@ -101,3 +102,16 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     if _RESIDUAL_RE.search(text):
         return Diagnosis(Mode.RESIDUAL, None, "assertion failure — non-environment residual")
     return Diagnosis(Mode.AMBIGUOUS, None, "unclassified failure — probe before repair")
+
+
+def make_diagnostic_classifier(ctx: RepoContext) -> Callable[[str, str], Discovery | None]:
+    """Adapt :func:`diagnose` to the ``ingest_runtime_failures`` classifiers seam.
+
+    Returns a Discovery only for ``Mode.ENVIRONMENT``; every other mode
+    (repo-internal-reference, residual, invalid-attempt, ambiguous) returns
+    ``None`` so no node is appended. The router's mode/reason are consumed by
+    the orchestrator in Phase 2; Phase 1 uses only the ENVIRONMENT/else split.
+    """
+    def _classify(command: str, output: str) -> Discovery | None:
+        return diagnose(command, output, ctx).discovery
+    return _classify
