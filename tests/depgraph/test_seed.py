@@ -123,3 +123,26 @@ def test_seed_returns_new_graph_originals_unchanged():
 
     assert out is not graph
     assert graph.get(tool_id("build-essential")) is None
+
+
+def test_seed_no_prediction_for_unresolved_diagnostic_package():
+    """Diagnostic packages representing resolver failures (version=None) do not
+    get a build-essential prediction, even if build_from_source is None.
+    This aligns seed.py with emit.py's treatment of unresolved nodes as
+    non-emittable."""
+    diagnostic_pkg = Node(
+        id=package_id("missing-package", "unresolved"),
+        type=NodeType.PACKAGE,
+        name="missing-package",
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version=None,  # unresolved diagnostic
+        check_command="python -m pip show missing-package",
+        build_from_source=None,  # unknown (default)
+    )
+    graph = DepGraph().with_node(diagnostic_pkg)
+
+    out = seed_wheel_oracle_prior(graph)
+
+    # No build-essential node should be created for unresolved diagnostics
+    assert [n for n in out.nodes if n.type is NodeType.TOOL] == []

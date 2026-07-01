@@ -58,13 +58,14 @@ def seed_wheel_oracle_prior(graph: DepGraph) -> DepGraph:
     known from-source builds or unknown build mode from degraded resolution), add a
     ``requires`` edge to the single, deduped ``build-essential`` Tool node (created
     once, on first need). Only packages with a confirmed matching wheel
-    (``build_from_source=False``) skip the prediction. Returns a NEW graph; a no-op
-    when no package needs a source build.
+    (``build_from_source=False``) skip the prediction. Unresolved diagnostic packages
+    (``version=None``, representing resolver failures) are always excluded. Returns
+    a NEW graph; a no-op when no package needs a source build.
     """
     new = graph
     packages = [
         n for n in graph.nodes
-        if n.type is NodeType.PACKAGE and n.build_from_source is not False
+        if n.type is NodeType.PACKAGE and n.version and n.build_from_source is not False
     ]
     if not packages:
         return new
