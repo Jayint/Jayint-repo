@@ -10,9 +10,11 @@ mis-added as a PyPI package (the design's single highest-value guard).
 from __future__ import annotations
 
 import enum
+import re
 from dataclasses import dataclass, field
 
-from python_deps.depgraph.runtime_classify import Discovery
+from python_deps.depgraph.runtime_classify import Discovery, classify_observation
+from python_deps.failure_classifier import classify_dependency_failure
 
 
 class Mode(enum.Enum):
@@ -46,3 +48,56 @@ def is_local_import(import_name: str, local_names: frozenset[str]) -> bool:
     if not import_name:
         return False
     return import_name.split(".", 1)[0] in local_names
+
+
+# An assertion / logic failure is a residual (non-environment) bug: the graph
+# cannot close it by adding a node. Conservative — anything else stays AMBIGUOUS.
+_RESIDUAL_RE = re.compile(r"\bAssertionError\b")
+
+# failure_type values the router treats as import-shaped (candidate packages).
+_IMPORT_FAILURE_TYPES = frozenset({"module_not_found", "import_name_error"})
+
+
+def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
+    """Classify one (command, output) failure into a routing Mode.
+
+    Only ``Mode.ENVIRONMENT`` carries a ``Discovery`` (produced by the existing
+    ``classify_observation``, which owns import->package mapping). Every other
+    mode carries ``discovery=None`` and a human-readable ``reason``.
+    """
+    text = output or ""
+    dep = classify_dependency_failure(command, text)
+
+    # pip already proved this distribution does not exist -> never retry the name.
+    if dep.failure_type == "no_matching_distribution":
+        name = dep.package_name or ""
+        return Diagnosis(Mode.INVALID_ATTEMPT, None,
+                         f"pip found no matching distribution for {name!r}")
+
+    # Import failures split three ways: repo-local (out of scope), previously
+    # disproven (invalid), or a genuine external package requirement.
+    if dep.failure_type in _IMPORT_FAILURE_TYPES:
+        import_name = dep.import_name or ""
+        if is_local_import(import_name, ctx.local_names):
+            return Diagnosis(Mode.REPO_INTERNAL_REF, None,
+                             f"{import_name!r} resolves to a repo-local module")
+        disc = classify_observation(command, text)
+        if disc is None:
+            return Diagnosis(Mode.AMBIGUOUS, None,
+                             f"import {import_name!r} had no package mapping")
+        if disc.name in ctx.invalid_names:
+            return Diagnosis(Mode.INVALID_ATTEMPT, None,
+                             f"package {disc.name!r} was previously disproven")
+        return Diagnosis(Mode.ENVIRONMENT, disc,
+                         f"external import {import_name!r} -> package requirement")
+
+    # Native lib / service / config / tool: reuse the classifier verbatim.
+    disc = classify_observation(command, text)
+    if disc is not None:
+        return Diagnosis(Mode.ENVIRONMENT, disc,
+                         f"{disc.node_type.value.lower()} requirement")
+
+    # Nothing environment-shaped matched. Distinguish residual from ambiguous.
+    if _RESIDUAL_RE.search(text):
+        return Diagnosis(Mode.RESIDUAL, None, "assertion failure — non-environment residual")
+    return Diagnosis(Mode.AMBIGUOUS, None, "unclassified failure — probe before repair")
