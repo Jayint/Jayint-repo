@@ -459,41 +459,13 @@ def parse_uv_lock(
 
 
 # --------------------------------------------------------------------------- #
-# Pure parser 2: per-package native-build risk from the lock's artifacts.
+# Pure parser 2: per-package native-build risk — delegates to wheel_oracle.py.
 # --------------------------------------------------------------------------- #
-def _artifact_filename(artifact: dict) -> str | None:
-    """Filename of an sdist/wheel lock entry (explicit, or derived from url)."""
-    if not isinstance(artifact, dict):
-        return None
-    name = artifact.get("filename")
-    if name:
-        return name
-    url = artifact.get("url")
-    if url:
-        return url.rsplit("/", 1)[-1]
-    return None
-
-
-def _wheel_matches_platform(filename: str | None, target_platform: str) -> bool:
-    """True when ``filename`` is installable on the (linux) ``target_platform``.
-
-    Universal wheels (``...-none-any.whl``) match every platform.  Otherwise the
-    target's arch token (e.g. ``x86_64`` / ``aarch64``) must appear in a *linux*
-    platform tag; macOS/Windows wheels never match a linux target.
-    """
-    if not filename:
-        return False
-    low = filename.lower()
-    if not low.endswith(".whl"):
-        return False
-    if low.endswith("-none-any.whl"):
-        return True
-    arch = (target_platform.split("-", 1)[0] if target_platform else "").lower()
-    if not arch:
-        return False
-    if "linux" not in low:  # the target is linux; skip macosx_/win_ wheels.
-        return False
-    return arch in low
+from python_deps.depgraph.wheel_oracle import (  # noqa: E402
+    _artifact_filename,
+    _wheel_matches_platform,
+    risk_from_packages,
+)
 
 
 def native_risk_from_lock(
@@ -504,57 +476,19 @@ def native_risk_from_lock(
 ) -> dict[str, dict]:
     """Map ``package name -> {build_from_source, artifact, hash}`` from a lock.
 
-    A package that ships an ``sdist`` but **no wheel matching
-    ``target_platform``** must be built from source on the target.  The chosen
-    artifact is the matching wheel when one exists, else the sdist.
-    ``target_platform`` here is always the NORMALIZED wheel/uv tag (e.g.
-    ``"aarch64-manylinux_2_28"``) — wheel filenames never carry a raw alias
-    like ``arm64``, so this wheel-filename match is unaffected by the
-    raw-vs-normalized distinction below.
-
-    ``target_python`` resolves fork duplicates the same way as
-    :func:`parse_uv_lock` so the risk for a forked package reflects the version
-    actually installed on the target (not whichever version appeared last).
-    That fork-selection's marker evaluation uses ``target_env`` (the real
-    container facts — RAW ``platform_machine``) when given, falling back to
-    reconstructing a NORMALIZED-arch stand-in from ``target_platform`` only
-    when no ``target_env`` is available (see :func:`_resolved_target_env`).
+    Thin orchestrator: parses the TOML, resolves fork duplicates against the
+    real target environment the same way :func:`parse_uv_lock` does (so a
+    forked package's risk reflects the version actually applicable on the
+    target — correctness Task 7), filters out local-source entries with this
+    module's OWN ``_is_local_source``, then delegates the per-package
+    wheel-vs-sdist decision to :func:`wheel_oracle.risk_from_packages`.
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
         data.get("package", []), target_python, target_platform, target_env
     )
-    risk: dict[str, dict] = {}
-    for pkg in raw_packages:
-        name = pkg.get("name")
-        if not name or _is_local_source(pkg.get("source", {})):
-            continue
-        sdist = pkg.get("sdist")
-        wheels = pkg.get("wheels", []) or []
-
-        matching_wheel = next(
-            (
-                w
-                for w in wheels
-                if _wheel_matches_platform(_artifact_filename(w), target_platform)
-            ),
-            None,
-        )
-        has_sdist = isinstance(sdist, dict) and bool(sdist)
-        build_from_source = has_sdist and matching_wheel is None
-
-        if matching_wheel is not None:
-            chosen = matching_wheel
-        elif has_sdist:
-            chosen = sdist
-        elif wheels:
-            chosen = wheels[0]
-        else:
-            chosen = None
-
-        risk[name] = {
-            "build_from_source": build_from_source,
-            "artifact": _artifact_filename(chosen) if chosen else None,
-            "hash": chosen.get("hash") if isinstance(chosen, dict) else None,
-        }
-    return risk
+    raw_packages = [
+        p for p in raw_packages
+        if p.get("name") and not _is_local_source(p.get("source", {}))
+    ]
+    return risk_from_packages(raw_packages, target_platform)
