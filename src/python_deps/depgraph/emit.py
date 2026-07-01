@@ -78,8 +78,9 @@ def _is_emittable(graph: DepGraph, node: Node, conflicted: set[str]) -> bool:
     if node.type is NodeType.PACKAGE:
         if not node.version:           # unresolved -> the LLM's call
             return False
-        if node.build_from_source and not _toolchain_ready(graph, node):
-            return False               # wait for its toolchain to certify
+        if not _toolchain_ready(graph, node):
+            return False               # native/runtime-link deps must certify first
+                                        # (wheel OR sdist — a wheel still dlopens libs)
         return True
     if node.type in (NodeType.SYSTEM_LIB, NodeType.TOOL):
         return bool(node.chosen_fix and node.chosen_fix.startswith("apt:"))

@@ -81,6 +81,22 @@ def test_partition_unversioned_package_is_frontier():
     assert p.emittable == ()
 
 
+def test_wheel_package_waits_for_its_runtime_syslib():
+    # A wheel (build_from_source=False) still dlopens native libs at import time,
+    # so it must wait for a MISSING required SystemLib just like a source build.
+    opencv = _pkg("opencv-python", version="4.9.0.80", bfs=False)
+    libgl = Node(id="syslib:libGL.so.1", type=NodeType.SYSTEM_LIB, name="libGL.so.1",
+                 layer=Layer.SYSTEM, discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+                 check_command="ldconfig -p | grep libGL.so.1")
+    g = DepGraph(
+        nodes=(opencv, libgl),
+        edges=(Edge(src="pkg:opencv-python", dst="syslib:libGL.so.1", relation=EdgeType.REQUIRES),),
+    )
+    part = partition(g)
+    emittable_ids = {n.id for n in part.emittable}
+    assert "pkg:opencv-python" not in emittable_ids  # BUG today: it IS emittable
+
+
 def test_partition_demotes_repeatedly_failed_emit_to_frontier():
     # Fix #3: a resolved package that has failed to emit MAX_EMIT_ATTEMPTS times must
     # stop being emittable and escalate to the frontier (no infinite re-emit loop).
