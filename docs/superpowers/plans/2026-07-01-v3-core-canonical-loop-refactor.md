@@ -483,6 +483,19 @@ def test_single_repair_call_site_and_no_block_emit_in_source():
 
 ---
 
+## Phase 6b: Wire the local-import guard at the ingest path (completes the guard end-to-end)
+
+**Gap found during Phase 8 (must-fix):** the local-import guard was wired at REPAIR (`_repair_or_route` runs `diagnose_all`) but NOT at INGEST. `_runtime_ingest_phase` used raw `classify_observation`, so a repo-local import (`docs_src`) failing via the discover→ingest path got a bogus `pkg:docs-src` node ADDED (then failing every replay forever). This completes the companion-plan Task-3 intent (wire `make_diagnostic_classifier` into ingest), which was deferred and never done — the guard is the design's single highest-value guard, so it must apply end-to-end, not just at repair.
+
+**Files:** `src/envstate/orchestrator.py` (`_runtime_ingest_phase` classifier construction), `tests/envstate/test_ingest_local_import_guard.py`.
+
+- [ ] Replace the deterministic tier with `classifiers = (make_diagnostic_classifier(_repo_ctx()),)` (applies the guard at ingest: local-import → None; invalid/residual/ambiguous → None; ENVIRONMENT → Discovery). `_repo_ctx()` is the Phase-6 `run_v3`-scope closure; `_runtime_ingest_phase` is a sibling closure that can call it.
+- [ ] Guard the LLM tier: wrap `_bounded_llm` in `_guarded_llm` that drops a `Discovery` whose `disc.data["import_name"]` (or `disc.name`) satisfies `is_local_import(...)`.
+- [ ] Tests (discover→ingest path): `ModuleNotFoundError: docs_src` (docs_src local) → NO `pkg:docs-src` node; `ModuleNotFoundError: requests` (external) → `pkg:requests` IS added (guard doesn't over-block).
+- [ ] Commit. `git commit -m "fix(orchestrator): wire local-import guard at ingest (make_diagnostic_classifier in _runtime_ingest_phase)"`
+
+---
+
 ## Phase 7: Installability gate binding by construction (from the per-cycle replay)
 
 Under Model B the executor is already fresh replay (Phase 4), so there is **no separate terminal-replay step** — the latest cycle's replay result *is* the installability proof. This phase makes the gate read that result and drops the provisional graph-heuristic from the canonical path.
