@@ -282,7 +282,7 @@ Collapse `_dep_emit_phase`'s three-branch structure to one: **fresh full-script 
 - [ ] **Step 1: Make the fresh-replay body unconditional.** In `_dep_emit_phase`, remove the branch selection so the body is always: start-of-cycle `certify_refresh` → `_binding_emit`-style render/reset/install/certify → on failure `run_structured_repair(..., emit=lambda g, mb: _binding_emit(g, mb, cycle))` (Phase 6 replaces this call with `_repair_or_route`). Delete the `elif enable_script_materialization: block_emit(...)` block and the `else: emit_drain(...) + repair_failed_nodes(...)` block entirely, plus their now-unused imports inside this function.
   - **Hoist `_binding_emit`** out of `_dep_emit_phase` up to `run_v3` scope (a sibling closure over `exec_readonly`/`reset_to_base`/`run_install_script`/`sandbox_execute`), signature `(graph, manual_blocks, cycle) -> (graph, evidence_bundle_or_None, failed_node)`. Both `_dep_emit_phase` and Phase 6's `_repair_or_route` must call the SAME replay emit; if it stays nested, `_repair_or_route` can't see it.
 
-- [ ] **Step 2: Add rendering-hash memoization (bounds outer-loop cost).** Keep a `nonlocal _last_replay_key`. Compute `key = (hash(render_build_script(graph, _manual_blocks)),)`; if `key == _last_replay_key` (graph + manual_blocks unchanged since the last replay), SKIP the `reset_to_base`/`run_install_script` this cycle — the container already reflects it, and re-running is wasteful. Set `_last_replay_key = key` after each real replay. (The repair INNER loop still re-replays per attempt because the graph changes each attempt — that cost is the recorded Dockerfile-cache future-work's target, not this memoization's.)
+- [ ] **Step 2: Every cycle is a real fresh replay — NO memoization.** `_binding_emit` always `reset_to_base` + `run_install_script` + certify, on every call. (An earlier draft memoized a skip when the render-hash was unchanged; it was **removed** after review: a memoized-skip cycle returned `bundle=None` for a still-unsatisfied node, starving `run_structured_repair` of fresh install-failure stderr on exactly the nodes that survive past one cycle. The "redundant" replay is not wasteful — it is what *produces* the current evidence bundle the repair loop needs, and "every cycle is a fresh replay from base, no exceptions" is the purest Model-B invariant. The genuine cost optimization is the recorded cached-`docker build` future work, not a skip.)
 
 - [ ] **Step 3: Require the executor callables.** `reset_to_base` and `run_install_script` are no longer optional — the canonical executor needs them. Near the top of `run_v3` (replacing the old `enable_binding_install`/`enable_script_materialization` contradiction guard at `:385-387`):
 
@@ -489,7 +489,7 @@ Under Model B the executor is already fresh replay (Phase 4), so there is **no s
 
 **Files:** `src/envstate/orchestrator.py` (carry the latest replay `InstallResult`), `src/envstate/gates.py`, `scripts/run_v3_e2e.py`, `tests/envstate/test_gates.py`.
 
-- [ ] **Step 1: Carry the latest replay result.** In `run_v3`, keep `nonlocal _last_replay_result` (an `InstallResult | None`). `_dep_emit_phase` sets it after each real replay (skip-memoized cycles keep the prior result). It answers "does the current graph+blocks build from base."
+- [ ] **Step 1: Carry the latest replay result.** In `run_v3`, keep `nonlocal _last_replay_result` (an `InstallResult | None`). `_dep_emit_phase` sets it after each replay — and since every cycle replays (Phase 4, no memoization), it always reflects the latest from-base build. It answers "does the current graph+blocks build from base."
 
 - [ ] **Step 2: Make the installability gate binding.** Extend `evaluate_installability_gate` to accept the real replay result:
 
@@ -633,7 +633,7 @@ class RunTracer:
 - `run_v3(..., tracer: RunTracer | None = None)`.
 - In `_repair_or_route`: after `run_structured_repair`, `tracer.record_patchgate(PatchGateRecord(...))` from `_out` (accepted node/block ids, errors).
 - In `_run_discover_gate` + next-cycle ingest: `tracer.record_discover(DiscoverRecord(cycle, VERIFY_TEST_CMD, used_llm_mutation=False, new_node_ids=..., diagnosis_modes=[d.mode.value for d in diags]))`.
-- In `_dep_emit_phase`, after EACH real replay (skip-memoized cycles record nothing): `tracer.record_replay(FreshReplayRecord(ran=True, setup_rc=result.rc, failing_command=..., certified_node_ids=..., unsatisfied_node_ids=..., test_rc=..., test_summary=...))`. This yields one record per replaying cycle (Model B).
+- In `_dep_emit_phase`, after each replay (every cycle replays — Phase 4): `tracer.record_replay(FreshReplayRecord(ran=True, setup_rc=result.rc, failing_command=..., certified_node_ids=..., unsatisfied_node_ids=..., test_rc=..., test_summary=...))`. One record per cycle (Model B).
 - On exit in `_finish`: `tracer.set_manual_blocks(tuple(b.block_id for b in _manual_blocks))`.
 - The `mark_emit_drain`/`mark_repair_failed_nodes`/`mark_build_agent_run`/`mark_block_emit` hooks stay wired at those (now-removed-from-`run_v3`) call sites in `run_v1`/ablation code, so a regression that re-introduces any of them into `run_v3` trips the verifier.
 
