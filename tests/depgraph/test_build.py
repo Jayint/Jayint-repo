@@ -12,9 +12,10 @@ test injects the SAME ``FakeExecutor`` for both (``host_executor=`` kwarg).
 
 Native gaps here surface as fresh ``discovered_by=PROBE`` nodes (soname/tool-
 name keyed): this fixture's closure is ``uv pip compile``-style text (no
-``build_from_source`` signal), so ``seed_wheel_oracle_prior`` (construction-
-enrichment cluster 1a; the curated package->syslib table is gone) predicts
-nothing for opencv-python/psycopg2. See
+``build_from_source`` signal), so all packages have unknown build mode (None).
+``seed_wheel_oracle_prior`` (construction-enrichment cluster 1a) seeds
+``tool:build-essential`` for these unknowns; specific ``-dev`` headers remain
+undeclared and surface as fresh PROBE nodes (soname/tool-name keyed). See
 ``test_build_native_gaps_are_fresh_probe_nodes_without_a_prior`` for the
 documented coverage tradeoff.
 """
@@ -166,10 +167,11 @@ def test_build_certified_states(tmp_path):
 
 def test_build_native_gaps_are_fresh_probe_nodes_without_a_prior(tmp_path):
     """No curated table and no build_from_source signal in this fixture ->
-    seed_wheel_oracle_prior predicts nothing, so the observed native gaps have
-    no RESOLVER prediction to reconcile into and surface as fresh
-    discovered_by=PROBE nodes (the design's documented coverage tradeoff —
-    Risk #2 in the construction-enrichment design)."""
+    seed_wheel_oracle_prior predicts only the generic build-essential toolchain,
+    not specific ``-dev`` headers. The observed native gaps (libGL, libpq-dev)
+    have no RESOLVER prediction and surface as fresh discovered_by=PROBE nodes
+    (the design's documented coverage tradeoff — Risk #2 in the construction-
+    enrichment design)."""
     graph = _build(tmp_path)
 
     libgl = graph.get(syslib_id("libGL.so.1"))

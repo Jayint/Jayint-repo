@@ -52,17 +52,19 @@ def _build_essential_node() -> Node:
 
 
 def seed_wheel_oracle_prior(graph: DepGraph) -> DepGraph:
-    """Emit ONE ``tool:build-essential`` node for every from-source Package.
+    """Emit ONE ``tool:build-essential`` node for every from-source or unknown Package.
 
-    For each ``Package`` with ``build_from_source=True`` (the resolver's own
-    wheel-vs-sdist signal), add a ``requires`` edge to the single, deduped
-    ``build-essential`` Tool node (created once, on first need). Returns a NEW
-    graph; a no-op when no package needs a source build.
+    For each ``Package`` with ``build_from_source`` not False (i.e., True or None —
+    known from-source builds or unknown build mode from degraded resolution), add a
+    ``requires`` edge to the single, deduped ``build-essential`` Tool node (created
+    once, on first need). Only packages with a confirmed matching wheel
+    (``build_from_source=False``) skip the prediction. Returns a NEW graph; a no-op
+    when no package needs a source build.
     """
     new = graph
     packages = [
         n for n in graph.nodes
-        if n.type is NodeType.PACKAGE and n.build_from_source
+        if n.type is NodeType.PACKAGE and n.build_from_source is not False
     ]
     if not packages:
         return new

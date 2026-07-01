@@ -1,10 +1,13 @@
 """Wheel-oracle prior seeding (``seed.py``, construction-enrichment cluster 1a).
 
 Replaces the old curated-table prediction: the ONLY signal is the resolver's
-own ``build_from_source`` flag. A from-source package predicts a generic
-compiler toolchain (``tool:build-essential``); it does NOT predict specific
-``-dev`` headers (that used to come from ``PACKAGE_TO_SYSTEM_DEPS``, now
-deleted — see the design doc's "What this loses, honestly").
+own ``build_from_source`` flag. A package that either needs a source build
+(``build_from_source=True``) or has unknown build mode (``build_from_source=None``,
+e.g. from degraded uv-pip-compile fallback) predicts a generic compiler toolchain
+(``tool:build-essential``); only confirmed wheels (``build_from_source=False``)
+skip the prediction. Does NOT predict specific ``-dev`` headers (that used to
+come from ``PACKAGE_TO_SYSTEM_DEPS``, now deleted — see the design doc's
+"What this loses, honestly").
 """
 
 from __future__ import annotations
@@ -62,13 +65,20 @@ def test_seed_no_prediction_when_build_from_source_false():
     assert [n for n in out.nodes if n.type is NodeType.TOOL] == []
 
 
-def test_seed_no_prediction_when_build_from_source_none():
+def test_seed_predicts_build_essential_when_build_from_source_unknown():
+    """Unknown build mode (e.g. resolved via the degraded uv-pip-compile fallback,
+    which never computes the wheel/sdist signal) is treated cautiously, same as a
+    known from-source build — matches emit.py's _toolchain_ready semantics
+    (build_from_source is not False gates on the Tool dep)."""
     pkg = _package("requests", "2.31.0")  # default None (unknown)
     graph = DepGraph().with_node(pkg)
 
     out = seed_wheel_oracle_prior(graph)
 
-    assert [n for n in out.nodes if n.type is NodeType.TOOL] == []
+    tool = out.get(tool_id("build-essential"))
+    assert tool is not None
+    deps = {d.id for d in out.requires_of(pkg.id)}
+    assert tool_id("build-essential") in deps
 
 
 def test_seed_dedupes_build_essential_across_multiple_from_source_packages():
