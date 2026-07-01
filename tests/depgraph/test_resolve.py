@@ -659,6 +659,42 @@ def test_transitive_conflict_drops_one_imposer_not_shared():
     assert len(names & {"package-b", "package-c"}) == 1
 
 
+def test_transitive_conflict_prefers_root_imposer():
+    """Review P1 fix: when only ONE of the two immediate imposers is itself a
+    current root, that root must be the one dropped — dropping the non-root
+    immediate imposer can't shrink the root set, so the retry would stall
+    (`remaining == current`) and collapse to the degraded fallback.
+
+    foo -> b -> a<2 ; bar -> a>=2.  parse_resolver_error reports the immediate
+    imposers "b" (not a root; "foo" is) and "bar" (a root). The fix must pick
+    "bar", never "b"."""
+    conflict = SimpleNamespace(
+        package="a",
+        left=SimpleNamespace(imposed_by="b"),
+        right=SimpleNamespace(imposed_by="bar"),
+    )
+    diag = SimpleNamespace(missing=[], conflicts=[conflict])
+    names = _offending_root_names(diag, {"foo", "bar"})
+    assert "bar" in names
+    assert "b" not in names
+    assert "a" not in names
+
+
+def test_deep_transitive_conflict_adds_no_nonroot():
+    """When NEITHER immediate imposer is a current root, the immediate-imposer
+    diagnosis can't name a droppable root — adding a non-root imposer would not
+    shrink the root set (false progress), so nothing should be added for this
+    conflict."""
+    conflict = SimpleNamespace(
+        package="a",
+        left=SimpleNamespace(imposed_by="b"),
+        right=SimpleNamespace(imposed_by="c"),
+    )
+    diag = SimpleNamespace(missing=[], conflicts=[conflict])
+    names = _offending_root_names(diag, {"foo", "baz"})
+    assert names & {"foo", "baz", "a", "b", "c"} == set()
+
+
 # --------------------------------------------------------------------------- #
 # resolve_closure — success path (read the temp-project uv.lock).
 # --------------------------------------------------------------------------- #
