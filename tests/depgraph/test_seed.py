@@ -41,19 +41,24 @@ def test_seed_predicts_runtime_syslib_for_opencv():
 
     out = seed_predicted_native(graph)
 
-    lib = out.get(syslib_id("libgl1"))
+    # Canonical rule: the SONAME is the identity for a SystemLib node (it is the
+    # observable ldd/import_probe key); the apt package lives in chosen_fix, not
+    # the id — so seed and the later probe stages land on the SAME node.
+    lib = out.get(syslib_id("libGL.so.1"))
     assert lib is not None
     assert lib.type is NodeType.SYSTEM_LIB
     assert lib.layer is Layer.SYSTEM
     assert lib.discovered_by is DiscoveredBy.RESOLVER  # a prediction
     assert lib.state is State.UNKNOWN
+    assert lib.name == "libGL.so.1"
     assert lib.fix_candidates == ("apt:libgl1",)
+    assert lib.chosen_fix == "apt:libgl1"
     # and the second runtime lib in the chain
-    assert out.get(syslib_id("libglib2.0-0")) is not None
+    assert out.get(syslib_id("libglib-2.0.so.0")) is not None
     # owning package requires the predicted lib
     deps = {d.id for d in out.requires_of(pkg.id)}
-    assert syslib_id("libgl1") in deps
-    assert syslib_id("libglib2.0-0") in deps
+    assert syslib_id("libGL.so.1") in deps
+    assert syslib_id("libglib-2.0.so.0") in deps
 
 
 def test_seed_predicts_build_tool_for_psycopg2():
@@ -105,7 +110,7 @@ def test_seed_dedupes_shared_predicted_node_across_packages():
     out = seed_predicted_native(graph)
 
     # opencv-python-headless is not in the table; only opencv-python predicts.
-    libs = [n for n in out.nodes if n.id == syslib_id("libgl1")]
+    libs = [n for n in out.nodes if n.id == syslib_id("libGL.so.1")]
     assert len(libs) == 1
 
 
@@ -118,7 +123,7 @@ def test_seed_predicted_edges_are_resolver_origin():
     pred_edges = [
         e
         for e in out.edges
-        if e.dst == syslib_id("libgl1") and e.relation is EdgeType.REQUIRES
+        if e.dst == syslib_id("libGL.so.1") and e.relation is EdgeType.REQUIRES
     ]
     assert pred_edges and all(e.origin == "resolver" for e in pred_edges)
 
@@ -130,4 +135,4 @@ def test_seed_returns_new_graph_originals_unchanged():
     out = seed_predicted_native(graph)
 
     assert out is not graph
-    assert graph.get(syslib_id("libgl1")) is None
+    assert graph.get(syslib_id("libGL.so.1")) is None

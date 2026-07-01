@@ -63,7 +63,11 @@ def test_system_deps_for_known_packages():
     assert system_deps_for_package("mysqlclient") == ["default-libmysqlclient-dev"]
     assert system_deps_for_package("lxml") == ["libxml2-dev", "libxslt1-dev"]
     assert system_deps_for_package("Pillow") == ["libjpeg-dev", "zlib1g-dev"]
-    assert system_deps_for_package("opencv-python") == ["libgl1", "libglib2.0-0"]
+    # Runtime deps are soname-keyed (canonical id — see PACKAGE_TO_SYSTEM_DEPS
+    # docstring); -dev entries above stay apt-keyed (they're Tool, not SystemLib).
+    assert system_deps_for_package("opencv-python") == ["libGL.so.1", "libglib-2.0.so.0"]
+    assert apt_for_soname("libGL.so.1") == "libgl1"
+    assert apt_for_soname("libglib-2.0.so.0") == "libglib2.0-0"
 
 
 def test_system_deps_for_package_normalizes_name():

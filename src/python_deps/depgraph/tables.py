@@ -61,15 +61,28 @@ NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
 )
 
 
-# Distribution -> apt system-dev packages it needs to BUILD/RUN, for proactive
-# prediction at resolve time (before the build runs).  Keyed by the PyPI
-# distribution name; lookups are normalized so case/separators don't matter.
+# Distribution -> curated native needs it triggers at resolve time (proactive
+# prediction, before the build/import runs).  Keyed by the PyPI distribution
+# name; lookups are normalized so case/separators don't matter.
+#
+# Entry SHAPE matters (``seed._predicted_node`` dispatches on it):
+#   * an apt name ending in ``-dev`` (or ``build-essential``) is a BUILD-time
+#     toolchain header/lib -> a ``Tool`` node, keyed by that apt name.  A
+#     ``-dev`` package is never ``ldd``-observable (no wheel/binary dlopens a
+#     header), so it needs no soname reconciliation.
+#   * anything else is a RUN-time shared-library soname (e.g. ``libGL.so.1``)
+#     -> a ``SystemLib`` node keyed by the SONAME, not an apt name.  The soname
+#     is the identity because it is what ``ldd_probe``/``import_probe`` OBSERVE
+#     on the installed binary (``NATIVE_LIB_TO_APT`` fills the apt package into
+#     ``chosen_fix``); keying by soname makes the seed prediction and the real
+#     observation land on the SAME node instead of splitting into two whenever
+#     soname->apt resolution is uncertain or absent.
 PACKAGE_TO_SYSTEM_DEPS: dict[str, list[str]] = {
     "psycopg2": ["libpq-dev"],
     "mysqlclient": ["default-libmysqlclient-dev"],
     "lxml": ["libxml2-dev", "libxslt1-dev"],
     "Pillow": ["libjpeg-dev", "zlib1g-dev"],
-    "opencv-python": ["libgl1", "libglib2.0-0"],
+    "opencv-python": ["libGL.so.1", "libglib-2.0.so.0"],
 }
 
 # Precomputed normalized-name index for O(1), case-insensitive lookups.
