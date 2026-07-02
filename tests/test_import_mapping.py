@@ -44,3 +44,17 @@ def test_image_does_not_map_to_pillow():
 
 def test_pil_still_maps_to_pillow():
     assert map_import_to_package("pil").package_name == "Pillow"
+
+
+def test_github_import_maps_to_pygithub():
+    # bare identity fallback would wrongly return "github" (a defunct/wrong
+    # PyPI sdist); the correct distribution is PyGithub.
+    r = map_import_to_package("github", declared_package_names=set())
+    assert r.package_name == "PyGithub"
+    assert r.source == "collision_table"
+
+
+def test_crypto_import_maps_to_pycryptodome():
+    r = map_import_to_package("Crypto", declared_package_names=set())
+    assert r.package_name == "pycryptodome"
+    assert r.source == "collision_table"

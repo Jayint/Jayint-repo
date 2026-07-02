@@ -6,10 +6,12 @@ from dataclasses import dataclass
 
 CURATED_IMPORT_TO_PACKAGE = {
     "bs4": "beautifulsoup4",
+    "crypto": "pycryptodome",
     "cv2": "opencv-python",
     "django_filters": "django-filter",
     "factory": "factory-boy",
     "fitz": "PyMuPDF",
+    "github": "PyGithub",
     "lxml": "lxml",
     "mysqldb": "mysqlclient",
     "openssl": "pyOpenSSL",
