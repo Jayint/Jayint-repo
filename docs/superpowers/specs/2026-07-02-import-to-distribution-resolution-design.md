@@ -154,6 +154,16 @@ LLM-free:
   modern wheels** (3 of 5 sampled: rich, pydantic, beautifulsoup4 — verified), while
   root-entry derivation succeeded on all 5 — so root entries are the primary path, not a
   fallback.
+- **Authoritative metadata field, when present (checked FIRST inside `wheel_provides.py`):**
+  the PyPA core-metadata `Import-Name` / `Import-Namespace` fields declare exactly the import
+  names a distribution provides. When a candidate wheel's `METADATA` carries them they are the
+  *authoritative* answer — no inference from file layout — and `Import-Namespace` specifically
+  disambiguates the namespace case below (where `packages_distributions()` reports many dists
+  for one shared top-level). Caveats: these fields are a *recent* core-metadata addition with
+  **sparse real-world adoption today**, so treat absence as "no signal → fall through to
+  root-entry inspection," never as evidence of non-provision; and they live in the wheel
+  `METADATA`, so reading them needs the same range-read fetch as root entries — a better
+  *answer*, not a cheaper *fetch*.
 
 Certification caveats the implementation must handle:
 - **Ambiguity is real, not just theoretical.** `packages_distributions()` maps a top-level to
@@ -165,7 +175,8 @@ Certification caveats the implementation must handle:
   (do not build).
 - **Namespace packages** (`google.*`, `zope.*`, `backports.*`) share a top-level across
   dists → inherently ambiguous; Tier 1 (closure) disambiguates via the declared-root
-  tie-break above, Tier 2 treats a shared top-level as "ambiguous → Tier 3".
+  tie-break above; `Import-Namespace` (when the candidate publishes it) resolves it
+  deterministically; otherwise Tier 2 treats a shared top-level as "ambiguous → Tier 3".
 
 ## 6. Cache and table
 
@@ -253,7 +264,16 @@ These fix vizro's B end-to-end with **no table and no resolver**, and harden the
 ## 9. Non-goals
 
 - **No LLM** in resolution (unlike SMT-LLM).
-- **No repair/execute loop** — no ephemeral "install and see if it imports" probing.
+- **No repair/execute loop** — no ephemeral "install the candidate in a temp venv and see if it
+  imports" probing. Considered and declined (2026-07-03, §14): such a probe is *dominated* by
+  pre-install wheel inspection (§5), which certifies the same fact from metadata without
+  installing anything or incurring side effects; if the wheel answers it, the probe buys only
+  cost and contamination.
+- **No bulk import-index database** (a mined `import → distributions` map, pigar-style).
+  Considered and declined (2026-07-03, §14): a mined index IS the large precomputed table this
+  design exists to avoid — it drifts and generates candidates from *unverified* guesses (the
+  SMT-LLM 666-entry-cache failure mode, §2.5). The only cache we keep is the *certified* one
+  (§6): a record of verified results, never a mined map.
 - **No PyPI-wide search** — closure-scoped only.
 - **No "zero table" promise** — SMT-LLM proves it is unachievable; the goal is a *minimal,
   drift-proof* table (§6), not its elimination.
@@ -265,6 +285,13 @@ no candidate source: Tier 1 has nothing to scope to, Tier 2's variants cannot ge
 name, and there is no reverse index. It is flagged `undeclared-unresolved` — usually a real
 signal the project under-declared a dependency. This residual cannot be closed dynamically;
 the ~6-entry table exists precisely for its most common members.
+
+This is the shared boundary of *every* deterministic evidence ladder (including the external
+proposal evaluated in §14): the strong rungs — `packages_distributions()`, `Import-Name`, wheel
+inspection — all **certify a candidate you already hold**; none **generate** the candidate
+`opencv-python` from `cv2` when it is declared nowhere. Candidate *generation* for
+arbitrary-renamed-and-undeclared imports is the wall, so the honest flag is load-bearing here,
+not an afterthought.
 
 ## 11. Verification
 
@@ -347,3 +374,27 @@ skeptic, empirical ground-truth) plus a targeted vizro-manifest fact-check. Outc
   Phase 1 collapses to the scan-scope exclusion alone. Evidence: `resolve_lock.py` state
   defaults, `certify.py`, the `coverage.py` construction→replay path, `test_build_script.py`
   MISSING-state fixtures.
+
+## 14. External evidence-ladder proposal — evaluated (2026-07-03)
+
+An externally-sourced "deterministic evidence ladder" for import→distribution resolution was
+reviewed. It **converges on this design's core principle** ("do not guess identity by default;
+verify through evidence or keep the import unresolved" = §3 certify-or-flag) and independently
+raises the dependency-confusion security angle (§2, the `Crypto→pycryptodome`-not-`pycrypto`
+class). Its rungs map onto this design as follows:
+
+- **Adopted:** the PyPA core-metadata **`Import-Name` / `Import-Namespace`** fields — folded into
+  §5 as the authoritative first check inside `wheel_provides.py`, notably to disambiguate the
+  namespace case (`google`→many). New signal we did not previously have; near-zero adoption today
+  so it is a bonus when present, not a foundation.
+- **Already in the design:** `packages_distributions()` post-install (= Tier 1 / `relink`, Phase
+  2); wheel `top_level.txt`/`RECORD`/root-dir inspection (= §5 `wheel_provides.py`, Phase 3) — with
+  our empirical refinement that root entries lead and `top_level.txt` is the sometimes-absent
+  accelerant; "mark unresolved, never fabricate" (= Tier 3 / §10).
+- **Declined (now recorded in §9):** an **offline import-index database** (pigar-style) — it is the
+  mined, drift-prone table this design exists to avoid; and an **ephemeral probe-install** — a
+  repair/execute loop dominated by pre-install wheel inspection.
+- **Shared boundary (now recorded in §10):** the ladder is *certification-complete but
+  generation-limited* — every strong rung certifies a candidate already in hand; none generate the
+  candidate for an arbitrary-renamed-and-undeclared import. The honest `unresolved` flag is the
+  correct, load-bearing terminus for that class.
