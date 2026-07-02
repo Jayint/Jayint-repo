@@ -90,3 +90,21 @@ def test_non_import_nodes_are_ignored():
         )
     )
     assert package_roots(graph) == [(import_id("cv2"), "opencv-python")]
+
+
+def test_package_roots_omits_unresolved_import(monkeypatch):
+    import python_deps.depgraph.naming as naming
+    from python_deps.import_mapping import unresolved_result, MappingResult
+
+    def fake_map(import_name, declared_package_names=None):
+        if import_name == "mystery":
+            return unresolved_result(import_name)
+        return MappingResult(import_name, import_name, "direct_name", "low")
+
+    monkeypatch.setattr(naming, "map_import_to_package", fake_map)
+    graph = _graph("requests", "mystery")
+    roots = naming.package_roots(graph)
+    # requests still resolves; mystery is unresolved -> no root fabricated.
+    assert (import_id("mystery"), None) not in roots
+    assert all(dist is not None for _imp, dist in roots)
+    assert (import_id("requests"), "requests") in roots

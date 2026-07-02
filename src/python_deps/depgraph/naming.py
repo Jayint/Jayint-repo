@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from python_deps.depgraph.schema import DepGraph, NodeType
 from python_deps.import_mapping import (
+    is_unresolved,
     map_import_to_package,
     normalize_package_name,
 )
@@ -50,5 +51,7 @@ def package_roots(
             roots.append((node.id, declared_by_normalized[normalized]))
             continue
         result = map_import_to_package(node.name, declared_package_names=declared)
+        if is_unresolved(result):
+            continue
         roots.append((node.id, result.package_name))
     return roots
