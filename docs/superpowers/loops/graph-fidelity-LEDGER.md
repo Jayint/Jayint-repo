@@ -27,7 +27,7 @@ Resume from the first unchecked item. Trust this ledger + `git log` over memory.
 
 ## Two-phase eval plan (user re-scope 2026-07-02) — settle P1 before P2
 - **P1 = graph COVERAGE** ("does the graph capture ~everything needed?"): per-tier recall vs held-out recipe oracle (proxy) + execution-discovered missing (install closure → import + `pytest --collect-only` → classify ModuleNotFound/ldd-not-found/cmd-not-found = graph gaps) + baseline feasibility + Haiku judge + edge_cases known-answers. **Building now: `coverage.py` (a0b19a0b) across feasible seed repos, defer darts.**
-- **P2 = TRANSFORMATION** ("does render → a WORKING setup.sh?"): render fidelity (topo/complete/valid-bash/determinism/emitted-but-uncertified) + installability replay (rc + first-fail + class) + round-trip conservation. Built AFTER P1 coverage is high.
+- **P2 = TRANSFORMATION** ("does render → a WORKING setup.sh?"): [x] `render_fidelity.py` DONE (e20ef5e) — `check_render`: topo/complete/single-emit/valid-bash/emitted-but-uncertified; mutation-teeth verified; 13 tests, no new deps. STILL QUEUED (build on a shared `replay` helper factored out of coverage's container probe, to avoid duplication): installability replay (rc + first-fail + class) + round-trip conservation.
 - Shared container run; FAILURE ATTRIBUTION splits phases: missing-node → P1 coverage gap; order/bad-cmd/render → P2 transformation bug. (Installability probe deferred — it's P2.)
 
 ## Phase B — autonomous sequence (run once construction is green; user directive 2026-07-02)
