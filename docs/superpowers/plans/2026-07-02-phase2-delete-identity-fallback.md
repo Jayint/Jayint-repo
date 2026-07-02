@@ -749,6 +749,96 @@ git commit -m "docs(ledger): Phase 2 complete — identity fallback deleted, viz
 
 ---
 
+## Acceptance & Verification — Definition of Done
+
+Run this whole checklist after all 9 tasks (it is also the final whole-branch review's gate).
+Phase 2 is DONE only when checks 1–6 pass and check 7 shows no regression. Each check has an
+exact command and expected result; if any fails, the refactor is not complete.
+
+**1. Full suite green — and nothing forced.**
+
+```bash
+PYTHONPATH=src python3 -m pytest tests/depgraph tests/eval tests/test_import_mapping.py -q
+```
+
+Expected: `0 failed`. Sanity on the count: it must be ≥ the 2026-07-02 baseline (`tests/depgraph`
++ `tests/eval` = 837) plus the new tests, with the ~6 behavioral tests from Task 7 **updated**
+(present and green), NOT deleted. Confirm no test was removed to force green:
+
+```bash
+git diff --stat main...HEAD -- tests/ | tail -1     # net test lines should be POSITIVE
+```
+
+**2. The identity fallback is gone (code invariant).**
+
+```bash
+grep -n 'source="direct_name"' src/python_deps/import_mapping.py && echo "FAIL: identity return still present" || echo "OK: no identity-fallback return"
+PYTHONPATH=src python3 -c 'from python_deps.import_mapping import map_import_to_package as m, is_unresolved; r=m("zzz_not_a_real_pkg", set()); print(r); assert is_unresolved(r), "identity fallback still active"'
+```
+
+Expected: no `direct_name` return remains; an unknown import returns `unresolved`
+(`package_name=None`), NOT the bare name `zzz_not_a_real_pkg`.
+
+**3. Resolver probe → 0 wrong guesses (the headline metric).**
+
+Re-run the 13-case probe (Task 9, Step 1) — a scratchpad script calling
+`map_import_to_package(x, set())` on the corpus.
+Expected: `yaml, cv2, PIL, bs4, sklearn, github, Crypto` → correct distribution (curated table);
+`requests, numpy, dateutil, dotenv, attr, google` → `unresolved`. **Wrong guesses: 0** (the
+pre-Phase-2 baseline was 6). "Correct-or-unresolved, never wrong" is the whole point of Phase 2.
+
+**4. No fabricated root reaches a rendered artifact.**
+
+For a repo with an undeclared, unmapped import, render its `setup.sh` and confirm there is no
+bare-import install line (use the vizro artifact from check 5, or a fixture):
+
+```bash
+grep -nE 'pip install.* box($|[ =<])' setup.sh && echo "FAIL: fabricated root" || echo "OK: no literal box"
+```
+
+Expected: the only pip targets are declared / table / certified distributions — never
+`pip install <import_name>` for an unmapped name.
+
+**5. vizro end-to-end (the acceptance case) — `install_ok=True`.**
+
+Full `coverage.py` construction→render→fresh `-slim` replay on `mckinsey/vizro` (Task 9, Step 2).
+Expected, ALL true:
+- `grep -i github setup.sh` → no match (Finding B stays closed).
+- no literal `box` install line; `python-box` IS installed.
+- the graph carries a certified edge `import:box → pkg:python-box` (edge `origin="certified"`).
+- `install_ok == True`. If still false, the blocker MUST be a NEW same-class ghost (report its
+  import→dist), never `box` or `github`.
+
+**6. Honest flag works (no silent drop).**
+
+A truly-undeclared, unmapped import — one nothing in the installed closure provides — must end up
+flagged on its IMPORT node after relink (Task 8), not silently absent and not fabricated:
+
+```python
+# in a graph where "mystery" is imported but no installed package provides it:
+node = out.get(import_id("mystery"))
+assert node.data.get("unresolved") is True
+assert node.evidence.startswith("unresolved:")
+```
+
+Expected: flagged (`data["unresolved"]` + evidence), never a `pkg:mystery` root.
+
+**7. No collateral regression across the corpus.**
+
+Re-run the graph-fidelity eval on the smoke set (or at least any other repo already known to
+install green). Expected: no repo that installed before now fails **because a real dependency
+became unresolved**. If one does, it means a genuinely-needed provider was undeclared AND unmapped
+— that is correct new behavior (an honest under-declaration signal), NOT a Phase-2 bug; triage and
+record it, do not "fix" it by restoring guessing.
+
+**Definition of Done:** checks 1–6 pass; check 7 shows no regression (new honest-flags are fine;
+a new *install failure on a previously-green repo* must be triaged, not papered over). Record the
+final wrong-guess count (0) and the vizro `install_ok` in the ledger (Task 9, Step 3).
+
+**Rollback safety:** every task is a separate commit, and the guards (Tasks 2–6) are inert until
+Task 7. If a showstopper emerges post-merge, `git revert` the single Task-7 flip commit restores
+the identity fallback while leaving the harmless guards in place — a one-commit escape hatch.
+
 ## Notes for the executor
 
 - **Read each file before editing.** Line numbers here are from 2026-07-02; they may drift. The anchor is the quoted current code, not the number.
