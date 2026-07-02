@@ -63,6 +63,26 @@ def test_ignores_unknown_tools_builtins_and_local_scripts(tmp_path):
     assert scan_subprocess_tools(str(tmp_path)) == {}
 
 
+def test_non_utf8_file_does_not_crash_scan(tmp_path):
+    # A latin-1 byte (0xe9) is invalid UTF-8; reading it raises UnicodeDecodeError
+    # (a ValueError, NOT an OSError). The scan must skip the file, not crash the
+    # whole graph build — a cosmetic encoding issue in ONE unrelated file must not
+    # discard the entire dependency graph.
+    (tmp_path / "bad.py").write_bytes(b"# comment with a latin-1 byte: \xe9\n")
+    _write(tmp_path, "good.py", "import subprocess\nsubprocess.run(['git', 'x'])\n")
+    found = scan_subprocess_tools(str(tmp_path))
+    assert found == {"git": found.get("git", "")}  # good.py still scanned
+    assert "git" in found
+
+
+def test_tables_are_disjoint():
+    # id-collision guard: CLI_TOOL_TO_APT (subprocess tools, id=tool:<name>) and
+    # TOOL_TO_APT (pip build tools, id via tool:<apt>) MUST stay disjoint so a
+    # future edit can't silently mint two nodes for one apt package.
+    from python_deps.depgraph.tables import CLI_TOOL_TO_APT, TOOL_TO_APT
+    assert not (set(CLI_TOOL_TO_APT) & set(TOOL_TO_APT))
+
+
 def test_ignores_calls_in_excluded_dirs(tmp_path):
     _write(tmp_path, "examples/demo.py", "import subprocess\nsubprocess.run(['git', 'x'])\n")
     _write(tmp_path, "docs/gen.py", "import os\nos.system('adb devices')\n")

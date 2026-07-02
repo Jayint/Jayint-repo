@@ -95,3 +95,11 @@ def apt_for_cli_tool(tool: str) -> str | None:
     """Apt package providing a runtime CLI binary (e.g. ``adb`` -> ``adb``); None
     when ``tool`` is not on the curated subprocess allowlist."""
     return CLI_TOOL_TO_APT.get(tool)
+
+
+# Enforce the disjointness the two tables' node ids depend on: subprocess tools
+# are keyed ``tool:<name>`` and pip build tools ``tool:<apt>``, so a key shared
+# between the tables could mint two nodes for one apt package. Checked at import
+# so a future edit to either table fails loudly, not silently.
+_SHARED_TOOL_KEYS = set(TOOL_TO_APT) & set(CLI_TOOL_TO_APT)
+assert not _SHARED_TOOL_KEYS, f"TOOL_TO_APT / CLI_TOOL_TO_APT overlap: {_SHARED_TOOL_KEYS}"

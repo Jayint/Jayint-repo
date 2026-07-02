@@ -108,7 +108,10 @@ def scan_subprocess_tools(repo_path: str) -> dict[str, str]:
             try:
                 with open(full, encoding="utf-8") as fh:
                     src = fh.read()
-            except OSError:
+            except (OSError, UnicodeDecodeError):
+                # UnicodeDecodeError is a ValueError, NOT an OSError: a single
+                # non-UTF-8 file anywhere in the tree must be skipped, never
+                # allowed to crash the whole graph build over a cosmetic gap.
                 continue
             _scan_source(src, rel, out)
     return out

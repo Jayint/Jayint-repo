@@ -107,15 +107,32 @@ def _project_name(repo_path: str) -> str:
 def _project_build_manifest(repo_path: str) -> str | None:
     """The build manifest that makes the repo editable-installable, or None.
 
-    A ``pip install -e .`` needs a PEP 517/setuptools entry point: a
-    ``pyproject.toml`` or a ``setup.py``. Without one the repo is a bare source
-    tree (scripts/notebooks) that cannot be installed, so the renderer must emit
-    no editable install for it (else ``setup.sh`` fails on a repo it can't build).
+    A ``pip install -e .`` needs DECLARED packaging intent, not merely a file
+    named ``pyproject.toml``: many repos ship a ``pyproject.toml`` purely for tool
+    config (``[tool.black]``, ``[tool.ruff]``, …) alongside a flat multi-module
+    layout that ``pip install -e .`` cannot build (setuptools aborts with
+    "Multiple top-level modules discovered in a flat-layout"). Under the rendered
+    script's ``set -Eeuo pipefail`` that one line would abort the whole setup.sh —
+    a NEW first-pass failure on a repo that never needed the editable install.
+
+    So a ``pyproject.toml`` counts only when it declares ``[project]`` (PEP 621
+    metadata) or ``[build-system]`` (PEP 517 backend); a bare ``setup.py`` is the
+    legacy installable signal. A tool-config-only pyproject with no ``setup.py``,
+    or an unparseable pyproject we cannot confirm, yields None — the renderer then
+    emits no editable install (never a command we cannot stand behind).
     """
-    for fname in ("pyproject.toml", "setup.py"):
-        path = os.path.join(repo_path, fname)
-        if os.path.isfile(path):
-            return path
+    pyproject = os.path.join(repo_path, "pyproject.toml")
+    if os.path.isfile(pyproject):
+        try:
+            with open(pyproject, "rb") as fh:
+                data = tomllib.load(fh)
+        except (OSError, tomllib.TOMLDecodeError):
+            data = {}
+        if "project" in data or "build-system" in data:
+            return pyproject
+    setup_py = os.path.join(repo_path, "setup.py")
+    if os.path.isfile(setup_py):
+        return setup_py
     return None
 
 

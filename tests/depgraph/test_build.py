@@ -328,6 +328,59 @@ def test_project_node_installable_with_setup_py_only(tmp_path):
     assert proj is not None and proj.data.get("installable") is True
 
 
+def _project_installable(tmp_path):
+    """Helper: run _add_project_node on a bare repo and return the PROJECT node's
+    installable flag."""
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.ids import project_id
+    from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node
+
+    test_node = Node(
+        id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL,
+    )
+    out = _add_project_node(DepGraph().with_node(test_node), str(tmp_path))
+    return out.get(project_id(tmp_path.name)).data.get("installable")
+
+
+def test_tool_config_only_pyproject_is_not_installable(tmp_path):
+    """A pyproject.toml that ONLY carries tool config (no [project]/[build-system])
+    is NOT a pip-installable package: a flat multi-module repo would fail
+    `pip install -e .` ("Multiple top-level modules"), aborting setup.sh under
+    `set -Eeuo pipefail`. Must not be flagged installable."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.black]\nline-length = 88\n\n[tool.ruff]\nselect = ['E']\n"
+    )
+    (tmp_path / "main.py").write_text("print('hi')\n")
+    (tmp_path / "helpers.py").write_text("x = 1\n")
+    assert _project_installable(tmp_path) is False
+
+
+def test_pyproject_with_build_system_only_is_installable(tmp_path):
+    """A [build-system] table (PEP 517 backend declared) signals installability
+    even without a [project] table (metadata may live in setup.cfg)."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[build-system]\nrequires = ['setuptools>=61']\n"
+        "build-backend = 'setuptools.build_meta'\n"
+    )
+    assert _project_installable(tmp_path) is True
+
+
+def test_tool_only_pyproject_but_setup_py_present_is_installable(tmp_path):
+    """A tool-config-only pyproject does not veto a real setup.py — the repo is
+    still installable via the legacy path."""
+    (tmp_path / "pyproject.toml").write_text("[tool.black]\nline-length = 88\n")
+    (tmp_path / "setup.py").write_text("from setuptools import setup\nsetup(name='legacy')\n")
+    assert _project_installable(tmp_path) is True
+
+
+def test_malformed_pyproject_without_setup_py_is_not_installable(tmp_path):
+    """An unparseable pyproject with no setup.py cannot be confirmed installable
+    -> not flagged (never emit a possibly-broken `-e .`)."""
+    (tmp_path / "pyproject.toml").write_text("this is not [ valid toml =\n")
+    assert _project_installable(tmp_path) is False
+
+
 _LDD_CLOSURE = """\
 numpy==1.26.4
     # via opencv-python
