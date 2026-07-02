@@ -130,7 +130,10 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     """Mark every IMPORT node that no PACKAGE provides (no outgoing REQUIRES
     edge to a Package after Tier-1 relink) as unresolved — an honest signal the
     project under-declared, NOT a fabricated root. Uses Node.data (state is the
-    host-certification axis and does not apply to imports). Returns a NEW graph.
+    host-certification axis and does not apply to imports). Idempotent: an
+    IMPORT that is now provided has any STALE ``unresolved`` flag (and the
+    evidence this function set) cleared, so re-running yields the same result
+    regardless of the flag state carried into the call. Returns a NEW graph.
     """
     provided = {
         e.src for e in graph.edges
@@ -140,7 +143,14 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     }
     new = graph
     for node in graph.nodes:
-        if node.type is not NodeType.IMPORT or node.id in provided:
+        if node.type is not NodeType.IMPORT:
+            continue
+        if node.id in provided:
+            if node.data.get("unresolved") is not True:
+                continue  # never flagged -- leave untouched, no needless rewrite
+            data = dict(node.data)
+            data.pop("unresolved", None)
+            new = new.with_node(replace(node, data=data, evidence=None))
             continue
         new = new.with_node(
             replace(

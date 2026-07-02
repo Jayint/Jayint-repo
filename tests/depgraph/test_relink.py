@@ -269,6 +269,88 @@ def test_unlinked_import_is_flagged_unresolved():
     assert out.get(linked.id).data.get("unresolved") is not True
 
 
+def test_stale_unresolved_flag_cleared_when_now_provided():
+    # `box` was flagged unresolved on a PRIOR pass (stale data carried over),
+    # but NOW has a certified REQUIRES->Package edge -- the relink must clear
+    # both the stale flag and the evidence it set, not just leave it stuck.
+    imp = Node(
+        id=import_id("box"), type=NodeType.IMPORT, name="box",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+        data={"unresolved": True},
+        evidence="unresolved: no distribution provides import box",
+    )
+    pkg = _pkg("python-box", "7.3.2")
+    edge = Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(imp, pkg), edges=(edge,))
+
+    out = flag_unresolved_imports(graph)
+
+    node = out.get(imp.id)
+    assert node.data.get("unresolved") is not True
+    assert "unresolved" not in dict(node.data)
+    assert node.evidence is None
+
+
+def test_stale_unresolved_flag_clear_preserves_other_data_keys():
+    # Clearing the stale flag must not disturb unrelated data keys on the node.
+    imp = Node(
+        id=import_id("box"), type=NodeType.IMPORT, name="box",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+        data={"unresolved": True, "some_other_key": "keep-me"},
+        evidence="unresolved: no distribution provides import box",
+    )
+    pkg = _pkg("python-box", "7.3.2")
+    edge = Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(imp, pkg), edges=(edge,))
+
+    out = flag_unresolved_imports(graph)
+
+    node = out.get(imp.id)
+    assert node.data.get("some_other_key") == "keep-me"
+    assert "unresolved" not in dict(node.data)
+
+
+def test_linked_never_flagged_import_not_rewritten():
+    # A provided import that was never flagged unresolved must be left byte-
+    # for-byte untouched (no needless node rewrite on the common/first-run path).
+    linked = _imp("box")
+    pkg = _pkg("python-box", "7.3.2")
+    edge = Edge(src=linked.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(linked, pkg), edges=(edge,))
+
+    out = flag_unresolved_imports(graph)
+
+    assert out.get(linked.id) is linked
+
+
+def test_flag_unresolved_imports_is_idempotent():
+    # Running flag_unresolved_imports twice must yield the same node data as
+    # running it once, regardless of the prior flag state on the input graph.
+    linked = _imp("box")
+    unlinked = _imp("mystery")
+    stale = Node(
+        id=import_id("stale_but_provided"), type=NodeType.IMPORT, name="stale_but_provided",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+        data={"unresolved": True},
+        evidence="unresolved: no distribution provides import stale_but_provided",
+    )
+    pkg = _pkg("python-box", "7.3.2")
+    graph = (
+        DepGraph(nodes=(linked, unlinked, stale, pkg))
+        .with_edge(Edge(src=linked.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified"))
+        .with_edge(Edge(src=stale.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified"))
+    )
+
+    once = flag_unresolved_imports(graph)
+    twice = flag_unresolved_imports(once)
+
+    for node_id in (linked.id, unlinked.id, stale.id):
+        n1 = once.get(node_id)
+        n2 = twice.get(node_id)
+        assert dict(n1.data) == dict(n2.data)
+        assert n1.evidence == n2.evidence
+
+
 def test_drop_ghost_never_removes_a_certified_target(fake_executor, make_result_fixture):
     # Pathological: pkg:foo is ghost-shaped (version None, MISSING) for import:foo,
     # but is ALSO the certified provider of import:bar. Dropping import:foo's ghost
