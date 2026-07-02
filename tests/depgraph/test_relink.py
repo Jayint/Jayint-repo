@@ -249,6 +249,26 @@ def test_certified_import_links_keeps_ghost_without_replacement(fake_executor, m
     assert out.get(package_id("widget", None)) is not None  # kept: no certified replacement
 
 
+from python_deps.depgraph.relink import flag_unresolved_imports
+
+
+def test_unlinked_import_is_flagged_unresolved():
+    # `box` was linked by relink (import->package edge present); `mystery` has
+    # no distribution at all and must be flagged as an honest under-declaration
+    # signal, not a fabricated root.
+    linked = _imp("box")
+    unlinked = _imp("mystery")
+    pkg = _pkg("python-box", "7.3.2")
+    edge = Edge(src=linked.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(linked, unlinked, pkg), edges=(edge,))
+
+    out = flag_unresolved_imports(graph)
+
+    assert out.get(unlinked.id).data.get("unresolved") is True
+    assert "mystery" in out.get(unlinked.id).evidence
+    assert out.get(linked.id).data.get("unresolved") is not True
+
+
 def test_drop_ghost_never_removes_a_certified_target(fake_executor, make_result_fixture):
     # Pathological: pkg:foo is ghost-shaped (version None, MISSING) for import:foo,
     # but is ALSO the certified provider of import:bar. Dropping import:foo's ghost

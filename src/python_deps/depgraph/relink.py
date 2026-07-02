@@ -14,6 +14,7 @@ every "mutation" returns a NEW ``DepGraph``).
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType, State
@@ -125,6 +126,32 @@ def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> Dep
     return new
 
 
+def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
+    """Mark every IMPORT node that no PACKAGE provides (no outgoing REQUIRES
+    edge to a Package after Tier-1 relink) as unresolved — an honest signal the
+    project under-declared, NOT a fabricated root. Uses Node.data (state is the
+    host-certification axis and does not apply to imports). Returns a NEW graph.
+    """
+    provided = {
+        e.src for e in graph.edges
+        if e.relation is EdgeType.REQUIRES
+        and (dst := graph.get(e.dst)) is not None
+        and dst.type is NodeType.PACKAGE
+    }
+    new = graph
+    for node in graph.nodes:
+        if node.type is not NodeType.IMPORT or node.id in provided:
+            continue
+        new = new.with_node(
+            replace(
+                node,
+                data={**dict(node.data), "unresolved": True},
+                evidence=f"unresolved: no distribution provides import {node.name}",
+            )
+        )
+    return new
+
+
 def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     """Stage 4a: add certified Import->Package edges from the container.
 
@@ -142,4 +169,4 @@ def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     new = graph
     for edge in edges:
         new = new.with_edge(edge)
-    return _drop_superseded_ghosts(new, edges)
+    return flag_unresolved_imports(_drop_superseded_ghosts(new, edges))
