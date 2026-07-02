@@ -603,7 +603,13 @@ def run_execution_probe(
     ``{install_ok, install_first_failure, execution_missing}``."""
     with _MountedContainer(base_image, os.path.abspath(repo_dir)) as fresh:
         _write_file(fresh, "/setup.sh", setup_script)
-        install = fresh.run("bash -x /setup.sh", timeout=install_timeout)
+        # setup.sh is run FROM the repo root (the standard contract every project's
+        # install docs assume; mirrors the held-out oracle Dockerfiles' `WORKDIR
+        # /app; RUN pip install -e .`). The final `pip install -e .` resolves `.`
+        # against this cwd, so running from `/` would fail to find pyproject.toml.
+        install = fresh.run(
+            f"cd {fresh.container_dir} && bash -x /setup.sh", timeout=install_timeout
+        )
         if not install.ok:
             return {
                 "install_ok": False,

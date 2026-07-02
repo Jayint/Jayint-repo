@@ -103,6 +103,21 @@ def _project_name(repo_path: str) -> str:
     return os.path.basename(repo_path.rstrip("/\\")) or "project"
 
 
+def _project_build_manifest(repo_path: str) -> str | None:
+    """The build manifest that makes the repo editable-installable, or None.
+
+    A ``pip install -e .`` needs a PEP 517/setuptools entry point: a
+    ``pyproject.toml`` or a ``setup.py``. Without one the repo is a bare source
+    tree (scripts/notebooks) that cannot be installed, so the renderer must emit
+    no editable install for it (else ``setup.sh`` fails on a repo it can't build).
+    """
+    for fname in ("pyproject.toml", "setup.py"):
+        path = os.path.join(repo_path, fname)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
 def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     """Add a Project hub node and connect declared direct deps to it.
 
@@ -121,6 +136,7 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     """
     name = _project_name(repo_path)
     proj_id = project_id(name)
+    manifest = _project_build_manifest(repo_path)
     graph = graph.with_node(
         Node(
             id=proj_id,
@@ -129,7 +145,10 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
             layer=Layer.PIP,
             discovered_by=DiscoveredBy.STATIC_SCAN,
             state=State.UNKNOWN,
-            provenance=os.path.join(repo_path, "pyproject.toml"),
+            provenance=manifest or repo_path,
+            # installable => the renderer emits `pip install -e .` as the final,
+            # post-dependency step (populate/build_script read this flag).
+            data={"installable": manifest is not None},
         )
     )
     graph = graph.with_edge(

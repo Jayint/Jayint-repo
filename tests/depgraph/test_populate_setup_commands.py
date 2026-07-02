@@ -28,6 +28,12 @@ def _tool():
                 state=State.MISSING, chosen_fix="apt:cmake")
 
 
+def _project(installable=True):
+    return Node(id="project:myproj", type=NodeType.PROJECT, name="myproj",
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, data={"installable": installable})
+
+
 def test_fills_reciped_package_with_pinned_no_deps_pip():
     n = populate_setup_commands(DepGraph(nodes=(_pkg(),))).get("pkg:requests")
     assert n.setup_commands == (
@@ -52,6 +58,22 @@ def test_fills_reciped_tool_with_apt():
     n = populate_setup_commands(DepGraph(nodes=(_tool(),))).get("tool:cmake")
     assert n.setup_commands == ("apt-get install -y --no-install-recommends cmake",)
     assert n.strength is Strength.HARD
+
+
+def test_fills_installable_project_with_editable_no_deps():
+    n = populate_setup_commands(DepGraph(nodes=(_project(),))).get("project:myproj")
+    assert n.setup_commands == (
+        "python3 -m pip install --break-system-packages --no-deps -e .",
+    )
+    assert n.strength is Strength.HARD
+
+
+def test_leaves_non_installable_project_untouched():
+    n = populate_setup_commands(
+        DepGraph(nodes=(_project(installable=False),))
+    ).get("project:myproj")
+    assert n.setup_commands == ()
+    assert n.strength is Strength.SOFT
 
 
 def test_idempotent_does_not_overwrite_existing():

@@ -29,6 +29,45 @@ def _apt(id_, name, fix, type_=NodeType.SYSTEM_LIB, layer=Layer.SYSTEM, **kw):
                 chosen_fix=fix, **kw)
 
 
+def _project(name="myproj", installable=True):
+    return Node(id=f"project:{name}", type=NodeType.PROJECT, name=name,
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, data={"installable": installable})
+
+
+_EDITABLE = "python3 -m pip install --break-system-packages --no-deps -e ."
+
+
+def test_installable_project_editable_install_emitted_last():
+    g = DepGraph(nodes=(
+        _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),
+        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
+        _project(),
+    ))
+    g = g.with_edge(Edge(src="pkg:psycopg2", dst="syslib:libpq-dev",
+                         relation=EdgeType.REQUIRES))
+    out = render_build_script(g)
+    # emitted exactly once, as the LAST install command (after every apt + pip line)
+    assert out.count(_EDITABLE) == 1
+    assert out.index(_EDITABLE) > out.index("psycopg2==2.9.9")
+    assert out.index(_EDITABLE) > out.index("libpq-dev\n")
+    # under its own PROJECT section header, and annotated so render_fidelity sees it
+    assert "# ==================== PROJECT" in out
+    assert out.index("# ==================== PROJECT") < out.index(_EDITABLE)
+    assert "#@node project:myproj" in out
+
+
+def test_non_installable_project_not_emitted():
+    g = DepGraph(nodes=(
+        _pkg("pkg:requests", "requests", "2.31.0"),
+        _project(installable=False),
+    ))
+    out = render_build_script(g)
+    assert _EDITABLE not in out
+    assert "#@node project:myproj" not in out
+    assert "# ==================== PROJECT" not in out
+
+
 def test_deterministic_core_sections_and_commands():
     g = DepGraph(nodes=(
         _apt("syslib:libpq-dev", "libpq-dev", "apt:libpq-dev"),

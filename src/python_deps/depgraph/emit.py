@@ -129,6 +129,15 @@ def _is_reciped(node: Node) -> bool:
     return False
 
 
+def _is_installable_project(node: Node) -> bool:
+    """The repo under test, when it declares a build system (pyproject/setup.py,
+    recorded as ``data['installable']`` at construction). Rendered as the FINAL
+    editable install — the capstone after every dependency — so it is deliberately
+    NOT part of ``_is_reciped`` (the third-party recipe set): keeping it separate
+    is what lets the renderer emit it once, last, without a per-layer double-emit."""
+    return node.type is NodeType.PROJECT and bool(node.data.get("installable"))
+
+
 def failed_reciped_nodes(graph: DepGraph) -> tuple[Node, ...]:
     """Reciped, host-checkable nodes still MISSING after a drain whose deps are
     SATISFIED — the spec's `isolate`. Excludes CONFIG/SERVICE (advisory) and

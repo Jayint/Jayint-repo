@@ -25,7 +25,7 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from python_deps.depgraph.build_script import render_build_script  # noqa: E402
-from python_deps.depgraph.emit import _is_reciped  # noqa: E402
+from python_deps.depgraph.emit import _is_installable_project, _is_reciped  # noqa: E402
 from python_deps.depgraph.schema import DepGraph, State  # noqa: E402
 
 # One #@node annotation line per reciped node (build_script._annotation); the
@@ -46,6 +46,7 @@ class RenderFidelity:
     valid_bash: bool | None       # None only when `bash` is unavailable on host
     bash_error: str | None
     emitted_but_uncertified: tuple[str, ...]
+    editable_last: bool | None    # None when the graph has no installable project
 
 
 def _parse_emitted_order(script_text: str) -> tuple[tuple[str, int], ...]:
@@ -137,6 +138,30 @@ def _check_uncertified(graph: DepGraph, emitted_ids: set[str]) -> tuple[str, ...
     return tuple(sorted(out))
 
 
+def _check_editable_last(
+    graph: DepGraph,
+    reciped_ids: set[str],
+    emitted: tuple[tuple[str, int], ...],
+) -> bool | None:
+    """When the graph declares an installable PROJECT node, its editable install
+    must be emitted AFTER every reciped dependency (the repo installs last —
+    finding A). Returns None when there is no installable project (not
+    applicable), False when the project is installable but absent from the script
+    or precedes a dependency, True otherwise."""
+    proj = next((n for n in graph.nodes if _is_installable_project(n)), None)
+    if proj is None:
+        return None
+    earliest: dict[str, int] = {}
+    for node_id, line_no in emitted:
+        if node_id not in earliest or line_no < earliest[node_id]:
+            earliest[node_id] = line_no
+    proj_line = earliest.get(proj.id)
+    if proj_line is None:
+        return False  # installable, but never emitted — the finding-A regression
+    dep_lines = [ln for nid, ln in earliest.items() if nid in reciped_ids]
+    return all(proj_line > dep_line for dep_line in dep_lines)
+
+
 def check_render(graph: DepGraph, script_text: str) -> RenderFidelity:
     """Grade one already-rendered ``script_text`` against the ``graph`` it
     claims to represent. Pure: does not call ``render_build_script`` itself."""
@@ -149,6 +174,7 @@ def check_render(graph: DepGraph, script_text: str) -> RenderFidelity:
     topo_ok, violations = _check_topo_order(graph, reciped_ids, emitted)
     valid_bash, bash_error = _check_valid_bash(script_text)
     uncertified = _check_uncertified(graph, emitted_ids)
+    editable_last = _check_editable_last(graph, reciped_ids, emitted)
 
     return RenderFidelity(
         all_reciped_emitted=all_emitted,
@@ -160,6 +186,7 @@ def check_render(graph: DepGraph, script_text: str) -> RenderFidelity:
         valid_bash=valid_bash,
         bash_error=bash_error,
         emitted_but_uncertified=uncertified,
+        editable_last=editable_last,
     )
 
 

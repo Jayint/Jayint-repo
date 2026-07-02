@@ -262,6 +262,8 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
 
     proj = out.get(pid)
     assert proj is not None and proj.type is NodeType.PROJECT
+    # a pyproject.toml declares a build system -> the repo is editable-installable
+    assert proj.data.get("installable") is True
 
     req = {(e.src, e.dst) for e in out.edges if e.relation is EdgeType.REQUIRES}
     assert (TEST_NODE_ID, pid) in req  # Test -> Project
@@ -269,6 +271,39 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     assert (TEST_NODE_ID, package_id("pytest", "8.0.0")) in req  # test dep off Test
     # certifi now has a parent (no longer orphaned at the top of the layer)
     assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
+
+
+def test_project_node_not_installable_without_build_manifest(tmp_path):
+    """A repo with neither pyproject.toml nor setup.py is NOT editable-installable
+    (no `pip install -e .` line should be rendered for it)."""
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.ids import project_id
+    from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node
+
+    test_node = Node(
+        id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL,
+    )
+    out = _add_project_node(DepGraph().with_node(test_node), str(tmp_path))
+    proj = out.get(project_id(tmp_path.name))
+    assert proj is not None and proj.type is NodeType.PROJECT
+    assert proj.data.get("installable") is False
+
+
+def test_project_node_installable_with_setup_py_only(tmp_path):
+    """A legacy repo with only setup.py (no pyproject.toml) is still installable."""
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.ids import project_id
+    from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node
+
+    (tmp_path / "setup.py").write_text("from setuptools import setup\nsetup(name='legacy')\n")
+    test_node = Node(
+        id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+        layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL,
+    )
+    out = _add_project_node(DepGraph().with_node(test_node), str(tmp_path))
+    proj = out.get(project_id(tmp_path.name))
+    assert proj is not None and proj.data.get("installable") is True
 
 
 _LDD_CLOSURE = """\

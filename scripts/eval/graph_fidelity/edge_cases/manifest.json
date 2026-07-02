@@ -71,6 +71,19 @@
     },
     "notes": "requires-python>=3.9 in pyproject.toml declares only a compatibility FLOOR; .python-version = 3.12 pins the actual development/CI target. A correct graph must select the PIN (3.12), not the floor (3.9) -- picking the floor would produce a runtime where `import tomllib` (stdlib only since 3.11) does not exist."
   },
+  "srclayout_editable": {
+    "isolates": "editable install of the repo-under-test (finding A; src-layout)",
+    "import_smoke": "srclayout_editable",
+    "editable_required": true,
+    "expected": {
+      "SYSTEM_LIB": [],
+      "TOOL": [],
+      "RUNTIME": null,
+      "PACKAGE": ["click"],
+      "SERVICE": []
+    },
+    "notes": "The package lives under src/srclayout_editable/, so `import srclayout_editable` succeeds ONLY after the repo is installed editable (`pip install -e .`). A correct graph must render the project's own editable install as the FINAL pip step, after its dependency closure (click); a graph that installs only the resolved closure and never the repo itself (finding A) installs cleanly but fails `import srclayout_editable` with ModuleNotFoundError. The `editable_required` flag records this known-answer: render_fidelity.editable_last must be true for this repo's graph."
+  },
   "pil_pillow": {
     "isolates": "import-name -> dist-name",
     "import_smoke": "PIL",

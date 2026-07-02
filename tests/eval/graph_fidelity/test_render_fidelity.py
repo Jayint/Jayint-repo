@@ -262,6 +262,51 @@ class TestUncertifiedTracking:
 
 
 # ---------------------------------------------------------------------------
+# editable_last: the repo-under-test's `pip install -e .` must render AFTER
+# every dependency (finding A — the editable install is the capstone).
+# ---------------------------------------------------------------------------
+
+def _project(name="myproj", installable=True):
+    return Node(id=f"project:{name}", type=NodeType.PROJECT, name=name,
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, data={"installable": installable})
+
+
+class TestEditableInstall:
+    def test_editable_last_true_when_project_rendered_after_deps(self):
+        g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project()))
+        result = check_render(g, render_build_script(g))
+        assert result.editable_last is True
+
+    def test_editable_last_none_when_no_installable_project(self):
+        g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"),))
+        result = check_render(g, render_build_script(g))
+        assert result.editable_last is None
+
+    def test_editable_last_false_when_installable_project_absent_from_script(self):
+        # finding-A regression: installable project but the script never emits it.
+        g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project()))
+        script = (
+            "#!/usr/bin/env bash\n"
+            "#@node pkg:requests  version=2.31.0\n"
+            "python3 -m pip install --break-system-packages --no-deps requests==2.31.0\n"
+        )
+        assert check_render(g, script).editable_last is False
+
+    def test_editable_last_false_when_project_before_a_dep(self):
+        # the editable install must not precede a dependency it needs installed.
+        g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project()))
+        mutated = (
+            "#!/usr/bin/env bash\n"
+            "#@node project:myproj  requires=-\n"
+            "python3 -m pip install --break-system-packages --no-deps -e .\n"
+            "#@node pkg:requests  version=2.31.0\n"
+            "python3 -m pip install --break-system-packages --no-deps requests==2.31.0\n"
+        )
+        assert check_render(g, mutated).editable_last is False
+
+
+# ---------------------------------------------------------------------------
 # valid_bash: real bash -n syntax check on the rendered artifact.
 # ---------------------------------------------------------------------------
 

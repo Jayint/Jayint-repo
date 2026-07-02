@@ -16,7 +16,12 @@ if TYPE_CHECKING:
     from python_deps.depgraph.block import Block
 
 from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER
-from python_deps.depgraph.emit import _is_reciped, _apt_name, topo_order
+from python_deps.depgraph.emit import (
+    _apt_name,
+    _is_installable_project,
+    _is_reciped,
+    topo_order,
+)
 from python_deps.depgraph.populate import populate_setup_commands
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
 
@@ -79,6 +84,19 @@ def _node_block(graph: DepGraph, node: Node, apt_done: list[bool]) -> list[str]:
 def _reciped_in_layer(graph: DepGraph, layer: Layer) -> tuple[Node, ...]:
     nodes = tuple(n for n in graph.nodes if n.layer is layer and _is_reciped(n))
     return topo_order(graph, nodes)
+
+
+_PROJECT_HEADER = "# ==================== PROJECT (editable) ===================="
+
+
+def _installable_project(graph: DepGraph) -> Node | None:
+    """The repo-under-test node whose editable install should render LAST, or
+    None. Requires populated setup_commands so ``populate_setup_commands`` runs
+    first (render_build_script guarantees this)."""
+    for node in graph.nodes:
+        if _is_installable_project(node) and node.setup_commands:
+            return node
+    return None
 
 
 _NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE, NodeType.DATA_ASSET)
@@ -203,6 +221,15 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
+    # The repo-under-test installs LAST: its editable install is the capstone that
+    # every dependency section above provisions. Emitted here (not via a layer)
+    # so it is unconditionally after all deps and never double-emitted by a layer
+    # section — see emit._is_installable_project for why it is NOT in _is_reciped.
+    proj = _installable_project(graph)
+    if proj is not None:
+        parts.append("")
+        parts.append(_PROJECT_HEADER)
+        parts += _node_block(graph, proj, apt_done)
     # Fail-fast: PatchGate (Phase 1) rejects illegal waves, so any manual block whose
     # wave is not a Layer value is a programming error, not user input — never silently
     # render it into an UNSCHEDULED section.
