@@ -24,7 +24,7 @@ deterministic, minimal network, host certifies truth, no repair loop.
 Python code imports *modules*; pip installs *distributions*. The name often differs
 (`import cv2` ← `opencv-python`; `import github` ← `PyGithub`). v3-core's current ladder
 (`naming.package_roots` → `import_mapping.map_import_to_package`) resolves this as:
-declared-manifest match (by normalized-name equality) → 12-entry curated table
+declared-manifest match (by normalized-name equality) → 13-entry curated table
 (`CURATED_IMPORT_TO_PACKAGE`) → **identity fallback** (`dist := import`, trust=low).
 
 The identity fallback is an unconfirmed guess, and it is the root of **Finding B**:
@@ -184,7 +184,7 @@ Two layers, both accepted:
   Tier-3 override: `cv2`, `PIL`, `bs4`, `sklearn`, `Crypto→pycryptodome`, `github→PyGithub`
   (~6 entries; each row carries a comment saying why it exists). Most repos never hit it,
   because if they truly depend on these they declare the distribution and Tier 1 certifies
-  it table-free. This replaces today's 12-entry `CURATED_IMPORT_TO_PACKAGE` as the *primary*
+  it table-free. This replaces today's 13-entry `CURATED_IMPORT_TO_PACKAGE` as the *primary*
   mechanism — the table is demoted to last resort, not deleted.
 
 ## 7. Pipeline changes (grounded in current code)
