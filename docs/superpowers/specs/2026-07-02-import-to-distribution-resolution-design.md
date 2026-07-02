@@ -268,6 +268,9 @@ the ~6-entry table exists precisely for its most common members.
   - the `github`/`PyGithub` tie → both certify → Tier 3 (table or flag), never auto-picked.
 - **End-to-end on vizro** (Finding B) via `scripts/eval/graph_fidelity/coverage.py`:
   after the §8 fixes, `github` no longer surfaces and `setup.sh` does not ship a broken root.
+  *(Pre-validated at the scan layer 2026-07-02: excluding `tools/` removes `github` plus 3
+  other tooling-only imports `jinja2`/`requests`/`werkzeug`, with zero collateral loss of any
+  package-`src` runtime import — 41→37 import nodes, 0 added.)*
 
 ## 12. Phasing / ship order
 
@@ -314,3 +317,8 @@ skeptic, empirical ground-truth) plus a targeted vizro-manifest fact-check. Outc
   the importing file is non-package dev tooling. Parsing it into the runtime closure would be
   scope creep; the correct fix is the §8.1 scope exclusion. This is why the assumption was
   tested before editing.
+- **Pre-validated:** the Phase-1 scan-scope fix was run against the real vizro checkout
+  (`scan_to_nodes`, `tools` monkeypatched into `_EXCLUDED_SEGMENTS`, repo untouched):
+  41→37 import nodes, `github`/`jinja2`/`requests`/`werkzeug` removed, all confirmed
+  confined to `tools/` with zero collateral loss of a package-`src` runtime import. Phase 1
+  is empirically SOUND before any plan is written.
