@@ -99,9 +99,13 @@ def link_imports_to_packages(graph: DepGraph) -> DepGraph:
             continue
         result = map_import_to_package(node.name)
         if is_unresolved(result):
-            continue
-        dist = result.package_name
-        pkg_id = canon_to_pkg.get(_canon(dist))
+            # Reconciliation-by-own-name: an unresolved import can still be linked to a
+            # Package that ALREADY EXISTS under the import's own canonical name. This is
+            # reconciliation against existing graph state, never fabrication — no new node
+            # is created; the edge is drawn only if a matching Package is already present.
+            pkg_id = canon_to_pkg.get(_canon(node.name))
+        else:
+            pkg_id = canon_to_pkg.get(_canon(result.package_name))
         if pkg_id is None or (node.id, pkg_id) in existing:
             continue
         new = new.with_edge(

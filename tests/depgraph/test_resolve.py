@@ -1898,6 +1898,38 @@ def test_link_imports_skips_unresolved_mapping(monkeypatch):
     assert not [e for e in out.edges if e.relation is EdgeType.REQUIRES]
 
 
+def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
+    """An UNRESOLVED import must still link to a Package that ALREADY EXISTS under the
+    import's own canonical name — reconciliation against existing graph state, never
+    fabrication. (Regression guard for the identity-fallback deletion.)"""
+    import python_deps.depgraph.resolve_link as resolve_link
+    from python_deps.depgraph.resolve import link_imports_to_packages
+    from python_deps.depgraph.schema import (
+        DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType,
+    )
+    from python_deps.import_mapping import unresolved_result
+
+    # Force the mapper to unresolved for every import (simulates post-flip behavior).
+    monkeypatch.setattr(
+        resolve_link, "map_import_to_package",
+        lambda name, *a, **k: unresolved_result(name),
+    )
+
+    imp = Node(
+        id="import:certifi", type=NodeType.IMPORT, name="certifi",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+    )
+    pkg = Node(
+        id="pkg:certifi==2026.1.1", type=NodeType.PACKAGE, name="certifi",
+        version="2026.1.1", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+    )
+    graph = DepGraph().with_node(imp).with_node(pkg)
+
+    out = link_imports_to_packages(graph)
+    req = {(e.src, e.dst) for e in out.edges if e.relation is EdgeType.REQUIRES}
+    assert ("import:certifi", "pkg:certifi==2026.1.1") in req
+
+
 def test_resolved_package_node_keeps_pip_fix():
     from python_deps.depgraph.resolve import _package_node
 
