@@ -16,7 +16,13 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.import_mapping import map_import_to_package  # noqa: E402
+from python_deps.import_mapping import (  # noqa: E402
+    MappingResult,
+    UNRESOLVED_SOURCE,
+    is_unresolved,
+    map_import_to_package,
+    unresolved_result,
+)
 
 
 def test_socketio_import_maps_to_python_socketio():
@@ -58,3 +64,17 @@ def test_crypto_import_maps_to_pycryptodome():
     r = map_import_to_package("Crypto", declared_package_names=set())
     assert r.package_name == "pycryptodome"
     assert r.source == "collision_table"
+
+
+def test_is_unresolved_true_for_unresolved_source():
+    r = unresolved_result("somemod")
+    assert r.import_name == "somemod"
+    assert r.package_name is None
+    assert r.source == UNRESOLVED_SOURCE
+    assert r.trust == "none"
+    assert is_unresolved(r) is True
+
+
+def test_is_unresolved_false_for_a_real_mapping():
+    r = MappingResult("yaml", "PyYAML", "collision_table", "high")
+    assert is_unresolved(r) is False

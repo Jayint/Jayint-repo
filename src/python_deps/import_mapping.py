@@ -26,15 +26,37 @@ SOURCE_LABELS = {
     "collision_table": "Collision Table",
     "declared_metadata": "Jayint declared metadata extension",
     "direct_name": "Lookup Name Variants",
+    "unresolved": "Unresolved (no distribution guess)",
 }
 
 
 @dataclass(frozen=True)
 class MappingResult:
     import_name: str
-    package_name: str
+    package_name: str | None
     source: str
     trust: str
+
+
+UNRESOLVED_SOURCE = "unresolved"
+
+
+def is_unresolved(result: MappingResult) -> bool:
+    """True when the mapper could not resolve the import to a distribution.
+    Callers MUST NOT fabricate a root from an unresolved result — skip it and
+    let post-install Tier-1 certification (relink) attach a real provider, or
+    leave the import honestly unresolved."""
+    return result.source == UNRESOLVED_SOURCE
+
+
+def unresolved_result(import_name: str) -> MappingResult:
+    """The canonical 'no distribution guess' result."""
+    return MappingResult(
+        import_name=import_name,
+        package_name=None,
+        source=UNRESOLVED_SOURCE,
+        trust="none",
+    )
 
 
 def normalize_package_name(name: str) -> str:
