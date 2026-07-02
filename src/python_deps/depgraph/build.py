@@ -61,6 +61,7 @@ from python_deps.depgraph.schema import (
     State,
 )
 from python_deps.depgraph.seed import seed_wheel_oracle_prior
+from python_deps.depgraph.subprocess_scan import add_subprocess_tool_nodes
 from python_deps.depgraph.target_env import detect_target_env
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name
@@ -360,6 +361,13 @@ def build_dep_graph(
     # the package layer is fully connected (runtime deps off Project, test deps
     # off the Test goal).
     graph = _add_project_node(graph, repo_path)
+
+    # Stage 3a'' — subprocess CLI tools: external programs the repo's OWN code
+    # shells out to (adb, git, sqlite3, …). ldd (Stage 4.5) finds LINKED libs and
+    # the pip build path finds compilers, but neither sees a tool the code only
+    # subprocess-es — a whole coverage class. Static, allowlisted (subprocess_scan),
+    # hung off the Project anchor; certified later by `command -v`.
+    graph = add_subprocess_tool_nodes(graph, repo_path)
 
     # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
     # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail

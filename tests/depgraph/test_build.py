@@ -125,6 +125,28 @@ def test_build_produces_all_node_types(tmp_path):
     assert graph.get(tool_id("libpq-dev")) is None
 
 
+def test_build_discovers_subprocess_cli_tools(tmp_path):
+    """Finding C: an external tool the repo shells out to (adb) becomes a Tool
+    node with an apt fix — even though it is neither a linked library (ldd) nor a
+    pip build tool. Wired via Stage 3a'' (subprocess_scan)."""
+    (tmp_path / "app.py").write_text(
+        "import cv2\nimport subprocess\nsubprocess.run(['adb', 'devices'])\n"
+    )
+    ex = _make_executor()
+    ex.responses["command -v adb"] = _r(returncode=1)  # absent on the slim base
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)
+
+    adb = graph.get(tool_id("adb"))
+    assert adb is not None and adb.type is NodeType.TOOL
+    assert adb.chosen_fix == "apt:adb"
+    assert adb.discovered_by is DiscoveredBy.STATIC_SCAN
+    assert adb.state is State.MISSING           # command -v adb -> rc1
+    # hung off the Project anchor (the repo's own code invokes it)
+    from python_deps.depgraph.ids import project_id
+    assert any(e.dst == tool_id("adb") and e.src == project_id(tmp_path.name)
+               for e in graph.edges)
+
+
 def test_build_requires_topology(tmp_path):
     graph = _build(tmp_path)
 

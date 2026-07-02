@@ -71,6 +71,18 @@
     },
     "notes": "requires-python>=3.9 in pyproject.toml declares only a compatibility FLOOR; .python-version = 3.12 pins the actual development/CI target. A correct graph must select the PIN (3.12), not the floor (3.9) -- picking the floor would produce a runtime where `import tomllib` (stdlib only since 3.11) does not exist."
   },
+  "subprocess_cli_tools": {
+    "isolates": "subprocess CLI tools (finding C) — external programs the repo shells out to",
+    "import_smoke": "subprocess_cli_tools",
+    "expected": {
+      "SYSTEM_LIB": [],
+      "TOOL": ["adb", "git", "sqlite3"],
+      "RUNTIME": null,
+      "PACKAGE": [],
+      "SERVICE": []
+    },
+    "notes": "The package's own code calls subprocess.run(['adb', ...]), subprocess.run(['git', ...]) and subprocess.check_output(['sqlite3', ...]). None of these are Python packages, linked shared libraries (ldd), or pip build tools -- so a graph built from pip metadata + ldd alone omits them entirely and the code fails at runtime with FileNotFoundError. A correct graph must scan the repo's source for subprocess/os.system invocations and emit adb/git/sqlite3 as TOOL nodes with apt fixes (adb->adb, git->git, sqlite3->sqlite3), keyed by tool name."
+  },
   "srclayout_editable": {
     "isolates": "editable install of the repo-under-test (finding A; src-layout)",
     "import_smoke": "srclayout_editable",

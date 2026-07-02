@@ -40,6 +40,27 @@ TOOL_TO_APT: dict[str, str] = {
     "Python.h": "python3-dev",
 }
 
+# Runtime CLI binaries a repo's OWN code shells out to (subprocess/os.system) ->
+# apt package. Distinct from TOOL_TO_APT (pip *build* tools): these are external
+# programs the code invokes at run time, which ldd/apt-on-build never surface.
+# Deliberately SMALL and curated: only unambiguous, well-known external tools go
+# here so the subprocess scanner (subprocess_scan.py) is a strict allowlist and
+# never flags shell builtins, coreutils, or project-local scripts. Keep DISJOINT
+# from TOOL_TO_APT so the two tool sources cannot mint two nodes for one apt pkg.
+CLI_TOOL_TO_APT: dict[str, str] = {
+    "git": "git",
+    "adb": "adb",
+    "sqlite3": "sqlite3",
+    "java": "default-jre-headless",
+    "ffmpeg": "ffmpeg",
+    "pandoc": "pandoc",
+    "curl": "curl",
+    "wget": "wget",
+    "unzip": "unzip",
+    "gpg": "gnupg",
+    "openssl": "openssl",
+}
+
 # Distributions whose import may need a system lib (whom to deep-probe).
 NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
     {
@@ -68,3 +89,9 @@ def apt_for_soname(soname: str) -> str | None:
 def apt_for_tool(tool: str) -> str | None:
     """Apt package providing a build tool/header (e.g. ``pg_config`` -> ``libpq-dev``)."""
     return TOOL_TO_APT.get(tool)
+
+
+def apt_for_cli_tool(tool: str) -> str | None:
+    """Apt package providing a runtime CLI binary (e.g. ``adb`` -> ``adb``); None
+    when ``tool`` is not on the curated subprocess allowlist."""
+    return CLI_TOOL_TO_APT.get(tool)
