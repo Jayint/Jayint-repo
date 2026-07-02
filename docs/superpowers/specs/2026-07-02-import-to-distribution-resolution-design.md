@@ -2,13 +2,17 @@
 
 **Date:** 2026-07-02
 **Branch:** `john-planner-v3-core-autoresearch`
-**Status:** Design (not yet implemented). Supersedes the "propose-then-certify" note in
+**Status:** Design (not yet implemented). Adversarially debated and empirically
+spot-checked 2026-07-02 (see §13); the fact-check overturned one earlier assumption
+(that vizro's fix is to parse `hatch.toml` into the runtime closure — it is not).
+Supersedes the "propose-then-certify" note in
 `docs/superpowers/loops/graph-fidelity-LEDGER.md` (Finding B).
 
 **Goal:** Resolve each scanned Python IMPORT name (`cv2`, `github`, `yaml`) to the PyPI
-DISTRIBUTION that provides it (`opencv-python`, `PyGithub`, `PyYAML`) **reliably on first
-encounter**, without an LLM, without a repair/execute loop, and with the hand-curated
-mapping table shrunk to a documented irreducible minimum.
+DISTRIBUTION that provides it (`opencv-python`, `PyGithub`, `PyYAML`) — with **certainty
+when the provider is declared or in the resolved closure**, and an **honest flag (never a
+wrong guess) otherwise** — without an LLM, without a repair/execute loop, and with the
+hand-curated mapping table shrunk to a documented irreducible minimum.
 
 **Design values (from the v3-core ethos):** interpretable, ONE clean path, rule-over-LLM,
 deterministic, minimal network, host certifies truth, no repair loop.
@@ -59,10 +63,17 @@ Recorded here so the design decisions are traceable; full detail in the ledger.
    and **still** accumulates errors (`osgeo→geopandas` is wrong — GDAL provides `osgeo`)
    because it caches existence/LLM *guesses*. "Zero table" is not achievable; drift comes
    from caching unverified guesses.
-6. **Finding B is largely NOT a mapping problem.** In vizro, `import github` lives in
-   `tools/pycafe/pycafe_utils.py` — a repo-root dev-tooling script, not the installable
-   package; `scan.py` excludes `examples/docs/build/...` but not `tools/`. And `PyGithub`
-   *is* declared, in `vizro-core/hatch.toml`, a format `evidence.py` never parses. And the
+6. **Finding B is largely NOT a mapping problem — it is a scope problem.** In vizro,
+   `import github` lives in `tools/pycafe/pycafe_utils.py` — a repo-root CI/docs-tooling
+   script that vizro's own root `pyproject.toml` declares is "NOT describing a package, but
+   the DEV environment of this mono-repo." `scan.py` already excludes
+   `examples/docs/build/scripts/...` but not `tools/`, so this non-package code leaks into
+   the install graph. `PyGithub` *is* declared — but only in Hatch **environment** blocks
+   (`vizro-core/hatch.toml` `[envs.all]`/`[envs.docs]`, `vizro-ai/hatch.toml` `[envs.docs]`;
+   verified 2026-07-02) — i.e. as a docs/test-tooling dependency, never in
+   `[project.dependencies]`. So the correct fix is to **exclude the out-of-scope code**
+   (`tools/`), NOT to parse those env blocks and pull a docs-tooling dependency into the
+   runtime `setup.sh` (that would be scope creep in the wrong direction — see §7). And the
    existing safety net (`relink._drop_superseded_ghosts`) is dead (see §8).
 
 ## 3. Design principles
@@ -107,7 +118,11 @@ closure ⇒ a genuinely undeclared dependency. Only now is a name needed:
   §6) → candidate name.
 - **2b. Certified variant resolution** → generate mechanical variants
   (`py{X}`, `python-{X}`, `{X}-py`, `{X}-python`, `{X}2`…), fetch each candidate's wheel
-  metadata (range read, §5), and **certify it provides `X`**.
+  metadata (range read, §5), and **certify it provides `X`**. This reaches only
+  *morphological* near-misses: empirically it recovers `github→PyGithub` and `yaml→PyYAML`
+  but **not** `cv2`, `bs4`, `sklearn`, `Crypto`, `osgeo` (2 of 7 common renames — verified).
+  Tier 2b is a small incremental win, not a general solver; arbitrary renames are owned by
+  Tier 3.
 - A **unique** certified candidate → add it as a *certified* root and re-resolve to fold it
   into the closure; cache it. **Two candidates certify** (e.g. the `github`/`PyGithub` tie) →
   do not guess; fall to Tier 3.
@@ -128,27 +143,42 @@ LLM-free:
   implemented (`relink.PACKAGES_DIST_CMD`, `parse_packages_distributions`).
 - **Pre-install (Tier 2, new — `wheel_provides.py`):** for a candidate not yet installed,
   read its wheel's top-level modules from PyPI **without a full download** — HTTP Range-GET
-  the wheel's zip central directory (as pip's `lazy_wheel` does) and read
-  `*.dist-info/top_level.txt`.
+  the wheel's zip central directory (as pip's `lazy_wheel` does). Derive the provided
+  top-levels from the wheel's **root zip entries** (dirs / `.py` files at the archive root,
+  minus `*.dist-info`/`*.data`) as the primary source; use `*.dist-info/top_level.txt` only
+  as an accelerant when present. Empirically `top_level.txt` is **absent in the majority of
+  modern wheels** (3 of 5 sampled: rich, pydantic, beautifulsoup4 — verified), while
+  root-entry derivation succeeded on all 5 — so root entries are the primary path, not a
+  fallback.
 
 Certification caveats the implementation must handle:
-- `top_level.txt` is **optional and increasingly absent** (hatchling/flit/pdm wheels). Fall
-  back to listing the wheel's root zip entries minus `*.dist-info`/`*.data`.
+- **Ambiguity is real, not just theoretical.** `packages_distributions()` maps a top-level to
+  a *list* — verified multi-dist collisions in a live env: `opentelemetry`→6 dists,
+  `google`→{googleapis-common-protos, protobuf}. Tie-break: (1) prefer the closure member
+  that is a **declared/requested root**; (2) if still >1, **flag ambiguous → Tier 3**, never
+  auto-pick. Never write an ambiguous result to the cache.
 - **sdist-only** distributions have no wheel to inspect → cannot certify pre-install; skip
   (do not build).
 - **Namespace packages** (`google.*`, `zope.*`, `backports.*`) share a top-level across
-  dists → certification is inherently ambiguous; Tier 1 (closure) disambiguates, Tier 2
-  treats a shared top-level as "ambiguous → Tier 3".
+  dists → inherently ambiguous; Tier 1 (closure) disambiguates via the declared-root
+  tie-break above, Tier 2 treats a shared top-level as "ambiguous → Tier 3".
 
 ## 6. Cache and table
 
 Two layers, both accepted:
 
 - **Certified learned cache** (`import → dist name`, JSON on disk). Grows only with entries
-  proven by §5 certification. Cannot drift (every row was verified). Stores the name, not
-  the version. Optionally keyed to `exclude_newer` era if reproducibility across eras is
-  required; the base mapping (`cv2→opencv-python`) is era-stable so a plain map is usually
-  sufficient.
+  proven by §5 certification. Stores the name, not the version (the resolver supplies the
+  version), so a later-yanked dist surfaces as a resolve *failure*, never a silently-wrong
+  install. Optionally keyed to `exclude_newer` era; the base mapping (`cv2→opencv-python`)
+  is era-stable so a plain map is usually sufficient. **Honest bound:** certification proves
+  "this wheel provides top-level module `X`," not "this is the *canonical/intended*
+  provider" — a name-squatter shipping the same top-level would also certify. Mitigations,
+  not eliminations: closure-scoping + declared-root preference (a squatter is not in the
+  declared closure), era-anchoring (`exclude_newer` blocks newly-registered squatters), and
+  flag-on-tie (§5). Only the closure-scoped Tier-1 result is fully trustworthy; a Tier-2
+  cache row is "certified provision within era," which is why Tier 2 is bounded and Tier 3
+  flags rather than guesses.
 - **Irreducible curated table** — the small, documented set of arbitrary-rename collisions
   that are *both* unreachable by variants *and* commonly *undeclared*, kept only as the
   Tier-3 override: `cv2`, `PIL`, `bs4`, `sklearn`, `Crypto→pycryptodome`, `github→PyGithub`
@@ -173,10 +203,14 @@ Two layers, both accepted:
   `_drop_superseded_ghosts`** (see §8).
 - **`emit.py`** — make `_is_reciped` state-aware so a build-failing / uncertified ghost is
   not rendered into `setup.sh` (see §8).
-- **`evidence.py`** — parse more dependency-declaring formats (`hatch.toml`, PDM, pixi
-  dev-envs, optional-dependency groups) so the declared closure — Tier 1's candidate source
-  — is as complete as possible. Every format parsed moves imports from the risky tiers into
-  certain Tier 1.
+- **`evidence.py`** — parse more *runtime* dependency-declaring formats (PEP-621
+  `[project.dependencies]`, `[project.optional-dependencies]`, PDM, poetry) so the declared
+  closure — Tier 1's candidate source — is as complete as possible. **Caveat (verified on
+  vizro):** Hatch **environment** blocks (`[envs.*].dependencies`, typically in a separate
+  `hatch.toml`) are dev/test/docs *tooling* environments, not runtime deps — do NOT fold them
+  wholesale into the install closure, or `setup.sh` ships docs-build tooling (this is the
+  wrong fix for vizro's B; see §2.6/§8.1). If a test-env's deps are genuinely needed, that
+  feeds the *testability* gate specifically, kept separate from the runtime install graph.
 - **New modules** — `wheel_provides.py` (range-read certification), and a small Tier-2
   resolver (variant generation + certification + certified-cache write).
 
@@ -184,13 +218,24 @@ Two layers, both accepted:
 
 These fix vizro's B end-to-end with **no table and no resolver**, and harden the pipeline:
 
-1. **Scan-scope** — exclude `tools/`; `import github` (a docs script) then never surfaces.
-2. **Dead safety net** — `relink._drop_superseded_ghosts` only drops a ghost when
-   `state is State.MISSING`, but it runs *before* `certify_all`, so a "resolved-fine but
-   build-fails" ghost is still `UNKNOWN` and never dropped; and `emit._is_reciped` renders
-   any `bool(node.version)` package regardless of state. Fix the state-gate/ordering and make
-   the renderer state-aware, so a fabricated / build-failing ghost can never leak into
-   `setup.sh`. This is the backstop for whatever Tier 3 flags.
+1. **Scan-scope (correct exclusion, not symptom-hiding)** — add `tools/` to
+   `_EXCLUDED_SEGMENTS`, alongside the already-excluded `scripts/`, `examples/`, `build/`,
+   `benchmarks/`. `tools/pycafe/` is CI/docs tooling outside every installable package (vizro
+   declares it so itself — §2.6), so `import github` correctly never surfaces. This is *scope
+   correctness* — excluding non-package code from the install graph — not a silent drop of a
+   real dependency: a genuine runtime import under a package dir is unaffected. (Residual
+   risk: a repo that misuses `tools/` for importable runtime code; low, symmetric with the
+   existing `scripts/` exclusion, and the eval loop would surface it.)
+2. **Dead safety net — fix the renderer, not the drop-gate.**
+   `relink._drop_superseded_ghosts` only drops a ghost when `state is State.MISSING`, but it
+   runs *before* `certify_all`, so a "resolved-fine but build-fails" ghost is still `UNKNOWN`
+   and never dropped; meanwhile `emit._is_reciped` renders any `bool(node.version)` PACKAGE
+   regardless of state. **Safe fix:** make the renderer state-aware — a PACKAGE renders into
+   `setup.sh` only when it is **certified (`State.SATISFIED`)**, not merely versioned. Do NOT
+   instead widen the drop-gate to include `UNKNOWN`: that would drop not-yet-certified
+   packages that would have succeeded (premature deletion). Renderer-gating aligns with "host
+   certifies truth" — an uncertified or build-failing ghost simply never renders — and is the
+   backstop for whatever Tier 3 flags.
 
 ## 9. Non-goals
 
@@ -217,20 +262,55 @@ the ~6-entry table exists precisely for its most common members.
   - undeclared close-name (`import foo` → `foo` on PyPI) → Tier 2 variant + certify;
   - undeclared arbitrary rename → Tier 3 flag (no poison root);
   - local/first-party import → Tier 0 skip;
+  - import under `tools/` (non-package dir) → excluded from the graph, not flagged;
+  - a top-level provided by 2 installed dists (`packages_distributions` ambiguity) →
+    declared-root tie-break, else flag; never auto-picked;
   - the `github`/`PyGithub` tie → both certify → Tier 3 (table or flag), never auto-picked.
 - **End-to-end on vizro** (Finding B) via `scripts/eval/graph_fidelity/coverage.py`:
   after the §8 fixes, `github` no longer surfaces and `setup.sh` does not ship a broken root.
 
 ## 12. Phasing / ship order
 
-- **Phase 1 (in-lane, ships now):** §8 scan-scope + safety-net, and Tier-0 classification
-  wiring. Fixes vizro's B — table-free, resolver-free. TDD + `coverage.py` e2e on vizro.
-- **Phase 2 (architectural):** §7 roots-from-declared (delete root fabrication) + promote
-  `relink` to authoritative Tier 1. This is what makes the table shrinkable.
-- **Phase 3 (general mechanism):** `wheel_provides.py` certifier + Tier-2 certified variant
-  resolver + certified cache + Tier-3 irreducible table/flag. Behind the edge-case corpus.
-- **Phase 4:** broaden `evidence.py` manifest parsing (`hatch.toml` etc.) to maximize Tier-1
-  coverage.
+- **Phase 1 (in-lane, ships now):** §8 scan-scope (`tools/` exclusion) + renderer state-gate
+  + Tier-0 classification wiring. Closes vizro's B — table-free, resolver-free — and correctly,
+  since vizro's `github` is genuinely out-of-scope dev tooling. TDD + `coverage.py` e2e on
+  vizro.
+- **Phase 2 (architectural):** §7 roots-from-declared (delete root fabrication at
+  `roots.py:290-299`) + promote `relink` to authoritative Tier 1. This is what makes the
+  table shrinkable.
+- **Phase 3 (general mechanism):** `wheel_provides.py` certifier (root-entries primary) +
+  Tier-2 certified variant resolver + certified cache + ambiguity tie-break + Tier-3
+  irreducible table/flag. Behind the edge-case corpus.
+- **Phase 4:** broaden `evidence.py` **runtime** manifest parsing (PEP-621 optional-deps, PDM,
+  poetry) to maximize Tier-1 coverage. Explicitly **not** pulled forward and explicitly
+  **scoped to runtime deps**: the debate proposed pulling hatch-env parsing into Phase 1 to
+  "resolve vizro honestly," but the fact-check (§2.6) showed vizro's `PyGithub` is a docs/test
+  *environment* dep — parsing it would ship tooling into `setup.sh`, so Phase 1's scope
+  exclusion is the correct fix and this phase must avoid Hatch env blocks.
 
 Each phase is independently valuable and independently testable; Phase 1 alone closes
-Finding B.
+Finding B correctly (by scope, not by hiding a real dependency).
+
+## 13. Debate & empirical validation (2026-07-02)
+
+This design was adversarially reviewed by three independent Sonnet agents (proponent,
+skeptic, empirical ground-truth) plus a targeted vizro-manifest fact-check. Outcome:
+
+- **Held up:** certify-or-flag is not a new invention (it is `relink.py`'s existing Stage-4a
+  pattern); the wheel range-read certification primitive works (0.3–2.9% of bytes fetched);
+  Tier-1 closure certification is certain when the provider is in the closure.
+- **Corrected by evidence:**
+  - `packages_distributions()` ambiguity is real (`opentelemetry`→6, `google`→2) → added the
+    §5 tie-break/flag policy.
+  - `top_level.txt` is absent in the majority of modern wheels (3/5 sampled) → §5 now leads
+    with root-entry derivation, `top_level.txt` demoted to accelerant.
+  - Tier-2 variants reach only 2/7 common renames → §4 downgrades Tier 2 to "morphological
+    near-misses," Tier 3 owns arbitrary renames.
+  - The `_drop_superseded_ghosts` fix was underspecified and both obvious repairs are unsafe
+    → §8.2 now fixes the *renderer* (require `SATISFIED`), not the drop-gate.
+- **Overturned:** the debate's headline recommendation — "pull `hatch.toml` parsing into
+  Phase 1 to resolve vizro's `github→PyGithub` honestly" — was **refuted** by the fact-check:
+  vizro's `PyGithub` is declared only in Hatch *environment* (docs/test-tooling) blocks and
+  the importing file is non-package dev tooling. Parsing it into the runtime closure would be
+  scope creep; the correct fix is the §8.1 scope exclusion. This is why the assumption was
+  tested before editing.
