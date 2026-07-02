@@ -15,7 +15,7 @@ from python_deps.depgraph.schema import (
     Node,
     NodeType,
 )
-from python_deps.import_mapping import map_import_to_package
+from python_deps.import_mapping import is_unresolved, map_import_to_package
 from python_deps.depgraph.resolve_lock import _canon, _req_name
 
 
@@ -97,7 +97,10 @@ def link_imports_to_packages(graph: DepGraph) -> DepGraph:
     for node in graph.nodes:
         if node.type is not NodeType.IMPORT:
             continue
-        dist = map_import_to_package(node.name).package_name
+        result = map_import_to_package(node.name)
+        if is_unresolved(result):
+            continue
+        dist = result.package_name
         pkg_id = canon_to_pkg.get(_canon(dist))
         if pkg_id is None or (node.id, pkg_id) in existing:
             continue

@@ -1873,6 +1873,31 @@ def test_link_imports_to_packages_reconciles_manifest_sourced_packages():
     assert len(link_imports_to_packages(out).edges) == len(out.edges)
 
 
+def test_link_imports_skips_unresolved_mapping(monkeypatch):
+    """Guard (Task 3): an UNRESOLVED mapping must be skipped, not fed into
+    ``_canon`` as ``None`` (previously: TypeError, since ``_canon`` runs
+    ``re.sub`` on its argument)."""
+    import python_deps.depgraph.resolve_link as resolve_link
+    from python_deps.depgraph.resolve import link_imports_to_packages
+    from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
+    from python_deps.import_mapping import unresolved_result
+
+    monkeypatch.setattr(
+        resolve_link, "map_import_to_package",
+        lambda name, *a, **k: unresolved_result(name),
+    )
+
+    imp = Node(
+        id="import:mystery", type=NodeType.IMPORT, name="mystery",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+    )
+    graph = DepGraph().with_node(imp)
+
+    # Must not raise (previously: _canon(None) -> re.sub on None -> TypeError).
+    out = link_imports_to_packages(graph)
+    assert not [e for e in out.edges if e.relation is EdgeType.REQUIRES]
+
+
 def test_resolved_package_node_keeps_pip_fix():
     from python_deps.depgraph.resolve import _package_node
 
