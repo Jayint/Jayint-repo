@@ -30,6 +30,16 @@ Resume from the first unchecked item. Trust this ledger + `git log` over memory.
 - **P2 = TRANSFORMATION** ("does render → a WORKING setup.sh?"): [x] `render_fidelity.py` DONE (e20ef5e) — `check_render`: topo/complete/single-emit/valid-bash/emitted-but-uncertified; mutation-teeth verified; 13 tests, no new deps. STILL QUEUED (build on a shared `replay` helper factored out of coverage's container probe, to avoid duplication): installability replay (rc + first-fail + class) + round-trip conservation.
 - Shared container run; FAILURE ATTRIBUTION splits phases: missing-node → P1 coverage gap; order/bad-cmd/render → P2 transformation bug. (Installability probe deferred — it's P2.)
 
+### P1 coverage — first-run findings (d2517b7; 6 seed repos, darts deferred). NUMBERS NOISY (D/E) — qualitative findings are the signal:
+- **A (biggest; render/P2 but BLOCKS P1): `setup.sh` never installs the repo itself.** `render_build_script`/`_is_reciped` skip the PROJECT node → no `pip install -e .`. Corpus-wide; src-layout / name-mismatch repos (mvt, python-semantic-release, postgres-mcp) then fail `import <own_pkg>`. CONFIRMED: typer's script = 12 pip installs, zero editable install. Note `recipe.build_closure_recipe` HAS the `-e . --no-deps` step; the live `render_build_script` path doesn't emit it.
+- **B (construction): import-name→dist-name misresolution.** vizro's `import github` → defunct PyPI `github==1.2.6` (sdist build fails → install_ok=FALSE) instead of `PyGithub`. Same class as the `pil_pillow` edge case.
+- **C (coverage-gap CLASS): subprocess CLI tools undiscovered.** mvt needs adb/git/default-jre/sqlite3/libusb/etc.; ldd+apt discovery only finds libs LINKED into compiled extensions, never tools the repo's OWN code shells out to via subprocess. New edge-case + discovery mechanism.
+- **D (measurement, FIX FIRST): oracle.py parser noise.** shlex picks up meta-tooling/local tokens (`.`, `../x`, `build`, `wheel`, `hatch`, `pip`, `setuptools`, `$vars`, `-r`) from `pip install` lines → fake "missing PACKAGE" → recall untrustworthy until filtered.
+- **E (measurement): RUNTIME "3.14" host-leak artifact** (typer/slither/mvt) — 3.14 = the Mac host python; no recipe declares it. Scorer/oracle runtime-diff bug.
+- **F (minor, pre-existing): `runtime_base.py` `~=` normalization** treats PEP440 `~= 3.8` as poetry `~` (python-semantic-release) → degrades to 3.11-slim, misleading reason. 
+- CONFIG/SERVICE tiers structurally empty (LLM env_classifier is a separate out-of-scope path) — not a real 0% signal.
+- NEXT: fix D+E (trust the numbers) → A (unblock imports + a genuinely working env) → hand B/C to the construction agent.
+
 ## Phase B — autonomous sequence (run once construction is green; user directive 2026-07-02)
 - [ ] 1. Refactor `qualitative_judge.py` → pure helper (drop `complete_with_retry`); model call = orchestrator Haiku subagent.
 - [ ] 2. `scorecard.py` — construction path + oracle-diff + `-slim` container run + `compute_essr` + write judge-inputs (TDD).
