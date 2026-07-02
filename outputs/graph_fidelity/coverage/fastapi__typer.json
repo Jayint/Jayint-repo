@@ -1,0 +1,87 @@
+{
+  "base_image": "python:3.10-slim",
+  "concerns": [
+    "Reference-A recall is a PROXY: the held-out Dockerfile/CI/compose recipe may itself omit real needs (uv/poetry-managed installs record no explicit pip package list) or use tools this oracle parser doesn't read -- a 'missing' entry can reflect the oracle's blind spot, not the graph's.",
+    "CONFIG/SERVICE/DataAsset tiers are never populated by this construction-only pass (the LLM env_classifier that proposes them is out of scope here, per the no-LLM-in-the-scorer / no-agent rule) -- their recall is not meaningful signal in this report.",
+    "base image: kept selector base 3.10 (satisfies '>=3.10')"
+  ],
+  "execution_missing": [],
+  "extra_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "annotated-doc",
+      "colorama",
+      "docs-src",
+      "exceptiongroup",
+      "iniconfig",
+      "markdown-it-py",
+      "mdurl",
+      "packaging",
+      "pluggy",
+      "pygments",
+      "pytest",
+      "rich",
+      "shellingham",
+      "tomli",
+      "typing-extensions"
+    ],
+    "RUNTIME": [
+      "3.10"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "feasible": true,
+  "graph_counts_by_tier": {
+    "CONFIG": 0,
+    "DATA_ASSET": 0,
+    "IMPORT": 7,
+    "PACKAGE": 15,
+    "PLATFORM": 0,
+    "PROJECT": 1,
+    "RUNTIME": 1,
+    "SERVICE": 0,
+    "SYSTEM_LIB": 0,
+    "TEST": 1,
+    "TOOL": 0
+  },
+  "install_first_failure": null,
+  "install_ok": true,
+  "matched_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "missing_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "build",
+      "tests"
+    ],
+    "RUNTIME": [
+      "3.14"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": [
+      "build-essential",
+      "libssl-dev",
+      "pkg-config",
+      "zlib1g-dev"
+    ]
+  },
+  "oracle_recall_by_tier": {
+    "CONFIG": null,
+    "PACKAGE": 0.0,
+    "RUNTIME": 0.0,
+    "SERVICE": null,
+    "SYSTEM_LIB": 0.0
+  },
+  "oracle_source": [
+    "ci"
+  ],
+  "package_pin_mismatches": [],
+  "repo": "fastapi/typer",
+  "target_python": "3.10"
+}

@@ -1,0 +1,143 @@
+{
+  "base_image": "python:3.10-slim",
+  "concerns": [
+    "Reference-A recall is a PROXY: the held-out Dockerfile/CI/compose recipe may itself omit real needs (uv/poetry-managed installs record no explicit pip package list) or use tools this oracle parser doesn't read -- a 'missing' entry can reflect the oracle's blind spot, not the graph's.",
+    "CONFIG/SERVICE/DataAsset tiers are never populated by this construction-only pass (the LLM env_classifier that proposes them is out of scope here, per the no-LLM-in-the-scorer / no-agent rule) -- their recall is not meaningful signal in this report.",
+    "base image: kept selector base 3.10 (satisfies '>= 3.10')",
+    "'mvt' (the repo's OWN package) failed to import: the renderer never emits an install step for the PROJECT node itself (only PACKAGE/SYSTEM_LIB/TOOL nodes are 'reciped' by build_script._is_reciped), so setup.sh never installs the repo under test. A flat-layout repo (the package dir sits at repo root) can still import by accident via Python's cwd-prepended sys.path; a src-layout or name-mismatched repo cannot. This generalizes across the corpus and is a render/construction gap, not a one-off."
+  ],
+  "execution_missing": [
+    {
+      "evidence": "ModuleNotFoundError: No module named 'mvt'",
+      "id": "mvt",
+      "tier": "PACKAGE"
+    }
+  ],
+  "extra_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "adb-shell",
+      "annotated-types",
+      "antlr4-python3-runtime",
+      "appdirs",
+      "backports",
+      "betterproto2",
+      "certifi",
+      "cffi",
+      "charset-normalizer",
+      "click",
+      "cryptography",
+      "exceptiongroup",
+      "idna",
+      "iniconfig",
+      "iosbackup",
+      "libusb1",
+      "markdown-it-py",
+      "mdurl",
+      "nskeyedunarchiver",
+      "packaging",
+      "pluggy",
+      "pyahocorasick",
+      "pyasn1",
+      "pycparser",
+      "pycryptodome",
+      "pydantic",
+      "pydantic-core",
+      "pydantic-settings",
+      "pygments",
+      "pytest",
+      "python-dateutil",
+      "python-dotenv",
+      "pytz",
+      "pyyaml",
+      "requests",
+      "rich",
+      "rsa",
+      "simplejson",
+      "six",
+      "stix2",
+      "stix2-patterns",
+      "tld",
+      "tomli",
+      "typing-extensions",
+      "typing-inspection",
+      "tzdata",
+      "urllib3"
+    ],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "feasible": true,
+  "graph_counts_by_tier": {
+    "CONFIG": 0,
+    "DATA_ASSET": 0,
+    "IMPORT": 17,
+    "PACKAGE": 47,
+    "PLATFORM": 0,
+    "PROJECT": 1,
+    "RUNTIME": 1,
+    "SERVICE": 0,
+    "SYSTEM_LIB": 0,
+    "TEST": 1,
+    "TOOL": 1
+  },
+  "install_first_failure": null,
+  "install_ok": true,
+  "matched_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [],
+    "RUNTIME": [
+      "3.10"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": [
+      "build-essential"
+    ]
+  },
+  "missing_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "./mvt"
+    ],
+    "RUNTIME": [
+      "3.11",
+      "3.12",
+      "3.13",
+      "3.14"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": [
+      "adb",
+      "autoconf",
+      "automake",
+      "default-jre-headless",
+      "git",
+      "libcurl4",
+      "libcurl4-openssl-dev",
+      "libssl-dev",
+      "libssl3",
+      "libtool-bin",
+      "libusb-1.0-0",
+      "libusb-1.0-0-dev",
+      "pkg-config",
+      "python3",
+      "sqlite3",
+      "udev"
+    ]
+  },
+  "oracle_recall_by_tier": {
+    "CONFIG": null,
+    "PACKAGE": 0.0,
+    "RUNTIME": 0.2,
+    "SERVICE": null,
+    "SYSTEM_LIB": 0.058823529411764705
+  },
+  "oracle_source": [
+    "Dockerfile",
+    "ci"
+  ],
+  "package_pin_mismatches": [],
+  "repo": "mvt-project/mvt",
+  "target_python": "3.10"
+}

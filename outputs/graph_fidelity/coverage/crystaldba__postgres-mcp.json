@@ -1,0 +1,146 @@
+{
+  "base_image": "python:3.12-slim",
+  "concerns": [
+    "Reference-A recall is a PROXY: the held-out Dockerfile/CI/compose recipe may itself omit real needs (uv/poetry-managed installs record no explicit pip package list) or use tools this oracle parser doesn't read -- a 'missing' entry can reflect the oracle's blind spot, not the graph's.",
+    "CONFIG/SERVICE/DataAsset tiers are never populated by this construction-only pass (the LLM env_classifier that proposes them is out of scope here, per the no-LLM-in-the-scorer / no-agent rule) -- their recall is not meaningful signal in this report.",
+    "base image: kept selector base 3.12 (satisfies '>=3.12')",
+    "'postgres_mcp' (the repo's OWN package) failed to import: the renderer never emits an install step for the PROJECT node itself (only PACKAGE/SYSTEM_LIB/TOOL nodes are 'reciped' by build_script._is_reciped), so setup.sh never installs the repo under test. A flat-layout repo (the package dir sits at repo root) can still import by accident via Python's cwd-prepended sys.path; a src-layout or name-mismatched repo cannot. This generalizes across the corpus and is a render/construction gap, not a one-off."
+  ],
+  "execution_missing": [
+    {
+      "evidence": "ModuleNotFoundError: No module named 'postgres_mcp'",
+      "id": "postgres_mcp",
+      "tier": "PACKAGE"
+    }
+  ],
+  "extra_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "aiohappyeyeballs",
+      "aiohttp",
+      "aiosignal",
+      "annotated-doc",
+      "annotated-types",
+      "anyio",
+      "attrs",
+      "certifi",
+      "cffi",
+      "charset-normalizer",
+      "click",
+      "cryptography",
+      "distro",
+      "docker",
+      "docstring-parser",
+      "dotenv",
+      "frozenlist",
+      "h11",
+      "httpcore",
+      "httpx",
+      "httpx-sse",
+      "humanize",
+      "idna",
+      "iniconfig",
+      "instructor",
+      "jinja2",
+      "jiter",
+      "jsonschema",
+      "jsonschema-specifications",
+      "markdown-it-py",
+      "markupsafe",
+      "mcp",
+      "mdurl",
+      "multidict",
+      "openai",
+      "packaging",
+      "pglast",
+      "pluggy",
+      "propcache",
+      "psycopg",
+      "psycopg-binary",
+      "psycopg-pool",
+      "pycparser",
+      "pydantic",
+      "pydantic-core",
+      "pydantic-settings",
+      "pygments",
+      "pyjwt",
+      "pytest",
+      "pytest-asyncio",
+      "python-dotenv",
+      "python-multipart",
+      "referencing",
+      "requests",
+      "rich",
+      "rpds-py",
+      "shellingham",
+      "sniffio",
+      "sse-starlette",
+      "starlette",
+      "tenacity",
+      "tqdm",
+      "typer",
+      "typing-extensions",
+      "typing-inspection",
+      "urllib3",
+      "uvicorn",
+      "yarl"
+    ],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": [
+      "build-essential"
+    ]
+  },
+  "feasible": true,
+  "graph_counts_by_tier": {
+    "CONFIG": 0,
+    "DATA_ASSET": 0,
+    "IMPORT": 14,
+    "PACKAGE": 68,
+    "PLATFORM": 0,
+    "PROJECT": 1,
+    "RUNTIME": 1,
+    "SERVICE": 0,
+    "SYSTEM_LIB": 0,
+    "TEST": 1,
+    "TOOL": 1
+  },
+  "install_first_failure": null,
+  "install_ok": true,
+  "matched_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [],
+    "RUNTIME": [
+      "3.12"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "missing_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": [
+      "dnsutils",
+      "gcc",
+      "iputils-ping",
+      "libpq-dev",
+      "net-tools"
+    ]
+  },
+  "oracle_recall_by_tier": {
+    "CONFIG": null,
+    "PACKAGE": null,
+    "RUNTIME": 1.0,
+    "SERVICE": null,
+    "SYSTEM_LIB": 0.0
+  },
+  "oracle_source": [
+    "Dockerfile",
+    "ci"
+  ],
+  "package_pin_mismatches": [],
+  "repo": "crystaldba/postgres-mcp",
+  "target_python": "3.12"
+}

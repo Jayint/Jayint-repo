@@ -1,0 +1,117 @@
+{
+  "base_image": "python:3.11-slim",
+  "concerns": [
+    "Reference-A recall is a PROXY: the held-out Dockerfile/CI/compose recipe may itself omit real needs (uv/poetry-managed installs record no explicit pip package list) or use tools this oracle parser doesn't read -- a 'missing' entry can reflect the oracle's blind spot, not the graph's.",
+    "CONFIG/SERVICE/DataAsset tiers are never populated by this construction-only pass (the LLM env_classifier that proposes them is out of scope here, per the no-LLM-in-the-scorer / no-agent rule) -- their recall is not meaningful signal in this report.",
+    "base image: unparseable requires-python '~= 3.8'; kept selector base 3.11",
+    "'semantic_release' (the repo's OWN package) failed to import: the renderer never emits an install step for the PROJECT node itself (only PACKAGE/SYSTEM_LIB/TOOL nodes are 'reciped' by build_script._is_reciped), so setup.sh never installs the repo under test. A flat-layout repo (the package dir sits at repo root) can still import by accident via Python's cwd-prepended sys.path; a src-layout or name-mismatched repo cannot. This generalizes across the corpus and is a render/construction gap, not a one-off."
+  ],
+  "execution_missing": [
+    {
+      "evidence": "ModuleNotFoundError: No module named 'semantic_release'",
+      "id": "semantic_release",
+      "tier": "PACKAGE"
+    }
+  ],
+  "extra_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "annotated-types",
+      "certifi",
+      "charset-normalizer",
+      "click",
+      "click-option-group",
+      "deprecated",
+      "dotty-dict",
+      "filelock",
+      "flatdict",
+      "freezegun",
+      "gitdb",
+      "gitpython",
+      "idna",
+      "importlib-resources",
+      "iniconfig",
+      "jinja2",
+      "markdown-it-py",
+      "markupsafe",
+      "mdurl",
+      "packaging",
+      "pluggy",
+      "pydantic",
+      "pydantic-core",
+      "pygments",
+      "pytest",
+      "pytest-lazy-fixtures",
+      "python-dateutil",
+      "python-gitlab",
+      "pyyaml",
+      "requests",
+      "requests-mock",
+      "requests-toolbelt",
+      "rich",
+      "shellingham",
+      "six",
+      "smmap",
+      "tomlkit",
+      "typing-extensions",
+      "typing-inspection",
+      "urllib3",
+      "wrapt"
+    ],
+    "RUNTIME": [
+      "3.11"
+    ],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "feasible": true,
+  "graph_counts_by_tier": {
+    "CONFIG": 0,
+    "DATA_ASSET": 0,
+    "IMPORT": 21,
+    "PACKAGE": 41,
+    "PLATFORM": 0,
+    "PROJECT": 1,
+    "RUNTIME": 1,
+    "SERVICE": 0,
+    "SYSTEM_LIB": 0,
+    "TEST": 1,
+    "TOOL": 0
+  },
+  "install_first_failure": null,
+  "install_ok": true,
+  "matched_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "missing_vs_oracle_by_tier": {
+    "CONFIG": [],
+    "PACKAGE": [
+      "$psrWheelFile",
+      "dist",
+      "pip",
+      "pytest-github-actions-annotate-failures",
+      "setuptools",
+      "wheel"
+    ],
+    "RUNTIME": [],
+    "SERVICE": [],
+    "SYSTEM_LIB": []
+  },
+  "oracle_recall_by_tier": {
+    "CONFIG": null,
+    "PACKAGE": 0.0,
+    "RUNTIME": null,
+    "SERVICE": null,
+    "SYSTEM_LIB": null
+  },
+  "oracle_source": [
+    "ci"
+  ],
+  "package_pin_mismatches": [],
+  "repo": "python-semantic-release/python-semantic-release",
+  "target_python": "3.11"
+}
