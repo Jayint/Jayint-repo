@@ -25,6 +25,11 @@ Resume from the first unchecked item. Trust this ledger + `git log` over memory.
 - Construction corpus-wide verification/fixes: **OWNED BY USER'S AGENT** — do NOT duplicate.
 - GATE: construction green e2e → run the Phase-B autonomous sequence below.
 
+## Two-phase eval plan (user re-scope 2026-07-02) — settle P1 before P2
+- **P1 = graph COVERAGE** ("does the graph capture ~everything needed?"): per-tier recall vs held-out recipe oracle (proxy) + execution-discovered missing (install closure → import + `pytest --collect-only` → classify ModuleNotFound/ldd-not-found/cmd-not-found = graph gaps) + baseline feasibility + Haiku judge + edge_cases known-answers. **Building now: `coverage.py` (a0b19a0b) across feasible seed repos, defer darts.**
+- **P2 = TRANSFORMATION** ("does render → a WORKING setup.sh?"): render fidelity (topo/complete/valid-bash/determinism/emitted-but-uncertified) + installability replay (rc + first-fail + class) + round-trip conservation. Built AFTER P1 coverage is high.
+- Shared container run; FAILURE ATTRIBUTION splits phases: missing-node → P1 coverage gap; order/bad-cmd/render → P2 transformation bug. (Installability probe deferred — it's P2.)
+
 ## Phase B — autonomous sequence (run once construction is green; user directive 2026-07-02)
 - [ ] 1. Refactor `qualitative_judge.py` → pure helper (drop `complete_with_retry`); model call = orchestrator Haiku subagent.
 - [ ] 2. `scorecard.py` — construction path + oracle-diff + `-slim` container run + `compute_essr` + write judge-inputs (TDD).
