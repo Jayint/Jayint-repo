@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from python_deps.depgraph.schema import Layer, NodeType
 from python_deps.failure_classifier import classify_dependency_failure
+from python_deps.import_mapping import is_unresolved, map_import_to_package
 
 
 # ---------------------------------------------------------------------------
@@ -75,9 +76,9 @@ def classify_observation(command: str, output: str) -> Discovery | None:
     # ── Priority 1: python import / native-lib failures ──────────────────
     dep = classify_dependency_failure(command, text)
     if dep.failure_type == "module_not_found":
-        from python_deps.import_mapping import map_import_to_package
         import_name = dep.import_name or ""
-        pkg_name = map_import_to_package(import_name).package_name
+        result = map_import_to_package(import_name)
+        pkg_name = None if is_unresolved(result) else result.package_name
         return Discovery(
             node_type=NodeType.PACKAGE,
             name=pkg_name,
@@ -87,9 +88,9 @@ def classify_observation(command: str, output: str) -> Discovery | None:
             data={"import_name": import_name},
         )
     if dep.failure_type == "import_name_error":
-        from python_deps.import_mapping import map_import_to_package
         import_name = dep.import_name or ""
-        pkg_name = map_import_to_package(import_name).package_name
+        result = map_import_to_package(import_name)
+        pkg_name = None if is_unresolved(result) else result.package_name
         return Discovery(
             node_type=NodeType.PACKAGE,
             name=pkg_name,

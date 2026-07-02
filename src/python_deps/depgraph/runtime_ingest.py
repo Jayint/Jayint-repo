@@ -74,7 +74,12 @@ def _find_existing_node(graph: DepGraph, d: Discovery) -> Node | None:
     A runtime PACKAGE discovery has no version (id ``pkg:<name>``) but the static
     resolver records ``pkg:<name>==<version>`` — so match PACKAGE by normalized
     name, not just by exact id, or every real package would be appended twice.
+
+    An unresolved import mapping yields ``d.name is None``; there is no id or
+    normalized name to look up, so treat it as never matching an existing node.
     """
+    if d.name is None:
+        return None
     direct = graph.get(_id_for_discovery(d))
     if direct is not None:
         return direct

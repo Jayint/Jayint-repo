@@ -167,6 +167,22 @@ def test_dispatch_import_name_error_returns_package():
     assert d.name == "flask"
 
 
+def test_dispatch_unresolved_import_yields_none_package(monkeypatch):
+    import python_deps.depgraph.runtime_classify as rc
+    from python_deps.import_mapping import unresolved_result
+
+    monkeypatch.setattr(
+        rc, "map_import_to_package",
+        lambda name, *a, **k: unresolved_result(name),
+    )
+    d = rc.classify_observation(
+        "python app.py", "ModuleNotFoundError: No module named 'mystery'"
+    )
+    assert d is not None
+    assert d.node_type is NodeType.PACKAGE
+    assert d.name is None
+
+
 # ── Discovery.requires_of field ───────────────────────────────────────────────
 
 def test_discovery_requires_of_defaults_none_and_accepts_owner():

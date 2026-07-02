@@ -230,3 +230,17 @@ def test_versioned_static_package_annotated_no_duplicate():
     # (c) node count unchanged (Test + one versioned pkg)
     assert len(new_graph.nodes) == len(graph.nodes)
     assert len(discoveries) == 1
+
+
+# ── unresolved import (name=None) tolerance ────────────────────────────────
+
+def test_find_existing_node_tolerates_none_name():
+    import python_deps.depgraph.runtime_ingest as ri
+
+    graph = DepGraph(nodes=(), edges=())
+    disc = Discovery(
+        node_type=NodeType.PACKAGE, name=None, layer=Layer.PIP,
+        evidence="unknown import", check_command="python -c 'import mystery'",
+    )
+    # Must return None cleanly, not raise (previously raised inside a blanket except).
+    assert ri._find_existing_node(graph, disc) is None
