@@ -19,7 +19,9 @@ Resume from the first unchecked item. Trust this ledger + `git log` over memory.
 > GRADING harness (Phase B), gated on construction working e2e.
 
 ## Phase A — construction e2e (co-owned; user's construction agent + my seed smoke test)
-- [~] Seed construction smoke test (typer + postgres-mcp), construction-only, NO agent — af1675a running; yields construction entrypoints + Docker/LLM integration reqs for scorecard.
+- [x] Seed construction smoke (typer), construction-only (skip pytest cert, NO agent): RAN e2e but produced **0 PACKAGE nodes / empty setup.sh** — root-caused below.
+- [x] **ROOT CAUSE + FIX (4621e8d, reviewed APPROVE):** `resolve.py::_lock_command` passed `uv lock --python-platform <tag>`, but uv 0.10.4's `uv lock` REJECTS that flag (only `uv pip compile`/`export` accept it) → every `uv lock` failed → `resolve_closure` returned 0 packages for EVERY repo → empty graphs. Fix = drop the flag + its now-dead param; platform targeting stays where it belongs (parse-time `parse_uv_lock(target_env=…)` on the UNIVERSAL lock). Empirically verified: correctness preserved (typer → exact known-good closure + structured edges), target-env honesty preserved (marker eval honors container not host — independent of the flag). Reviewer mutation-tested all 5 rewritten tests (real teeth) + added a real-`uv` regression test (mocked tests never caught this). 675 depgraph tests green.
+- [ ] FINDING (render, OPEN design Q for first-pass-clean): `build_script._is_reciped` emits PACKAGE(has version) / SYSTEM_LIB·TOOL(has `apt:` fix) **regardless of `State.SATISFIED`** — so `setup.sh` can emit "emitted-but-uncertified" commands = first-pass error risk. Options: (a) gate render on SATISFIED (strict replay → provably clean, uncertified→annotation the agent ADDS not DEBUGS); (b) keep best-effort + build an eval that flags `_is_reciped AND state!=SATISFIED` as predicted failure sites. (needs/CONFIG/SERVICE already emit comment-only, no guessed command.)
 - Construction corpus-wide verification/fixes: **OWNED BY USER'S AGENT** — do NOT duplicate.
 - GATE: construction green e2e → run the Phase-B autonomous sequence below.
 
