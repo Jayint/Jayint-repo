@@ -18,6 +18,15 @@ Parses whichever held-out recipe sources exist in a repo directory:
 Returns a pure, deterministic ``OracleResult`` — the same repo directory always
 yields the same result; no network, no LLM. Conservative by design: only what the
 recipe text literally declares is reported, never an inferred/hallucinated need.
+
+PACKAGE extraction from a ``pip install`` line keeps only tokens that parse as
+a real PEP 508 requirement, dropping flags, local paths, shell variables, and a
+small build/CI-tooling denylist (see ``_clean_pip_tokens``); a ``-r``/``-c``
+argument is dereferenced into the referenced requirements/constraints file's
+own packages instead of being dropped outright. RUNTIME is normalized text
+parsed from the recipe ONLY (``_normalize_runtime``) — it never falls back to
+this machine's own Python (``sys.version_info`` et al.); an undeclared runtime
+is reported as empty, not guessed.
 """
 from __future__ import annotations
 
@@ -28,6 +37,8 @@ import types
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
+
+from packaging.requirements import InvalidRequirement, Requirement
 
 try:  # PyYAML is available repo-wide; degrade gracefully if ever absent.
     import yaml
@@ -42,6 +53,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from python_deps.depgraph.schema import NodeType  # noqa: E402
 from python_deps.depgraph.service_scan import scan_compose_services  # noqa: E402
+from python_deps.evidence import _read_requirement_lines  # noqa: E402
 
 _TIER_KEYS: tuple[str, ...] = (
     NodeType.SYSTEM_LIB.name,
@@ -95,7 +107,7 @@ def parse_oracle(repo_dir: "Path | str") -> OracleResult:
     if dockerfiles:
         sources.append("Dockerfile")
         for path in dockerfiles:
-            file_apt, file_runtimes, file_pip = _parse_dockerfile(_read_text(path))
+            file_apt, file_runtimes, file_pip = _parse_dockerfile(_read_text(path), repo_dir)
             apt |= file_apt
             runtimes |= file_runtimes
             pip_pkgs |= file_pip
@@ -104,7 +116,7 @@ def parse_oracle(repo_dir: "Path | str") -> OracleResult:
     if workflows:
         sources.append("ci")
         for path in workflows:
-            file_apt, file_runtimes, file_pip = _parse_workflow(_read_text(path))
+            file_apt, file_runtimes, file_pip = _parse_workflow(_read_text(path), repo_dir)
             apt |= file_apt
             runtimes |= file_runtimes
             pip_pkgs |= file_pip
@@ -187,7 +199,13 @@ _MINOR_RE = re.compile(r"^(\d+)\.(\d+)")
 
 def _normalize_runtime(value: object) -> "str | None":
     """``'3.11.4-slim'`` / ``3.11`` / ``'3.11'`` -> ``'3.11'``; ``None`` if no
-    major.minor is present (e.g. a bare major like ``'3'``)."""
+    major.minor is present (e.g. a bare major like ``'3'``).
+
+    NEVER falls back to ``sys.version_info`` / ``platform.python_version()`` /
+    any other host interpreter default: ``value`` always comes from recipe text
+    (a ``FROM python:X.Y`` tag or a ``python-version:`` field) parsed by the
+    caller, so "no match" means the recipe didn't declare one -- the correct
+    oracle answer is "unknown" (``None``), never this machine's own Python."""
     text = str(value).strip().strip("'\"")
     match = _MINOR_RE.match(text)
     if not match:
@@ -250,16 +268,85 @@ def _clean_apt_tokens(tokens: list[str]) -> set[str]:
 
 
 _PIP_TOKEN_RE = re.compile(r"^pip[23]?(\.\d+)?$")
+
+# Flags whose argument is a file/URL/local-path, never an external PACKAGE need.
+# ``-r``/``-c``/``--group`` additionally get skipped as a NAME here (their
+# argument is a requirements/constraints file or a PEP 735 dependency-group
+# name, not a package spec).
 _PIP_FLAGS_WITH_ARG = frozenset(
     {
         "-r", "--requirement", "-c", "--constraint", "-e", "--editable",
         "-i", "--index-url", "--extra-index-url", "-t", "--target",
-        "-f", "--find-links",
+        "-f", "--find-links", "--group",
+    }
+)
+# ``-r``/``-c`` name a requirements/constraints FILE -- dereference it so the
+# packages it actually declares are captured (the flag+filename token itself
+# is never a package).
+_PIP_DEREF_FLAGS = frozenset({"-r", "--requirement", "-c", "--constraint"})
+
+# Build-backend / packaging / CI-meta tooling: these routinely appear on a
+# `pip install` line (bootstrapping the build, running coverage, ...) but are
+# not the repo's runtime env the graph is asked to resolve.
+_PIP_BUILD_CI_DENYLIST = frozenset(
+    {
+        "build", "wheel", "setuptools", "pip", "hatch", "hatchling",
+        "poetry-core", "flit-core", "twine", "tox", "nox", "coverage",
     }
 )
 
 
-def _pip_packages_from_tokens(tokens: list[str]) -> set[str]:
+def _pip_requirement_name(token: str) -> "str | None":
+    """The canonical requirement name if ``token`` parses as a valid PEP 508
+    requirement (name [+ extras] [+ specifier]); ``None`` otherwise. This is
+    the single source of truth for "is this really a package token" -- it
+    naturally rejects local paths (``.``/``../pkg``) and shell variables
+    (``$WHEEL``) too, since neither is valid PEP 508 syntax."""
+    try:
+        return Requirement(token).name.strip().lower()
+    except InvalidRequirement:
+        return None
+
+
+def _is_local_path(token: str) -> bool:
+    """A ``.`` / ``../vizro-core`` / ``dist/x.whl`` style local path -- installs
+    the repo itself or a sibling/artifact on disk, never an external PyPI
+    package the graph is meant to resolve."""
+    return token in (".", "..") or token.startswith(("./", "../")) or "/" in token
+
+
+def _is_shell_variable(token: str) -> bool:
+    """A shell-expanded value (``$psrWheelFile``) filled in at CI run time --
+    static text parsing cannot know what package it names, so it is not a
+    declared name."""
+    return "$" in token
+
+
+def _packages_from_requirements_file(repo_dir: "Path | None", ref: str) -> set[str]:
+    """Dereference a ``-r``/``-c`` argument: the file's own requirement lines
+    are where the real PACKAGE declarations live, not the flag/filename token.
+    Best-effort: a missing file, or a ``ref`` that escapes ``repo_dir``, yields
+    nothing rather than guessing or reading outside the repo."""
+    if repo_dir is None:
+        return set()
+    repo_root = Path(repo_dir).resolve()
+    candidate = (repo_root / ref).resolve()
+    try:
+        candidate.relative_to(repo_root)
+    except ValueError:
+        return set()
+    if not candidate.is_file():
+        return set()
+    packages: set[str] = set()
+    for line in _read_requirement_lines(candidate):
+        name = _pip_requirement_name(line)
+        if name is None or name in _PIP_BUILD_CI_DENYLIST:
+            continue
+        packages.add(line)
+    return packages
+
+
+def _pip_packages_from_tokens(tokens: list[str], repo_dir: "Path | None") -> set[str]:
     packages: set[str] = set()
     for i, tok in enumerate(tokens):
         is_pip = bool(_PIP_TOKEN_RE.match(tok))
@@ -269,35 +356,49 @@ def _pip_packages_from_tokens(tokens: list[str]) -> set[str]:
         rest = tokens[i + (1 if is_pip else 3) :]
         if not rest or rest[0] != "install":
             continue
-        packages |= _clean_pip_tokens(rest[1:])
+        packages |= _clean_pip_tokens(rest[1:], repo_dir)
     return packages
 
 
-def _clean_pip_tokens(tokens: list[str]) -> set[str]:
-    """Drop flags and the file/path argument of ``-r``/``-e``/etc. (a requirements
-    file or an editable local install is not an external PACKAGE need)."""
+def _clean_pip_tokens(tokens: list[str], repo_dir: "Path | None") -> set[str]:
+    """Keep only tokens that are a real external PACKAGE need: drop flags (and
+    their file/path/group-name argument, dereferencing ``-r``/``-c`` into the
+    file's own packages), local paths, shell variables, and build/CI tooling
+    (see the WHY comment on each check below)."""
     packages: set[str] = set()
-    skip_next = False
-    for tok in tokens:
-        if skip_next:
-            skip_next = False
-            continue
+    i, n = 0, len(tokens)
+    while i < n:
+        tok = tokens[i]
         if tok in _PIP_FLAGS_WITH_ARG:
-            skip_next = True
+            arg = tokens[i + 1] if i + 1 < n else None
+            if tok in _PIP_DEREF_FLAGS and arg:
+                packages |= _packages_from_requirements_file(repo_dir, arg)
+            i += 2
             continue
         if tok.startswith("-"):
+            # WHY: a bare flag (``-y``, ``--upgrade``, ``--no-cache-dir``, ...)
+            # configures pip itself; it never names a package.
+            i += 1
+            continue
+        if _is_local_path(tok) or _is_shell_variable(tok):
+            i += 1
+            continue
+        name = _pip_requirement_name(tok)
+        if name is None or name in _PIP_BUILD_CI_DENYLIST:
+            i += 1
             continue
         packages.add(tok)
+        i += 1
     return packages
 
 
-def _packages_from_segment(segment: str) -> tuple[set[str], set[str]]:
+def _packages_from_segment(segment: str, repo_dir: "Path | None") -> tuple[set[str], set[str]]:
     """``(apt_packages, pip_packages)`` declared in one ``&&``-separated segment."""
     try:
         tokens = shlex.split(segment)
     except ValueError:
         tokens = segment.split()
-    return _apt_packages_from_tokens(tokens), _pip_packages_from_tokens(tokens)
+    return _apt_packages_from_tokens(tokens), _pip_packages_from_tokens(tokens, repo_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +409,7 @@ _FROM_PYTHON_RE = re.compile(r"(?im)^FROM\s+(?:\S+/)?python:(\S+)")
 _RUN_RE = re.compile(r"(?i)^RUN\s+")
 
 
-def _parse_dockerfile(text: str) -> tuple[set[str], set[str], set[str]]:
+def _parse_dockerfile(text: str, repo_dir: "Path | None" = None) -> tuple[set[str], set[str], set[str]]:
     """``(apt_packages, runtime_minors, pip_packages)`` from one Dockerfile."""
     apt: set[str] = set()
     pip_pkgs: set[str] = set()
@@ -324,7 +425,7 @@ def _parse_dockerfile(text: str) -> tuple[set[str], set[str], set[str]]:
             continue
         body = _RUN_RE.sub("", logical, count=1)
         for segment in _split_commands(body):
-            seg_apt, seg_pip = _packages_from_segment(segment)
+            seg_apt, seg_pip = _packages_from_segment(segment, repo_dir)
             apt |= seg_apt
             pip_pkgs |= seg_pip
 
@@ -372,7 +473,7 @@ def _runtimes_from_setup_python(step: dict, matrix: dict) -> set[str]:
     return out
 
 
-def _parse_workflow(text: str) -> tuple[set[str], set[str], set[str]]:
+def _parse_workflow(text: str, repo_dir: "Path | None" = None) -> tuple[set[str], set[str], set[str]]:
     """``(apt_packages, runtime_minors, pip_packages)`` from one workflow file."""
     apt: set[str] = set()
     pip_pkgs: set[str] = set()
@@ -401,7 +502,7 @@ def _parse_workflow(text: str) -> tuple[set[str], set[str], set[str]]:
             if isinstance(run, str):
                 for logical in _join_continuations(run):
                     for segment in _split_commands(logical):
-                        seg_apt, seg_pip = _packages_from_segment(segment)
+                        seg_apt, seg_pip = _packages_from_segment(segment, repo_dir)
                         apt |= seg_apt
                         pip_pkgs |= seg_pip
 

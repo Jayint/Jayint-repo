@@ -53,6 +53,45 @@ class TestDockerfileFullRecipe:
         assert result.held_out is True
 
 
+class TestPipLineNoiseAndDeref:
+    """(D) shlex noise on `pip install` lines must never surface as a fake
+    "missing PACKAGE": flags, local paths, shell variables, and build/CI
+    tooling are dropped; `-r`/`-c` are dereferenced into the real packages
+    declared by the referenced file."""
+
+    def test_noise_tokens_dropped_real_packages_kept(self):
+        result = parse_oracle(_FIXTURES / "pip_noise_and_deref")
+        packages = set(result.declared_by_tier["PACKAGE"])
+        assert packages == {"requests==2.0", "rich>=13", "httpx==0.28"}
+
+    def test_none_of_the_noise_tokens_present(self):
+        result = parse_oracle(_FIXTURES / "pip_noise_and_deref")
+        packages = set(result.declared_by_tier["PACKAGE"])
+        noise = {
+            "build", "wheel", "requirements.txt", ".", "../pkg", "$WHEEL",
+            "pip", "setuptools",
+        }
+        assert packages.isdisjoint(noise)
+
+    def test_deref_file_missing_is_silently_skipped(self, tmp_path):
+        (tmp_path / "Dockerfile").write_text(
+            "FROM python:3.11-slim\nRUN pip install -r missing-requirements.txt requests\n"
+        )
+        result = parse_oracle(tmp_path)
+        assert result.declared_by_tier["PACKAGE"] == ("requests",)
+
+    def test_deref_refuses_to_escape_repo_dir(self, tmp_path):
+        (tmp_path / "repo").mkdir()
+        (tmp_path / "repo" / "Dockerfile").write_text(
+            "FROM python:3.11-slim\nRUN pip install -r ../outside.txt requests\n"
+        )
+        (tmp_path / "outside.txt").write_text("shouldnotappear==1.0\n")
+        result = parse_oracle(tmp_path / "repo")
+        packages = set(result.declared_by_tier["PACKAGE"])
+        assert packages == {"requests"}
+        assert "shouldnotappear==1.0" not in packages
+
+
 class TestDockerfileRuntimeSlimLiteral:
     def test_from_python_3_11_slim_normalizes_to_3_11(self):
         # The literal example from the loop doc: FROM python:3.11-slim -> "3.11".
@@ -60,6 +99,28 @@ class TestDockerfileRuntimeSlimLiteral:
         assert result.declared_by_tier["RUNTIME"] == ("3.11",)
         assert result.declared_by_tier["SYSTEM_LIB"] == ()
         assert result.declared_by_tier["PACKAGE"] == ()
+
+
+class TestRuntimeNeverLeaksHostPython:
+    """(E) RUNTIME must come ONLY from the held-out recipe; a repo declaring no
+    python must yield an empty RUNTIME tier, never this machine's interpreter."""
+
+    def test_no_python_declared_yields_empty_runtime_not_host(self):
+        result = parse_oracle(_FIXTURES / "no_runtime_declared")
+        assert result.declared_by_tier["RUNTIME"] == ()
+
+    def test_host_python_minor_never_appears_when_undeclared(self):
+        host_minor = f"{sys.version_info.major}.{sys.version_info.minor}"
+        result = parse_oracle(_FIXTURES / "no_runtime_declared")
+        assert host_minor not in result.declared_by_tier["RUNTIME"]
+
+    def test_declared_minor_wins_even_if_it_matches_host(self):
+        # Whatever the recipe declares is reported verbatim -- even if it
+        # happens to coincide with the host's own Python minor. Coincidence
+        # with the host is not evidence of a leak; a fallback to the host when
+        # NOTHING is declared (the two tests above) is.
+        result = parse_oracle(_FIXTURES / "dockerfile_runtime_slim")
+        assert result.declared_by_tier["RUNTIME"] == ("3.11",)
 
 
 # ---------------------------------------------------------------------------

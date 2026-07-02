@@ -254,6 +254,11 @@ def score_repo_against_oracle(graph: DepGraph, declared_by_tier: Mapping[str, Se
         "SYSTEM_LIB": diff_membership(
             declared_by_tier.get("SYSTEM_LIB", ()), apt_names_in_graph(graph), canon=_canon_lower
         ),
+        # RUNTIME: declared_by_tier["RUNTIME"] comes ONLY from oracle.py's recipe
+        # parse (FROM python:X.Y / actions/setup-python), NEVER a host-python
+        # fallback. When the recipe declares no python this is (), so
+        # TierDiff.recall is None ("not applicable") and nothing is reported
+        # missing -- an undeclared runtime is not a 0% recall.
         "RUNTIME": diff_membership(
             declared_by_tier.get("RUNTIME", ()), runtime_minors_in_graph(graph), canon=_canon_lower
         ),

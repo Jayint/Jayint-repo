@@ -231,6 +231,21 @@ class TestScoreRepoAgainstOracle:
         assert result["package_pin_mismatches"][0]["name"] == "requests"
         assert result["package_pin_mismatches"][0]["status"] == "mismatch"
 
+    def test_undeclared_runtime_is_not_applicable_not_a_miss(self):
+        # (E) When the oracle declares NO python (declared["RUNTIME"] == ()),
+        # the graph's own RUNTIME node(s) must never be reported as "missing"
+        # and recall must be None ("no signal"), not 0.0 -- an undeclared
+        # runtime is not evidence the graph is wrong.
+        declared = {"RUNTIME": ()}
+        result = score_repo_against_oracle(_graph_for_scoring(), declared)
+        assert result["missing_vs_oracle_by_tier"]["RUNTIME"] == []
+        assert result["oracle_recall_by_tier"]["RUNTIME"] is None
+
+    def test_undeclared_runtime_key_absent_entirely_is_also_not_a_miss(self):
+        result = score_repo_against_oracle(_graph_for_scoring(), {})
+        assert result["missing_vs_oracle_by_tier"]["RUNTIME"] == []
+        assert result["oracle_recall_by_tier"]["RUNTIME"] is None
+
 
 # ---------------------------------------------------------------------------
 # Execution-failure classification
