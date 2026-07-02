@@ -102,8 +102,12 @@ import comes from Tier 1 being **certainty**, not a guess.
 
 **Tier 0 — Classify (skip non-distributions).** stdlib, relative/first-party imports, and
 the repo's own local modules are not PyPI distributions. Filter them out before any
-resolution. The signal already exists (`scan._local_module_names`, `roots._is_non_distribution`);
-the gap is that it is not consistently applied at resolution time — wire it in.
+resolution. This is ALREADY largely wired (verified): `scan._local_module_names` drops in-repo
+names at scan time (before Import nodes are created), and `roots._is_non_distribution` filters
+stdlib/junk/py2-shim/typing/underscore at `select_roots`. The one known residual is that the
+stdlib check uses the HOST interpreter's `sys.stdlib_module_names`, not the TARGET container's
+(a documented `TODO(target-stdlib)` in `roots.py`) — a separate target-honesty fix, not a
+Finding-B blocker.
 
 **Tier 1 — Closure-provided? → certify, link, done.** The reliable cold path. A dependency
 you import is a dependency you declared, so `X`'s provider is almost always already in the
@@ -189,8 +193,9 @@ Two layers, both accepted:
 
 ## 7. Pipeline changes (grounded in current code)
 
-- **`scan.py`** — add `tools` (and other conventional dev-tooling dirs) to
-  `_EXCLUDED_SEGMENTS`; apply `_local_module_names` at resolution time (Tier 0).
+- **`scan.py`** — add `tools` to `_EXCLUDED_SEGMENTS` (the one novel Phase-1 change).
+  `_local_module_names` is already applied at scan time (Tier 0), so no extra resolution-time
+  wiring is needed.
 - **`roots.py`** — **stop fabricating a resolver root from an unmapped import's guessed
   name** (the scan-gap-fill at `roots.py:290-299`). Seed roots from declared deps only.
   Undeclared imports become certified roots later via Tier 2, not eager guesses.
@@ -226,16 +231,24 @@ These fix vizro's B end-to-end with **no table and no resolver**, and harden the
    real dependency: a genuine runtime import under a package dir is unaffected. (Residual
    risk: a repo that misuses `tools/` for importable runtime code; low, symmetric with the
    existing `scripts/` exclusion, and the eval loop would surface it.)
-2. **Dead safety net — fix the renderer, not the drop-gate.**
+2. **Dead safety net — the fix is upstream, NOT at the renderer.**
    `relink._drop_superseded_ghosts` only drops a ghost when `state is State.MISSING`, but it
-   runs *before* `certify_all`, so a "resolved-fine but build-fails" ghost is still `UNKNOWN`
-   and never dropped; meanwhile `emit._is_reciped` renders any `bool(node.version)` PACKAGE
-   regardless of state. **Safe fix:** make the renderer state-aware — a PACKAGE renders into
-   `setup.sh` only when it is **certified (`State.SATISFIED`)**, not merely versioned. Do NOT
-   instead widen the drop-gate to include `UNKNOWN`: that would drop not-yet-certified
-   packages that would have succeeded (premature deletion). Renderer-gating aligns with "host
-   certifies truth" — an uncertified or build-failing ghost simply never renders — and is the
-   backstop for whatever Tier 3 flags.
+   runs *before* `certify_all`, so a "resolved-fine but build-fails" ghost is never dropped.
+   It is tempting to instead gate the renderer (`emit._is_reciped`) on `State.SATISFIED` — but
+   that is **WRONG and breaks the pipeline** (verified): at render time EVERY package is
+   `UNKNOWN`/`MISSING` — nothing is installed yet, because compiling the install script is the
+   renderer's whole job; `SATISFIED` is set only *post*-install by a container check. Gating on
+   `SATISFIED` renders an EMPTY install step (evidence: `resolve_lock.py` builds Package nodes
+   with no `state` kwarg → `UNKNOWN` default; `certify.py` flips state only by running
+   `check_command` on a container; `coverage.py`'s construction→fresh-replay path renders from a
+   MISSING-state graph; `test_build_script.py` fixtures build `MISSING` packages and assert they
+   DO render). So `_is_reciped`'s `bool(version)` PACKAGE rule is CORRECT. The real defect is
+   upstream: the wrong ghost (`github==1.2.6`) exists only because the identity fallback
+   fabricated a root for it — the backstop is **Phase 2** (roots-from-declared + delete the
+   identity fallback): kill the fabrication and there is no ghost to render. For Finding B
+   specifically the ghost is already gone — scan-scope (§8.1) drops vizro's `github`, and the
+   curated `github→PyGithub` entry resolves a genuinely-imported `github` to a real package
+   instead of the defunct sdist. No renderer change is needed or safe in Phase 1.
 
 ## 9. Non-goals
 
@@ -274,13 +287,18 @@ the ~6-entry table exists precisely for its most common members.
 
 ## 12. Phasing / ship order
 
-- **Phase 1 (in-lane, ships now):** §8 scan-scope (`tools/` exclusion) + renderer state-gate
-  + Tier-0 classification wiring. Closes vizro's B — table-free, resolver-free — and correctly,
-  since vizro's `github` is genuinely out-of-scope dev tooling. TDD + `coverage.py` e2e on
-  vizro.
-- **Phase 2 (architectural):** §7 roots-from-declared (delete root fabrication at
-  `roots.py:290-299`) + promote `relink` to authoritative Tier 1. This is what makes the
-  table shrinkable.
+- **Phase 1 (in-lane, ships now):** §8.1 scan-scope (`tools/` exclusion) — the ONLY novel
+  Phase-1 change. Closes vizro's B (its `github` is out-of-scope dev tooling), table-free /
+  resolver-free. The `github→PyGithub` / `Crypto→pycryptodome` curated entries already landed
+  separately (§6 irreducible members). The earlier-proposed "renderer state-gate" is DROPPED
+  (§8.2 — it breaks the renderer) and Tier-0 classification is already wired (§4), so nothing
+  else remains here. TDD + `coverage.py` e2e on vizro.
+- **Phase 2 (architectural — the real fix):** §7 roots-from-declared (delete the identity-fallback
+  root fabrication) + promote `relink` to authoritative Tier 1, threading a TYPED `unresolved`
+  result (`package_name=None`) through the ~5 downstream consumers (`roots`, `build`, `diagnose`,
+  `runtime`, `naming`) that currently assume a non-null name. Measured blast radius: ~23
+  NoneType-cascade test failures today — this is the bulk of the work, and what takes
+  wrong-guesses to 0 and removes ghost-leaks at the source.
 - **Phase 3 (general mechanism):** `wheel_provides.py` certifier (root-entries primary) +
   Tier-2 certified variant resolver + certified cache + ambiguity tie-break + Tier-3
   irreducible table/flag. Behind the edge-case corpus.
@@ -322,3 +340,10 @@ skeptic, empirical ground-truth) plus a targeted vizro-manifest fact-check. Outc
   41→37 import nodes, `github`/`jinja2`/`requests`/`werkzeug` removed, all confirmed
   confined to `tools/` with zero collateral loss of a package-`src` runtime import. Phase 1
   is empirically SOUND before any plan is written.
+- **Corrected again (writing-plans fact-gather):** the §8.2 "renderer state-gate" was found
+  UNVIABLE — at render time every package is `MISSING`/`UNKNOWN` and MUST still emit (the
+  renderer compiles the install script), so gating on `SATISFIED` renders nothing. §8.2
+  rewritten: the ghost-leak fix is upstream (Phase 2). Tier-0 was found already wired, so
+  Phase 1 collapses to the scan-scope exclusion alone. Evidence: `resolve_lock.py` state
+  defaults, `certify.py`, the `coverage.py` construction→replay path, `test_build_script.py`
+  MISSING-state fixtures.
