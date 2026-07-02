@@ -845,3 +845,57 @@ the identity fallback while leaving the harmless guards in place — a one-commi
 - **If Task 7 surfaces a failing test that is a genuine consumer crash** (NoneType) rather than a contract assertion, a guard was missed — add a Task-2-style guard task for that consumer, keep it green, then resume Task 7.
 - **Docker** is only needed in Task 9. Tasks 1–8 run fully offline.
 - **`box` is the litmus test:** `python-box` is declared in vizro-core's `[project.dependencies]`, so after the fallback is deleted, the wrong literal-`box` root disappears and Tier-1 relink attaches `box → python-box` from the container's real `packages_distributions()`. No Tier-2/Tier-3 work is required for vizro.
+
+---
+
+## Addendum (2026-07-03): two guard tasks inserted before Task 7's flip (per Step-5)
+
+Task 7's first attempt executed the flip and correctly BLOCKED (nothing committed) when
+the full suite surfaced **two genuine consumer gaps Tasks 1–6 did not guard** — exactly the
+"(b) a genuine consumer that Tasks 2–6 missed → STOP and add a guard task" branch the plan's
+Notes anticipated. Neither is a crash; both are silent wrong-graph-state:
+
+- **Gap A — `runtime_ingest._annotate_or_append` fabricates `pkg:None`.** Task 4 guarded only
+  the *match* path (`_find_existing_node` returns None for `name=None`); the *append* path then
+  runs unguarded and builds `package_id(None, None) == "pkg:None"`. Violates "never guess-and-cache
+  → an unmapped import produces NO root."
+- **Gap B — `resolve_link.link_imports_to_packages` reconciliation silently disabled.** This pass
+  is *reconciliation against already-resolved Package nodes* (its docstring: links "regardless of
+  how the root was sourced… even via the identity fallback"). It reused the guess-a-name API, which
+  the flip neuters, so every non-curated import (`certifi`, `charset_normalizer`, …) stops linking
+  to its already-present Package node.
+
+**Root cause (shared):** both are reconciliation-against-already-known-state call sites that
+piggybacked on the guess-a-name API. **Principle:** linking an import to a Package node that
+*already exists* is reconciliation, never fabrication — so the correct fix restores that linkage
+without reintroducing guessing. Both guards are inert-until-flip and keep the suite green.
+
+### Task 7a: `runtime_ingest` append-guard (no `pkg:None` fabrication)
+
+**Files:** Modify `src/python_deps/depgraph/runtime_ingest.py` (`_annotate_or_append`); Modify
+`tests/depgraph/test_runtime_ingest.py`; Modify `tests/depgraph/test_diagnose_ingest_guard.py`.
+
+**Guard:** at the top of `_annotate_or_append`, `if d.name is None: return graph` (no node, no edge —
+`ingest_runtime_failures` still records the Discovery in `found` for advisory/logging, honoring the
+docstring "found is the list of all non-None Discoveries"). Mechanism tests that used the *uncurated*
+`requests` (whose identity guess no longer resolves) are fixture-swapped to a *curated* import
+(`yaml`→`PyYAML`) so append/annotate/edge/dedup are still exercised with a real dist name — mirroring
+the already-accepted `test_build_target_env.py` swap. A new guard test asserts a `name=None` Discovery
+mutates nothing (no `pkg:None`). Inert until flip (real discovery names are never None pre-flip).
+
+### Task 7b: `resolve_link` reconcile-by-own-canonical-name
+
+**Files:** Modify `src/python_deps/depgraph/resolve_link.py` (`link_imports_to_packages`); Modify
+`tests/depgraph/test_resolve.py` (add one guard test).
+
+**Guard:** when `is_unresolved(result)`, fall back to `pkg_id = canon_to_pkg.get(_canon(node.name))`
+(match the import's OWN canonical name against *already-existing* Package nodes) instead of `continue`.
+This can never fabricate — the edge is drawn only if a Package with that canonical name is already in
+the graph; otherwise `pkg_id is None` and it skips (keeping the Task-3 `mystery` guard test green). The
+existing `test_link_imports_to_packages_reconciles_manifest_sourced_packages` (certifi/charset_normalizer)
+passes pre-flip via the resolved path and post-flip via this fallback. A new guard test monkeypatches
+the mapper to unresolved and asserts the edge is still drawn to a pre-existing Package node.
+
+After 7a + 7b land green, **resume Task 7** (the flip + the 11 contract updates recorded in
+`.superpowers/sdd/task-7-attempt.patch`); the 6 previously-failing tests now pass (5 via 7a's swaps,
+1 via 7b's fix) with no further change.
