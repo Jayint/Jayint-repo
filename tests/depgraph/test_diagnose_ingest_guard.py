@@ -36,7 +36,7 @@ def test_local_import_is_not_ingested_as_package():
 def test_external_import_is_still_ingested():
     ctx = RepoContext(local_names=frozenset({"docs_src"}))
     classifier = make_diagnostic_classifier(ctx)
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
     new_graph, found = ingest_runtime_failures(_base_graph(), obs, classifiers=(classifier,))
-    assert new_graph.get(package_id("requests", None)) is not None
+    assert new_graph.get(package_id("PyYAML", None)) is not None
     assert len(found) == 1

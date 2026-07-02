@@ -109,6 +109,11 @@ def diverged_node_ids(graph: DepGraph, discoveries) -> tuple[str, ...]:
 
 def _annotate_or_append(graph: DepGraph, d: Discovery, owner_node_id: str | None = None) -> DepGraph:
     """Apply one Discovery to the graph idempotently.  Returns a NEW graph."""
+    if d.name is None:
+        # Unresolved import: no distribution to graph. Never fabricate a `pkg:None`
+        # node (plan invariant: an unmapped import produces NO root). The discovery
+        # is still recorded in `found` by the caller for advisory/logging.
+        return graph
     existing = _find_existing_node(graph, d)
     target_id = existing.id if existing is not None else _id_for_discovery(d)
 

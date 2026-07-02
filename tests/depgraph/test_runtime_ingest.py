@@ -36,14 +36,14 @@ def _base_graph() -> DepGraph:
 
 def test_append_new_package_node():
     graph = _base_graph()
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
     new_graph, discoveries = ingest_runtime_failures(graph, obs)
 
-    node = new_graph.get(package_id("requests", None))
+    node = new_graph.get(package_id("PyYAML", None))
     assert node is not None
     assert node.type is NodeType.PACKAGE
     assert node.discovered_by is DiscoveredBy.RUNTIME
-    assert node.check_command == 'python3 -c "import requests"'
+    assert node.check_command == 'python3 -c "import yaml"'
     assert node.data.get("runtime_confidence") == "runtime-deterministic"
     assert len(discoveries) == 1
 
@@ -102,21 +102,21 @@ def test_append_service_node_advisory():
 
 def test_runtime_edge_hangs_off_test_node():
     graph = _base_graph()
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
     new_graph, _ = ingest_runtime_failures(graph, obs)
 
     edges = [e for e in new_graph.edges
              if e.src == TEST_NODE_ID and e.relation is EdgeType.REQUIRES
              and e.origin == "runtime"]
     assert len(edges) == 1
-    assert edges[0].dst == package_id("requests", None)
+    assert edges[0].dst == package_id("PyYAML", None)
 
 
 # ── annotate-existing (idempotent across two passes) ─────────────────────────
 
 def test_annotate_existing_node_is_idempotent():
     graph = _base_graph()
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
 
     graph1, discoveries1 = ingest_runtime_failures(graph, obs)
     graph2, discoveries2 = ingest_runtime_failures(graph1, obs)
@@ -135,17 +135,17 @@ def test_annotate_existing_node_is_idempotent():
 def test_annotate_existing_sets_runtime_confidence():
     """A package already in the graph (static) gets runtime_confidence annotated."""
     existing = Node(
-        id=package_id("requests", None),
+        id=package_id("PyYAML", None),
         type=NodeType.PACKAGE,
-        name="requests",
+        name="PyYAML",
         layer=Layer.PIP,
         discovered_by=DiscoveredBy.STATIC_SCAN,
     )
     graph = _base_graph().with_node(existing)
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
     new_graph, discoveries = ingest_runtime_failures(graph, obs)
 
-    node = new_graph.get(package_id("requests", None))
+    node = new_graph.get(package_id("PyYAML", None))
     assert node.data.get("runtime_confidence") == "runtime-deterministic"
     # discovered_by must not be silently downgraded
     # (runtime evidence is stronger; annotated node picks up RUNTIME provenance)
@@ -203,28 +203,28 @@ def test_classifier_exception_never_raises():
 # ── C3: versioned static node annotated, no unversioned duplicate ─────────────
 
 def test_versioned_static_package_annotated_no_duplicate():
-    """C3: a runtime ModuleNotFoundError for 'requests' must annotate the versioned
-    static node pkg:requests==2.31.0, not append a duplicate unversioned pkg:requests."""
+    """C3: a runtime ModuleNotFoundError for 'yaml' must annotate the versioned
+    static node pkg:PyYAML==6.0, not append a duplicate unversioned pkg:PyYAML."""
     versioned = Node(
-        id=package_id("requests", "2.31.0"),
+        id=package_id("PyYAML", "6.0"),
         type=NodeType.PACKAGE,
-        name="requests",
+        name="PyYAML",
         layer=Layer.PIP,
         discovered_by=DiscoveredBy.STATIC_SCAN,
     )
     graph = _base_graph().with_node(versioned)
-    obs = [("python app.py", "ModuleNotFoundError: No module named 'requests'")]
+    obs = [("python app.py", "ModuleNotFoundError: No module named 'yaml'")]
     new_graph, discoveries = ingest_runtime_failures(graph, obs)
 
     # (a) versioned node is annotated with runtime provenance and confidence
-    annotated = new_graph.get(package_id("requests", "2.31.0"))
+    annotated = new_graph.get(package_id("PyYAML", "6.0"))
     assert annotated is not None
     assert annotated.discovered_by is DiscoveredBy.RUNTIME
     assert annotated.data.get("runtime_confidence") == "runtime-deterministic"
 
     # (b) no unversioned duplicate was appended
-    assert new_graph.get(package_id("requests", None)) is None, (
-        "must not append unversioned pkg:requests when versioned pkg:requests==2.31.0 exists"
+    assert new_graph.get(package_id("PyYAML", None)) is None, (
+        "must not append unversioned pkg:PyYAML when versioned pkg:PyYAML==6.0 exists"
     )
 
     # (c) node count unchanged (Test + one versioned pkg)
@@ -244,3 +244,18 @@ def test_find_existing_node_tolerates_none_name():
     )
     # Must return None cleanly, not raise (previously raised inside a blanket except).
     assert ri._find_existing_node(graph, disc) is None
+
+
+def test_annotate_or_append_skips_none_named_discovery():
+    """A discovery with no resolvable package name (name=None) must mutate NOTHING —
+    never fabricate a `pkg:None` node (plan invariant: unmapped import -> NO root)."""
+    from python_deps.depgraph.runtime_ingest import _annotate_or_append
+    graph = _base_graph()
+    disc = Discovery(
+        node_type=NodeType.PACKAGE, name=None, layer=Layer.PIP,
+        evidence="unresolved import", check_command="python3 -c 'import mystery'",
+    )
+    out = _annotate_or_append(graph, disc)
+    assert out.get("pkg:None") is None
+    assert len(out.nodes) == len(graph.nodes)   # nothing appended
+    assert len(out.edges) == len(graph.edges)   # no edge either
