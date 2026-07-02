@@ -14,10 +14,11 @@ from pathlib import Path
 
 from python_deps.evidence import (
     _add_requirement_line,
+    _build_import_mappings,
     _parse_requirement_line,
     collect_python_dependency_evidence,
 )
-from python_deps.models import PythonRequirement
+from python_deps.models import ImportFinding, PythonDependencyEvidence, PythonRequirement
 
 
 def test_parse_requirement_line_returns_four_tuple_with_extras():
@@ -99,3 +100,33 @@ def test_collect_pyproject_optional_dependency_group_tag_preserved(tmp_path):
     sphinx_req = by_name["sphinx"]
     assert sphinx_req.kind == "optional_dependency"
     assert sphinx_req.source.endswith("optional-dependencies.docs")
+
+
+def test_build_import_mappings_omits_unresolved(monkeypatch):
+    # Bug this guards: an unresolved import carries no distribution name to
+    # advise (Task 6). Before the guard, _build_import_mappings would still
+    # emit an ImportPackageMapping for it (package_name=None), polluting the
+    # advisory evidence layer with a mapping nobody can act on.
+    import python_deps.evidence as evidence_module
+    from python_deps.import_mapping import MappingResult, unresolved_result
+
+    monkeypatch.setattr(
+        evidence_module,
+        "map_import_to_package",
+        lambda name, *a, **k: unresolved_result(name)
+        if name == "mystery"
+        else MappingResult(name, name, "direct_name", "low"),
+    )
+
+    ev = PythonDependencyEvidence(repo_path=".")
+    ev.imports.extend(
+        [
+            ImportFinding(import_name="requests", classification="external"),
+            ImportFinding(import_name="mystery", classification="external"),
+        ]
+    )
+
+    mappings = _build_import_mappings(ev)
+    names = {m.import_name for m in mappings}
+    assert "requests" in names
+    assert "mystery" not in names

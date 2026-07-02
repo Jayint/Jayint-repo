@@ -11,7 +11,7 @@ from typing import Iterable
 from packaging.requirements import InvalidRequirement, Requirement
 
 from .import_graph import collect_pydeps_evidence, scan_imports
-from .import_mapping import map_import_to_package
+from .import_mapping import is_unresolved, map_import_to_package
 from .models import (
     ImportPackageMapping,
     PythonDependencyEvidence,
@@ -212,6 +212,8 @@ def _build_import_mappings(evidence: PythonDependencyEvidence) -> list[ImportPac
         if finding.classification != "external":
             continue
         mapping = map_import_to_package(finding.import_name, declared_package_names)
+        if is_unresolved(mapping):
+            continue
         mappings.append(
             ImportPackageMapping(
                 import_name=mapping.import_name,

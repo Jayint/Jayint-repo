@@ -51,7 +51,7 @@ class ImportFinding:
 @dataclass(frozen=True)
 class ImportPackageMapping:
     import_name: str
-    package_name: str
+    package_name: str | None
     source: str
     trust: str
 
