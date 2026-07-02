@@ -64,14 +64,48 @@ def test_py2_shim_is_filtered_out(tmp_path):
 
 
 def test_scanned_import_gap_fills_only_uncovered(tmp_path):
+    # boto3 has no curated-table entry and is not declared in the manifest,
+    # so under the new contract it is unresolved -> NOT gap-filled (no root
+    # is fabricated for it; the old identity fallback is gone).
     repo = _fixture_repo(tmp_path)
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph)
 
-    # boto3 is imported but not declared -> gap-filled with its import_id.
+    assert "boto3" not in {dist for _imp, dist in roots}
+
+
+def test_scanned_curated_import_gap_fills_only_uncovered(tmp_path):
+    # A scanned import that resolves via the curated table (yaml -> PyYAML)
+    # but is NOT declared in the manifest still becomes a root, keyed by its
+    # import_id (gap-fill still works for resolvable imports).
+    repo = tmp_path / "proj2"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj2"
+        version = "0.1.0"
+        dependencies = ["flask", "requests"]
+        """,
+    )
+    _write(
+        repo,
+        "proj2/app.py",
+        """
+        import os
+        import StringIO
+        import requests
+        import yaml
+        """,
+    )
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph)
+
     gap = {dist: imp for imp, dist in roots}
-    assert "boto3" in gap
-    assert gap["boto3"] == "import:boto3"
+    assert "PyYAML" in gap
+    assert gap["PyYAML"] == "import:yaml"
 
 
 def test_declared_import_not_duplicated(tmp_path):

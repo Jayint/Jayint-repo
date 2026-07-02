@@ -55,16 +55,20 @@ def test_new_native_aliases_added_additively():
     assert roots[import_id("lxml")] == "lxml"
 
 
-def test_identity_fallback_for_unknown_import():
+def test_unmapped_import_yields_no_root():
+    # An undeclared import with no curated-table entry is unresolved -> no
+    # root is fabricated for it (the old identity fallback is gone).
     graph = _graph("requests")
-    assert package_roots(graph) == [(import_id("requests"), "requests")]
+    assert package_roots(graph) == []
 
 
 def test_returns_one_pair_per_import_in_node_order():
+    # Only resolved imports (declared or curated) appear, in node order;
+    # "requests" is undeclared and uncurated here, so it is unresolved and
+    # omitted entirely.
     graph = _graph("cv2", "requests")
     assert package_roots(graph) == [
         (import_id("cv2"), "opencv-python"),
-        (import_id("requests"), "requests"),
     ]
 
 

@@ -78,3 +78,12 @@ def test_is_unresolved_true_for_unresolved_source():
 def test_is_unresolved_false_for_a_real_mapping():
     r = MappingResult("yaml", "PyYAML", "collision_table", "high")
     assert is_unresolved(r) is False
+
+
+def test_unmapped_import_is_unresolved_not_identity():
+    # An import with no curated-table entry and no declared match must NOT be
+    # guessed as its own name (the old identity fallback); it is unresolved.
+    r = map_import_to_package("box", declared_package_names=set())
+    assert r.package_name is None
+    assert r.source == "unresolved"
+    assert is_unresolved(r) is True

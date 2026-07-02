@@ -37,11 +37,13 @@ def test_norm_helper_lowercases_strips_and_dashes_underscores():
 
 
 def test_previously_invalid_name_matches_normalized_form():
-    # ctx stores the pre-normalized form; the traceback's raw casing/underscores
-    # must still match via _norm on both sides.
-    ctx = RepoContext(invalid_names=frozenset({"frobnicate-9000"}))
+    # ctx stores the pre-normalized form; the curated mapping's mixed-case
+    # distribution name ("fitz" -> "PyMuPDF") must still match via _norm on
+    # both sides. (An unmapped import now resolves to name=None and can never
+    # match ctx.invalid_names, so this must use a curated import.)
+    ctx = RepoContext(invalid_names=frozenset({"pymupdf"}))
     d = diagnose("python app.py",
-                 "ModuleNotFoundError: No module named 'Frobnicate_9000'",
+                 "ModuleNotFoundError: No module named 'fitz'",
                  ctx)
     assert d.mode is Mode.INVALID_ATTEMPT
     assert d.discovery is None

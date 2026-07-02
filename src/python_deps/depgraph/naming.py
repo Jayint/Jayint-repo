@@ -6,8 +6,9 @@ distribution root before the resolver (stage 3) can run.
 
 This module is pure (no Executor, no I/O) and reuses the curated table in
 ``python_deps.import_mapping``.  Precedence follows the design's ladder (10.3):
-declared manifest names outrank the curated table, which outranks the
-direct-name identity fallback.
+declared manifest names outrank the curated table. An import that matches
+neither is unresolved and yields no root — it is never guessed to be its own
+distribution name.
 """
 
 from __future__ import annotations
@@ -34,10 +35,13 @@ def package_roots(
        highest-trust evidence (design 4.2 / 10.3).
     2. **curated table** — ``python_deps.import_mapping.map_import_to_package``
        (handles ``cv2 -> opencv-python`` and friends).
-    3. **identity fallback** — also via ``map_import_to_package`` for unknowns.
+
+    An import that matches neither is **unresolved**
+    (``python_deps.import_mapping.is_unresolved``) and yields NO root — it is
+    never guessed to be its own distribution name.
 
     Non-Import nodes are ignored. Output order follows graph node order, one
-    pair per Import node.
+    pair per resolved Import node (unresolved imports are omitted).
     """
     declared = declared_names or set()
     declared_by_normalized = {normalize_package_name(name): name for name in declared}

@@ -25,7 +25,11 @@ from python_deps.depgraph.build import build_dep_graph
 
 
 def _make_repo(tmp_path):
-    (tmp_path / "app.py").write_text("import numpy\n")
+    # "yaml" is curated (-> PyYAML) so it resolves to a root and triggers
+    # `uv lock`; an uncurated/undeclared import (e.g. "numpy") would now be
+    # unresolved and never reach the resolver, defeating these tests' purpose
+    # of exercising the target_env/platform-tag threading through `uv lock`.
+    (tmp_path / "app.py").write_text("import yaml\n")
     return str(tmp_path)
 
 

@@ -94,12 +94,7 @@ def map_import_to_package(
             trust="medium",
         )
 
-    return MappingResult(
-        import_name=top_level,
-        package_name=top_level,
-        source="direct_name",
-        trust="low",
-    )
+    return unresolved_result(top_level)
 
 
 def mapping_source_label(source: str) -> str:

@@ -39,10 +39,12 @@ def test_no_matching_distribution_routes_invalid_attempt():
 
 
 def test_previously_invalid_name_routes_invalid_attempt():
-    # An external import whose mapped package was already disproven.
-    ctx = RepoContext(invalid_names=frozenset({"requests"}))
+    # An external import whose mapped package was already disproven. Use a
+    # curated import ("django_filters" -> "django-filter") since an unmapped
+    # import now resolves to name=None and can never match ctx.invalid_names.
+    ctx = RepoContext(invalid_names=frozenset({"django-filter"}))
     d = diagnose("python app.py",
-                 "ModuleNotFoundError: No module named 'requests'",
+                 "ModuleNotFoundError: No module named 'django_filters'",
                  ctx)
     assert d.mode is Mode.INVALID_ATTEMPT
     assert d.discovery is None
