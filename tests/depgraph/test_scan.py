@@ -121,6 +121,22 @@ def test_scan_scopes_out_examples_and_docs(tmp_path: Path) -> None:
     assert "sphinx_only" not in names  # docs dropped
 
 
+def test_scan_scopes_out_tools_dir(tmp_path: Path) -> None:
+    """Imports seen ONLY under a repo-root tools/ dev-tooling dir are dropped;
+    package-source imports are kept (closes Finding B for vizro: `import github`
+    lives in tools/pycafe/, CI/docs tooling outside every installable package)."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import requests\n", encoding="utf-8")
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "helper.py").write_text("import click\n", encoding="utf-8")
+
+    graph = scan_to_nodes(str(tmp_path))
+    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
+
+    assert "requests" in names  # src kept
+    assert "click" not in names  # tools dropped
+
+
 def test_scan_drops_local_fixture_packages_and_typing(tmp_path: Path) -> None:
     """In-repo fixture packages (nested under tests/) and typing-only modules are
     not external PyPI deps and must not become Import nodes."""

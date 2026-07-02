@@ -50,6 +50,7 @@ _EXCLUDED_SEGMENTS: frozenset[str] = frozenset(
         "examples", "example", "docs", "doc", "build", "dist", "samples",
         "sample", "benchmarks", "benchmark", "bench", "scripts", "script",
         ".github", ".tox", "node_modules", "site-packages", ".venv", "venv",
+        "tools",
     }
 )
 
