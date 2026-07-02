@@ -69,3 +69,33 @@ def test_unclassified_routes_ambiguous():
     d = diagnose("python app.py", "Segmentation fault (core dumped)", RepoContext())
     assert d.mode is Mode.AMBIGUOUS
     assert d.discovery is None
+
+
+def test_none_named_discovery_does_not_route_invalid_attempt(monkeypatch):
+    # Task 4 (runtime_classify) can now emit Discovery(name=None, ...) for an
+    # import that failed to map to any distribution. _norm(None) coerces to
+    # "" (see test_diagnose_reconciliations.py), so if "" were ever recorded
+    # as a disproven name, a None-named discovery would wrongly and
+    # permanently match it as a previously-invalid attempt. A discovery with
+    # no name is unnameable -- it cannot be "previously disproven" -- and
+    # must route exactly as any other present-but-not-invalid name does.
+    import python_deps.depgraph.diagnose as diagnose_module
+    from python_deps.depgraph.runtime_classify import Discovery
+    from python_deps.depgraph.schema import Layer
+
+    unresolved = Discovery(
+        node_type=NodeType.PACKAGE,
+        name=None,
+        layer=Layer.PIP,
+        evidence="ModuleNotFoundError: No module named 'mystery'",
+        check_command='python3 -c "import mystery"',
+        data={"import_name": "mystery"},
+    )
+    monkeypatch.setattr(diagnose_module, "classify_observation", lambda cmd, out: unresolved)
+
+    ctx = RepoContext(invalid_names=frozenset({""}))
+    d = diagnose("python app.py", "ModuleNotFoundError: No module named 'mystery'", ctx)
+
+    assert d.mode is not Mode.INVALID_ATTEMPT
+    assert d.mode is Mode.ENVIRONMENT
+    assert d.discovery is unresolved

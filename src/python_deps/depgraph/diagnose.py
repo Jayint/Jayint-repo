@@ -95,7 +95,7 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
         if disc is None:
             return Diagnosis(Mode.AMBIGUOUS, None,
                              f"import {import_name!r} had no package mapping")
-        if _norm(disc.name) in ctx.invalid_names:
+        if disc.name is not None and _norm(disc.name) in ctx.invalid_names:
             return Diagnosis(Mode.INVALID_ATTEMPT, None,
                              f"package {disc.name!r} was previously disproven")
         return Diagnosis(Mode.ENVIRONMENT, disc,
@@ -122,7 +122,7 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
             return Diagnosis(Mode.AMBIGUOUS, None,
                              f"import_name_error for {failed_from!r} has no confirmed "
                              "top-level package mapping — probe before repair")
-        if _norm(disc.name) in ctx.invalid_names:
+        if disc.name is not None and _norm(disc.name) in ctx.invalid_names:
             return Diagnosis(Mode.INVALID_ATTEMPT, None,
                              f"package {disc.name!r} was previously disproven")
         return Diagnosis(Mode.ENVIRONMENT, disc,
