@@ -7,12 +7,21 @@ is exercised with a FakeExecutor that returns rc0 while the test pre-writes the
 temp-project ``uv.lock`` (covering the read path), plus stubs that simulate lock
 failure (diagnosis), per-root resilience, and the degraded ``uv pip compile``
 fallback.
+
+One test (marked ``@pytest.mark.integration``, skipped without a real ``uv`` on
+PATH) runs the actual ``_lock_command`` shell command through a real
+subprocess against a real tiny project -- a mocked ``FakeExecutor`` "succeeds"
+regardless of whether the command is valid uv CLI syntax, so it can never
+catch a uv-API drift (e.g. uv 0.10.4 rejecting ``uv lock --python-platform``).
 """
 
 from __future__ import annotations
 
 import os
+import shutil
 from types import SimpleNamespace
+
+import pytest
 
 from python_deps.depgraph.executor import CommandResult
 from python_deps.depgraph.resolve import (
@@ -1697,19 +1706,58 @@ def test_resolve_closure_stamps_exclude_newer(tmp_path):
 def test_lock_command_quotes_caller_supplied_args():
     from python_deps.depgraph.resolve import _lock_command
 
-    cmd = _lock_command("/tmp/wd", "3.11", "2024-01-01", "x86_64-manylinux_2_28")
+    cmd = _lock_command("/tmp/wd", "3.11", "2024-01-01")
     assert "--python 3.11" in cmd
     assert "--exclude-newer 2024-01-01" in cmd
 
 
-def test_lock_command_carries_python_platform_flag():
-    # Task 7: without --python-platform, `uv lock` resolves for the HOST's
-    # platform tags, not the target container's -- this is what makes the
-    # resolve target-honest end to end.
+def test_lock_command_omits_unsupported_python_platform_flag():
+    # `uv lock` (unlike `uv pip compile` / `uv export`) has no
+    # `--python-platform` flag -- passing it makes uv reject the whole
+    # command (`error: unexpected argument '--python-platform' found`),
+    # silently zeroing out every resolve. `uv.lock` is a universal,
+    # cross-platform lock; platform targeting happens downstream at PARSE
+    # time (`parse_uv_lock`/`native_risk_from_lock`), never via a `uv lock`
+    # CLI flag. `--python` is still the correct/supported interpreter target.
     from python_deps.depgraph.resolve import _lock_command
 
-    cmd = _lock_command("/tmp/wd", "3.11", None, "aarch64-manylinux_2_28")
-    assert "--python-platform aarch64-manylinux_2_28" in cmd
+    cmd = _lock_command("/tmp/wd", "3.11", None)
+    assert "--python-platform" not in cmd
+    assert "--python 3.11" in cmd
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(shutil.which("uv") is None, reason="requires a real `uv` binary on PATH")
+def test_lock_command_succeeds_against_real_uv(tmp_path):
+    """Regression guard for the uv 0.10.4 API break (`uv lock` rejecting
+    `--python-platform`, which a mocked-only ``FakeExecutor`` suite can never
+    catch since it "succeeds" regardless of the command's real validity).
+
+    Builds a tiny real project (one real dependency) and runs the EXACT
+    command ``_lock_command`` produces through a real subprocess. Skipped
+    entirely without a real ``uv`` on PATH, and skipped gracefully on an
+    apparent network failure rather than failing CI on flaky connectivity.
+    """
+    from python_deps.depgraph.executor import LocalSubprocessExecutor
+    from python_deps.depgraph.resolve import _lock_command, _write_pyproject
+
+    workdir = str(tmp_path)
+    _write_pyproject(workdir, ["shellingham"], "3.11")
+    command = _lock_command(workdir, "3.11", None)
+
+    result = LocalSubprocessExecutor().run(command, timeout=60)
+
+    stderr_lower = (result.stderr or "").lower()
+    if result.returncode != 0 and any(
+        marker in stderr_lower
+        for marker in ("could not connect", "network", "timed out", "temporary failure")
+    ):
+        pytest.skip(f"uv lock failed, looks network-related:\n{result.stderr}")
+
+    assert result.returncode == 0, (
+        f"uv lock failed unexpectedly:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert os.path.exists(os.path.join(workdir, "uv.lock"))
 
 
 def test_write_pyproject_rejects_bad_python_version(tmp_path):

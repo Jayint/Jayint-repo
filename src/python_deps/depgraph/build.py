@@ -220,7 +220,8 @@ def build_dep_graph(
     host-side ``uv`` resolve.  A single :class:`TargetEnv` (Task 7) is detected
     from the container (``detect_target_env`` — one probe covering interpreter
     version, ``sys_platform``/``os_name``/``platform_machine``, and a glibc/musl
-    guess for the ``uv lock --python-platform`` tag) so the resolve — and every
+    guess for the wheel/uv platform tag used at PARSE time -- ``uv lock`` is
+    universal and takes no platform flag of its own) so the resolve — and every
     PEP 508 marker it evaluates — targets the CONTAINER, never the host running
     this function.  ``target_python`` / ``target_platform`` remain accepted as
     caller overrides that patch the detected env (a hardcoded python would pin

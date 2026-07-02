@@ -3,9 +3,11 @@
 Primary resolve source is **``uv.lock``** (the richest single uv artifact: nodes
 + versions + transitive edges + markers + sdist/wheel artifacts).  The orchestrator
 (:func:`resolve_closure`) creates a throwaway uv project in a temp dir, runs
-``uv lock`` (targeted at the container's python/platform) *on the host* through the
-injected ``Executor`` (locked decision 1: the ``uv`` binary is invoked, never
-imported), reads the produced ``uv.lock`` and feeds it to the PURE parsers below.
+``uv lock --python <target>`` (a UNIVERSAL, cross-platform lock -- ``uv lock``
+has no ``--python-platform`` flag) *on the host* through the injected
+``Executor`` (locked decision 1: the ``uv`` binary is invoked, never imported),
+reads the produced ``uv.lock`` and feeds it to the PURE parsers below, which
+target the container's PLATFORM at parse time.
 
 Pure, unit-testable parsers (no executor / no network / no uv):
 
@@ -184,19 +186,23 @@ def _lock_command(
     workdir: str,
     target_python: str,
     exclude_newer: str | None,
-    python_platform_tag: str,
 ) -> str:
-    """Build the ``uv lock`` shell command, ALWAYS targeted at the container.
+    """Build the ``uv lock`` shell command.
 
-    ``--python-platform`` (Task 7) is what stops ``uv`` from resolving for the
-    HOST's platform: without it a dev host's own OS/arch tags leak into the
-    lock's wheel selection and marker environment, silently diverging from the
-    container being built.
+    ``uv.lock`` is a UNIVERSAL, cross-platform lock -- it is not generated for
+    one target platform, so ``uv lock`` (unlike ``uv pip compile`` / ``uv
+    export``) does not accept ``--python-platform``; passing it makes ``uv``
+    reject the whole command (``error: unexpected argument '--python-platform'
+    found``), which silently zeroes out every resolve. Platform targeting
+    happens downstream at PARSE time instead: ``parse_uv_lock``/
+    ``native_risk_from_lock`` evaluate each lock entry's PEP 508 markers and
+    wheel tags against the caller-supplied ``target_platform``/``target_env``,
+    so the container's platform is honored without ever needing the lock
+    command itself to know about it.
     """
     parts = [shlex.quote(UV_BIN), "lock", "--python", shlex.quote(target_python)]
     if exclude_newer:
         parts += ["--exclude-newer", shlex.quote(exclude_newer)]
-    parts += ["--python-platform", shlex.quote(python_platform_tag)]
     return f"cd {shlex.quote(workdir)} && {' '.join(parts)}"
 
 
@@ -224,14 +230,16 @@ def resolve_closure(
     import id is a manifest-declared root with no Import node to attach.
 
     ``target_env`` is the single :class:`TargetEnv` (Task 7) the whole resolve
-    honors: ``target_env.python_version`` / ``target_env.python_platform_tag``
-    (the NORMALIZED wheel/uv tag) drive ``uv lock --python``/``--python-platform``
-    and the wheel-artifact match, while ``target_env`` ITSELF (carrying the RAW
-    ``platform.machine()`` the container reported) is threaded into
-    ``parse_uv_lock``/``native_risk_from_lock`` so every PEP 508 marker
-    evaluated against a forked/conditional lock entry sees the container's own
-    facts — never a normalized stand-in, and never the host running this
-    resolve.
+    honors: ``target_env.python_version`` drives ``uv lock --python`` (the
+    ONLY targeting flag ``uv lock`` itself accepts -- ``uv.lock`` is a
+    universal, cross-platform lock, so there is no ``--python-platform`` for
+    ``uv lock`` to take). ``target_env.python_platform_tag`` (the NORMALIZED
+    wheel/uv tag) instead drives the wheel-artifact match at PARSE time, while
+    ``target_env`` ITSELF (carrying the RAW ``platform.machine()`` the
+    container reported) is threaded into ``parse_uv_lock``/
+    ``native_risk_from_lock`` so every PEP 508 marker evaluated against a
+    forked/conditional lock entry sees the container's own facts — never a
+    normalized stand-in, and never the host running this resolve.
 
     ``extras`` is the set of ``[project.optional-dependencies]`` / extras_require
     group names IN SCOPE for this resolve (Task 8's targeted-extras fix — the
@@ -268,7 +276,7 @@ def resolve_closure(
                 break
             _write_pyproject(workdir, names, target_python, extras=extras)
             result = host_executor.run(
-                _lock_command(workdir, target_python, exclude_newer, platform)
+                _lock_command(workdir, target_python, exclude_newer)
             )
             lock_text = _read_lock(workdir) if result.ok else None
 

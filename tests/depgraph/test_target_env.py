@@ -172,7 +172,9 @@ def test_python3_absent_degrades_to_default():
 # against `platform.machine()` VERBATIM, so `TargetEnv.platform_machine` must
 # stay RAW (un-normalized) or a marker like `platform_machine == 'arm64'`
 # would wrongly evaluate False. Normalization applies ONLY to
-# `python_platform_tag` (the wheel/uv `--python-platform` naming).
+# `python_platform_tag` (the wheel/uv platform-tag naming; consumed at PARSE
+# time by parse_uv_lock/native_risk_from_lock -- `uv lock` itself has no
+# `--python-platform` flag, unlike `uv pip compile`/`uv export`).
 
 
 def test_machine_alias_arm64_kept_raw_for_marker_but_tag_normalized():
@@ -189,7 +191,7 @@ def test_machine_alias_arm64_kept_raw_for_marker_but_tag_normalized():
     t = detect_target_env(ex)
     # RAW — feeds marker_env() / PEP 508 evaluation verbatim.
     assert t.platform_machine == "arm64"
-    # Normalized — feeds the wheel/uv --python-platform tag only.
+    # Normalized — feeds the wheel/uv platform tag (parse-time matching) only.
     assert t.python_platform_tag.startswith("aarch64-")
 
 
