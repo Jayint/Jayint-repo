@@ -63,10 +63,12 @@ def test_py2_shim_is_filtered_out(tmp_path):
     assert "StringIO" not in dists
 
 
-def test_scanned_import_gap_fills_only_uncovered(tmp_path):
-    # boto3 is imported but NOT declared in the manifest. Under declared-only
-    # roots, no import fabricates a root (whether or not it maps via the curated
-    # table); boto3 is an audit signal, never a construction root.
+def test_scanned_import_does_not_fabricate_root(tmp_path):
+    # boto3 is imported but NOT declared in the manifest. Imports never generate
+    # roots: under declared-only construction no scanned import fabricates a root
+    # (whether or not it maps via the curated table). An undeclared import is an
+    # audit signal only -- reconciled post-install, never fabricated at
+    # construction. boto3 must NOT appear as a root.
     repo = _fixture_repo(tmp_path)
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph)
@@ -74,12 +76,13 @@ def test_scanned_import_gap_fills_only_uncovered(tmp_path):
     assert "boto3" not in {dist for _imp, dist in roots}
 
 
-def test_scanned_curated_import_gap_fills_only_uncovered(tmp_path):
+def test_scanned_curated_import_does_not_fabricate_root(tmp_path):
     # yaml is imported (the curated table maps yaml -> PyYAML) but NOT declared
-    # in the manifest. Under declared-only roots it is an AUDIT signal, not a
-    # root: no PyYAML root is fabricated from the import. The two-phase design
-    # re-homes under-declared-alias recovery to a later post-install repair
-    # pass, never to a fabricated construction root. Every root is declared.
+    # in the manifest. A curated-table match does NOT license fabrication either:
+    # imports never generate roots. It is an AUDIT signal only -- no PyYAML root
+    # is fabricated from the import. The two-phase design re-homes
+    # under-declared-alias recovery to a later post-install repair pass, never to
+    # a fabricated construction root. Every root is declared.
     repo = tmp_path / "proj2"
     repo.mkdir()
     _write(

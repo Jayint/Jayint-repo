@@ -3,6 +3,17 @@
 Realizes section 4.2 / 10.2 of the design: import names are mapped to PyPI
 distribution names via the curated table, with declared manifest names taking
 precedence (the precedence ladder of 10.3).  Pure, no Executor needed.
+
+REFERENCE-ONLY -- DO NOT RE-WIRE INTO CONSTRUCTION.
+``naming.package_roots`` is OFF the two-phase declared-only construction path:
+``build_dep_graph`` no longer calls it. It is RETAINED solely as the A/B
+eval's *generator* reference (see P3.1 / ``tests/eval/graph_fidelity/``), which
+measures what an imports-as-generator selector *would* have added versus the
+declared-only verifier that construction actually uses. These tests exercise
+that retained helper directly; they assert the mapping semantics of the
+reference generator, NOT construction behavior. A future reader must not take a
+green test here as licence to re-connect ``package_roots`` to
+``build_dep_graph`` -- imports audit demand, they never fabricate roots.
 """
 
 from __future__ import annotations
