@@ -2,12 +2,17 @@
 
 Track A of docs/superpowers/plans/2026-07-03-root-selection-ab-eval.md.
 
-`select_roots` already tags every root: declared deps carry ``import_id=None``, scan-gap-fill
-imports carry the import node id. So both architectures come from ONE unchanged call:
+Post-P0.1 the in-tree ``select_roots`` is declared-only (imports never generate install roots),
+so a single call can no longer yield the generator's gap-fill adds — its output IS the verifier.
+The generator arm is therefore RECONSTRUCTED (``reconstruct_generator_roots``) from the retained
+reference helper ``naming.package_roots``, reproducing the exact scan-gap-fill block P0.1 deleted
+from ``select_roots`` so the eval still measures the same divergence against the declared-only
+selector. Both arms then carry the ``select_roots`` tagging convention — declared roots keep
+``import_id=None`` and reconstructed gap-fill roots carry the import node id:
 
-  * GENERATOR (current) roots = full output
-  * VERIFIER  (proposed) roots = declared only (``import_id is None``)
-  * DIVERGENCE = the gap-fill adds = exactly where the two differ.
+  * GENERATOR (reconstructed) roots = declared verifier UNION package_roots gap-fill
+  * VERIFIER  (in-tree) roots       = declared only (``import_id is None``)
+  * DIVERGENCE = the gap-fill adds   = exactly where the two differ.
 
 This module partitions that output and adjudicates the divergence set against gold labels: a
 divergent add is a GOOD add (a genuinely-needed runtime dep the repo under-declared) or a BAD
@@ -43,10 +48,30 @@ logger = logging.getLogger(__name__)
 
 _CANON_RUN = re.compile(r"[-_.]+")
 
+# PEP 503 distribution-name character class: letters, digits, ``.``/``_``/``-``.
+_NAME_PREFIX_RE = re.compile(r"^[A-Za-z0-9._-]+")
+
 
 def _canon(name: str) -> str:
     """PEP 503 comparison key (``Flask_Login`` == ``flask-login``)."""
     return _CANON_RUN.sub("-", name.strip()).lower()
+
+
+def _bare_name(token: str) -> str:
+    """Strip a ``[extras]`` bracket and/or PEP 440 version specifier suffix.
+
+    ``depgraph.roots.select_roots`` carries the declared constraint on a
+    manifest-declared root -- e.g. ``numpy<2`` or ``uvicorn[standard]>=0.30`` --
+    so the resolver can see version conflicts (see ``_manifest_root_token``).
+    Comparing such a token against a bare mapped-import name (``numpy``) requires
+    stripping the suffix first, or a declared dep would canon-differ from its own
+    gap-fill counterpart and be double-counted. Idempotent on an already-bare
+    name. ``token`` is stripped of leading/trailing whitespace first so the
+    start-anchored ``_NAME_PREFIX_RE`` still matches a loosely-formatted token
+    (e.g. ``" numpy<2"``). Shared with ``pkg_layer_ab`` (imported from here)."""
+    token = token.strip()
+    match = _NAME_PREFIX_RE.match(token)
+    return match.group(0) if match else token
 
 
 #: Gold label ⇒ a divergent add is a mistake (the generator over-installs).
@@ -144,18 +169,65 @@ def aggregate(scorecards: Sequence[Mapping]) -> dict:
 # Runner (lazy python_deps import — host-only, no container)
 # ---------------------------------------------------------------------------
 
+def reconstruct_generator_roots(
+    repo_dir: str,
+    graph,
+    verifier_roots: Sequence[tuple[str | None, str]],
+    id_to_name: Mapping[str, str],
+) -> list[tuple[str | None, str]]:
+    """Reconstruct the OLD (pre-P0.1) generator root set = declared-only verifier
+    roots UNION the mapped-import gap-fill ``select_roots`` no longer performs.
+
+    Reproduces, byte-for-byte in behavior, the scan-gap-fill block deleted from
+    ``depgraph.roots.select_roots`` in P0.1, using the retained reference helper
+    ``naming.package_roots``: for every mapped Import node whose distribution is
+    not already covered by a declared root (deduped by PEP 503 name), append it
+    as a ``(import_id, dist)`` gap-fill root — after dropping non-distribution
+    module names, exactly as the deleted block did. Declared names for
+    ``package_roots`` are the FULL manifest set (all declared deps, incl. the
+    optional-extra ones ``select_roots`` filters out) so an imported-but-
+    extra-gated dep is still recovered as the generator's over-add — the very
+    behavior the verifier drops. Host-only (lazy ``python_deps`` import); NOT one
+    of the pure adjudication functions."""
+    from python_deps.depgraph.naming import package_roots
+    from python_deps.depgraph.roots import _is_non_distribution
+    from python_deps.evidence import collect_python_dependency_evidence
+    from python_deps.import_mapping import normalize_package_name
+
+    declared_names = {
+        req.name
+        for req in collect_python_dependency_evidence(repo_dir).declared_dependencies
+    }
+    # Dedup gap-fill against the declared roots that actually survived selection
+    # (the verifier set), keyed by the same PEP 503 bare-name the deleted block used.
+    seen = {normalize_package_name(_bare_name(dist)) for _iid, dist in verifier_roots}
+    gapfill: list[tuple[str | None, str]] = []
+    for import_node_id, dist_name in package_roots(graph, declared_names):
+        module_name = id_to_name.get(import_node_id, import_node_id)
+        if _is_non_distribution(module_name):
+            continue
+        normalized = normalize_package_name(dist_name)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        gapfill.append((import_node_id, dist_name))
+    return list(verifier_roots) + gapfill
+
+
 def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -> dict:
     """Run the real host-side root selection on ``repo_dir`` and adjudicate its divergence.
 
-    Host-only: ``scan_to_nodes`` (AST scan) + ``select_roots`` (manifest read + mapping). No
-    container, no network, no build-agent phase."""
+    Host-only: ``scan_to_nodes`` (AST scan) + the declared-only ``select_roots``
+    (the verifier arm) + the reconstructed generator arm (``select_roots`` UNION
+    ``naming.package_roots`` gap-fill). No container, no network, no build-agent phase."""
     from python_deps.depgraph.roots import select_roots
     from python_deps.depgraph.scan import scan_to_nodes
     from python_deps.depgraph.schema import NodeType
 
     graph = scan_to_nodes(repo_dir)
     id_to_name = {n.id: n.name for n in graph.nodes if n.type is NodeType.IMPORT}
-    roots = select_roots(repo_dir, graph)
+    verifier_roots = select_roots(repo_dir, graph)  # declared-only (in-tree, P0.1)
+    roots = reconstruct_generator_roots(repo_dir, graph, verifier_roots, id_to_name)
     part = partition_roots(roots, id_to_name)
     adj = adjudicate_divergence(part.divergence, gold_imports)
 

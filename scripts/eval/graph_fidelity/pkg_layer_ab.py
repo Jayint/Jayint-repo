@@ -8,8 +8,12 @@ two A/B evals share one adjudication vocabulary and one verdict grammar.
   * NEW roots     = ``pkg_layer.contract.select_roots(read_contract(repo), frozenset())``
                     -- contract-only, no import ever consulted (Task 3); this
                     is the "verifier" design.
-  * CURRENT roots = ``depgraph.roots.select_roots(repo, scan_to_nodes(repo))``
-                    -- manifest-declared + scan-gap-fill (today's design).
+  * CURRENT roots = the RECONSTRUCTED generator: the in-tree declared-only
+                    ``depgraph.roots.select_roots`` UNION the ``naming.package_roots``
+                    scan-gap-fill P0.1 deleted from it (see
+                    ``root_selection_ab.reconstruct_generator_roots``). Post-P0.1
+                    ``select_roots`` alone is declared-only, so without this
+                    re-anchor CURRENT would collapse onto NEW and hide the win.
   * DIVERGENCE    = packages CURRENT has that NEW omits, adjudicated against
                     AB_GOLD exactly like Track A's generator/verifier split.
 
@@ -28,7 +32,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import re
 import sys
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -41,44 +44,23 @@ for _p in (_REPO_ROOT, _SRC):
 
 from scripts.eval.graph_fidelity.root_selection_ab import (  # noqa: E402
     DivergentAdd,
+    _bare_name,
     _canon,
     adjudicate_divergence,
     aggregate,
+    reconstruct_generator_roots,
 )
 
 logger = logging.getLogger(__name__)
 
+# ``_bare_name`` (strip ``[extras]``/PEP 440 specifier suffix) is shared with
+# ``root_selection_ab`` — imported above so both A/B evals compare CURRENT's
+# specifier-carrying declared tokens (``numpy<2``, ``uvicorn[standard]>=0.30``)
+# against NEW's bare names on one PEP 503 key.
+
 # ---------------------------------------------------------------------------
 # Pure divergence (no python_deps import — fast unit tests)
 # ---------------------------------------------------------------------------
-
-# PEP 503 distribution-name character class: letters, digits, ``.``/``_``/``-``.
-_NAME_PREFIX_RE = re.compile(r"^[A-Za-z0-9._-]+")
-
-
-def _bare_name(token: str) -> str:
-    """Strip a ``[extras]`` bracket and/or PEP 440 version specifier suffix.
-
-    ``depgraph.roots.select_roots`` (CURRENT) deliberately carries the
-    declared constraint on a manifest-declared root -- e.g. ``numpy<2`` or
-    ``uvicorn[standard]>=0.30`` -- so the resolver can see version conflicts
-    (see ``depgraph.roots._manifest_root_token``). ``pkg_layer.contract.
-    select_roots`` (NEW) always returns bare names. Without this, every
-    declared dep carrying a specifier would canon-differ from its own NEW
-    counterpart and be misreported as a root-selection divergence, even
-    though both designs agree it's a root. Idempotent on an already-bare
-    name.
-
-    ``token`` is stripped of leading/trailing whitespace first: a
-    manifest-declared token can carry leading whitespace (e.g. ``" numpy<2"``
-    from a loosely-formatted requirements line), and ``_NAME_PREFIX_RE``
-    anchors at the start of the string, so an un-stripped leading space
-    would make the regex fail to match the name at all and return the token
-    unchanged -- a false divergence against NEW's bare, stripped name.
-    """
-    token = token.strip()
-    match = _NAME_PREFIX_RE.match(token)
-    return match.group(0) if match else token
 
 
 def build_divergence(
@@ -136,7 +118,13 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
 
     graph = scan_to_nodes(repo_dir)
     id_to_name = {n.id: n.name for n in graph.nodes if n.type is NodeType.IMPORT}
-    current_roots = current_select_roots(repo_dir, graph)
+    # CURRENT arm = the reconstructed generator (declared-only ``select_roots``
+    # UNION ``naming.package_roots`` gap-fill), reproducing the scan-gap-fill the
+    # in-tree selector no longer performs (P0.1). Without this re-anchor CURRENT
+    # would be declared-only too, collapsing the divergence against NEW to ~0 and
+    # HIDING the measured win.
+    verifier_roots = current_select_roots(repo_dir, graph)
+    current_roots = reconstruct_generator_roots(repo_dir, graph, verifier_roots, id_to_name)
     new_roots = new_select_roots(read_contract(repo_dir), frozenset())
 
     divergence = build_divergence(new_roots, current_roots, id_to_name)

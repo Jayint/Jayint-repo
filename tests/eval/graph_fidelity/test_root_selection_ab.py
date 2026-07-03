@@ -18,6 +18,7 @@ from scripts.eval.graph_fidelity.root_selection_ab import (  # noqa: E402
     adjudicate_divergence,
     aggregate,
     partition_roots,
+    score_repo,
 )
 
 
@@ -102,3 +103,32 @@ def test_aggregate_generator_wins_when_good_gt_bad():
 def test_aggregate_needs_labels_when_unlabeled_present():
     agg = aggregate([_card(good=2, bad=1, unlabeled=1)])
     assert agg["verdict"] == "needs-labels"
+
+
+# --- generator-arm reconstruction (host-side, no container) ----------------
+# Post-P0.1 the in-tree ``select_roots`` is declared-only, so a single call can
+# no longer yield the generator's gap-fill adds. ``score_repo`` must RECONSTRUCT
+# the generator arm (declared-only verifier UNION ``naming.package_roots``
+# gap-fill) so the eval still measures the adds the selector no longer performs.
+# This is the certain in-tree proof of the re-anchored mechanism.
+
+def test_generator_arm_reconstructs_gapfill(tmp_path):
+    # A tiny repo declaring only ``click`` but also importing ``yaml`` (a curated
+    # import -> PyYAML) that is NOT declared. The declared-only VERIFIER omits
+    # PyYAML; the reconstructed GENERATOR re-adds it via the curated gap-fill.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.0.0"\ndependencies = ["click"]\n'
+    )
+    pkg = tmp_path / "demo"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    (pkg / "app.py").write_text("import yaml\nimport click\n")
+
+    sc = score_repo(str(tmp_path), "demo/demo", {"yaml": "optional"})
+
+    # The generator diverges from the verifier by exactly the one gap-fill add.
+    assert sc["generator_root_count"] == sc["verifier_root_count"] + 1
+    assert [a["import"] for a in sc["divergence"]] == ["yaml"]
+    assert [a["dist"] for a in sc["divergence"]] == ["PyYAML"]
+    # ``click`` is declared -> covered by the verifier, never a divergence.
+    assert all(a["import"] != "click" for a in sc["divergence"])

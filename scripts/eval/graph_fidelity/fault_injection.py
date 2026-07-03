@@ -6,9 +6,12 @@ ever ADDS optional-extras). Track B tests the OTHER cell — the one where impor
 could win: when a repo genuinely UNDER-declares a runtime dep it imports, does the generator's
 scan-gap-fill auto-add rescue it?
 
-Method: delete one declared dep from the evidence (scoped ``patch.object`` on
-``roots.collect_python_dependency_evidence`` — no disk mutation), re-run ``select_roots``, and
-check whether the deleted dist reappears in the generator roots vs the verifier roots.
+Method: delete one declared dep from the evidence (scoped ``patch.object`` on the
+``collect_python_dependency_evidence`` bindings — no disk mutation), re-run the declared-only
+``select_roots`` (the verifier) and the RECONSTRUCTED generator arm
+(``root_selection_ab.reconstruct_generator_roots`` = verifier UNION ``naming.package_roots``
+gap-fill; post-P0.1 ``select_roots`` alone is declared-only), and check whether the deleted dist
+reappears in the generator roots vs the verifier roots.
 
 Key post-Phase-2 fact this measures: the generator can only re-derive a deleted dep when its
 import maps via the CURATED table (there is no identity fallback anymore). So it recovers
@@ -37,7 +40,11 @@ for _p in (_REPO_ROOT, _REPO_ROOT / "src"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from scripts.eval.graph_fidelity.root_selection_ab import _canon, partition_roots  # noqa: E402
+from scripts.eval.graph_fidelity.root_selection_ab import (  # noqa: E402
+    _canon,
+    partition_roots,
+    reconstruct_generator_roots,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +90,24 @@ def write_synthetic_fixture(root: "Path | str", dist: str, import_name: str) -> 
 # ---------------------------------------------------------------------------
 
 def inject_and_score(repo_dir: str, full_name: str, deleted_dep: str, import_name: str) -> dict:
-    """Drop ``deleted_dep`` from the collected evidence, re-run ``select_roots``, and record
-    whether each architecture recovered it."""
+    """Drop ``deleted_dep`` from the collected evidence, re-run the declared-only
+    ``select_roots`` (verifier) and the reconstructed generator arm, and record
+    whether each architecture recovered it.
+
+    The deletion is applied via a scoped patch on BOTH evidence bindings: the one
+    ``roots.select_roots`` reads (``roots_mod``) AND the one
+    ``reconstruct_generator_roots`` reads afresh (``python_deps.evidence``). Both
+    must see the removal, or the reconstructed generator's ``declared_names`` would
+    still carry the deleted dep and falsely "recover" an identity-named dep through
+    the declared-precedence path — inverting the post-Phase-2 result this measures.
+    """
     import python_deps.depgraph.roots as roots_mod
+    import python_deps.evidence as evidence_mod
     from python_deps.depgraph.scan import scan_to_nodes
     from python_deps.depgraph.schema import NodeType
 
     target = _canon(deleted_dep)
-    real_collect = roots_mod.collect_python_dependency_evidence
+    real_collect = evidence_mod.collect_python_dependency_evidence
 
     def _patched(repo_path):
         ev = real_collect(repo_path)
@@ -101,10 +118,13 @@ def inject_and_score(repo_dir: str, full_name: str, deleted_dep: str, import_nam
             ],
         )
 
-    with patch.object(roots_mod, "collect_python_dependency_evidence", _patched):
+    with patch.object(roots_mod, "collect_python_dependency_evidence", _patched), patch.object(
+        evidence_mod, "collect_python_dependency_evidence", _patched
+    ):
         graph = scan_to_nodes(repo_dir)
         id_to_name = {n.id: n.name for n in graph.nodes if n.type is NodeType.IMPORT}
-        roots = roots_mod.select_roots(repo_dir, graph)
+        verifier_roots = roots_mod.select_roots(repo_dir, graph)
+        roots = reconstruct_generator_roots(repo_dir, graph, verifier_roots, id_to_name)
 
     part = partition_roots(roots, id_to_name)
     gen_rec, ver_rec = recovery_flags(part, target)
