@@ -51,6 +51,7 @@ from python_deps.depgraph.tables import (
     apt_for_tool,
 )
 from python_deps.depgraph.apt_resolve import resolve_soname_apt
+from python_deps.depgraph.relink import flag_runtime_import_failure
 from python_deps.import_mapping import normalize_package_name
 
 # Timeout (seconds) for the one bulk closure install. A cold install of a large
@@ -256,6 +257,15 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             continue
         match = NATIVE_LIBRARY_RE.search(result.stderr or "")
         if not match:
+            # Non-native import failure. A metadata-PRESENT import (a dist provides
+            # it, yet ``import X`` still raises) is the third failure class: honestly
+            # flag the owning Import node instead of silently dropping it. Never
+            # fabricate a SystemLib here (there is no missing soname). Metadata-ABSENT
+            # imports are already flagged ``unresolved`` (P0.3) and are left alone by
+            # flag_runtime_import_failure (it only touches provided Import nodes).
+            reason = _short_import_error(result.stderr or "") or f"import {name} failed"
+            for node_id in target["attempt_nodes"]:
+                new = flag_runtime_import_failure(new, node_id, reason=reason)
             continue
 
         soname = match.group("library")
@@ -457,6 +467,14 @@ def _spec(pkg: Node) -> str:
 
 def _sorted(packages: list[Node]) -> list[Node]:
     return sorted(packages, key=lambda n: n.name)
+
+
+def _short_import_error(stderr: str, max_chars: int = 200) -> str:
+    """The exception line of an import failure — the LAST non-empty stderr line
+    (a Python traceback ends with ``ExcType: message``), trimmed. Keeps the honest
+    ``import_error`` flag short instead of dumping the whole traceback."""
+    lines = [line.strip() for line in (stderr or "").splitlines() if line.strip()]
+    return lines[-1][:max_chars] if lines else ""
 
 
 def _first_line_with(text: str, needle: str, max_chars: int = 500) -> str:

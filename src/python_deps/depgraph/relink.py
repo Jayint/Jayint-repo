@@ -106,12 +106,7 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     the call. Only the ``unresolved``/evidence keys are touched — every other
     ``data`` key is preserved. Returns a NEW graph.
     """
-    provided = {
-        e.src for e in graph.edges
-        if e.relation is EdgeType.REQUIRES
-        and (dst := graph.get(e.dst)) is not None
-        and dst.type is NodeType.PACKAGE
-    }
+    provided = _provided_imports(graph)
     new = graph
     for node in graph.nodes:
         if node.type is not NodeType.IMPORT:
@@ -136,6 +131,52 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
         data.pop("unresolved", None)
         new = new.with_node(replace(node, data=data, evidence=None))
     return new
+
+
+def flag_runtime_import_failure(
+    graph: DepGraph, import_node_id: str, *, reason: str
+) -> DepGraph:
+    """Flag a METADATA-PRESENT Import whose run-time ``import X`` failed for a
+    NON-native reason (P2.3, Correction 4) — the third failure class.
+
+    Distinct from ``flag_unresolved_imports``' ``data["unresolved"]`` (metadata
+    ABSENT: nothing provides the import name — under-declaration, Phase A): here a
+    distribution DOES provide the import (there is an outgoing REQUIRES->Package
+    edge, i.e. relink certified a provider), yet ``import X`` still raises for a
+    reason that is neither a missing shared library (that path fabricates a
+    ``SystemLib``) nor under-declaration (a broken / under-provisioned dist, a
+    Python-level ``ImportError``/``RuntimeError`` at import time). Sets
+    ``data["unresolved_runtime"] = True`` + a short ``data["import_error"]``
+    (``reason``) on the Import node.
+
+    Scoped to METADATA-PRESENT Imports: the flag is applied ONLY when the target is
+    an Import node that is PROVIDED (has an outgoing REQUIRES->Package edge). A
+    metadata-ABSENT Import is already honestly flagged ``unresolved`` (P0.3) and
+    must NOT be double-flagged — an unprovided Import (including one carrying the
+    ``unresolved`` flag) is left byte-for-byte untouched. Every other ``data`` key
+    is preserved. Returns a NEW graph (a no-op when the target is absent, not an
+    Import, or not provided).
+    """
+    node = graph.get(import_node_id)
+    if node is None or node.type is not NodeType.IMPORT:
+        return graph
+    if node.id not in _provided_imports(graph):
+        return graph
+    data = {**dict(node.data), "unresolved_runtime": True, "import_error": reason}
+    return graph.with_node(replace(node, data=data))
+
+
+def _provided_imports(graph: DepGraph) -> set[str]:
+    """Import-node ids with an outgoing certified REQUIRES->Package edge (a dist
+    provides the import name). Mirrors the ``provided`` set in
+    ``flag_unresolved_imports`` so metadata-presence is defined identically."""
+    return {
+        e.src
+        for e in graph.edges
+        if e.relation is EdgeType.REQUIRES
+        and (dst := graph.get(e.dst)) is not None
+        and dst.type is NodeType.PACKAGE
+    }
 
 
 def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
