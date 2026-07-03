@@ -162,6 +162,58 @@ def fake_executor():
     return FakeExecutor()
 
 
+@pytest.fixture(autouse=True)
+def _no_pypi_network(monkeypatch):
+    """Keep every depgraph unit test network-free (P1.5 hermeticity guard).
+
+    P1.5 made the composite ``composite_record_provider(default_record_provider,
+    pypi_record_provider())`` the PRODUCTION default in ``build.py``. Any
+    ``build_dep_graph`` call that does NOT inject its own ``record_provider`` — most
+    unit tests here — therefore builds that composite, whose candidate leg
+    (``pypi_record_provider()``) defaults to the LIVE PyPI reader
+    ``coverage._default_wheel_top_levels`` (~124 outbound ``pypi.org/pypi/.../json``
+    calls that only "pass" because live PyPI answers). This fixture restores the
+    exact pre-P1.5, network-free behavior for those tests:
+
+    * The ``fetch`` seam is stubbed to return ``None`` — a "blind" candidate (no
+      wheel to read), the SAME signal the post-install-only default gave before
+      P1.5, so candidates stay blind instead of reaching the socket (and without
+      crashing the fixpoint, as a raising stub would on the blind-candidate path).
+      ``pypi_record_provider``'s ``fetch`` default is bound at def-time, so patching
+      the module attribute alone is INERT; the effective lever is the function's
+      ``__kwdefaults__`` (both are patched — the module attr for any future/direct
+      reader, the kwdefault for the actual default-provider construction).
+    * ``urllib.request.urlopen`` is additionally forced to raise — a hard net that
+      turns ANY accidental outbound call (from any code path) into a loud failure,
+      making "no network in a unit test" an enforced invariant for the subpackage.
+
+    Tests that legitimately exercise the PyPI path inject their OWN fake ``fetch``
+    (``test_record_provider.py``) or patch ``build.pypi_record_provider``
+    (``test_phase_a_fixpoint.py``); both pass ``fetch`` explicitly, so neither the
+    ``__kwdefaults__`` stub nor the ``urlopen`` guard perturbs them.
+    """
+    import urllib.request
+
+    from python_deps.depgraph import coverage as _coverage
+
+    def _blind_fetch(_dist):  # no wheel read -> blind candidate, zero network
+        return None
+
+    monkeypatch.setattr(_coverage, "_default_wheel_top_levels", _blind_fetch)
+    kwdefaults = _coverage.pypi_record_provider.__kwdefaults__
+    if kwdefaults and "fetch" in kwdefaults:
+        monkeypatch.setitem(kwdefaults, "fetch", _blind_fetch)
+
+    def _no_network(*_args, **_kwargs):
+        raise AssertionError(
+            "outbound network in a depgraph unit test "
+            "(urllib.request.urlopen) — unit tests must be hermetic; inject a "
+            "fake fetch / record_provider instead of reaching PyPI"
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", _no_network)
+
+
 # ---------------------------------------------------------------------------
 # Slice B: shared graph / node fixtures
 # ---------------------------------------------------------------------------
