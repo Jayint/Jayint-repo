@@ -115,8 +115,13 @@ def _build_test_node() -> Node:
     )
 
 
-def _build_import_node(name: str, source_files: tuple[str, ...]) -> Node:
+def _build_import_node(
+    name: str, source_files: tuple[str, ...], *, optional: bool = False
+) -> Node:
     provenance = ", ".join(source_files) if source_files else None
+    # Tag only genuinely-guarded imports; leave data empty (falsy) otherwise to
+    # preserve the "never needlessly rewrite node data" property elsewhere.
+    data = {"optional": True} if optional else {}
     return Node(
         id=import_id(name),
         type=NodeType.IMPORT,
@@ -126,6 +131,7 @@ def _build_import_node(name: str, source_files: tuple[str, ...]) -> Node:
         state=State.UNKNOWN,
         check_command=_import_check_command(name),
         provenance=provenance,
+        data=data,
     )
 
 
@@ -159,7 +165,9 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
             continue
         provenance_files = in_scope or finding.source_files
         graph = graph.with_node(
-            _build_import_node(finding.import_name, provenance_files)
+            _build_import_node(
+                finding.import_name, provenance_files, optional=finding.optional
+            )
         )
         graph = graph.with_edge(
             Edge(

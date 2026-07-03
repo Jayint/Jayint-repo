@@ -53,6 +53,10 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
     project_local_modules = set(collect_project_local_modules(root))
     stdlib_modules = _stdlib_module_names()
     imports_by_name: dict[str, set[str]] = defaultdict(set)
+    # Cross-file optionality tracking: a name is optional only if EVERY occurrence
+    # is guarded (i.e. it never appears as a hard, unguarded import anywhere).
+    hard_import_names: set[str] = set()
+    optional_import_names: set[str] = set()
     errors: list[str] = []
 
     for python_file in _iter_python_files(root):
@@ -70,13 +74,18 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
             continue
 
         try:
-            discovered_imports = _imports_from_ast(content)
+            all_names, optional_names = _imports_from_ast(content)
         except SyntaxError:
-            discovered_imports = _imports_from_regex(content)
+            # No AST context in the regex fallback, so never emit a false
+            # optional tag: every recovered import counts as a hard need.
+            all_names = _imports_from_regex(content)
+            optional_names = set()
             errors.append(f"{relative_path}: syntax error; used regex import fallback")
 
-        for import_name in discovered_imports:
+        for import_name in all_names:
             imports_by_name[import_name].add(relative_path)
+        optional_import_names |= optional_names
+        hard_import_names |= all_names - optional_names
 
     findings = []
     for import_name, source_files in sorted(imports_by_name.items()):
@@ -87,11 +96,13 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
             classification = "stdlib"
         else:
             classification = "external"
+        optional = import_name in optional_import_names and import_name not in hard_import_names
         findings.append(
             ImportFinding(
                 import_name=top_level,
                 classification=classification,
                 source_files=tuple(sorted(source_files)),
+                optional=optional,
             )
         )
 
@@ -157,19 +168,91 @@ def _iter_python_files(root: Path):
                 return
 
 
-def _imports_from_ast(content: str) -> set[str]:
+# Except-handler identifiers that mark a guarded import "optional": the
+# ImportError family, the broad ``Exception`` base, or a bare ``except:``.
+_OPTIONAL_HANDLER_NAMES = frozenset({"ImportError", "ModuleNotFoundError", "Exception"})
+
+
+def _import_node_top_level_names(node: ast.AST) -> set[str]:
+    """Top-level module names contributed by a single Import / ImportFrom node.
+
+    Mirrors the historical scan behaviour: ``import a.b`` -> ``a``; relative
+    ``from . import x`` (``node.level`` set) contributes nothing."""
+    names: set[str] = set()
+    if isinstance(node, ast.Import):
+        for alias in node.names:
+            names.add(alias.name.split(".", 1)[0])
+    elif isinstance(node, ast.ImportFrom):
+        if node.level:
+            return names
+        if node.module:
+            names.add(node.module.split(".", 1)[0])
+    return names
+
+
+def _handler_leaf_names(expr: ast.expr) -> set[str]:
+    """Identifier leaves of an ``except`` handler type expression.
+
+    ``ImportError`` (Name) -> ``{"ImportError"}``; ``builtins.ImportError``
+    (Attribute) uses the trailing attribute; ``(ImportError, OSError)`` (Tuple)
+    contributes every element. Anything else contributes nothing (conservative:
+    unrecognised shapes are treated as non-guarding)."""
+    names: set[str] = set()
+    targets = expr.elts if isinstance(expr, ast.Tuple) else [expr]
+    for target in targets:
+        if isinstance(target, ast.Name):
+            names.add(target.id)
+        elif isinstance(target, ast.Attribute):
+            names.add(target.attr)
+    return names
+
+
+def _try_guards_imports(node: ast.Try) -> bool:
+    """True when any handler makes the try body's imports optional: a bare
+    ``except:``, or one catching ImportError / ModuleNotFoundError / Exception.
+
+    Conservative on ambiguity — a narrower handler (e.g. ``except ValueError``)
+    does NOT count, and an unrecognised handler shape is ignored. A tuple that
+    *includes* an ImportError-family / Exception name DOES count (that error is
+    caught)."""
+    for handler in node.handlers:
+        if handler.type is None:  # bare ``except:`` catches everything
+            return True
+        if _handler_leaf_names(handler.type) & _OPTIONAL_HANDLER_NAMES:
+            return True
+    return False
+
+
+def _imports_from_ast(content: str) -> tuple[set[str], set[str]]:
+    """Return ``(all_top_level_names, optional_names)`` for a source file.
+
+    ``optional_names`` are the names imported *only* inside a try body guarded by
+    an ImportError-family / bare / ``Exception`` handler. A name imported both
+    inside such a guard and outside it (a hard need) is NOT optional — the hard
+    occurrence dominates within this file."""
     tree = ast.parse(content)
-    imports: set[str] = set()
+
+    # Import/ImportFrom nodes that live inside a guarded try body (by identity).
+    guarded_node_ids: set[int] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imports.add(alias.name.split(".", 1)[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                continue
-            if node.module:
-                imports.add(node.module.split(".", 1)[0])
-    return imports
+        if isinstance(node, ast.Try) and _try_guards_imports(node):
+            for stmt in node.body:
+                for inner in ast.walk(stmt):
+                    if isinstance(inner, (ast.Import, ast.ImportFrom)):
+                        guarded_node_ids.add(id(inner))
+
+    all_names: set[str] = set()
+    hard_names: set[str] = set()
+    guarded_names: set[str] = set()
+    for node in ast.walk(tree):
+        names = _import_node_top_level_names(node)
+        if not names:
+            continue
+        all_names |= names
+        (guarded_names if id(node) in guarded_node_ids else hard_names).update(names)
+
+    # Within this file a name is optional only if it never appears unguarded.
+    return all_names, guarded_names - hard_names
 
 
 def _imports_from_regex(content: str) -> set[str]:
@@ -194,9 +277,19 @@ def _stdlib_module_names() -> set[str]:
 
 def _dedupe_findings(findings: list[ImportFinding]) -> list[ImportFinding]:
     grouped: dict[tuple[str, str], set[str]] = defaultdict(set)
+    # Dominance: a name is optional only if it is optional in ALL findings for it
+    # (a hard runtime need dominates a guarded one).
+    optional: dict[tuple[str, str], bool] = {}
     for finding in findings:
-        grouped[(finding.import_name, finding.classification)].update(finding.source_files)
+        key = (finding.import_name, finding.classification)
+        grouped[key].update(finding.source_files)
+        optional[key] = finding.optional if key not in optional else optional[key] and finding.optional
     return [
-        ImportFinding(import_name=name, classification=classification, source_files=tuple(sorted(files)))
+        ImportFinding(
+            import_name=name,
+            classification=classification,
+            source_files=tuple(sorted(files)),
+            optional=optional[(name, classification)],
+        )
         for (name, classification), files in sorted(grouped.items())
     ]
