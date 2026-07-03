@@ -1,5 +1,10 @@
 """Stage 2: map ``Import`` nodes to PyPI distribution names.
 
+NOTE (P0.1): ``package_roots`` is OFF the construction path — ``roots.select_roots``
+no longer calls it (roots are manifest-declared only; imports never generate
+roots). This module is retained solely as the A/B eval's "generator" reference
+(consumed by a later task, P3.1); do not re-wire it into construction.
+
 Realizes design sections 4.2 / 10.2 / 10.3: Python code imports *modules* while
 pip installs *distributions*, so each ``Import`` node must be resolved to a
 distribution root before the resolver (stage 3) can run.

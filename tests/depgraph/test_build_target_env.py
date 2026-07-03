@@ -25,11 +25,16 @@ from python_deps.depgraph.build import build_dep_graph
 
 
 def _make_repo(tmp_path):
-    # "yaml" is curated (-> PyYAML) so it resolves to a root and triggers
-    # `uv lock`; an uncurated/undeclared import (e.g. "numpy") would now be
-    # unresolved and never reach the resolver, defeating these tests' purpose
-    # of exercising the target_env/platform-tag threading through `uv lock`.
+    # Declared-only roots: a manifest dep must exist for a root to reach the
+    # resolver and trigger `uv lock` (imports never generate roots). PyYAML is
+    # the declared root; the `yaml` import is kept only as scan realism. An
+    # undeclared import would now never reach the resolver, defeating these
+    # tests' purpose of exercising target_env/platform-tag threading through
+    # `uv lock`.
     (tmp_path / "app.py").write_text("import yaml\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="fx"\nversion="0"\ndependencies=["PyYAML"]\n'
+    )
     return str(tmp_path)
 
 

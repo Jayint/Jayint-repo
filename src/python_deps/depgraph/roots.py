@@ -1,4 +1,4 @@
-"""Root selection for the resolver — manifest-first, scan-gap-filled, filtered.
+"""Root selection for the resolver — manifest-declared roots only, filtered.
 
 The resolver (stage 3) needs a set of *distribution* roots to lock.  Picking the
 wrong roots is what caused the "Run-A collapse": feeding non-distributions
@@ -8,18 +8,21 @@ resolve fail and produced an empty Package layer.
 This module realizes the spec's "Root selection" ladder
 (``docs/superpowers/specs/2026-06-23-uv-enriched-depgraph.md``):
 
-1. **Manifest first** — declared dependencies (parsed via
+1. **Manifest-declared roots only** — declared dependencies (parsed via
    :func:`python_deps.evidence.collect_python_dependency_evidence`) are the
-   highest-trust roots.  They carry no import node, so their ``import_id`` is
-   ``None``.
-2. **Scan gap-fill** — mapped scanned imports (:func:`naming.package_roots`) are
-   added only for distributions not already covered by a manifest declaration.
-3. **Filter non-distributions** — stdlib modules, known Py2 shims, typing-only
+   ONLY roots.  They carry no import node, so their ``import_id`` is always
+   ``None``.  Imports never generate roots: they are the post-install audit
+   signal (catching under-declaration), never a source of install roots (the
+   pipreqs mistake).  The installed environment is the naming truth; a later
+   post-install repair fixpoint re-homes under-declared-alias recovery.  See
+   the two-phase declared-roots design.
+2. **Filter non-distributions** — stdlib modules, known Py2 shims, typing-only
    stubs, and obvious junk are dropped before anything reaches ``uv``: a name
    that isn't plausibly a PyPI distribution never becomes a root.
 
-Pure (no Executor / no network): it reads the repo on disk and an already-scanned
-graph, and returns the root list.
+Pure (no Executor / no network): it reads the declared manifest on disk and
+returns the root list.  The scanned ``graph`` is accepted but NOT consulted for
+roots (reserved; imports are audited post-install, not consulted for roots).
 """
 
 from __future__ import annotations
@@ -28,7 +31,6 @@ import re
 import sys
 from typing import TYPE_CHECKING
 
-from python_deps.depgraph.naming import package_roots
 from python_deps.depgraph.resolve_lock import _marker_applies
 from python_deps.depgraph.schema import DepGraph
 from python_deps.evidence import collect_python_dependency_evidence
@@ -239,12 +241,16 @@ def select_roots(
     *,
     target_env: "TargetEnv | None" = None,
 ) -> list[tuple[str | None, str]]:
-    """Return ``(import_id | None, distribution_name)`` resolver roots.
+    """Return ``(None, distribution_name)`` resolver roots — declared-only.
 
-    Declared manifest dependencies come first (``import_id=None``); mapped
-    scanned imports fill gaps only for distributions not already declared.
-    Non-distributions are filtered out, and each distribution appears once
-    (deduped by normalized name).
+    Roots are the manifest-declared dependencies ONLY; every root carries
+    ``import_id=None``.  Imports never generate roots (they are the post-install
+    audit signal, not a root source).  ``graph`` is accepted but NOT consulted
+    for roots (reserved; imports are audited post-install, not consulted for
+    roots) — kept in the signature to avoid churning ``build.py`` and every
+    caller/test; signature slimming is a deferred follow-up.  Non-distributions
+    are filtered out, and each distribution appears once (deduped by normalized
+    name).
 
     ``needed_extras`` TARGETS which ``[project.optional-dependencies]`` /
     ``extras_require`` groups are in scope: a ``kind=="optional_dependency"``
@@ -266,12 +272,12 @@ def select_roots(
     for every existing caller (``advise.py`` and current tests).
     """
     evidence = collect_python_dependency_evidence(repo_path)
-    declared_names = {req.name for req in evidence.declared_dependencies}
 
     roots: list[tuple[str | None, str]] = []
     seen: set[str] = set()
 
-    # 1. Manifest-declared dependencies (highest trust).
+    # Manifest-declared dependencies are the ONLY roots (highest trust). Imports
+    # never generate roots; they are audited post-install, not consulted here.
     for req in evidence.declared_dependencies:
         if getattr(req, "kind", "dependency") == "optional_dependency":
             if _requirement_group(req.source) not in needed_extras:
@@ -285,17 +291,5 @@ def select_roots(
             continue
         seen.add(normalized)
         roots.append((None, _manifest_root_token(req)))
-
-    # 2. Scan gap-fill: mapped imports not already covered by a declaration.
-    for import_node_id, dist_name in package_roots(graph, declared_names):
-        node = graph.get(import_node_id)
-        module_name = node.name if node is not None else import_node_id
-        if _is_non_distribution(module_name):
-            continue
-        normalized = normalize_package_name(dist_name)
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        roots.append((import_node_id, dist_name))
 
     return roots

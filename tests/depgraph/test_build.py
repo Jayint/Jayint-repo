@@ -63,6 +63,12 @@ def _make_repo(tmp_path):
     (tmp_path / "app.py").write_text(
         "import os\nimport cv2\nfrom PIL import Image\nimport psycopg2\n"
     )
+    # Roots are manifest-declared only (imports never generate roots), so the
+    # deps this repo needs must be declared for the closure to resolve.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="fx"\nversion="0"\n'
+        'dependencies=["opencv-python","Pillow","psycopg2"]\n'
+    )
     return str(tmp_path)
 
 
@@ -408,6 +414,11 @@ def test_build_ldd_probe_creates_fresh_node_without_a_prior(tmp_path):
     from conftest import FakeExecutor  # type: ignore
 
     (tmp_path / "app.py").write_text("import cv2\n")
+    # Declared-only roots: opencv-python must be declared for the closure to
+    # resolve (the cv2 import audits demand but never generates a root).
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="fx"\nversion="0"\ndependencies=["opencv-python"]\n'
+    )
     ex = FakeExecutor(
         responses={
             "uv pip compile": _r(stdout=_LDD_CLOSURE),

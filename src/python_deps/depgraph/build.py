@@ -317,7 +317,8 @@ def build_dep_graph(
         )
     target_python = target_env.python_version
 
-    # Stage 2 — manifest-first, scan-gap-filled, filtered resolver roots.
+    # Stage 2 — manifest-declared-only, filtered resolver roots (imports never
+    # generate roots; graph is passed but not consulted for root selection).
     # needed_extras gates which optional-dependency groups become roots at all
     # (Task 8) -- logged here since it silently determines closure membership.
     # target_env (Task 8 review fix) additionally drops a manifest dep whose

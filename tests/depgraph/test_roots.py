@@ -1,4 +1,4 @@
-"""Root selection — manifest-first, scan-gap-filled, non-distribution filtered."""
+"""Root selection — manifest-declared roots only, non-distribution filtered."""
 
 from __future__ import annotations
 
@@ -64,9 +64,9 @@ def test_py2_shim_is_filtered_out(tmp_path):
 
 
 def test_scanned_import_gap_fills_only_uncovered(tmp_path):
-    # boto3 has no curated-table entry and is not declared in the manifest,
-    # so under the new contract it is unresolved -> NOT gap-filled (no root
-    # is fabricated for it; the old identity fallback is gone).
+    # boto3 is imported but NOT declared in the manifest. Under declared-only
+    # roots, no import fabricates a root (whether or not it maps via the curated
+    # table); boto3 is an audit signal, never a construction root.
     repo = _fixture_repo(tmp_path)
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph)
@@ -75,9 +75,11 @@ def test_scanned_import_gap_fills_only_uncovered(tmp_path):
 
 
 def test_scanned_curated_import_gap_fills_only_uncovered(tmp_path):
-    # A scanned import that resolves via the curated table (yaml -> PyYAML)
-    # but is NOT declared in the manifest still becomes a root, keyed by its
-    # import_id (gap-fill still works for resolvable imports).
+    # yaml is imported (the curated table maps yaml -> PyYAML) but NOT declared
+    # in the manifest. Under declared-only roots it is an AUDIT signal, not a
+    # root: no PyYAML root is fabricated from the import. The two-phase design
+    # re-homes under-declared-alias recovery to a later post-install repair
+    # pass, never to a fabricated construction root. Every root is declared.
     repo = tmp_path / "proj2"
     repo.mkdir()
     _write(
@@ -103,9 +105,8 @@ def test_scanned_curated_import_gap_fills_only_uncovered(tmp_path):
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph)
 
-    gap = {dist: imp for imp, dist in roots}
-    assert "PyYAML" in gap
-    assert gap["PyYAML"] == "import:yaml"
+    assert "PyYAML" not in {dist for _imp, dist in roots}
+    assert all(imp is None for imp, _dist in roots)   # every root is declared
 
 
 def test_declared_import_not_duplicated(tmp_path):
