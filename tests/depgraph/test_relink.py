@@ -351,6 +351,73 @@ def test_flag_unresolved_imports_is_idempotent():
         assert n1.evidence == n2.evidence
 
 
+def _opt_imp(name):
+    # A try/except-ImportError guarded import (P0.2 tags data["optional"]=True).
+    return Node(
+        id=import_id(name), type=NodeType.IMPORT, name=name,
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+        data={"optional": True},
+    )
+
+
+def test_optional_unprovided_import_not_flagged():
+    # A guarded/optional import that no distribution provides is NOT an under-
+    # declaration (the try/except is deliberate) -- leave it unflagged.
+    opt = _opt_imp("ujson")
+    out = flag_unresolved_imports(DepGraph(nodes=(opt,)))
+    assert out.get(opt.id).data.get("unresolved") is not True
+
+
+def test_hard_unprovided_import_still_flagged():
+    # A non-optional import with no provider is a genuine under-declaration
+    # signal (unchanged existing behavior).
+    hard = _imp("mystery")  # data={} -> not optional
+    out = flag_unresolved_imports(DepGraph(nodes=(hard,)))
+    node = out.get(hard.id)
+    assert node.data.get("unresolved") is True
+    assert "mystery" in node.evidence
+
+
+def test_transitively_satisfied_import_not_flagged():
+    # `urllib3` is covered by a REQUIRES edge to a present `requests` Package
+    # (mimicking transitive coverage) -> provided -> not flagged.
+    imp = _imp("urllib3")
+    pkg = _pkg("requests", "2.32.0")
+    edge = Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(imp, pkg), edges=(edge,))
+    out = flag_unresolved_imports(graph)
+    assert out.get(imp.id).data.get("unresolved") is not True
+
+
+def test_name_variant_import_not_flagged():
+    # `cv2` certified-linked to the `opencv-python` Package (name variant) is
+    # provided -> not flagged.
+    imp = _imp("cv2")
+    pkg = _pkg("opencv-python", "4.10.0")
+    edge = Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="certified")
+    graph = DepGraph(nodes=(imp, pkg), edges=(edge,))
+    out = flag_unresolved_imports(graph)
+    assert out.get(imp.id).data.get("unresolved") is not True
+
+
+def test_stale_flag_cleared_when_now_optional():
+    # An import flagged unresolved on a PRIOR pass but NOW known optional (P0.2)
+    # must have the stale flag + evidence cleared; unrelated data keys preserved.
+    imp = Node(
+        id=import_id("ujson"), type=NodeType.IMPORT, name="ujson",
+        layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN,
+        data={"unresolved": True, "optional": True, "some_other_key": "keep-me"},
+        evidence="unresolved: no distribution provides import ujson",
+    )
+    out = flag_unresolved_imports(DepGraph(nodes=(imp,)))
+    node = out.get(imp.id)
+    assert node.data.get("unresolved") is not True
+    assert "unresolved" not in dict(node.data)
+    assert node.data.get("optional") is True  # exemption key untouched
+    assert node.data.get("some_other_key") == "keep-me"
+    assert node.evidence is None
+
+
 def test_drop_ghost_never_removes_a_certified_target(fake_executor, make_result_fixture):
     # Pathological: pkg:foo is ghost-shaped (version None, MISSING) for import:foo,
     # but is ALSO the certified provider of import:bar. Dropping import:foo's ghost

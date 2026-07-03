@@ -127,13 +127,19 @@ def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> Dep
 
 
 def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
-    """Mark every IMPORT node that no PACKAGE provides (no outgoing REQUIRES
-    edge to a Package after Tier-1 relink) as unresolved — an honest signal the
-    project under-declared, NOT a fabricated root. Uses Node.data (state is the
-    host-certification axis and does not apply to imports). Idempotent: an
-    IMPORT that is now provided has any STALE ``unresolved`` flag (and the
-    evidence this function set) cleared, so re-running yields the same result
-    regardless of the flag state carried into the call. Returns a NEW graph.
+    """Flag an IMPORT node ``unresolved`` — an honest under-declaration signal,
+    NOT a fabricated root — only when it is BOTH unprovided (no outgoing REQUIRES
+    edge to a Package after Tier-1 relink) AND non-optional. A try/except
+    ImportError guarded import (``data["optional"] is True``, tagged by the scan)
+    is deliberate, not under-declared, so it is exempt and left unflagged. Test
+    goal is separated by the scan; optional imports are exempt. Uses Node.data
+    (state is the host-certification axis and does not apply to imports).
+
+    Idempotent: an IMPORT that is now provided OR now known optional has any
+    STALE ``unresolved`` flag (and the evidence this function set) cleared, so
+    re-running yields the same result regardless of the flag state carried into
+    the call. Only the ``unresolved``/evidence keys are touched — every other
+    ``data`` key is preserved. Returns a NEW graph.
     """
     provided = {
         e.src for e in graph.edges
@@ -145,20 +151,25 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     for node in graph.nodes:
         if node.type is not NodeType.IMPORT:
             continue
-        if node.id in provided:
-            if node.data.get("unresolved") is not True:
-                continue  # never flagged -- leave untouched, no needless rewrite
-            data = dict(node.data)
-            data.pop("unresolved", None)
-            new = new.with_node(replace(node, data=data, evidence=None))
-            continue
-        new = new.with_node(
-            replace(
-                node,
-                data={**dict(node.data), "unresolved": True},
-                evidence=f"unresolved: no distribution provides import {node.name}",
+        unprovided = node.id not in provided
+        non_optional = node.data.get("optional") is not True
+        if unprovided and non_optional:
+            new = new.with_node(
+                replace(
+                    node,
+                    data={**dict(node.data), "unresolved": True},
+                    evidence=f"unresolved: no distribution provides import {node.name}",
+                )
             )
-        )
+            continue
+        # Provided OR optional -> must NOT be flagged. Clear any STALE flag (and
+        # the evidence this function set), else leave the node byte-for-byte
+        # untouched so the common/first-run path never rewrites needlessly.
+        if node.data.get("unresolved") is not True:
+            continue
+        data = dict(node.data)
+        data.pop("unresolved", None)
+        new = new.with_node(replace(node, data=data, evidence=None))
     return new
 
 
