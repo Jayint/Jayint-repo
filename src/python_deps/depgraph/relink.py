@@ -3,9 +3,11 @@
 After ``install_closure`` has installed the resolved closure, the container can
 report the ground-truth import-name -> distribution map via
 ``importlib.metadata.packages_distributions()`` (Python 3.10+). This stage uses it
-to add CERTIFIED ``Import->Package`` edges that the pre-install heuristic
-(``resolve.link_imports_to_packages``) missed — e.g. ``import dateutil`` provided
-by dist ``python-dateutil``. Discovery only: it adds edges, never node state.
+to add CERTIFIED ``Import->Package`` edges — e.g. ``import dateutil`` provided by
+dist ``python-dateutil``. It is now the SOLE Import->Package source in
+construction: the provisional pre-install heuristic
+(``resolve.link_imports_to_packages``) is retired from the build path. Discovery
+only: it adds edges + honest ``unresolved`` data flags, never node state.
 
 Pure parser + pure edge builder + thin executor orchestrator (repo immutability:
 every "mutation" returns a NEW ``DepGraph``).
@@ -17,7 +19,7 @@ import json
 from dataclasses import replace
 
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType, State
+from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, NodeType
 from python_deps.import_mapping import (
     normalize_package_name,
     top_level_import_name,
@@ -89,43 +91,6 @@ def import_to_package_edges(
     return edges
 
 
-def _drop_superseded_ghosts(graph: DepGraph, certified_edges: list[Edge]) -> DepGraph:
-    """Remove identity-fallback ghost packages superseded by a certified link.
-
-    When the relink certifies ``import:X -> pkg:realname``, the unresolved
-    placeholder ``pkg:X`` (MISSING — the identity-fallback root ``uv`` could not
-    resolve) is a phantom duplicate of an already-resolved need, and (pre-fix) a
-    trap carrying a ``pip:X`` fix that cannot work. Drop it (and its dangling
-    edges) so the graph holds only the real, certified provider. Returns a NEW
-    graph.
-
-    The placeholder is identified by ``state is MISSING`` (+ name match + not a
-    certified target), NOT by ``version is None``: an unresolvable root can carry
-    a version — a ``no version of X==Y`` registry miss, or a sdist that ``Failed
-    to build X==Y`` (P0). Those versioned ghosts are equally superseded once the
-    real provider is certified, so the drop must not hinge on the version field.
-    """
-    new = graph
-    # Never drop ANY certified target (not just the current edge's) -- a missing
-    # placeholder could, pathologically, be another import's certified provider;
-    # dropping it would orphan that link.
-    protected = {edge.dst for edge in certified_edges}
-    for edge in certified_edges:
-        imp = new.get(edge.src)
-        if imp is None or imp.type is not NodeType.IMPORT:
-            continue
-        imp_canon = normalize_package_name(top_level_import_name(imp.name))
-        for node in list(new.nodes):
-            if (
-                node.type is NodeType.PACKAGE
-                and node.id not in protected
-                and node.state is State.MISSING
-                and normalize_package_name(node.name) == imp_canon
-            ):
-                new = new.without_node(node.id)
-    return new
-
-
 def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     """Flag an IMPORT node ``unresolved`` — an honest under-declaration signal,
     NOT a fabricated root — only when it is BOTH unprovided (no outgoing REQUIRES
@@ -176,11 +141,12 @@ def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
 def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     """Stage 4a: add certified Import->Package edges from the container.
 
-    Runs ``packages_distributions()`` in the (post-install) container and links
-    every Import to its certified provider Package, then drops any unresolved
-    identity-fallback ghost package the certified link supersedes. On command
-    failure the graph is returned unchanged — never worse than the pre-install
-    heuristic alone.
+    Runs ``packages_distributions()`` in the (post-install) container, links every
+    Import to its certified provider Package, then flags every still-unprovided
+    non-optional Import ``unresolved`` (P0.3). This is the SOLE Import->Package
+    source in construction: with declared-only roots (P0.1) an import never
+    becomes a MISSING placeholder Package, so there are no identity-fallback
+    ghosts to sweep. On command failure the graph is returned unchanged.
     """
     result = executor.run(PACKAGES_DIST_CMD)
     if not result.ok:
@@ -190,4 +156,4 @@ def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     new = graph
     for edge in edges:
         new = new.with_edge(edge)
-    return flag_unresolved_imports(_drop_superseded_ghosts(new, edges))
+    return flag_unresolved_imports(new)

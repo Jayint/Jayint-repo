@@ -164,7 +164,13 @@ def test_fixpoint_converges_on_under_declaration(tmp_path):
     break. PyYAML enters as an AUDIT root; yaml is not flagged; loop == 2 rounds.
     """
     repo = _repo(tmp_path, "import yaml\n")
-    ex = _fallback_executor(["PyYAML==6.0\n    # via -r -\n"])
+    # PyYAML installs (pip install -> default rc0), so the CONTAINER's post-install
+    # packages_distributions() honestly reports yaml->PyYAML; Stage 4a (the sole
+    # Import->Package source now) certifies that edge so yaml is not flagged.
+    ex = _fallback_executor(
+        ["PyYAML==6.0\n    # via -r -\n"],
+        packages_dist=[_r(0, stdout='{"yaml": ["PyYAML"]}')],
+    )
     provider = _provider({"PyYAML": {"yaml"}})
 
     graph, counter = _build_counting(repo, ex, provider)
@@ -190,7 +196,12 @@ def test_fixpoint_default_composite_provider_repairs_via_pypi_fetch(tmp_path):
     from python_deps.depgraph.coverage import pypi_record_provider
 
     repo = _repo(tmp_path, "import yaml\n")
-    ex = _fallback_executor(["PyYAML==6.0\n    # via -r -\n"])
+    # PyYAML installs, so the container honestly reports yaml->PyYAML; Stage 4a
+    # certifies the edge (sole Import->Package source) so yaml is not flagged.
+    ex = _fallback_executor(
+        ["PyYAML==6.0\n    # via -r -\n"],
+        packages_dist=[_r(0, stdout='{"yaml": ["PyYAML"]}')],
+    )
 
     fetch_calls = {"n": 0}
 

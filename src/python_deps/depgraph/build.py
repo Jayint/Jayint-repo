@@ -75,7 +75,6 @@ from python_deps.depgraph.repair import (
 )
 from python_deps.depgraph.resolve import (
     _req_name,
-    link_imports_to_packages,
     resolve_closure,
 )
 from python_deps.depgraph.roots import select_roots
@@ -588,15 +587,16 @@ def build_dep_graph(
         needed_extras=needed_extras,
     )
 
-    # Stage 3a/3a'/3a''/3b — auxiliary node stages run ONCE after convergence
-    # (they don't affect the missing-set): reconcile Import->Package links, add the
-    # Project hub + subprocess CLI tools, and seed the wheel-oracle build-essential
-    # prior. Then stamp the RESOLVER discovery cycle onto every node added since
-    # the resolve began that is NOT probe-discovered — the install ran inside the
-    # loop and already surfaced its probe Tool/SystemLib nodes, which keep the
-    # _PROBE_CYCLE stamp below (never restamped back, and AUDIT provenance is set
-    # on discovered_by, not touched by the cycle restamp).
-    graph = link_imports_to_packages(graph)
+    # Stage 3a'/3a''/3b — auxiliary node stages run ONCE after convergence (they
+    # don't affect the missing-set): add the Project hub + subprocess CLI tools,
+    # and seed the wheel-oracle build-essential prior. (The provisional Stage 3a
+    # Import->Package heuristic is retired — Stage 4a's certified relink below is
+    # now the sole Import->Package source.) Then stamp the RESOLVER discovery
+    # cycle onto every node added since the resolve began that is NOT probe-
+    # discovered — the install ran inside the loop and already surfaced its probe
+    # Tool/SystemLib nodes, which keep the _PROBE_CYCLE stamp below (never
+    # restamped back, and AUDIT provenance is set on discovered_by, not touched by
+    # the cycle restamp).
     graph = _add_project_node(graph, repo_path)
     graph = add_subprocess_tool_nodes(graph, repo_path)
     graph = seed_wheel_oracle_prior(graph)
@@ -608,12 +608,13 @@ def build_dep_graph(
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 
     # === Phase B — tier descent on the CONVERGED closure, "look then derive". ===
-    # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK.
+    # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK,
+    # and the SOLE Import->Package source in construction.
     # ``packages_distributions()`` (CONTAINER) certifies Import->Package edges on
     # the converged closure and flags every still-unprovided non-optional import
     # ``unresolved`` (P0.3). It adds certified EDGES + honest data flags to EXISTING
-    # Import nodes and may drop a superseded ghost Package — it never adds a PROBE
-    # node — so it leaves the resolver/probe cycle bookkeeping (below) untouched.
+    # Import nodes — it never adds a PROBE node — so it leaves the resolver/probe
+    # cycle bookkeeping (below) untouched.
     graph = certified_import_links(graph, container_executor)
     # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
     # package's extension .so files and surface ``=> not found`` sonames as

@@ -79,6 +79,14 @@ def _make_executor():
         responses={
             "uv pip compile": _r(stdout=CANNED_CLOSURE),
             "pip install": _r(returncode=1, stderr=INSTALL_STDERR),
+            # Stage 4a certified relink: the CONTAINER's packages_distributions()
+            # is the SOLE Import->Package source now that the provisional Stage 3a
+            # heuristic is retired. Honest post-install map: cv2/PIL/numpy are
+            # installed and reported; psycopg2 FAILED to build (see INSTALL_STDERR)
+            # so it is absent here -> its import is honestly flagged unresolved.
+            "packages_distributions": _r(
+                stdout='{"cv2": ["opencv-python"], "PIL": ["Pillow"], "numpy": ["numpy"]}'
+            ),
             # import probes (also reused by certification of the import nodes)
             "import cv2": _r(
                 returncode=1,
@@ -470,6 +478,36 @@ def test_build_invokes_certified_relink_stage(tmp_path):
     # Stage 4a must run before the import probe so its certified edges exist when
     # import_probe attributes gaps to owning packages.
     assert relink_idx < import_idx
+
+
+def test_no_provisional_3a_link_in_build(tmp_path):
+    """The provisional Stage 3a ``link_imports_to_packages`` heuristic is retired:
+    certified edges (Stage 4a) are the SOLE Import->Package source in a build.
+
+    Distinguishes the two by edge ``origin``: the Stage 3a heuristic tagged its
+    edges ``origin="reconcile"``; Stage 4a tags certified edges ``origin=
+    "certified"``. After removing 3a, EVERY Import->Package edge a build produces
+    must be ``certified`` and NONE may be ``reconcile`` — the honest proof that
+    the heuristic never ran during construction (asserting only "no 3a call"
+    would pass vacuously; asserting the marker actually distinguishes them)."""
+    from python_deps.depgraph.schema import EdgeType
+
+    graph = _build(tmp_path)
+
+    imp_pkg_edges = [
+        e
+        for e in graph.edges
+        if e.relation is EdgeType.REQUIRES
+        and (s := graph.get(e.src)) is not None
+        and s.type is NodeType.IMPORT
+        and (d := graph.get(e.dst)) is not None
+        and d.type is NodeType.PACKAGE
+    ]
+    # The honest fixture map certifies cv2->opencv-python and PIL->Pillow.
+    assert imp_pkg_edges, "expected certified Import->Package edges from Stage 4a"
+    assert all(e.origin == "certified" for e in imp_pkg_edges)
+    # The retired Stage 3a heuristic marker must never appear.
+    assert not any(e.origin == "reconcile" for e in imp_pkg_edges)
 
 
 # --------------------------------------------------------------------------- #

@@ -35,7 +35,6 @@ from python_deps.depgraph.schema import (
     Layer,
     Node,
     NodeType,
-    State,
 )
 from python_deps.depgraph.relink import import_to_package_edges
 
@@ -126,127 +125,6 @@ def test_certified_import_links_graceful_on_command_failure(fake_executor):
     graph = DepGraph().with_node(_imp("dateutil")).with_node(_pkg("python-dateutil", "2.9.0"))
     out = certified_import_links(graph, fake_executor)
     assert out.edges == ()
-
-
-def test_certified_import_links_drops_superseded_ghost(fake_executor, make_result_fixture):
-    # The identity-fallback ghost `pkg:dateutil` (unresolved placeholder: version
-    # None, MISSING) is superseded once the relink certifies the real provider
-    # `pkg:python-dateutil`. The ghost (and its dangling edge) must be removed.
-    imp = _imp("dateutil")
-    ghost = Node(
-        id=package_id("dateutil", None),
-        type=NodeType.PACKAGE,
-        name="dateutil",
-        layer=Layer.PIP,
-        discovered_by=DiscoveredBy.RESOLVER,
-        state=State.MISSING,
-        version=None,
-    )
-    real = _pkg("python-dateutil", "2.9.0.post0")
-    graph = (
-        DepGraph()
-        .with_node(imp)
-        .with_node(ghost)
-        .with_node(real)
-        .with_edge(Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile"))
-    )
-    fake_executor.responses = {
-        "packages_distributions": make_result_fixture(
-            stdout='{"dateutil": ["python-dateutil"]}'
-        )
-    }
-
-    out = certified_import_links(graph, fake_executor)
-
-    deps = {d.id for d in out.requires_of(imp.id)}
-    assert package_id("python-dateutil", "2.9.0.post0") in deps  # real provider linked
-    assert out.get(package_id("dateutil", None)) is None  # ghost removed
-    assert all(e.dst != package_id("dateutil", None) for e in out.edges)  # dangling edge gone
-
-
-def test_certified_import_links_drops_superseded_versioned_ghost(fake_executor, make_result_fixture):
-    # P1: a low-trust identity-fallback root whose sdist FAILED TO BUILD (or hit a
-    # `no version of X==Y`) is surfaced as a MISSING placeholder carrying a VERSION
-    # (e.g. `factory==1.2`), unlike the registry-miss case (version None). It is
-    # still a superseded duplicate once the relink certifies the real provider
-    # (`import factory` -> `factory-boy`), and must be dropped too — the old
-    # `version is None` guard left these naming-poison ghosts polluting the graph.
-    imp = _imp("factory")
-    ghost = Node(
-        id=package_id("factory", "1.2"),
-        type=NodeType.PACKAGE,
-        name="factory",
-        layer=Layer.PIP,
-        discovered_by=DiscoveredBy.RESOLVER,
-        state=State.MISSING,
-        version="1.2",
-    )
-    real = _pkg("factory-boy", "3.3.3")
-    graph = (
-        DepGraph()
-        .with_node(imp)
-        .with_node(ghost)
-        .with_node(real)
-        .with_edge(Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile"))
-    )
-    fake_executor.responses = {
-        "packages_distributions": make_result_fixture(stdout='{"factory": ["factory-boy"]}')
-    }
-
-    out = certified_import_links(graph, fake_executor)
-
-    deps = {d.id for d in out.requires_of(imp.id)}
-    assert package_id("factory-boy", "3.3.3") in deps  # real provider linked
-    assert out.get(package_id("factory", "1.2")) is None  # versioned ghost removed
-    assert all(e.dst != package_id("factory", "1.2") for e in out.edges)  # dangling edge gone
-
-
-def test_certified_import_links_keeps_versioned_missing_without_replacement(
-    fake_executor, make_result_fixture
-):
-    # Safety: a VERSIONED missing package whose import has NO certified provider
-    # must be KEPT (it is a genuine unresolved/undeclared signal, not a superseded
-    # duplicate). Guards against the relaxed guard over-dropping.
-    imp = _imp("strawberry")
-    miss = Node(
-        id=package_id("strawberry", "3.0"),
-        type=NodeType.PACKAGE,
-        name="strawberry",
-        layer=Layer.PIP,
-        discovered_by=DiscoveredBy.RESOLVER,
-        state=State.MISSING,
-        version="3.0",
-    )
-    graph = DepGraph().with_node(imp).with_node(miss).with_edge(
-        Edge(src=imp.id, dst=miss.id, relation=EdgeType.REQUIRES, origin="reconcile")
-    )
-    fake_executor.responses = {
-        "packages_distributions": make_result_fixture(stdout='{"other": ["something"]}')
-    }
-
-    out = certified_import_links(graph, fake_executor)
-
-    assert out.get(package_id("strawberry", "3.0")) is not None  # kept: no certified replacement
-
-
-def test_certified_import_links_keeps_ghost_without_replacement(fake_executor, make_result_fixture):
-    # A ghost whose import has NO certified provider must be KEPT (its misleading
-    # fix is cleared upstream in resolve, but the node is not dropped here).
-    imp = _imp("widget")
-    ghost = Node(
-        id=package_id("widget", None), type=NodeType.PACKAGE, name="widget",
-        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version=None,
-    )
-    graph = DepGraph().with_node(imp).with_node(ghost).with_edge(
-        Edge(src=imp.id, dst=ghost.id, relation=EdgeType.REQUIRES, origin="reconcile")
-    )
-    fake_executor.responses = {
-        "packages_distributions": make_result_fixture(stdout='{"other": ["something"]}')
-    }
-
-    out = certified_import_links(graph, fake_executor)
-
-    assert out.get(package_id("widget", None)) is not None  # kept: no certified replacement
 
 
 from python_deps.depgraph.relink import flag_unresolved_imports
@@ -416,27 +294,3 @@ def test_stale_flag_cleared_when_now_optional():
     assert node.data.get("optional") is True  # exemption key untouched
     assert node.data.get("some_other_key") == "keep-me"
     assert node.evidence is None
-
-
-def test_drop_ghost_never_removes_a_certified_target(fake_executor, make_result_fixture):
-    # Pathological: pkg:foo is ghost-shaped (version None, MISSING) for import:foo,
-    # but is ALSO the certified provider of import:bar. Dropping import:foo's ghost
-    # must NOT remove pkg:foo (it is a protected certified target).
-    imp_foo = _imp("foo")
-    imp_bar = _imp("bar")
-    weird = Node(
-        id=package_id("foo", None), type=NodeType.PACKAGE, name="foo",
-        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version=None,
-    )
-    realfoo = _pkg("realfoo", "1.0")
-    graph = DepGraph().with_node(imp_foo).with_node(imp_bar).with_node(weird).with_node(realfoo)
-    fake_executor.responses = {
-        # import:foo -> pkg:realfoo (certified) triggers the foo-ghost drop attempt;
-        # import:bar -> pkg:foo (certified) makes pkg:foo a protected target.
-        "packages_distributions": make_result_fixture(stdout='{"foo": ["realfoo"], "bar": ["foo"]}')
-    }
-
-    out = certified_import_links(graph, fake_executor)
-
-    assert out.get(package_id("foo", None)) is not None  # protected, not dropped
-    assert any(d.id == package_id("foo", None) for d in out.requires_of(imp_bar.id))
