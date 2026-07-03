@@ -176,6 +176,44 @@ def test_fixpoint_converges_on_under_declaration(tmp_path):
     assert counter["resolve"] == 2
 
 
+def test_fixpoint_default_composite_provider_repairs_via_pypi_fetch(tmp_path):
+    """P1.5 — the DEFAULT path repairs a real under-declaration (no injected
+    record_provider). Repo imports ``yaml``, declares nothing. Build constructs
+    its OWN composite default = ``composite_record_provider(default_record_provider
+    (container), pypi_record_provider())``; the only thing stubbed is the network
+    fetch seam (a fake wheel read). The post-install provider is blind for the
+    not-yet-installed candidate, so the composite consults the fake PyPI fetch,
+    grounds ``PyYAML``, and the fixpoint ACCEPTs it as an AUDIT root. This is the
+    test P1.4 could not write — it proves production repair is no longer inert.
+    """
+    import python_deps.depgraph.build as build_mod
+    from python_deps.depgraph.coverage import pypi_record_provider
+
+    repo = _repo(tmp_path, "import yaml\n")
+    ex = _fallback_executor(["PyYAML==6.0\n    # via -r -\n"])
+
+    fetch_calls = {"n": 0}
+
+    def fake_wheel_fetch(dist):
+        fetch_calls["n"] += 1
+        return {"yaml"} if normalize_package_name(dist) == "pyyaml" else None
+
+    def fake_pypi_provider():
+        # Same constructor build.py calls by default, but with the network seam
+        # replaced by the fake — the composite wiring itself stays real.
+        return pypi_record_provider(fetch=fake_wheel_fetch)
+
+    with patch.object(build_mod, "pypi_record_provider", fake_pypi_provider):
+        # NO record_provider injected -> build_dep_graph builds the composite default.
+        graph = build_dep_graph(repo, ex, host_executor=ex)
+
+    pyyaml = graph.get(package_id("PyYAML", "6.0"))
+    assert pyyaml is not None
+    assert pyyaml.discovered_by is DiscoveredBy.AUDIT
+    assert graph.get(import_id("yaml")).data.get("unresolved") is not True
+    assert fetch_calls["n"] >= 1  # the pre-install PyPI wheel read grounded the candidate
+
+
 def test_fixpoint_well_declared_repo_does_zero_repair(tmp_path):
     """Declares + imports requests; coverage covers it round 1 -> break with one
     install and no AUDIT nodes."""

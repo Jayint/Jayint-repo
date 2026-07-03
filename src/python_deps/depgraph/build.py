@@ -39,7 +39,9 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
 from python_deps.depgraph.apt_verify import reconcile_apt_names
 from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.coverage import (
+    composite_record_provider,
     default_record_provider,
+    pypi_record_provider,
     resolved_record_coverage,
 )
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
@@ -457,12 +459,15 @@ def build_dep_graph(
     .[test]`) — that discovery is separate future enrichment (cluster-1); a
     caller that already knows the needed groups passes them here.
 
-    ``record_provider`` (P1.4) is the RECORD-union coverage oracle the Phase-A
-    repair fixpoint audits imports against: ``dist name -> {top-level modules}``
-    or ``None`` (no wheel to read). Injected in tests (a fake, no network); when
-    omitted a production reader is built from ``container_executor`` (see
-    :func:`coverage.default_record_provider` for its honest interim limitation —
-    post-install, so it cannot yet confirm not-yet-installed repair candidates).
+    ``record_provider`` (P1.4/P1.5) is the RECORD-union coverage oracle the
+    Phase-A repair fixpoint audits imports against: ``dist name -> {top-level
+    modules}`` or ``None`` (no wheel to read). Injected in tests (a fake, no
+    network); when omitted the production DEFAULT is
+    :func:`coverage.composite_record_provider` over the cheap post-install
+    container reader (:func:`coverage.default_record_provider`) and the PRE-install
+    PyPI wheel reader (:func:`coverage.pypi_record_provider`) — so a not-yet-
+    installed repair candidate is grounded from PyPI (P1.5, making production
+    repair functional) while already-installed closure members stay network-free.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -538,9 +543,16 @@ def build_dep_graph(
         )
     )
     # RECORD-union coverage oracle (Correction 3). Injected in tests (fake, no
-    # network); the production default is a post-install container reader (see
-    # coverage.default_record_provider for its honest, interim limitation).
-    record_provider = record_provider or default_record_provider(container_executor)
+    # network). The production DEFAULT (P1.5) is the composite: the cheap
+    # post-install container reader for already-installed closure members, falling
+    # through to the PRE-install PyPI wheel read for not-yet-installed repair
+    # CANDIDATES (and resolved-but-failed-to-build dists) — so choose_provider can
+    # confirm a candidate and repair is actually functional, not inert. The PyPI
+    # read is behind an injected fetch seam (coverage._default_wheel_top_levels);
+    # already-installed deps never trigger a PyPI call (composite short-circuit).
+    record_provider = record_provider or composite_record_provider(
+        default_record_provider(container_executor), pypi_record_provider()
+    )
 
     # Stage 3-4 — Phase-A repair FIXPOINT: resolve -> install -> audit the runtime
     # imports against the resolved closure's RECORD-union coverage -> repair
