@@ -2,15 +2,31 @@
 
 Wires the pipeline of
 ``docs/DESIGN-static-probe-certified-dependency-graph.md`` /
-``docs/superpowers/specs/2026-06-23-uv-enriched-depgraph.md`` in order:
+``docs/superpowers/specs/2026-06-23-uv-enriched-depgraph.md`` as TWO phases with
+TWO distinct oracles (P2.1):
 
-    1. scan      static import scan          -> Import + Test nodes   (cycle 1)
-    2. map       roots.select_roots          -> resolver roots
-    3. resolve   uv.lock closure (HOST)      -> Package nodes/edges   (cycle 2)
-    3b. seed     predicted native nodes      -> Tool/SystemLib        (cycle 2)
-    4. probe     install + import (CONTAINER)-> SystemLib/Tool nodes  (cycle 3)
-    4.5 ldd      ldd ext .so (CONTAINER)     -> run-time SystemLib     (cycle 3)
-    5. certify   host check_commands (CONTAINER) -> node ``state``    (cycle 4)
+    scan/map   static import scan + declared-ONLY roots -> Import/Test  (cycle 1)
+
+    Phase A -- "is it PROVIDED?"  oracle = RECORD-union coverage.
+       A bounded resolve (HOST uv) -> install (CONTAINER) -> look -> repair
+       FIXPOINT (:func:`_phase_a_fixpoint`). Each round audits the runtime imports
+       against the RESOLVED closure's RECORD-union coverage
+       (:func:`coverage.resolved_record_coverage`) and repairs an under-declared
+       import by grounding + adding an AUDIT root, re-resolving until coverage is
+       stable. The loop condition is the RECORD-union oracle, NEVER a per-round
+       ``packages_distributions()`` probe — so a resolved-but-failed-to-build dist
+       counts PROVIDED here (its wheel RECORDs the module) and its native gap is a
+       Phase-B concern, not a Phase-A under-declaration.                (cycle 2)
+
+    Phase B -- "does it LOAD / who PROVIDES it?"  oracle = the live CONVERGED
+    container. A single tier descent over the converged closure, "look then
+    derive":
+       relink   certified Import->Package edges + honest ``unresolved`` flags
+                (packages_distributions, CONTAINER) -- Phase B's LOOK           (cycle 3)
+       ldd      ldd ext .so ``=> not found`` -> run-time SystemLib (DT_NEEDED)   (cycle 3)
+       probe    import backstop -> dlopen'd SystemLib not in NEEDED             (cycle 3)
+       apt      reconcile predicted apt names against the target image
+       certify  host check_commands (CONTAINER) -> node ``state``              (cycle 4)
 
 **Executor split (spec "Architecture change"):** resolution is HOST-side — ``uv``
 cross-platform resolves the container target without a container interpreter — so
@@ -18,10 +34,11 @@ it runs through ``host_executor``.  Install/probe/certify must observe the real
 target environment, so they run through ``container_executor``.  Both default-safe
 for unit tests (a single ``FakeExecutor`` can be injected for both).
 
-Discovery order and execution order differ (design 3.3 / 10.10): probing
-discovers a SystemLib *after* installing the pip package that needs it, but
-certification then runs in execution layer order (system before pip).  Every
-stage returns a NEW immutable graph; this function only ever rebinds ``graph``.
+Phase B's discovery order and the later execution order differ (design 3.3 /
+10.10): the descent LOOKS (relink) then DERIVES system deps (ldd/probe) on the
+converged closure, but certification then runs in execution layer order (system
+before pip).  Every stage returns a NEW immutable graph; this function only ever
+rebinds ``graph``.
 """
 
 from __future__ import annotations
@@ -554,11 +571,11 @@ def build_dep_graph(
         default_record_provider(container_executor), pypi_record_provider()
     )
 
-    # Stage 3-4 — Phase-A repair FIXPOINT: resolve -> install -> audit the runtime
+    # === Phase A — repair FIXPOINT: resolve -> install -> audit the runtime ===
     # imports against the resolved closure's RECORD-union coverage -> repair
     # under-declarations by adding AUDIT roots -> re-resolve until stable (P1.4).
-    # Install stays inside the loop (re-install each round; P2.1 optimizes). The
-    # loop only rebinds ``graph``; every round returns a new immutable graph.
+    # Install stays inside the loop (re-install each round). The loop only rebinds
+    # ``graph``; every round returns a new immutable graph.
     pre_resolve_ids = {n.id for n in graph.nodes}
     graph = _phase_a_fixpoint(
         graph,
@@ -590,14 +607,21 @@ def build_dep_graph(
     }
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 
+    # === Phase B — tier descent on the CONVERGED closure, "look then derive". ===
+    # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK.
+    # ``packages_distributions()`` (CONTAINER) certifies Import->Package edges on
+    # the converged closure and flags every still-unprovided non-optional import
+    # ``unresolved`` (P0.3). It adds certified EDGES + honest data flags to EXISTING
+    # Import nodes and may drop a superseded ghost Package — it never adds a PROBE
+    # node — so it leaves the resolver/probe cycle bookkeeping (below) untouched.
+    graph = certified_import_links(graph, container_executor)
     # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
     # package's extension .so files and surface ``=> not found`` sonames as
-    # SystemLib nodes (DT_NEEDED ground truth). Runs after the loop (needs the
-    # built .so) and before relink/import-probe.
+    # SystemLib nodes (DT_NEEDED ground truth). Derives system deps from the SAME
+    # converged closure the relink just certified (needs the built .so — runs after
+    # the loop, and after the relink LOOK).
     graph = ldd_probe(graph, container_executor)
-    # Stage 4a — certified Import->Package relink (packages_distributions, CONTAINER).
-    graph = certified_import_links(graph, container_executor)
-    # import_probe is now the dlopen BACKSTOP only: DT_NEEDED gaps are covered by
+    # import_probe is the dlopen BACKSTOP only: DT_NEEDED gaps are covered by
     # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
     # never appear in the binary's NEEDED list.
     graph = import_probe(graph, container_executor)
