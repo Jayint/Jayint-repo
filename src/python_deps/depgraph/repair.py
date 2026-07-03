@@ -131,3 +131,107 @@ def decide(grounded_dists: list[str]) -> tuple[Verdict, str]:
     if len(grounded) > 1:
         return Verdict.AMBIGUOUS, ", ".join(grounded)
     return Verdict.UNRESOLVED, "-"
+
+
+# --------------------------------------------------------------------------- #
+# P1.3 — RECORD grounding + provider selection (over an INJECTED provider)
+# --------------------------------------------------------------------------- #
+# The provider hands back the set of top-level module names a candidate dist's
+# wheel RECORD/``top_level.txt`` ships, or ``None`` when there is no wheel to
+# read. Injecting it keeps grounding pure and testable and keeps the
+# network/PyPI detail (the spike's ``wheel_provides``) OUT of the decision core.
+RecordProvider = Callable[[str], "set[str] | None"]
+
+
+def record_grounds(
+    candidate_dist: str,
+    import_name: str,
+    provider: RecordProvider,
+) -> str:
+    """3-way RECORD grounding for one candidate: ``confirm`` | ``deny`` | ``blind``.
+
+    * ``confirm`` iff the provider's top-level set for ``candidate_dist`` contains
+      the import's top-level module.
+    * ``deny`` iff the provider returns a set that does NOT contain it — this
+      prunes transitive-only shims (e.g. the ``bs4`` dummy dist whose RECORD
+      lists something else) before they can be accepted.
+    * ``blind`` iff the provider returns ``None`` (no wheel to read) — defer to
+      P1.4's install backstop; never a decision on its own.
+
+    Ports the spike's ``wheel_provides`` status mapping (wheel+provides ->
+    confirm, wheel+!provides -> deny, no-wheel/too-big -> blind) and the
+    ``Judged.record`` logic, but over the INJECTED provider — no network. The
+    membership test is case-insensitive, matching the spike's lowercased
+    ``top_level.txt`` comparison.
+    """
+    provided = provider(candidate_dist)
+    if provided is None:
+        return "blind"
+    top = top_level_import_name(import_name).lower()
+    if top in {module.lower() for module in provided}:
+        return "confirm"
+    return "deny"
+
+
+@dataclass(frozen=True)
+class RepairDecision:
+    """Outcome of grounding + selecting a provider for one unsatisfied import.
+
+    ``candidates_considered`` carries the ``blind`` distributions — those the
+    injected provider could neither confirm nor deny — so the P1.4 fixpoint can
+    hand exactly that set to its install backstop. It is empty whenever grounding
+    was decisive (everything confirmed or denied), including on ``ACCEPT`` /
+    ``AMBIGUOUS`` where no backstop is needed.
+    """
+
+    verdict: Verdict
+    dist: str | None
+    candidates_considered: tuple[str, ...]
+
+
+def choose_provider(
+    import_name: str,
+    candidates: list[Candidate],
+    provider: RecordProvider,
+) -> RepairDecision:
+    """Ground each candidate against the injected RECORD provider, then select.
+
+    ``deny`` candidates (shims / hallucinations) are dropped. The surviving
+    ``confirm`` set, deduped to CANON-DISTINCT distributions (by
+    ``normalize_package_name`` — two spellings of one dist must never read as
+    ambiguity), drives the verdict:
+
+      * exactly one canonical confirm -> ``RepairDecision(ACCEPT, dist, ())``;
+      * more than one -> ``RepairDecision(AMBIGUOUS, None, ())`` — never pick a
+        variant (Global Constraint); two genuinely different confirming dists
+        (e.g. ``attrs`` vs ``attr``) legitimately flag here;
+      * zero confirms but >=1 ``blind`` -> ``RepairDecision(UNRESOLVED, None,
+        <blind dists>)`` — blind is NEVER accepted on grounding alone; the blind
+        set is surfaced for P1.4's install backstop to arbitrate;
+      * nothing survives -> ``RepairDecision(UNRESOLVED, None, ())``.
+
+    ``decide`` (P1.2) is deliberately NOT reused: it does not dedup its input, so
+    counting ACCEPT/AMBIGUOUS goes through the canon-distinct sets built here.
+    """
+    confirmed: list[str] = []
+    confirmed_canons: set[str] = set()
+    blind: list[str] = []
+    blind_canons: set[str] = set()
+    for candidate in candidates:
+        grounding = record_grounds(candidate.dist, import_name, provider)
+        if grounding == "deny":
+            continue
+        canon = normalize_package_name(candidate.dist)
+        if grounding == "confirm":
+            if canon not in confirmed_canons:
+                confirmed_canons.add(canon)
+                confirmed.append(candidate.dist)
+        elif canon not in blind_canons:  # blind
+            blind_canons.add(canon)
+            blind.append(candidate.dist)
+
+    if len(confirmed) == 1:
+        return RepairDecision(Verdict.ACCEPT, confirmed[0], ())
+    if len(confirmed) > 1:
+        return RepairDecision(Verdict.AMBIGUOUS, None, ())
+    return RepairDecision(Verdict.UNRESOLVED, None, tuple(blind))
