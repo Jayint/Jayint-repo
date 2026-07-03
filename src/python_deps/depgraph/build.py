@@ -38,13 +38,24 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
 
 from python_deps.depgraph.apt_verify import reconcile_apt_names
 from python_deps.depgraph.certify import certify_all
+from python_deps.depgraph.coverage import (
+    default_record_provider,
+    resolved_record_coverage,
+)
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
 from python_deps.depgraph.ids import TEST_NODE_ID, project_id
 from python_deps.depgraph.ldd_probe import ldd_probe
 from python_deps.depgraph.pins import compute_exclude_newer
 from python_deps.depgraph.probe import import_probe, install_closure
 from python_deps.depgraph.relink import certified_import_links
+from python_deps.depgraph.repair import (
+    RecordProvider,
+    Verdict,
+    choose_provider,
+    generate_candidates,
+)
 from python_deps.depgraph.resolve import (
+    _req_name,
     link_imports_to_packages,
     resolve_closure,
 )
@@ -64,9 +75,13 @@ from python_deps.depgraph.seed import seed_wheel_oracle_prior
 from python_deps.depgraph.subprocess_scan import add_subprocess_tool_nodes
 from python_deps.depgraph.target_env import detect_target_env
 from python_deps.evidence import collect_python_dependency_evidence
-from python_deps.import_mapping import normalize_package_name
+from python_deps.import_mapping import normalize_package_name, top_level_import_name
 
 logger = logging.getLogger(__name__)
+
+# Numeric backstop on Phase-A repair rounds (Correction 2b): the attempted-set is
+# the honest terminator; this caps pathological non-convergence.
+_MAX_REPAIR_ROUNDS = 5
 
 # discovered_cycle stamps, one per discovery stage (design 5.2 example uses 3 for
 # probe-discovered SystemLibs).
@@ -240,6 +255,163 @@ def _detect_target_python(
     return default
 
 
+def reconcile_packages(
+    graph: DepGraph,
+    pkg_nodes: list[Node],
+    pkg_edges: list[Edge],
+    prev_pkg_ids: set[str],
+) -> DepGraph:
+    """Merge a fresh resolve round's Package nodes/edges, dropping the prior
+    round's stale ones (Phase-A Correction 2c).
+
+    Package ids bake the version (``pkg:name==version``) and ``DepGraph`` is
+    upsert-only, so a version shift between rounds would otherwise leave the old
+    ``pkg:name==v_old`` node (and its edges) orphaned. Before merging the new
+    nodes/edges, remove every Package node the PRIOR round produced
+    (``prev_pkg_ids``) that the NEW resolve no longer emits (``without_node`` also
+    drops that node's dangling edges), and every prior Package->Package
+    ``requires`` edge among still-surviving nodes the new resolve no longer emits
+    (``without_edge``). Conflict advisory edges are left untouched. Returns a NEW
+    graph; net effect: no stale Package orphan survives a version change.
+    """
+    new_ids = {n.id for n in pkg_nodes}
+    new_edge_keys = {e.key() for e in pkg_edges}
+    new = graph
+    for stale_id in prev_pkg_ids - new_ids:
+        new = new.without_node(stale_id)
+    for edge in list(new.edges):
+        if (
+            edge.relation is EdgeType.REQUIRES
+            and edge.src in prev_pkg_ids
+            and edge.dst in prev_pkg_ids
+            and edge.key() not in new_edge_keys
+        ):
+            new = new.without_edge(edge)
+    for node in pkg_nodes:
+        new = new.with_node(node)
+    for edge in pkg_edges:
+        new = new.with_edge(edge)
+    return new
+
+
+def _stamp_audit(graph: DepGraph, repaired: set[str]) -> DepGraph:
+    """Stamp ``discovered_by=AUDIT`` on Package nodes whose canon dist was repaired.
+
+    Each resolve round re-emits a repaired dist's Package as ``RESOLVER`` (fresh
+    from the lock), so this runs every round after the merge to keep the AUDIT
+    provenance; declared/transitive packages keep ``RESOLVER``.
+    """
+    new = graph
+    for node in graph.nodes:
+        if (
+            node.type is NodeType.PACKAGE
+            and _canon(node.name) in repaired
+            and node.discovered_by is not DiscoveredBy.AUDIT
+        ):
+            new = new.with_node(replace(node, discovered_by=DiscoveredBy.AUDIT))
+    return new
+
+
+def _phase_a_fixpoint(
+    graph: DepGraph,
+    roots: list[tuple[str | None, str]],
+    host_executor: Executor,
+    container_executor: Executor,
+    record_provider: RecordProvider,
+    *,
+    target_env,
+    exclude_newer: str | None,
+    needed_extras: frozenset[str],
+) -> DepGraph:
+    """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
+
+    Each round resolves the current roots, reconciles the Package layer (dropping
+    stale nodes/edges — Correction 2c), install-probes the closure, then audits
+    the FULL runtime import set against the resolved closure's RECORD-union
+    coverage (Correction 3 — never ``packages_distributions``). A non-optional
+    import that no resolved dist provides is repaired by grounding candidate dists
+    (deterministic normalize -> curated, RECORD-grounded via ``record_provider``;
+    NEVER an LLM) and, on an unambiguous ACCEPT, adding the dist as an AUDIT root
+    (``audit_root_names`` threads the repaired set into the resolve retry so a
+    declared root is never evicted — Correction 2a) and re-resolving.
+
+    Terminates when coverage is complete, when no new ``(import, candidate)`` pair
+    can be proposed (attempted-set / fixpoint — Correction 2b), or at the numeric
+    bound ``min(initial_missing, 5)``; residue is left for P0.3 to flag
+    unresolved downstream — construction is NEVER aborted. Every round returns a
+    NEW graph; the orchestrator only rebinds ``graph``.
+    """
+    root_dists = {_canon(_req_name(dist)) for _imp, dist in roots}
+    repaired: set[str] = set()
+    attempted: set[tuple[str, str]] = set()
+    prev_pkg_ids: set[str] = set()
+    bound: int | None = None
+    iteration = 0
+
+    while True:
+        pkg_nodes, pkg_edges = resolve_closure(
+            roots,
+            host_executor,
+            target_env=target_env,
+            exclude_newer=exclude_newer,
+            extras=needed_extras,
+            audit_root_names=frozenset(repaired),
+        )
+        graph = reconcile_packages(graph, pkg_nodes, pkg_edges, prev_pkg_ids)
+        graph = _stamp_audit(graph, repaired)
+        prev_pkg_ids = {n.id for n in pkg_nodes}
+        graph = install_closure(graph, container_executor)
+
+        # Correction 3: the coverage oracle is RECORD-union over the RESOLVED
+        # closure, NOT a post-install packages_distributions() snapshot.
+        provided = resolved_record_coverage(pkg_nodes, record_provider)
+        missing = [
+            n
+            for n in graph.nodes
+            if n.type is NodeType.IMPORT
+            and n.data.get("optional") is not True
+            and top_level_import_name(n.name).lower() not in provided
+        ]
+        if bound is None:
+            bound = min(len(missing), _MAX_REPAIR_ROUNDS)
+        if not missing:
+            break
+
+        new_pair = False
+        for imp in missing:
+            # LLM stays OUT of the deterministic core (never pass an llm here).
+            candidates = generate_candidates(imp.name, llm=None)
+            decision = choose_provider(imp.name, candidates, record_provider)
+            if (
+                decision.verdict is Verdict.ACCEPT
+                and decision.dist is not None
+                and (imp.name, decision.dist) not in attempted
+                and _canon(decision.dist) not in root_dists
+            ):
+                roots = roots + [(None, decision.dist)]
+                repaired.add(_canon(decision.dist))
+                root_dists.add(_canon(decision.dist))
+                new_pair = True
+            # Remember every candidate tried for this import (Correction 2b), so a
+            # re-proposal of an already-attempted pair cannot re-add / oscillate.
+            attempted |= {(imp.name, candidate.dist) for candidate in candidates}
+        if not new_pair:
+            logger.warning(
+                "phase-A stopped: no new repair candidate; residue left unresolved "
+                "(fixpoint/oscillation): %s",
+                sorted(n.name for n in missing),
+            )
+            break
+        iteration += 1
+        if iteration > bound:
+            logger.warning(
+                "phase-A hit bound=%d; residue left unresolved (honest), not aborting",
+                bound,
+            )
+            break
+    return graph
+
+
 def build_dep_graph(
     repo_path: str,
     container_executor: Executor,
@@ -249,6 +421,7 @@ def build_dep_graph(
     target_platform: str | None = None,
     exclude_newer: str | None = None,
     needed_extras: frozenset[str] = frozenset(),
+    record_provider: RecordProvider | None = None,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -283,6 +456,13 @@ def build_dep_graph(
     extras a repo's CI/tox/Makefile actually invokes (e.g. `pip install -e
     .[test]`) — that discovery is separate future enrichment (cluster-1); a
     caller that already knows the needed groups passes them here.
+
+    ``record_provider`` (P1.4) is the RECORD-union coverage oracle the Phase-A
+    repair fixpoint audits imports against: ``dist name -> {top-level modules}``
+    or ``None`` (no wheel to read). Injected in tests (a fake, no network); when
+    omitted a production reader is built from ``container_executor`` (see
+    :func:`coverage.default_record_provider` for its honest interim limitation —
+    post-install, so it cannot yet confirm not-yet-installed repair candidates).
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -357,52 +537,51 @@ def build_dep_graph(
             resolved_python=target_python,
         )
     )
-    pkg_nodes, pkg_edges = resolve_closure(
+    # RECORD-union coverage oracle (Correction 3). Injected in tests (fake, no
+    # network); the production default is a post-install container reader (see
+    # coverage.default_record_provider for its honest, interim limitation).
+    record_provider = record_provider or default_record_provider(container_executor)
+
+    # Stage 3-4 — Phase-A repair FIXPOINT: resolve -> install -> audit the runtime
+    # imports against the resolved closure's RECORD-union coverage -> repair
+    # under-declarations by adding AUDIT roots -> re-resolve until stable (P1.4).
+    # Install stays inside the loop (re-install each round; P2.1 optimizes). The
+    # loop only rebinds ``graph``; every round returns a new immutable graph.
+    pre_resolve_ids = {n.id for n in graph.nodes}
+    graph = _phase_a_fixpoint(
+        graph,
         roots,
         host_executor,
+        container_executor,
+        record_provider,
         target_env=target_env,
         exclude_newer=exclude_newer,
-        extras=needed_extras,
+        needed_extras=needed_extras,
     )
-    pre_resolve_ids = {n.id for n in graph.nodes}
-    for node in pkg_nodes:
-        graph = graph.with_node(node)
-    for edge in pkg_edges:
-        graph = graph.with_edge(edge)
 
-    # Stage 3a — reconcile: link EVERY Import to its resolved Package (covers
-    # manifest-declared deps whose root carried import_id=None, which would
-    # otherwise leave the scanned Import node orphaned from its Package).
+    # Stage 3a/3a'/3a''/3b — auxiliary node stages run ONCE after convergence
+    # (they don't affect the missing-set): reconcile Import->Package links, add the
+    # Project hub + subprocess CLI tools, and seed the wheel-oracle build-essential
+    # prior. Then stamp the RESOLVER discovery cycle onto every node added since
+    # the resolve began that is NOT probe-discovered — the install ran inside the
+    # loop and already surfaced its probe Tool/SystemLib nodes, which keep the
+    # _PROBE_CYCLE stamp below (never restamped back, and AUDIT provenance is set
+    # on discovered_by, not touched by the cycle restamp).
     graph = link_imports_to_packages(graph)
-
-    # Stage 3a' — Project hub: connect declared direct deps to a Project node so
-    # the package layer is fully connected (runtime deps off Project, test deps
-    # off the Test goal).
     graph = _add_project_node(graph, repo_path)
-
-    # Stage 3a'' — subprocess CLI tools: external programs the repo's OWN code
-    # shells out to (adb, git, sqlite3, …). ldd (Stage 4.5) finds LINKED libs and
-    # the pip build path finds compilers, but neither sees a tool the code only
-    # subprocess-es — a whole coverage class. Static, allowlisted (subprocess_scan),
-    # hung off the Project anchor; certified later by `command -v`.
     graph = add_subprocess_tool_nodes(graph, repo_path)
-
-    # Stage 3b — predicted native Tool/SystemLib nodes (resolver-origin).
-    # PACKAGE_TO_SYSTEM_DEPS here is a PROACTIVE FALLBACK (pre-install / install-fail
-    # hint); Stage 4.5 ldd_probe is the authoritative run-time native-lib source.
     graph = seed_wheel_oracle_prior(graph)
-    resolver_ids = {n.id for n in graph.nodes} - pre_resolve_ids
+    resolver_ids = {
+        n.id
+        for n in graph.nodes
+        if n.id not in pre_resolve_ids and n.discovered_by is not DiscoveredBy.PROBE
+    }
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
 
-    # Stage 4 — CONTAINER probe: install once (build-time gaps -> Tool) then
-    # import-probe (run-time gaps -> SystemLib); predictions reconcile in place.
-    pre_probe_ids = {n.id for n in graph.nodes}
-    graph = install_closure(graph, container_executor)
     # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
     # package's extension .so files and surface ``=> not found`` sonames as
-    # SystemLib nodes (DT_NEEDED ground truth). Runs after install (needs the
-    # built .so) and before relink/import-probe. The curated table (Stage 3b) is
-    # demoted to a proactive fallback; ldd is the source of truth here.
+    # SystemLib nodes (DT_NEEDED ground truth). Runs after the loop (needs the
+    # built .so) and before relink/import-probe.
     graph = ldd_probe(graph, container_executor)
     # Stage 4a — certified Import->Package relink (packages_distributions, CONTAINER).
     graph = certified_import_links(graph, container_executor)
@@ -410,7 +589,11 @@ def build_dep_graph(
     # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
     # never appear in the binary's NEEDED list.
     graph = import_probe(graph, container_executor)
-    probe_ids = {n.id for n in graph.nodes} - pre_probe_ids
+    probe_ids = {
+        n.id
+        for n in graph.nodes
+        if n.id not in pre_resolve_ids and n.discovered_by is DiscoveredBy.PROBE
+    }
     graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
 
     # Stage 4b — release-aware apt-name reconciliation against the TARGET image:

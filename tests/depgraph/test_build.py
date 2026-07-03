@@ -530,3 +530,57 @@ def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
     assert calls["select_roots_needed_extras"] == frozenset()
 
 
+# --------------------------------------------------------------------------- #
+# P1.4 — Phase-A repair fixpoint full-arm smoke. The SAME cv2/PIL/psycopg2 repo,
+# but UNDER-DECLARED (no pyproject: zero declared roots). The scanned imports
+# audit missing against the empty closure and the fixpoint repairs each to its
+# distribution (RECORD-grounded via an injected fake provider), converging to the
+# same Package nodes — now discovered_by=AUDIT, not RESOLVER. (P0.1's declared
+# test above is untouched; this is a separate under-declared fixture.)
+# --------------------------------------------------------------------------- #
+def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
+    from conftest import SequencedFakeExecutor  # type: ignore
+
+    from python_deps.depgraph.schema import DiscoveredBy as _DB
+    from python_deps.import_mapping import normalize_package_name as _norm
+
+    (tmp_path / "app.py").write_text(
+        "import os\nimport cv2\nfrom PIL import Image\nimport psycopg2\n"
+    )
+    # NO pyproject.toml -> no manifest-declared roots. Repair is the only path
+    # that can populate the Package layer here.
+    round1 = (
+        "numpy==1.26.4\n    # via opencv-python\n"
+        "opencv-python==4.9.0.80\n    # via -r -\n"
+        "Pillow==10.3.0\n    # via -r -\n"
+        "psycopg2==2.9.9\n    # via -r -\n"
+    )
+    ex = SequencedFakeExecutor(
+        responses={
+            "uv lock": [_r(1, stderr="lock unavailable")],
+            "uv pip compile": [_r(stdout=round1)],
+            "pip install": [_r(0)],
+        },
+        default=_r(0),
+    )
+    provided = {"opencv-python": {"cv2"}, "Pillow": {"PIL"}, "psycopg2": {"psycopg2"}}
+    norm = {_norm(k): v for k, v in provided.items()}
+    provider = lambda dist: norm.get(_norm(dist))  # noqa: E731
+
+    graph = build_dep_graph(
+        str(tmp_path), ex, host_executor=ex, record_provider=provider
+    )
+
+    for dist, ver in (
+        ("opencv-python", "4.9.0.80"),
+        ("Pillow", "10.3.0"),
+        ("psycopg2", "2.9.9"),
+    ):
+        node = graph.get(package_id(dist, ver))
+        assert node is not None, f"{dist} package missing after repair"
+        assert node.discovered_by is _DB.AUDIT, f"{dist} should be AUDIT-discovered"
+    # A transitive dep pulled in by a repaired root stays RESOLVER (not AUDIT).
+    numpy = graph.get(package_id("numpy", "1.26.4"))
+    assert numpy is not None and numpy.discovered_by is DiscoveredBy.RESOLVER
+
+

@@ -222,6 +222,7 @@ def resolve_closure(
     exclude_newer: str | None = None,
     project_dir: str | None = None,
     extras: frozenset[str] = frozenset(),
+    audit_root_names: frozenset[str] = frozenset(),
 ) -> tuple[list[Node], list[Edge]]:
     """Resolve ``roots`` to a Package closure (nodes + edges) via ``uv.lock``.
 
@@ -250,6 +251,12 @@ def resolve_closure(
     groups were considered (see :func:`_write_pyproject`); the groups'
     requirement bodies themselves reach the resolver via ``roots`` /
     ``dist_names``, not through this table.
+
+    ``audit_root_names`` (P1.4 Correction 2a) is the set of canonical names of
+    roots the Phase-A repair fixpoint *added* (``DiscoveredBy.AUDIT``). It is
+    threaded into the drop-retry's :func:`_offending_root_names` so a conflict
+    prefers dropping a repaired root over a manifest-declared one — a repaired
+    root must never evict a declared dependency. Default empty = today's behavior.
 
     A throwaway uv project is created in a temp dir (or ``project_dir`` when
     injected, for tests), ``uv lock`` is run on the host through
@@ -309,7 +316,9 @@ def resolve_closure(
             diag_nodes, diag_edges = _merge(diag_nodes, diag_edges, dn, de)
 
             current_root_names = {_canon(_req_name(r[1])) for r in current}
-            offending = _offending_root_names(diag, current_root_names)
+            offending = _offending_root_names(
+                diag, current_root_names, audit_root_names
+            )
             remaining = [
                 r for r in current if _canon(_req_name(r[1])) not in offending
             ]

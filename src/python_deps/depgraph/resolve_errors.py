@@ -351,30 +351,48 @@ def _diagnosis_to_graph(diag: ResolverDiagnosis) -> tuple[list[Node], list[Edge]
     return nodes, edges
 
 
-def _offending_root_names(diag: ResolverDiagnosis, current_root_names: set[str]) -> set[str]:
+def _offending_root_names(
+    diag: ResolverDiagnosis,
+    current_root_names: set[str],
+    audit_root_names: "frozenset[str]" = frozenset(),
+) -> set[str]:
     """Canonical names of ROOTS to drop for a retry. Missing packages are always
     dropped. For a version conflict: if the conflicted package is itself a root
     (a direct pin), drop it and KEEP the imposers (avoids collapsing both
     subtrees). If it is purely transitive (not a current root), dropping its
     name would not shrink the root set, so drop one imposer that is a current
     root instead so the retry can still make progress and the other subtree
-    survives. The conflict is recorded as an advisory edge either way."""
+    survives. The conflict is recorded as an advisory edge either way.
+
+    Declared-drop-priority (P1.4 Correction 2a): ``audit_root_names`` is the set
+    of canonical names of roots that a Phase-A repair *added* (``DiscoveredBy.
+    AUDIT``), never a manifest declaration. When a conflict offers a choice of
+    which root to drop, an AUDIT root is preferred over a manifest-declared one —
+    a repaired root must NEVER evict a declared dependency (whose imports would
+    then re-audit missing -> re-add -> oscillate). With the default empty set the
+    behavior is exactly as before."""
     names: set[str] = {_canon(m.name) for m in diag.missing}
     for c in diag.conflicts:
         pkg = _canon(c.package)
-        if pkg in current_root_names:
-            names.add(pkg)
+        # Immediate imposers that are themselves current roots (dropping a
+        # transitive/non-root imposer cannot shrink the root set).
+        root_imposers = sorted(
+            _canon(i)
+            for i in (_real_imposer(c.left.imposed_by), _real_imposer(c.right.imposed_by))
+            if i and _canon(i) in current_root_names
+        )
+        # Droppable roots for THIS conflict: the shared pin (when it is a root)
+        # plus the root imposers. If none, the immediate-imposer diagnosis can't
+        # name a droppable root -> add nothing, let the retry fall through.
+        candidates = ([pkg] if pkg in current_root_names else []) + root_imposers
+        if not candidates:
+            continue
+        audit_candidates = [c for c in candidates if c in audit_root_names]
+        if audit_candidates:
+            names.add(audit_candidates[0])  # never evict a declared root while an
+            # AUDIT root is droppable (Correction 2a).
+        elif pkg in current_root_names:
+            names.add(pkg)  # today's behavior: drop the shared pin.
         else:
-            # Prefer an imposer that is itself a current root — dropping a
-            # non-root (transitive) imposer cannot shrink the root set, so the
-            # retry would make no progress. If neither immediate imposer is a
-            # current root, the diagnosis (immediate imposers only) can't name a
-            # droppable root; add nothing and let the retry fall through.
-            root_imposers = sorted(
-                _canon(i)
-                for i in (_real_imposer(c.left.imposed_by), _real_imposer(c.right.imposed_by))
-                if i and _canon(i) in current_root_names
-            )
-            if root_imposers:
-                names.add(root_imposers[0])
+            names.add(root_imposers[0])  # today's behavior: drop one imposer.
     return names

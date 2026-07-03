@@ -325,6 +325,18 @@ class DepGraph:
         edges = tuple(e for e in self.edges if e.src != node_id and e.dst != node_id)
         return replace(self, nodes=nodes, edges=edges)
 
+    def without_edge(self, edge: Edge) -> "DepGraph":
+        """Remove the edge matching ``edge``'s (src, dst, relation) key.
+
+        Companion to :meth:`without_node`, used by the Phase-A repair fixpoint to
+        drop a prior round's Package->Package edge the new resolve no longer emits
+        (a version shift orphans stale edges even when both endpoints survive).
+        A no-op when no edge with that key is present. Returns a NEW graph.
+        """
+        key = edge.key()
+        edges = tuple(e for e in self.edges if e.key() != key)
+        return replace(self, edges=edges)
+
     def requires_of(self, node_id: str) -> tuple[Node, ...]:
         """Successor nodes reachable from ``node_id`` via a requires edge."""
         out = []

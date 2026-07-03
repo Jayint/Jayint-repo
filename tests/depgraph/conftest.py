@@ -80,6 +80,77 @@ class FakeExecutor:
         )
 
 
+class SequencedFakeExecutor:
+    """Executor whose canned results can DIFFER across successive calls.
+
+    Like :class:`FakeExecutor`, ``run(command)`` matches ``command`` against the
+    substring keys (longest wins), but each key maps to a QUEUE of results: the
+    first is popped per matching call and the LAST one repeats once the queue
+    drains. This lets the Phase-A fixpoint's per-round commands (``uv lock`` /
+    ``uv pip compile`` / ``pip install`` / ``packages_distributions``) return
+    different output on round 1 vs round 2. ``default`` and the ``.calls`` /
+    ``.timeouts`` bookkeeping mirror ``FakeExecutor`` exactly.
+
+    Bonus for the ``uv lock`` path: when a matched ``uv lock`` command's result is
+    ``ok`` and carries stdout, that stdout is written to the temp project's
+    ``uv.lock`` (parsed from the leading ``cd <workdir> &&``), so a test can drive
+    the real lock-read + drop-retry path (not just the degraded pip-compile
+    fallback). A non-ok ``uv lock`` writes nothing, so the resolve falls back.
+    """
+
+    def __init__(
+        self,
+        responses: dict[str, list[CommandResult]] | None = None,
+        default: CommandResult | None = None,
+    ) -> None:
+        self.responses: dict[str, list[CommandResult]] = {
+            key: list(queue) for key, queue in (responses or {}).items()
+        }
+        self.default: CommandResult | None = default
+        self.calls: list[str] = []
+        self.timeouts: list[int] = []
+
+    def run(self, command: str, *, timeout: int = 300) -> CommandResult:
+        self.calls.append(command)
+        self.timeouts.append(timeout)
+        matches = [key for key in self.responses if key in command]
+        if matches:
+            best = max(matches, key=len)
+            queue = self.responses[best]
+            if queue:
+                result = queue.pop(0) if len(queue) > 1 else queue[0]
+                self._maybe_write_lock(command, result)
+                return result
+        if self.default is not None:
+            return self.default
+        return CommandResult(
+            command=command,
+            returncode=127,
+            stdout="",
+            stderr="no fake response",
+        )
+
+    @staticmethod
+    def _maybe_write_lock(command: str, result: CommandResult) -> None:
+        import os
+        import shlex
+
+        if "uv lock" not in command or not result.ok or not result.stdout:
+            return
+        head = command.split("&&", 1)[0].strip()
+        try:
+            parts = shlex.split(head)
+        except ValueError:
+            return
+        if len(parts) >= 2 and parts[0] == "cd":
+            workdir = parts[1]
+            try:
+                with open(os.path.join(workdir, "uv.lock"), "w", encoding="utf-8") as fh:
+                    fh.write(result.stdout)
+            except OSError:
+                pass
+
+
 @pytest.fixture
 def make_result_fixture():
     return make_result
