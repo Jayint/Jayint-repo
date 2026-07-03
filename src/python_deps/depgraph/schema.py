@@ -69,6 +69,10 @@ class DiscoveredBy(enum.Enum):
     RESOLVER = "resolver"
     PROBE = "probe"
     RUNTIME = "runtime"
+    # An under-declared root added by the Phase-A repair overlay: discovered by
+    # auditing imports against the installed environment, never conflated with a
+    # manifest declaration (RESOLVER) or a static-scan import (STATIC_SCAN).
+    AUDIT = "audit"
 
 
 class Layer(enum.Enum):
