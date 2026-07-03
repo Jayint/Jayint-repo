@@ -25,8 +25,8 @@ can be A/B-evaluated; this module does not modify anything under
 from __future__ import annotations
 
 from python_deps.pkg_layer.align import Alignment, align
-from python_deps.pkg_layer.contract import read_contract, select_roots
-from python_deps.pkg_layer.planes import PackageLayer, ProvidedEdge, _canon
+from python_deps.pkg_layer.contract import in_scope_deps, read_contract
+from python_deps.pkg_layer.planes import PackageLayer, ProvidedEdge
 from python_deps.pkg_layer.usage import scan_usage
 
 
@@ -40,25 +40,23 @@ def build_package_layer(
 
     ``needed_extras`` gates which ``[project.optional-dependencies]`` /
     ``extras_require`` groups are in scope, exactly as
-    ``contract.select_roots`` defines it: every runtime (non-optional)
+    ``contract.in_scope_deps`` defines it: every runtime (non-optional)
     declared dep is always in scope; an optional-dependency dep is in scope
-    only when its group is a member of ``needed_extras``. The resulting
-    canon-token roots are matched back onto the FULL declared set so
-    ``PackageLayer.contract`` carries the real ``DeclaredDep`` rows (not just
-    names) for exactly that in-scope subset -- an excluded optional group's
-    deps never leak into the layer, and imports are never consulted for this
-    decision (structurally ruling out the ``depgraph.roots`` gap-fill bug).
+    only when its group is a member of ``needed_extras``. ``PackageLayer.
+    contract`` is set directly to ``in_scope_deps(contract, needed_extras)``
+    -- the ROW-LEVEL in-scope subset -- rather than a name-membership filter
+    over the full contract: a distribution declared BOTH as a base
+    dependency AND inside an EXCLUDED optional group would otherwise leak
+    the excluded row back in, since its name still passes a membership
+    check against the in-scope name set. Imports are never consulted for
+    this decision either (structurally ruling out the ``depgraph.roots``
+    gap-fill bug).
     """
     contract = read_contract(repo_dir)
     imports = scan_usage(repo_dir)
 
-    in_scope_canons = frozenset(select_roots(contract, needed_extras))
-    in_scope_contract = tuple(
-        dep for dep in contract if _canon(dep.name) in in_scope_canons
-    )
-
     layer = PackageLayer(
-        contract=in_scope_contract,
+        contract=in_scope_deps(contract, needed_extras),
         closure=(),
         imports=imports,
         provided=tuple(provided),

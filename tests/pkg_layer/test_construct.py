@@ -83,6 +83,33 @@ def test_build_package_layer_excludes_ungated_optional_group(tmp_path):
     assert "brotli" not in names
 
 
+def test_build_package_layer_excludes_row_declared_in_ungated_optional_group_even_when_also_a_base_dep(
+    tmp_path,
+):
+    # Regression: a dist declared BOTH as a base dependency AND inside an
+    # EXCLUDED optional group used to leak the excluded optional-group ROW
+    # into layer.contract, because the old implementation filtered the full
+    # contract on NAME membership against the selected roots -- and the
+    # base-dependency row's presence made the shared name pass that filter.
+    # The fix uses row-level scope (`contract.in_scope_deps`) instead.
+    _write_pyproject(
+        tmp_path,
+        deps=["widget>=1.0"],
+        optional={"extras": ["widget>=2.0"]},
+    )
+    (tmp_path / "app.py").write_text("import widget\n")
+
+    layer, _alignment = build_package_layer(str(tmp_path))
+
+    widget_rows = [dep for dep in layer.contract if dep.name == "widget"]
+    assert len(widget_rows) == 1
+    assert widget_rows[0].kind == "dependency"
+    assert not any(
+        dep.name == "widget" and dep.kind == "optional_dependency"
+        for dep in layer.contract
+    )
+
+
 def test_build_package_layer_includes_gated_optional_group(tmp_path):
     _write_pyproject(
         tmp_path, deps=["requests>=2.0"], optional={"speedups": ["brotli"]}

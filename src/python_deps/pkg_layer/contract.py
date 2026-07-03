@@ -49,6 +49,35 @@ def read_contract(repo_path: str) -> tuple[DeclaredDep, ...]:
     )
 
 
+def in_scope_deps(
+    contract: tuple[DeclaredDep, ...], needed_extras: frozenset[str]
+) -> tuple[DeclaredDep, ...]:
+    """The ROW-LEVEL in-scope subset of ``contract`` -- the single source of
+    truth for what "in scope" means for a given ``needed_extras``.
+
+    Returns exactly: every ``kind=="dependency"`` row, plus every
+    ``kind=="optional_dependency"`` row whose ``group`` is a member of
+    ``needed_extras``. Nothing else -- in particular, no import/usage
+    evidence is consulted here either.
+
+    ``select_roots`` derives its canon-deduped name list from this same set.
+    Callers that need the full ``DeclaredDep`` rows for the in-scope subset
+    (e.g. ``pkg_layer.construct.build_package_layer``) must use this function
+    directly rather than re-deriving scope via name membership against
+    ``select_roots``'s output: a distribution declared BOTH as a base
+    ``kind=="dependency"`` AND inside an EXCLUDED optional group shares its
+    name with an in-scope row, so a name-membership filter would incorrectly
+    let the excluded optional-group row back in. Row identity, not name
+    identity, is what "in scope" means.
+    """
+    return tuple(
+        dep
+        for dep in contract
+        if dep.kind == "dependency"
+        or (dep.kind == "optional_dependency" and dep.group in needed_extras)
+    )
+
+
 def select_roots(
     contract: tuple[DeclaredDep, ...], needed_extras: frozenset[str]
 ) -> tuple[str, ...]:
@@ -60,15 +89,13 @@ def select_roots(
     import/usage evidence is consulted, so an optional dep excluded from
     ``needed_extras`` cannot be re-added by the code happening to import it
     (the bug this design structurally rules out).
+
+    Derived from :func:`in_scope_deps`, canon-deduped to names -- this
+    function's observable behaviour is unchanged by that refactor.
     """
     seen: set[str] = set()
     roots: list[str] = []
-    for dep in contract:
-        if dep.kind == "optional_dependency":
-            if dep.group not in needed_extras:
-                continue
-        elif dep.kind != "dependency":
-            continue
+    for dep in in_scope_deps(contract, needed_extras):
         canon = _canon(dep.name)
         if canon in seen:
             continue

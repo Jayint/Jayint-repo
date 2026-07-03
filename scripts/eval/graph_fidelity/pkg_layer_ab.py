@@ -68,7 +68,15 @@ def _bare_name(token: str) -> str:
     counterpart and be misreported as a root-selection divergence, even
     though both designs agree it's a root. Idempotent on an already-bare
     name.
+
+    ``token`` is stripped of leading/trailing whitespace first: a
+    manifest-declared token can carry leading whitespace (e.g. ``" numpy<2"``
+    from a loosely-formatted requirements line), and ``_NAME_PREFIX_RE``
+    anchors at the start of the string, so an un-stripped leading space
+    would make the regex fail to match the name at all and return the token
+    unchanged -- a false divergence against NEW's bare, stripped name.
     """
+    token = token.strip()
     match = _NAME_PREFIX_RE.match(token)
     return match.group(0) if match else token
 

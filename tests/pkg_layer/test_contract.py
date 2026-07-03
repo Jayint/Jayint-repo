@@ -9,8 +9,48 @@ import input at all.
 """
 from __future__ import annotations
 
-from python_deps.pkg_layer.contract import read_contract, select_roots
+from python_deps.pkg_layer.contract import in_scope_deps, read_contract, select_roots
 from python_deps.pkg_layer.planes import DeclaredDep
+
+
+# --------------------------------------------------------------------------- #
+# in_scope_deps: row-level scope, the single source of truth select_roots
+# derives its name list from
+# --------------------------------------------------------------------------- #
+
+def test_in_scope_deps_excludes_row_declared_in_ungated_optional_group():
+    base = DeclaredDep(
+        name="widget", kind="dependency", specifier=None, marker=None, group=None
+    )
+    excluded_optional = DeclaredDep(
+        name="widget", kind="optional_dependency", specifier=None, marker=None,
+        group="extras",
+    )
+    contract = (base, excluded_optional)
+
+    in_scope = in_scope_deps(contract, needed_extras=frozenset())
+
+    # The base-dependency row is in scope; the excluded optional-group row
+    # for the SAME distribution name must not leak in just because its name
+    # also appears on an in-scope row (the scope-leak bug being fixed).
+    assert base in in_scope
+    assert excluded_optional not in in_scope
+    assert in_scope == (base,)
+
+
+def test_in_scope_deps_includes_row_declared_in_gated_optional_group():
+    optional_dep = DeclaredDep(
+        name="brotli", kind="optional_dependency", specifier=None, marker=None,
+        group="speedups",
+    )
+
+    in_scope = in_scope_deps((optional_dep,), needed_extras=frozenset({"speedups"}))
+
+    assert in_scope == (optional_dep,)
+
+
+def test_in_scope_deps_empty_contract_returns_empty_tuple():
+    assert in_scope_deps((), needed_extras=frozenset()) == ()
 
 
 # --------------------------------------------------------------------------- #

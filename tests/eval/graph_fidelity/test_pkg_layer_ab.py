@@ -44,6 +44,16 @@ def test_bare_name_idempotent_on_plain_name():
     assert _bare_name("requests") == "requests"
 
 
+def test_bare_name_strips_leading_whitespace_before_matching():
+    # A leading space (e.g. from a loosely-formatted requirements line) must
+    # not defeat the anchored name-prefix regex -- otherwise the token comes
+    # back unchanged (" numpy<2"), canonizes to a different string than the
+    # stripped "numpy", and is misreported as a divergence.
+    assert _bare_name(" numpy<2") == "numpy"
+    assert _bare_name("  uvicorn[standard]>=0.30") == "uvicorn"
+    assert _bare_name(" requests ") == "requests"
+
+
 # --- build_divergence -------------------------------------------------------
 
 def test_build_divergence_specifier_carrying_declared_root_not_divergent():
