@@ -163,6 +163,10 @@ class Node:
     resolved_python: str | None = None
     resolved_platform: str | None = None
     exclude_newer: str | None = None  # uv resolve cutoff (reproducibility)
+    # Routing/composition axis (multi-language seam). Default keeps every existing
+    # Python node unchanged; conditionally serialized (omit-if-default) in
+    # ``to_dict`` so Python nodes stay byte-identical. Rust/Node carry "rust"/"node".
+    ecosystem: str = "python"
     data: dict = field(default_factory=dict)  # general per-node metadata bag
     # --- install-command generation (uniform-graph) ---
     # setup_commands is the node's canonical "how" (the only command source the
@@ -204,7 +208,7 @@ class Node:
         return replace(self, attempts=self.attempts + (attempt,))
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "id": self.id,
             "type": self.type.value,
             "name": self.name,
@@ -232,6 +236,11 @@ class Node:
             "phase": self.phase.value,
             "data": dict(self.data),
         }
+        # Omit-if-default: Python nodes serialize byte-identically (no "ecosystem"
+        # key); only Rust/Node nodes emit it. Load-bearing for oracle (c).
+        if self.ecosystem != "python":
+            out["ecosystem"] = self.ecosystem
+        return out
 
 
 @dataclass(frozen=True)
