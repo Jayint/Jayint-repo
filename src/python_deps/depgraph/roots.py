@@ -130,17 +130,35 @@ def _manifest_root_token(req) -> str:
     return name
 
 
-# Optional-dependency group name embedded at the tail of a requirement's
-# ``source`` string by evidence.py, e.g.
-# ``pyproject.toml:project.optional-dependencies.test`` -> ``test``, or
-# ``setup.cfg:options.extras_require.docs`` -> ``docs``.
-_OPTIONAL_GROUP_RE = re.compile(r"(?:optional-dependencies|extras_require)\.(.+)$")
+# Group/role sub-label embedded at the tail of a requirement's ``source`` string
+# by evidence.py:
+#   pyproject.toml:project.optional-dependencies.test  -> test    (feature extra)
+#   setup.cfg:options.extras_require.docs              -> docs    (feature extra)
+#   pyproject.toml:dependency-groups.typing            -> typing  (PEP 735 dev group)
+#   requirements-file.dev                              -> dev     (dev/test reqs file)
+_OPTIONAL_GROUP_RE = re.compile(
+    r"(?:optional-dependencies|extras_require|dependency-groups|requirements-file)\.(.+)$"
+)
 
 
 def _requirement_group(source: str) -> str:
-    """Extras-group name a ``kind=="optional_dependency"`` requirement belongs to."""
+    """Group/role sub-label a non-runtime requirement belongs to (``""`` if none)."""
     match = _OPTIONAL_GROUP_RE.search(source or "")
     return match.group(1) if match else ""
+
+
+# Dev/test groups NOT needed to run the test suite: docs builders and
+# release/packaging tooling. Every OTHER dev_group (test, lint, typing, dev, ...)
+# is default-included (recall-first; the testability gate + Phase-A repair back it
+# up). Matched case-insensitively against the normalized group name.
+_DEV_GROUP_DENYLIST: frozenset[str] = frozenset(
+    {
+        "docs", "doc", "documentation",
+        "release", "publish", "deploy",
+        "benchmark", "benchmarks", "profiling",
+        "examples", "demo",
+    }
+)
 
 
 def _is_non_distribution(import_name: str) -> bool:

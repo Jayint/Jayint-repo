@@ -130,3 +130,14 @@ def test_build_import_mappings_omits_unresolved(monkeypatch):
     names = {m.import_name for m in mappings}
     assert "requests" in names
     assert "mystery" not in names
+
+
+def test_evidence_used_extras_defaults_to_empty_set():
+    ev = PythonDependencyEvidence(repo_path="/x")
+    assert ev.used_extras == set()
+
+
+def test_evidence_to_dict_includes_sorted_used_extras():
+    ev = PythonDependencyEvidence(repo_path="/x")
+    ev.used_extras.update({"socks", "http2"})
+    assert ev.to_dict()["used_extras"] == ["http2", "socks"]

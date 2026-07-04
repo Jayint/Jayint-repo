@@ -86,6 +86,7 @@ class PythonDependencyEvidence:
     python_requires: list[PythonVersionRequirement] = field(default_factory=list)
     declared_dependencies: list[PythonRequirement] = field(default_factory=list)
     constraint_dependencies: list[PythonRequirement] = field(default_factory=list)
+    used_extras: set[str] = field(default_factory=set)
     imports: list[ImportFinding] = field(default_factory=list)
     import_package_mappings: list[ImportPackageMapping] = field(default_factory=list)
     project_local_modules: list[str] = field(default_factory=list)
@@ -102,6 +103,7 @@ class PythonDependencyEvidence:
             "python_requires": [item.to_dict() for item in self.python_requires],
             "declared_dependencies": [item.to_dict() for item in self.declared_dependencies],
             "constraint_dependencies": [item.to_dict() for item in self.constraint_dependencies],
+            "used_extras": sorted(self.used_extras),
             "imports": [item.to_dict() for item in self.imports],
             "import_graph": {
                 key: sorted(set(values))

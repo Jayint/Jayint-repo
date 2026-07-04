@@ -457,3 +457,37 @@ def test_unmarked_dep_always_kept(tmp_path):
 
     dists = {dist for _imp, dist in roots}
     assert "foo" in dists
+
+
+from python_deps.depgraph.roots import _requirement_group, _DEV_GROUP_DENYLIST
+
+
+def test_requirement_group_parses_optional_dependencies_source():
+    assert _requirement_group("pyproject.toml:project.optional-dependencies.test") == "test"
+
+
+def test_requirement_group_parses_extras_require_source():
+    assert _requirement_group("setup.cfg:options.extras_require.docs") == "docs"
+
+
+def test_requirement_group_parses_dependency_groups_source():
+    assert _requirement_group("pyproject.toml:dependency-groups.typing") == "typing"
+
+
+def test_requirement_group_parses_requirements_file_source():
+    assert _requirement_group("requirements-file.dev") == "dev"
+
+
+def test_requirement_group_no_match_returns_empty():
+    assert _requirement_group("pyproject.toml:project.dependencies") == ""
+
+
+def test_dev_group_denylist_contents():
+    assert _DEV_GROUP_DENYLIST == frozenset(
+        {
+            "docs", "doc", "documentation",
+            "release", "publish", "deploy",
+            "benchmark", "benchmarks", "profiling",
+            "examples", "demo",
+        }
+    )
