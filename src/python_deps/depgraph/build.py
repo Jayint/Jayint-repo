@@ -430,7 +430,7 @@ def _phase_a_fixpoint(
     return graph
 
 
-def build_dep_graph(
+def _python_package_obligations(
     repo_path: str,
     container_executor: Executor,
     *,
@@ -440,50 +440,15 @@ def build_dep_graph(
     exclude_newer: str | None = None,
     needed_extras: frozenset[str] = frozenset(),
     record_provider: RecordProvider | None = None,
-) -> DepGraph:
-    """Build a host-certified dependency graph for ``repo_path``.
+) -> tuple[DepGraph, list, object, str | None]:
+    """Python PHASE 1 — VERBATIM move of build_dep_graph body lines 488-608.
 
-    ``container_executor`` runs install/probe/certify inside the target container;
-    ``host_executor`` (default :class:`LocalSubprocessExecutor`) runs the
-    host-side ``uv`` resolve.  A single :class:`TargetEnv` (Task 7) is detected
-    from the container (``detect_target_env`` — one probe covering interpreter
-    version, ``sys_platform``/``os_name``/``platform_machine``, and a glibc/musl
-    guess for the wheel/uv platform tag used at PARSE time -- ``uv lock`` is
-    universal and takes no platform flag of its own) so the resolve — and every
-    PEP 508 marker it evaluates — targets the CONTAINER, never the host running
-    this function.  ``target_python`` / ``target_platform`` remain accepted as
-    caller overrides that patch the detected env (a hardcoded python would pin
-    wheels for the wrong interpreter; an unset default would leak the dev host's
-    own platform into the resolve).  The detected/patched ``TargetEnv`` OBJECT is
-    passed straight into :func:`resolve_closure` (never decomposed into two
-    strings first) so its RAW ``platform_machine`` — not a normalized wheel-tag
-    stand-in — is what every marker evaluation downstream actually sees.  See
-    the module docstring for the staged pipeline.  Returns the final immutable
-    ``DepGraph``; certificates produced here are provisional (scratch-container
-    scope) per design section 4.6.
-
-    ``needed_extras`` (Task 8, targeted extras) is the set of
-    ``[project.optional-dependencies]`` / ``extras_require`` group names this
-    build actually needs (e.g. ``{"test"}`` when the goal is running the test
-    suite). It is threaded, unchanged, into both :func:`select_roots` (which
-    gates which optional groups become roots at all — fixing the prior
-    "union every group" bug) and :func:`resolve_closure` (which records the
-    chosen groups' scope in the resolver's temp pyproject). The default is
-    deliberately runtime-only (``frozenset()``), NOT a union of every declared
-    group. **Seam, not policy**: this function does not itself discover which
-    extras a repo's CI/tox/Makefile actually invokes (e.g. `pip install -e
-    .[test]`) — that discovery is separate future enrichment (cluster-1); a
-    caller that already knows the needed groups passes them here.
-
-    ``record_provider`` (P1.4/P1.5) is the RECORD-union coverage oracle the
-    Phase-A repair fixpoint audits imports against: ``dist name -> {top-level
-    modules}`` or ``None`` (no wheel to read). Injected in tests (a fake, no
-    network); when omitted the production DEFAULT is
-    :func:`coverage.composite_record_provider` over the cheap post-install
-    container reader (:func:`coverage.default_record_provider`) and the PRE-install
-    PyPI wheel reader (:func:`coverage.pypi_record_provider`) — so a not-yet-
-    installed repair candidate is grounded from PyPI (P1.5, making production
-    repair functional) while already-installed closure members stay network-free.
+    Scan -> target-env -> declared roots -> era-anchor (ONCE, INV-1) -> Runtime
+    node -> composite record-provider default (constructed HERE at the old
+    569-571 site, INV-8) -> Phase-A repair fixpoint -> aux-once (project/tools/
+    seed) -> resolver restamp (INV-7). Returns (graph, roots, target_env,
+    exclude_newer); only ``graph`` flows onward — the other three are provider-
+    composition / test-visibility surface (never read again after the fixpoint).
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -606,6 +571,76 @@ def build_dep_graph(
         if n.id not in pre_resolve_ids and n.discovered_by is not DiscoveredBy.PROBE
     }
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
+    return graph, roots, target_env, exclude_newer
+
+
+def build_dep_graph(
+    repo_path: str,
+    container_executor: Executor,
+    *,
+    host_executor: Executor | None = None,
+    target_python: str | None = None,
+    target_platform: str | None = None,
+    exclude_newer: str | None = None,
+    needed_extras: frozenset[str] = frozenset(),
+    record_provider: RecordProvider | None = None,
+) -> DepGraph:
+    """Build a host-certified dependency graph for ``repo_path``.
+
+    ``container_executor`` runs install/probe/certify inside the target container;
+    ``host_executor`` (default :class:`LocalSubprocessExecutor`) runs the
+    host-side ``uv`` resolve.  A single :class:`TargetEnv` (Task 7) is detected
+    from the container (``detect_target_env`` — one probe covering interpreter
+    version, ``sys_platform``/``os_name``/``platform_machine``, and a glibc/musl
+    guess for the wheel/uv platform tag used at PARSE time -- ``uv lock`` is
+    universal and takes no platform flag of its own) so the resolve — and every
+    PEP 508 marker it evaluates — targets the CONTAINER, never the host running
+    this function.  ``target_python`` / ``target_platform`` remain accepted as
+    caller overrides that patch the detected env (a hardcoded python would pin
+    wheels for the wrong interpreter; an unset default would leak the dev host's
+    own platform into the resolve).  The detected/patched ``TargetEnv`` OBJECT is
+    passed straight into :func:`resolve_closure` (never decomposed into two
+    strings first) so its RAW ``platform_machine`` — not a normalized wheel-tag
+    stand-in — is what every marker evaluation downstream actually sees.  See
+    the module docstring for the staged pipeline.  Returns the final immutable
+    ``DepGraph``; certificates produced here are provisional (scratch-container
+    scope) per design section 4.6.
+
+    ``needed_extras`` (Task 8, targeted extras) is the set of
+    ``[project.optional-dependencies]`` / ``extras_require`` group names this
+    build actually needs (e.g. ``{"test"}`` when the goal is running the test
+    suite). It is threaded, unchanged, into both :func:`select_roots` (which
+    gates which optional groups become roots at all — fixing the prior
+    "union every group" bug) and :func:`resolve_closure` (which records the
+    chosen groups' scope in the resolver's temp pyproject). The default is
+    deliberately runtime-only (``frozenset()``), NOT a union of every declared
+    group. **Seam, not policy**: this function does not itself discover which
+    extras a repo's CI/tox/Makefile actually invokes (e.g. `pip install -e
+    .[test]`) — that discovery is separate future enrichment (cluster-1); a
+    caller that already knows the needed groups passes them here.
+
+    ``record_provider`` (P1.4/P1.5) is the RECORD-union coverage oracle the
+    Phase-A repair fixpoint audits imports against: ``dist name -> {top-level
+    modules}`` or ``None`` (no wheel to read). Injected in tests (a fake, no
+    network); when omitted the production DEFAULT is
+    :func:`coverage.composite_record_provider` over the cheap post-install
+    container reader (:func:`coverage.default_record_provider`) and the PRE-install
+    PyPI wheel reader (:func:`coverage.pypi_record_provider`) — so a not-yet-
+    installed repair candidate is grounded from PyPI (P1.5, making production
+    repair functional) while already-installed closure members stay network-free.
+    """
+    graph, roots, target_env, exclude_newer = _python_package_obligations(
+        repo_path,
+        container_executor,
+        host_executor=host_executor,
+        target_python=target_python,
+        target_platform=target_platform,
+        exclude_newer=exclude_newer,
+        needed_extras=needed_extras,
+        record_provider=record_provider,
+    )
+    # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
+    # provider-composition / test-visibility surface (spec extraction boundary).
 
     # === Phase B — tier descent on the CONVERGED closure, "look then derive". ===
     # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK,
@@ -629,7 +664,7 @@ def build_dep_graph(
     probe_ids = {
         n.id
         for n in graph.nodes
-        if n.id not in pre_resolve_ids and n.discovered_by is DiscoveredBy.PROBE
+        if n.discovered_by is DiscoveredBy.PROBE
     }
     graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
 
