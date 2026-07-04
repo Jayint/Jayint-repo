@@ -11,7 +11,7 @@ from typing import Iterable
 from packaging.requirements import InvalidRequirement, Requirement
 
 from .import_graph import collect_pydeps_evidence, scan_imports
-from .import_mapping import is_unresolved, map_import_to_package
+from .import_mapping import is_unresolved, map_import_to_package, normalize_package_name
 from .models import (
     ImportPackageMapping,
     PythonDependencyEvidence,
@@ -327,9 +327,12 @@ def _ingest_requirements_file(
         editable = _EDITABLE_SELF_EXTRAS_RE.match(line)
         if editable:
             for extra in editable.group(1).split(","):
-                normalized = extra.strip().lower()
-                if normalized:
-                    evidence.used_extras.add(normalized)
+                stripped = extra.strip()
+                if stripped:
+                    # PEP 685: normalize separators (-/_/.) the same way as
+                    # distribution names so `-e .[socks-extra]` matches an
+                    # optional-dependencies group declared `socks_extra`.
+                    evidence.used_extras.add(normalize_package_name(stripped))
             continue
         include = _INCLUDE_RE.match(line)
         if include:
@@ -512,4 +515,16 @@ def _literal_extras_require(node: ast.AST) -> dict[str, list[str]]:
 
 
 def _relative_source(root: Path, path: Path) -> str:
-    return os.path.relpath(path, root)
+    """Repo-relative provenance path, resolved on BOTH sides.
+
+    ``path`` is frequently pre-resolved by the caller (e.g.
+    ``_ingest_requirements_file`` resolves for cycle detection) while ``root``
+    is left as given. On a repo root that resolves through a symlink (macOS
+    ``/var`` -> ``/private/var`` is the common case), comparing a resolved
+    ``path`` against an unresolved ``root`` makes ``os.path.relpath`` walk up
+    through the divergent prefix and emit garbage like
+    ``../../../../private/var/.../requirements.txt`` instead of the intended
+    ``requirements.txt``. Resolving both sides here keeps this function
+    correct regardless of what the caller already resolved.
+    """
+    return os.path.relpath(Path(path).resolve(), Path(root).resolve())

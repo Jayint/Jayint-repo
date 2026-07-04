@@ -183,7 +183,7 @@ def _in_test_scope(req, in_scope_extras: frozenset[str]) -> bool:
     kind = getattr(req, "kind", "dependency")
     if kind == "dependency":
         return True
-    group = _requirement_group(getattr(req, "source", "")).strip().lower()
+    group = normalize_package_name(_requirement_group(getattr(req, "source", "")))
     if kind == "optional_dependency":
         return group in in_scope_extras
     if kind == "dev_group":
@@ -324,11 +324,14 @@ def select_roots(
     evidence = collect_python_dependency_evidence(repo_path)
 
     # Feature-extras in scope = caller/CI override ∪ the repo's own ``-e .[...]``
-    # self-install signals (evidence.used_extras). Normalized to lowercase to
-    # match declared group names (PEP 685 extras compare normalized).
+    # self-install signals (evidence.used_extras). Normalized PEP 685-style
+    # (separators -/_/. collapsed to a single ``-``, lowercased) via the same
+    # `normalize_package_name` used for distribution names, so a dash-form
+    # signal (``-e .[socks-extra]``) matches an underscore-form declared group
+    # (``socks_extra``) instead of silently missing it.
     in_scope_extras = frozenset(
-        extra.strip().lower() for extra in needed_extras
-    ) | frozenset(extra.strip().lower() for extra in evidence.used_extras)
+        normalize_package_name(extra) for extra in needed_extras
+    ) | frozenset(normalize_package_name(extra) for extra in evidence.used_extras)
 
     roots: list[tuple[str | None, str]] = []
     seen: set[str] = set()

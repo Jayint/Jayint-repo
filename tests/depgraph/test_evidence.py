@@ -362,3 +362,28 @@ def test_include_depth_cap_bites_on_linear_chain(tmp_path):
     for i in range(6):  # pkg0..pkg5: depths 0..5, all processed
         assert f"pkg{i}" in names
     assert "pkg6" not in names  # depth 6: guard `depth > 5` returns before reading
+
+
+def test_requirements_file_source_survives_symlinked_root(tmp_path):
+    # Bug: _ingest_requirements_file resolves `path` (for cycle detection) but
+    # NOT `root` before computing the relpath-based `source`. On a repo root
+    # that resolves through a symlink (e.g. macOS /var -> /private/var), the
+    # divergent prefix makes os.path.relpath walk upward, corrupting `source`
+    # into something like "../../../../private/var/.../requirements.txt"
+    # instead of the clean relative path "requirements.txt".
+    #
+    # Constructed via an explicit symlink (real/proj -> link/proj) so the
+    # root/resolved divergence is forced on every platform, not just macOS.
+    real_root = tmp_path / "real" / "proj"
+    real_root.mkdir(parents=True)
+    (real_root / "requirements.txt").write_text("flask\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real_root.parent)
+    repo_path = link / "proj"
+
+    ev = collect_python_dependency_evidence(str(repo_path))
+    req = _by_name(ev)["flask"]
+
+    assert req.source == "requirements.txt"
+    assert ".." not in req.source
+    assert "/private/" not in req.source

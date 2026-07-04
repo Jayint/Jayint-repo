@@ -594,3 +594,37 @@ def test_optional_extra_not_signalled_stays_out(tmp_path):
     graph = scan_to_nodes(str(repo))
     dists = {dist for _imp, dist in select_roots(str(repo), graph)}
     assert "h2" not in dists   # no signal -> feature extra stays gated
+
+
+# --------------------------------------------------------------------------- #
+# PEP 685 separator normalization — extras compared with only `.strip().lower()`
+# treat `-`/`_`/`.` as distinct, so a `-e .[socks-extra]` signal fails to match
+# a `[project.optional-dependencies]` group declared as `socks_extra`, silently
+# dropping a declared, signalled extra from scope.
+# --------------------------------------------------------------------------- #
+def test_in_test_scope_extra_matches_across_separator_variants():
+    # group is declared with an underscore; the signal uses a dash. PEP 685
+    # treats these as the same extra and both sides must normalize to match.
+    req = _req("optional_dependency", "pyproject.toml:project.optional-dependencies.socks_extra")
+    assert _in_test_scope(req, frozenset({"socks-extra"}))
+
+
+def test_dash_separator_extra_signal_matches_underscore_group(tmp_path):
+    repo = tmp_path / "proj"
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["httpx"]
+
+        [project.optional-dependencies]
+        socks_extra = ["socksio"]
+        """,
+    )
+    _write(repo, "requirements.txt", "-e .[socks-extra]\n")
+    graph = scan_to_nodes(str(repo))
+    dists = {dist for _imp, dist in select_roots(str(repo), graph)}
+    assert "socksio" in dists  # dash-form signal must match underscore-form group
