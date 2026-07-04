@@ -546,6 +546,12 @@ def test_build_dep_graph_threads_needed_extras_into_roots_and_resolve(tmp_path):
 
 
 def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
+    # NOTE (Task 4): this asserts the `needed_extras` VALUE build.py passes to
+    # select_roots, not the overall root-selection SCOPE. Since Task 4,
+    # select_roots's default scope is testability (runtime + dev/test groups +
+    # evidence.used_extras), not "runtime only" -- but the `needed_extras`
+    # feature-extras override that build.py forwards absent a caller override
+    # is still empty, which is exactly what this test checks.
     from unittest.mock import patch
 
     import python_deps.depgraph.build as build_mod
@@ -563,8 +569,10 @@ def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
     with patch.object(build_mod, "select_roots", side_effect=spy_select_roots):
         build_dep_graph(_make_repo(tmp_path), ex, host_executor=ex)
 
-    # No caller override -> the default is runtime-only, NOT a union of every
-    # declared optional-dependencies group.
+    # No caller override -> the needed_extras (feature-extras) override passed
+    # to select_roots is empty, NOT a union of every declared
+    # optional-dependencies group. (Dev/test groups are still default-included
+    # by select_roots's own testability-scope policy -- see roots.py.)
     assert calls["select_roots_needed_extras"] == frozenset()
 
 

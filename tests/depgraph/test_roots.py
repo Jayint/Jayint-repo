@@ -491,3 +491,106 @@ def test_dev_group_denylist_contents():
             "examples", "demo",
         }
     )
+
+
+# --------------------------------------------------------------------------- #
+# Task 4 — fixed testability-scope policy: runtime + dev/test groups (minus
+# docs/release denylist) + import-signalled feature extras.
+# --------------------------------------------------------------------------- #
+from python_deps.depgraph.roots import _in_test_scope
+
+
+def _req(kind, source, name="x"):
+    return SimpleNamespace(name=name, specifier="", marker="", extras=(), source=source, kind=kind)
+
+
+def test_in_test_scope_runtime_always_in():
+    assert _in_test_scope(_req("dependency", "pyproject.toml:project.dependencies"), frozenset())
+
+
+def test_in_test_scope_feature_extra_gated_by_in_scope_extras():
+    req = _req("optional_dependency", "pyproject.toml:project.optional-dependencies.http2")
+    assert not _in_test_scope(req, frozenset())
+    assert _in_test_scope(req, frozenset({"http2"}))
+
+
+def test_in_test_scope_dev_group_default_in():
+    for group in ("test", "tests", "lint", "typing", "dev"):
+        req = _req("dev_group", f"pyproject.toml:dependency-groups.{group}")
+        assert _in_test_scope(req, frozenset()), group
+
+
+def test_in_test_scope_dev_group_docs_release_excluded():
+    for group in ("docs", "documentation", "release", "publish", "benchmark"):
+        req = _req("dev_group", f"pyproject.toml:dependency-groups.{group}")
+        assert not _in_test_scope(req, frozenset()), group
+
+
+def test_in_test_scope_denylist_is_case_insensitive():
+    req = _req("dev_group", "requirements-file.DOCS")
+    assert not _in_test_scope(req, frozenset())
+
+
+def test_dependency_groups_test_becomes_root(tmp_path):
+    _write(
+        tmp_path / "proj",
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["flask"]
+
+        [dependency-groups]
+        test = ["pytest"]
+        docs = ["sphinx"]
+        """,
+    )
+    repo = tmp_path / "proj"
+    graph = scan_to_nodes(str(repo))
+    dists = {dist for _imp, dist in select_roots(str(repo), graph)}
+    assert "flask" in dists          # runtime
+    assert "pytest" in dists         # dev_group test -> in
+    assert "sphinx" not in dists     # dev_group docs -> excluded
+
+
+def test_used_extras_from_editable_puts_extra_in_scope(tmp_path):
+    repo = tmp_path / "proj"
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["httpx"]
+
+        [project.optional-dependencies]
+        http2 = ["h2"]
+        """,
+    )
+    _write(repo, "requirements.txt", "-e .[http2]\npytest\n")
+    graph = scan_to_nodes(str(repo))
+    dists = {dist for _imp, dist in select_roots(str(repo), graph)}
+    assert "h2" in dists       # optional extra activated by -e .[http2]
+    assert "pytest" in dists   # runtime line in requirements.txt
+
+
+def test_optional_extra_not_signalled_stays_out(tmp_path):
+    repo = tmp_path / "proj"
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["httpx"]
+
+        [project.optional-dependencies]
+        http2 = ["h2"]
+        """,
+    )
+    graph = scan_to_nodes(str(repo))
+    dists = {dist for _imp, dist in select_roots(str(repo), graph)}
+    assert "h2" not in dists   # no signal -> feature extra stays gated

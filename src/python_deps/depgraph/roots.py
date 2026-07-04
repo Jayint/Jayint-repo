@@ -161,6 +161,36 @@ _DEV_GROUP_DENYLIST: frozenset[str] = frozenset(
 )
 
 
+def _in_test_scope(req, in_scope_extras: frozenset[str]) -> bool:
+    """Testability-scope membership for a declared requirement (fixed policy).
+
+    Single goal = run the tests, so the closure targets runtime ∪ dev/test groups
+    ∪ import-signalled feature extras:
+
+    * ``kind=="dependency"`` (runtime) -> always in.
+    * ``kind=="optional_dependency"`` (feature extra) -> in IFF its group is a
+      member of ``in_scope_extras`` (``needed_extras`` ∪ the repo's own
+      ``-e .[...]`` extras). Extras stay gated so mutually-exclusive groups
+      (cpu/gpu, conflicting DB drivers) can't collide the resolve — the bug
+      ``needed_extras`` was built to prevent. Extras the tests import but no
+      signal names are left to the Phase-A repair loop.
+    * ``kind=="dev_group"`` (PEP 735 group / dev|test requirements file) -> in
+      UNLESS its group is a docs/release group (``_DEV_GROUP_DENYLIST``):
+      default-include dev/test/lint/typing (recall-first, gate-backstopped),
+      exclude only docs/packaging bloat.
+    * anything else (``constraint`` / unknown) -> not a root.
+    """
+    kind = getattr(req, "kind", "dependency")
+    if kind == "dependency":
+        return True
+    group = _requirement_group(getattr(req, "source", "")).strip().lower()
+    if kind == "optional_dependency":
+        return group in in_scope_extras
+    if kind == "dev_group":
+        return group not in _DEV_GROUP_DENYLIST
+    return False
+
+
 def _is_non_distribution(import_name: str) -> bool:
     """True when ``import_name`` cannot be a real PyPI distribution root."""
     top = top_level_import_name(import_name).strip()
@@ -270,17 +300,19 @@ def select_roots(
     are filtered out, and each distribution appears once (deduped by normalized
     name).
 
-    ``needed_extras`` TARGETS which ``[project.optional-dependencies]`` /
-    ``extras_require`` groups are in scope: a ``kind=="optional_dependency"``
-    requirement is only added as a root when its group is a member of
-    ``needed_extras``; runtime (non-optional) deps are always included. This
-    is the fix for the "uv unions all extras groups" bug — previously every
-    optional group was appended as a root with no filter, so mutually
-    exclusive groups (e.g. ``cpu``/``gpu``) collided into one unsatisfiable
-    resolve. The default (``frozenset()``) is deliberately runtime-only; see
-    ``build.py`` for the seam that would eventually source this set from
-    discovered CI/tox/Makefile ``pip install -e .[...]`` invocations
-    (cluster-1 enrichment, not this task).
+    Fixed testability-scope policy (see :func:`_in_test_scope`): the closure
+    targets runtime ∪ dev/test groups ∪ import-signalled feature extras —
+    ``in_scope_extras = needed_extras ∪ evidence.used_extras`` (the caller's
+    override union'd with the repo's own ``-e .[...]`` self-install signals).
+    Dev/test groups (PEP 735 ``[dependency-groups]`` and dev/test requirements
+    files) are default-INCLUDED except the docs/release denylist
+    (``_DEV_GROUP_DENYLIST``); ``kind=="optional_dependency"`` feature extras
+    STAY gated by ``in_scope_extras`` — mutually exclusive groups (e.g.
+    ``cpu``/``gpu``) must not both enter one resolve, which is why extras
+    are never default-included even though dev/test groups are. The default
+    (``needed_extras=frozenset()``) therefore no longer means "runtime only";
+    it means "runtime + dev/test groups + whatever extras the repo's own
+    ``-e .[...]`` lines already signal".
 
     ``target_env`` (Task 8 review fix), when given, additionally drops a
     manifest dependency whose PEP 508 environment marker evaluates False for
@@ -291,15 +323,23 @@ def select_roots(
     """
     evidence = collect_python_dependency_evidence(repo_path)
 
+    # Feature-extras in scope = caller/CI override ∪ the repo's own ``-e .[...]``
+    # self-install signals (evidence.used_extras). Normalized to lowercase to
+    # match declared group names (PEP 685 extras compare normalized).
+    in_scope_extras = frozenset(
+        extra.strip().lower() for extra in needed_extras
+    ) | frozenset(extra.strip().lower() for extra in evidence.used_extras)
+
     roots: list[tuple[str | None, str]] = []
     seen: set[str] = set()
 
     # Manifest-declared dependencies are the ONLY roots (highest trust). Imports
     # never generate roots; they are audited post-install, not consulted here.
+    # Testability scope: runtime + dev/test groups (minus docs/release) + signalled
+    # feature extras — see _in_test_scope.
     for req in evidence.declared_dependencies:
-        if getattr(req, "kind", "dependency") == "optional_dependency":
-            if _requirement_group(req.source) not in needed_extras:
-                continue
+        if not _in_test_scope(req, in_scope_extras):
+            continue
         if _env_marker_excludes(req, target_env):
             continue
         normalized = normalize_package_name(req.name)
