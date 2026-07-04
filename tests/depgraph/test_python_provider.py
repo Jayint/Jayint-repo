@@ -91,3 +91,17 @@ def test_provider_preserves_hermeticity_symbols():
     assert build.default_record_provider is coverage.default_record_provider
     assert "fetch" in coverage.pypi_record_provider.__kwdefaults__  # the patched lever
     assert relink.PACKAGES_DIST_CMD is not None                     # unchanged object
+
+
+def test_degenerate_repo_still_dispatches_to_python(tmp_path):
+    """No manifest, no *.py, no evidence -> detect()==0.0, but the dispatch
+    default (Task 7) must STILL route to PythonProvider, never raise LookupError.
+    Reference: test_build_empty_repo_yields_only_test_node (in the frozen 1111)
+    must also still pass — its stdlib-import repo has a *.py so it clears the
+    threshold directly; this test covers the truly-degenerate case the `default`
+    seam guards, which oracle (a) does not otherwise exercise."""
+    from ecosystems.registry import PROVIDERS, select_provider
+
+    (tmp_path / "README.md").write_text("no python here\n")
+    picked = select_provider(str(tmp_path), PROVIDERS, default=PROVIDERS[0])
+    assert picked is PROVIDERS[0] and picked.name == "python"

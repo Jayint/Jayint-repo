@@ -670,7 +670,17 @@ def build_dep_graph(
     installed repair candidate is grounded from PyPI (P1.5, making production
     repair functional) while already-installed closure members stay network-free.
     """
-    graph, roots, target_env, exclude_newer = _python_package_obligations(
+    # Function-local import breaks the build<->provider cycle: by the time this
+    # runs, build.py is fully loaded, so ecosystems.python.provider (which imports
+    # build helpers) resolves cleanly.
+    from ecosystems.registry import PROVIDERS, select_provider
+
+    # default=PROVIDERS[0] (the PythonProvider) preserves "build_dep_graph never
+    # rejects a repo": if NO provider clears the detect threshold (degenerate /
+    # manifest-less / *.py-less repo), dispatch STILL routes to Python instead of
+    # raising LookupError — zero-impact vs the pre-seam unconditional-accept path.
+    provider = select_provider(repo_path, PROVIDERS, default=PROVIDERS[0])  # dispatch
+    graph, roots, target_env, exclude_newer = provider.package_obligations(
         repo_path,
         container_executor,
         host_executor=host_executor,
@@ -683,7 +693,7 @@ def build_dep_graph(
     # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
     # provider-composition / test-visibility surface (spec extraction boundary).
 
-    graph = _python_native_obligations(graph, container_executor)
+    graph = provider.native_obligations(graph, container_executor)
 
     # Stage 4b — release-aware apt-name reconciliation against the TARGET image:
     # remap stale predicted/table names (e.g. libglib2.0-0 -> libglib2.0-0t64)
