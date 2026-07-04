@@ -243,14 +243,125 @@ def _collect_setup_py_metadata(root: Path, evidence: PythonDependencyEvidence) -
                         )
 
 
+# Editable self-install with extras: ``-e .[http2,socks]`` / ``--editable .[...]``.
+_EDITABLE_SELF_EXTRAS_RE = re.compile(r"^(?:-e|--editable)\s+\.\s*\[([^\]]*)\]\s*$")
+# Include directives: ``-r other.txt`` / ``--requirement other.txt`` (deps) and
+# ``-c other.txt`` / ``--constraint other.txt`` (constraints). Optional ``=``.
+_INCLUDE_RE = re.compile(r"^(-r|--requirement|-c|--constraint)\s*=?\s*(\S+)")
+_MAX_INCLUDE_DEPTH = 5
+
+
 def _collect_requirements_files(root: Path, evidence: PythonDependencyEvidence) -> None:
-    for path in _glob_metadata_files(root, "requirements*.txt"):
-        for line in _read_requirement_lines(path):
-            _add_requirement_line(
-                evidence.declared_dependencies,
-                line,
-                _relative_source(root, path),
-            )
+    visited: set[Path] = set()
+    for path in _discover_requirements_files(root):
+        _ingest_requirements_file(root, path, evidence, visited, depth=0)
+
+
+def _discover_requirements_files(root: Path) -> list[Path]:
+    """Root-level ``requirements*.txt`` plus files in allowlisted nested dirs.
+
+    Bounded: only ``requirements/`` (all ``*.txt``) and ``tests/``, ``test/``,
+    ``docs/`` (only ``*requirements*.txt``) — never a full-tree walk.
+    """
+    found: set[Path] = set(_glob_metadata_files(root, "requirements*.txt"))
+    for sub in ("requirements", "tests", "test", "docs"):
+        directory = root / sub
+        if not directory.is_dir():
+            continue
+        for candidate in sorted(directory.glob("*.txt")):
+            if not candidate.is_file():
+                continue
+            if sub == "requirements" or "requirement" in candidate.name.lower():
+                found.add(candidate)
+    return sorted(found)
+
+
+def _requirements_role(root: Path, path: Path) -> str:
+    """Role for a requirements file from its dir/basename tokens.
+
+    Returns one of ``"docs"``, ``"test"``, ``"dev"``, ``"runtime"`` (checked in
+    that precedence). Token/segment matching (not raw substring) keeps false
+    positives low.
+    """
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = Path(path.name)
+    dir_segments = {segment.lower() for segment in relative.parts[:-1]}
+    stem_tokens = {tok for tok in re.split(r"[-_.]", path.stem.lower()) if tok}
+    docs_markers = {"docs", "doc", "documentation"}
+    test_markers = {"test", "tests", "testing"}
+    if stem_tokens & docs_markers or dir_segments & docs_markers:
+        return "docs"
+    if stem_tokens & test_markers or dir_segments & test_markers:
+        return "test"
+    if "dev" in stem_tokens or "dev" in dir_segments:
+        return "dev"
+    return "runtime"
+
+
+def _role_kind_source(role: str, root: Path, path: Path) -> tuple[str, str]:
+    """Map a requirements-file role to ``(kind, source)`` for its rows."""
+    if role == "runtime":
+        return "dependency", _relative_source(root, path)
+    return "dev_group", f"requirements-file.{role}"
+
+
+def _ingest_requirements_file(
+    root: Path,
+    path: Path,
+    evidence: PythonDependencyEvidence,
+    visited: set[Path],
+    depth: int,
+) -> None:
+    resolved = path.resolve()
+    if depth > _MAX_INCLUDE_DEPTH or resolved in visited or not resolved.is_file():
+        return
+    visited.add(resolved)
+    role = _requirements_role(root, resolved)
+    kind, source = _role_kind_source(role, root, resolved)
+    for raw_line in _iter_raw_requirement_lines(resolved):
+        line = _strip_inline_comment(raw_line).strip()
+        if not line:
+            continue
+        editable = _EDITABLE_SELF_EXTRAS_RE.match(line)
+        if editable:
+            for extra in editable.group(1).split(","):
+                normalized = extra.strip().lower()
+                if normalized:
+                    evidence.used_extras.add(normalized)
+            continue
+        include = _INCLUDE_RE.match(line)
+        if include:
+            target = (resolved.parent / include.group(2)).resolve()
+            if include.group(1) in ("-c", "--constraint"):
+                for constraint_line in _read_requirement_lines(target) if target.is_file() else ():
+                    _add_requirement_line(
+                        evidence.constraint_dependencies,
+                        constraint_line,
+                        _relative_source(root, target),
+                        kind="constraint",
+                    )
+            else:
+                _ingest_requirements_file(root, target, evidence, visited, depth + 1)
+            continue
+        if line.startswith("-"):
+            # any other option / editable form (``-i``, ``--hash``, bare ``-e .``,
+            # ``-e <url>``) — ignored, matching prior behavior.
+            continue
+        _add_requirement_line(evidence.declared_dependencies, line, source, kind=kind)
+
+
+def _iter_raw_requirement_lines(path: Path) -> Iterable[str]:
+    """Yield every non-empty line (INCLUDING ``-``-prefixed directives)."""
+    try:
+        content = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        content = path.read_text(encoding="latin-1")
+    for raw_line in content.splitlines():
+        stripped = raw_line.strip()
+        if stripped:
+            yield raw_line
 
 
 def _collect_constraints_files(root: Path, evidence: PythonDependencyEvidence) -> None:

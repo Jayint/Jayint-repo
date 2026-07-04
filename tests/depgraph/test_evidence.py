@@ -226,3 +226,88 @@ def test_collect_dependency_groups_absent_is_noop(tmp_path):
     )
     ev = collect_python_dependency_evidence(str(tmp_path))
     assert not [r for r in ev.declared_dependencies if r.kind == "dev_group"]
+
+
+def _by_name(evidence):
+    return {r.name: r for r in evidence.declared_dependencies}
+
+
+def test_requirements_txt_is_runtime(tmp_path):
+    (tmp_path / "requirements.txt").write_text("flask\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert _by_name(ev)["flask"].kind == "dependency"
+
+
+def test_requirements_dev_is_dev_group(tmp_path):
+    (tmp_path / "requirements-dev.txt").write_text("pytest\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    req = _by_name(ev)["pytest"]
+    assert req.kind == "dev_group"
+    assert req.source == "requirements-file.dev"
+
+
+def test_nested_docs_requirements_is_dev_group_docs(tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "requirements.txt").write_text("sphinx\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    req = _by_name(ev)["sphinx"]
+    assert req.kind == "dev_group"
+    assert req.source == "requirements-file.docs"
+
+
+def test_nested_requirements_dir_test_file_is_dev_group_test(tmp_path):
+    (tmp_path / "requirements").mkdir()
+    (tmp_path / "requirements" / "test.txt").write_text("pytest-xdist\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    req = _by_name(ev)["pytest-xdist"]
+    assert req.kind == "dev_group"
+    assert req.source == "requirements-file.test"
+
+
+def test_nested_requirements_dir_base_file_is_runtime(tmp_path):
+    (tmp_path / "requirements").mkdir()
+    (tmp_path / "requirements" / "base.txt").write_text("flask\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert _by_name(ev)["flask"].kind == "dependency"
+
+
+def test_editable_self_extras_captured_into_used_extras(tmp_path):
+    (tmp_path / "requirements.txt").write_text(
+        "-e .[http2,socks]\npytest\n", encoding="utf-8"
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert {"http2", "socks"} <= ev.used_extras
+    # the -e line is NOT added as a distribution named "."/project
+    assert "." not in _by_name(ev)
+
+
+def test_bare_editable_self_is_ignored(tmp_path):
+    (tmp_path / "requirements.txt").write_text("-e .\nflask\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert ev.used_extras == set()
+    assert "flask" in _by_name(ev)
+
+
+def test_dash_r_include_is_followed_with_referenced_file_role(tmp_path):
+    (tmp_path / "requirements.txt").write_text("flask\n", encoding="utf-8")
+    (tmp_path / "requirements-dev.txt").write_text("-r requirements.txt\npytest\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    by = _by_name(ev)
+    assert by["flask"].kind == "dependency"       # base file's role
+    assert by["pytest"].kind == "dev_group"        # dev file's role
+    assert by["pytest"].source == "requirements-file.dev"
+
+
+def test_dash_r_self_cycle_terminates(tmp_path):
+    (tmp_path / "requirements.txt").write_text("-r requirements.txt\nflask\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))  # must not hang
+    assert "flask" in _by_name(ev)
+
+
+def test_option_lines_are_ignored(tmp_path):
+    (tmp_path / "requirements.txt").write_text(
+        "--index-url https://example.com/simple\n-i https://example.com/simple\nflask\n",
+        encoding="utf-8",
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert set(_by_name(ev)) == {"flask"}
