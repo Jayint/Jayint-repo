@@ -31,6 +31,7 @@ def collect_python_dependency_evidence(repo_path: str | Path) -> PythonDependenc
 
     collectors = (
         _collect_pyproject_metadata,
+        _collect_dependency_groups,
         _collect_setup_cfg_metadata,
         _collect_setup_py_metadata,
         _collect_requirements_files,
@@ -103,6 +104,66 @@ def _collect_pyproject_metadata(root: Path, evidence: PythonDependencyEvidence) 
                     source="pyproject.toml:tool.poetry.dependencies",
                 )
             )
+
+
+def _collect_dependency_groups(root: Path, evidence: PythonDependencyEvidence) -> None:
+    """PEP 735 ``[dependency-groups]`` reader.
+
+    Each group maps to a list whose members are requirement strings and/or
+    ``{include-group = "<name>"}`` reference objects. include-group references are
+    resolved transitively (a group may include another group) with cycle
+    detection; the flattened requirements are attributed to the TOP-LEVEL group
+    being expanded and tagged ``kind="dev_group"``.
+    """
+    path = root / "pyproject.toml"
+    if not path.is_file() or tomllib is None:
+        return
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    groups = data.get("dependency-groups", {})
+    if not isinstance(groups, dict):
+        return
+    for group_name in groups:
+        if not isinstance(group_name, str):
+            continue
+        requirements, cycle = _resolve_dependency_group(group_name, groups, ())
+        if cycle:
+            evidence.collection_errors.append(
+                f"_collect_dependency_groups: include-group cycle involving '{group_name}'"
+            )
+        for requirement in requirements:
+            _add_requirement_line(
+                evidence.declared_dependencies,
+                requirement,
+                f"pyproject.toml:dependency-groups.{group_name}",
+                kind="dev_group",
+                trust="medium",
+            )
+
+
+def _resolve_dependency_group(
+    name: str, groups: dict, seen: tuple[str, ...]
+) -> tuple[list[str], bool]:
+    """Flatten a dependency-group's members to concrete requirement strings.
+
+    Returns ``(requirement_strings, cycle_detected)``. ``include-group`` refs are
+    expanded depth-first; a group already on the current ``seen`` path is a cycle:
+    its expansion is truncated (skipped) and ``cycle_detected`` is set True.
+    """
+    if name in seen:
+        return [], True
+    members = groups.get(name)
+    if not isinstance(members, list):
+        return [], False
+    out: list[str] = []
+    cycle = False
+    for member in members:
+        if isinstance(member, str):
+            out.append(member)
+        elif isinstance(member, dict) and isinstance(member.get("include-group"), str):
+            sub, sub_cycle = _resolve_dependency_group(member["include-group"], groups, seen + (name,))
+            out.extend(sub)
+            cycle = cycle or sub_cycle
+    return out, cycle
 
 
 def _collect_setup_cfg_metadata(root: Path, evidence: PythonDependencyEvidence) -> None:

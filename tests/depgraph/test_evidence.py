@@ -141,3 +141,88 @@ def test_evidence_to_dict_includes_sorted_used_extras():
     ev = PythonDependencyEvidence(repo_path="/x")
     ev.used_extras.update({"socks", "http2"})
     assert ev.to_dict()["used_extras"] == ["http2", "socks"]
+
+
+def _canon_deps(evidence, kind):
+    return {(r.name, r.kind, r.source) for r in evidence.declared_dependencies if r.kind == kind}
+
+
+def test_collect_dependency_groups_basic(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "proj"
+            version = "0.1.0"
+            dependencies = ["flask"]
+
+            [dependency-groups]
+            test = ["pytest", "pytest-cov"]
+            """
+        ),
+        encoding="utf-8",
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    dev = _canon_deps(ev, "dev_group")
+    assert ("pytest", "dev_group", "pyproject.toml:dependency-groups.test") in dev
+    assert ("pytest-cov", "dev_group", "pyproject.toml:dependency-groups.test") in dev
+    # runtime dep still classified as dependency
+    assert any(r.name == "flask" and r.kind == "dependency" for r in ev.declared_dependencies)
+
+
+def test_collect_dependency_groups_include_group_flattens_transitively(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "proj"
+            version = "0.1.0"
+
+            [dependency-groups]
+            test = ["pytest"]
+            typing = [{include-group = "test"}, "mypy"]
+            """
+        ),
+        encoding="utf-8",
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    typing = {r.name for r in ev.declared_dependencies
+              if r.source == "pyproject.toml:dependency-groups.typing"}
+    assert typing == {"pytest", "mypy"}  # test's member flattened under typing
+
+
+def test_collect_dependency_groups_cycle_terminates_and_records_error(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "proj"
+            version = "0.1.0"
+
+            [dependency-groups]
+            a = [{include-group = "b"}, "pkg-a"]
+            b = [{include-group = "a"}, "pkg-b"]
+            """
+        ),
+        encoding="utf-8",
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))  # must not hang
+    names = {r.name for r in ev.declared_dependencies if r.kind == "dev_group"}
+    assert "pkg-a" in names and "pkg-b" in names
+    assert any("cycle" in e.lower() for e in ev.collection_errors)
+
+
+def test_collect_dependency_groups_absent_is_noop(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "proj"
+            version = "0.1.0"
+            dependencies = ["flask"]
+            """
+        ),
+        encoding="utf-8",
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    assert not [r for r in ev.declared_dependencies if r.kind == "dev_group"]
