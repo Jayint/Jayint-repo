@@ -574,6 +574,47 @@ def _python_package_obligations(
     return graph, roots, target_env, exclude_newer
 
 
+def _python_native_obligations(graph: DepGraph, container_executor: Executor) -> DepGraph:
+    """Python PHASE 2 — "look then derive" on the CONVERGED closure.
+
+    relink (certified Import->Package + honest ``unresolved`` flags) -> ldd
+    (DT_NEEDED SystemLibs) -> import_probe (dlopen backstop) -> probe restamp
+    (INV-9 order; relink FIRST). Self-contained WITHOUT a snapshot: the probe
+    restamp stamps every ``discovered_by=PROBE`` node — no ``pre_resolve_ids``/
+    ``pre_probe_ids`` exclusion is needed, because that clause is vacuous for the
+    PROBE branch AND a Phase-B-entry snapshot would wrongly drop the PROBE Tool/
+    SystemLib nodes ``install_closure`` already created during Phase A (FIX-1; see
+    Task 4 proof). The verbatim build.py:610-634 inline stage comments carry over
+    below — this docstring does NOT replace them.
+    """
+    # === Phase B — tier descent on the CONVERGED closure, "look then derive". ===
+    # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK,
+    # and the SOLE Import->Package source in construction.
+    # ``packages_distributions()`` (CONTAINER) certifies Import->Package edges on
+    # the converged closure and flags every still-unprovided non-optional import
+    # ``unresolved`` (P0.3). It adds certified EDGES + honest data flags to EXISTING
+    # Import nodes — it never adds a PROBE node — so it leaves the resolver/probe
+    # cycle bookkeeping (below) untouched.
+    graph = certified_import_links(graph, container_executor)
+    # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
+    # package's extension .so files and surface ``=> not found`` sonames as
+    # SystemLib nodes (DT_NEEDED ground truth). Derives system deps from the SAME
+    # converged closure the relink just certified (needs the built .so — runs after
+    # the loop, and after the relink LOOK).
+    graph = ldd_probe(graph, container_executor)
+    # import_probe is the dlopen BACKSTOP only: DT_NEEDED gaps are covered by
+    # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
+    # never appear in the binary's NEEDED list.
+    graph = import_probe(graph, container_executor)
+    probe_ids = {
+        n.id
+        for n in graph.nodes
+        if n.discovered_by is DiscoveredBy.PROBE
+    }
+    graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
+    return graph
+
+
 def build_dep_graph(
     repo_path: str,
     container_executor: Executor,
@@ -642,31 +683,7 @@ def build_dep_graph(
     # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
     # provider-composition / test-visibility surface (spec extraction boundary).
 
-    # === Phase B — tier descent on the CONVERGED closure, "look then derive". ===
-    # Stage 4a — certified Import->Package relink FIRST: this is Phase B's LOOK,
-    # and the SOLE Import->Package source in construction.
-    # ``packages_distributions()`` (CONTAINER) certifies Import->Package edges on
-    # the converged closure and flags every still-unprovided non-optional import
-    # ``unresolved`` (P0.3). It adds certified EDGES + honest data flags to EXISTING
-    # Import nodes — it never adds a PROBE node — so it leaves the resolver/probe
-    # cycle bookkeeping (below) untouched.
-    graph = certified_import_links(graph, container_executor)
-    # Stage 4.5 — AUTHORITATIVE run-time native-lib discovery: ldd each installed
-    # package's extension .so files and surface ``=> not found`` sonames as
-    # SystemLib nodes (DT_NEEDED ground truth). Derives system deps from the SAME
-    # converged closure the relink just certified (needs the built .so — runs after
-    # the loop, and after the relink LOOK).
-    graph = ldd_probe(graph, container_executor)
-    # import_probe is the dlopen BACKSTOP only: DT_NEEDED gaps are covered by
-    # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
-    # never appear in the binary's NEEDED list.
-    graph = import_probe(graph, container_executor)
-    probe_ids = {
-        n.id
-        for n in graph.nodes
-        if n.discovered_by is DiscoveredBy.PROBE
-    }
-    graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
+    graph = _python_native_obligations(graph, container_executor)
 
     # Stage 4b — release-aware apt-name reconciliation against the TARGET image:
     # remap stale predicted/table names (e.g. libglib2.0-0 -> libglib2.0-0t64)
