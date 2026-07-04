@@ -311,3 +311,54 @@ def test_option_lines_are_ignored(tmp_path):
     )
     ev = collect_python_dependency_evidence(str(tmp_path))
     assert set(_by_name(ev)) == {"flask"}
+
+
+def test_dash_c_constraint_include_routes_to_constraints_not_declared(tmp_path):
+    # Bug this guards: a -c/--constraint include must land in
+    # evidence.constraint_dependencies (kind="constraint"), NOT be followed as
+    # a -r/--requirement include into declared_dependencies.
+    (tmp_path / "requirements.txt").write_text(
+        "-c constraints.txt\nflask\n", encoding="utf-8"
+    )
+    (tmp_path / "constraints.txt").write_text("foo==1.0\n", encoding="utf-8")
+    ev = collect_python_dependency_evidence(str(tmp_path))
+
+    assert _by_name(ev)["flask"].kind == "dependency"
+    assert "foo" not in _by_name(ev)
+
+    constraint = {r.name: r for r in ev.constraint_dependencies}["foo"]
+    assert constraint.kind == "constraint"
+
+
+def test_nested_tests_dir_requirements_file_is_discovered(tmp_path):
+    # Nested-dir allowlist branch: tests/*requirements*.txt is discovered even
+    # though it isn't a root-level requirements*.txt file.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "requirements.txt").write_text(
+        "pytest-mock\n", encoding="utf-8"
+    )
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    req = _by_name(ev)["pytest-mock"]
+    assert req.kind == "dev_group"
+    assert req.source == "requirements-file.test"
+
+
+def test_include_depth_cap_bites_on_linear_chain(tmp_path):
+    # _MAX_INCLUDE_DEPTH = 5; the guard in _ingest_requirements_file is
+    # `depth > _MAX_INCLUDE_DEPTH`, so depths 0..5 are processed and depth 6
+    # is cut off before its file is even read. requirements.txt is discovered
+    # at depth 0; chain1..chain6.txt are reachable ONLY via -r includes (they
+    # don't match the root requirements*.txt glob), landing at depths 1..6.
+    (tmp_path / "requirements.txt").write_text("-r chain1.txt\npkg0\n", encoding="utf-8")
+    for i in range(1, 6):
+        (tmp_path / f"chain{i}.txt").write_text(
+            f"-r chain{i + 1}.txt\npkg{i}\n", encoding="utf-8"
+        )
+    (tmp_path / "chain6.txt").write_text("pkg6\n", encoding="utf-8")
+
+    ev = collect_python_dependency_evidence(str(tmp_path))
+    names = set(_by_name(ev))
+
+    for i in range(6):  # pkg0..pkg5: depths 0..5, all processed
+        assert f"pkg{i}" in names
+    assert "pkg6" not in names  # depth 6: guard `depth > 5` returns before reading
