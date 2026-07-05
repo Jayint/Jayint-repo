@@ -243,3 +243,17 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         platform_python_implementation=python_impl,
         implementation_name=impl_name,
     )
+
+
+def pip_wheel_platform_tag(env: TargetEnv) -> str:
+    """Convert the uv-shaped platform tag to pip's ``--platform`` wheel-tag order.
+
+    ``python_platform_tag`` is uv-shaped (``x86_64-manylinux_2_28``); ``pip
+    download --platform`` expects wheel-tag order (``manylinux_2_28_x86_64``).
+    Split on the first ``-`` (the arch prefix) and reorder to ``<policy>_<arch>``.
+    A tag without a ``-`` is returned unchanged.
+    """
+    machine, sep, policy = env.python_platform_tag.partition("-")
+    if not sep:
+        return env.python_platform_tag
+    return f"{policy}_{machine}"
