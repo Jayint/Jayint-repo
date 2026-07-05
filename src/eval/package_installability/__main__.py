@@ -96,7 +96,7 @@ def main(argv) -> int:
         print(f"[corpus] {len(selected)} row(s) selected (only={sorted(only)}, strata={sorted(strata)})")
         _OUT_DIR.mkdir(parents=True, exist_ok=True)
         out_path = args.out or (_OUT_DIR / "records.json")
-        checkpoint = args.checkpoint or (_OUT_DIR / "checkpoint.jsonl")
+        checkpoint = args.checkpoint  # opt-in: no shared checkpoint unless the user asks
         records = run_corpus(selected, image=args.image, keys=keys, checkpoint=checkpoint, platform=args.platform)
         payload = [asdict(r) for r in records]
         out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -117,6 +117,9 @@ def main(argv) -> int:
         return 0
 
     if args.derive:  # regenerate answer_keys.json via ablation (human-review the diff)
+        if (only or strata) and args.out is None:
+            ap.error("--derive with --only/--stratum requires an explicit --out "
+                     "to avoid clobbering answer_keys.json")
         selected = select_corpus(only, strata)  # raises on unknown --only/--stratum
         print(f"[corpus] {len(selected)} row(s) selected (only={sorted(only)}, strata={sorted(strata)})")
         derived = []
