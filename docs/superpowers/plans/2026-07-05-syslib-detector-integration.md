@@ -564,17 +564,18 @@ Expected: FAIL.
 
 - [ ] **Step 3: Insert the wheel pre-pass at the aux-once seam**
 
-In `build.py`, right where `graph = seed_wheel_oracle_prior(graph)` (~567), the pre-pass needs `host_executor` + `target_env` in scope. If the enclosing function lacks them, thread them from `build_dep_graph`'s scope (it has all executors + `target_env`) — OR call `wheel_preflight_probe` directly in `build_dep_graph` immediately before `_python_native_obligations(graph, container_executor)`:
+> **WIRING CORRECTION (2026-07-06, controller — flagged for human review):** The original snippet inserted `resolve_artifact_map` at the seam to stamp `build_from_source`. That is REDUNDANT and mildly risky on HEAD: HEAD ALREADY stamps `build_from_source` (`False` for wheels / `True` for sdist) on EVERY package during Phase-A resolve via `resolve.native_risk_from_lock` → `wheel_oracle.risk_from_packages` (`resolve.py:298`, the `_stamp(...)` loop), and `wheel_preflight_probe` filters exactly on `n.build_from_source is False`. So the stamp `wheel_preflight` needs is already present and correct. Inserting `resolve_artifact_map` would add a SECOND resolver run per build and OVERRIDE the Phase-A stamp in Phase B (the plan's own "confirm nothing reads a stale stamp" flag). **Corrected wiring: wire ONLY `wheel_preflight_probe`, reading the existing native_risk_from_lock stamp; do NOT insert `resolve_artifact_map` at the build seam.** (`resolve_artifact_map` stays ported and is used by the eval's `predict.py` seam — its intended role.) The seam function (the one returning `graph, roots, target_env, exclude_newer` at ~build.py:574) has `host_executor` (defaulted ~453), `container_executor`, `target_env` (~471), and `graph` all in scope.
 
 ```python
-from python_deps.depgraph.artifact_map import resolve_artifact_map
 from python_deps.depgraph.wheel_preflight import wheel_preflight_probe
-# ... after Phase A converges, before _python_native_obligations:
-graph = resolve_artifact_map(graph, host_executor, target_env=target_env)  # stage 3: stamp build_from_source
-graph = wheel_preflight_probe(graph, host_executor, target_env)            # proactive wheel soname priors
-graph = _python_native_obligations(graph, container_executor)              # ldd/import reconcile onto them
+# ... at ~build.py:567, next to `graph = seed_wheel_oracle_prior(graph)`
+# (build_from_source already stamped by Phase-A native_risk_from_lock):
+graph = wheel_preflight_probe(graph, host_executor, target_env)   # proactive wheel soname priors (RESOLVER/UNKNOWN)
+# `_python_native_obligations` (ldd_probe/import_probe) runs later via build_dep_graph's
+# `provider.native_obligations(graph, container_executor)` (~696) and reconciles onto the
+# RESOLVER priors via syslib_id — no ordering change needed here.
 ```
-(Match `resolve_artifact_map`'s real signature from the ported file. This stamp REPLACES HEAD's `native_risk_from_lock` stamp on this path — confirm nothing downstream still reads a stale stamp.)
+(Additive: `wheel_preflight_probe` only ADDS RESOLVER/UNKNOWN SystemLib nodes for wheel `DT_NEEDED` sonames not already present; non-native repos are byte-identical. `discovered_by=DiscoveredBy.RESOLVER`, `state=State.UNKNOWN` are what the ported `wheel_preflight` sets — both exist on HEAD.)
 
 - [ ] **Step 4: Test passes + full suite green**
 
