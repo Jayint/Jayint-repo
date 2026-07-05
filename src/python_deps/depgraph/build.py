@@ -92,6 +92,7 @@ from python_deps.depgraph.schema import (
 from python_deps.depgraph.seed import seed_wheel_oracle_prior
 from python_deps.depgraph.subprocess_scan import add_subprocess_tool_nodes
 from python_deps.depgraph.target_env import detect_target_env
+from python_deps.depgraph.wheel_preflight import wheel_preflight_probe
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.import_mapping import normalize_package_name, top_level_import_name
 
@@ -565,6 +566,14 @@ def _python_package_obligations(
     graph = _add_project_node(graph, repo_path)
     graph = add_subprocess_tool_nodes(graph, repo_path)
     graph = seed_wheel_oracle_prior(graph)
+    # Stage 3b' — PROACTIVE wheel-soname priors: for each package the Phase-A
+    # native_risk_from_lock stamp classified as a WHEEL (build_from_source is
+    # False), read its target wheel's DT_NEEDED sonames (host, no install) and
+    # seed them as RESOLVER/UNKNOWN SystemLib priors. Additive: non-native /
+    # non-wheel closures (build_from_source None/True) add nothing -> byte-
+    # identical. Phase-B's ldd_probe reconciles its observations onto these same
+    # syslib_id nodes (reconcile_predicted), so no ordering change is needed.
+    graph = wheel_preflight_probe(graph, host_executor, target_env)
     resolver_ids = {
         n.id
         for n in graph.nodes
