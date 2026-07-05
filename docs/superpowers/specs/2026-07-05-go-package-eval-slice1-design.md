@@ -57,15 +57,19 @@ Pure text/JSON. No `go` toolchain, no network. Public surface:
   - `excludes: tuple[Exclude, ...]` — `exclude` directives (remove a specific `path@version` from the graph).
 - `parse_vendor_modules_txt(path) -> dict[str, str]` — `{module: version}` from `# <module> <version>` header lines (and the `## explicit` package annotations, retained for the future cgo/import-pruning slice). Authoritative and offline when `vendor/` exists.
 - `parse_go_sum(path) -> frozenset[tuple[str, str]]` — `{(module, version)}`. Used **only** to cross-check (`go.sum ⊇ closure` should hold); **never** the closure.
-- `module_closure(repo_dir) -> Closure` where `Closure(packages: dict[str,str], source: str, go_version, toolchain, replaced: tuple[str,...], direct: int, indirect: int, resolve_required: bool)`.
+- `parse_go_work(path) -> tuple[str, ...]` — the `use ./dir …` member directories from a `go.work` file (workspace). Empty when there is no `go.work`.
+- `module_closure(repo_dir) -> Closure` where `Closure(packages: dict[str,str], source: str, go_version, toolchain, replaced: tuple[str,...], direct: int, indirect: int, resolve_required: bool)`. `source ∈ {"workspace", "vendor", "gomod-pruned", "resolve-required"}`.
 
 ### 3.1 The authority ladder (the heart of `module_closure`)
 
 ```
-if vendor/modules.txt exists:              source = "vendor"          # exact, offline, per-package
-elif go_version >= 1.17:                    source = "gomod-pruned"    # require block == full build list
-else:                                        source = "resolve-required" # cannot do faithfully offline
+if go.work exists:                          source = "workspace"       # union each `use` member's closure (recurse per member)
+elif vendor/modules.txt exists:             source = "vendor"          # exact, offline, per-package
+elif go_version >= 1.17:                     source = "gomod-pruned"    # require block == full build list
+else:                                         source = "resolve-required" # cannot do faithfully offline
 ```
+
+**Workspace branch:** `go.work` lists `use ./m1 ./m2 …`; `go list -m all` under a workspace returns the *union* build list across all member modules. `module_closure` therefore recurses into each member's `go.mod` (each resolving via the vendor/pruned/resolve rungs above) and unions the results, dropping every member's own `module_path`. A member that is itself `resolve-required` taints the workspace closure to `resolve-required` (honest — we can't complete it offline).
 
 Then, regardless of source:
 - Apply `replace`: an entry for `old` is rewritten to `new@new_version`; a local replace (`new_version is None`) is recorded in `replaced` and **dropped** from the registry closure (it has no registry version to compare — it lives on the filesystem).
@@ -85,7 +89,7 @@ For each repo under `GO_SMOKE_ROOT`, emit `<repo>.json`:
 {
   "packages":        {"<module>": "<version>"},   // the offline closure, main module excluded
   "package_count":   0,
-  "closure_source":  "vendor | gomod-pruned | resolve-required",
+  "closure_source":  "workspace | vendor | gomod-pruned | resolve-required",
   "go_version":      "1.xx",
   "toolchain":       "go1.xx.y | null",
   "direct_count":    0,
@@ -108,9 +112,12 @@ Inside a `golang:<ver>` container (Docker-gated exactly like Node's oracle):
 
 - Non-vendored: `go list -m all` → module@version lines; **first line is the main module**, excluded.
 - Vendored: `go list -mod=vendor -m all`.
+- Workspace: `go list -m all` run at the `go.work` root (the toolchain returns the union build list across members).
 - Emits per-repo `{module: version}` gold closure JSON.
 
 `go list -m all` is *the* MVS build list — precisely what the offline parse approximates. For a pruned ≥1.17 module with no local replaces we expect OURS == ORACLE (Δ≈0); that equality (or its violations) is the deliverable.
+
+**Manifest-only corpus (important):** both sides need only the *module graph*, never the source. `go list -m all` downloads dependency **`go.mod` files** into the cache, not their packages. So each corpus entry is just a `{go.mod, go.sum[, vendor/modules.txt][, go.work + member go.mods]}` triple lifted from a real repo — no full clone. The one exception is **local `replace => ../path`**: the oracle fails when that path is absent (and manifest-only means it *is* absent), so local-replace is tested by fixtures (§9, OURS-only), never as a corpus/oracle entry (see §6/§7).
 
 The oracle needs Docker + a `golang` image and (for non-vendored, non-cached repos) network to populate the module cache. It is integration-gated behind an env flag / pytest marker; it is **not** required to run the OURS side or the unit tests.
 
@@ -125,24 +132,33 @@ Per-repo and pooled:
 - Divergence buckets:
   - `missing` — in ORACLE, not in OURS (recall miss). For `resolve-required` repos, the *entire* ORACLE lands here and is re-labelled **`resolve_required`** (a known offline limitation, reported separately from true recall defects).
   - `extra` — in OURS, not in ORACLE (precision miss).
-  - `replace_local` — modules with a local (filesystem) `replace`. These are removed from **both** OURS *and* ORACLE before recall/precision are computed (the toolchain's `go list -m all` still emits a locally-replaced module as `old => ../local`, so leaving it in the ORACLE denominator would falsely penalize recall). Reported for visibility, counted in neither metric.
+  - `replace_local` — modules with a local (filesystem) `replace`. These are removed from **both** OURS *and* ORACLE before recall/precision are computed (the toolchain's `go list -m all` still emits a locally-replaced module as `old => ../local`, so leaving it in the ORACLE denominator would falsely penalize recall). Reported for visibility, counted in neither metric. *Corpus entries never carry a local replace* (the oracle can't resolve a missing path — see §5); this bucket is exercised only by the OURS-side fixtures in §9. A **registry** replace (`=> fork@vX`) resolves normally and stays in both metrics.
 
 Emits a per-repo scorecard + an aggregate markdown line, mirroring Node's reporter.
 
 ---
 
-## 7. Corpus (`GO_SMOKE_ROOT`) — chosen to span the divergence axes
+## 7. Corpus (`GO_SMOKE_ROOT`) — edge-case coverage, not statistical bulk
 
-~6 real repos with committed `go.mod`/`go.sum`, each targeting a specific axis so the metrics are *diagnostic*, not just a number:
+**Sizing rationale.** Go's premise (offline `go.mod`≥1.17 == `go list -m all`) is *deterministic*, not statistical: if module-graph pruning holds, Δ=0 for **every** clean ≥1.17 module regardless of size or domain. So — unlike the Python pkg-layer corpus, which had to grow 15→28 because precision genuinely varied by repo *type* (services 0.85 vs libraries 0.36) — adding "normal" Go repos here just re-confirms Δ=0 and teaches nothing. The corpus is sized for **one entry per structural feature that could break the premise**, not for averaging.
 
-1. **Clean ≥1.17 pruned module** — expect Δ≈0 (the happy path that validates the whole premise).
-2. **`vendor/`ed repo** — exercises `parse_vendor_modules_txt`; expect Δ≈0 against `-mod=vendor`.
-3. **Repo with `replace` directives** (both a registry `=> new@vX` and a local `=> ../x`) — exercises the `replaced`/`replace_local` path.
-4. **Pre-1.17 repo** — expected `resolve-required`; validates that we flag rather than fake it.
-5. **`exclude`-using repo** — exercises exclude handling.
-6. **cgo user** (e.g. a `go-sqlite3` dependent) — module closure is correct now; the C-lib obligation is deferred to the native slice, but this repo pre-stages that corpus entry.
+Each entry is a **manifest-only triple** (`{go.mod, go.sum[, vendor/modules.txt][, go.work + member go.mods]}`) lifted from a real repo (§5) — no full clones. Target ~8-9 entries:
 
-Corpus lives under `GO_SMOKE_ROOT` (default `outputs/graph_fidelity/_smoke_go`), same convention as Node's `_smoke_node`.
+| # | Axis it tests | Repo (lift manifest) | Expectation |
+|---|---|---|---|
+| 1 | **Anchor** — clean ≥1.17, rich closure | `spf13/viper` | Δ≈0. The premise-validating happy path. |
+| 2 | Clean ≥1.17, tiny sanity | `spf13/cobra` | Δ≈0, obvious by eye. |
+| 3 | **`go.work` workspace** | small multi-module workspace (real, or a constructed 2-member fixture) | union closure across members; `source="workspace"`. |
+| 4 | Vendored | a real vendored repo's `go.mod`+`vendor/modules.txt` (e.g. `containerd/containerd`), or self-`go mod vendor` cobra | Δ≈0 vs `-mod=vendor`. |
+| 5 | **Registry** `replace` (`=> fork@vX`) | a repo using a registry-level replace | replace applied; stays in both metrics. |
+| 6 | Pre-1.17 | an **old tag** of cobra/viper (`go 1.15`/`1.16`) | `resolve-required` — validates we *flag*, not fake. |
+| 7 | Zero-dep degenerate | `google/uuid` or `pkg/errors` | empty closure `{}` — guards `compare_go` divide-by-zero. |
+| 8 | Large clean closure (scale) | `prometheus/prometheus` or an AWS-SDK service module (**verify: no local replaces**) | Δ=0 still holds at 300+ modules. |
+| 9 | cgo — *pre-stage only* | a `mattn/go-sqlite3` dependent | Ordinary module closure now; C-lib obligation is the deferred SystemLib slice. Not a slice-1 fidelity edge case. |
+
+**Not corpus entries** (the oracle can't run on them manifest-only) — these live in the §9 fixtures instead: **local `replace => ../path`**, **`exclude`**, and a **workspace with a missing member** (taint-to-`resolve-required`).
+
+Corpus lives under `GO_SMOKE_ROOT` (default `outputs/graph_fidelity/_smoke_go`), same convention as Node's `_smoke_node`. Each manifest's exact `go` directive + closure size is verified when it is lifted (not asserted blind here).
 
 ---
 
@@ -157,8 +173,8 @@ Corpus lives under `GO_SMOKE_ROOT` (default `outputs/graph_fidelity/_smoke_go`),
 
 ## 9. Testing (per repo TDD / 80%-coverage rules)
 
-- **Unit (no Docker):** fixture `go.mod`/`go.sum`/`vendor/modules.txt` files under `tests/eval/go/fixtures/` covering every parse branch — pruned, vendored, single-line & block `require`, `// indirect` tagging, registry replace, local replace, exclude, pre-1.17 gate, malformed input (→ error record). Assert `module_closure` source selection + closure contents.
-- **Integration (Docker-gated):** one repo through the real `go list -m all` oracle, asserting recall==precision==1.0 on the clean ≥1.17 module.
+- **Unit (no Docker):** fixture `go.mod`/`go.sum`/`vendor/modules.txt`/`go.work` files under `tests/eval/go/fixtures/` covering every parse branch — pruned, vendored, `go.work` workspace (2 members) + workspace-with-missing-member (taint to `resolve-required`), single-line & block `require`, `// indirect` tagging, registry replace, **local replace** (OURS-only; oracle can't run on it), **exclude**, pre-1.17 gate, `toolchain` directive, patch-versioned `go 1.21.0` directive, zero-dep (empty closure), malformed input (→ error record). Assert `module_closure` source selection + closure contents.
+- **Integration (Docker-gated):** the anchor repo through the real `go list -m all` oracle, asserting recall==precision==1.0 on the clean ≥1.17 module; plus one `-mod=vendor` and one `go.work` oracle run.
 - **Compare unit:** synthetic OURS/ORACLE dicts → assert recall/precision/bucket math (incl. `resolve_required` re-labelling).
 
 ---
