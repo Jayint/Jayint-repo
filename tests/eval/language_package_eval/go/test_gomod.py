@@ -288,3 +288,21 @@ def test_closure_workspace_level_replace_taints(tmp_path):
     c = module_closure(ws)
     assert c.source == "resolve-required"
     assert c.resolve_required is True
+
+
+from src.eval.language_package_eval.go.run_ours_go import ours_for_repo  # noqa: E402
+
+
+def test_ours_for_repo_shape(tmp_path):
+    d = _repo(
+        tmp_path,
+        "module github.com/acme/app\n\ngo 1.21\n\n"
+        "require github.com/spf13/cobra v1.8.0\n",
+    )
+    rec = ours_for_repo(d)
+    assert rec["packages"] == {"github.com/spf13/cobra": "v1.8.0"}
+    assert rec["package_count"] == 1
+    assert rec["closure_source"] == "gomod-pruned"
+    assert rec["project"] == "github.com/acme/app"
+    assert rec["resolve_required"] is False
+    assert rec["target"] == {"goos": "linux", "goarch": "amd64"}
