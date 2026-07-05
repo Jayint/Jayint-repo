@@ -290,6 +290,20 @@ def test_closure_workspace_level_replace_taints(tmp_path):
     assert c.resolve_required is True
 
 
+def test_closure_workspace_use_dot_does_not_recurse(tmp_path):
+    # `use .` -> the workspace member IS the root (which has go.work). Must resolve
+    # via the go.mod ladder, not re-enter the workspace branch and RecursionError.
+    ws = tmp_path / "wsdot"
+    ws.mkdir()
+    (ws / "go.work").write_text("go 1.21\n\nuse .\n")
+    (ws / "go.mod").write_text(
+        "module example.com/root\n\ngo 1.21\n\nrequire github.com/x/y v1.0.0\n"
+    )
+    c = module_closure(ws)
+    assert c.source == "workspace"
+    assert c.packages == {"github.com/x/y": "v1.0.0"}
+
+
 from src.eval.language_package_eval.go.run_ours_go import ours_for_repo  # noqa: E402
 
 

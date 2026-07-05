@@ -295,7 +295,7 @@ def _workspace_closure(repo: Path, members: tuple[str, ...]) -> Closure:
         member = (repo / rel).resolve()
         if not (member / "go.mod").is_file():
             return _resolve_required(GoMod("", go_version))  # missing member taints
-        sub = module_closure(member)
+        sub = _member_closure(member)
         if sub.resolve_required:
             return _resolve_required(GoMod("", sub.go_version))
         for mod, ver in sub.packages.items():
@@ -317,18 +317,23 @@ def _workspace_closure(repo: Path, members: tuple[str, ...]) -> Closure:
     )
 
 
+def _member_closure(repo: Path) -> Closure:
+    """Non-workspace closure for a single module dir (the go.mod ladder only).
+    Used directly and for each go.work member, so a `use .` member cannot re-enter
+    the workspace branch and infinite-recurse."""
+    gm = parse_go_mod(repo / "go.mod")
+    vendor = repo / "vendor" / "modules.txt"
+    if vendor.is_file():
+        return _finalize(gm, parse_vendor_modules_txt(vendor), "vendor")
+    if _go_version_tuple(gm.go_version) >= (1, 17):
+        return _finalize(gm, {r.path: r.version for r in gm.requires}, "gomod-pruned")
+    return _resolve_required(gm)
+
+
 def module_closure(repo_dir: str | Path) -> Closure:
     """Offline ``{module: version}`` closure via the authority ladder
     (go.work -> vendor -> gomod-pruned -> resolve-required). Spec §3.1."""
     repo = Path(repo_dir)
     if (repo / "go.work").is_file():
         return _workspace_closure(repo, parse_go_work(repo / "go.work"))
-    gm = parse_go_mod(repo / "go.mod")
-    vendor = repo / "vendor" / "modules.txt"
-    if vendor.is_file():
-        pkgs = parse_vendor_modules_txt(vendor)
-        return _finalize(gm, pkgs, "vendor")
-    if _go_version_tuple(gm.go_version) >= (1, 17):
-        pkgs = {r.path: r.version for r in gm.requires}
-        return _finalize(gm, pkgs, "gomod-pruned")
-    return _resolve_required(gm)
+    return _member_closure(repo)
