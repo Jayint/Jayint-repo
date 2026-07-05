@@ -189,3 +189,142 @@ def parse_go_work(path: str | Path) -> tuple[str, ...]:
         if m:
             members.append(m.group(1).strip())
     return tuple(members)
+
+
+@dataclass(frozen=True)
+class Closure:
+    packages: dict[str, str]  # {module: version}; working map (not hashed)
+    source: str  # workspace | vendor | gomod-pruned | resolve-required
+    go_version: str
+    toolchain: str | None
+    replace_local: tuple[str, ...]  # module keys dropped due to a local replace
+    direct: int
+    indirect: int
+    resolve_required: bool
+
+
+def _resolve_required(gm: "GoMod") -> Closure:
+    return Closure(
+        packages={},
+        source="resolve-required",
+        go_version=gm.go_version,
+        toolchain=gm.toolchain,
+        replace_local=(),
+        direct=0,
+        indirect=0,
+        resolve_required=True,
+    )
+
+
+def _semver_key(v: str) -> tuple:
+    """Sort key for a module version. Numeric core first (`v1.10.0` > `v1.2.0`),
+    then the raw string as a deterministic tie-break for pseudo/pre-release forms."""
+    core = v.lstrip("v").split("-")[0].split("+")[0]
+    nums: list[int] = []
+    for p in core.split("."):
+        if p.isdigit():
+            nums.append(int(p))
+        else:
+            break
+    return (tuple(nums), v)
+
+
+def _max_version(a: str, b: str) -> str:
+    return a if _semver_key(a) >= _semver_key(b) else b
+
+
+def _finalize(gm: "GoMod", pkgs: dict[str, str], source: str) -> Closure:
+    """Apply replace/exclude, drop the main module, count direct/indirect."""
+    replace_local: list[str] = []
+    for r in gm.replaces:
+        # Honor an old-version constraint: `replace X vOld => ...` applies ONLY when
+        # the selected version of X is vOld. `replace X => ...` (no old version) always applies.
+        if r.old_version is not None and pkgs.get(r.old_path) != r.old_version:
+            continue
+        if (
+            r.new_version is None
+        ):  # local filesystem replace -> drop (target deps invisible offline)
+            if pkgs.pop(r.old_path, None) is not None:
+                replace_local.append(r.old_path)
+        elif (
+            r.old_path in pkgs
+        ):  # registry replace -> rewrite version, keep old key (matches `go list`)
+            pkgs[r.old_path] = r.new_version
+    for e in gm.excludes:
+        # `exclude` FORBIDS a version; MVS then selects the next. We cannot compute
+        # that offline, so an exclude of the SELECTED version taints to resolve-required.
+        # An exclude of any other version is a no-op.
+        if pkgs.get(e.path) == e.version:
+            return _resolve_required(gm)
+    pkgs.pop(gm.module_path, None)
+    return Closure(
+        packages=pkgs,
+        source=source,
+        go_version=gm.go_version,
+        toolchain=gm.toolchain,
+        replace_local=tuple(replace_local),
+        direct=sum(1 for r in gm.requires if not r.indirect),
+        indirect=sum(1 for r in gm.requires if r.indirect),
+        resolve_required=False,
+    )
+
+
+def _work_has_replace(work_path: Path) -> bool:
+    """True if go.work carries a `replace` directive (single-line or block open)."""
+    for raw in work_path.read_text().splitlines():
+        s = _strip_comment(raw)[0].strip()
+        if s.startswith("replace"):
+            return True
+    return False
+
+
+def _workspace_closure(repo: Path, members: tuple[str, ...]) -> Closure:
+    """One global MVS across all members: the MAX version of each module wins
+    (not last-write). Workspace-level `replace`/`go.work.sum` are unmodelled in
+    slice 1 -> taint to resolve-required (spec §3.1)."""
+    if _work_has_replace(repo / "go.work"):
+        return _resolve_required(GoMod("", ""))
+    merged: dict[str, str] = {}
+    replace_local: list[str] = []
+    go_version = ""
+    for rel in members:
+        member = (repo / rel).resolve()
+        if not (member / "go.mod").is_file():
+            return _resolve_required(GoMod("", go_version))  # missing member taints
+        sub = module_closure(member)
+        if sub.resolve_required:
+            return _resolve_required(GoMod("", sub.go_version))
+        for mod, ver in sub.packages.items():
+            merged[mod] = _max_version(merged[mod], ver) if mod in merged else ver
+        replace_local.extend(sub.replace_local)
+        go_version = go_version or sub.go_version
+    for rel in members:  # a member is never an external dep of another
+        member = (repo / rel).resolve()
+        merged.pop(parse_go_mod(member / "go.mod").module_path, None)
+    return Closure(
+        packages=merged,
+        source="workspace",
+        go_version=go_version,
+        toolchain=None,
+        replace_local=tuple(replace_local),
+        direct=0,
+        indirect=0,
+        resolve_required=False,
+    )
+
+
+def module_closure(repo_dir: str | Path) -> Closure:
+    """Offline ``{module: version}`` closure via the authority ladder
+    (go.work -> vendor -> gomod-pruned -> resolve-required). Spec §3.1."""
+    repo = Path(repo_dir)
+    if (repo / "go.work").is_file():
+        return _workspace_closure(repo, parse_go_work(repo / "go.work"))
+    gm = parse_go_mod(repo / "go.mod")
+    vendor = repo / "vendor" / "modules.txt"
+    if vendor.is_file():
+        pkgs = parse_vendor_modules_txt(vendor)
+        return _finalize(gm, pkgs, "vendor")
+    if _go_version_tuple(gm.go_version) >= (1, 17):
+        pkgs = {r.path: r.version for r in gm.requires}
+        return _finalize(gm, pkgs, "gomod-pruned")
+    return _resolve_required(gm)
