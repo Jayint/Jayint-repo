@@ -160,3 +160,93 @@ def test_wheel_preflight_prepass_is_additive_noop_for_fallback_closure(
 
     assert downloads["n"] == 0, "pre-pass attempted a download for a non-wheel closure"
     assert [n for n in graph.nodes if n.type is NodeType.SYSTEM_LIB] == []
+
+
+# A universal uv.lock: psycopg2 ships ONLY an sdist (no wheel), so
+# native_risk_from_lock stamps build_from_source=True — the source-built
+# classification seed_build_deps seeds a SPECIFIC -dev prior for (Task 3.2).
+_SDIST_LOCK = """\
+version = 1
+requires-python = ">=3.11"
+
+[[package]]
+name = "sdist-prepass-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "psycopg2" },
+]
+
+[[package]]
+name = "psycopg2"
+version = "2.9.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/x/psycopg2-2.9.9.tar.gz", hash = "sha256:psql-sdist" }
+"""
+
+
+def _sdist_repo(tmp_path) -> str:
+    (tmp_path / "app.py").write_text("import psycopg2\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="fx"\nversion="0"\ndependencies=["psycopg2"]\n'
+    )
+    return str(tmp_path)
+
+
+def test_sdist_gets_specific_dev_prior_and_generic_floor(tmp_path, monkeypatch):
+    """Task 3.2 — an sdist package (``build_from_source=True``) gets its SPECIFIC
+    ``-dev`` prior from ``seed_build_deps`` (psycopg2 -> ``binary:pg_config``,
+    resolved to ``apt:libpq-dev`` via the curated table) AND still keeps the
+    generic ``tool:build-essential`` FLOOR from ``seed_wheel_oracle_prior``. The
+    two are DISTINCT nodes — the specific prior unions with the floor, neither
+    erasing the other. Docker-free: the Debian/PEP725 paths degrade to empty
+    under the FakeExecutor, so only the curated ``pg_config`` capability + the
+    B3 baseline ``binary:pkg-config`` are added beyond the floor."""
+    from conftest import SequencedFakeExecutor  # type: ignore
+
+    from python_deps.depgraph.ids import binary_id, package_id, tool_id
+
+    # An sdist closure never triggers a wheel download; if the pre-pass did, this
+    # fake path would surface (guard: it must not be inspected for sonames).
+    monkeypatch.setattr(
+        wheel_preflight, "download_target_wheel", lambda *a, **k: "/tmp/nope.whl"
+    )
+    monkeypatch.setattr(wheel_preflight, "inspect_wheel_sonames", lambda p: set())
+
+    ex = SequencedFakeExecutor(
+        responses={"uv lock": [_r(0, stdout=_SDIST_LOCK)]},
+        default=_r(0),
+    )
+    provider = lambda dist: {"psycopg2"} if "psycopg2" in dist.lower() else None  # noqa: E731
+    graph, _roots, _env, _newer = _python_package_obligations(
+        _sdist_repo(tmp_path),
+        ex,
+        host_executor=ex,
+        target_python="3.11",
+        target_platform="x86_64-manylinux_2_28",
+        record_provider=provider,
+    )
+
+    pkg = package_id("psycopg2", "2.9.9")
+
+    # SPECIFIC prior: psycopg2's pg_config capability, table-resolved to libpq-dev.
+    specific = graph.get(binary_id("pg_config"))
+    assert specific is not None, "seed_build_deps did not seed the specific -dev prior"
+    assert specific.type is NodeType.TOOL
+    # Seeded by the RESOLVER pre-pass, never SATISFIED-at-seed.
+    assert specific.discovered_by is DiscoveredBy.RESOLVER
+    assert specific.state is State.UNKNOWN
+    assert specific.chosen_fix == "apt:libpq-dev"
+    assert any(
+        e.src == pkg and e.dst == binary_id("pg_config") and e.origin == "resolver"
+        for e in graph.edges
+    ), "no requires edge psycopg2 -> pg_config prior"
+
+    # GENERIC FLOOR still present: build-essential from seed_wheel_oracle_prior.
+    floor = graph.get(tool_id("build-essential"))
+    assert floor is not None, "generic build-essential floor was erased"
+    assert floor.type is NodeType.TOOL
+    assert any(
+        e.src == pkg and e.dst == tool_id("build-essential") and e.origin == "resolver"
+        for e in graph.edges
+    ), "no requires edge psycopg2 -> build-essential floor"

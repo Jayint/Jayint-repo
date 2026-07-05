@@ -54,6 +54,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 from python_deps.depgraph.apt_verify import reconcile_apt_names
+from python_deps.depgraph.build_deps import seed_build_deps
 from python_deps.depgraph.certify import certify_all
 from python_deps.depgraph.coverage import (
     composite_record_provider,
@@ -574,6 +575,16 @@ def _python_package_obligations(
     # identical. Phase-B's ldd_probe reconciles its observations onto these same
     # syslib_id nodes (reconcile_predicted), so no ordering change is needed.
     graph = wheel_preflight_probe(graph, host_executor, target_env)
+    # Stage 3b'' — sdist build-dep prior: for each source-built Package
+    # (build_from_source not False, incl. None/unclassified), seed the SPECIFIC
+    # -dev capability priors (Bucket-B/B.1 curated + Debian Build-Depends +
+    # PEP 725) PLUS the unconditional baseline binary:pkg-config (B3), UNIONING
+    # with seed_wheel_oracle_prior's generic build-essential FLOOR at :568 (both
+    # kept — distinct node ids never erase each other). Runs on the CONTAINER
+    # executor: the Bucket-B.1 apt-installability guard shells out via
+    # container_executor. RESOLVER/UNKNOWN nodes (never SATISFIED-at-seed), so
+    # they fall inside the resolver_ids restamp just below.
+    graph = seed_build_deps(graph, container_executor)
     resolver_ids = {
         n.id
         for n in graph.nodes

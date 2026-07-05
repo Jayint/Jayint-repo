@@ -7,12 +7,16 @@ no curated package->syslib table. A package with no compatible wheel needs a
 compiler to build its sdist; that is the one thing this stage predicts.
 
 This REPLACES the deleted ``seed_predicted_native`` / ``PACKAGE_TO_SYSTEM_DEPS``
-path. Specific ``-dev`` headers (psycopg2->libpq-dev, Pillow->libjpeg-dev) are
-no longer predicted from a table. They are recovered by: ``install_closure``
-parsing the real build error (stage 4), or ``ldd_probe`` for runtime libs
-(stage 4.5) — an expected coverage tradeoff, see the design doc's "What this
-loses, honestly" and Risk #2. (Declaration mining, cluster 1b, is deferred —
-not part of this plan.)
+path. The generic ``build-essential`` this stage seeds is now the FLOOR, not the
+whole story: specific ``-dev`` priors (psycopg2->libpq-dev, pycairo->libcairo2-dev)
+come from ``build_deps.seed_build_deps`` (the Bucket-B/B.1 curated table + Debian
+``Build-Depends`` + PEP 725 ``[external]``), which UNIONS with this floor in the
+Phase-B pre-pass — distinct node ids (``tool:build-essential`` vs the capability/
+``aptdep:`` nodes), so neither erases the other. Any specific ``-dev`` a
+package needs but no prior predicts is still recovered reactively by
+``install_closure`` parsing the real build error (stage 4), or ``ldd_probe`` for
+runtime libs (stage 4.5). (Declaration mining, cluster 1b, is deferred — not part
+of this plan.)
 
 Pure: every "mutation" returns a NEW ``DepGraph`` (repo immutability rule).
 """
@@ -52,7 +56,11 @@ def _build_essential_node() -> Node:
 
 
 def seed_wheel_oracle_prior(graph: DepGraph) -> DepGraph:
-    """Emit ONE ``tool:build-essential`` node for every from-source or unknown Package.
+    """Emit ONE ``tool:build-essential`` FLOOR node for every from-source or unknown Package.
+
+    This is the generic floor only: every source-built package needs a compiler.
+    Specific ``-dev`` priors are seeded separately by ``build_deps.seed_build_deps``
+    and union with this node (distinct ids — neither erases the other).
 
     For each ``Package`` with ``build_from_source`` not False (i.e., True or None —
     known from-source builds or unknown build mode from degraded resolution), add a
