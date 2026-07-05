@@ -6,7 +6,13 @@ import sys
 
 from conftest import FakeExecutor, make_result
 
-from python_deps.depgraph.executor import CommandResult, Executor, LocalSubprocessExecutor
+import python_deps.depgraph.executor as executor_mod
+from python_deps.depgraph.executor import (
+    CommandResult,
+    DockerExecutor,
+    Executor,
+    LocalSubprocessExecutor,
+)
 
 
 def test_command_result_ok_property():
@@ -76,3 +82,51 @@ def test_fake_executor_records_calls():
 
 def test_fake_executor_satisfies_protocol():
     assert isinstance(FakeExecutor(), Executor)
+
+
+# --- DockerExecutor --platform param (additive; default None = unchanged) ---
+
+
+def test_docker_run_command_includes_platform_when_set():
+    ex = DockerExecutor("python:3.11-slim-bookworm", platform="linux/amd64")
+    cmd = ex._run_command()
+    assert "--platform linux/amd64" in cmd
+
+
+def test_docker_run_command_omits_platform_by_default():
+    ex = DockerExecutor("python:3.11-slim-bookworm")
+    cmd = ex._run_command()
+    assert "--platform" not in cmd
+    # Byte-identical to the historical (pre-platform) docker run command.
+    assert cmd == (
+        f"docker run -d --name {ex._name} python:3.11-slim-bookworm sleep infinity"
+    )
+
+
+def test_platform_flag_reaches_docker_run_argv(monkeypatch):
+    captured: list[str] = []
+
+    def fake_run(command: str, *, timeout: int) -> CommandResult:
+        captured.append(command)
+        return make_result(stdout="fakecontainerid\n", returncode=0)
+
+    monkeypatch.setattr(executor_mod, "_run_subprocess", fake_run)
+    with DockerExecutor("python:3.11-slim-bookworm", platform="linux/amd64"):
+        pass
+    run_argv = captured[0]  # first _run_subprocess call is the `docker run`
+    assert "--platform" in run_argv
+    assert "linux/amd64" in run_argv
+
+
+def test_platform_flag_absent_from_docker_run_argv_when_none(monkeypatch):
+    captured: list[str] = []
+
+    def fake_run(command: str, *, timeout: int) -> CommandResult:
+        captured.append(command)
+        return make_result(stdout="fakecontainerid\n", returncode=0)
+
+    monkeypatch.setattr(executor_mod, "_run_subprocess", fake_run)
+    with DockerExecutor("python:3.11-slim-bookworm"):
+        pass
+    run_argv = captured[0]
+    assert "--platform" not in run_argv

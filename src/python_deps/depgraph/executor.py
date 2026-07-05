@@ -83,18 +83,23 @@ class DockerExecutor:
     when Docker is absent.
     """
 
-    def __init__(self, image: str, *, network: bool = True) -> None:
+    def __init__(
+        self, image: str, *, network: bool = True, platform: str | None = None
+    ) -> None:
         self.image = image
         self.network = network
+        self.platform = platform
         self.container_id: str | None = None
         self._name = f"depgraph-probe-{uuid.uuid4().hex[:12]}"
 
-    def __enter__(self) -> "DockerExecutor":
+    def _run_command(self) -> str:
+        """The ``docker run`` command that starts the probe container (pure/testable)."""
         net = "" if self.network else "--network none "
-        start = _run_subprocess(
-            f"docker run -d {net}--name {self._name} {self.image} sleep infinity",
-            timeout=300,
-        )
+        plat = f"--platform {self.platform} " if self.platform else ""
+        return f"docker run -d {net}{plat}--name {self._name} {self.image} sleep infinity"
+
+    def __enter__(self) -> "DockerExecutor":
+        start = _run_subprocess(self._run_command(), timeout=300)
         if not start.ok:
             raise RuntimeError(
                 f"failed to start probe container: {start.stderr.strip()}"
