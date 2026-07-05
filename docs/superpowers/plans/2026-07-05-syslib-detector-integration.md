@@ -849,3 +849,65 @@ Plan saved to `docs/superpowers/plans/2026-07-05-syslib-detector-integration.md`
 2. **Inline Execution** — batch with checkpoints for review.
 
 Which approach?
+
+---
+
+## Task 1.2 — EXPANDED (full v3-core fidelity, chosen 2026-07-06; supersedes the deferred single-task 1.2)
+
+**Decision (user, 2026-07-06):** finish the reactive-probe migration to FULL v3-core capability-observation fidelity (not the minimal de-dup). Three read-only Sonnet recon agents produced the map below. **Load-bearing facts:** (a) the reactive path (`import_probe`/`install_closure`/`ldd_probe`/`resolve_soname_apt`) is PROVABLY NOT reachable from the eval's `predict.py` — changing it CANNOT move `installable_rate`/`apt` (Task 3.3 stays 0.9143/apt=0); (b) NO architectural blocker — HEAD's `Node.data`, `os_resolver` (byte-identical), and the proactive `seed_build_deps` capability nodes were built for exactly this reconcile; a reactive `PROBE` observation at `capability_id(need)` collapses onto the proactive `RESOLVER`/`UNKNOWN` node at the same id (the `reconcile_predicted` RESOLVER-guard); (c) THE MANDATORY PRESERVATION — v3-core's `import_probe` DROPS HEAD's metadata-present non-native import-failure flagging (`flag_runtime_import_failure`/`_short_import_error`, pinned by `test_import_probe_nonnative.py`, consumed by `run_ours_pkg.py`); the port MUST re-insert it as an empty-`extract_needs`-list fallback. Reactive-path test baseline (2026-07-06): **84 passed** (`test_probe` 33 + `test_ldd_probe` 20 + `test_import_probe_nonnative` ~8 + `test_apt_resolve` 13 + `test_tables` 8… anchor = 84). Full-suite baseline entering 1.2: **1368 passed / 1 skipped**.
+
+**Ordering:** 1.2a (foundation, unwired) → 1.2b (probe.py) → 1.2c (ldd_probe.py) → 1.2d (retire legacy). Each is commit-local, Phase A untouched, eval-invisible.
+
+### Task 1.2a: Port failure-signature foundation (`failure_classifier` SONAME_RES + `failure_signatures`), UNWIRED
+
+**Files:**
+- Modify: `src/python_deps/failure_classifier.py` (port v3-core's `SONAME_RES`/glibc diff — ~59 diff lines: add `SONAME_RES` tuple (4 anchored patterns, all require "cannot open shared object file"), `_first_soname_match`/`first_soname`, `_GLIBC_MISMATCH_RE`/`glibc_version_mismatch`, update `classify_dependency_failure`; **KEEP `NATIVE_LIBRARY_RE` for now** — `probe.py:32,258` still imports it until Task 1.2b removes that consumer; the `native_library_missing` failure_type string is UNCHANGED so `runtime_classify.py:102` + `diagnose.py` are unaffected)
+- Create: `src/python_deps/depgraph/failure_signatures.py` (net-new, verbatim from v3-core; `extract_needs(stderr, *, context_hint) -> list[ObservedNeed]`; imports `os_resolver.{ObservedNeed,default_context}` (present) + `failure_classifier.SONAME_RES` (added above))
+- Create: `tests/depgraph/test_failure_signatures.py` (verbatim from v3-core, 44 tests), `tests/depgraph/test_syslib.py` (verbatim from v3-core, 2 tests — `syslib.make_syslib_node` already exists on HEAD, currently untested)
+
+**Interfaces produced:** `failure_signatures.extract_needs`, `failure_classifier.{SONAME_RES, first_soname, glibc_version_mismatch}`.
+
+- [ ] **Step 1:** Diff `git show HEAD:src/python_deps/failure_classifier.py` vs `v3-core:` — apply ONLY the additive SONAME_RES/glibc changes; keep `NATIVE_LIBRARY_RE` (still imported by probe.py until 1.2b). Confirm `native_library_missing` string unchanged.
+- [ ] **Step 2:** `git show v3-core:src/python_deps/depgraph/failure_signatures.py > src/python_deps/depgraph/failure_signatures.py`. Verify `python3 -c "import sys; sys.path.insert(0,'src'); from python_deps.depgraph.failure_signatures import extract_needs; print('OK')"`.
+- [ ] **Step 3:** Port v3-core's `test_failure_signatures.py` + `test_syslib.py` verbatim. Run: `python3 -m pytest tests/depgraph/test_failure_signatures.py tests/depgraph/test_syslib.py -q` → expect 46 passed.
+- [ ] **Step 4:** Guard the adjacency — `python3 -m pytest tests/depgraph/test_runtime_classify.py tests/depgraph/test_failure_classifier.py -q` (whatever exists) + full suite `tests/depgraph tests/pkg_layer tests/eval` → expect **1368 + 46 = 1414 passed / 1 skipped** (unwired — nothing else changes; `diagnose`/`runtime_classify` byte-behavior preserved). Report exact delta.
+- [ ] **Step 5:** Commit `src/python_deps/failure_classifier.py src/python_deps/depgraph/failure_signatures.py tests/depgraph/test_failure_signatures.py tests/depgraph/test_syslib.py` — `feat(depgraph): port failure_signatures + failure_classifier SONAME_RES foundation (unwired)`.
+
+### Task 1.2b: Migrate `probe.py` to capability-observation (PRESERVE the flag-fallback)
+
+**Files:**
+- Modify: `src/python_deps/depgraph/probe.py` — (1) imports: drop `NATIVE_LIBRARY_RE`, `apt_resolve.resolve_soname_apt`, `tables.{TOOL_TO_APT, apt_for_soname, apt_for_tool}`, `tool_id`; add `failure_signatures.extract_needs`, `os_resolver.{ObservedNeed, capability_id, check_command_for, resolve}`, `logging`. **KEEP `from python_deps.depgraph.relink import flag_runtime_import_failure`** and `syslib.make_syslib_node`. (2) ADOPT v3-core's `reconcile_predicted` (superset: adds optional `chosen_fix=None, fix_candidates=()` + backfill; backward-compatible with the 5-arg `ldd_probe` caller). (3) ADOPT v3-core's `_ingest_need` + `_make_capability_node`. (4) `install_closure` inner loop → `for need in extract_needs(stderr, context_hint="build"): _ingest_need(...)`. (5) `import_probe`: `for need in extract_needs(stderr, context_hint="runtime"): _ingest_need(...)` — **but if `extract_needs(...)` returns EMPTY for a failed probe, fall through to HEAD's existing branch: `reason = _short_import_error(stderr) or f"import {name} failed"; for node_id in target["attempt_nodes"]: new = flag_runtime_import_failure(new, node_id, reason=reason)`** (THE MANDATORY PRESERVATION — gate on empty-needs, not on soname-nonmatch). (6) DELETE `_tool_gaps`, `_make_tool_node`, `_tool_check`; consolidate the local `_make_syslib_node` onto `syslib.make_syslib_node` (drop the `apt_for_soname` fallback — caller resolves fully). (7) PRESERVE unchanged: `_failed_build_packages`, `_requirers_of_failed`, `_reinstall_survivors`, `_probe_targets`, `_edge_sources`, `_build_owners`, `_spec`, `_sorted`, `_first_line_with`, `_short_import_error`. Signatures of `install_closure`/`import_probe`/`reconcile_predicted` unchanged (callers in `build.py`/`ldd_probe.py` unaffected).
+- Modify: `tests/depgraph/test_probe.py` — port v3-core's version (43 tests: +capability-generic tests, `test_make_tool_node_is_self_contained` deleted). **DO NOT touch `tests/depgraph/test_import_probe_nonnative.py`** (HEAD-only, 7-8 tests; the flag-fallback must keep them GREEN — this is the acceptance signal for the preservation).
+
+**Interfaces produced:** `probe.{import_probe, install_closure, reconcile_predicted(…, chosen_fix, fix_candidates), _ingest_need, _make_capability_node}`.
+
+- [ ] **Step 1:** Apply the import + function changes above. Cross-check every call shape against `git show v3-core:src/python_deps/depgraph/probe.py`.
+- [ ] **Step 2:** Add the empty-needs fallback in `import_probe` (verify against `test_import_probe_nonnative.py`'s fixtures: a metadata-present `ImportError: cannot import name` and a bare `RuntimeError` at import must still set `data["unresolved_runtime"]`/`import_error`).
+- [ ] **Step 3:** Port v3-core `test_probe.py`. Run `python3 -m pytest tests/depgraph/test_probe.py tests/depgraph/test_import_probe_nonnative.py -q` → both green (nonnative = the preservation proof).
+- [ ] **Step 4:** Full suite `tests/depgraph tests/pkg_layer tests/eval` → report count (expect ~1414 + (43−33)=~1424, minus any retired probe tests; the exact number is what the implementer reports — no regression, `test_import_probe_nonnative` all pass).
+- [ ] **Step 5:** Commit `probe.py tests/depgraph/test_probe.py` — `refactor(probe): capability-observation reactive path (extract_needs/_ingest_need) preserving metadata-present flag fallback`.
+
+### Task 1.2c: Migrate `ldd_probe.py` onto `os_resolver` + shared syslib factory
+
+**Files:**
+- Modify: `src/python_deps/depgraph/ldd_probe.py` — imports: remove `apt_resolve.resolve_soname_apt` (+ `Layer` if now unused); add `os_resolver.{ObservedNeed, resolve}`, `syslib.make_syslib_node`. Call site (~170): `cands = resolve(ObservedNeed("soname", soname, context="runtime"), executor); apt = cands[0].package if cands else None`. `reconcile_predicted(...)` call: add `chosen_fix=f"apt:{apt}" if apt else None, fix_candidates=tuple(f"apt:{c.package}" for c in cands)`. Replace the inline `Node(...)` build with `make_syslib_node(soname, discovered_by=DiscoveredBy.PROBE, state=State.MISSING, apt=apt, evidence=…, provenance="ldd (observed)")`. Delete this file's local `_make_syslib_node`. Docstring: `resolve_soname_apt`→`os_resolver.resolve`, `NATIVE_LIB_TO_APT`→`PROVIDER_TABLE`. Batching logic (`parse_ext_so_map`, `parse_ldd_not_found`, ldd loop) UNCHANGED. Signature `ldd_probe(graph, executor)` unchanged.
+- Modify: `tests/depgraph/test_ldd_probe.py` — port v3-core's version (21 tests: +`test_ldd_probe_fills_chosen_fix_left_none_by_seed`).
+
+- [ ] **Step 1:** Apply the edits (cross-check `git show v3-core:src/python_deps/depgraph/ldd_probe.py`). **NOTE:** `test_ldd_probe_docker.py` currently imports `NATIVE_LIB_TO_APT` (still present until 1.2d) — do NOT break it here; it stays green until the table is deleted in 1.2d.
+- [ ] **Step 2:** `python3 -m pytest tests/depgraph/test_ldd_probe.py -q` → green. Docker ldd test (`test_ldd_probe_docker.py`) — run foreground if docker free, else note skip.
+- [ ] **Step 3:** Full suite → report count (expect prior + 1). Commit `ldd_probe.py tests/depgraph/test_ldd_probe.py` — `refactor(ldd_probe): single apt authority (os_resolver.resolve) + shared syslib factory`.
+
+### Task 1.2d: Retire `apt_resolve.py` + the os_resolver-superseded tables (deletion LAST)
+
+**Files:**
+- Delete: `src/python_deps/depgraph/apt_resolve.py` (zero non-comment refs after 1.2b/1.2c — verify `grep -rn "apt_resolve\|resolve_soname_apt" src/ tests/` == 0)
+- Modify: `src/python_deps/depgraph/tables.py` — delete `NATIVE_LIB_TO_APT`, `TOOL_TO_APT`, `apt_for_soname`, `apt_for_tool`. **KEEP `CLI_TOOL_TO_APT`, `apt_for_cli_tool`, `NATIVE_RISK_PACKAGES`** (runtime-CLI authority + native-risk gating — NOT superseded; `subprocess_scan.py` + `probe.py`'s `_probe_targets` still use them).
+- Modify: `src/python_deps/depgraph/apt_verify.py` (docstring: `apt_resolve.py` → `os_resolver.PROVIDER_TABLE`)
+- Fix collateral import-breaks: `tests/depgraph/test_ldd_probe_docker.py` (imports `NATIVE_LIB_TO_APT` — repoint to `os_resolver.PROVIDER_TABLE`/`resolve`), `tests/depgraph/test_subprocess_scan.py` (its `test_tables_are_disjoint`/id-collision test imports `TOOL_TO_APT` — reframe to keep only the `CLI_TOOL_TO_APT` half, or assert disjointness vs `os_resolver.PROVIDER_TABLE`).
+- Delete: `tests/depgraph/test_apt_resolve.py` (13 tests — coverage lives in `test_os_resolver.py` already). Shrink `tests/depgraph/test_tables.py` to v3-core's version (4 tests — only `NATIVE_RISK_PACKAGES` remains).
+
+- [ ] **Step 1:** `grep -rn "apt_resolve\|resolve_soname_apt\|NATIVE_LIB_TO_APT\|\bTOOL_TO_APT\b\|apt_for_soname\|apt_for_tool" src/ tests/` — repoint every remaining consumer BEFORE deleting (expect only the test collateral above + the tables.py defs).
+- [ ] **Step 2:** Delete the module + tables + tests, apply the collateral fixes, update apt_verify docstring.
+- [ ] **Step 3:** `grep -rn "apt_resolve\|resolve_soname_apt\|NATIVE_LIB_TO_APT\|\bTOOL_TO_APT\b\|apt_for_soname\|apt_for_tool" src/ tests/` → ZERO (KEEP-list names may still appear: `CLI_TOOL_TO_APT`, `apt_for_cli_tool`, `NATIVE_RISK_PACKAGES`).
+- [ ] **Step 4:** Full suite `tests/depgraph tests/pkg_layer tests/eval` → GREEN (count drops by the deleted `test_apt_resolve` 13 + `test_tables` shrink 4; net vs 1.2c reported). `git rm` the deleted files; commit — `refactor(depgraph): retire apt_resolve + os_resolver-superseded tables (single apt authority); keep CLI runtime-tool table`.
+- [ ] **Step 5 (final-verify of the whole 1.2):** re-run the reactive-path cluster + confirm `test_import_probe_nonnative.py` still all-green (the preservation held end-to-end). Optionally re-run a quick `--only requests,pyodbc` eval slice to reconfirm the eval is unmoved (it is, by construction — reactive path is eval-invisible).
