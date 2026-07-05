@@ -2,7 +2,8 @@
 """Gold closures for the Go package-layer eval, inside a golang container.
 Deterministic — NO agent (the toolchain emits the build list directly). Docker-gated
 (spec §5). Two oracles:
-  * oracle_closure  — BUILD LIST via `go list -mod=mod -m -json all` (manifest-only).
+  * oracle_closure  — BUILD LIST via `go list -m -json all` (manifest-only); `-mod=mod`
+    normally, no `-mod` flag in a `go.work` workspace (`-mod=vendor` can't compute 'all').
   * oracle_loadset  — PACKAGE-LOADING set via `go list -deps -json ./...` (needs SOURCE).
 
 Usage:
@@ -69,13 +70,18 @@ def _docker_go(repo: pathlib.Path, go_image: str, *args: str) -> str:
 def oracle_closure(
     repo_dir, *, go_image: str = GO_IMAGE, vendored: bool = False
 ) -> dict[str, str]:
-    """BUILD LIST. Force ``-mod=vendor`` when vendored else ``-mod=mod`` so a stray
-    vendor/ dir or stale go.mod can't silently change the result (spec §5)."""
+    """BUILD LIST via ``go list -m -json all``. ``-mod=vendor`` cannot compute 'all'
+    (go: can't compute 'all' using the vendor directory), so it is never used here
+    even when vendored — ``-mod=mod`` gives the authoritative full build list instead.
+    In a ``go.work`` workspace, ``-mod`` may only be ``readonly`` or ``vendor``, so we
+    pass no ``-mod`` flag at all and rely on Go's default (readonly). The ``vendored``
+    parameter is kept for signature compatibility but no longer selects the mode here.
+    """
     repo = pathlib.Path(repo_dir).resolve()
-    mode = "-mod=vendor" if vendored else "-mod=mod"
-    return parse_go_list_json(
-        _docker_go(repo, go_image, "list", mode, "-m", "-json", "all")
-    )
+    args = ["list", "-m", "-json", "all"]
+    if not (repo / "go.work").is_file():
+        args.insert(1, "-mod=mod")
+    return parse_go_list_json(_docker_go(repo, go_image, *args))
 
 
 def oracle_loadset(repo_dir, *, go_image: str = GO_IMAGE) -> dict[str, str]:
