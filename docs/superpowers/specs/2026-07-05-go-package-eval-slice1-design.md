@@ -62,9 +62,9 @@ Everything structural is the same: construction-only (no agent, no repair loop o
 
 **Two oracles, reported side by side** (so the recall gap is *attributed*, not just measured):
 - **Build-list oracle** — `go list -m all`. The authoritative MVS build list; OURS is expected to under-count it (§0.1). Answers "how far is the require block from the full build list?"
-- **Package-loading oracle** *(narrower)* — the modules actually providing imported packages, via `go list -deps -json ./...` → the set of modules whose packages are reachable. A tidy require block should match this **tightly** (≈Δ0). Answers "does the require block correctly capture the package-loading set?" — separating *our parser's* fidelity from *Go's* build-list-vs-load-set gap.
+- **Package-loading oracle** *(narrower, diagnostic)* — the modules actually providing imported packages, via `go list -deps -json ./...` → the set of modules whose packages are reachable. A tidy require block should match this **tightly** (≈Δ0). Answers "does the require block correctly capture the package-loading set?" — separating *our parser's* fidelity from *Go's* build-list-vs-load-set gap. **Requires the main module's SOURCE** (it loads imports), so it is **not** manifest-only: it runs on a **full clone of the anchor repo only**, as a one-off diagnostic — not across the manifest-only corpus.
 
-Slice 1 ships the build-list oracle as primary and the package-loading oracle as the diagnostic that explains the residual.
+Slice 1 ships the **build-list oracle as primary** (manifest-only, whole corpus → `recall_buildlist`, `precision`). The **package-loading oracle is an optional diagnostic** run on the full-clone anchor to attribute the anchor's residual (`pruned_superset` vs `recall_defect`); `compare_go` accepts it as optional and, when absent, reports `recall_buildlist` alone.
 
 ---
 
@@ -202,7 +202,7 @@ Corpus lives under `GO_SMOKE_ROOT` (default `outputs/graph_fidelity/_smoke_go`).
 ## 9. Testing (per repo TDD / 80%-coverage rules)
 
 - **Unit (no Docker):** fixture `go.mod`/`go.sum`/`vendor/modules.txt`/`go.work` files under `tests/eval/language_package_eval/go/` (inline via `tmp_path`) covering every parse branch — pruned, vendored, `go.work` workspace with an **overlapping dep at two versions → max wins** and workspace-with-missing-member (taint), single-line & block `require`, `// indirect` tagging, **registry replace with `vOld` constraint** (applies only when selected == `vOld`; a non-matching `vOld` is a no-op), **local replace** (OURS-only), **`exclude`** asserting *forbid-version* semantics (module retained when another version is selected; re-selection case taints to `resolve-required`), pre-1.17 / no-`go`-directive gate, `toolchain` directive, patch-versioned `go 1.21.0`, zero-dep (empty closure), malformed input (→ error record). Assert `module_closure` source selection + closure contents.
-- **Integration (Docker-gated):** the anchor (`viper@v1.18.2`) through **both** oracles — assert `recall_loadset == 1.0` (parser fidelity) and record `recall_buildlist` (the structural gap, expected `< 1.0`, **not** asserted `== 1`); plus one `-mod=vendor` and one `go.work` oracle run. The old "recall==precision==1.0" assertion is **removed** (§0.1).
+- **Integration (Docker-gated):** the build-list oracle across manifest-only entries; record `recall_buildlist` per repo (the structural gap, expected `< 1.0`, **not** asserted `== 1`). Separately, a **full clone** of the anchor (`viper@v1.18.2`) through the package-loading oracle → assert `recall_loadset == 1.0` (parser fidelity). Plus one `-mod=vendor` and one `go.work` build-list run. The old "recall==precision==1.0" assertion is **removed** (§0.1).
 - **Compare unit:** synthetic OURS/BUILD_LIST/LOAD_SET dicts → assert recall_buildlist / recall_loadset / precision and the `pruned_superset` vs `recall_defect` split of `missing`, plus `resolve_required` re-labelling.
 
 ---
