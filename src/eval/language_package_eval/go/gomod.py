@@ -235,6 +235,16 @@ def _max_version(a: str, b: str) -> str:
 
 def _finalize(gm: "GoMod", pkgs: dict[str, str], source: str) -> Closure:
     """Apply replace/exclude, drop the main module, count direct/indirect."""
+    # `exclude` FORBIDS a version and affects MVS SELECTION, which happens BEFORE
+    # `replace` substitution. So excludes must be checked against the AS-SELECTED
+    # versions (`pkgs` as passed in, before any replace mutates it) -- otherwise an
+    # unconditional `replace X => Y vN` could rewrite X's version first and mask an
+    # exclude that should taint the closure. MVS then selects the next version if
+    # excluded; we cannot compute that offline, so an exclude of the SELECTED
+    # version taints to resolve-required. An exclude of any other version is a no-op.
+    for e in gm.excludes:
+        if pkgs.get(e.path) == e.version:
+            return _resolve_required(gm)
     replace_local: list[str] = []
     for r in gm.replaces:
         # Honor an old-version constraint: `replace X vOld => ...` applies ONLY when
@@ -250,12 +260,6 @@ def _finalize(gm: "GoMod", pkgs: dict[str, str], source: str) -> Closure:
             r.old_path in pkgs
         ):  # registry replace -> rewrite version, keep old key (matches `go list`)
             pkgs[r.old_path] = r.new_version
-    for e in gm.excludes:
-        # `exclude` FORBIDS a version; MVS then selects the next. We cannot compute
-        # that offline, so an exclude of the SELECTED version taints to resolve-required.
-        # An exclude of any other version is a no-op.
-        if pkgs.get(e.path) == e.version:
-            return _resolve_required(gm)
     pkgs.pop(gm.module_path, None)
     return Closure(
         packages=pkgs,
@@ -280,8 +284,8 @@ def _work_has_replace(work_path: Path) -> bool:
 
 def _workspace_closure(repo: Path, members: tuple[str, ...]) -> Closure:
     """One global MVS across all members: the MAX version of each module wins
-    (not last-write). Workspace-level `replace`/`go.work.sum` are unmodelled in
-    slice 1 -> taint to resolve-required (spec §3.1)."""
+    (not last-write). A workspace-level `replace` directive taints to
+    resolve-required (spec §3.1); `go.work.sum` is not inspected in slice 1."""
     if _work_has_replace(repo / "go.work"):
         return _resolve_required(GoMod("", ""))
     merged: dict[str, str] = {}

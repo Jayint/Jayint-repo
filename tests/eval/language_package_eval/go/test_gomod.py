@@ -102,7 +102,6 @@ def test_parse_go_work_missing_returns_empty(tmp_path):
 
 
 from src.eval.language_package_eval.go.gomod import (
-    Closure,
     module_closure,
 )  # noqa: E402
 
@@ -201,6 +200,20 @@ def test_closure_exclude_nonmatching_version_is_noop(tmp_path):
     c = module_closure(d)
     assert c.packages == {"github.com/x/y": "v1.0.0"}
     assert c.resolve_required is False
+
+
+def test_closure_replace_cannot_mask_excluded_selected_version(tmp_path):
+    # exclude affects SELECTION (pre-replace); an unconditional replace must NOT
+    # hide that the selected v1.0.0 is excluded -> taint to resolve-required.
+    d = _repo(
+        tmp_path,
+        "module m\n\ngo 1.21\n\nrequire github.com/x/y v1.0.0\n"
+        "replace github.com/x/y => github.com/fork/y v2.0.0\n"
+        "exclude github.com/x/y v1.0.0\n",
+    )
+    c = module_closure(d)
+    assert c.source == "resolve-required"
+    assert c.resolve_required is True
 
 
 def test_closure_vendor_wins_over_gomod(tmp_path):
