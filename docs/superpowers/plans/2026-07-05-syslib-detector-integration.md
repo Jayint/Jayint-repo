@@ -42,7 +42,7 @@
 
 **Retired:** `apt_resolve.py` (superseded by `os_resolver.py`).
 
-**Modified on HEAD:** `ldd_probe.py`, `probe.py` (migrate ALL apt authorities + dedup node factory + adopt `failure_signatures.extract_needs`), `build.py` (pre-pass wiring — merge, HEAD-only imports), `seed.py` (specific-first/generic-fallback note), `tables.py` (delete consolidated apt tables — LAST, after repointing consumers), `subprocess_scan.py` (HEAD-only `CLI_TOOL_TO_APT` consumer — repoint before deleting the table).
+**Modified on HEAD:** `ldd_probe.py`, `probe.py` (migrate ALL apt authorities + dedup node factory + adopt `failure_signatures.extract_needs`), `build.py` (pre-pass wiring — merge, HEAD-only imports), `seed.py` (specific-first/generic-fallback note), `tables.py` (delete ONLY the os_resolver-superseded apt tables — `NATIVE_LIB_TO_APT`/`TOOL_TO_APT`/`apt_for_soname`/`apt_for_tool` — LAST, after repointing `probe.py`; KEEP `CLI_TOOL_TO_APT`/`apt_for_cli_tool`/`NATIVE_RISK_PACKAGES`). `subprocess_scan.py` is **UNCHANGED** (its `CLI_TOOL_TO_APT` runtime-CLI authority is not superseded — see the scope correction in Task 1.2).
 
 **MUST NOT overwrite (HEAD is newer / canonical):** `schema.py` (HEAD has `ecosystem`, `DiscoveredBy.AUDIT`, `DepGraph.without_edge`; v3-core lacks them — no syslib change needed, so leave it), `target_env.py` (HEAD superset: interpreter-impl trio from the marker-env fix). A blind `git show v3-core:` copy of either REGRESSES the branch.
 
@@ -383,13 +383,15 @@ git commit -m "feat(depgraph): port capability-keyed os_resolver + syslib node f
 
 > **Audit correction (2026-07-06):** `probe.py` has THREE apt authorities to migrate, not one — `resolve_soname_apt` (line 275) AND `tables.{TOOL_TO_APT, apt_for_soname, apt_for_tool}`. It also needs the net-new `failure_signatures.extract_needs`. A HEAD-only `subprocess_scan.py` consumes `tables.CLI_TOOL_TO_APT`. So `tables.py`'s consolidated maps can only be deleted AFTER both consumers are repointed — otherwise the delete is an ImportError.
 
+> **SCOPE CORRECTION (2026-07-06, controller — flagged for human review):** The original plan told `subprocess_scan.py` to repoint `CLI_TOOL_TO_APT` onto `os_resolver.resolve(ObservedNeed("binary", tool))` and to DELETE `CLI_TOOL_TO_APT`. That is WRONG and would REGRESS: `CLI_TOOL_TO_APT` = 11 **runtime CLI tools** (git, ffmpeg, curl, java, gpg, wget, unzip, sqlite3, adb, pandoc, openssl) and `os_resolver.PROVIDER_TABLE`'s binary set = 8 **build tools** (pg_config, gcc, g++, make, cc, mysql_config, curl-config, pkg-config) — the two sets are **PROVABLY DISJOINT** (zero overlap). `test_subprocess_scan.py` asserts `adb`/`git`/`java`/`ffmpeg`/`sqlite3` detection, which os_resolver cannot provide → the repoint fails those tests. `os_resolver` supersedes the build-capability tables, NOT the runtime-CLI table. **Corrected scope:** os_resolver replaces `apt_resolve.py` + `tables.{NATIVE_LIB_TO_APT, TOOL_TO_APT, apt_for_soname, apt_for_tool}` (DELETE those). **KEEP `CLI_TOOL_TO_APT` + `apt_for_cli_tool` (distinct runtime-CLI authority, only consumer = `subprocess_scan.py`, leave that file UNCHANGED) and KEEP `NATIVE_RISK_PACKAGES` (native-risk gating, used by `probe.py`).** `test_subprocess_scan.py`'s id-collision test (imports both `CLI_TOOL_TO_APT` and `TOOL_TO_APT`) must be updated when `TOOL_TO_APT` is deleted, keeping the `CLI_TOOL_TO_APT` half.
+
 **Files:**
 - Create: `src/python_deps/depgraph/failure_signatures.py` (net-new, from `v3-core`; `extract_needs`)
 - Modify: `src/python_deps/depgraph/ldd_probe.py` (import line 28; call site line 170; delete `_make_syslib_node` at 214)
 - Modify: `src/python_deps/depgraph/probe.py` (import line 53; ALL apt lookups → `os_resolver`; adopt `failure_signatures.extract_needs`; delete `_make_syslib_node` at 356)
-- Modify: `src/python_deps/depgraph/subprocess_scan.py` (repoint `tables.CLI_TOOL_TO_APT` → `os_resolver.resolve`)
+- **UNCHANGED (scope correction): `src/python_deps/depgraph/subprocess_scan.py`** — keeps using `CLI_TOOL_TO_APT`/`apt_for_cli_tool` (distinct runtime-CLI authority; NOT superseded by os_resolver)
 - Modify: `src/python_deps/depgraph/apt_verify.py` (docstring: `apt_resolve` → `os_resolver.PROVIDER_TABLE`)
-- Delete: `src/python_deps/depgraph/apt_resolve.py`; delete `tables.{NATIVE_LIB_TO_APT, TOOL_TO_APT, CLI_TOOL_TO_APT, apt_for_soname, apt_for_tool}` (LAST)
+- Delete: `src/python_deps/depgraph/apt_resolve.py`; delete `tables.{NATIVE_LIB_TO_APT, TOOL_TO_APT, apt_for_soname, apt_for_tool}` (LAST). **KEEP `CLI_TOOL_TO_APT`, `apt_for_cli_tool`, `NATIVE_RISK_PACKAGES`.**
 
 **Interfaces:**
 - Consumes: `os_resolver.resolve`, `os_resolver.ObservedNeed`, `syslib.make_syslib_node`, `failure_signatures.extract_needs` (Tasks 1.1 + this task).
@@ -434,12 +436,9 @@ grep -n "resolve_soname_apt\|TOOL_TO_APT\|apt_for_soname\|apt_for_tool\|CLI_TOOL
 - adopt `failure_signatures.extract_needs(stderr)` where `probe.py` currently regex-scrapes install stderr (v3-core routes stderr → `extract_needs` → `os_resolver.resolve`). Cross-check against `git show v3-core:src/python_deps/depgraph/probe.py` for the exact call shape.
 Keep the exact `discovered_by`/`state`/`evidence` values the current local factory used so certification behavior is unchanged.
 
-- [ ] **Step 3b: Repoint `subprocess_scan.py` (HEAD-only `CLI_TOOL_TO_APT` consumer)**
+- [ ] **Step 3b: LEAVE `subprocess_scan.py` UNCHANGED (scope correction)**
 
-```bash
-grep -n "CLI_TOOL_TO_APT\|apt_for_tool" src/python_deps/depgraph/subprocess_scan.py
-```
-Replace the `tables.CLI_TOOL_TO_APT` lookup with `os_resolver.resolve(ObservedNeed("binary", tool))` (top candidate's apt name). This is the last consumer blocking the table deletion.
+Per the scope correction above, `subprocess_scan.py`'s `CLI_TOOL_TO_APT`/`apt_for_cli_tool` is a distinct runtime-CLI authority that os_resolver does NOT supersede (disjoint sets; repointing would fail `test_subprocess_scan.py`'s git/ffmpeg/adb/java/sqlite3 assertions). Do NOT touch this file. `CLI_TOOL_TO_APT`, `apt_for_cli_tool`, and `NATIVE_RISK_PACKAGES` stay in `tables.py`. The ONLY tables deleted in Step 4 are the os_resolver-superseded ones (`NATIVE_LIB_TO_APT`, `TOOL_TO_APT`, `apt_for_soname`, `apt_for_tool`).
 
 - [ ] **Step 4: Retire `apt_resolve.py` and the consolidated apt tables (deletion LAST, after all consumers repointed)**
 
@@ -447,10 +446,13 @@ Replace the `tables.CLI_TOOL_TO_APT` lookup with `os_resolver.resolve(ObservedNe
 # 1. apt_resolve must have zero non-comment refs now:
 grep -rn "apt_resolve\|resolve_soname_apt" src/ tests/   # expect ZERO
 git rm src/python_deps/depgraph/apt_resolve.py
-# 2. the consolidated tables must have zero consumers before deletion:
-grep -rn "NATIVE_LIB_TO_APT\|TOOL_TO_APT\|CLI_TOOL_TO_APT\|apt_for_soname\|apt_for_tool" src/ tests/
-#    -> if any non-test consumer remains (probe.py / subprocess_scan.py / a HEAD-only file), repoint it FIRST.
-#    Only when clean, delete those maps from tables.py (leave tables.py's other entries intact).
+# 2. the SUPERSEDED tables must have zero consumers before deletion (CLI_TOOL_TO_APT is NOT superseded — keep it):
+grep -rn "NATIVE_LIB_TO_APT\|\bTOOL_TO_APT\b\|apt_for_soname\|apt_for_tool" src/ tests/
+#    -> if any non-test consumer of THESE remains (probe.py), repoint it to os_resolver FIRST.
+#    Only when clean, delete NATIVE_LIB_TO_APT, TOOL_TO_APT, apt_for_soname, apt_for_tool from tables.py.
+#    KEEP CLI_TOOL_TO_APT, apt_for_cli_tool, NATIVE_RISK_PACKAGES (leave tables.py's other entries intact).
+#    Update test_subprocess_scan.py's id-collision test: it imports both CLI_TOOL_TO_APT and TOOL_TO_APT —
+#    keep the CLI_TOOL_TO_APT half, drop the TOOL_TO_APT reference (or reframe against os_resolver ids).
 # 3. docstring: apt_verify.py:13 mentions apt_resolve.py -> update to os_resolver.PROVIDER_TABLE.
 ```
 Any test that asserted `tables.apt_for_*` / `apt_resolve` behavior migrates to assert `os_resolver.resolve` (retarget, don't delete coverage).
