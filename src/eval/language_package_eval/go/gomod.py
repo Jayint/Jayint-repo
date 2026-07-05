@@ -122,3 +122,70 @@ def parse_go_mod(path: str | Path) -> GoMod:
         replaces=tuple(replaces),
         excludes=tuple(excludes),
     )
+
+
+_WORK_BLOCK_OPEN = re.compile(r"^use\s*\($")
+_WORK_SINGLE = re.compile(r"^use\s+(.+)$")
+
+
+def parse_vendor_modules_txt(path: str | Path) -> dict[str, str]:
+    """``{module: version}`` from ``# <module> <version>`` header lines. ``## ``
+    annotation lines and package-path lines are skipped. A ``=> replacement``
+    tail takes the replacement's trailing version. Corpus vendored entries are
+    chosen without replaces (spec §7); ``=>`` handling here is defensive."""
+    out: dict[str, str] = {}
+    for raw in Path(path).read_text().splitlines():
+        line = raw.rstrip()
+        if line.startswith("## ") or not line.startswith("# "):
+            continue
+        parts = line[2:].split()
+        if len(parts) < 2:
+            continue
+        mod = parts[0]
+        if "=>" in parts:
+            right = parts[parts.index("=>") + 1 :]
+            out[mod] = right[-1] if len(right) >= 2 else parts[1]
+        else:
+            out[mod] = parts[1]
+    return out
+
+
+def parse_go_sum(path: str | Path) -> frozenset[tuple[str, str]]:
+    """``{(module, version)}`` cross-check set — a SUPERSET of the closure, never
+    the closure itself. ``<mod> <ver>/go.mod <hash>`` collapses to ``(mod, ver)``."""
+    p = Path(path)
+    if not p.is_file():
+        return frozenset()
+    out: set[tuple[str, str]] = set()
+    for raw in p.read_text().splitlines():
+        parts = raw.split()
+        if len(parts) >= 2:
+            out.add((parts[0], parts[1].split("/")[0]))
+    return frozenset(out)
+
+
+def parse_go_work(path: str | Path) -> tuple[str, ...]:
+    """The ``use ./dir`` member directories from a ``go.work``. Empty if absent."""
+    p = Path(path)
+    if not p.is_file():
+        return ()
+    members: list[str] = []
+    in_block = False
+    for raw in p.read_text().splitlines():
+        code, _ = _strip_comment(raw)
+        s = code.strip()
+        if not s:
+            continue
+        if s == ")":
+            in_block = False
+            continue
+        if _WORK_BLOCK_OPEN.match(s):
+            in_block = True
+            continue
+        if in_block:
+            members.append(s)
+            continue
+        m = _WORK_SINGLE.match(s)
+        if m:
+            members.append(m.group(1).strip())
+    return tuple(members)
