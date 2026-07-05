@@ -1,4 +1,4 @@
-"""TDD tests for scripts/eval/graph_fidelity/render_fidelity.py — the Phase-2
+"""TDD tests for src/eval/graph_fidelity/render_fidelity.py — the Phase-2
 RENDER-FIDELITY checker (graph-fidelity eval loop, item 2): does
 ``render_build_script(graph)`` faithfully turn a graph into a script — every
 reciped node emitted once, in valid topo order, valid bash, deterministic?
@@ -25,7 +25,7 @@ from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 
-from scripts.eval.graph_fidelity.render_fidelity import check_render, is_deterministic
+from src.eval.graph_fidelity.render_fidelity import check_render, is_deterministic
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +104,7 @@ class TestSyntheticGraphs:
 
 # ---------------------------------------------------------------------------
 # 2. Golden tests: hand-crafted shapes mirroring
-#    scripts/eval/graph_fidelity/edge_cases/ (soname->apt, build-essential
+#    src/eval/graph_fidelity/edge_cases/ (soname->apt, build-essential
 #    toolchain required by several packages).
 # ---------------------------------------------------------------------------
 

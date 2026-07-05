@@ -101,7 +101,7 @@ def default_record_provider(container_executor: Executor) -> RecordProvider:
 # can confirm a not-yet-installed repair candidate. Isolated behind an INJECTED
 # ``fetch`` seam (exactly like ``pins._default_fetch``) so unit tests never reach
 # the socket — they pass a fake ``fetch``. Ports the validated spike chain in
-# ``scripts/eval/graph_fidelity/underdeclaration_repair_poc.py``.
+# ``src/eval/graph_fidelity/underdeclaration_repair_poc.py``.
 _PYPI_JSON = "https://pypi.org/pypi/{dist}/json"
 _HTTP_TIMEOUT = 20
 _MAX_WHEEL_BYTES = 20 * 1024 * 1024

@@ -20,7 +20,7 @@ packages into throwaway environments (a wrong guess never touches a real env).
 The LLM rung is an OFFLINE stub (no API calls, no secrets) — the claim under
 test is the verify+decide machinery, not the model.
 
-Run:   python3 scripts/eval/graph_fidelity/underdeclaration_repair_poc.py
+Run:   python3 src/eval/graph_fidelity/underdeclaration_repair_poc.py
 Needs: network. Uses `uv` if on PATH (fast), else stdlib venv.
 """
 from __future__ import annotations

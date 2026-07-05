@@ -1,7 +1,7 @@
 """Under-declaration repair ladder — candidate generation + 3-way decide.
 
 PURE module: no Executor, no network, no graph, no subprocess. Ported from the
-validated spike ``scripts/eval/graph_fidelity/underdeclaration_repair_poc.py``
+validated spike ``src/eval/graph_fidelity/underdeclaration_repair_poc.py``
 (only its pure rungs — the ``_http_json``/``wheel_provides``/``install_and_import``
 machinery is deliberately NOT here).
 

@@ -1,4 +1,4 @@
-"""TDD tests for scripts/eval/graph_fidelity/baseline_labels.py.
+"""TDD tests for src/eval/graph_fidelity/baseline_labels.py.
 
 Two concerns under test, kept separate per the module's own split:
   - `rescore()` — pure re-score of one repo's raw pytest-results JSON. Offline, no VM, no
@@ -22,7 +22,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.eval.graph_fidelity.baseline_labels import (
+from src.eval.graph_fidelity.baseline_labels import (
     BASELINE_RUN_DIRS,
     build_labels,
     rescore,
@@ -90,7 +90,7 @@ class TestRescoreDelegatesToComputeEssr:
     def test_rescore_calls_official_pass_rate(self):
         fixture = _load_fixture("all_pass.json")
         with patch(
-            "scripts.eval.graph_fidelity.baseline_labels.official_pass_rate",
+            "src.eval.graph_fidelity.baseline_labels.official_pass_rate",
             wraps=__import__("scripts.compute_essr", fromlist=["official_pass_rate"]).official_pass_rate,
         ) as mocked:
             rescore(fixture)

@@ -49,6 +49,38 @@ def test_marker_env_has_platform_system():
     assert t.marker_env()["platform_system"] == "Linux"
 
 
+def test_marker_env_has_implementation_trio():
+    # marker_env() now covers the interpreter-implementation fields the target
+    # confidently controls, so `packaging` never host-fills them.
+    env = _target().marker_env()
+    assert env["platform_python_implementation"] == "CPython"
+    assert env["implementation_name"] == "cpython"
+    # CPython: implementation_version renders exactly python_full.
+    assert env["implementation_version"] == "3.11.0"
+
+
+def test_marker_env_implementation_version_tracks_python_full():
+    env = _target(python_full="3.12.4", python_version="3.12").marker_env()
+    assert env["implementation_version"] == "3.12.4"
+
+
+def test_marker_env_withholds_only_kernel_and_extra():
+    # Genuinely-unknowable kernel strings + the per-requirement `extra` flag are
+    # DELIBERATELY absent (roots._env_marker_excludes keeps deps gated on them).
+    env = _target().marker_env()
+    assert "platform_release" not in env
+    assert "platform_version" not in env
+    assert "extra" not in env
+
+
+def test_marker_env_threads_probed_pypy_implementation():
+    env = _target(
+        platform_python_implementation="PyPy", implementation_name="pypy"
+    ).marker_env()
+    assert env["platform_python_implementation"] == "PyPy"
+    assert env["implementation_name"] == "pypy"
+
+
 def test_target_env_is_frozen():
     t = _target()
     try:
@@ -93,6 +125,42 @@ def test_detect_target_env_parses_probe_output():
     assert t.platform_machine == "x86_64"
     assert t.platform_system == "Linux"
     assert t.python_platform_tag == "x86_64-manylinux_2_28"
+
+
+def test_detect_target_env_threads_probed_implementation():
+    # The extended 7-token probe reports platform.python_implementation() and
+    # sys.implementation.name; detect_target_env threads both onto the TargetEnv.
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (
+                0,
+                "7.3.16 posix linux x86_64 Linux PyPy pypy\n",
+                "",
+            ),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
+    assert t.platform_python_implementation == "PyPy"
+    assert t.implementation_name == "pypy"
+    # And a marker gated on the implementation now sees the probed value.
+    assert t.marker_env()["platform_python_implementation"] == "PyPy"
+
+
+def test_detect_target_env_legacy_5token_probe_defaults_cpython():
+    # A 5-token probe output (no trailing implementation tokens) must still parse
+    # the python/platform facts and degrade the implementation to CPython — the
+    # only base this pipeline builds — never crash or lose the row.
+    ex = _FakeExecutor(
+        {
+            "import platform,sys,os": (0, "3.11.4 posix linux x86_64 Linux\n", ""),
+            "ldd --version": (0, "ldd (GNU libc) 2.36\n", ""),
+        }
+    )
+    t = detect_target_env(ex)
+    assert t.python_full == "3.11.4"
+    assert t.platform_python_implementation == "CPython"
+    assert t.implementation_name == "cpython"
 
 
 def test_detect_target_env_arm_musl_maps_to_musllinux():

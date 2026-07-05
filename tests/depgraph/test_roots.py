@@ -392,20 +392,69 @@ def test_no_target_env_keeps_marker_deps(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Task 8 review fix #2 — generalize the conservative rule past `extra` alone:
-# KEEP whenever the marker references ANY PEP 508 field `target_env.marker_env()`
-# does not supply (host-fallback fields), not just `extra`.
+# marker-field-coverage: TargetEnv.marker_env() now covers the interpreter-
+# implementation trio (platform_python_implementation / implementation_name /
+# implementation_version), so a marker gated ONLY on those + covered fields is
+# now judged against the CPython/linux target instead of forcing a keep. Only
+# the genuinely-unknowable kernel fields (platform_release / platform_version)
+# and `extra` remain uncovered → still keep-on-uncertainty.
+#
+# The two tests below previously asserted the OLD (over-including) behavior —
+# that a `platform_python_implementation == 'PyPy'` / `implementation_name ==
+# 'pypy'` dep was KEPT on a CPython target because the field was uncovered.
+# marker_env() now covers those fields, so the correct verdict is DROP.
 # --------------------------------------------------------------------------- #
 
 
-def test_marker_referencing_uncovered_field_is_kept(tmp_path):
-    # `platform_python_implementation` is one of the 5 host-fallback fields
-    # ABSENT from TargetEnv.marker_env() -- `packaging` would silently fill it
-    # from the HOST's own `platform.python_implementation()`, so this function
-    # must not judge it at all. Kept even though the target is Linux/CPython
-    # and this marker text would otherwise suggest "false for us".
+def test_platform_python_implementation_false_dep_dropped_on_cpython(tmp_path):
+    # `platform_python_implementation` is now COVERED (='CPython' — the only base
+    # this pipeline builds, probed by detect_target_env). A `== 'PyPy'` dep is
+    # therefore definitively False for the target and correctly dropped (it was
+    # wrongly kept before marker_env() covered the field).
     repo = _fixture_repo_with_marker_dep(
         tmp_path, "platform_python_implementation == 'PyPy'"
+    )
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" not in dists
+
+
+def test_implementation_name_false_dep_dropped_on_cpython(tmp_path):
+    # Same, for `implementation_name` (now ='cpython'): a `== 'pypy'` guard is
+    # False for the CPython target and correctly dropped.
+    repo = _fixture_repo_with_marker_dep(tmp_path, "implementation_name == 'pypy'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" not in dists
+
+
+def test_winloop_shape_dropped_on_linux_cpython(tmp_path):
+    # The real anyio [dependency-groups].test winloop marker: a Windows-only
+    # CPython C-extension. Both fields are now covered, so it evaluates False on
+    # a linux CPython target and is dropped (the reported over-include bug).
+    repo = _fixture_repo_with_marker_dep(
+        tmp_path,
+        "platform_python_implementation == 'CPython' and platform_system == 'Windows'",
+    )
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" not in dists
+
+
+def test_uvloop_shape_kept_on_linux_cpython(tmp_path):
+    # The real anyio uvloop marker: applies on non-Windows CPython < 3.15 — TRUE
+    # for a linux CPython 3.11 target, so it must still be KEPT even though it
+    # references the now-covered platform_python_implementation field.
+    repo = _fixture_repo_with_marker_dep(
+        tmp_path,
+        "platform_python_implementation == 'CPython' "
+        "and platform_system != 'Windows' and python_version < '3.15'",
     )
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
@@ -414,10 +463,33 @@ def test_marker_referencing_uncovered_field_is_kept(tmp_path):
     assert "foo" in dists
 
 
-def test_marker_referencing_implementation_name_is_kept(tmp_path):
-    # Same as above for `implementation_name`, the other commonly-seen
-    # host-fallback field (e.g. `implementation_name == 'pypy'` guards).
-    repo = _fixture_repo_with_marker_dep(tmp_path, "implementation_name == 'pypy'")
+def test_implementation_version_false_dep_dropped_on_cpython(tmp_path):
+    # implementation_version is now covered (CPython: == python_full = 3.11.0).
+    # A PyPy-version-style guard (`>= '7.0'`) is False for the target → dropped.
+    repo = _fixture_repo_with_marker_dep(tmp_path, "implementation_version >= '7.0'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" not in dists
+
+
+def test_uncovered_kernel_field_still_kept(tmp_path):
+    # platform_release stays UNCOVERED (a kernel-specific string the container
+    # cannot know ahead of run time), so a dep gated on it is kept-on-uncertainty
+    # — the "no silent shrink" invariant still protects genuinely-unknowable
+    # fields even though the impl trio is now covered.
+    repo = _fixture_repo_with_marker_dep(tmp_path, "platform_release < '5.0'")
+    graph = scan_to_nodes(str(repo))
+    roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
+
+    dists = {dist for _imp, dist in roots}
+    assert "foo" in dists
+
+
+def test_uncovered_platform_version_field_still_kept(tmp_path):
+    # platform_version (kernel build string) likewise stays uncovered → kept.
+    repo = _fixture_repo_with_marker_dep(tmp_path, "platform_version == 'Windows'")
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph, target_env=_LINUX_TARGET_ENV)
 

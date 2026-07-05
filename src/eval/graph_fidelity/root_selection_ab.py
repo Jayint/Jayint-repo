@@ -294,7 +294,7 @@ def run_corpus(clones: Mapping[str, str], gold: Mapping[str, Mapping[str, str]])
 
 
 def main(argv: list[str] | None = None) -> int:
-    from scripts.eval.graph_fidelity.ab_gold_labels import AB_GOLD, default_clone_map
+    from src.eval.graph_fidelity.ab_gold_labels import AB_GOLD, default_clone_map
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

@@ -1,4 +1,4 @@
-"""TDD tests for scripts/eval/graph_fidelity/coverage.py — the Phase-1
+"""TDD tests for src/eval/language_package_eval/coverage.py — the Phase-1
 COVERAGE evaluator (graph-vs-oracle recall + execution-discovered gaps).
 
 Pure parts only (per the loop doc's TDD guardrail): tier diffing, package pin
@@ -16,7 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.eval.graph_fidelity.coverage import (
+from src.eval.language_package_eval.coverage import (
     TierDiff,
     base_image_for_repo,
     canon_pip,
@@ -173,20 +173,20 @@ def _graph_for_scoring() -> DepGraph:
 
 class TestGraphTierExtraction:
     def test_apt_names_merge_system_lib_and_tool(self):
-        from scripts.eval.graph_fidelity.coverage import apt_names_in_graph
+        from src.eval.language_package_eval.coverage import apt_names_in_graph
         assert apt_names_in_graph(_graph_for_scoring()) == frozenset({"libpq-dev", "gcc"})
 
     def test_apt_name_none_when_no_chosen_fix(self):
-        from scripts.eval.graph_fidelity.coverage import apt_names_in_graph
+        from src.eval.language_package_eval.coverage import apt_names_in_graph
         g = DepGraph().with_node(_node("syslib:x", NodeType.SYSTEM_LIB, "x"))
         assert apt_names_in_graph(g) == frozenset()
 
     def test_runtime_minors(self):
-        from scripts.eval.graph_fidelity.coverage import runtime_minors_in_graph
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
         assert runtime_minors_in_graph(_graph_for_scoring()) == frozenset({"3.11"})
 
     def test_package_versions(self):
-        from scripts.eval.graph_fidelity.coverage import package_versions_in_graph
+        from src.eval.language_package_eval.coverage import package_versions_in_graph
         assert package_versions_in_graph(_graph_for_scoring()) == {
             "requests": "2.31.0", "flask": "3.0.0",
         }

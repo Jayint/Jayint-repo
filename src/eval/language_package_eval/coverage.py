@@ -47,7 +47,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from scripts.eval.graph_fidelity.oracle import _TIER_KEYS, parse_oracle  # noqa: E402
+from src.eval.language_package_eval.oracle import _TIER_KEYS, parse_oracle  # noqa: E402
 from python_deps.depgraph.build import _project_name, build_dep_graph  # noqa: E402
 from python_deps.depgraph.build_script import render_build_script  # noqa: E402
 from python_deps.depgraph.emit import _apt_name  # noqa: E402

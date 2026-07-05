@@ -15,7 +15,7 @@ for _p in (_REPO_ROOT, _REPO_ROOT / "src"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from scripts.eval.graph_fidelity.fault_injection import (  # noqa: E402
+from src.eval.graph_fidelity.fault_injection import (  # noqa: E402
     aggregate_faults,
     classify_naming,
     inject_and_score,

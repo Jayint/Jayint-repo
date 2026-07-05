@@ -1,4 +1,4 @@
-"""TDD tests for scripts/eval/graph_fidelity/oracle.py — the held-out-recipe
+"""TDD tests for src/eval/language_package_eval/oracle.py — the held-out-recipe
 grader/oracle (§2, §3 item 1 of the graph-fidelity eval loop doc).
 
 oracle.py IS the grader: it is SUPPOSED to parse Dockerfile / CI workflow /
@@ -19,7 +19,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.eval.graph_fidelity.oracle import OracleResult, parse_oracle
+from src.eval.language_package_eval.oracle import OracleResult, parse_oracle
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "oracle"
 

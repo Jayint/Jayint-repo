@@ -291,6 +291,44 @@ def test_fixpoint_optional_import_never_triggers_repair(tmp_path):
     assert uj.data.get("unresolved") is not True
 
 
+def test_fixpoint_if_guarded_not_re_added_but_unconditional_still_rescued(tmp_path):
+    """Precision fix AND its guard-rail in one repo. ``app.py`` imports ``yaml``
+    unconditionally (a genuine under-declaration) and ``winloop`` ONLY under an
+    ``if sys.platform == 'win32':`` guard. On the (linux) target the guarded
+    import's declared-but-marker-excluded provider is correctly absent from the
+    closure, so the audit must NOT re-add ``winloop`` -- while the unconditional
+    ``yaml`` IS still rescued as an AUDIT root (the audit's legitimate job).
+    ``winloop`` is even given a confirming provider entry to prove it is skipped
+    because it is optional, not because grounding would have denied it."""
+    repo = _repo(
+        tmp_path,
+        "import sys\n"
+        "import yaml\n"
+        "if sys.platform == 'win32':\n"
+        "    import winloop\n",
+    )
+    ex = _fallback_executor(
+        ["PyYAML==6.0\n    # via -r -\n"],
+        packages_dist=[_r(0, stdout='{"yaml": ["PyYAML"]}')],
+    )
+    provider = _provider({"PyYAML": {"yaml"}, "winloop": {"winloop"}})
+
+    graph, counter = _build_counting(repo, ex, provider)
+
+    # yaml -> PyYAML rescued as an AUDIT root; winloop never re-added.
+    assert sorted(n.name for n in _audit_packages(graph)) == ["PyYAML"]
+    assert graph.get(package_id("PyYAML", "6.0")).discovered_by is DiscoveredBy.AUDIT
+    assert not any(
+        n.type is NodeType.PACKAGE and "winloop" in n.name.lower() for n in graph.nodes
+    )
+    # winloop import is optional, so it is neither repaired nor flagged unresolved.
+    win = graph.get(import_id("winloop"))
+    assert win is not None
+    assert win.data.get("optional") is True
+    assert win.data.get("unresolved") is not True
+    assert counter["resolve"] == 2  # look -> repair yaml -> converge
+
+
 # --------------------------------------------------------------------------- #
 # Correction 2b — attempted-set termination (oscillation)
 # --------------------------------------------------------------------------- #

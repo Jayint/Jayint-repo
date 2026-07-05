@@ -43,9 +43,10 @@ class ImportFinding:
     import_name: str
     classification: str
     source_files: tuple[str, ...] = field(default_factory=tuple)
-    # True when every occurrence of this import is lexically guarded by a
-    # try/except-ImportError (an "optional" import). A hard runtime need for the
-    # same name anywhere dominates and makes this False (see _dedupe_findings).
+    # True when every occurrence of this import is lexically guarded — by a
+    # try/except-ImportError or an ``if`` branch (an "optional" import). A hard
+    # runtime need for the same name anywhere dominates and makes this False (see
+    # _dedupe_findings).
     optional: bool = False
 
     def to_dict(self) -> dict[str, Any]:

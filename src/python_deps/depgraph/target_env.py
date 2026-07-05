@@ -10,9 +10,13 @@ module existed, ``resolve_lock._python_marker_env`` passed only
 non-x86_64-linux dev host that wrongly prunes (or keeps) platform-gated deps
 for the container.
 
-``TargetEnv.marker_env()`` returns every field ``packaging`` may reference so
-none is ever left for the host default to fill in. ``detect_target_env`` probes
-the container ONCE (python + platform.machine + a libc guess for the wheel/uv
+``TargetEnv.marker_env()`` returns every field the target CONFIDENTLY controls
+(the python/platform facts plus the interpreter-implementation trio) so none of
+those is ever left for the host default to fill in; only genuinely-unknowable
+fields (kernel ``platform_release`` / ``platform_version``) and the
+per-requirement ``extra`` flag are deliberately withheld — see
+:meth:`TargetEnv.marker_env`. ``detect_target_env`` probes the container ONCE
+(python + implementation + platform.machine + a libc guess for the wheel/uv
 platform tag needed at PARSE time) and degrades to sensible defaults on any
 failure — detection must never crash the resolve. ``uv.lock`` itself is
 universal/cross-platform, so this platform tag is never passed to ``uv lock``
@@ -26,18 +30,23 @@ from dataclasses import dataclass
 
 from python_deps.depgraph.executor import Executor
 
-# Single probe: version, os.name, sys.platform, machine, platform.system — one
-# process, one round trip into the container. `python3` ONLY, no `python`
+# Single probe: version, os.name, sys.platform, machine, platform.system, plus
+# platform.python_implementation() + sys.implementation.name — one process, one
+# round trip into the container. `python3` ONLY, no `python`
 # fallback: the rest of the construction/certification pipeline (build.py's
 # runtime check, runtime_classify.py's import checks, emit.py's install steps)
 # hard-codes `python3`, so a `python`-only image is not a supported target —
 # detecting it here would just defer the failure to `python3: not found` later
 # in the pipeline. Absent/unusable `python3` safely degrades to the default
-# TargetEnv below instead.
+# TargetEnv below instead. The last two tokens (the interpreter implementation)
+# are read positionally and OPTIONAL: a legacy 5-token probe output still parses,
+# defaulting the implementation to CPython (the only base this pipeline builds —
+# ImageSelector always picks an official `python:X` / `python:X-slim` image).
 _PROBE_BODY = (
     "import platform,sys,os; "
     "print(sys.version.split()[0], os.name, sys.platform, "
-    "platform.machine(), platform.system())"
+    "platform.machine(), platform.system(), "
+    "platform.python_implementation(), sys.implementation.name)"
 )
 _PROBE_CMD = f'python3 -c "{_PROBE_BODY}"'
 _LIBC_PROBE_CMD = "ldd --version"
@@ -52,6 +61,13 @@ _DEFAULT_MACHINE = "x86_64"
 _DEFAULT_SYS_PLATFORM = "linux"
 _DEFAULT_OS_NAME = "posix"
 _DEFAULT_PLATFORM_SYSTEM = "Linux"
+# The target is ALWAYS CPython: base images come from ImageSelector, which only
+# ever selects official `python:X` / `python:X-slim` (Docker Hub `python:` tags
+# are CPython). detect_target_env still PROBES the real interpreter and threads
+# whatever it reports, so a non-CPython image (were one ever used) is honored;
+# these are only the "never crash" degrade values.
+_DEFAULT_PYTHON_IMPL = "CPython"
+_DEFAULT_IMPL_NAME = "cpython"
 _GLIBC_TAG = "manylinux_2_28"
 _MUSL_TAG = "musllinux_1_2"
 
@@ -98,13 +114,31 @@ class TargetEnv:
     os_name: str
     platform_system: str
     python_platform_tag: str
+    # Interpreter implementation — probed (or CPython-defaulted). Appended with
+    # defaults so every existing ``TargetEnv(...)`` construction stays valid.
+    platform_python_implementation: str = _DEFAULT_PYTHON_IMPL
+    implementation_name: str = _DEFAULT_IMPL_NAME
 
     def marker_env(self) -> dict[str, str]:
-        """Full PEP 508 marker-evaluation environment for this target.
+        """PEP 508 marker-evaluation environment for this target.
 
-        Every key ``packaging.markers`` may reference is present here so
+        Supplies every field the TARGET can CONFIDENTLY control, so
         ``Marker.evaluate()`` never falls back to its HOST-derived
-        ``default_environment()`` for a value this target controls.
+        ``default_environment()`` for a value the container actually determines:
+        the six python/platform facts PLUS the interpreter-implementation trio
+        (``platform_python_implementation``, ``implementation_name``,
+        ``implementation_version``). The implementation is probed by
+        ``detect_target_env`` and defaults to CPython (the only base this
+        pipeline builds); ``implementation_version`` is the CPython-correct
+        derivation from ``python_full`` (for CPython ``sys.implementation.version``
+        equals ``sys.version_info``, so its PEP 508 rendering is ``python_full``).
+
+        Three PEP 508 fields are DELIBERATELY absent — ``platform_release`` and
+        ``platform_version`` are kernel-specific strings the container cannot know
+        ahead of run time, and ``extra`` is a per-requirement grouping flag, not
+        an environment fact. Leaving them out is intentional: ``roots._env_marker_excludes``
+        treats a marker over any absent field as "keep unless certain", so a dep
+        gated on a genuinely-unknowable field is never silently pruned.
         """
         return {
             "python_version": self.python_version,
@@ -113,6 +147,12 @@ class TargetEnv:
             "sys_platform": self.sys_platform,
             "os_name": self.os_name,
             "platform_system": self.platform_system,
+            "platform_python_implementation": self.platform_python_implementation,
+            "implementation_name": self.implementation_name,
+            # CPython: sys.implementation.version == sys.version_info, so its
+            # PEP 508 rendering is exactly python_full. Safe because the target
+            # is always CPython (see class default / detect probe).
+            "implementation_version": self.python_full,
         }
 
 
@@ -125,6 +165,8 @@ def _default_target_env() -> TargetEnv:
         os_name=_DEFAULT_OS_NAME,
         platform_system=_DEFAULT_PLATFORM_SYSTEM,
         python_platform_tag=f"{_DEFAULT_MACHINE}-{_GLIBC_TAG}",
+        platform_python_implementation=_DEFAULT_PYTHON_IMPL,
+        implementation_name=_DEFAULT_IMPL_NAME,
     )
 
 
@@ -167,6 +209,11 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         return _default_target_env()
 
     python_full, os_name, sys_platform, machine, platform_system = parts[:5]
+    # Interpreter implementation is read positionally and stays OPTIONAL: a
+    # legacy 5-token probe (or any output without the trailing two tokens)
+    # degrades to CPython — the only base this pipeline builds.
+    python_impl = parts[5] if len(parts) > 5 else _DEFAULT_PYTHON_IMPL
+    impl_name = parts[6] if len(parts) > 6 else _DEFAULT_IMPL_NAME
     version_parts = python_full.split(".")
     python_version = (
         ".".join(version_parts[:2]) if len(version_parts) >= 2 else python_full
@@ -193,4 +240,6 @@ def detect_target_env(executor: Executor) -> TargetEnv:
         os_name=os_name,
         platform_system=platform_system,
         python_platform_tag=_platform_tag(_normalize_machine(machine), libc),
+        platform_python_implementation=python_impl,
+        implementation_name=impl_name,
     )

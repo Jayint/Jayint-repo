@@ -16,12 +16,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.eval.graph_fidelity.pkg_layer_ab import (  # noqa: E402
+from src.eval.graph_fidelity.pkg_layer_ab import (  # noqa: E402
     _bare_name,
     build_divergence,
     render_report_md,
 )
-from scripts.eval.graph_fidelity.root_selection_ab import (  # noqa: E402
+from src.eval.graph_fidelity.root_selection_ab import (  # noqa: E402
     DivergentAdd,
     adjudicate_divergence,
     aggregate,

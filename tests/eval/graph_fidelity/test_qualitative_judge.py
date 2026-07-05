@@ -1,4 +1,4 @@
-"""TDD tests for scripts/eval/graph_fidelity/qualitative_judge.py.
+"""TDD tests for src/eval/graph_fidelity/qualitative_judge.py.
 
 Offline and deterministic per the loop doc's TDD guardrail: the LLM client is always a fake
 (`_FakeClient` below) that mimics the OpenAI-compatible `client.chat.completions.create(...)`
@@ -19,7 +19,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.eval.graph_fidelity.qualitative_judge import JudgeResult, judge
+from src.eval.graph_fidelity.qualitative_judge import JudgeResult, judge
 
 
 # ---------------------------------------------------------------------------

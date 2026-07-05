@@ -94,8 +94,9 @@ def import_to_package_edges(
 def flag_unresolved_imports(graph: DepGraph) -> DepGraph:
     """Flag an IMPORT node ``unresolved`` — an honest under-declaration signal,
     NOT a fabricated root — only when it is BOTH unprovided (no outgoing REQUIRES
-    edge to a Package after Tier-1 relink) AND non-optional. A try/except
-    ImportError guarded import (``data["optional"] is True``, tagged by the scan)
+    edge to a Package after Tier-1 relink) AND non-optional. A guarded import
+    (``data["optional"] is True``, tagged by the scan — a try/except-ImportError
+    body or an ``if`` branch, e.g. a ``sys.platform``/``sys.version_info`` fork)
     is deliberate, not under-declared, so it is exempt and left unflagged. Test
     goal is separated by the scan; optional imports are exempt. Uses Node.data
     (state is the host-certification axis and does not apply to imports).

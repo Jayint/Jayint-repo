@@ -231,26 +231,30 @@ def _env_marker_excludes(req, target_env: "TargetEnv | None") -> bool:
       actually supplies (see ``uncovered`` below), and
     * the marker EVALUATES to False against ``target_env.marker_env()``.
 
-    Why generalize: ``TargetEnv.marker_env()`` supplies only 6 of the 12 PEP 508
-    marker fields (``python_version``, ``python_full_version``,
-    ``platform_machine``, ``sys_platform``, ``os_name``, ``platform_system``).
+    Why generalize: ``TargetEnv.marker_env()`` supplies the 9 PEP 508 fields the
+    target confidently controls (``python_version``, ``python_full_version``,
+    ``platform_machine``, ``sys_platform``, ``os_name``, ``platform_system``,
+    ``platform_python_implementation``, ``implementation_name``,
+    ``implementation_version``) but DELIBERATELY withholds the three it cannot
+    (``platform_release`` / ``platform_version`` — kernel-specific strings — and
+    ``extra`` — a per-requirement grouping flag, not an environment fact).
     ``packaging.markers.Marker.evaluate()`` silently fills any field missing from
     the given environment from the HOST's own ``default_environment()`` -- so a
-    marker referencing e.g. ``platform_python_implementation`` or
-    ``implementation_name`` would be evaluated against the HOST's value, not the
-    TARGET's, making a drop decision confidently WRONG. ``extra`` is simply one
-    more field ``marker_env()`` never supplies (it is inherently a per-requirement
-    grouping flag, not an environment fact) -- so the same "field not covered by
-    the target" rule subsumes the old ``"extra" in marker`` special-case without
-    naming it specially: ``uncovered`` always contains ``extra`` alongside the
-    5 host-fallback fields, and gating on ANY uncovered field being referenced
-    keeps ``extra``-gated deps out of this filter exactly as before (they are
-    already handled by the ``needed_extras`` mechanism above; this function must
-    never re-judge them, or it would silently drop an extra's dep for a reason
-    unrelated to environment).
-    ``uncovered`` is DERIVED from ``target_env.marker_env()`` each call, so
-    widening that method (a tracked follow-up) automatically shrinks
-    ``uncovered`` down to just ``{"extra"}`` with no change needed here.
+    marker referencing e.g. ``platform_release`` would be evaluated against the
+    HOST's kernel string, not the TARGET's, making a drop decision confidently
+    WRONG. The same "field not covered by the target" rule subsumes the old
+    ``"extra" in marker`` special-case without naming it specially: ``uncovered``
+    always contains ``extra`` alongside ``platform_release`` / ``platform_version``,
+    and gating on ANY uncovered field being referenced keeps ``extra``-gated deps
+    out of this filter exactly as before (they are already handled by the
+    ``needed_extras`` mechanism above; this function must never re-judge them, or
+    it would silently drop an extra's dep for a reason unrelated to environment).
+    ``uncovered`` is DERIVED from ``target_env.marker_env()`` each call: now that
+    ``marker_env()`` covers the interpreter-implementation trio,
+    ``uncovered == {"platform_release", "platform_version", "extra"}`` — so a
+    ``platform_python_implementation`` / ``implementation_name`` /
+    ``implementation_version`` marker is now evaluated against the target instead
+    of forcing a keep, while the two kernel fields still protect their deps.
 
     Every other case — no target_env, no marker, a marker referencing an
     uncovered field, a True evaluation, or any evaluation error

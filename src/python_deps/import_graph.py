@@ -223,23 +223,61 @@ def _try_guards_imports(node: ast.Try) -> bool:
     return False
 
 
+def _guarded_import_ids(tree: ast.AST) -> set[int]:
+    """Ids of Import/ImportFrom nodes that are *conditionally* executed, so a name
+    imported ONLY at such a site is optional rather than a hard runtime need.
+
+    Two guard shapes qualify — both env/availability conditionals whose real
+    authority is the resolver's PEP 508 marker evaluation against the TARGET, not
+    this static scan (which runs before the target is even detected):
+
+    * a ``try`` body guarded by an ImportError-family / bare / ``Exception``
+      handler — the import may be ABSENT and the code handles it; and
+    * either branch of an ``if`` (``body`` and ``orelse``, so ``elif``/``else``
+      too) — the import runs only under a condition
+      (``if sys.version_info < (3, 11):`` -> ``exceptiongroup``/``tomli``,
+      ``if sys.platform == 'win32':`` -> ``winloop``/``colorama``,
+      ``if TYPE_CHECKING:`` -> a type-only import, …).
+
+    The ``if`` predicate is deliberately NOT inspected: ANY conditional branch
+    qualifies. Enumerating predicates (``sys.version_info``, ``sys.platform``, …)
+    would be whack-a-mole — the next guard form (``os.name``,
+    ``platform.system()``, a feature flag) would slip through as a hard import the
+    Phase-A audit then wrongly re-adds as a root even though the resolver
+    correctly marker-pruned its declared, target-excluded provider.
+
+    Returns node identities only; the dominance rule (a name that ALSO appears
+    unguarded stays hard) is applied by the caller via ``guarded_names -
+    hard_names``.
+    """
+    ids: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and _try_guards_imports(node):
+            branches = (node.body,)
+        elif isinstance(node, ast.If):
+            branches = (node.body, node.orelse)
+        else:
+            continue
+        for branch in branches:
+            for stmt in branch:
+                for inner in ast.walk(stmt):
+                    if isinstance(inner, (ast.Import, ast.ImportFrom)):
+                        ids.add(id(inner))
+    return ids
+
+
 def _imports_from_ast(content: str) -> tuple[set[str], set[str]]:
     """Return ``(all_top_level_names, optional_names)`` for a source file.
 
-    ``optional_names`` are the names imported *only* inside a try body guarded by
-    an ImportError-family / bare / ``Exception`` handler. A name imported both
-    inside such a guard and outside it (a hard need) is NOT optional — the hard
+    ``optional_names`` are the names imported *only* under a conditional guard —
+    an ImportError-family / bare / ``Exception``-guarded ``try`` body, or either
+    branch of an ``if`` (see :func:`_guarded_import_ids`). A name imported both
+    under such a guard and unguarded (a hard need) is NOT optional — the hard
     occurrence dominates within this file."""
     tree = ast.parse(content)
 
-    # Import/ImportFrom nodes that live inside a guarded try body (by identity).
-    guarded_node_ids: set[int] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Try) and _try_guards_imports(node):
-            for stmt in node.body:
-                for inner in ast.walk(stmt):
-                    if isinstance(inner, (ast.Import, ast.ImportFrom)):
-                        guarded_node_ids.add(id(inner))
+    # Import/ImportFrom nodes (by identity) that live under a conditional guard.
+    guarded_node_ids = _guarded_import_ids(tree)
 
     all_names: set[str] = set()
     hard_names: set[str] = set()

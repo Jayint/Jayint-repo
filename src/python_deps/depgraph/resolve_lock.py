@@ -134,6 +134,11 @@ def _target_env_for(
         os_name="posix",
         platform_system="Linux",
         python_platform_tag=platform,
+        # This string-only reconstruction is only ever used for a CPython linux
+        # container (see DEFAULT_TARGET_PLATFORM); a real detected TargetEnv,
+        # threaded via _resolved_target_env, carries the probed implementation.
+        platform_python_implementation="CPython",
+        implementation_name="cpython",
     )
 
 
