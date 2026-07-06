@@ -442,6 +442,13 @@ def run_v3(
     # threaded into `evaluate_gates` and gates the "done" decision below.
     _last_replay_result: "InstallResult | None" = None
 
+    def _loop_log(msg: str) -> None:
+        """Env-gated live loop trace (``V3_LOOP_VERBOSE=1``). Off by default →
+        no output and byte-identical behavior; purely observational."""
+        import os
+        if os.getenv("V3_LOOP_VERBOSE"):
+            print(f"[v3-loop] {msg}", flush=True)
+
     def _run_tests_verified() -> bool:
         """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
 
@@ -457,6 +464,8 @@ def run_v3(
             "scheduler test probe",
         )
         passed = _gate_passed(verify_report)
+        _loop_log(f"test-gate: {'PASS' if passed else 'fail'} "
+                  f"(`{VERIFY_TEST_CMD}` rc={0 if ok else 1})")
         # Task 8 gap-fix: back-fill the LAST fresh-replay record with this
         # test-gate result. `_binding_emit` (the sole run_v3 executor) always
         # records test_rc=None/test_summary="" — the test gate is a SEPARATE
@@ -501,6 +510,7 @@ def run_v3(
             "deterministic discover gate")
 
     def _finish(reason):
+        _loop_log(f"STOP reason={getattr(reason, 'value', reason)}")
         # Task 8: record the final governed manual-block set on the way out (any
         # exit path) — same "fires once on exit" contract as the gate
         # observability block below, kept as a separate guard/statement so the
@@ -597,6 +607,9 @@ def run_v3(
         result = run_install_script(script)
         _last_replay_result = result
         graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
+        _loop_log(f"cycle {cycle}: fresh-replay install rc={result.rc}"
+                  + (f" FAIL@{result.failing_command!r}" if result.rc != 0 else "")
+                  + f" | reciped-unsatisfied={len(unsat)}")
         if tracer is not None:
             # Task 8: one FreshReplayRecord per cycle (Model B — every cycle
             # replays). test_rc/test_summary are not available at THIS site
@@ -664,6 +677,8 @@ def run_v3(
         )
         diags = diagnose_all(observations, _repo_ctx()) if observations else ()
         modes = {d.mode for d in diags}
+        _loop_log(f"cycle {cycle}: diagnose failed={failed_id} "
+                  f"modes={sorted(m.value for m in modes) or ['(none)']}")
         if Mode.REPO_INTERNAL_REF in modes or Mode.RESIDUAL in modes:
             return graph
         if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
@@ -675,6 +690,8 @@ def run_v3(
                 if name:
                     _invalid_names.add(normalize_package_name(name))
             return graph
+        _loop_log(f"cycle {cycle}: LLM repair → propose "
+                  f"(node={failed_id}, turns_left={_repair_turns})")
         _out = run_structured_repair(
             graph, failed_id, bundle, cycle,
             propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
@@ -724,6 +741,9 @@ def run_v3(
         _manual_blocks = _out.manual_blocks
         _known_invalid = set(_out.known_invalid)
         _repair_turns -= _out.turns_spent
+        _loop_log(f"cycle {cycle}: repair outcome turns_spent={_out.turns_spent} "
+                  f"still_failing={getattr(_out, 'still_failing_id', None)} "
+                  f"budget_exhausted={_out.budget_exhausted}")
         if _out.budget_exhausted or _repair_turns <= 0:
             _budget_exhausted = True
         return _out.graph
@@ -968,6 +988,7 @@ def run_v3(
     current_map = host_refresh_facts(current_map, probe, manifest)
 
     for cycle in range(1, max_cycles + 1):
+        _loop_log(f"══════ cycle {cycle}/{max_cycles} ══════")
         # ── 0. Graph-first: certify + emit the certified closure ────────────
         _dep_emit_phase(cycle)
         if _budget_exhausted:
@@ -986,6 +1007,8 @@ def run_v3(
             handed=_handed,
             attempt_cap=graph_scheduler_attempt_cap,
         )
+        _loop_log(f"cycle {cycle}: scheduler decision={decision.action}"
+                  + (f" node={chosen}" if chosen is not None else ""))
         if chosen is not None:
             _handed[chosen] = _handed.get(chosen, 0) + 1
             _sched_stuck = 0
