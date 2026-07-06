@@ -93,3 +93,46 @@ def test_attribute_install_failure_pip_is_language_gap():
                   first_failure={"command": "pip install foo",
                                  "stderr_tail": "ERROR: Could not find a version that satisfies foo"})
     assert attribute_failure(lad, static_ok=True, top_import="app", feasible=True) == "language_gap"
+
+
+from src.eval.build_script_eval.scorecard import _assemble_scorecard
+
+
+class _FakeGraph:
+    nodes = ()
+
+
+def test_assemble_scorecard_pass_row(monkeypatch):
+    import src.eval.build_script_eval.scorecard as sc
+    monkeypatch.setattr(sc, "apt_names_in_graph", lambda g: frozenset({"libpq-dev"}))
+    monkeypatch.setattr(sc, "package_versions_in_graph", lambda g: {"psycopg2": "2.9.9"})
+    ladder = _ladder(install_ok=True, env_works=True, tests_ran=True, tests_passed=False,
+                     highest_rung="tests_ran", reason="tests_failed")
+    row = _assemble_scorecard(
+        "psycopg/psycopg2", "S_syslib", True, "python:3.11-slim", "3.11",
+        _FakeGraph(), True, "psycopg2", ladder,
+    )
+    assert row["repo"] == "psycopg/psycopg2"
+    assert row["stratum"] == "S_syslib"
+    assert row["first_pass_env_works"] is True          # headline gate
+    assert row["attribution"] == "pass"
+    assert row["highest_rung"] == "tests_ran"
+    assert row["predicted_apt"] == ["libpq-dev"]
+    assert row["feasible"] is True
+    # coverage.missing_node_clusters reads this exact key:
+    assert "execution_missing" in row
+
+
+def test_assemble_scorecard_system_gap_row(monkeypatch):
+    import src.eval.build_script_eval.scorecard as sc
+    monkeypatch.setattr(sc, "apt_names_in_graph", lambda g: frozenset())
+    monkeypatch.setattr(sc, "package_versions_in_graph", lambda g: {})
+    ladder = _ladder(install_ok=True, env_works=False, tests_ran=False, tests_passed=False,
+                     highest_rung="install", reason="env_broken",
+                     gaps=({"tier": "SYSTEM_LIB", "id": "libpq.so.5", "evidence": "cannot open"},))
+    row = _assemble_scorecard("x/y", "S_syslib", True, "python:3.11-slim", "3.11",
+                              _FakeGraph(), True, "y", ladder)
+    assert row["first_pass_env_works"] is False
+    assert row["attribution"] == "system_gap"
+    assert [g["id"] for g in row["system_gaps"]] == ["libpq.so.5"]
+    assert row["execution_missing"] == list(ladder.gaps)

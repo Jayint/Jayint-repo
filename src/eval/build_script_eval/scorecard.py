@@ -106,3 +106,73 @@ def attribute_failure(ladder: LadderResult, *, static_ok: bool,
     if not ladder.install_ok:
         return _attribute_install_failure(ladder.first_failure)
     return "unknown"
+
+
+from python_deps.depgraph.build_script import render_build_script  # noqa: E402
+from src.eval.build_script_eval.replay import run_replay_ladder  # noqa: E402
+from src.eval.graph_fidelity.render_fidelity import check_render  # noqa: E402
+from src.eval.language_package_eval.coverage import (  # noqa: E402
+    apt_names_in_graph, base_image_for_repo, build_graph_construction_only,
+    package_versions_in_graph, top_level_import_name,
+)
+
+
+def _static_ok(fidelity) -> bool:
+    """The render pre-gate: valid bash (None = no bash on host ⇒ don't penalize),
+    single emit, topo order, all reciped nodes emitted."""
+    return (
+        fidelity.valid_bash is not False
+        and fidelity.single_emit
+        and fidelity.topo_order_ok
+        and fidelity.all_reciped_emitted
+    )
+
+
+def _assemble_scorecard(full_name, stratum, feasible, image, minor, graph,
+                        static_ok, top_import, ladder) -> dict:
+    """Pure per-repo scorecard row. `execution_missing` is the exact key
+    `coverage.missing_node_clusters` consumes (gaps that broke the env)."""
+    language_gaps, system_gaps = extract_gaps(ladder.gaps)
+    attribution = attribute_failure(
+        ladder, static_ok=static_ok, top_import=top_import, feasible=feasible
+    )
+    return {
+        "repo": full_name,
+        "stratum": stratum,
+        "feasible": feasible,
+        "base_image": image,
+        "target_python": minor,
+        "predicted_apt": sorted(apt_names_in_graph(graph)),
+        "predicted_packages": sorted(package_versions_in_graph(graph)),
+        "static_render_ok": static_ok,
+        "first_pass_env_works": env_works_passed(ladder),
+        "install_ok": ladder.install_ok,
+        "env_works": ladder.env_works,
+        "tests_ran": ladder.tests_ran,
+        "tests_passed": ladder.tests_passed,
+        "highest_rung": ladder.highest_rung,
+        "ladder_reason": ladder.reason,
+        "attribution": attribution,
+        "language_gaps": list(language_gaps),
+        "system_gaps": list(system_gaps),
+        # SERVICE gaps are out of scope, so execution_missing (what
+        # coverage.missing_node_clusters reads) is the SERVICE-free union:
+        "execution_missing": [*language_gaps, *system_gaps],
+        "first_failure": ladder.first_failure,
+    }
+
+
+def score_repo(repo_dir: str, spec) -> dict:
+    """Full per-repo pipeline (docker). `spec` is a corpus.RepoSpec."""
+    image, minor, _reason = base_image_for_repo(repo_dir)
+    graph = build_graph_construction_only(repo_dir, image, minor)
+    script = render_build_script(graph, ())
+    static_ok = _static_ok(check_render(graph, script))
+    top_import = spec.top_import or top_level_import_name(repo_dir)
+    ladder = run_replay_ladder(
+        repo_dir, image, script, top_import, isolate_network=not spec.network_in_tests,
+    )
+    return _assemble_scorecard(
+        spec.full_name, spec.stratum, spec.feasible, image, minor, graph,
+        static_ok, top_import, ladder,
+    )
