@@ -17,6 +17,8 @@ rule).
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.schema import DepGraph, Layer, NodeType, State
 
@@ -64,20 +66,25 @@ def certify(
     Unknown ``node_id`` returns the graph unchanged.  Returns a NEW graph.
 
     SERVICE nodes are certified (loopback probe) only when ``allow_service_certify``
-    is True AND the node has ``data["service_confidence"] == "confirmed"`` (design
-    §4.3).  Off-arm / inferred services stay UNKNOWN — the scratch container cannot
-    host the daemon.
+    is True AND the node carries a clean ``data["setup"]`` provisioning recipe (the
+    CR6 setup shape) (design §4.3).  Off-arm / advisory services (no setup) stay
+    UNKNOWN — the scratch container cannot host the daemon.
+
+    For SERVICE nodes, ``certify`` also owns the anti-deadlock demote counter
+    ``data["certify_fail_count"]``: a MISSING re-check increments it, a SATISFIED
+    check resets it to 0.  A never-provisionable service therefore accrues a fail
+    count and can be demoted rather than deadlocking the "done" gate.
     """
     node = graph.get(node_id)
     if node is None or not node.check_command:
         return graph
-    # Services are reachability-certified only on the live in-image path (arm
-    # v3) and only when CONFIRMED. Off-arm / inferred: stay UNKNOWN (design
-    # §4.3). The scratch container cannot host the daemon, so the scratch
-    # certify_all call leaves allow_service_certify=False.
+    # Services are reachability-certified only on the live in-image path (arm v3) and
+    # only when they carry a clean setup recipe (data["setup"]). Off-arm / advisory:
+    # allow_service_certify=False or setup absent -> stay UNKNOWN (design §4.3). The
+    # scratch container cannot host the daemon, so the scratch certify_all call leaves
+    # allow_service_certify=False.
     if node.type is NodeType.SERVICE:
-        if not (allow_service_certify
-                and node.data.get("service_confidence") == "confirmed"):
+        if not (allow_service_certify and node.data.get("setup") is not None):
             return graph
 
     result = executor.run(node.check_command)
@@ -92,6 +99,19 @@ def certify(
         # exists. (design 3.1: certify owns ``state``, not the evidence of need.)
         evidence = node.evidence or result.stderr or None
         updated = node.with_state(State.MISSING, evidence=evidence, cycle=cycle)
+    # Demote counter (must-verify invariant): SERVICE nodes only. A service that
+    # comes up clears its fail count; one that stays down accrues one so it can
+    # be demoted instead of deadlocking "done". Immutable data update via
+    # ``replace`` (never mutate ``node.data`` in place); non-service nodes are
+    # left byte-unchanged.
+    if node.type is NodeType.SERVICE:
+        if result.ok:
+            fail_count = 0
+        else:
+            fail_count = node.data.get("certify_fail_count", 0) + 1
+        updated = replace(
+            updated, data={**dict(node.data), "certify_fail_count": fail_count}
+        )
     return graph.with_node(updated)
 
 

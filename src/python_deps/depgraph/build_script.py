@@ -99,7 +99,7 @@ def _installable_project(graph: DepGraph) -> Node | None:
     return None
 
 
-_NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE, NodeType.DATA_ASSET)
+_NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE)
 
 
 def _need_block(graph: DepGraph, node: Node) -> list[str]:
@@ -169,8 +169,7 @@ def _closure_meta(graph: DepGraph) -> dict[str, str]:
 
 _TYPE_WORD = {NodeType.SYSTEM_LIB: "system", NodeType.TOOL: "toolchain",
               NodeType.PACKAGE: "pip"}
-_NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config",
-              NodeType.DATA_ASSET: "data_asset"}
+_NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config"}
 
 
 def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
@@ -183,7 +182,7 @@ def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
                           if counts.get(w))
     need_counts = Counter(_NEED_WORD.get(n.type, n.type.value) for n in needs)
     need_str = ", ".join(f"{need_counts[w]} {w}"
-                         for w in ("service", "config", "data_asset")
+                         for w in ("service", "config")
                          if need_counts.get(w))
     needs_suffix = f" ({need_str})" if need_str else ""
     meta = _closure_meta(graph)

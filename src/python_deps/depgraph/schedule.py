@@ -37,29 +37,14 @@ def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False)
     from python_deps.depgraph.emit import _is_emittable, _conflicted_ids
     service_ok = (
         node.type is not NodeType.SERVICE
-        or (allow_services and node.data.get("service_confidence") == "confirmed")
+        or (allow_services and node.data.get("setup") is not None)  # clean setup-shape only
     )
     return (
         node.state is State.MISSING
         and service_ok
-        and node.type is not NodeType.DATA_ASSET   # DataAsset (tier 6) is a construction-time
-                                                   # advisory Hint/Candidate from the LLM env
-                                                   # classifier (Slice C) — never a scheduled
-                                                   # obligation (like CONFIG/SERVICE). Its
-                                                   # `test -f ...`-style check would otherwise make
-                                                   # it actionable; keep classifier soft nodes out
-                                                   # of the frontier.
-        and (node.type is not NodeType.CONFIG      # config is advisory-only (tier 6); its `printenv X`
-                                                   # check is unsatisfiable in a fresh-shell exec, and a
-                                                   # genuinely-required var is set reactively via the
-                                                   # discover-task (tests certify SUFFICIENT). See
-                                                   # docs/.../2026-06-26-unified-executor-loop-delta.md §9.
-             or (allow_services and bool(node.data.get("binding"))))  # ...EXCEPT a service-binding
-                                                   # CONFIG node (Option B): it carries a REAL psql
-                                                   # check_command and `data["binding"]`, so when
-                                                   # services are armed it is a genuine, host-certifiable
-                                                   # obligation (its REQUIRES service gate still applies
-                                                   # via _dependencies_satisfied below).
+        and node.type is not NodeType.CONFIG   # advisory-only (tier 6); its DSN repoint is
+                                               # folded into the owning service's setup["bind"],
+                                               # so a Config is never a scheduled obligation.
         and bool(node.check_command)              # the agent needs a host stop condition
         and _dependencies_satisfied(graph, node)
         and not _is_emittable(graph, node, _conflicted_ids(graph))  # deterministic prefix handles these
@@ -87,8 +72,7 @@ class ObligationPacket:
     depends_on: tuple[str, ...] = ()
     blocks: tuple[str, ...] = ()
     certified_context: tuple[str, ...] = ()
-    start_recipe: dict | None = None
-    bind_recipe: dict | None = None
+    setup: dict | None = None  # clean CR6 provisioning recipe (install/start/probe/createdb/post)
     requirement_slice: RequirementSlice | None = None
 
 
@@ -117,7 +101,6 @@ def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
         depends_on=depends_on,
         blocks=blocks,
         certified_context=certified_context,
-        start_recipe=node.data.get("start_recipe"),
-        bind_recipe=node.data.get("bind_recipe"),
+        setup=node.data.get("setup"),
         requirement_slice=build_requirement_slice(graph, node),
     )

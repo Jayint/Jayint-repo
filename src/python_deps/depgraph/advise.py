@@ -162,22 +162,28 @@ def render_dep_graph_advisory(graph: DepGraph) -> str:
         lines.append("")
         lines.append("SERVICES (declared — reachability NOT certified here):")
         for n in services:
-            conf = n.data.get("service_confidence", "inferred")
             fix = n.fix_candidates[0] if n.fix_candidates else "?"
-            line = f"  {n.name:10} [{conf}]   fix: {fix}"
+            setup = n.data.get("setup")
+            # A setup-shape Service is a declared, provisioned obligation the
+            # scheduler/certify path treats as MANDATORY (blocks 'done') -> [setup].
+            # A non-setup Service is an advisory hint (runtime/llm classifier),
+            # never certified -> [inferred] + the "may be mocked" caveat.
+            label = "setup" if setup is not None else "inferred"
+            line = f"  {n.name:10} [{label}]   fix: {fix}"
             bound = n.data.get("bound_config")
             if bound:
                 line += f"   addresses: {bound}"
-            if conf == "inferred":
+            if setup is None:
                 line += "   (may be mocked — agent's call)"
             lines.append(line)
-            recipe = n.data.get("start_recipe")
-            if recipe:
-                lines.append(f"            needs (System): {recipe.get('system_package','')}")
-                if recipe.get("start"):
-                    lines.append(f"            start: {recipe['start']}")
-                if recipe.get("createdb"):
-                    lines.append(f"            then: {recipe['createdb']}")
+            if setup is not None:
+                # Clean CR6 setup shape: the declared service provisioning recipe.
+                kind = n.data.get("service_kind", n.name)
+                lines.append(f"            declared setup-service (kind: {kind})")
+                if setup.get("start"):
+                    lines.append(f"            start: {setup['start']}")
+                if setup.get("createdb"):
+                    lines.append(f"            then: {setup['createdb']}")
 
     if len(lines) == 1:  # header only — nothing worth telling the planner
         return ""

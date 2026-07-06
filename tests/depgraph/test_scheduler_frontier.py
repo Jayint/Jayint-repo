@@ -102,21 +102,6 @@ def test_config_nodes_excluded():
     assert scheduler_frontier(g) == ()
 
 
-def test_data_asset_nodes_excluded():
-    """DataAsset (tier 6, Layer.CONFIG) is a construction-time advisory node the LLM
-    classifier emits as a Hint/Candidate — never a scheduled obligation (like CONFIG/SERVICE).
-
-    A candidate DataAsset carries a real check_command (e.g. `test -f fixtures.db`), which
-    would otherwise make it actionable; it must be excluded from the executor frontier so the
-    classifier's soft nodes stay absent from scheduler_frontier (Slice C spec acceptance).
-    """
-    g = DepGraph().with_node(
-        _node("data:fixtures.db", NodeType.DATA_ASSET, "fixtures.db", State.MISSING,
-              check="test -f fixtures.db", layer=Layer.CONFIG)
-    )
-    assert scheduler_frontier(g) == ()
-
-
 # ── Edit B: emittable nodes excluded from LLM frontier ───────────────────────
 
 def test_emittable_node_excluded_from_frontier():

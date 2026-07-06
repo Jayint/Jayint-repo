@@ -53,7 +53,7 @@ def certify_reciped_only(graph, exec_readonly, cycle: int):
     """Run the host certify pass, then return (graph, unsatisfied_reciped_ids).
 
     The binding gate is evaluated ONLY over _is_reciped nodes — #@need stubs
-    (CONFIG/SERVICE/DATA_ASSET) are excluded (they are Stage-2.5)."""
+    (CONFIG/SERVICE) are excluded (they are Stage-2.5)."""
     graph = certify_refresh(graph, exec_readonly, cycle)
     unsat = tuple(
         n.id for n in graph.nodes

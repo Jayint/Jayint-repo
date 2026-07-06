@@ -91,9 +91,5 @@ def service_id(name: str) -> str:
     return f"service:{name}"
 
 
-def data_asset_id(name: str) -> str:
-    return f"data:{name}"
-
-
 def runtime_id(minor: str) -> str:
     return f"runtime:python-{minor}"

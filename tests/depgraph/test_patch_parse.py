@@ -56,3 +56,27 @@ def test_unknown_keys_ignored_and_state_maps_to_promotion():
                               "name": "DATABASE_URL", "layer": "config", "state": "HINT"}],
     }})
     assert p.add_requirements[0].promotion == "HINT"   # raw value carried; gate normalises/validates
+
+
+def test_parse_carries_service_fields():
+    from python_deps.depgraph.patch import parse_patch_proposal
+    p = parse_patch_proposal({"patch": {"add_requirements": [{
+        "id": "service:postgres", "type": "Service", "layer": "services",
+        "service_kind": "postgres", "service_params": {"db": "appdb"},
+    }, {
+        "id": "config:DATABASE_URL", "type": "Config", "layer": "config",
+        "service_kind": "postgres", "service_params": {"var": "DATABASE_URL", "db": "appdb"},
+    }]}})
+    svc, cfg = p.add_requirements
+    assert svc.service_kind == "postgres"
+    assert svc.service_params == {"db": "appdb"}
+    assert cfg.service_kind == "postgres"
+    assert cfg.service_params == {"var": "DATABASE_URL", "db": "appdb"}
+
+
+def test_parse_service_fields_default_absent():
+    from python_deps.depgraph.patch import parse_patch_proposal
+    p = parse_patch_proposal({"patch": {"add_requirements": [{
+        "id": "pkg:x", "type": "Package", "layer": "pip"}]}})
+    n = p.add_requirements[0]
+    assert n.service_kind is None and n.service_params is None

@@ -16,6 +16,13 @@ class NodeSpec:
     check_command: str | None = None
     evidence_ref: str | None = None
     promotion: str | None = None   # "hint" | "candidate" | None (gate validates)
+    # Service/Config tier (design 2026-07-03). The LLM proposes DATA, never shell:
+    service_kind: str | None = None         # KNOWN_SERVICE_KINDS member, or exotic on a setup node (gate validates)
+    service_params: dict | None = None      # {db, var, scheme, port, extensions...} for the renderer
+    # CLEAN setup-shape Service (Inc 5, the sole Service shape). Carries the pinned recipe
+    # {install:[...], start, probe, createdb?, post:[...]}; the gate derives check_command from
+    # render_probe_poll(setup["probe"]).
+    setup: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -91,6 +98,9 @@ def parse_patch_proposal(d: dict) -> PatchProposal:
         name=r.get("name", ""), layer=_req(r, "layer", "add_requirements"),
         check_command=r.get("check_command"), evidence_ref=r.get("evidence_ref"),
         promotion=r.get("promotion") if r.get("promotion") is not None else r.get("state"),
+        service_kind=r.get("service_kind"),
+        service_params=r.get("service_params"),
+        setup=r.get("setup"),
     ) for r in _as_tuple(patch.get("add_requirements")))
     provs = tuple(ProviderSpec(
         id=_req(p, "id", "add_providers"), kind=_req(p, "kind", "add_providers"),

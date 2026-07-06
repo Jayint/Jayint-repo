@@ -64,6 +64,35 @@ def certify_refresh(
                        allow_service_certify=allow_service_certify, layer_order=order)
 
 
+def test_gate_soname_refresh(graph, exec_readonly, events, test_cmd):
+    """Route the testability gate's failed output through ``test_gate_probe``.
+
+    See docstring in the plan. The testability gate is the dlopen-tail oracle
+    (design §3): only a soname surfaced by the repo's own test run reaches here.
+    Filters ``events`` to the ones whose command IS ``test_cmd`` (the pytest
+    gate) and feeds their combined output to ``test_gate_probe`` with the live
+    read-only executor (``_ReadonlyExecAdapter``) so a dlopen-tail soname is
+    apt-resolved. No-op (returns input) when graph/exec is absent. Immutable.
+    """
+    if graph is None or exec_readonly is None:
+        return graph
+    from python_deps.depgraph.probe import test_gate_probe
+    executor = _ReadonlyExecAdapter(exec_readonly)
+    new = graph
+    for cmd, out in events:
+        if cmd != test_cmd:
+            continue
+        new = test_gate_probe(new, executor, out or "", command=test_cmd)
+    return new
+
+
+# Its name matches pytest's default ``test_*`` collection pattern; mark it
+# not-a-test so importing it into tests/envstate/test_test_gate_soname_refresh.py
+# does not make pytest try to call it as a test function (missing-fixture error).
+# Mirrors the same guard on ``test_gate_probe`` (python_deps/depgraph/probe.py).
+test_gate_soname_refresh.__test__ = False
+
+
 def ensure_python_shim(sandbox_execute) -> None:
     """Symlink ``python`` -> ``python3`` in the live container when ``python`` is absent.
 

@@ -6,7 +6,7 @@ This is the whole story in one driver:
                  ``requires-python``, and normalize to a ``-slim`` variant —
                  one decision feeds the sandbox boot AND the dep-graph build.
   2. BELIEF      build the dependency graph (static evidence + a bounded LLM
-                 classifier that proposes typed Config/Service/DataAsset nodes).
+                 classifier that proposes typed Config/Service nodes).
   3. PROJECTION  the graph is materialized into ONE install-only setup.sh.
   4. INNER LOOP  run_v3 executes the script block-by-block, the host certifies
                  each node, and on a failed block the V3BuildAgent proposes ONE
@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform as _platform
 import sys
 
 # repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
@@ -64,8 +65,7 @@ from src.envstate.world_model import initial_map
 from src.envstate.ledger import ActionLedger
 from src.envstate.snapshot import probe_env
 from src.envstate.manifest import parse_manifests
-from src.envstate.llm_response import complete_with_retry
-from src.envstate.env_classifier import make_construction_classifier
+from src.envstate.classify_services_clean import make_construction_classifier
 from src.envstate.base_image_selection import choose_base_image
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
@@ -101,6 +101,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _target_arch(platform_override: str | None) -> dict:
+    """Map a docker --platform string (or None -> host default) to the
+    {dpkg, uname} arch dict translate_service's exotic path fills into
+    binary-download URLs. platform_override is "linux/amd64" or None."""
+    token = (platform_override or "").rsplit("/", 1)[-1].lower()   # "amd64" | "arm64" | ""
+    if not token:
+        machine = _platform.machine().lower()                       # host default target
+        token = "arm64" if machine in ("arm64", "aarch64") else "amd64"
+    return ({"dpkg": "arm64", "uname": "aarch64"} if token == "arm64"
+            else {"dpkg": "amd64", "uname": "x86_64"})
+
+
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 1. LLM client (OAI-compatible; OpenRouter -> MiniMax -> OpenAI) ───────
     api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
@@ -118,9 +130,6 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     )
     model = args.model or os.getenv("LLM_MODEL", "gpt-4o")
 
-    def _complete(messages) -> str:
-        return complete_with_retry(client, model, messages, temperature=0)[0]
-
     # ── 1.5 SELECT: pick + pin the base image (auto) or honor an explicit tag ─
     choice = choose_base_image(
         args.repo, client, model,
@@ -129,8 +138,9 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     print(f"[v3] base-image: {choice.image} (py {choice.minor}) — {choice.reason}")
     base_image = choice.image
 
-    # ── 2. BELIEF: build the dep-graph; the LLM classifier proposes typed nodes
-    classify = make_construction_classifier(_complete)
+    # ── 2. BELIEF: build the dep-graph; the deterministic classifier proposes typed nodes
+    arch = _target_arch(choice.platform_override)
+    classify = make_construction_classifier(client, model, arch)
     graph = None
     try:
         _advisory, graph = build_advisory_for_repo(
