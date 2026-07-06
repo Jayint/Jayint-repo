@@ -79,3 +79,78 @@ def test_target_arch_never_none_shape_invariant(monkeypatch):
         assert set(result.keys()) == {"dpkg", "uname"}
         assert isinstance(result["dpkg"], str) and result["dpkg"]
         assert isinstance(result["uname"], str) and result["uname"]
+
+
+def _wire_common_fakes(monkeypatch, seen=None):
+    """Shared no-Docker/no-LLM wiring for the two teardown/cache tests below —
+    mirrors test_selected_image_and_minor_thread_to_all_consumers's fakes."""
+    seen = seen if seen is not None else {}
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    choice = BaseImageChoice("python:3.10-slim", "3.10", None, "auto: test")
+    monkeypatch.setattr(e2e, "choose_base_image", lambda *a, **k: choice, raising=False)
+    monkeypatch.setattr(
+        e2e, "build_advisory_for_repo", lambda *a, **k: ("", None), raising=False
+    )
+    monkeypatch.setattr(
+        e2e, "initial_map",
+        lambda *, base_image, **k: types.SimpleNamespace(dep_graph=None), raising=False,
+    )
+    monkeypatch.setattr(
+        e2e, "run_v3",
+        lambda *a, **k: (types.SimpleNamespace(dep_graph=None), "done"),
+        raising=False,
+    )
+    return seen
+
+
+# ── CHANGE 2: the pip/apt cache volume must be opted into on the real Sandbox()
+# call so repeated install cycles reuse a warm cache instead of re-downloading. ──
+
+def test_sandbox_constructed_with_cache_volume_enabled(monkeypatch, tmp_path):
+    seen = _wire_common_fakes(monkeypatch)
+
+    class _FakeSandbox:
+        def __init__(self, *, base_image, workdir="/app", platform=None,
+                     seed_dir=None, enable_cache_volume=False, **k):
+            seen["enable_cache_volume"] = enable_cache_volume
+            self.container = None
+
+        def execute(self, *a, **k): return None
+        def exec_readonly(self, *a, **k): return None
+        def reset_to_base(self): return None
+        def run_install_script(self, *a, **k): return None
+
+    monkeypatch.setattr(e2e, "Sandbox", _FakeSandbox, raising=False)
+
+    e2e.main_with_args([str(tmp_path)])
+
+    assert seen["enable_cache_volume"] is True
+
+
+# ── CHANGE 3: the finally block must tear down via Sandbox.close() (which also
+# frees committed snapshot images) instead of a manual container.stop()+
+# remove(force=True) that bypassed snapshot-image cleanup — a real disk leak. ──
+
+def test_finally_block_uses_sandbox_close_not_manual_teardown(monkeypatch, tmp_path):
+    calls = []
+    _wire_common_fakes(monkeypatch)
+
+    class _FakeContainer:
+        def stop(self, *a, **k): calls.append(("container.stop", a, k))
+        def remove(self, *a, **k): calls.append(("container.remove", a, k))
+
+    class _FakeSandbox:
+        def __init__(self, **k):
+            self.container = _FakeContainer()
+
+        def execute(self, *a, **k): return None
+        def exec_readonly(self, *a, **k): return None
+        def reset_to_base(self): return None
+        def run_install_script(self, *a, **k): return None
+        def close(self): calls.append("close")
+
+    monkeypatch.setattr(e2e, "Sandbox", _FakeSandbox, raising=False)
+
+    e2e.main_with_args([str(tmp_path)])
+
+    assert calls == ["close"]

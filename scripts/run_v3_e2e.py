@@ -161,7 +161,8 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
 
     # ── 3-6. Real container + the v3 loop ────────────────────────────────────
     sandbox = Sandbox(base_image=base_image, workdir="/app",
-                       platform=choice.platform_override, seed_dir=args.repo)
+                       platform=choice.platform_override, seed_dir=args.repo,
+                       enable_cache_volume=True)
     gates_seen: list = []
     # Task 8d: only built when --trace-out is given — RunTracer only OBSERVES
     # (see run_trace.py's module docstring), so passing tracer=None (the
@@ -188,8 +189,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     finally:
         try:
             if getattr(sandbox, "container", None) is not None:
-                sandbox.container.stop(timeout=5)
-                sandbox.container.remove(force=True)
+                sandbox.close()
         except Exception:
             pass
 
