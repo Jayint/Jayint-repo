@@ -53,26 +53,39 @@ def run_replay_ladder(
         if not install.ok:
             return _fail("none", "install_failed", install.stdout + install.stderr, install_ok=False)
 
-        # Probe-only bootstrap (NOT graph-attributed): pytest is the probe's own
-        # tool, not a runtime need setup.sh was asked to provide -- mirrors
-        # coverage.py's run_execution_probe. A failed bootstrap is an infra
-        # problem, not the repo's env_broken, so it's reported at rung "install".
-        bootstrap = box.run("pip install --no-input --quiet pytest", timeout=300)
-        if not bootstrap.ok:
-            return _fail("install", "pytest_bootstrap_failed",
-                          bootstrap.stdout + bootstrap.stderr, install_ok=True)
-
         # RUNG 2 — env_works: repo imports + tests COLLECT (no execution yet).
+        # Order matters: the import check and the pytest bootstrap both run while
+        # the network is still up (before any disconnect below).
         probe_out: list[str] = []
         if top_import:
             imp = box.run(f"{cd} && python3 -c 'import {top_import}'", timeout=120)
             if not imp.ok:
                 probe_out.append(imp.stdout + imp.stderr)
-        collected = box.run(f"{cd} && python3 -m pytest --collect-only -q", timeout=600)
-        if not collected.ok:
-            probe_out.append(collected.stdout + collected.stderr)
+
+        # Probe-only bootstrap (NOT graph-attributed): pytest is the probe's own
+        # tool, not a runtime need setup.sh was asked to provide -- mirrors
+        # coverage.py's run_execution_probe. CRITICAL: a bootstrap FAILURE is a
+        # probe-infra problem, never a repo coverage gap, so its output is NEVER
+        # appended to probe_out / fed to classify_execution_failures. It only
+        # gates whether collection (and, below, the test rung) can run.
+        bootstrap_ok = box.run("pip install --no-input --quiet pytest", timeout=300).ok
+        if bootstrap_ok:
+            collected = box.run(f"{cd} && python3 -m pytest --collect-only -q", timeout=600)
+            if not collected.ok:
+                probe_out.append(collected.stdout + collected.stderr)
         if probe_out:
+            # gaps here only ever reflect import + collect output, never bootstrap.
             return _fail("install", "env_broken", "\n".join(probe_out), install_ok=True)
+
+        # env_works has now passed (setup.sh installed clean AND the repo
+        # imports + collects). If pytest could not be bootstrapped, we cannot
+        # run the suite -- record that as a non-gap miss and stop at env_works.
+        if not bootstrap_ok:
+            return LadderResult(
+                install_ok=True, env_works=True, tests_ran=False, tests_passed=False,
+                highest_rung="env_works", reason="pytest_unavailable",
+                first_failure=None, gaps=(),
+            )
 
         # RUNG 3/4 — actually run the suite (bounded; network optionally cut).
         if isolate_network:
