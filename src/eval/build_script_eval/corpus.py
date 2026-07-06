@@ -34,7 +34,7 @@ CORPUS: tuple[RepoSpec, ...] = (
              "v9.8.6", "S_control", top_import="semantic_release"),
     # --- S_syslib: source-form native deps; tests import the extension ---
     RepoSpec("psycopg2", "psycopg/psycopg2",
-             "https://github.com/psycopg/psycopg2", "2_9_9", "S_syslib", top_import="psycopg2"),
+             "https://github.com/psycopg/psycopg2", "2.9.9", "S_syslib", top_import="psycopg2"),
     RepoSpec("pygraphviz", "pygraphviz/pygraphviz",
              "https://github.com/pygraphviz/pygraphviz", "pygraphviz-1.12", "S_syslib",
              top_import="pygraphviz"),
