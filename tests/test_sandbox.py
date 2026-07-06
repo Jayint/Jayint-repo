@@ -13,6 +13,7 @@ class FakeContainer:
         self.status = status
         self.short_id = short_id
         self.stopped = False
+        self.stop_timeout = None
         self.removed = False
 
     def exec_run(self, command, workdir=None):
@@ -21,8 +22,9 @@ class FakeContainer:
             return self.results.pop(0)
         return SimpleNamespace(exit_code=0, output=b"")
 
-    def stop(self):
+    def stop(self, timeout=None):
         self.stopped = True
+        self.stop_timeout = timeout
 
     def remove(self):
         self.removed = True
@@ -580,6 +582,93 @@ class SandboxAptBootstrapTests(unittest.TestCase):
                 os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
             else:
                 os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = orig
+
+
+class SandboxTeardownTimeoutTests(unittest.TestCase):
+    """Throwaway containers (reset_to_base/_restore_last_success_container/close)
+    are stopped and discarded, never reused — SIGKILL-immediately (timeout=0) is
+    correct and saves the default 10s SIGTERM grace on each teardown."""
+
+    def _make_sandbox(self, replacement_container=None):
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.container = FakeContainer()
+        sandbox.client = FakeDockerClient(containers=[replacement_container or FakeContainer()])
+        sandbox.base_image = "ubuntu:22.04"
+        sandbox.workdir = "/app"
+        sandbox.volumes = None
+        sandbox.platform = None
+        sandbox.seed_dir = None
+        sandbox.apt_mirror_url = None
+        sandbox.apt_retries = 5
+        sandbox.apt_http_timeout_seconds = 120
+        sandbox.apt_https_timeout_seconds = 120
+        sandbox.last_success_image = None
+        sandbox.runtime_replay_commands = []
+        sandbox.snapshot_image_ids = set()
+        return sandbox
+
+    def test_reset_to_base_stops_discarded_container_with_zero_timeout(self):
+        sandbox = self._make_sandbox()
+        original_container = sandbox.container
+
+        sandbox.reset_to_base()
+
+        self.assertTrue(original_container.stopped)
+        self.assertEqual(original_container.stop_timeout, 0)
+        self.assertTrue(original_container.removed)
+
+    def test_restore_last_success_container_stops_discarded_container_with_zero_timeout(self):
+        sandbox = self._make_sandbox()
+        original_container = sandbox.container
+
+        sandbox._restore_last_success_container()
+
+        self.assertTrue(original_container.stopped)
+        self.assertEqual(original_container.stop_timeout, 0)
+        self.assertTrue(original_container.removed)
+
+    def test_close_stops_container_with_zero_timeout(self):
+        sandbox = self._make_sandbox()
+        original_container = sandbox.container
+
+        sandbox.close()
+
+        self.assertTrue(original_container.stopped)
+        self.assertEqual(original_container.stop_timeout, 0)
+        self.assertTrue(original_container.removed)
+
+
+class SandboxCacheVolumeTests(unittest.TestCase):
+    """enable_cache_volume should add named-volume binds for pip/apt caches so
+    repeated installs across cycles/runs reuse a warm cache instead of
+    re-downloading every time; default (False) must not add them."""
+
+    @mock.patch("src.sandbox.docker.from_env")
+    def test_enable_cache_volume_true_adds_pip_and_apt_cache_binds(self, mock_from_env):
+        fake_container = FakeContainer()
+        fake_client = FakeDockerClient(containers=[fake_container])
+        mock_from_env.return_value = fake_client
+
+        sandbox = Sandbox(base_image="ubuntu:22.04", seed_dir=None, enable_cache_volume=True)
+
+        self.assertEqual(
+            sandbox.volumes["jayint_pip_cache"],
+            {"bind": "/root/.cache/pip", "mode": "rw"},
+        )
+        self.assertEqual(
+            sandbox.volumes["jayint_apt_cache"],
+            {"bind": "/var/cache/apt/archives", "mode": "rw"},
+        )
+
+    @mock.patch("src.sandbox.docker.from_env")
+    def test_enable_cache_volume_default_false_omits_cache_binds(self, mock_from_env):
+        fake_container = FakeContainer()
+        fake_client = FakeDockerClient(containers=[fake_container])
+        mock_from_env.return_value = fake_client
+
+        sandbox = Sandbox(base_image="ubuntu:22.04", seed_dir=None)
+
+        self.assertIsNone(sandbox.volumes)
 
 
 if __name__ == "__main__":

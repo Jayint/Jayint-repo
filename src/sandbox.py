@@ -414,7 +414,7 @@ class Sandbox:
         """
         if self.container is not None:
             try:
-                self.container.stop()
+                self.container.stop(timeout=0)
             except docker.errors.DockerException:
                 pass
             try:
@@ -471,7 +471,7 @@ class Sandbox:
 
         if self.container:
             try:
-                self.container.stop()
+                self.container.stop(timeout=0)
             except docker.errors.DockerException:
                 pass
             try:
@@ -1033,7 +1033,7 @@ class Sandbox:
                 print(f"To stop later: docker stop {self.container.short_id}")
             else:
                 try:
-                    self.container.stop()
+                    self.container.stop(timeout=0)
                     self.container.remove()
                     print("\n[Container Cleaned Up]")
                 except docker.errors.DockerException:
