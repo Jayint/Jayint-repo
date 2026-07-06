@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.req_slice import build_requirement_slice, render_requirement_slice
-
 
 PATCH_SCHEMA_HINT = """\
 Respond with EXACTLY ONE fenced JSON object and nothing after it:
@@ -43,16 +41,15 @@ class RepairScope:
 def build_repair_scope(graph, *, target_node_id, failed_block, bundle,
                        known_invalid=(), constraints=None):
     cons = tuple(sorted((str(k), str(v)) for k, v in dict(constraints or {}).items()))
-    # Use hasattr so tests can pass object() as graph with a monkeypatched build_requirement_slice.
-    # In production graph is a real DepGraph with .get(); in tests the lambda ignores node.
-    node = graph.get(target_node_id) if (graph is not None and target_node_id
-                                         and hasattr(graph, 'get')) else None
+    # Graph context (the requirement slice) is intentionally OMITTED from the repair
+    # prompt: the C0/C1 graph-repair ablation showed it does not improve the agent's
+    # localization (and can mislead on the graph's own over-predictions). The dependency
+    # graph stays the patch OUTPUT target + the gate/replay rail — it is dropped only as
+    # agent-facing reasoning CONTEXT. `graph` is kept in the signature (the repair_loop
+    # scope_builder contract) and the `slice_lines` field + render branch are retained so
+    # this can be re-enabled — or replaced by a territory/state graph — by populating
+    # slice_lines here.
     slice_lines = ()
-    # Enter when (a) node resolved from a real graph, OR (b) graph has no .get (test stub:
-    # build_requirement_slice is monkeypatched and ignores node, so None is safe). Never enter
-    # when a real DepGraph lookup returned None (avoids build_requirement_slice(graph, None) -> None.id).
-    if target_node_id and (node is not None or not hasattr(graph, 'get')):
-        slice_lines = tuple(render_requirement_slice(build_requirement_slice(graph, node)))
     failed_cmd = failed_block.commands[-1] if (failed_block and failed_block.commands) else None
     failed_out = ""
     # bundle may be None on the binding-install path when there is no install-command failure
