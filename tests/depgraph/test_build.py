@@ -217,8 +217,8 @@ def test_build_native_gaps_are_fresh_probe_nodes_without_a_prior(tmp_path):
     assert pg_config.discovered_by is DiscoveredBy.PROBE
     assert libgl.check_command == "ldconfig -p | grep libGL.so.1"
     assert pg_config.check_command == "command -v pg_config"
-    assert libgl.fix_candidates == ("apt:libgl1",)        # NATIVE_LIB_TO_APT still resolves it
-    assert pg_config.fix_candidates == ("apt:libpq-dev",)  # TOOL_TO_APT still resolves it
+    assert libgl.fix_candidates == ("apt:libgl1",)        # os_resolver.PROVIDER_TABLE still resolves it
+    assert pg_config.fix_candidates == ("apt:libpq-dev",)  # os_resolver.PROVIDER_TABLE still resolves it
     assert any(a.outcome == "failed" for a in libgl.attempts)
 
 
@@ -414,7 +414,7 @@ def test_build_ldd_probe_creates_fresh_node_without_a_prior(tmp_path):
     fixture's closure carries no ``build_from_source`` signal, so
     ``seed_wheel_oracle_prior`` predicts nothing here and there is no RESOLVER
     node to reconcile into — ldd_probe creates a FRESH ``discovered_by=PROBE``
-    node (soname-keyed id, apt-resolved fix-candidate via NATIVE_LIB_TO_APT).
+    node (soname-keyed id, apt-resolved fix-candidate via os_resolver.PROVIDER_TABLE).
     (Declaration mining, which would restore reconciliation for a repo that
     DOES declare its apt deps, is cluster 1b — deferred, not part of this
     plan.)"""

@@ -8,45 +8,22 @@ tool / header onto the apt package that provides it.
 Targeting Debian/Ubuntu only in V1 (design 10.5).  An unknown soname/tool maps to
 ``None`` (no LLM fallback in this plan; the node stays ``missing`` with evidence).
 PACKAGE_TO_SYSTEM_DEPS (the curated package->syslib prediction table) was deleted 2026-07-01 — see construction-enrichment cluster 1a; the one remaining pre-install native prediction derives only from the resolver's wheel/sdist signal (seed.py).
+The soname / build-tool / header -> apt tables that used to live here were unified
+into ``os_resolver.PROVIDER_TABLE`` (capability-keyed); this module keeps only the
+runtime-CLI authority and the native-risk gate, which the resolver does not cover.
 """
 
 from __future__ import annotations
 
-# Fast offline cache: known soname -> apt package.  apt-file fills misses at runtime
-# (option B lazy install).  Do NOT delete entries — they short-circuit executor calls.
-NATIVE_LIB_TO_APT: dict[str, str] = {
-    # opencv runtime chain (the canonical cv2 import-time native gap).
-    "libGL.so.1": "libgl1",
-    "libgthread-2.0.so.0": "libglib2.0-0",
-    "libglib-2.0.so.0": "libglib2.0-0",
-    "libSM.so.6": "libsm6",
-    "libXext.so.6": "libxext6",
-    "libXrender.so.1": "libxrender1",
-    "libxcb.so.1": "libxcb1",
-    "libpq.so.5": "libpq5",
-    # common companions of the above (still single-target, curated not learned)
-    "libgomp.so.1": "libgomp1",
-    "libGLU.so.1": "libglu1-mesa",
-}
-
-# build tool / config helper / header -> apt package.
-TOOL_TO_APT: dict[str, str] = {
-    "pg_config": "libpq-dev",
-    "mysql_config": "default-libmysqlclient-dev",
-    "gcc": "build-essential",
-    "g++": "build-essential",
-    "make": "build-essential",
-    "cc": "build-essential",
-    "Python.h": "python3-dev",
-}
-
 # Runtime CLI binaries a repo's OWN code shells out to (subprocess/os.system) ->
-# apt package. Distinct from TOOL_TO_APT (pip *build* tools): these are external
-# programs the code invokes at run time, which ldd/apt-on-build never surface.
+# apt package. Distinct from the pip *build* tools in ``os_resolver.PROVIDER_TABLE``
+# (headers/config binaries): those are surfaced by ldd/apt-on-build, whereas these
+# are external programs the code invokes at run time, which that path never sees.
 # Deliberately SMALL and curated: only unambiguous, well-known external tools go
 # here so the subprocess scanner (subprocess_scan.py) is a strict allowlist and
 # never flags shell builtins, coreutils, or project-local scripts. Keep DISJOINT
-# from TOOL_TO_APT so the two tool sources cannot mint two nodes for one apt pkg.
+# from the resolver's ``binary`` providers so the two tool sources cannot mint two
+# nodes for one apt pkg.
 CLI_TOOL_TO_APT: dict[str, str] = {
     "git": "git",
     "adb": "adb",
@@ -81,25 +58,7 @@ NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
 )
 
 
-def apt_for_soname(soname: str) -> str | None:
-    """Apt package providing ``soname`` (e.g. ``libGL.so.1`` -> ``libgl1``)."""
-    return NATIVE_LIB_TO_APT.get(soname)
-
-
-def apt_for_tool(tool: str) -> str | None:
-    """Apt package providing a build tool/header (e.g. ``pg_config`` -> ``libpq-dev``)."""
-    return TOOL_TO_APT.get(tool)
-
-
 def apt_for_cli_tool(tool: str) -> str | None:
     """Apt package providing a runtime CLI binary (e.g. ``adb`` -> ``adb``); None
     when ``tool`` is not on the curated subprocess allowlist."""
     return CLI_TOOL_TO_APT.get(tool)
-
-
-# Enforce the disjointness the two tables' node ids depend on: subprocess tools
-# are keyed ``tool:<name>`` and pip build tools ``tool:<apt>``, so a key shared
-# between the tables could mint two nodes for one apt package. Checked at import
-# so a future edit to either table fails loudly, not silently.
-_SHARED_TOOL_KEYS = set(TOOL_TO_APT) & set(CLI_TOOL_TO_APT)
-assert not _SHARED_TOOL_KEYS, f"TOOL_TO_APT / CLI_TOOL_TO_APT overlap: {_SHARED_TOOL_KEYS}"

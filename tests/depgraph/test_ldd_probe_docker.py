@@ -8,7 +8,8 @@ binary-inspection discovery + release-correct apt naming directly.
 Package under test: ``pygame``.
 
 * Its extension module ``.cpython-NNN*.so`` links against
-  ``libgthread-2.0.so.0`` / ``libglib-2.0.so.0`` (both in ``NATIVE_LIB_TO_APT``),
+  ``libgthread-2.0.so.0`` / ``libglib-2.0.so.0`` (both soname providers in
+  ``os_resolver.PROVIDER_TABLE``),
   so ``ldd_probe`` surfaces them as ``SystemLib`` nodes with
   ``discovered_by=PROBE`` **and** a non-empty ``apt:`` fix-candidate.
 * After ``reconcile_apt_names`` the fix-candidate name is release-correct for the
@@ -37,7 +38,13 @@ if str(_SRC) not in sys.path:
 from python_deps.depgraph.build import build_dep_graph  # noqa: E402
 from python_deps.depgraph.executor import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from python_deps.depgraph.schema import DiscoveredBy, NodeType  # noqa: E402
-from python_deps.depgraph.tables import NATIVE_LIB_TO_APT  # noqa: E402
+from python_deps.depgraph.os_resolver import PROVIDER_TABLE  # noqa: E402
+
+# soname -> apt subset of the unified resolver table (the former curated
+# soname->apt table was folded into os_resolver.PROVIDER_TABLE).
+_SONAME_APT = {
+    name: apt for (kind, name), apt in PROVIDER_TABLE.items() if kind == "soname"
+}
 
 # ── constants ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +95,7 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
     1. At least one ``SystemLib`` node exists with ``discovered_by=PROBE`` —
        proves ldd_probe (or import_probe as backstop) surfaced the dependency.
     2. At least one PROBE ``SystemLib`` node has a non-empty ``apt:``
-       fix-candidate whose soname resolves via ``NATIVE_LIB_TO_APT`` —
+       fix-candidate whose soname resolves via ``os_resolver.PROVIDER_TABLE`` —
        proves option-A release-correct naming (binary-inspection *discovery*,
        release-correct *names* for known sonames).
     """
@@ -124,7 +131,7 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
 
     # ── Assertion 2: at least one PROBE node has a release-correct apt fix ────
     # A PROBE node with a non-empty apt: fix-candidate proves two things:
-    #   (a) resolve_soname_apt matched the soname via NATIVE_LIB_TO_APT (or
+    #   (a) os_resolver.resolve matched the soname via PROVIDER_TABLE (or
     #       apt-file fallback), i.e. the soname is in the table.
     #   (b) reconcile_apt_names verified / remapped the name against the actual
     #       base image (release-correct).
@@ -136,8 +143,8 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
     assert probe_with_apt_fix, (
         "No PROBE SystemLib node has an apt: fix-candidate. "
         "Expected at least one soname from "
-        f"{_TEST_PACKAGE!r} to be in NATIVE_LIB_TO_APT "
-        f"(current table sonames: {sorted(NATIVE_LIB_TO_APT.keys())}). "
+        f"{_TEST_PACKAGE!r} to be in the resolver's soname providers "
+        f"(current table sonames: {sorted(_SONAME_APT.keys())}). "
         "Nodes found: "
         + str([(n.id, n.fix_candidates) for n in probe_syslibs])
     )

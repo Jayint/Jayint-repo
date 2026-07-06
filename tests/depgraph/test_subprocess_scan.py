@@ -77,10 +77,14 @@ def test_non_utf8_file_does_not_crash_scan(tmp_path):
 
 def test_tables_are_disjoint():
     # id-collision guard: CLI_TOOL_TO_APT (subprocess tools, id=tool:<name>) and
-    # TOOL_TO_APT (pip build tools, id via tool:<apt>) MUST stay disjoint so a
-    # future edit can't silently mint two nodes for one apt package.
-    from python_deps.depgraph.tables import CLI_TOOL_TO_APT, TOOL_TO_APT
-    assert not (set(CLI_TOOL_TO_APT) & set(TOOL_TO_APT))
+    # the resolver's build-tool binaries (os_resolver.PROVIDER_TABLE, id via
+    # tool:<apt>) MUST stay disjoint so a future edit can't silently mint two
+    # nodes for one apt package. (The old build-tool half was retired into
+    # PROVIDER_TABLE; this now guards CLI tools vs the single apt authority.)
+    from python_deps.depgraph.os_resolver import PROVIDER_TABLE
+    from python_deps.depgraph.tables import CLI_TOOL_TO_APT
+    provider_binaries = {name for (kind, name) in PROVIDER_TABLE if kind == "binary"}
+    assert not (set(CLI_TOOL_TO_APT) & provider_binaries)
 
 
 def test_ignores_calls_in_excluded_dirs(tmp_path):

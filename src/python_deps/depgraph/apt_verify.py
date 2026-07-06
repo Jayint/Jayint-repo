@@ -1,6 +1,6 @@
 """Release-aware apt-name verification (fixes stale predicted/table names).
 
-The curated tables (``PACKAGE_TO_SYSTEM_DEPS``, ``apt_for_soname``) encode ONE
+The curated tables (``PACKAGE_TO_SYSTEM_DEPS``, ``os_resolver.PROVIDER_TABLE``) encode ONE
 Debian release's apt names (bookworm-era). On a newer target image they go stale
 — most visibly the **t64 ABI transition** (``libglib2.0-0`` ->
 ``libglib2.0-0t64``). The probe/seed stages emit those names verbatim, so the
@@ -10,7 +10,7 @@ This stage closes that gap WITHOUT abandoning the curated knowledge (which is th
 only proactive source of "opencv needs a GL lib"): it keeps the table's *fact*
 but verifies the *name* against the target image, remapping when the predicted
 name is not installable. Pure parser + thin executor orchestrator (mirrors
-``apt_resolve.py``); Debian/Ubuntu only.
+``os_resolver.py``); Debian/Ubuntu only.
 """
 
 from __future__ import annotations
