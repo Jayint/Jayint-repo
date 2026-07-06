@@ -109,7 +109,6 @@ def attribute_failure(ladder: LadderResult, *, static_ok: bool,
 
 
 from python_deps.depgraph.build_script import render_build_script  # noqa: E402
-from src.eval.build_script_eval.replay import run_replay_ladder  # noqa: E402
 from src.eval.graph_fidelity.render_fidelity import check_render  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
     apt_names_in_graph, base_image_for_repo, build_graph_construction_only,
@@ -164,6 +163,15 @@ def _assemble_scorecard(full_name, stratum, feasible, image, minor, graph,
 
 def score_repo(repo_dir: str, spec) -> dict:
     """Full per-repo pipeline (docker). `spec` is a corpus.RepoSpec."""
+    # Local import: replay.py imports LadderResult/classify_pytest_result back
+    # from this module at its own module scope (Task 2). Importing
+    # run_replay_ladder at THIS module's top level would race that — whichever
+    # of the two modules loads first wins, and the other sees a partially
+    # initialized module (breaks whenever something imports replay before
+    # scorecard, e.g. test_replay_ladder.py, or the full test-suite collection
+    # order). Deferring to call time breaks the cycle without touching replay.py.
+    from src.eval.build_script_eval.replay import run_replay_ladder
+
     image, minor, _reason = base_image_for_repo(repo_dir)
     graph = build_graph_construction_only(repo_dir, image, minor)
     script = render_build_script(graph, ())
