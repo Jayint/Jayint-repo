@@ -67,6 +67,7 @@ from python_deps.depgraph.ids import TEST_NODE_ID, project_id
 from python_deps.depgraph.ldd_probe import ldd_probe
 from python_deps.depgraph.pins import compute_exclude_newer
 from python_deps.depgraph.probe import import_probe, install_closure
+from python_deps.depgraph.project_native_deps import project_native_obligations
 from python_deps.depgraph.relink import certified_import_links
 from python_deps.depgraph.repair import (
     RecordProvider,
@@ -585,6 +586,18 @@ def _python_package_obligations(
     # container_executor. RESOLVER/UNKNOWN nodes (never SATISFIED-at-seed), so
     # they fall inside the resolver_ids restamp just below.
     graph = seed_build_deps(graph, container_executor)
+    # Stage 3b''' — R1b project-native-build-obligations: the repo-under-test's
+    # OWN Project node gets the SAME build-dep-prior treatment as a source-built
+    # Package (setup.py Extension.libraries + Debian Build-Depends keyed by the
+    # project's OWN name + PEP 725 [external] read locally + the build-essential
+    # floor), since it is otherwise categorically excluded from every prior
+    # stage above (NodeType.PROJECT, no version -- see
+    # docs/superpowers/research/R1-native-build-requirements.md). Pure-additive,
+    # no-op for a repo with no native-build signal; RESOLVER/UNKNOWN nodes, so
+    # they fall inside the resolver_ids restamp just below. No render-ordering
+    # change needed (build_script.py's layer-then-capstone walk already renders
+    # Layer.TOOLCHAIN before the Project capstone, edge-independently).
+    graph = project_native_obligations(graph, repo_path, host_executor, container_executor)
     resolver_ids = {
         n.id
         for n in graph.nodes
