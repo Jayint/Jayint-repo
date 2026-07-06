@@ -21,6 +21,7 @@ if str(_SRC) not in sys.path:
 
 from python_deps.depgraph.diagnose import (
     Diagnosis, Mode, RepoContext, _norm, diagnose, diagnose_all,
+    make_diagnostic_classifier,
 )
 from python_deps.depgraph.schema import NodeType
 
@@ -106,3 +107,80 @@ def test_diagnose_all_maps_each_observation_in_order():
 
 def test_diagnose_all_empty_observations_returns_empty_tuple():
     assert diagnose_all((), RepoContext()) == ()
+
+
+# ---------------------------------------------------------------------------
+# Part C (residual-giveup-fix.md): a WEAK tool/config signal that co-occurs
+# with an AssertionError is RESIDUAL, not a mintable ENVIRONMENT obligation.
+# Kills the click-repo phantom (`tool:less`/`config:PAGER` minted from an
+# incidental token in a pytest blob whose real failure is a stable
+# AssertionError) at the diagnosis root, before it ever reaches the graph.
+# ---------------------------------------------------------------------------
+
+def test_tool_signal_with_assertion_error_is_residual_not_environment():
+    # The click-repo phantom: an incidental 'less' token inside a pytest blob
+    # whose REAL failure is a stable AssertionError. Before Part C this routed
+    # ENVIRONMENT (tool) and minted an unfixable tool:less obligation that the
+    # scheduler re-handed every cycle.
+    d = diagnose(
+        "python -m pytest -q",
+        "...FileNotFoundError: [Errno 2] No such file or directory: 'less'...\n"
+        "E   AssertionError\n",
+        RepoContext(),
+    )
+    assert d.mode is Mode.RESIDUAL
+    assert d.discovery is None
+
+
+def test_config_signal_with_assertion_error_is_residual_not_environment():
+    # Same reconciliation for the CONFIG tier (e.g. a missing PAGER/LESS/TERM
+    # env var scraped from the same traceback as the real AssertionError).
+    d = diagnose(
+        "python -m pytest -q",
+        "KeyError: 'PAGER'\nE   AssertionError\n",
+        RepoContext(),
+    )
+    assert d.mode is Mode.RESIDUAL
+    assert d.discovery is None
+
+
+def test_tool_signal_without_assertion_error_still_routes_environment():
+    # Positive control: the identical weak tool signal with NO co-occurring
+    # AssertionError is a genuine environment requirement — unaffected by the
+    # guard (it only fires when the two signals are co-reported).
+    d = diagnose(
+        "python -m pytest -q",
+        "FileNotFoundError: [Errno 2] No such file or directory: 'less'\n",
+        RepoContext(),
+    )
+    assert d.mode is Mode.ENVIRONMENT
+    assert d.discovery is not None
+    assert d.discovery.node_type is NodeType.TOOL
+
+
+def test_strong_tier_systemlib_not_downgraded_by_assertion_co_occurrence():
+    # STRONG, anchored tiers (SystemLib soname, matched from a specific
+    # failure signature rather than an arbitrary token) must NOT be
+    # downgraded even when an AssertionError co-occurs — the guard is scoped
+    # to the WEAK TOOL/CONFIG tiers only.
+    d = diagnose(
+        "python app.py",
+        "ImportError: libGL.so.1: cannot open shared object file\n"
+        "E   AssertionError\n",
+        RepoContext(),
+    )
+    assert d.mode is Mode.ENVIRONMENT
+    assert d.discovery is not None
+    assert d.discovery.node_type is NodeType.SYSTEM_LIB
+
+
+def test_make_diagnostic_classifier_mints_no_node_for_phantom_tool_signal():
+    # Ingest-time seam proof: RESIDUAL -> discovery=None -> no node minted by
+    # ingest_runtime_failures's classifier plumbing.
+    classifier = make_diagnostic_classifier(RepoContext())
+    result = classifier(
+        "python -m pytest -q",
+        "...FileNotFoundError: [Errno 2] No such file or directory: 'less'...\n"
+        "E   AssertionError\n",
+    )
+    assert result is None

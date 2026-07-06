@@ -15,6 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from python_deps.depgraph.runtime_classify import Discovery, classify_observation
+from python_deps.depgraph.schema import NodeType
 from python_deps.failure_classifier import classify_dependency_failure
 
 
@@ -146,6 +147,19 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     # Native lib / service / config / tool: reuse the classifier verbatim.
     disc = classify_observation(command, text)
     if disc is not None:
+        # RESIDUAL takes priority over the WEAK config/tool tiers. A co-reported
+        # AssertionError means the test's own logic failed; a missing env-var or
+        # missing executable scraped from the same traceback is almost always
+        # incidental to that residual (e.g. click's pager tests: an incidental
+        # `less`/`PAGER` token alongside a stable `test_echo_via_pager`
+        # AssertionError). Installing it cannot make the assertion pass — minting
+        # the obligation only starts an unfixable repair churn. The STRONG,
+        # anchored tiers (SystemLib soname, Service) still win: they are matched
+        # from specific failure signatures, not arbitrary tokens.
+        if disc.node_type in (NodeType.TOOL, NodeType.CONFIG) and _RESIDUAL_RE.search(text):
+            return Diagnosis(Mode.RESIDUAL, None,
+                             f"{disc.node_type.value.lower()} signal co-occurs with an "
+                             "AssertionError — treating as residual, not environment")
         return Diagnosis(Mode.ENVIRONMENT, disc,
                          f"{disc.node_type.value.lower()} requirement")
 
