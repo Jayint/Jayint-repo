@@ -33,9 +33,11 @@ def _disconnect_network_cmd(container_name: str) -> list[str]:
     return ["docker", "network", "disconnect", "bridge", container_name]
 
 
-def _fail(rung_reached: str, reason: str, output: str, *, install_ok: bool) -> LadderResult:
+def _fail(rung_reached: str, reason: str, output: str, *, install_ok: bool,
+          collect_ok: bool | None = None) -> LadderResult:
     return LadderResult(
-        install_ok=install_ok, env_works=False, tests_ran=False, tests_passed=False,
+        install_ok=install_ok, env_works=False, collect_ok=collect_ok,
+        tests_ran=False, tests_passed=False,
         highest_rung=rung_reached, reason=reason,
         first_failure=real_first_failure(output),
         gaps=merge_gaps(classify_execution_failures(output), classify_tool_failures(output)),
@@ -56,45 +58,59 @@ def run_replay_ladder(
         if not install.ok:
             return _fail("none", "install_failed", install.stdout + install.stderr, install_ok=False)
 
-        # RUNG 2 — env_works: repo imports + tests COLLECT (no execution yet).
-        # Order matters: the import check and the pytest bootstrap both run while
-        # the network is still up (before any disconnect below).
-        probe_out: list[str] = []
+        # RUNG 2 — env_works: the repo's top-level import is the HARD gate. Test
+        # COLLECTION is a separate, more-demanding signal (collect_ok): a
+        # pytest-version/config incompatibility (deprecation-as-error under
+        # filterwarnings=error, a dropped `_pytest` internal) must NOT sink the
+        # headline; only a real, classifier-detectable env gap surfaced during
+        # collection does. Import + bootstrap run while the network is still up.
         if top_import:
             imp = box.run(f"{cd} && python3 -c 'import {top_import}'", timeout=120)
             if not imp.ok:
-                probe_out.append(imp.stdout + imp.stderr)
+                return _fail("install", "env_broken", imp.stdout + imp.stderr, install_ok=True)
 
         # Probe-only bootstrap (NOT graph-attributed): pytest is the probe's own
-        # tool, not a runtime need setup.sh was asked to provide -- mirrors
-        # coverage.py's run_execution_probe. CRITICAL: a bootstrap FAILURE is a
-        # probe-infra problem, never a repo coverage gap, so its output is NEVER
-        # appended to probe_out / fed to classify_execution_failures. It only
-        # gates whether collection (and, below, the test rung) can run.
+        # tool. A bootstrap FAILURE is probe-infra, never a coverage gap -- its
+        # output is never classified.
         bootstrap_ok = box.run("pip install --no-input --quiet pytest", timeout=300).ok
+
+        collect_ok: bool | None = None
         if bootstrap_ok:
             collected = box.run(f"{cd} && python3 -m pytest --collect-only -q", timeout=600)
+            collect_ok = collected.ok
             if not collected.ok:
-                probe_out.append(collected.stdout + collected.stderr)
-        if probe_out:
-            # gaps here only ever reflect import + collect output, never bootstrap.
-            return _fail("install", "env_broken", "\n".join(probe_out), install_ok=True)
+                collect_out = collected.stdout + collected.stderr
+                collect_gaps = merge_gaps(
+                    classify_execution_failures(collect_out), classify_tool_failures(collect_out),
+                )
+                if collect_gaps:
+                    # a real missing need surfaced during collection -> env gap.
+                    return _fail("install", "env_broken", collect_out,
+                                 install_ok=True, collect_ok=False)
+                # framework/config incompatibility -> env works, suite uncollectable.
+                return LadderResult(
+                    install_ok=True, env_works=True, collect_ok=False,
+                    tests_ran=False, tests_passed=False,
+                    highest_rung="env_works", reason="collect_incompatible",
+                    first_failure=real_first_failure(collect_out), gaps=(),
+                )
 
-        # env_works has now passed (setup.sh installed clean AND the repo
-        # imports + collects). If pytest could not be bootstrapped, we cannot
-        # run the suite -- record that as a non-gap miss and stop at env_works.
-        # EXCEPT: if there was no top_import (the import check never ran) AND
-        # bootstrap failed (collect was skipped), NOTHING was actually
-        # verified -- env_works=True here would be vacuous, not earned.
+        # env_works has now passed (installed clean AND the repo imports, and if
+        # pytest bootstrapped, tests COLLECTED clean). If pytest could not be
+        # bootstrapped we cannot run the suite -- record a non-gap miss and stop.
+        # EXCEPT: with no top_import AND no collect, NOTHING was verified, so
+        # env_works=True would be vacuous.
         if not bootstrap_ok:
             if top_import is None:
                 return LadderResult(
-                    install_ok=True, env_works=False, tests_ran=False, tests_passed=False,
+                    install_ok=True, env_works=False, collect_ok=None,
+                    tests_ran=False, tests_passed=False,
                     highest_rung="install", reason="unverified_no_import_no_collect",
                     first_failure=None, gaps=(),
                 )
             return LadderResult(
-                install_ok=True, env_works=True, tests_ran=False, tests_passed=False,
+                install_ok=True, env_works=True, collect_ok=None,
+                tests_ran=False, tests_passed=False,
                 highest_rung="env_works", reason="pytest_unavailable",
                 first_failure=None, gaps=(),
             )
@@ -106,7 +122,8 @@ def run_replay_ladder(
         tests_ran, tests_passed, reason = classify_pytest_result(run.returncode)
         highest = "tests_passed" if tests_passed else ("tests_ran" if tests_ran else "env_works")
         return LadderResult(
-            install_ok=True, env_works=True, tests_ran=tests_ran, tests_passed=tests_passed,
+            install_ok=True, env_works=True, collect_ok=True,
+            tests_ran=tests_ran, tests_passed=tests_passed,
             highest_rung=highest, reason=reason,
             first_failure=None if tests_passed else real_first_failure(run.stdout + run.stderr),
             gaps=() if tests_ran else merge_gaps(

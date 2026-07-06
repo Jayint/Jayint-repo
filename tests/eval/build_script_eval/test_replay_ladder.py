@@ -98,6 +98,7 @@ def test_bootstrap_failure_never_manufactures_a_gap(monkeypatch):
     res = run_replay_ladder("/repo", "img", "setup", "triv")
     assert res.install_ok is True
     assert res.env_works is True
+    assert res.collect_ok is None
     assert res.tests_ran is False
     assert res.tests_passed is False
     assert res.reason == "pytest_unavailable"
@@ -124,6 +125,7 @@ def test_full_ladder_all_green(monkeypatch):
     res = run_replay_ladder("/repo", "img", "setup", "triv")
     assert res.install_ok is True
     assert res.env_works is True
+    assert res.collect_ok is True
     assert res.tests_ran is True
     assert res.tests_passed is True
     assert res.highest_rung == "tests_passed"
@@ -188,3 +190,47 @@ def test_ladder_on_trivial_pure_python_repo(tmp_path):
     assert res.tests_ran is True
     assert res.tests_passed is True
     assert res.highest_rung == "tests_passed"
+
+
+def test_collect_framework_error_keeps_env_works_true(monkeypatch):
+    # import clean, bootstrap clean, but --collect-only errors on a pytest
+    # framework/config incompatibility (no real missing dependency). env_works
+    # must stay True; only collect_ok flips to False.
+    for stderr in (
+        "tests/test_x.py: PytestRemovedIn10Warning: nose-style ...\n"
+        "filterwarnings = error -> collection ERROR",
+        "ImportError: cannot import name 'notset' from '_pytest.config'",
+    ):
+        _patch(monkeypatch, {"collect": _rc(1, stderr=stderr)})
+        res = run_replay_ladder("/repo", "img", "setup", "triv")
+        assert res.install_ok is True
+        assert res.env_works is True
+        assert res.collect_ok is False
+        assert res.highest_rung == "env_works"
+        assert res.reason == "collect_incompatible"
+        assert res.gaps == ()
+        assert res.first_failure is not None
+
+
+def test_collect_real_module_gap_fails_env_works(monkeypatch):
+    # a genuine missing dependency during collection IS an env gap.
+    _patch(monkeypatch, {"collect": _rc(
+        1, stderr="ModuleNotFoundError: No module named 'pytest_asyncio'")})
+    res = run_replay_ladder("/repo", "img", "setup", "triv")
+    assert res.install_ok is True
+    assert res.env_works is False
+    assert res.collect_ok is False
+    assert res.reason == "env_broken"
+    assert {(g["tier"], g["id"]) for g in res.gaps} == {("PACKAGE", "pytest_asyncio")}
+
+
+def test_collect_ok_true_when_all_green(monkeypatch):
+    _patch(monkeypatch, {})  # every phase rc0
+    res = run_replay_ladder("/repo", "img", "setup", "triv")
+    assert res.collect_ok is True
+
+
+def test_collect_ok_none_when_bootstrap_fails(monkeypatch):
+    _patch(monkeypatch, {"bootstrap": _rc(127, stderr="pip: command not found")})
+    res = run_replay_ladder("/repo", "img", "setup", "triv")
+    assert res.collect_ok is None

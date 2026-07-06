@@ -17,7 +17,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from src.eval.language_package_eval.coverage import missing_node_clusters  # noqa: E402
 
-_RUNGS = ("install_ok", "env_works", "tests_ran", "tests_passed")
+_RUNGS = ("install_ok", "env_works", "collect_ok", "tests_ran", "tests_passed")
 _TESTS_PASSED_CAVEAT = (
     "tests_passed is a CAVEATED diagnostic, never the headline: it depends on the "
     "service/config tier (live Postgres/Redis, fixtures, network) which is OUT OF "

@@ -34,6 +34,7 @@ class LadderResult:
     reason: str | None           # why it stopped (timeout, no_tests_collected, ...)
     first_failure: dict | None   # {"command","stderr_tail"} at the failing rung
     gaps: tuple[dict, ...]        # classify_execution_failures dicts (typed)
+    collect_ok: bool | None = None  # True=collected clean, False=collect failed, None=not attempted
 
 
 def classify_pytest_result(returncode: int) -> tuple[bool, bool, str | None]:
@@ -147,6 +148,7 @@ def _assemble_scorecard(full_name, stratum, feasible, image, minor, graph,
         "first_pass_env_works": env_works_passed(ladder),
         "install_ok": ladder.install_ok,
         "env_works": ladder.env_works,
+        "collect_ok": ladder.collect_ok,
         "tests_ran": ladder.tests_ran,
         "tests_passed": ladder.tests_passed,
         "highest_rung": ladder.highest_rung,
