@@ -112,10 +112,12 @@ def test_discover_gate_repo_local_import_never_becomes_package_node(tmp_path):
     assert stop != "planner_done"
 
 
-def test_discover_gate_external_import_is_still_ingested_as_package(tmp_path):
-    # docs_src is present in the repo tree but is NOT the failing import here
-    # -- proves the guard is precise (blocks docs_src, allows requests), not
-    # a blanket "runtime ingest is broken" false negative.
+def test_discover_gate_external_import_is_not_auto_fabricated(tmp_path):
+    # Design (import->dist identity-fallback deletion): the deterministic layer
+    # NEVER guesses a package from an unmapped runtime import ("never guessed as
+    # itself", per test_runtime_parsers). A genuine external import (requests) is
+    # deferred to the LLM repair path, NOT auto-discovered/installed deterministically.
+    # (The docs_src repo-local case is covered by the sibling test above.)
     repo = _make_repo_with_local_docs_src(tmp_path)
     sandbox_execute = _failing_verify_sandbox(
         "ModuleNotFoundError: No module named 'requests'"
@@ -136,10 +138,13 @@ def test_discover_gate_external_import_is_still_ingested_as_package(tmp_path):
     )
 
     all_ids = tuple(n.id for n in (final_map.dep_graph.nodes if final_map.dep_graph else ()))
-    assert "pkg:requests" in all_ids, (
-        "a genuine external import ('requests') was NOT ingested as a package "
-        f"node via the discover-gate/runtime-ingest path: {all_ids}"
+    assert "pkg:requests" not in all_ids, (
+        "an unmapped external import must NOT be deterministically fabricated into a "
+        f"package node -- it is deferred to the LLM repair path: {all_ids}"
     )
+    # No deterministic obligation was minted, so the loop cannot close on it: it must
+    # give up honestly rather than report success.
+    assert stop != "planner_done"
 
 
 # ── LLM tier (``_guarded_llm``) coverage ─────────────────────────────────────
