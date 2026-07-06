@@ -129,10 +129,14 @@ def test_assemble_scorecard_system_gap_row(monkeypatch):
     monkeypatch.setattr(sc, "package_versions_in_graph", lambda g: {})
     ladder = _ladder(install_ok=True, env_works=False, tests_ran=False, tests_passed=False,
                      highest_rung="install", reason="env_broken",
-                     gaps=({"tier": "SYSTEM_LIB", "id": "libpq.so.5", "evidence": "cannot open"},))
+                     gaps=({"tier": "SYSTEM_LIB", "id": "libpq.so.5", "evidence": "cannot open"},
+                           {"tier": "SERVICE", "id": "unknown", "evidence": ""}))
     row = _assemble_scorecard("x/y", "S_syslib", True, "python:3.11-slim", "3.11",
                               _FakeGraph(), True, "y", ladder)
     assert row["first_pass_env_works"] is False
     assert row["attribution"] == "system_gap"
     assert [g["id"] for g in row["system_gaps"]] == ["libpq.so.5"]
-    assert row["execution_missing"] == list(ladder.gaps)
+    # execution_missing EXCLUDES the SERVICE gap (out of scope), even though
+    # ladder.gaps (the raw, unfiltered ladder output) still contains it.
+    assert {g["tier"] for g in row["execution_missing"]} == {"SYSTEM_LIB"}
+    assert any(g["tier"] == "SERVICE" for g in ladder.gaps)

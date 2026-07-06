@@ -18,7 +18,7 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from src.eval.build_script_eval.corpus import select  # noqa: E402
-from src.eval.build_script_eval.fetch import fetch_corpus, smoke_root  # noqa: E402
+from src.eval.build_script_eval.fetch import fetch_repo, smoke_root  # noqa: E402
 from src.eval.build_script_eval.report import aggregate, render_report_md  # noqa: E402
 from src.eval.build_script_eval.scorecard import score_repo  # noqa: E402
 
@@ -47,8 +47,15 @@ def main() -> int:
     root = smoke_root()
 
     if args.fetch:
-        paths = fetch_corpus(specs, smoke_root=root)
-        print(f"fetched {len(paths)} repos into {root}")
+        fetched = 0
+        for spec in specs:
+            try:
+                fetch_repo(spec, smoke_root=root)
+                fetched += 1
+            except Exception as e:  # noqa: BLE001 — one repo must not abort the corpus
+                print(f"SKIP-FETCH {spec.name}: {e}")
+                continue
+        print(f"fetched {fetched} repos into {root}")
 
     if args.run:
         print(f"scoring {len(specs)} repos (selected)")
@@ -72,7 +79,7 @@ def main() -> int:
     if args.run or args.score:
         cards = [json.loads(p.read_text()) for p in sorted(_OUT.glob("*__*.json"))]
         agg = aggregate(cards)
-        (_OUT / "report.md").write_text(render_report_md(agg, cards))
+        (_OUT / "report.md").write_text(render_report_md(agg))
         print(json.dumps(agg["headline_env_works"], indent=2))
         print(f"wrote {_OUT / 'report.md'}")
 

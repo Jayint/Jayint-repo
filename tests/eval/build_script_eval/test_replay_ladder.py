@@ -131,6 +131,46 @@ def test_full_ladder_all_green(monkeypatch):
     assert res.gaps == ()
 
 
+def test_install_failure_includes_tool_gap_for_missing_gcc(monkeypatch):
+    _patch(monkeypatch, {"install": _rc(
+        1, stderr="unable to execute 'gcc': No such file or directory\n"
+                  "error: command 'gcc' failed: No such file or directory\n"
+                  "[notice] A new release of pip is available: 23.0 -> 24.0\n"
+                  "[notice] To update, run: pip install --upgrade pip\n",
+    )})
+    res = run_replay_ladder("/repo", "img", "setup", "triv")
+    assert res.install_ok is False
+    assert {(g["tier"], g["id"]) for g in res.gaps} == {("TOOL", "gcc")}
+    assert res.first_failure["command"] is not None
+    assert "[notice]" not in res.first_failure["command"]
+
+
+def test_vacuous_env_works_guard_no_import_no_collect(monkeypatch):
+    # bootstrap fails AND no top_import was given ⇒ nothing was ever verified
+    # (no import check ran, collect was skipped): env_works must be False, not
+    # vacuously True.
+    _patch(monkeypatch, {"bootstrap": _rc(127, stderr="pip: command not found")})
+    res = run_replay_ladder("/repo", "img", "setup", None)
+    assert res.install_ok is True
+    assert res.env_works is False
+    assert res.highest_rung == "install"
+    assert res.reason == "unverified_no_import_no_collect"
+    assert res.gaps == ()
+    assert res.first_failure is None
+
+
+def test_bootstrap_failure_with_import_ok_keeps_env_works_true(monkeypatch):
+    # bootstrap fails but top_import WAS given and the import check passed
+    # (unscripted "import" phase defaults to rc0) ⇒ import ran and verified
+    # the env, so env_works stays True (unchanged behavior).
+    _patch(monkeypatch, {"bootstrap": _rc(127, stderr="pip: command not found")})
+    res = run_replay_ladder("/repo", "img", "setup", "triv")
+    assert res.install_ok is True
+    assert res.env_works is True
+    assert res.highest_rung == "env_works"
+    assert res.reason == "pytest_unavailable"
+
+
 @pytest.mark.skipif(not _docker_available(), reason="docker unavailable")
 def test_ladder_on_trivial_pure_python_repo(tmp_path):
     # a repo that installs cleanly, imports, and has one passing test

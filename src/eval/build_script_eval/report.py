@@ -26,11 +26,11 @@ _TESTS_PASSED_CAVEAT = (
 )
 
 
-def _feasible(cards):
+def _feasible(cards: list[dict]) -> list[dict]:
     return [c for c in cards if c.get("feasible")]
 
 
-def _rate(cards, key):
+def _rate(cards: list[dict], key: str) -> tuple[int, int]:
     passed = sum(1 for c in cards if c.get(key))
     return (passed, len(cards))
 
@@ -39,18 +39,18 @@ def aggregate(scorecards: list[dict]) -> dict:
     """Headline + funnel + histogram + clusters. Headline denominator excludes
     infeasible repos; funnel/histogram count all scored repos."""
     feasible = _feasible(scorecards)
-    strata = sorted({c["stratum"] for c in scorecards})
+    strata = sorted({c.get("stratum") for c in scorecards})
     headline = {"overall": _rate(feasible, "first_pass_env_works")}
     for s in strata:
-        headline[s] = _rate([c for c in feasible if c["stratum"] == s], "first_pass_env_works")
+        headline[s] = _rate([c for c in feasible if c.get("stratum") == s], "first_pass_env_works")
 
     funnel = {rung: sum(1 for c in scorecards if c.get(rung)) for rung in _RUNGS}
     histogram = dict(Counter(c.get("attribution", "unknown") for c in scorecards))
 
     apt_safety = [
-        {"repo": c["repo"], "stratum": c["stratum"], "predicted_apt": c.get("predicted_apt", [])}
+        {"repo": c.get("repo"), "stratum": c.get("stratum"), "predicted_apt": c.get("predicted_apt", [])}
         for c in scorecards
-        if c["stratum"] == "S_control" and c.get("predicted_apt")   # over-prediction on a control
+        if c.get("stratum") == "S_control" and c.get("predicted_apt")   # over-prediction on a control
     ]
     return {
         "headline_env_works": headline,
@@ -68,7 +68,7 @@ def _fmt_rate(pair) -> str:
     return f"{passed}/{total} ({passed / total:.0%})" if total else "n/a (0 feasible)"
 
 
-def render_report_md(agg: dict, scorecards: list[dict]) -> str:
+def render_report_md(agg: dict) -> str:
     lines = ["# E2E Build-Script Effectiveness Report", ""]
     lines.append(f"Corpus: {agg['n_scored']} scored ({agg['n_feasible']} feasible).")
     lines += ["", "## First-pass env-works (HEADLINE)", "", "| Scope | Rate |", "|---|---|"]

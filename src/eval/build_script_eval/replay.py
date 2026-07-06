@@ -16,9 +16,12 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+from src.eval.build_script_eval.classify import (  # noqa: E402
+    classify_tool_failures, merge_gaps, real_first_failure,
+)
 from src.eval.build_script_eval.scorecard import LadderResult, classify_pytest_result  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
-    _MountedContainer, _write_file, classify_execution_failures, first_failure_evidence,
+    _MountedContainer, _write_file, classify_execution_failures,
 )
 
 _PYTEST_ENV = "PYTEST_ADDOPTS='-p no:cacheprovider'"
@@ -34,8 +37,8 @@ def _fail(rung_reached: str, reason: str, output: str, *, install_ok: bool) -> L
     return LadderResult(
         install_ok=install_ok, env_works=False, tests_ran=False, tests_passed=False,
         highest_rung=rung_reached, reason=reason,
-        first_failure=first_failure_evidence(output),
-        gaps=classify_execution_failures(output),
+        first_failure=real_first_failure(output),
+        gaps=merge_gaps(classify_execution_failures(output), classify_tool_failures(output)),
     )
 
 
@@ -80,7 +83,16 @@ def run_replay_ladder(
         # env_works has now passed (setup.sh installed clean AND the repo
         # imports + collects). If pytest could not be bootstrapped, we cannot
         # run the suite -- record that as a non-gap miss and stop at env_works.
+        # EXCEPT: if there was no top_import (the import check never ran) AND
+        # bootstrap failed (collect was skipped), NOTHING was actually
+        # verified -- env_works=True here would be vacuous, not earned.
         if not bootstrap_ok:
+            if top_import is None:
+                return LadderResult(
+                    install_ok=True, env_works=False, tests_ran=False, tests_passed=False,
+                    highest_rung="install", reason="unverified_no_import_no_collect",
+                    first_failure=None, gaps=(),
+                )
             return LadderResult(
                 install_ok=True, env_works=True, tests_ran=False, tests_passed=False,
                 highest_rung="env_works", reason="pytest_unavailable",
@@ -96,6 +108,9 @@ def run_replay_ladder(
         return LadderResult(
             install_ok=True, env_works=True, tests_ran=tests_ran, tests_passed=tests_passed,
             highest_rung=highest, reason=reason,
-            first_failure=None if tests_passed else first_failure_evidence(run.stdout + run.stderr),
-            gaps=() if tests_ran else classify_execution_failures(run.stdout + run.stderr),
+            first_failure=None if tests_passed else real_first_failure(run.stdout + run.stderr),
+            gaps=() if tests_ran else merge_gaps(
+                classify_execution_failures(run.stdout + run.stderr),
+                classify_tool_failures(run.stdout + run.stderr),
+            ),
         )

@@ -44,6 +44,35 @@ def test_attribution_histogram_and_ladder_funnel():
 
 
 def test_report_md_has_headline_and_caveat():
-    md = render_report_md(aggregate([_row()]), [_row()])
+    md = render_report_md(aggregate([_row()]))
     assert "First-pass env-works" in md
     assert "tests_passed" in md and "service" in md.lower()   # the confound caveat
+
+
+def test_control_overprediction_and_gap_clusters_populated():
+    shared_gap = {"tier": "SYSTEM_LIB", "id": "libpq.so.5", "evidence": ""}
+    cards = [
+        _row(repo="o/control", stratum="S_control", first_pass_env_works=False,
+             attribution="system_gap", predicted_apt=["libpq-dev"],
+             system_gaps=[shared_gap], execution_missing=[shared_gap]),
+        _row(repo="o/other", stratum="S_syslib", first_pass_env_works=False,
+             attribution="system_gap", predicted_apt=[],
+             system_gaps=[shared_gap], execution_missing=[shared_gap]),
+    ]
+    agg = aggregate(cards)
+
+    assert len(agg["control_overprediction"]) == 1
+    control_row = agg["control_overprediction"][0]
+    assert control_row["repo"] == "o/control"
+    assert control_row["predicted_apt"] == ["libpq-dev"]
+
+    assert len(agg["gap_clusters"]) == 1
+    cluster = agg["gap_clusters"][0]
+    assert cluster["tier"] == "SYSTEM_LIB"
+    assert cluster["id"] == "libpq.so.5"
+    assert cluster["count"] == 2
+    assert set(cluster["repos"]) == {"o/control", "o/other"}
+
+    md = render_report_md(agg)
+    assert "libpq-dev" in md
+    assert "libpq.so.5" in md
