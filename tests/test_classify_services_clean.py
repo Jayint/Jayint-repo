@@ -9,6 +9,7 @@ These tests monkeypatch the module's `translate_service` to return canned result
 client is ever called) and materialize a fixture repo under `tmp_path`.
 """
 import sys
+from collections import namedtuple
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -129,8 +130,55 @@ def test_config_node_emitted(tmp_path, monkeypatch):
     assert cfg.check_command is None
 
 
-def test_never_crashes(tmp_path, monkeypatch):
+def test_per_service_translate_error_is_isolated_not_batch_fatal(tmp_path, monkeypatch):
+    # A translate failure for ONE service must skip only that service, never discard
+    # the whole batch. (Before the 2026-07-06 e2e fix, a single translate error
+    # unwound classify entirely and returned the input graph — silently dropping the
+    # config node and any sibling service that translated fine.) It still never
+    # crashes; it now degrades per-service.
     monkeypatch.setattr(csc, "translate_service", _fake_raises)
+    g = DepGraph()
+    out = classify_services_clean(g, _make_repo(tmp_path),
+                                  client=None, model="m", arch=_ARCH)
+    assert isinstance(out, DepGraph)                 # best-effort: never raises
+    assert out.get("service:cache") is None          # the failing service is skipped
+    assert out.get("config:CACHE_URL") is not None   # OTHER nodes survive the per-service error
+
+
+def test_service_nodes_skips_app_build_services_no_client(tmp_path):
+    # Real-repo shape: app build-services (web/worker — a `build:`, no `image:`) sit
+    # alongside backing services (postgres/redis — pulled images). With client=None
+    # the build-services must be skipped BEFORE the exotic LLM path (which would crash
+    # on a None client and, unchecked, drop every service), while the known-kind
+    # backing services still produce Service nodes deterministically.
+    (tmp_path / "compose.yaml").write_text(
+        "services:\n"
+        "  web:\n"
+        "    build: .\n"
+        "  worker:\n"
+        "    build: .\n"
+        "    command: celery worker\n"
+        "  postgres:\n"
+        "    image: 'postgres:16'\n"
+        "    environment:\n"
+        "      POSTGRES_USER: app\n"
+        "      POSTGRES_PASSWORD: secret\n"
+        "  redis:\n"
+        "    image: 'redis:7'\n"
+    )
+    Hit = namedtuple("Hit", "evidence_id kind name")
+    hit = Hit("ev-svc", "import", "psycopg2")
+    nodes = csc._service_nodes(str(tmp_path), _ARCH, None, "", [hit], [])
+    names = {n.name for n in nodes}
+    assert {"postgres", "redis"} <= names                 # backing services -> nodes (no client)
+    assert "web" not in names and "worker" not in names   # app build-services skipped, no crash
+
+
+def test_never_crashes(tmp_path, monkeypatch):
+    # The whole classify body is still wrapped best-effort: a repo-read/collect error
+    # (not a per-service translate error) returns the input graph unchanged.
+    monkeypatch.setattr(csc, "collect_static_evidence",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     g = DepGraph()
     out = classify_services_clean(g, _make_repo(tmp_path),
                                   client=None, model="m", arch=_ARCH)

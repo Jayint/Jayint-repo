@@ -78,32 +78,50 @@ def _config_evidence(hits, var: str) -> str:
 
 
 def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSpec]:
-    """One CLEAN setup-shape Service NodeSpec per declared, provisionable compose service."""
+    """One CLEAN setup-shape Service NodeSpec per declared, PROVISIONABLE compose
+    service. Two guards keep the app itself and one bad service from poisoning the
+    whole batch (real-repo e2e finding 2026-07-06):
+
+    - A service with no recognized kind AND no pulled ``image:`` is the application
+      under test (a ``build:``-only compose service like web/worker/js/css), not a
+      dependency to provision. Skip it BEFORE ``translate_service`` — routing it to
+      the exotic LLM branch wastes a call and, with no client, raises.
+    - Each service is translated in isolation: one failure (an exotic image with no
+      client available, an LLM/parse error) skips only THAT service instead of
+      unwinding the batch and discarding the others that translated cleanly.
+    """
     nodes: list[NodeSpec] = []
     seen_ids: set[str] = set()
     for spec in iter_provisioning_specs(repo_path):
         node_id = f"service:{spec.service_name}"
         if node_id in seen_ids:
             continue
-        res = translate_service(client, model, spec, arch)
-        setup = res.get("setup")
-        # Skip a parse-failed (setup=None) or probe-less service: a probe-less setup would
-        # render render_probe_poll("") — a broken shell that can never demote at certify —
-        # and validate_proposal rejects it anyway. Never admit one.
-        if setup is None or not setup.get("probe"):
+        # The app itself (build-only, unrecognized) — never a backing dependency.
+        if spec.kind is None and not spec.image:
             continue
-        # Immutable: rebuild the setup dict to attach `bind` — never mutate translate's dict.
-        new_setup = dict(setup)
-        new_setup["bind"] = render_bind_steps([spec], configs)
-        kind = res.get("kind")
-        # Setup-shape Service nodes may carry an EXOTIC kind (couchdb, qdrant, …);
-        # _requirement_errors relaxes the KNOWN_SERVICE_KINDS check for setup nodes.
-        nodes.append(NodeSpec(
-            id=node_id, type="Service", name=spec.service_name, layer="services",
-            setup=new_setup, service_kind=kind,
-            evidence_ref=_service_evidence(hits, spec.service_name, kind),
-        ))
-        seen_ids.add(node_id)
+        try:
+            res = translate_service(client, model, spec, arch)
+            setup = res.get("setup")
+            # Skip a parse-failed (setup=None) or probe-less service: a probe-less setup
+            # would render render_probe_poll("") — a broken shell that can never demote at
+            # certify — and validate_proposal rejects it anyway. Never admit one.
+            if setup is None or not setup.get("probe"):
+                continue
+            # Immutable: rebuild the setup dict to attach `bind` — never mutate translate's dict.
+            new_setup = dict(setup)
+            new_setup["bind"] = render_bind_steps([spec], configs)
+            kind = res.get("kind")
+            # Setup-shape Service nodes may carry an EXOTIC kind (couchdb, qdrant, …);
+            # _requirement_errors relaxes the KNOWN_SERVICE_KINDS check for setup nodes.
+            nodes.append(NodeSpec(
+                id=node_id, type="Service", name=spec.service_name, layer="services",
+                setup=new_setup, service_kind=kind,
+                evidence_ref=_service_evidence(hits, spec.service_name, kind),
+            ))
+            seen_ids.add(node_id)
+        except Exception as exc:  # noqa: BLE001 — best-effort, scoped to this one service
+            logger.warning("clean service node skipped for %s: %s", spec.service_name, exc)
+            continue
     return nodes
 
 
