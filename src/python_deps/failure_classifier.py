@@ -23,11 +23,6 @@ PIP_REQUIRES_BUT_HAVE_RE = re.compile(
     r"(?P<installed>[A-Za-z0-9_.-]+)\s+(?P<version>[^\s,;]+)",
     re.IGNORECASE | re.MULTILINE,
 )
-NATIVE_LIBRARY_RE = re.compile(
-    r"(?:ImportError:\s+)?(?P<library>lib[A-Za-z0-9_.+-]+\.so(?:\.\d+)*)"
-    r".*?(?:cannot open shared object file|No such file or directory)",
-    re.IGNORECASE | re.DOTALL,
-)
 # Missing run-time shared library. Each source is anchored to its OWN terminal
 # phrase (``cannot open shared object file``) — never to a bare ``No such file or
 # directory`` (an ordinary missing-file OSError), and never with DOTALL (which
