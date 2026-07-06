@@ -40,6 +40,31 @@ CORPUS: tuple[RepoSpec, ...] = (
              top_import="pygraphviz"),
     RepoSpec("lxml", "lxml/lxml",
              "https://github.com/lxml/lxml", "lxml-5.2.2", "S_syslib", top_import="lxml"),
+    # --- diagnostic expansion (2026-07-06): breadth to distinguish root-cause
+    #     clusters from per-repo artifacts. Pure-Python controls (over-prediction
+    #     baseline) + more native repos (under-prediction / generalization proof). ---
+    RepoSpec("click", "pallets/click",
+             "https://github.com/pallets/click", "8.4.2", "S_control", top_import="click"),
+    RepoSpec("flask", "pallets/flask",
+             "https://github.com/pallets/flask", "3.1.3", "S_control", top_import="flask"),
+    RepoSpec("jinja", "pallets/jinja",
+             "https://github.com/pallets/jinja", "3.1.6", "S_control", top_import="jinja2"),
+    RepoSpec("requests", "psf/requests",
+             "https://github.com/psf/requests", "v2.34.2", "S_control", top_import="requests"),
+    RepoSpec("httpx", "encode/httpx",
+             "https://github.com/encode/httpx", "0.28.1", "S_control", top_import="httpx"),
+    RepoSpec("rich", "Textualize/rich",
+             "https://github.com/Textualize/rich", "v15.0.0", "S_control", top_import="rich"),
+    RepoSpec("python-dotenv", "theskumar/python-dotenv",
+             "https://github.com/theskumar/python-dotenv", "v1.2.2", "S_control", top_import="dotenv"),
+    RepoSpec("pyyaml", "yaml/pyyaml",
+             "https://github.com/yaml/pyyaml", "6.0.3", "S_syslib", top_import="yaml"),
+    RepoSpec("pyzmq", "zeromq/pyzmq",
+             "https://github.com/zeromq/pyzmq", "v27.1.0", "S_syslib", top_import="zmq"),
+    RepoSpec("pillow", "python-pillow/Pillow",
+             "https://github.com/python-pillow/Pillow", "12.3.0", "S_syslib", top_import="PIL"),
+    RepoSpec("cryptography", "pyca/cryptography",
+             "https://github.com/pyca/cryptography", "49.0.0", "S_syslib", top_import="cryptography"),
 )
 
 
