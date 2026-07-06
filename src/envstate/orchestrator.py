@@ -421,6 +421,42 @@ def run_v3(
         raise ValueError(
             "run_v3 is fresh-replay-only: reset_to_base and run_install_script are required "
             "(use the block_emit ablation or run_v1 for incremental/legacy execution)")
+    # ── Container generation + VERIFY_TEST_CMD memo ──────────────────────────
+    # `_container_gen` is a monotonic token bumped on EVERY container mutation
+    # reachable from run_v3 — reset_to_base / run_install_script (the complete
+    # set: the Python shim is baked into the rendered setup.sh and therefore
+    # runs INSIDE run_install_script, not as a separate live call). It keys
+    # `_verify_cache`, which lets the scheduler probe (`_run_tests_verified`)
+    # and the discover gate (`_run_discover_gate`) share ONE pytest run when
+    # nothing mutated the container between them, while any mutation
+    # invalidates the memo so a stale pass/fail can never be served.
+    from src.envstate.verify_cache import VerifyTestCache
+    _container_gen: int = 0
+
+    def _bump_gen() -> None:
+        nonlocal _container_gen
+        _container_gen += 1
+
+    # Wrap the two mutating primitives at the SOURCE (not the call sites) so
+    # every _binding_emit caller — per-cycle emit, every run_structured_repair
+    # retry, and the task-branch replay-once — bumps the generation by
+    # construction.
+    _raw_reset_to_base = reset_to_base
+    _raw_run_install_script = run_install_script
+
+    def reset_to_base():
+        _bump_gen()
+        return _raw_reset_to_base()
+
+    def run_install_script(script):
+        _bump_gen()
+        return _raw_run_install_script(script)
+
+    _verify_cache = VerifyTestCache(
+        exec_test=lambda: sandbox_execute(VERIFY_TEST_CMD),
+        gen=lambda: _container_gen,
+    )
+
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0
@@ -456,7 +492,7 @@ def run_v3(
         the v1gs done-gate so the graph scheduler cannot finalize on a hollow pytest
         exit-code (e.g. zero tests collected, venv-wrapped run, all-skipped).
         """
-        ok, out = sandbox_execute(VERIFY_TEST_CMD)
+        ok, out = _verify_cache.run()   # memoized per container generation (design §1)
         verify_report = TaskReport(
             "sched-verify",
             "done" if ok else "blocked",
@@ -498,7 +534,7 @@ def run_v3(
         top of THIS cycle, so no separate replay is needed here.
         """
         cmd = VERIFY_TEST_CMD
-        ok, out = sandbox_execute(cmd)
+        ok, out = _verify_cache.run()   # memoized per container generation (design §1)
         ledger.append(make_action_event(
             step=global_step, cmd=cmd, success=ok, stdout=(out or ""),
             env_revision_before=global_step, env_revision_after=global_step,  # discover mutates nothing
