@@ -458,27 +458,55 @@ def grade_localization(trace: dict, inj: Injection) -> LocalizationScore:
 
 **Files:** Create `src/eval/graph_repair_ablation/run.py` (part 1); Test `tests/eval/graph_repair_ablation/test_run_one.py`
 
-**RESEARCH FIRST (implementer):** read `src/envstate/v3_build_agent.py::V3BuildAgent.propose`, `src/envstate/repair_scope.py::render_repair_scope` (the scope object + how it renders), and `python_deps/depgraph/patch.py::PatchProposal` (fields, `to_dict`). Confirm: (a) how to construct a repair `scope` for a single failing obligation, (b) the `exec_readonly` contract (an object with `.run(cmd, timeout) -> CommandResult`), (c) how to read `{kind, target}` off a returned `PatchProposal`. Record findings in the task report before coding.
+**REAL INTERFACES (confirmed by recon — see `scratchpad/task5-recon-report.md`; the earlier draft of this task had them WRONG):**
+- `V3BuildAgent(client, model).propose(scope, exec_readonly, *, max_diag_turns) -> PatchProposal | None`.
+- `exec_readonly` is a **plain callable** `Callable[[str], tuple[int, str]]` (returns `(rc, combined_out)`), NOT a `.run()`/`CommandResult` object (call site `v3_build_agent.py:205` `rc, out = exec_readonly(action)`).
+- `render_repair_scope(scope)` is called **inside** `propose()` — you CANNOT pre-render + concatenate. Inject the arm context by patching the name at runtime: `unittest.mock.patch("src.envstate.v3_build_agent.render_repair_scope", augmented)` around the `propose()` call. (This does NOT edit `v3_build_agent.py`.)
+- Scope built via `src.envstate.repair_scope.build_repair_scope(graph, *, target_node_id, failed_block, bundle=None, known_invalid=(), constraints=None) -> RepairScope`. For the pilot use `target_node_id = <the project node id>` (always present), `failed_block = mutated_script`, `bundle=None`.
+- `PatchProposal` (`src/python_deps/depgraph/patch.py`) is **additive-only** — `add_requirements: tuple[NodeSpec]`, `add_providers: tuple[ProviderSpec]` (ProviderSpec has `id, kind, command, provides`), `add_edges`, `script_patches: tuple[ScriptPatch]` (has `target`), `request_checks`. **No `to_dict`, no top-level `kind`/`target`, and no native "drop"/"repin".** `propose()` returns a non-empty `PatchProposal` or `None`.
+- LLM client for the live run: mirror `scripts/run_v3_e2e.py::_run()` — `OpenAI(api_key, base_url, max_retries=0, timeout=...)` with the env fallback chain; `model` from the `--model` arg. (Live-run only; unit tests use a fake client.)
 
-**Interfaces:**
-- Consumes: `Injection`, `apply_injection`, `flat_list_context`/`graph_context`, `grade_localization`, `V3BuildAgent`, `build_graph_construction_only`, `_MountedContainer`.
-- Produces: `ARMS = ("C0", "C1")`; `arm_context(arm, graph) -> str` (`""` for C0, `graph_context(graph)` for C1); `run_one(inj, arm, *, agent_client, model, smoke_root, max_diag_turns=4) -> dict` returning `{"injection_id","arm","failure_class","trace","score": LocalizationScore-as-dict, "install_failed": bool}`.
+**Interfaces produced:**
+- `ARMS = ("C0", "C1")`; `arm_context(arm, graph) -> str` (`""` for C0, `graph_context(graph)` for C1).
+- `RecordingExec` — adapts a `_MountedContainer` to the callable `exec_readonly` contract AND records every command:
+  ```python
+  class RecordingExec:
+      def __init__(self, box): self.box, self.calls = box, []
+      def __call__(self, command: str) -> tuple[int, str]:
+          self.calls.append(command)
+          r = self.box.run(command)
+          return (r.returncode, (r.stdout or "") + (r.stderr or ""))
+  ```
+- `normalize_patch(proposal, inj) -> dict | None` — real `PatchProposal` → the `{"kind","target"}` shape `grade_localization` consumes. **Injection-aware** (the only way to express the classes given the additive schema):
+  - `proposal is None` → `None`.
+  - For a **drop-class** injection (`inj.correct_action["kind"]=="drop"`): if the proposal adds/installs the phantom (`add_providers`/`add_requirements` naming `inj.correct_action["target"]`, or an action did `pip install <phantom>`) → `{"kind":"install","target":phantom}` (a mislocalization the grader will flag); otherwise → `{"kind":"drop","target":phantom}` (the agent avoided the install-thrash, i.e. recognized it as optional). *(Pilot convention — the additive PatchProposal has no native drop; a `script_patches` entry removing the phantom also counts as drop. Document this caveat in the report + the final table.)*
+  - For **install/repin**: `add_providers[0]` → `{"kind": inj.correct_action["kind"], "target": provides[0] or id}`; else `add_requirements[0]` → `{"kind": ..., "target": name or id}`; else `None`.
+- `run_one(inj, arm, *, agent_client, model, smoke_root, max_diag_turns=4) -> dict` → `{"injection_id","arm","failure_class","trace","score","install_failed"}` where `score` is `LocalizationScore.__dict__`.
 
-**Design of `run_one` (all reused pieces named):**
-1. `repo_dir = smoke_root / inj.repo`; `image, minor, _ = base_image_for_repo(repo_dir)`.
-2. `graph = build_graph_construction_only(repo_dir, image, minor)`; `script = render_build_script(graph, ())`.
+**`run_one` flow:**
+1. `repo_dir = Path(smoke_root)/inj.repo`; `image, minor, _ = base_image_for_repo(str(repo_dir))`.
+2. `graph = build_graph_construction_only(str(repo_dir), image, minor)`; `script = render_build_script(graph, ())`.
 3. `mutated = apply_injection(script, inj)`.
-4. Boot `_MountedContainer(image, repo_dir)`; write + run `mutated` → capture failing stderr (assert it failed; if it unexpectedly passes, return `install_failed=False` and skip — a corpus/injection bug to fix, logged loudly, never silently counted).
-5. Build the repair `scope` for the failing obligation (per the RESEARCH findings). **Append the arm context** to the rendered scope: `scope_text = render_repair_scope(scope) + "\n\n" + arm_context(arm, graph)` — the ONLY per-arm difference. (If `render_repair_scope` can't be augmented cleanly, wrap the scope; do NOT edit `v3_build_agent.py`.)
-6. Run `V3BuildAgent(agent_client, model).propose(scope, exec_readonly=box, max_diag_turns=...)`, capturing the ordered read-only actions (via an `exec_readonly` wrapper that records each `.run` command) and the returned `PatchProposal`.
-7. `trace = {"actions": recorded_cmds, "patch": {"kind":..., "target":...} or None}`; `score = grade_localization(trace, inj)`.
+4. `with _MountedContainer(image, str(repo_dir)) as box:` write + run `mutated` (`box.run("cd <dir> && bash -x /setup.sh")`). If it did NOT fail, return `install_failed=False` and skip (log loudly — a corpus/injection bug, never silently counted).
+5. `scope = build_repair_scope(graph, target_node_id=<project node id>, failed_block=mutated, bundle=None)`.
+6. `rec = RecordingExec(box)`; augment render for the arm and run the agent:
+   ```python
+   import unittest.mock as _m
+   from src.envstate.v3_build_agent import render_repair_scope as _rrs
+   def _aug(scope):
+       ctx = arm_context(arm, graph)
+       return _rrs(scope) + (("\n\n" + ctx) if ctx else "")
+   with _m.patch("src.envstate.v3_build_agent.render_repair_scope", _aug):
+       proposal = V3BuildAgent(agent_client, model).propose(scope, rec, max_diag_turns=max_diag_turns)
+   ```
+7. `trace = {"actions": rec.calls, "patch": normalize_patch(proposal, inj)}`; `score = grade_localization(trace, inj)`; return the dict.
 
-**Unit test (mock client + fake box — NO Docker, NO LLM):** inject a fake `agent_client` whose `chat.completions.create` returns a scripted sequence (one `Action:` then a `Final Patch` json), and a fake `exec_readonly`. Assert `run_one` threads the recorded actions + parsed patch into `grade_localization` and that **C1 appends `graph_context` while C0 appends nothing** (assert the scope text passed to the agent differs by exactly the graph block).
+**Unit test (fake client + fake box — NO Docker, NO LLM).** Provide a fake `agent_client` whose `.chat.completions.create(...)` returns a scripted object (one `Action: apt-cache search libgraphviz-dev` turn, then a `Final Patch` with a fenced ```json add_providers patch). Monkeypatch the module-level `base_image_for_repo`, `build_graph_construction_only`, `render_build_script`, and `_MountedContainer` (a `_FakeBox` returning a failing setup.sh CommandResult then rc0 diagnostics — reuse the shape from `tests/eval/build_script_eval/test_replay_ladder.py`). Assert: (a) `rec.calls` captured the agent's action(s); (b) `normalize_patch` produced the expected `{kind,target}`; (c) **the augmented render for `arm="C1"` contains the `graph_context` block and for `arm="C0"` does not** (capture what `_aug` returns for each arm). Also unit-test `normalize_patch` and `RecordingExec` directly (pure).
 
-- [ ] Step 1: failing test (mock client scripted trace; assert trace capture + arm-context difference).
+- [ ] Step 1: failing tests (the run_one integration test with mocks + direct `normalize_patch`/`RecordingExec` tests).
 - [ ] Step 2: run, verify FAIL.
-- [ ] Step 3: implement `run_one` + `arm_context` per the design above (Docker/agent live only under `--run`; the unit path is fully mocked).
-- [ ] Step 4: run, verify PASS. Step 5: Commit `run.py` + test.
+- [ ] Step 3: implement `run.py` part 1 per the REAL interfaces above. Do NOT edit `v3_build_agent.py`/`repair_scope.py`/`patch.py` — reuse-by-import + the runtime `mock.patch` only.
+- [ ] Step 4: run ONLY `tests/eval/graph_repair_ablation/test_run_one.py`, verify PASS. **Do NOT `git add`/commit.**
 
 ---
 
