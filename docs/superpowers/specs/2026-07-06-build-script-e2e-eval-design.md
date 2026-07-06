@@ -16,8 +16,14 @@ no agent and no repair loop.
 This is a **repo-level roll-up** that composes the existing per-layer precision/
 recall scripts (`language_package_eval`, `package_installability`) into one
 end-to-end outcome, plus a failure attribution that says *which layer* to fix.
-It is **not** a rewrite: it reuses the proven construction/replay/oracle
-primitives already in `src/eval/language_package_eval/coverage.py`.
+It is **not** a rewrite: it reuses the proven construction/replay primitives
+already in `src/eval/language_package_eval/coverage.py`.
+
+**No oracle.** The fresh-container replay *is* the ground truth for "does the
+build script work" — grading against a held-out Dockerfile/CI recipe would be
+running a noisy proxy alongside the real signal. Failure attribution
+(language / system / render) comes from the actual execution error text, not a
+recipe diff. See §6.
 
 ## Scope & constraints
 
@@ -28,16 +34,18 @@ primitives already in `src/eval/language_package_eval/coverage.py`.
   package" here means **Python pip closure + apt/syslib tier**. Node/Go remain
   closure-only (`language_package_eval/{node,go}/`) until their providers wire
   into the registry.
-- **SERVICE / CONFIG excluded.** Service-node detection is explicitly deferred.
-  The oracle's SERVICE/CONFIG tiers are not graded and not attributed. (They
-  resurface only as the documented confound on `tests_passed` — see §5.)
+- **SERVICE / CONFIG excluded.** Service-node detection is explicitly deferred:
+  SERVICE/CONFIG needs are neither predicted-for nor attributed. They resurface
+  only as the documented confound on `tests_passed` — see §5.
 - **First-pass, no repair.** No agent, no repair loop. Construction intercepts
   the repo's real pytest during the build (via `coverage._ConstructionOnlyExecutor`);
   the *replay* runs in a separate fresh container.
-- **Leakage invariant.** Construction (`build_dep_graph` in eval mode) must never
-  read the held-out recipe (`Dockerfile` / `.github/workflows` / `docker-compose`).
-  Inherited unchanged from `build_graph_construction_only`; the oracle
-  (`oracle.parse_oracle`) is the only reader of those files.
+- **Construction reads no recipe (production fidelity, not an eval trick).**
+  `build_dep_graph` constructs the graph *without* a Dockerfile/CI file — that is
+  the whole point of what it replaces, so the eval simply runs it as-is. With the
+  oracle gone there is no held-out ground truth to "leak" against; the container
+  execution is the ground truth. Inherited unchanged from
+  `build_graph_construction_only`.
 - **Bounded, foreground execution.** Every container step runs foreground with a
   per-step timeout (no backgrounded Docker — prior agents stalled on it). The
   test-run rung gets its own wall-clock cap and runs with network off by default.
@@ -52,11 +60,11 @@ src/eval/build_script_eval/
   corpus.py       # committed manifest: repo -> (git url, ref, stratum, feasible) + STRATA + select()
   fetch.py        # clone/checkout corpus repos into gitignored outputs/ smoke dir
   replay.py       # the replay LADDER (install -> env_works -> tests_ran -> tests_passed), bounded
-  scorecard.py    # per-repo scorecard: headline + language/system recall + attribution (pure core)
+  scorecard.py    # per-repo scorecard: headline + language/system gaps + attribution (pure core)
   report.py       # stratified aggregate report.md
   __main__.py     # CLI: python -m src.eval.build_script_eval --run / --score / --fetch
 tests/eval/build_script_eval/
-  test_scorecard.py     # pure: headline gate, attribution labels, recall roll-up, strata pooling
+  test_scorecard.py     # pure: headline gate, attribution labels, gap clustering, strata pooling
   test_corpus.py        # manifest select()/strata validation
   test_replay_ladder.py # ladder classification from synthetic probe output (pure parts)
 outputs/build_script_eval/     # gitignored: fetched repos + scorecards + report.md
@@ -124,20 +132,35 @@ Rules:
 **Replay-ladder rates:** fraction of feasible repos reaching each rung
 (`install_ok`, `env_works`, `tests_ran`, `tests_passed`), overall + per stratum.
 
-**Diagnostic — language coverage recall:** PACKAGE tier — graph pip closure vs
-held-out oracle (`coverage.diff_packages`) + execution `ModuleNotFoundError`
-gaps. Pooled across the corpus (`coverage.pooled_recall_by_tier` shape).
+**Diagnostic — observed gaps, not a recall fraction.** With no oracle there is no
+denominator, so instead of `recall = 8/10` the eval reports **observed-gap counts
++ clusters** from the execution error text — which is more actionable and free of
+proxy noise:
 
-**Diagnostic — system coverage recall:** SYSTEM_LIB+TOOL apt tier —
-`coverage.apt_names_in_graph` vs oracle SYSTEM_LIB (`coverage.diff_membership`) +
-execution `.so not found` / `command not found` gaps. This is the tier the
-just-landed syslib detector feeds; the `S_syslib` stratum exists to give it
-signal.
+- **language gaps:** execution `ModuleNotFoundError` occurrences, deduped per
+  repo, clustered across the corpus (`missing_node_clusters`, PACKAGE tier).
+- **system gaps:** execution `.so: cannot open shared object` / `command not
+  found` / apt-install-failure occurrences, clustered (SYSTEM_LIB / TOOL tier).
+  This is the tier the just-landed syslib detector feeds, and — critically — a
+  missing `.so` surfaces at the **`import` / `--collect-only` rung**, which is
+  service-independent, so the `S_syslib` stratum gets a clean signal before the
+  `tests_passed` confound.
+
+The clusters answer "where does the build script under-cover, and how often" —
+e.g. "`libpq-dev` missing in 3 repos" — which is the actual fix-next list.
+
+**Predicted-set reporting (for over-prediction):** the graph's predicted apt set
+(`coverage.apt_names_in_graph`) and package set (`coverage.package_versions_in_graph`)
+are recorded per repo so over-prediction is visible even though there is no oracle
+"extra" diff — the `S_control` stratum is the baseline (its predicted apt set
+should be empty).
 
 **apt-safety (over-prediction):** did the apt tier install clean? Records the
 syslib plan's **`apt == 0` invariant** at the repo level — a `system_gap` from an
 apt install *failing* (over-prediction) is reported separately from
-under-coverage. Ties the e2e back to the `package_installability` gate.
+under-coverage. On an `S_control` repo, any nonzero apt tier is an
+over-prediction regression. Ties the e2e back to the `package_installability`
+gate.
 
 **Failure attribution** (one label per *failing* repo, from
 `coverage.classify_execution_failures`, which already tiers gaps):
@@ -158,15 +181,19 @@ SYSTEM_LIB / TOOL.
 ## 7. Corpus & strata (`corpus.py` + `fetch.py`)
 
 Committed manifest: each row = `name, git_url, ref (pinned sha), stratum,
-feasible, top_import?`. Two strata:
+feasible, top_import?`. **No held-out recipe required** (the oracle is gone) —
+the only corpus requirement is a **runnable test suite**, so the corpus can be
+much broader. Two strata:
 
 - **`S_control`** — pure-Python repos needing no apt (reuse qualifying
   `coverage.py` corpus rows: e.g. `fastapi/typer`,
   `python-semantic-release/python-semantic-release`). Baseline for
-  over-prediction: the system tier should stay empty; a nonzero apt tier here is
-  an over-prediction regression.
-- **`S_syslib`** — system-package-heavy, each with a held-out Dockerfile/CI
-  oracle so system recall is gradeable: `psycopg2`→libpq, `pyodbc`→unixODBC,
+  over-prediction: the predicted apt tier should stay empty; a nonzero apt tier
+  here is an over-prediction regression.
+- **`S_syslib`** — system-package-heavy. Curation rule (replaces the old
+  recipe-oracle requirement): pick repos whose **tests import the native
+  extension**, so a missing `.so` surfaces at the import/collect rung without
+  needing a service. `psycopg2`→libpq, `pyodbc`→unixODBC,
   `mysqlclient`→libmysqlclient, `opencv`→libGL, `Pillow`→libjpeg/zlib,
   `lxml`→libxml2/xslt, `cryptography`→libssl/ffi (final list pinned in the plan).
 
@@ -179,32 +206,37 @@ stratum (mirrors `package_installability.corpus.select_corpus`).
 **Reused unchanged (imported):**
 `coverage.{base_image_for_repo, build_graph_construction_only, _MountedContainer,
 _write_file, classify_execution_failures, first_failure_evidence,
-top_level_import_name, apt_names_in_graph, diff_packages, diff_membership,
-pooled_recall_by_tier, missing_node_clusters, _docker_available}` ·
-`oracle.parse_oracle` · `render_fidelity.check_render` ·
-`build_script.render_build_script`.
+top_level_import_name, apt_names_in_graph, package_versions_in_graph,
+missing_node_clusters, _docker_available}` · `render_fidelity.check_render` ·
+`build_script.render_build_script`. (`missing_node_clusters` already tolerates an
+absent oracle branch — it clusters whatever `execution_missing` gaps are present,
+so it needs no change.)
+
+**Dropped from the reuse set** (oracle-only): `oracle.parse_oracle`,
+`coverage.{diff_packages, diff_membership, pooled_recall_by_tier,
+score_repo_against_oracle}` — not imported by this module.
 
 **New (thin):** `corpus.py`, `fetch.py`, `replay.py` (the ladder — the only new
-container logic), `scorecard.py` (repo-level headline + attribution + recall
-roll-up, **pure**), `report.py` (stratified `report.md`), `__main__.py` (CLI),
+container logic), `scorecard.py` (repo-level headline + attribution + gap
+clustering, **pure**), `report.py` (stratified `report.md`), `__main__.py` (CLI),
 and their unit tests.
 
 ## 9. Output artifacts
 
 - Per-repo `outputs/build_script_eval/<org>__<repo>.json` — scorecard: image,
-  stratum, feasible, graph tier counts, ladder result (highest rung + per-rung
-  detail), language/system recall + matched/missing/extra, apt-safety, attribution
-  label, first-failure evidence, concerns (incl. the `tests_passed` caveat and
-  the Reference-A proxy caveat).
+  stratum, feasible, graph tier counts, predicted apt/package sets, ladder result
+  (highest rung + per-rung detail), language & system **gaps** (observed, typed),
+  apt-safety, attribution label, first-failure evidence, concerns (the
+  `tests_passed` service-confound caveat).
 - `outputs/build_script_eval/report.md` — headline `first_pass_env_works` rate
-  (overall + per stratum), the replay-ladder funnel, pooled language & system
-  recall, apt-safety count, attribution histogram, top missing-node clusters, and
-  the standing caveats.
+  (overall + per stratum), the replay-ladder funnel, language- and system-gap
+  **counts + clusters**, apt-safety count, attribution histogram, and the standing
+  `tests_passed` caveat.
 
 ## 10. Testing plan
 
 - **Pure unit tests** (no Docker): headline gate, attribution labeling, ladder
-  classification from synthetic probe output, recall roll-up, strata pooling,
+  classification from synthetic probe output, gap clustering, strata pooling,
   manifest `select()`/strata validation. This is the bulk — the new logic is
   mostly pure.
 - **Container integration** guarded by `coverage._docker_available` (skip when
@@ -214,6 +246,10 @@ and their unit tests.
 
 ## 11. Decisions taken (defaults, vetoable)
 
+- **Execution-only, no oracle.** The fresh-container replay is the ground truth;
+  a held-out-recipe oracle would be a noisy proxy for the same question and would
+  force heavy corpus curation. Attribution comes from execution error text;
+  coverage diagnostics are gap counts + clusters, not a recall fraction.
 - **New sibling module**, not a mutation of `coverage.py` — keeps the per-layer
   eval intact and importable.
 - **Headline = first-pass `env_works`** (install-clean + import + collect);
@@ -227,5 +263,7 @@ and their unit tests.
 
 - Node / Go e2e setup.sh (no provider wired — closure-only until then).
 - SERVICE / CONFIG detection and grading.
+- A held-out-recipe oracle / static recall fraction (dropped — ground-truth
+  execution only).
 - Agent / repair loop (this measures the *first-pass* starting point only).
 - Making `tests_passed` a gate or headline.
