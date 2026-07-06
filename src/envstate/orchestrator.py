@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
+from src.envstate.constants import NO_PROGRESS_CYCLES
+from src.envstate.gate_signature import outcome_signature, next_stall
 from src.envstate.ledger import ActionLedger, make_action_event
 from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
 from src.envstate.repair_loop import run_structured_repair
@@ -66,6 +68,10 @@ class TerminationReason(enum.Enum):
     GIVEUP_RESIDUAL = "giveup_residual"   # LLM giveup or runtime divergence
     GIVEUP_BUDGET   = "giveup_budget"     # LLM repair turns exhausted
     GIVEUP_STUCK    = "giveup_stuck"      # no new graph obligations (discover rounds)
+    GIVEUP_NO_PROGRESS = "giveup_no_progress"  # verified test-gate signature unchanged
+                                           # for NO_PROGRESS_CYCLES cycles despite repair
+                                           # activity — a residual/phantom the graph
+                                           # cannot close (design: residual-giveup-fix.md)
     GIVEUP_CONFIG   = "giveup_config"     # targeted obligation but no exec_readonly/client:
                                            # typed repair is impossible, and there is no
                                            # free-text fallback to silently downgrade to
@@ -84,6 +90,7 @@ _TERMINATION_TO_STOP_REASON: dict[TerminationReason, str] = {
     TerminationReason.GIVEUP_RESIDUAL: "planner_giveup",
     TerminationReason.GIVEUP_BUDGET:   "planner_giveup",
     TerminationReason.GIVEUP_STUCK:    "planner_giveup",
+    TerminationReason.GIVEUP_NO_PROGRESS: "planner_giveup",
     TerminationReason.GIVEUP_CONFIG:   "planner_giveup",
     TerminationReason.GIVEUP_REPLAY:   "planner_giveup",
     TerminationReason.MAX_CYCLES:      "max_cycles",
@@ -466,6 +473,8 @@ def run_v3(
     _handed: dict[str, int] = {}          # per-obligation hand-out counts
     _sched_stuck: int = 0                 # consecutive discover cycles with no new obligations
     _sched_last_nodes: int = -1           # dep-graph node count at the last discover cycle
+    _prev_gate_sig: str | None = None     # verified test-gate signature from the previous cycle
+    _gate_stall: int = 0                  # consecutive cycles sharing that failing signature
     _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
     _budget_exhausted: bool = False
     _known_invalid: set[str] = set()
@@ -1072,6 +1081,33 @@ def run_v3(
                 if on_cycle is not None:
                     on_cycle(cycle, current_map, decision, None)
                 return _finish(TerminationReason.GIVEUP_STUCK)
+
+        # ── 1b. No-progress detector (design: residual-giveup-fix.md) ────────
+        # The single missing invariant: "did satisfying obligations change the
+        # TEST outcome?" Model B reinstalls the whole certified graph every
+        # cycle, so an unchanged VERIFIED test-gate signature across
+        # NO_PROGRESS_CYCLES consecutive cycles means repairs are landing but the
+        # suite is not moving toward green — a residual (test-logic) failure or a
+        # phantom obligation no environment change can fix. Give up honestly
+        # instead of churning to max_cycles / a watchdog kill.
+        #
+        # Sampled here (post-emit, pre-task-repair): on a discover-clean cycle
+        # next_decision already ran the gate (memoized → free); on a targeted-
+        # obligation cycle next_decision returned before running it, so this
+        # forces exactly ONE memoized pytest run against this cycle's freshly
+        # replayed container. A verified PASS never trips it (the scheduler owns
+        # the 'done' door); a CHANGED failing signature is progress and resets.
+        _gate_passed_now = _run_tests_verified()
+        _gate_out = _verify_cache.run()[1]
+        _gate_sig = outcome_signature(_gate_passed_now, _gate_out)
+        _gate_stall = next_stall(_prev_gate_sig, _gate_sig, _gate_stall)
+        _prev_gate_sig = _gate_sig
+        _loop_log(f"cycle {cycle}: test-gate sig={_gate_sig} "
+                  f"stall={_gate_stall}/{NO_PROGRESS_CYCLES}")
+        if _gate_stall >= NO_PROGRESS_CYCLES:
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return _finish(TerminationReason.GIVEUP_NO_PROGRESS)
 
         if decision.action == "done":
             # Phase 7: "done" is authoritative only if the latest per-cycle
