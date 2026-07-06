@@ -8,6 +8,19 @@
 - **Latest full 16-repo metric (post-R1):** `first_pass_env_works` = **11/16 raw**, **13/16 adjusted**. 11 genuine passes; **3 real failures** (lxml→R2-A, cryptography→R1-Rust-gap, semantic-release→R4); **2 eval-artifact false-negatives (click, flask)** — THIS handoff's task.
 - Research + roadmap: `docs/superpowers/research/{R1..R5-*,*-SUMMARY,*-diagnostic}.md`. Memory: `build-script-eval-and-robustness-roadmap`. SDD ledger (gitignored scratch): `.superpowers/sdd/progress.md`.
 
+## ✅ RESOLVED (2026-07-06, commits d95fb56 + 671e70b)
+Decouple-from-collect fix LANDED + real-corpus gate PASSED. `env_works` = `install_ok AND
+top-import`; test collection is now a separate `collect_ok` signal. On a collect failure the
+code reuses `merge_gaps(classify_execution_failures, classify_tool_failures)`: any gap ⇒ real
+env gap (env_works=False, as before); zero gaps ⇒ pytest framework/config incompat
+(env_works=True, collect_ok=False, reason `collect_incompatible`, stop at env_works). Zero new
+heuristics. Spec/plan: `docs/superpowers/specs|plans/2026-07-06-collect-decouple-env-works*`.
+**Result: click + flask flipped to env_works=True; controls unchanged; lxml/semantic-release
+still fail at install (correct). Full 16-repo headline 11/16 → 13/16 (S_control 8/9, S_syslib
+5/7).** Truthful+complete (fix monotonic-up; 3 remaining failures all fail pre-collect →
+fix-immune): semantic-release→R4(git), lxml→R2-A, cryptography→R1-Rust-gap. Everything below is
+the original task write-up (kept for provenance) + the still-live roadmap tracker.
+
 ## THE TASK (option a): fix the pytest-collect confound
 **Symptom:** click and flask score `env_works=False` even though their env installs cleanly AND the repo imports. Cause: the env_works rung bootstraps the LATEST pytest and runs `pytest --collect-only -q`, which errors for **pytest-version/test-config** reasons that are NOT env gaps:
 - **click**: `pytest.PytestRemovedIn10Warning` (a deprecated parametrize idiom) becomes a collection ERROR because click's own config sets `filterwarnings = error`.
