@@ -28,6 +28,49 @@ NATIVE_LIBRARY_RE = re.compile(
     r".*?(?:cannot open shared object file|No such file or directory)",
     re.IGNORECASE | re.DOTALL,
 )
+# Missing run-time shared library. Each source is anchored to its OWN terminal
+# phrase (``cannot open shared object file``) — never to a bare ``No such file or
+# directory`` (an ordinary missing-file OSError), and never with DOTALL (which
+# cross-matched a lib*.so mention on one line with a not-found on another). The
+# ``lib`` prefix is NOT required: ctypes/dlopen sonames need not start with it.
+SONAME_RES = (
+    re.compile(
+        r"error while loading shared libraries:\s+"
+        r"([\w.+-]+\.so(?:\.\d+)*):\s+cannot open shared object file"
+    ),  # dynamic loader (most specific)
+    re.compile(
+        r"ImportError:\s+([\w.+-]+\.so(?:\.\d+)*):\s+cannot open shared object file"
+    ),  # python import
+    re.compile(
+        r"OSError:\s+([\w.+-]+(?:\.so(?:\.\d+)*)?):\s+cannot open shared object file"
+    ),  # ctypes/dlopen (.so optional)
+    re.compile(
+        r"(?m)^([\w.+-]+\.so(?:\.\d+)*):\s+cannot open shared object file.*$"
+    ),  # bare loader line
+)
+
+
+# GLIBC / symbol-version mismatch: an ABI/base-image problem, NOT an absent
+# package (installing the same package no-ops). Routed to its own failure_type so
+# the diagnosis layer never treats it as a missing shared library.
+_GLIBC_MISMATCH_RE = re.compile(
+    r"version [`'\"]?(GLIBC_[0-9.]+|GLIBCXX_[0-9.]+|CXXABI_[0-9.]+)[`'\"]? not found"
+)
+
+
+def _first_soname_match(text: str) -> re.Match | None:
+    """First SONAME_RES match anywhere in ``text`` (pattern order = specificity)."""
+    for rx in SONAME_RES:
+        m = rx.search(text or "")
+        if m:
+            return m
+    return None
+
+
+def first_soname(text: str) -> str | None:
+    """The missing soname reported by ``text``, or None. Table-independent."""
+    m = _first_soname_match(text)
+    return m.group(1) if m else None
 
 
 def classify_dependency_failure(command: str, observation: str) -> DependencyFailure:
@@ -93,13 +136,22 @@ def classify_dependency_failure(command: str, observation: str) -> DependencyFai
             details={"pattern": "ResolutionImpossible"},
         )
 
-    native_match = NATIVE_LIBRARY_RE.search(text)
+    glibc_match = _GLIBC_MISMATCH_RE.search(text)
+    if glibc_match:
+        return DependencyFailure(
+            failure_type="glibc_version_mismatch",
+            command=command,
+            message=_excerpt(text, glibc_match.start()),
+            details={"symbol": glibc_match.group(1)},
+        )
+
+    native_match = _first_soname_match(text)
     if native_match:
         return DependencyFailure(
             failure_type="native_library_missing",
             command=command,
             message=_excerpt(text, native_match.start()),
-            details={"library": native_match.group("library")},
+            details={"library": native_match.group(1)},
         )
 
     if _looks_like_python_syntax_version_failure(text):
