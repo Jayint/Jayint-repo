@@ -94,23 +94,28 @@ test_gate_soname_refresh.__test__ = False
 
 
 def ensure_python_shim(sandbox_execute) -> None:
-    """Symlink ``python`` -> ``python3`` in the live container when ``python`` is absent.
+    """Symlink ``python`` -> ``python3`` in the live container.
 
     The depgraph's check_commands invoke a bare ``python`` (e.g. ``python -m pip
     show <pkg>``). On a python3-only base that exits 127, so a successfully-installed
     node never certifies and the drain re-emits the same closure every cycle (the
-    e2e-smoke certify loop). This idempotent shim (a no-op when ``python`` already
-    resolves) normalizes the container to the standard python:3.x layout. Runs
-    through the MUTATING ``sandbox_execute`` so the symlink persists; best-effort,
-    never raises.
+    e2e-smoke certify loop). This normalizes the container to the standard python:3.x
+    layout. Runs through the MUTATING ``sandbox_execute`` so the symlink persists;
+    best-effort, never raises.
+
+    Issued as a SINGLE setup mutation (a lone idempotent ``ln -sf``), NOT the
+    earlier ``command -v python || ln -sf`` compound: ``sandbox_execute`` is
+    preflight-gated, and the preflight rejects a command that combines multiple
+    steps (the guard + the symlink) — a rejection would silently defeat the shim,
+    leaving bare ``python`` unresolved and the certify loop churning
+    (reset_to_base -> shim rejected -> reset, never certifying). ``ln -sf`` is
+    already idempotent: it re-points an existing ``python`` symlink to ``python3``
+    and creates it when absent, so the guard was redundant as well as rejected.
     """
     if sandbox_execute is None:
         return
     try:
-        sandbox_execute(
-            "command -v python >/dev/null 2>&1 || "
-            'ln -sf "$(command -v python3)" /usr/local/bin/python'
-        )
+        sandbox_execute('ln -sf "$(command -v python3)" /usr/local/bin/python')
     except Exception:  # noqa: BLE001 — best-effort; must never break the loop
         pass
 

@@ -50,8 +50,32 @@ def test_ensure_python_shim_emits_idempotent_symlink():
     ensure_python_shim(sandbox_execute)
     assert len(calls) == 1
     cmd = calls[0]
-    assert "command -v python" in cmd          # idempotent: no-op when python exists
-    assert "ln -sf" in cmd and "python3" in cmd  # else symlink python -> python3
+    assert "ln -sf" in cmd and "python3" in cmd   # symlink python -> python3
+    # Single setup Action, NOT a `command -v python || ln -sf` compound. The
+    # sandbox preflight rejects a compound that mixes a read-only check with a
+    # setup mutation, which silently defeats the shim (see the preflight
+    # regression below). `ln -sf` is idempotent on its own.
+    assert "||" not in cmd
+
+
+def test_ensure_python_shim_command_passes_sandbox_preflight():
+    # Regression (live-e2e churn bug): the shim runs through the MUTATING,
+    # preflight-gated sandbox_execute. The earlier `command -v python || ln -sf`
+    # compound was rejected by `_get_invalid_compound_setup_prefix` (read-only
+    # check + setup mutation), so every cycle: reset_to_base -> shim REJECTED ->
+    # reset, never certifying. The emitted command must be admitted by the real
+    # preflight. Built via `Sandbox.__new__` (no Docker) — preflight only needs
+    # the command classifier.
+    from src.sandbox import Sandbox
+    from src.synthesizer import Synthesizer
+
+    calls = []
+    ensure_python_shim(lambda cmd: calls.append(cmd) or (True, ""))
+    assert len(calls) == 1
+
+    sandbox = Sandbox.__new__(Sandbox)
+    sandbox._command_classifier = Synthesizer()
+    assert sandbox._get_preflight_rejection_prefix(calls[0]) == ""
 
 
 def test_ensure_python_shim_noop_and_safe_without_executor():
