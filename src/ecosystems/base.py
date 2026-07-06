@@ -71,3 +71,16 @@ class EcosystemProvider(Protocol):
     def native_obligations(self, graph: DepGraph, container_executor: object) -> DepGraph:
         """PHASE 2 "look then derive": relink -> ldd -> dlopen backstop -> probe restamp."""
         ...
+
+    def service_obligations(
+        self,
+        graph: DepGraph,
+        repo: str,
+        service_classifier: object | None = None,
+    ) -> DepGraph:
+        """PHASE 3 — service tier. Runs the (opaque, ecosystem-supplied) service
+        classifier over the converged graph and returns a new graph with setup-shape
+        Service nodes. ``service_classifier is None`` => returns ``graph`` unchanged.
+        The classifier is an injected ``Callable[[DepGraph, str], DepGraph]`` (envstate
+        owns it); providers never import envstate."""
+        ...

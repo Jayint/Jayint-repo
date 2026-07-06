@@ -330,7 +330,9 @@ def build_advisory_for_repo(
                 repo_path, scratch, host_executor=host, target_python=target_python,
             )
         if classify is not None:
-            graph = classify(graph, repo_path)        # LLM env classifier (envstate-injected; pure call here)
+            from ecosystems.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style
+            provider = select_provider(repo_path, PROVIDERS, default=PROVIDERS[0])
+            graph = provider.service_obligations(graph, repo_path, classify)   # Phase 3
         return render_dep_graph_advisory(graph), graph
     except Exception as exc:  # noqa: BLE001 — advisory must never break a run
         logger.warning("dep-graph advisory unavailable: %s", exc)

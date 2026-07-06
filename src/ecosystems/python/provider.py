@@ -71,3 +71,10 @@ class PythonProvider:
 
     def native_obligations(self, graph: DepGraph, container_executor: Executor) -> DepGraph:
         return _python_native_obligations(graph, container_executor)
+
+    def service_obligations(
+        self, graph: DepGraph, repo: str, service_classifier: object | None = None
+    ) -> DepGraph:
+        if service_classifier is None:
+            return graph
+        return service_classifier(graph, repo)
