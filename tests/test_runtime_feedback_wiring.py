@@ -101,7 +101,7 @@ def _ledger_with_module_error() -> ActionLedger:
         step=1,
         cmd="python app.py",
         success=False,
-        stdout="ModuleNotFoundError: No module named 'requests'",
+        stdout="ModuleNotFoundError: No module named 'yaml'",
         env_revision_before=0,
         env_revision_after=0,
         mutation_class=None,
@@ -135,7 +135,7 @@ def test_flag_off_graph_unchanged():
 
     # No runtime nodes added — flag OFF is byte-identical to today.
     assert final_map.dep_graph is not None
-    pkg_node = final_map.dep_graph.get(package_id("requests", None))
+    pkg_node = final_map.dep_graph.get(package_id("PyYAML", None))
     assert pkg_node is None, "flag OFF should not append runtime nodes"
 
 
@@ -164,7 +164,7 @@ def test_flag_on_runtime_node_appended():
     )
 
     assert final_map.dep_graph is not None
-    pkg_node = final_map.dep_graph.get(package_id("requests", None))
+    pkg_node = final_map.dep_graph.get(package_id("PyYAML", None))
     assert pkg_node is not None, "flag ON must append the runtime PACKAGE node"
     assert pkg_node.discovered_by is DiscoveredBy.RUNTIME
 

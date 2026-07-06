@@ -262,13 +262,13 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
 
 def _ledger_with_module_not_found_event() -> ActionLedger:
     """Ledger pre-seeded with a FAILED event the deterministic classifier maps
-    to a RUNTIME Package node (ModuleNotFoundError -> package 'requests')."""
+    to a RUNTIME Package node (ModuleNotFoundError -> package 'PyYAML')."""
     ledger = ActionLedger()
     evt = make_action_event(
         step=1,
         cmd="python app.py",
         success=False,
-        stdout="ModuleNotFoundError: No module named 'requests'",
+        stdout="ModuleNotFoundError: No module named 'yaml'",
         env_revision_before=0,
         env_revision_after=0,
         mutation_class=None,
@@ -307,11 +307,11 @@ def test_runtime_ingest_merges_discovered_node_on_graph_arm():
     )
     merged = [
         n for n in final_map.dep_graph.nodes
-        if n.type is NodeType.PACKAGE and n.name == "requests"
+        if n.type is NodeType.PACKAGE and n.name == "PyYAML"
         and n.discovered_by is DiscoveredBy.RUNTIME
     ]
     assert merged, (
-        "runtime-discovered Package node 'requests' was not merged into the live "
+        "runtime-discovered Package node 'PyYAML' was not merged into the live "
         "graph — _runtime_ingest_phase raised before merge_map (missing import?)"
     )
 
