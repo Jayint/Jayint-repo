@@ -48,3 +48,34 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
     assert seen["map_image"] == "python:3.10-slim"
     assert seen["sandbox_image"] == "python:3.10-slim"
     assert seen["sandbox_platform"] == "linux/amd64"     # platform thread -> Sandbox(platform=...)
+
+
+# ── _target_arch: the {dpkg, uname} dict is the sole guarantor that the arch
+# fed to translate_sanitize.apply_arch is never None (apply_arch does
+# arch["dpkg"] and would KeyError/misbehave on None or a malformed dict). ──
+
+def test_target_arch_explicit_amd64():
+    assert e2e._target_arch("linux/amd64") == {"dpkg": "amd64", "uname": "x86_64"}
+
+
+def test_target_arch_explicit_arm64():
+    assert e2e._target_arch("linux/arm64") == {"dpkg": "arm64", "uname": "aarch64"}
+
+
+def test_target_arch_none_falls_back_to_host_arm64(monkeypatch):
+    monkeypatch.setattr(e2e._platform, "machine", lambda: "aarch64")
+    assert e2e._target_arch(None) == {"dpkg": "arm64", "uname": "aarch64"}
+
+
+def test_target_arch_none_falls_back_to_host_amd64(monkeypatch):
+    monkeypatch.setattr(e2e._platform, "machine", lambda: "x86_64")
+    assert e2e._target_arch(None) == {"dpkg": "amd64", "uname": "x86_64"}
+
+
+def test_target_arch_never_none_shape_invariant(monkeypatch):
+    monkeypatch.setattr(e2e._platform, "machine", lambda: "x86_64")
+    for platform_override in (None, "", "linux/amd64", "linux/arm64"):
+        result = e2e._target_arch(platform_override)
+        assert set(result.keys()) == {"dpkg", "uname"}
+        assert isinstance(result["dpkg"], str) and result["dpkg"]
+        assert isinstance(result["uname"], str) and result["uname"]

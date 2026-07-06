@@ -27,7 +27,6 @@ class NodeType(enum.Enum):
     PLATFORM = "Platform"      # tier 1
     SERVICE = "Service"        # tier 5
     CONFIG = "Config"          # tier 6
-    DATA_ASSET = "DataAsset"   # tier 6
 
 
 # Provider-stack tier per node type; goal types (Test/Project/Import) map to 0
@@ -40,7 +39,6 @@ TYPE_TO_TIER: dict["NodeType", int] = {
     NodeType.PACKAGE: 4,
     NodeType.SERVICE: 5,
     NodeType.CONFIG: 6,
-    NodeType.DATA_ASSET: 6,
 }
 
 
@@ -73,6 +71,7 @@ class DiscoveredBy(enum.Enum):
     # auditing imports against the installed environment, never conflated with a
     # manifest declaration (RESOLVER) or a static-scan import (STATIC_SCAN).
     AUDIT = "audit"
+    CLASSIFIER = "classifier"   # classify_services_clean.py admitted node
 
 
 class Layer(enum.Enum):
@@ -111,7 +110,7 @@ EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
         frozenset({"Test", "Project", "Import", "Package", "Service", "Config"}),
         frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime",
-                   "Platform", "Service", "Config", "DataAsset"}),
+                   "Platform", "Service", "Config"}),
     ),
     # Resolver-discovered version conflicts join two Packages (uv unsat core).
     "conflicts_with": (

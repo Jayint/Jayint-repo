@@ -206,23 +206,23 @@ def test_advisory_config_with_derived_value_has_no_marker():
 
 # --- Task 9: SERVICES tier in advisory ---
 
-def _svc(name, confidence, **data):
+def _svc(name, **data):
     from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy, State
-    d = {"service_confidence": confidence}; d.update(data)
     return Node(id=f"service:{name}", type=NodeType.SERVICE, name=name, layer=Layer.SERVICES,
                 discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
-                fix_candidates=(f"service:{name}:16",), data=d)
+                fix_candidates=(f"service:{name}:16",), data=dict(data))
 
 
 def test_advisory_renders_services_block():
     from python_deps.depgraph.schema import DepGraph
     from python_deps.depgraph.advise import render_dep_graph_advisory
     g = (DepGraph()
-         .with_node(_svc("postgres", "confirmed", bound_config="DATABASE_URL"))
-         .with_node(_svc("redis", "inferred", inducing_package="celery")))
+         .with_node(_svc("postgres", bound_config="DATABASE_URL"))
+         .with_node(_svc("redis", inducing_package="celery")))
     out = render_dep_graph_advisory(g)
     assert "SERVICES" in out
-    assert "postgres" in out and "confirmed" in out
+    # Post-flip an advisory (non-setup) service always renders [inferred].
+    assert "postgres" in out and "[inferred]" in out
     assert "addresses: DATABASE_URL" in out
     assert "redis" in out and "may be mocked" in out
 
@@ -236,20 +236,7 @@ def test_advisory_no_services_block_when_none():
     assert "SERVICES" not in out
 
 
-# --- Task 7: render in-image start recipe in SERVICES advisory block ---
-
-def test_advisory_renders_provisioning_recipe():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.advise import render_dep_graph_advisory
-    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
-               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,
-               fix_candidates=("service:postgres:16",),
-               data={"service_confidence": "confirmed",
-                     "start_recipe": {"system_package": "postgresql", "start": "START_CMD"}})
-    out = render_dep_graph_advisory(DepGraph().with_node(svc))
-    assert "needs (System): postgresql" in out
-    assert "START_CMD" in out
-
+# --- advisory-only (non-setup) service render ---
 
 def test_advisory_advisory_only_service_unchanged():
     from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
@@ -257,7 +244,30 @@ def test_advisory_advisory_only_service_unchanged():
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER, state=State.UNKNOWN,
                fix_candidates=("service:redis:7",),
-               data={"service_confidence": "inferred"})
+               data={})
     out = render_dep_graph_advisory(DepGraph().with_node(svc))
     assert "needs (System)" not in out
     assert "may be mocked" in out
+
+
+# --- CR8 (Inc4 final-review): setup-shape Service renders [setup], not inferred ---
+
+def test_advisory_setup_service_renders_as_setup_not_mocked():
+    """A CLEAN setup-shape Service (has data['setup'], NO service_confidence) is a
+    MANDATORY provisioned obligation — it must render as [setup] and MUST NOT carry
+    the legacy '[inferred] … may be mocked' caveat (cross-consumer consistency with
+    the scheduler/certify path which blocks 'done' on it)."""
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.advise import render_dep_graph_advisory
+    svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,
+               fix_candidates=("service:redis:7",),
+               data={"service_kind": "redis",
+                     "setup": {"start": "redis-server --daemonize yes", "createdb": None}})
+    out = render_dep_graph_advisory(DepGraph().with_node(svc))
+    assert "[setup]" in out
+    assert "[inferred]" not in out
+    assert "may be mocked" not in out
+    # the setup start-line branch (CR8) is still rendered
+    assert "declared setup-service (kind: redis)" in out
+    assert "start: redis-server --daemonize yes" in out

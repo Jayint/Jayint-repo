@@ -426,7 +426,6 @@ def test_new_environment_node_types_exist():
     assert NodeType.PLATFORM.value == "Platform"
     assert NodeType.SERVICE.value == "Service"
     assert NodeType.CONFIG.value == "Config"
-    assert NodeType.DATA_ASSET.value == "DataAsset"
 
 
 def test_config_layer_exists():
@@ -548,3 +547,8 @@ def test_service_still_illegal_as_conflicts_source():
     with pytest.raises(ValueError):
         g.with_edge(Edge(src="service:postgres", dst="pkg:psycopg2",
                          relation=EdgeType.CONFLICTS_WITH))
+
+
+def test_discovered_by_has_classifier():
+    from python_deps.depgraph.schema import DiscoveredBy
+    assert DiscoveredBy.CLASSIFIER.value == "classifier"

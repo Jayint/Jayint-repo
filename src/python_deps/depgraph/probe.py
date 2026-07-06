@@ -25,13 +25,14 @@ The certification invariant (design 3.1) holds: nothing here flips a node to
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 from dataclasses import replace
 
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.failure_signatures import extract_needs
-from python_deps.depgraph.ids import syslib_id
+from python_deps.depgraph.ids import syslib_id, TEST_NODE_ID
 from python_deps.depgraph.os_resolver import (
     ObservedNeed,
     capability_id,
@@ -52,6 +53,8 @@ from python_deps.depgraph.schema import (
 )
 from python_deps.depgraph.tables import NATIVE_RISK_PACKAGES
 from python_deps.import_mapping import normalize_package_name
+
+logger = logging.getLogger(__name__)
 
 # Timeout (seconds) for the one bulk closure install. A cold install of a large
 # closure (downloads + any from-source build) routinely exceeds the executor's
@@ -273,6 +276,49 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             for node_id in target["attempt_nodes"]:
                 new = flag_runtime_import_failure(new, node_id, reason=reason)
     return new
+
+
+def test_gate_probe(
+    graph: DepGraph,
+    executor: "Executor | None",
+    stderr: str,
+    *,
+    command: str = "pytest",
+    owner_id: str | None = TEST_NODE_ID,
+) -> DepGraph:
+    """Ingest runtime SystemLib sonames surfaced by the repo's own test run.
+
+    See the design spec §3 (the test run is the dlopen-tail oracle). ``ldd``
+    (DT_NEEDED) and ``import`` (eager module-init dlopen) are a PARTIAL backstop;
+    a feature-gated ``dlopen`` (onnxruntime session-create, Qt ``QApplication``,
+    GDAL reprojection) only fires when a test exercises the feature, so the
+    testability gate's stderr is the oracle for that tail. Each ``soname`` need
+    is resolved to apt and reconciled onto ``syslib:<soname>`` through the SAME
+    ``_ingest_need`` path as ``import_probe`` (so it becomes renderable). Pure.
+    """
+    new = graph
+    for need in extract_needs(stderr, context_hint="runtime"):
+        if need.kind != "soname":
+            continue  # only a runtime shared object is actionable at test time
+        new, node_id = _ingest_need(
+            new, need, stderr=stderr, command=command, executor=executor
+        )
+        node = new.get(node_id)
+        logger.info(
+            "test_gate: dlopen-tail soname=%s fix=%s (missed by ldd+import)",
+            need.name, node.chosen_fix if node else None,
+        )
+        if owner_id is not None and new.get(owner_id) is not None:
+            new = new.with_edge(
+                Edge(src=owner_id, dst=node_id, relation=EdgeType.REQUIRES, origin="test-gate")
+            )
+    return new
+
+
+# Its name matches pytest's default ``test_*`` collection pattern; mark it
+# not-a-test so importing it into tests/depgraph/test_test_gate_probe.py does
+# not make pytest try to call it as a test function (missing-fixture error).
+test_gate_probe.__test__ = False
 
 
 # --------------------------------------------------------------------------- #

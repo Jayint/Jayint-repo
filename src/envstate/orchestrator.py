@@ -855,6 +855,16 @@ def run_v3(
                 classifiers = (make_diagnostic_classifier(_repo_ctx()), _guarded_llm)
 
             new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
+            # Design §3: the testability gate is the DESIGNATED dlopen-tail oracle.
+            # The classify tier above discovers the soname (bare SystemLib node);
+            # this pass resolves it to apt via the SAME extract_needs+resolve path
+            # as import_probe, collapsing onto syslib:<soname> so the dlopen-tail
+            # need becomes renderable into setup.sh. ldd+import remain the PARTIAL
+            # backstop (DT_NEEDED + eager module-init); the test run owns the rest.
+            from src.envstate.depgraph_live import test_gate_soname_refresh
+            new_graph = test_gate_soname_refresh(
+                new_graph, exec_readonly, obs, VERIFY_TEST_CMD
+            )
             if tracer is not None:
                 # Task 8: run_v3's ONLY ledger writer is _run_discover_gate (the
                 # deterministic VERIFY_TEST_CMD gate — no free-text mutation

@@ -51,8 +51,8 @@ def _should_populate(node: Node) -> bool:
 
 def populate_setup_commands(graph: DepGraph) -> DepGraph:
     """Return a NEW graph in which every populatable node lacking setup_commands
-    gets its install command + strength=HARD. Idempotent; leaves Service/Config/
-    DataAsset, non-installable projects, and already-populated nodes untouched."""
+    gets its install command + strength=HARD. Idempotent; leaves Service/Config,
+    non-installable projects, and already-populated nodes untouched."""
     new = graph
     for node in graph.nodes:
         if node.setup_commands:

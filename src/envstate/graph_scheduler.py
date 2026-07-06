@@ -30,24 +30,20 @@ def packet_to_task(packet: ObligationPacket) -> Task:
             facts.append("depends_on: " + ", ".join(packet.depends_on))
         if packet.certified_context:
             facts.append("already satisfied: " + ", ".join(packet.certified_context))
-    # Service action recipes are instructions, not graph structure — always kept.
-    if packet.start_recipe and packet.start_recipe.get("start"):
-        facts.append("start the service in-image (run, then the host re-checks "
-                     f"`{packet.check_command}`): {packet.start_recipe['start']}")
-        if packet.start_recipe.get("createdb"):
-            facts.append("then create the bound database: "
-                         f"{packet.start_recipe['createdb']}")
-    if packet.bind_recipe:
-        br = packet.bind_recipe
-        au, bp = br.get("alter_user"), br.get("bind_profile")
-        if au and bp:
-            facts.append("Run this single command to configure the in-image database "
-                         "(the host verifies it automatically afterward — do not run any check yourself): "
-                         f"{au} && {bp}")
-        elif au or bp:
-            facts.append("Run this single command to configure the in-image database "
-                         "(the host verifies it automatically afterward): "
-                         f"{au or bp}")
+    # Clean CR6 setup recipe — the service provisioning recipe.
+    if packet.setup:
+        su = packet.setup
+        for step in (su.get("install") or []):
+            facts.append(f"install: {step}")
+        if su.get("start"):
+            facts.append("start the service in-image (run, then the host re-checks "
+                         f"`{packet.check_command}`): {su['start']}")
+        if su.get("createdb"):
+            facts.append(f"then create the bound database: {su['createdb']}")
+        for step in (su.get("post") or []):
+            facts.append(f"post-setup: {step}")
+        for step in (su.get("bind") or []):
+            facts.append(f"repoint config: {step}")
     return Task(
         goal=packet.goal,
         done_when=packet.check_command,
@@ -105,8 +101,9 @@ def next_decision(
         promoted_unsatisfied = [
             n for n in (graph.nodes if graph is not None else ())
             if n.type is NodeType.SERVICE
-            and n.data.get("start_recipe")
+            and n.data.get("setup") is not None                         # only a provisionable (setup) service gates 'done'
             and n.state is not State.SATISFIED
+            and n.data.get("certify_fail_count", 0) < 3                 # demote: 3 strikes -> drop out of the gate
         ]
         if allow_services and promoted_unsatisfied:
             # Anti-hollow: tests "passing" while a required in-image service is not

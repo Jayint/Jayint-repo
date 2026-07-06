@@ -18,12 +18,14 @@ from python_deps.depgraph.patch import (
 from python_deps.depgraph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, EdgeType, State, DiscoveredBy, EDGE_RULES,
 )
+from python_deps.depgraph.service_recipes import render_probe_poll
+from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS
 
 # Node-type -> canonical id prefix (ids.py).  Types not listed accept any "<kind>:<rest>".
 _KIND_PREFIX: dict[NodeType, str] = {
     NodeType.PACKAGE: "pkg:", NodeType.SYSTEM_LIB: "syslib:", NodeType.TOOL: "tool:",
     NodeType.CONFIG: "config:", NodeType.SERVICE: "service:", NodeType.RUNTIME: "runtime:",
-    NodeType.IMPORT: "import:", NodeType.PROJECT: "project:", NodeType.DATA_ASSET: "data:",
+    NodeType.IMPORT: "import:", NodeType.PROJECT: "project:",
 }
 _ALLOWED_PROMOTION = frozenset({"hint", "candidate"})
 _BENIGN_REDIR = re.compile(r"\s*(?:\d?>>?\s*/dev/null|\d?>&\d)")
@@ -47,13 +49,84 @@ def _node_type(value: str) -> NodeType | None:
         return None
 
 
+def _requirement_errors(graph: DepGraph, r: NodeSpec,
+                        known_evidence_ids: frozenset[str]) -> list[str]:
+    """Per-requirement legality errors (empty list = admissible). validate_proposal
+    voids the whole batch on any error; callers that want graceful per-node degradation
+    can pre-filter with this predicate so one malformed field costs a single node rather
+    than the entire proposal."""
+    from python_deps.depgraph.check_quality import check_can_detect_absence
+    if not isinstance(r.id, str) or not isinstance(r.type, str):
+        return [f"malformed requirement id/type: {r.id!r} / {r.type!r}"]
+    nt = _node_type(r.type)
+    if nt is None:
+        return [f"unknown node type {r.type!r} for {r.id}"]
+    errs: list[str] = []
+    try:
+        Layer(r.layer)
+    except ValueError:
+        errs.append(f"unknown layer {r.layer!r} for {r.id}")
+    prefix = _KIND_PREFIX.get(nt)
+    if prefix is not None and not r.id.startswith(prefix):
+        errs.append(f"non-canonical id {r.id!r}: {nt.value} requires prefix {prefix!r}")
+    elif ":" not in r.id:
+        errs.append(f"non-canonical id {r.id!r}: missing '<kind>:' prefix")
+    if r.promotion is not None and (not isinstance(r.promotion, str)
+                                    or r.promotion not in _ALLOWED_PROMOTION):
+        errs.append(f"illegal promotion {r.promotion!r} for {r.id} "
+                    f"(only {sorted(_ALLOWED_PROMOTION)} or none; SATISFIED is host-only)")
+    if not (isinstance(r.evidence_ref, str) and r.evidence_ref in known_evidence_ids):
+        errs.append(f"requirement {r.id} cites unknown/absent evidence {r.evidence_ref!r}")
+    if r.check_command is not None and not isinstance(r.check_command, str):
+        errs.append(f"check command for {r.id} must be a string: {r.check_command!r}")
+    elif r.check_command and not is_read_only(r.check_command):
+        errs.append(f"check command for {r.id} is not read-only: {r.check_command!r}")
+    elif r.check_command and not check_can_detect_absence(r.check_command):
+        errs.append(f"check command for {r.id} cannot detect absence "
+                    f"(structurally trivial): {r.check_command!r}")
+    cur = graph.get(r.id)
+    if cur is not None and (cur.type.value != r.type or cur.layer.value != r.layer
+                            or (cur.check_command or None) != (r.check_command or None)):
+        errs.append(f"conflicting redefinition of existing node {r.id}")
+    if r.service_kind is not None and not isinstance(r.service_kind, str):
+        errs.append(f"service_kind for {r.id} must be a string: {r.service_kind!r}")
+    elif (r.service_kind is not None and r.setup is None
+          and r.service_kind not in KNOWN_SERVICE_KINDS):
+        # Legacy nodes are restricted to KNOWN_SERVICE_KINDS; a clean setup-shape Service
+        # may carry an EXOTIC kind (couchdb, qdrant, …) — the deterministic table doesn't
+        # bound the open-vocabulary translate path.
+        errs.append(f"unknown service_kind {r.service_kind!r} for {r.id}")
+    if r.service_params is not None and not isinstance(r.service_params, dict):
+        errs.append(f"service_params for {r.id} must be an object")
+    # CLEAN setup-shape (Inc 5, the sole Service shape). A setup is valid ONLY on a Service
+    # node; the EMPTY-PROBE GUARD then requires a runnable read-only probe, else its
+    # render_probe_poll("") check_command is a broken shell and the node can never demote at
+    # certify -> deadlock. Reject rather than admit.
+    if r.setup is not None:
+        if nt is not NodeType.SERVICE:
+            errs.append(f"setup is only valid on a Service node, not {r.id}")
+        elif not isinstance(r.setup, dict):
+            errs.append(f"setup for {r.id} must be a dict: {r.setup!r}")
+        else:
+            probe = r.setup.get("probe")
+            if not (isinstance(probe, str) and probe.strip()):
+                errs.append(f"setup service {r.id} must carry a non-empty probe")
+            elif not is_read_only(probe):
+                errs.append(f"setup probe for {r.id} is not read-only: {probe!r}")
+            if not isinstance(r.setup.get("install"), list):
+                errs.append(f"setup for {r.id} must have an install list")
+            if not (isinstance(r.setup.get("start"), str) and r.setup.get("start", "").strip()):
+                errs.append(f"setup for {r.id} must have a start command")
+    return errs
+
+
 def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
                       known_evidence_ids: frozenset[str]) -> list[str]:
     errs: list[str] = []
     existing_ids = {n.id for n in graph.nodes}
     proposed_node_ids = {r.id for r in proposal.add_requirements}
-    # Lazy import (not module-level) keeps python_deps.depgraph envstate-free; used by both the
-    # requirement-check and script-patch-check anti-weakening guards below.
+    # Lazy import (not module-level) keeps python_deps.depgraph envstate-free; used by the
+    # script-patch-check anti-weakening guard below (_requirement_errors does its own lazy import).
     from python_deps.depgraph.check_quality import check_can_detect_absence
 
     # within-proposal duplicate ids (nodes / providers / script blocks)
@@ -64,33 +137,7 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
             errs.append(f"duplicate id within {label}")
 
     for r in proposal.add_requirements:
-        nt = _node_type(r.type)
-        if nt is None:
-            errs.append(f"unknown node type {r.type!r} for {r.id}"); continue
-        try:
-            Layer(r.layer)
-        except ValueError:
-            errs.append(f"unknown layer {r.layer!r} for {r.id}")
-        prefix = _KIND_PREFIX.get(nt)
-        if prefix is not None and not r.id.startswith(prefix):
-            errs.append(f"non-canonical id {r.id!r}: {nt.value} requires prefix {prefix!r}")
-        elif ":" not in r.id:
-            errs.append(f"non-canonical id {r.id!r}: missing '<kind>:' prefix")
-        if r.promotion is not None and r.promotion not in _ALLOWED_PROMOTION:
-            errs.append(f"illegal promotion {r.promotion!r} for {r.id} "
-                        f"(only {sorted(_ALLOWED_PROMOTION)} or none; SATISFIED is host-only)")
-        if not r.evidence_ref or r.evidence_ref not in known_evidence_ids:
-            errs.append(f"requirement {r.id} cites unknown/absent evidence {r.evidence_ref!r}")
-        if r.check_command and not is_read_only(r.check_command):
-            errs.append(f"check command for {r.id} is not read-only: {r.check_command!r}")
-        if r.check_command and not check_can_detect_absence(r.check_command):
-            errs.append(f"check command for {r.id} cannot detect absence "
-                        f"(structurally trivial): {r.check_command!r}")
-        # conflicting redefinition vs graph
-        cur = graph.get(r.id)
-        if cur is not None and (cur.type.value != r.type or cur.layer.value != r.layer
-                                or (cur.check_command or None) != (r.check_command or None)):
-            errs.append(f"conflicting redefinition of existing node {r.id}")
+        errs.extend(_requirement_errors(graph, r, known_evidence_ids))
 
     known_after = existing_ids | proposed_node_ids
     for p in proposal.add_providers:
@@ -178,11 +225,23 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
     for r in proposal.add_requirements:
         if g.get(r.id) is not None:
             continue                                    # dedup no-op (validate ensured non-conflicting)
-        data = {"promotion": r.promotion} if r.promotion else {}
+        nt = NodeType(r.type)
+        data: dict = {}
+        if r.promotion:
+            data["promotion"] = r.promotion
+        check_command = r.check_command
+        if r.setup is not None and nt is NodeType.SERVICE:
+            # CLEAN setup-shape Service: store the pinned setup; the read-only probe
+            # (validate re-checked non-empty + read-only) becomes the node's bounded
+            # check_command via the probe-poll loop.
+            data["setup"] = r.setup
+            if r.service_kind:
+                data["service_kind"] = r.service_kind
+            check_command = render_probe_poll(r.setup["probe"])
         g = g.with_node(Node(
-            id=r.id, type=NodeType(r.type), name=r.name or r.id.split(":", 1)[-1],
-            layer=Layer(r.layer), discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
-            check_command=r.check_command, evidence=r.evidence_ref, data=data,
+            id=r.id, type=nt, name=r.name or r.id.split(":", 1)[-1],
+            layer=Layer(r.layer), discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING,
+            check_command=check_command, evidence=r.evidence_ref, data=data,
         ))
     # 2. providers -> chosen_fix on each provided node (first writer wins).
     for p in proposal.add_providers:
