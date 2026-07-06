@@ -29,10 +29,16 @@ import re
 from collections import defaultdict
 from dataclasses import replace
 
-from python_deps.failure_classifier import NATIVE_LIBRARY_RE
-
 from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.ids import syslib_id, tool_id
+from python_deps.depgraph.failure_signatures import extract_needs
+from python_deps.depgraph.ids import syslib_id
+from python_deps.depgraph.os_resolver import (
+    ObservedNeed,
+    capability_id,
+    check_command_for,
+    resolve,
+)
+from python_deps.depgraph.relink import flag_runtime_import_failure
 from python_deps.depgraph.schema import (
     Attempt,
     DepGraph,
@@ -44,14 +50,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.tables import (
-    NATIVE_RISK_PACKAGES,
-    TOOL_TO_APT,
-    apt_for_soname,
-    apt_for_tool,
-)
-from python_deps.depgraph.apt_resolve import resolve_soname_apt
-from python_deps.depgraph.relink import flag_runtime_import_failure
+from python_deps.depgraph.tables import NATIVE_RISK_PACKAGES
 from python_deps.import_mapping import normalize_package_name
 
 # Timeout (seconds) for the one bulk closure install. A cold install of a large
@@ -114,25 +113,10 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
 
     stderr = result.stderr or ""
     owners = _build_owners(packages, stderr)
-    for tool in _tool_gaps(stderr):
-        check = _tool_check(tool)
-        evidence = _first_line_with(stderr, tool)
-        apt = apt_for_tool(tool)
-        predicted_id = tool_id(apt) if apt else None
-        reconciled = (
-            reconcile_predicted(
-                new, predicted_id, check=check, evidence=evidence, command=command
-            )
-            if predicted_id
-            else None
+    for need in extract_needs(stderr, context_hint="build"):
+        new, node_id = _ingest_need(
+            new, need, stderr=stderr, command=command, executor=executor
         )
-        if reconciled is not None:
-            node_id = reconciled.id
-            new = new.with_node(reconciled)
-        else:
-            node = _make_tool_node(tool, stderr, command)
-            node_id = node.id
-            new = new.with_node(node)
         for src in owners:
             new = new.with_edge(
                 Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
@@ -236,9 +220,20 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
     """Import-probe every Import / native-risk Package; surface run-time gaps.
 
     For each probe target, runs ``python -c "import X"`` once, records an
-    ``Attempt`` on the affected node(s), and — on an ``ImportError: lib*.so`` —
-    creates a ``SystemLib`` node with a ``requires`` edge from the owning
-    ``Package`` (or the ``Import`` itself when no package is linked).
+    ``Attempt`` on the affected node(s), and — on failure — surfaces every need
+    ``extract_needs`` recognises in stderr (soname, header, binary, pkgconfig),
+    each as a node with a ``requires`` edge from the owning ``Package`` (or the
+    ``Import`` itself when no package is linked). Not soname-only: a C-extension
+    import failing on a missing binary/header/pkgconfig dep is discoverable too.
+
+    2-phase preservation (HEAD): when ``extract_needs`` recognises NOTHING in a
+    failed probe's stderr, the failure is a metadata-PRESENT non-native import
+    error — a dist supplies the import name (there is an outgoing REQUIRES edge),
+    yet ``import X`` still raises for a Python-level reason. Rather than silently
+    dropping it (the third failure class), the owning Import node is honestly
+    flagged via ``flag_runtime_import_failure``. That flag only touches PROVIDED
+    Import nodes, so metadata-ABSENT imports (already flagged ``unresolved``,
+    P0.3) are left alone.
     """
     targets = _probe_targets(graph)
 
@@ -255,42 +250,28 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
 
         if result.ok:
             continue
-        match = NATIVE_LIBRARY_RE.search(result.stderr or "")
-        if not match:
-            # Non-native import failure. A metadata-PRESENT import (a dist provides
-            # it, yet ``import X`` still raises) is the third failure class: honestly
-            # flag the owning Import node instead of silently dropping it. Never
-            # fabricate a SystemLib here (there is no missing soname). Metadata-ABSENT
-            # imports are already flagged ``unresolved`` (P0.3) and are left alone by
-            # flag_runtime_import_failure (it only touches provided Import nodes).
-            reason = _short_import_error(result.stderr or "") or f"import {name} failed"
+        stderr = result.stderr or ""
+        needs = extract_needs(stderr, context_hint="runtime")
+        if needs:
+            for need in needs:
+                new, node_id = _ingest_need(
+                    new, need, stderr=stderr, command=command, executor=executor
+                )
+                for src in _edge_sources(target):
+                    new = new.with_edge(
+                        Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
+                    )
+        else:
+            # Non-native import failure with NO recognised need. A metadata-PRESENT
+            # import (a dist provides it, yet ``import X`` still raises) is the third
+            # failure class: honestly flag the owning Import node instead of silently
+            # dropping it. Never fabricate a SystemLib here (there is no missing
+            # soname). Metadata-ABSENT imports are already flagged ``unresolved``
+            # (P0.3) and are left alone by flag_runtime_import_failure (it only
+            # touches provided Import nodes).
+            reason = _short_import_error(stderr) or f"import {name} failed"
             for node_id in target["attempt_nodes"]:
                 new = flag_runtime_import_failure(new, node_id, reason=reason)
-            continue
-
-        soname = match.group("library")
-        stderr = result.stderr or ""
-        check = f"ldconfig -p | grep {soname}"
-        evidence = _first_line_with(stderr, soname)
-        apt, _apt_source = resolve_soname_apt(soname, executor)
-        # Canonical id (Task 9): the soname IS the SystemLib identity (see
-        # seed.py "canonical rule"), so reconciliation is keyed by the soname
-        # itself — independent of whether resolve_soname_apt succeeds.
-        predicted_id = syslib_id(soname)
-        reconciled = reconcile_predicted(
-            new, predicted_id, check=check, evidence=evidence, command=command
-        )
-        if reconciled is not None:
-            node_id = reconciled.id
-            new = new.with_node(reconciled)
-        else:
-            node = _make_syslib_node(soname, stderr, command, apt=apt)
-            node_id = node.id
-            new = new.with_node(node)
-        for src in _edge_sources(target):
-            new = new.with_edge(
-                Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
-            )
     return new
 
 
@@ -304,19 +285,29 @@ def reconcile_predicted(
     check: str,
     evidence: str,
     command: str,
+    chosen_fix: str | None = None,
+    fix_candidates: tuple[str, ...] = (),
 ) -> Node | None:
     """Reconcile an observed gap with a resolver *prediction* of the same id.
 
-    ``predicted_id`` is the CANONICAL id for the observed gap: apt-keyed
-    (``tool_id``) for a build-time ``Tool``, soname-keyed (``syslib_id``) for a
-    run-time ``SystemLib`` (Task 9 — the soname is the SystemLib's identity, not
-    the apt name, so callers must pass ``syslib_id(soname)`` here, never
-    ``syslib_id(apt)``).  When the resolver pre-emitted a predicted node (seed
+    ``predicted_id`` is the CANONICAL id for the observed gap: capability-keyed
+    (``capability_id``) for a build-time ``Tool`` (``binary:``/``header:``),
+    soname-keyed (``syslib_id``) for a run-time ``SystemLib`` (Task 9 — the
+    soname is the SystemLib's identity, not the apt name, so callers must pass
+    ``syslib_id(soname)`` here, never ``syslib_id(apt)``).  When the resolver
+    pre-emitted a predicted node (seed
     stage) at that same id, return a NEW node that keeps the predicted node's
     id + discovery origin (``discovered_by`` stays RESOLVER per the spec) but
     adopts the real observed ``check_command`` / ``evidence`` and records the
     failing probe attempt.  ``state`` is left for the host certifier to flip —
     discovery never certifies (design 3.1).
+
+    ``chosen_fix`` / ``fix_candidates`` carry what the OBSERVE-path resolve()
+    just learned. When the prediction resolved no provider (``chosen_fix`` is
+    falsy) but the observation did, the observed fix is adopted so the node
+    becomes renderable — the spec promises "observation fills a chosen_fix
+    that prediction left None." A prediction that already has a chosen_fix is
+    never overridden by a (possibly different) observed one.
 
     Returns ``None`` when there is no matching prediction (caller then creates a
     fresh probe-discovered node), so existing observed-only behavior is preserved.
@@ -324,7 +315,16 @@ def reconcile_predicted(
     predicted = graph.get(predicted_id)
     if predicted is None or predicted.discovered_by is not DiscoveredBy.RESOLVER:
         return None
-    return replace(predicted, check_command=check, evidence=evidence).with_attempt(
+    changes: dict = {"check_command": check, "evidence": evidence}
+    if not predicted.chosen_fix and chosen_fix:
+        data = dict(predicted.data)
+        data["resolution_status"] = "resolved"
+        changes.update(
+            chosen_fix=chosen_fix,
+            fix_candidates=fix_candidates or (chosen_fix,),
+            data=data,
+        )
+    return replace(predicted, **changes).with_attempt(
         Attempt(command=command, outcome="failed", check=check)
     )
 
@@ -332,30 +332,81 @@ def reconcile_predicted(
 # --------------------------------------------------------------------------- #
 # Node builders                                                                #
 # --------------------------------------------------------------------------- #
-def _make_tool_node(tool: str, stderr: str, command: str) -> Node:
-    apt = apt_for_tool(tool)
-    check = _tool_check(tool)
+def _ingest_need(
+    graph: DepGraph,
+    need: ObservedNeed,
+    *,
+    stderr: str,
+    command: str,
+    executor: Executor,
+) -> tuple[DepGraph, str]:
+    """Resolve one observed need; reconcile with a prediction of the same
+    capability id, else create a fresh probe node. Returns (new_graph, node_id).
+
+    ``capability_id`` and ``check_command_for`` already dispatch by kind, so the
+    only kind-specific step is the fresh-node builder: ``soname`` -> SystemLib,
+    every other kind -> Tool.
+    """
+    check = check_command_for(need)
+    evidence = need.evidence or _first_line_with(stderr, need.name)
+    predicted_id = capability_id(need)
+    cands = resolve(need, executor)
+    fix = f"apt:{cands[0].package}" if cands else None
+    fixc = tuple(f"apt:{c.package}" for c in cands)
+    reconciled = reconcile_predicted(
+        graph,
+        predicted_id,
+        check=check,
+        evidence=evidence,
+        command=command,
+        chosen_fix=fix,
+        fix_candidates=fixc,
+    )
+    if reconciled is not None:
+        return graph.with_node(reconciled), reconciled.id
+    if need.kind == "soname":
+        node = _make_syslib_node(
+            need.name, stderr, command, apt=cands[0].package if cands else None
+        )
+    else:
+        node = _make_capability_node(need, stderr, command, executor)
+    return graph.with_node(node), node.id
+
+
+def _make_capability_node(
+    need: ObservedNeed, stderr: str, command: str, executor: Executor
+) -> Node:
+    cands = resolve(need, executor)
+    top = cands[0] if cands else None
+    fix = f"apt:{top.package}" if top else None
+    check = top.check_command if top else check_command_for(need)
     node = Node(
-        id=tool_id(tool),
+        id=capability_id(need),
         type=NodeType.TOOL,
-        name=tool,
+        name=need.name,
         layer=Layer.TOOLCHAIN,
         discovered_by=DiscoveredBy.PROBE,
         state=State.MISSING,
         check_command=check,
-        evidence=_first_line_with(stderr, tool),
-        fix_candidates=(f"apt:{apt}",) if apt else (),
-        chosen_fix=f"apt:{apt}" if apt else None,
+        evidence=need.evidence or _first_line_with(stderr, need.name),
+        fix_candidates=(fix,) if fix else (),
+        chosen_fix=fix,
         provenance="probe (observed)",
+        data={
+            "kind": need.kind,
+            "context": need.context,
+            "observation_strength": "strong",
+            "resolution_status": "resolved" if fix else "unresolved",
+        },
     )
     return node.with_attempt(
         Attempt(command=command, outcome="failed", check=check)
     )
 
 
-def _make_syslib_node(soname: str, stderr: str, command: str, apt: str | None = None) -> Node:
-    if apt is None:
-        apt = apt_for_soname(soname)
+def _make_syslib_node(
+    soname: str, stderr: str, command: str, apt: str | None = None
+) -> Node:
     check = f"ldconfig -p | grep {soname}"
     node = Node(
         id=syslib_id(soname),
@@ -444,23 +495,6 @@ def _build_owners(packages: list[Node], stderr: str) -> set[str]:
 # --------------------------------------------------------------------------- #
 # Small pure helpers                                                          #
 # --------------------------------------------------------------------------- #
-def _tool_gaps(stderr: str):
-    """Yield each curated tool/header whose name appears (word-bounded) in stderr."""
-    for tool in TOOL_TO_APT:
-        if re.search(r"\b" + re.escape(tool) + r"\b", stderr):
-            yield tool
-
-
-def _tool_check(tool: str) -> str:
-    """Deterministic check_command for a toolchain need (design 4.4)."""
-    if tool.endswith(".h"):
-        return (
-            "python -c \"import sysconfig, pathlib, sys; "
-            f"sys.exit(0 if pathlib.Path(sysconfig.get_paths()['include'], '{tool}').exists() else 1)\""
-        )
-    return f"command -v {tool}"
-
-
 def _spec(pkg: Node) -> str:
     return f"{pkg.name}=={pkg.version}" if pkg.version else pkg.name
 

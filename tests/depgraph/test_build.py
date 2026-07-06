@@ -26,6 +26,7 @@ from python_deps.depgraph.build import build_dep_graph
 from python_deps.depgraph.executor import CommandResult
 from python_deps.depgraph.ids import (
     TEST_NODE_ID,
+    binary_id,
     import_id,
     package_id,
     syslib_id,
@@ -134,7 +135,7 @@ def test_build_produces_all_node_types(tmp_path):
     # table, no build_from_source signal in this fixture), so the observed
     # gaps surface as FRESH PROBE nodes, keyed by soname/tool name.
     assert graph.get(syslib_id("libGL.so.1")) is not None
-    assert graph.get(tool_id("pg_config")) is not None
+    assert graph.get(binary_id("pg_config")) is not None
     assert graph.get(syslib_id("libgl1")) is None
     assert graph.get(tool_id("libpq-dev")) is None
 
@@ -181,7 +182,7 @@ def test_build_requires_topology(tmp_path):
         package_id("opencv-python", "4.9.0.80"),
         syslib_id("libGL.so.1"),
     ) in edges
-    assert (package_id("psycopg2", "2.9.9"), tool_id("pg_config")) in edges
+    assert (package_id("psycopg2", "2.9.9"), binary_id("pg_config")) in edges
 
 
 def test_build_certified_states(tmp_path):
@@ -197,7 +198,7 @@ def test_build_certified_states(tmp_path):
     assert graph.get(import_id("psycopg2")).state is State.MISSING
 
     assert graph.get(syslib_id("libGL.so.1")).state is State.MISSING
-    assert graph.get(tool_id("pg_config")).state is State.MISSING
+    assert graph.get(binary_id("pg_config")).state is State.MISSING
     assert graph.get(TEST_NODE_ID).state is State.MISSING
 
 
@@ -211,7 +212,7 @@ def test_build_native_gaps_are_fresh_probe_nodes_without_a_prior(tmp_path):
     graph = _build(tmp_path)
 
     libgl = graph.get(syslib_id("libGL.so.1"))
-    pg_config = graph.get(tool_id("pg_config"))
+    pg_config = graph.get(binary_id("pg_config"))
     assert libgl.discovered_by is DiscoveredBy.PROBE
     assert pg_config.discovered_by is DiscoveredBy.PROBE
     assert libgl.check_command == "ldconfig -p | grep libGL.so.1"
@@ -242,7 +243,7 @@ def test_build_discovered_cycle_per_stage(tmp_path):
     assert graph.get(package_id("numpy", "1.26.4")).discovered_cycle == 2
     # no RESOLVER prediction to reconcile into -> fresh PROBE-cycle (3) nodes.
     assert graph.get(syslib_id("libGL.so.1")).discovered_cycle == 3
-    assert graph.get(tool_id("pg_config")).discovered_cycle == 3
+    assert graph.get(binary_id("pg_config")).discovered_cycle == 3
 
 
 def test_build_empty_repo_yields_only_test_node(tmp_path):

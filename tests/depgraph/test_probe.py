@@ -8,10 +8,10 @@ host certifies the fix later (Task 8).
 from __future__ import annotations
 
 import subprocess
-import sys
 
-from python_deps.depgraph.ids import import_id, package_id, syslib_id, tool_id
-from python_deps.depgraph.probe import _tool_check, import_probe, install_closure
+from python_deps.depgraph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
+from python_deps.depgraph.os_resolver import ObservedNeed, check_command_for
+from python_deps.depgraph.probe import import_probe, install_closure, reconcile_predicted
 from python_deps.depgraph.schema import (
     DepGraph,
     DiscoveredBy,
@@ -63,7 +63,7 @@ def test_install_closure_build_gap_creates_tool_node(fake_executor, make_result_
 
     out = install_closure(graph, fake_executor)
 
-    tool = out.get(tool_id("pg_config"))
+    tool = out.get(binary_id("pg_config"))
     assert tool is not None
     assert tool.type is NodeType.TOOL
     assert tool.name == "pg_config"
@@ -87,7 +87,7 @@ def test_install_closure_links_tool_from_owning_package(fake_executor, make_resu
     out = install_closure(graph, fake_executor)
 
     deps = out.requires_of(pkg.id)
-    assert any(d.id == tool_id("pg_config") for d in deps)
+    assert any(d.id == binary_id("pg_config") for d in deps)
 
 
 def test_install_closure_records_attempt_on_packages(fake_executor, make_result_fixture):
@@ -126,14 +126,19 @@ def test_make_syslib_node_is_self_contained():
     assert "libxcb.so.1" in (node.evidence or "")
 
 
-def test_make_tool_node_is_self_contained():
-    from python_deps.depgraph.probe import _make_tool_node
+def test_make_capability_node_is_self_contained(fake_executor):
+    from python_deps.depgraph.os_resolver import ObservedNeed
+    from python_deps.depgraph.probe import _make_capability_node
 
-    node = _make_tool_node(
-        "pg_config", "Error: pg_config executable not found.", "python -m pip install psycopg2"
+    need = ObservedNeed(kind="binary", name="pg_config", context="build")
+    node = _make_capability_node(
+        need, "Error: pg_config executable not found.",
+        "python -m pip install psycopg2", fake_executor,
     )
     assert node.chosen_fix == "apt:libpq-dev"
     assert node.provenance
+    assert node.data["kind"] == "binary"
+    assert node.data["context"] == "build"
 
 
 def test_failed_build_packages_parses_pip_patterns():
@@ -245,7 +250,7 @@ def test_install_closure_single_failing_package_no_retry(fake_executor, make_res
 
     install_cmds = [c for c in fake_executor.calls if "pip install" in c]
     assert len(install_cmds) == 1  # only package failed -> nothing to retry
-    assert out.get(tool_id("pg_config")) is not None  # tool gap still surfaced
+    assert out.get(binary_id("pg_config")) is not None  # tool gap still surfaced
 
 
 def test_install_closure_clean_install_no_tool_nodes(fake_executor, make_result_fixture):
@@ -274,24 +279,176 @@ def test_install_closure_unknown_tool_has_empty_fix(fake_executor, make_result_f
 
     out = install_closure(graph, fake_executor)
 
-    assert out.get(tool_id("gcc")) is not None
-    assert out.get(tool_id("cc")) is None  # not a false positive from "gcc"
+    assert out.get(binary_id("gcc")) is not None
+    assert out.get(binary_id("cc")) is None  # not a false positive from "gcc"
 
 
 # --------------------------------------------------------------------------- #
-# _tool_check: header check must fail rc!=0 when the header is absent         #
+# install_closure: pkg-config build gaps -> pkgconfig capability nodes        #
+# --------------------------------------------------------------------------- #
+def test_install_closure_table_independent_unknown_header(fake_executor, make_result_fixture):
+    # A header NOT in PROVIDER_TABLE is discovered anyway (via extract_needs) and
+    # resolved through the apt-file fallback — the whole point of the extractor.
+    from python_deps.depgraph.ids import header_id
+    pkg = _package("hiredis", "2.3.2")
+    graph = DepGraph().with_node(pkg)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "Building wheel for hiredis\n"
+                "  fatal error: hiredis/hiredis.h: No such file or directory\n"
+            ),
+        ),
+        "command -v apt-file": make_result_fixture(stdout="/usr/bin/apt-file"),
+        "apt-file search hiredis/hiredis.h": make_result_fixture(
+            stdout="libhiredis-dev: /usr/include/hiredis/hiredis.h\n"
+        ),
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    node = out.get(header_id("hiredis/hiredis.h"))
+    assert node is not None
+    assert node.chosen_fix == "apt:libhiredis-dev"
+    assert any(d.id == node.id for d in out.requires_of(pkg.id))
+
+
+def test_install_closure_ignores_bare_tool_mention(fake_executor, make_result_fixture):
+    # The false positive the old _tool_gaps produced: a bare 'pg_config' mention in
+    # a build log (no not-found signature) must NOT create a phantom tool node.
+    from python_deps.depgraph.ids import binary_id
+    pkg = _package("psycopg2", "2.9.9")
+    graph = DepGraph().with_node(pkg)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "Building wheel for psycopg2\n"
+                "  Using pg_config at /usr/bin/pg_config\n"
+                "  error: some unrelated compile error\n"
+            ),
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    assert out.get(binary_id("pg_config")) is None
+
+
+def test_install_closure_pkgconfig_gap_creates_node_via_apt_file(
+    fake_executor, make_result_fixture
+):
+    # gobject-introspection-1.0 is NOT in PROVIDER_TABLE (unseeded) -> the
+    # apt-file fallback must resolve it.
+    pkg = _package("pygobject", "3.46.0")
+    graph = DepGraph().with_node(pkg)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "Building wheel for pygobject\n"
+                "  No package 'gobject-introspection-1.0' found\n"
+            ),
+        ),
+        "command -v apt-file": make_result_fixture(stdout="/usr/bin/apt-file"),
+        "apt-file search gobject-introspection-1.0.pc": make_result_fixture(
+            stdout=(
+                "libgirepository1.0-dev: "
+                "/usr/lib/x86_64-linux-gnu/pkgconfig/gobject-introspection-1.0.pc\n"
+            )
+        ),
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    node = out.get(pkgconfig_id("gobject-introspection-1.0"))
+    assert node is not None
+    assert node.chosen_fix == "apt:libgirepository1.0-dev"
+    assert node.check_command == "pkg-config --exists gobject-introspection-1.0"
+    assert any(d.id == node.id for d in out.requires_of(pkg.id))
+
+
+def test_install_closure_linker_lib_resolves_to_dev(fake_executor, make_result_fixture):
+    # Build-time `cannot find -lssl` -> the UNVERSIONED libssl.so -> a -dev
+    # package; the directional opposite of runtime soname resolution.
+    from python_deps.depgraph.ids import linker_id
+    pkg = _package("pycrypto", "2.6.1")
+    graph = DepGraph().with_node(pkg)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "Building wheel for pycrypto\n"
+                "  /usr/bin/ld: cannot find -lssl\n"
+            ),
+        ),
+        "command -v apt-file": make_result_fixture(stdout="/usr/bin/apt-file"),
+        "apt-file search libssl.so": make_result_fixture(
+            stdout=(
+                "libssl-dev: /usr/lib/x86_64-linux-gnu/libssl.so\n"
+                "libssl3: /usr/lib/x86_64-linux-gnu/libssl.so.3\n"
+            )
+        ),
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    node = out.get(linker_id("ssl"))
+    assert node is not None
+    assert node.type is NodeType.TOOL
+    assert node.chosen_fix == "apt:libssl-dev"
+    assert any(d.id == node.id for d in out.requires_of(pkg.id))
+
+
+def test_install_closure_reconciles_predicted_pkgconfig(fake_executor, make_result_fixture):
+    # dbus-python predicted pkgconfig:dbus-1 (curated build-dep prior); build
+    # observes the same pkg-config gap post-install, so the two collapse onto
+    # ONE node instead of two.
+    pkg = _package("dbus-python", "1.3.2")
+    predicted = _predicted_pkgconfig("dbus-1", "libdbus-1-dev")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(predicted)
+        .with_edge(Edge(src=pkg.id, dst=predicted.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "pip install": make_result_fixture(
+            returncode=1, stderr="No package 'dbus-1' found\n"
+        )
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    node = out.get(pkgconfig_id("dbus-1"))
+    assert node is not None
+    assert node.discovered_by is DiscoveredBy.RESOLVER  # discovery origin kept
+    assert node.check_command == "pkg-config --exists dbus-1"
+    assert "dbus-1" in (node.evidence or "")
+    assert node.chosen_fix == "apt:libdbus-1-dev"
+    # exactly one node exists at this id — the collapse holds, no fresh duplicate
+    assert len([n for n in out.nodes if n.id == pkgconfig_id("dbus-1")]) == 1
+
+
+# --------------------------------------------------------------------------- #
+# check_command_for: header check must fail rc!=0 when the header is absent   #
 # --------------------------------------------------------------------------- #
 def test_header_check_exits_nonzero_when_absent():
-    cmd = _tool_check("definitely_absent_xyz.h")
-    # the check runs `python -c "..."`; run it on the host and confirm rc != 0
-    cmd = cmd.replace("python ", sys.executable + " ", 1)
+    need = ObservedNeed("header", "definitely_absent_xyz.h", context="build")
+    cmd = check_command_for(need)
     rc = subprocess.run(cmd, shell=True).returncode
-    assert rc != 0, "absent header must NOT certify (was rc 0 via print())"
+    assert rc != 0, "absent header must NOT certify"
 
 
-def test_header_check_uses_sys_exit_not_print():
-    assert "sys.exit" in _tool_check("Python.h")
-    assert "print(" not in _tool_check("Python.h")
+def test_header_check_is_shell_find_not_python_print():
+    # Regression guard: the old python "print()"-based check silently returned
+    # rc 0 even when the header was absent; the `find | grep -q .` shell
+    # pipeline check_command_for emits does not have that footgun.
+    need = ObservedNeed("header", "Python.h", context="build")
+    cmd = check_command_for(need)
+    assert "find" in cmd
+    assert "print(" not in cmd
 
 
 # --------------------------------------------------------------------------- #
@@ -437,6 +594,57 @@ def test_import_probe_native_risk_package_probed_by_name(fake_executor, make_res
     assert any(d.id == syslib_id("libpq.so.5") for d in deps)
 
 
+def test_import_probe_widens_to_binary_gap(fake_executor, make_result_fixture):
+    # A C-extension import that fails on a missing *binary* (not a .so) now
+    # surfaces a binary Tool node — import_probe is no longer soname-only.
+    from python_deps.depgraph.ids import binary_id
+    pkg = _package("somepkg", "1.0.0")
+    imp = _import("somepkg")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_edge(Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "import somepkg": make_result_fixture(
+            returncode=1, stderr="bash: llvm-config: command not found",
+        )
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    tool = out.get(binary_id("llvm-config"))
+    assert tool is not None
+    assert tool.type is NodeType.TOOL
+    assert any(d.id == tool.id for d in out.requires_of(pkg.id))
+
+
+def test_import_probe_surfaces_all_sonames_not_just_first(fake_executor, make_result_fixture):
+    pkg = _package("opencv-python", "4.9.0.80")
+    imp = _import("cv2")
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_edge(Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "import cv2": make_result_fixture(
+            returncode=1,
+            stderr=(
+                "ImportError: libGL.so.1: cannot open shared object file\n"
+                "ImportError: libSM.so.6: cannot open shared object file\n"
+            ),
+        )
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    assert out.get(syslib_id("libGL.so.1")) is not None
+    assert out.get(syslib_id("libSM.so.6")) is not None
+
+
 def _predicted_syslib(key: str) -> Node:
     """A resolver-predicted SystemLib node keyed by ``key`` — post Task 9,
     callers pass the canonical SONAME (mirrors ``seed._predicted_syslib_node``).
@@ -453,16 +661,39 @@ def _predicted_syslib(key: str) -> Node:
     )
 
 
-def _predicted_tool(apt: str) -> Node:
+def _predicted_tool(name: str, apt: str) -> Node:
+    """A resolver-predicted capability Tool node — mirrors
+    ``build_deps._capability_node`` (Task 5): keyed by ``capability_id``
+    (``binary:``/``header:``), not the apt package name.
+    """
     return Node(
-        id=tool_id(apt),
+        id=binary_id(name),
         type=NodeType.TOOL,
-        name=apt,
+        name=name,
         layer=Layer.TOOLCHAIN,
         discovered_by=DiscoveredBy.RESOLVER,  # a prediction
         state=State.UNKNOWN,
-        check_command=f"dpkg -s {apt}",
+        check_command=f"command -v {name}",
         fix_candidates=(f"apt:{apt}",),
+        chosen_fix=f"apt:{apt}",
+    )
+
+
+def _predicted_pkgconfig(name: str, apt: str) -> Node:
+    """A resolver-predicted pkgconfig capability node — mirrors
+    ``build_deps._capability_node`` (Task 5): keyed by ``capability_id``
+    (``pkgconfig:``), not the apt package name.
+    """
+    return Node(
+        id=pkgconfig_id(name),
+        type=NodeType.TOOL,
+        name=name,
+        layer=Layer.TOOLCHAIN,
+        discovered_by=DiscoveredBy.RESOLVER,  # a prediction
+        state=State.UNKNOWN,
+        check_command=f"pkg-config --exists {name}",
+        fix_candidates=(f"apt:{apt}",),
+        chosen_fix=f"apt:{apt}",
     )
 
 
@@ -528,8 +759,8 @@ def test_import_probe_reconciles_even_when_apt_resolution_unresolved(
             returncode=1,
             stderr="ImportError: libcustomthing.so.2: cannot open shared object file",
         )
-        # No "apt-file"/"sysconfig" response registered -> resolve_soname_apt
-        # returns (None, "unresolved").
+        # No "apt-file"/"command -v apt-file" response registered -> resolve()
+        # returns [] (unresolved).
     }
 
     out = import_probe(graph, fake_executor)
@@ -540,9 +771,11 @@ def test_import_probe_reconciles_even_when_apt_resolution_unresolved(
 
 
 def test_install_closure_reconciles_predicted_tool(fake_executor, make_result_fixture):
-    # psycopg2 predicted libpq-dev (apt-keyed); build observes pg_config (tool).
+    # psycopg2 predicted binary:pg_config (capability-keyed, Task 5's
+    # seed_build_deps); build observes the same pg_config gap post-install, so
+    # the two collapse onto ONE node instead of two.
     pkg = _package("psycopg2", "2.9.9")
-    predicted = _predicted_tool("libpq-dev")
+    predicted = _predicted_tool("pg_config", "libpq-dev")
     graph = (
         DepGraph()
         .with_node(pkg)
@@ -557,25 +790,28 @@ def test_install_closure_reconciles_predicted_tool(fake_executor, make_result_fi
 
     out = install_closure(graph, fake_executor)
 
-    assert out.get(tool_id("pg_config")) is None  # no duplicate observed node
-    node = out.get(tool_id("libpq-dev"))
+    node = out.get(binary_id("pg_config"))
     assert node is not None
     assert node.discovered_by is DiscoveredBy.RESOLVER
     assert node.check_command == "command -v pg_config"
     assert "pg_config" in (node.evidence or "")
-    tools = [d for d in out.requires_of(pkg.id) if d.id == tool_id("libpq-dev")]
+    assert node.chosen_fix == "apt:libpq-dev"
+    tools = [d for d in out.requires_of(pkg.id) if d.id == binary_id("pg_config")]
     assert len(tools) == 1
+    # exactly one Tool node exists for this gap — the collapse holds
+    assert len([n for n in out.nodes if n.type is NodeType.TOOL]) == 1
 
 
 def test_reconcile_skips_non_resolver_prediction(fake_executor, make_result_fixture):
-    # A pre-existing node at the predicted id but discovered_by=PROBE is NOT a
-    # resolver prediction: reconciliation is skipped and a fresh observed node is
-    # created instead (the guard at reconcile_predicted).
+    # A pre-existing node at the predicted CAPABILITY id but discovered_by=PROBE
+    # is NOT a resolver prediction: reconciliation is skipped (the guard at
+    # reconcile_predicted) and a fresh observed node is created instead — which
+    # lands at the SAME capability id (binary:pg_config), replacing the stale one.
     pkg = _package("psycopg2", "2.9.9")
     stale = Node(
-        id=tool_id("libpq-dev"),
+        id=binary_id("pg_config"),
         type=NodeType.TOOL,
-        name="libpq-dev",
+        name="pg_config",
         layer=Layer.TOOLCHAIN,
         discovered_by=DiscoveredBy.PROBE,  # not a prediction
         state=State.MISSING,
@@ -589,11 +825,95 @@ def test_reconcile_skips_non_resolver_prediction(fake_executor, make_result_fixt
 
     out = install_closure(graph, fake_executor)
 
-    observed = out.get(tool_id("pg_config"))
+    observed = out.get(binary_id("pg_config"))
     assert observed is not None
     assert observed.discovered_by is DiscoveredBy.PROBE
-    # the stale PROBE node was left untouched (no in-place reconcile)
-    assert out.get(tool_id("libpq-dev")).discovered_by is DiscoveredBy.PROBE
+    # the guard skipped reconciliation; the fresh probe observation carries real
+    # evidence (unlike the bare stale placeholder it replaced)
+    assert "pg_config" in (observed.evidence or "")
+
+
+def test_reconcile_predicted_fills_chosen_fix_when_prediction_resolved_none():
+    # Real defect this guards: a wheel_preflight-seeded syslib:* prior resolved
+    # NO provider at seed time (chosen_fix=None); the observe-path apt-file
+    # fallback later learns the apt. Spec: "observation fills a chosen_fix that
+    # prediction left None" so the node becomes renderable instead of staying
+    # stuck with an unrenderable None fix.
+    predicted = _predicted_syslib("libcustomthing.so.2")
+    assert predicted.chosen_fix is None  # seed resolved no provider
+    graph = DepGraph().with_node(predicted)
+
+    reconciled = reconcile_predicted(
+        graph,
+        predicted.id,
+        check="ldconfig -p | grep libcustomthing.so.2",
+        evidence="ImportError: libcustomthing.so.2: cannot open shared object file",
+        command='python -c "import somepkg"',
+        chosen_fix="apt:libcustomthing-dev",
+        fix_candidates=("apt:libcustomthing-dev",),
+    )
+
+    assert reconciled is not None
+    assert reconciled.id == predicted.id  # SAME canonical node, not a rival
+    assert reconciled.discovered_by is DiscoveredBy.RESOLVER  # origin kept
+    assert reconciled.chosen_fix == "apt:libcustomthing-dev"
+    assert reconciled.fix_candidates == ("apt:libcustomthing-dev",)
+    assert reconciled.data["resolution_status"] == "resolved"
+
+
+def test_reconcile_predicted_does_not_override_existing_chosen_fix():
+    # Complementary invariant: a prediction that already resolved a provider is
+    # NEVER clobbered by a (possibly different) apt the observation resolves.
+    predicted = _predicted_tool("pg_config", "libpq-dev")
+    assert predicted.chosen_fix == "apt:libpq-dev"
+    graph = DepGraph().with_node(predicted)
+
+    reconciled = reconcile_predicted(
+        graph,
+        predicted.id,
+        check="command -v pg_config",
+        evidence="Error: pg_config executable not found.",
+        command="python -m pip install psycopg2",
+        chosen_fix="apt:some-other-package",
+        fix_candidates=("apt:some-other-package",),
+    )
+
+    assert reconciled is not None
+    assert reconciled.chosen_fix == "apt:libpq-dev"  # unchanged, not overridden
+    assert reconciled.fix_candidates == ("apt:libpq-dev",)  # unchanged
+
+
+def test_import_probe_fills_chosen_fix_left_none_by_seed(fake_executor, make_result_fixture):
+    # End-to-end via the real caller: import_probe's own resolve() finds the apt
+    # (table hit for libGL.so.1 -> libgl1) and reconcile_predicted must fill it
+    # into the seed node that resolved none, instead of silently dropping it.
+    pkg = _package("opencv-python", "4.9.0.80")
+    imp = _import("cv2")
+    predicted = _predicted_syslib("libGL.so.1")
+    assert predicted.chosen_fix is None
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(imp)
+        .with_node(predicted)
+        .with_edge(Edge(src=imp.id, dst=pkg.id, relation=EdgeType.REQUIRES, origin="resolver"))
+        .with_edge(Edge(src=pkg.id, dst=predicted.id, relation=EdgeType.REQUIRES, origin="resolver"))
+    )
+    fake_executor.responses = {
+        "import cv2": make_result_fixture(
+            returncode=1,
+            stderr="ImportError: libGL.so.1: cannot open shared object file",
+        )
+    }
+
+    out = import_probe(graph, fake_executor)
+
+    node = out.get(syslib_id("libGL.so.1"))
+    assert node is not None
+    assert node.discovered_by is DiscoveredBy.RESOLVER  # reconciled, not replaced
+    assert node.chosen_fix == "apt:libgl1"  # filled in, was None
+    assert node.fix_candidates == ("apt:libgl1",)
+    assert node.data["resolution_status"] == "resolved"
 
 
 def test_install_closure_wheel_for_attribution_beats_fallback(
@@ -613,7 +933,7 @@ def test_install_closure_wheel_for_attribution_beats_fallback(
 
     out = install_closure(graph, fake_executor)
 
-    tool = tool_id("pg_config")
+    tool = binary_id("pg_config")
     assert any(d.id == tool for d in out.requires_of(target.id))
     assert not any(d.id == tool for d in out.requires_of(native.id))
 
@@ -825,7 +1145,6 @@ def test_import_probe_unknown_soname_uses_apt_file_fallback(fake_executor, make_
             stderr="ImportError: libwidget.so.3: cannot open shared object file",
         ),
         "command -v apt-file": make_result_fixture(returncode=0),
-        "sysconfig": make_result_fixture(stdout="x86_64-linux-gnu\n"),
         "apt-file search": make_result_fixture(
             stdout="libwidget3: /usr/lib/x86_64-linux-gnu/libwidget.so.3\n"
         ),
