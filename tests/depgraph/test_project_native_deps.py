@@ -91,7 +91,10 @@ def test_scan_finds_own_extension_libraries_seeds_node_and_edge_on_project(
 
 def test_debian_build_depends_keyed_by_own_project_name(tmp_path, monkeypatch):
     # §2.3 (lxml fix): stub `apt-cache showsrc <project-name>` directly -- the
-    # project's OWN pypi-style name ("lxml"), not a dependency's.
+    # project's OWN pypi-style name ("lxml"), not a dependency's. lxml is a
+    # Cython project, so a `.pyx` fixture makes has_native_build_signal True
+    # (required now that §2.3 is gated on the native signal).
+    _write(tmp_path, "src/lxml/etree.pyx", "# cython\ncdef int _x():\n    return 0\n")
     showsrc_stdout = textwrap.dedent("""
         Package: lxml
         Binary: python3-lxml, python-lxml-doc
@@ -101,12 +104,11 @@ def test_debian_build_depends_keyed_by_own_project_name(tmp_path, monkeypatch):
     executor = FakeExecutor(responses={
         "grep -q '^Types: deb deb-src$'": make_result(returncode=0),
         "apt-cache showsrc lxml": make_result(stdout=showsrc_stdout, returncode=0),
+        "apt-get install -s": make_result(returncode=0),  # set IS installable
     })
     proj = _project_node("lxml")
     graph = _graph(proj)
 
-    # no setup.py/pyproject.toml at all -> §2.4/§2.2/§2.5 all contribute nothing;
-    # isolates this assertion to the Debian-by-own-name path.
     out = project_native_obligations(graph, str(tmp_path), executor, executor)
 
     for apt_name in ("libxml2-dev", "libxslt1-dev", "zlib1g-dev"):
@@ -161,3 +163,68 @@ def test_pure_python_project_is_a_no_op(tmp_path):
 
     assert out.nodes == graph.nodes
     assert out.edges == graph.edges
+
+
+def test_non_native_project_never_consults_its_debian_namesake(tmp_path):
+    # REGRESSION GUARD (the sweep's click/rich over-prediction): a pure-Python
+    # project ("click") whose Debian NAMESAKE (Ubuntu's Click package manager)
+    # has a real, unrelated Build-Depends. §2.3 is gated on the native signal,
+    # so with NO Extension/.pyx the Debian source is NEVER consulted -- byte-
+    # identical to the pre-R1b baseline (predicted_apt == []).
+    _write(tmp_path, "setup.py", """
+        from setuptools import setup
+        setup(name="click", packages=["click"])
+    """)
+    showsrc_stdout = textwrap.dedent("""
+        Package: click
+        Binary: click, python3-click-package
+        Build-Depends: valac, libgee-0.8-dev, dbus-test-runner,
+         gobject-introspection, python3:any
+    """)
+    executor = FakeExecutor(responses={
+        "grep -q '^Types: deb deb-src$'": make_result(returncode=0),
+        "apt-cache showsrc click": make_result(stdout=showsrc_stdout, returncode=0),
+        "apt-get install -s": make_result(returncode=0),
+    })
+    proj = _project_node("click")
+    graph = _graph(proj)
+
+    out = project_native_obligations(graph, str(tmp_path), executor, executor)
+
+    # §2.3 skipped entirely -> not one aptdep node, and a full no-op (§2.5 also
+    # off: pure-Python has no native signal).
+    assert [n for n in out.nodes if n.id.startswith("aptdep:")] == []
+    assert out.nodes == graph.nodes
+    assert out.edges == graph.edges
+
+
+def test_uninstallable_debian_set_is_dropped_but_floor_still_fires(tmp_path):
+    # §2.3 apt-installability guard: a NATIVE project (`.pyx` -> signal True)
+    # whose own Debian source has a conflicting/uninstallable JOINT
+    # Build-Depends. `apt-get install -s` returns rc!=0 -> the WHOLE Debian set
+    # is dropped (no aptdep nodes), but the §2.5 build-essential floor still
+    # fires (native signal is present regardless of the Debian set).
+    _write(tmp_path, "foo.pyx", "cdef int add(int a, int b):\n    return a + b\n")
+    showsrc_stdout = textwrap.dedent("""
+        Package: uwsgi
+        Binary: python3-uwsgi
+        Build-Depends: libpcre3-dev, libjansson-dev, libconflict-a-dev,
+         libconflict-b-dev
+    """)
+    executor = FakeExecutor(responses={
+        "grep -q '^Types: deb deb-src$'": make_result(returncode=0),
+        "apt-cache showsrc uwsgi": make_result(stdout=showsrc_stdout, returncode=0),
+        "apt-get install -s": make_result(returncode=1),  # set is NOT installable
+    })
+    proj = _project_node("uwsgi")
+    graph = _graph(proj)
+
+    out = project_native_obligations(graph, str(tmp_path), executor, executor)
+
+    # entire Debian set dropped -> no aptdep nodes at all.
+    assert [n for n in out.nodes if n.id.startswith("aptdep:")] == []
+    # but the floor still fires (native signal is True).
+    assert out.get(tool_id("build-essential")) is not None
+    assert any(
+        e.src == proj.id and e.dst == tool_id("build-essential") for e in out.edges
+    )

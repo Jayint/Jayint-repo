@@ -50,6 +50,7 @@ from pathlib import Path
 from python_deps.depgraph.build_deps import (
     PACKAGE_TO_BUILD_NEEDS,
     _apt_build_node,
+    _apt_installable,
     _capability_node,
 )
 from python_deps.depgraph.debian_builddeps import debian_build_deps
@@ -125,20 +126,49 @@ def project_native_obligations(
     for need in scanned_needs:
         _seed_capability(need)
 
-    # §2.3 — Debian Build-Depends + the curated table, keyed by the
-    # PROJECT'S OWN distribution name (not a dependency's).
-    canonical = normalize_package_name(project_node.name)
-    for need in PACKAGE_TO_BUILD_NEEDS.get(canonical, ()):
-        _seed_capability(need)
+    # Native-build signal (computed ONCE, reused by §2.3's gate below and
+    # §2.5's floor). Degrades to False on any scan failure.
     try:
-        debian_names = list(debian_build_deps(canonical, container_executor))
+        native_signal = bool(has_native_build_signal(repo_path))
     except Exception:
         logger.exception(
-            "project_native_obligations: debian_build_deps failed for %s", canonical
+            "project_native_obligations: has_native_build_signal failed for %s", repo_path
         )
-        debian_names = []
-    for name in debian_names:
-        _seed_apt(name)
+        native_signal = False
+
+    # §2.3 — Debian Build-Depends + the curated table, keyed by the PROJECT'S
+    # OWN distribution name (not a dependency's) — GATED on the native-build
+    # signal. A pure-Python project (no Extension/.pyx/native backend) needs
+    # ZERO system build-deps, so its Debian NAMESAKE must never be consulted:
+    # `apt-cache showsrc <name>` can return an UNRELATED same-named Debian
+    # source (e.g. Ubuntu's Click package manager for Python "click", or
+    # rich's `pybuild-plugin-pyproject`), over-predicting apt for a repo that
+    # compiles nothing. Only a project that actually builds native code looks
+    # up its own Build-Depends. lxml/pygraphviz (signal True) keep this path.
+    if native_signal:
+        canonical = normalize_package_name(project_node.name)
+        for need in PACKAGE_TO_BUILD_NEEDS.get(canonical, ()):
+            _seed_capability(need)
+        try:
+            debian_names = list(debian_build_deps(canonical, container_executor))
+        except Exception:
+            logger.exception(
+                "project_native_obligations: debian_build_deps failed for %s", canonical
+            )
+            debian_names = []
+        # apt-installability guard (mirrors build_deps.build_dep_prior): a
+        # project whose own Debian source has a conflicting/uninstallable JOINT
+        # Build-Depends (the uWSGI class) would break the whole apt step at
+        # replay. Simulate-install the set (`apt-get install -s`); on failure
+        # drop the ENTIRE Debian set, keeping §2.4/§2.5/§2.2.
+        if debian_names and not _apt_installable(debian_names, container_executor):
+            logger.info(
+                "project_native_obligations: %s debian set not apt-installable, "
+                "dropping %s", canonical, debian_names,
+            )
+            debian_names = []
+        for name in debian_names:
+            _seed_apt(name)
 
     # §2.2 — PEP 725 [external], read directly off the local checkout (no
     # sdist download: the manifest is already on disk for the repo under
@@ -164,16 +194,9 @@ def project_native_obligations(
                 _seed_capability(need)
 
     # §2.5 — unconditional build-essential floor for ANY detected
-    # native-build signal, even when no specific library was statically
-    # extractable. Reuses seed.py's singleton node/id — deduped, never a
-    # second copy.
-    try:
-        native_signal = bool(has_native_build_signal(repo_path))
-    except Exception:
-        logger.exception(
-            "project_native_obligations: has_native_build_signal failed for %s", repo_path
-        )
-        native_signal = False
+    # native-build signal (``native_signal``, computed above), even when no
+    # specific library was statically extractable. Reuses seed.py's singleton
+    # node/id — deduped, never a second copy.
     if native_signal:
         if new.get(_BUILD_ESSENTIAL_ID) is None:
             new = new.with_node(_build_essential_node())
