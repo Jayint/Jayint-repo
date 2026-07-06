@@ -348,20 +348,6 @@ class Sandbox:
 
             self.package_manager_broken_failure_streak = 0
             self._track_runtime_command(command)
-            
-            # 优化：只对会对环境产生影响的指令进行 commit
-            if self._should_commit(command):
-                # 创建新的成功快照
-                previous_snapshot = self.last_success_image
-                success_image = self.container.commit()
-                self._register_snapshot(success_image.id)
-                self.last_success_image = success_image.id
-                if previous_snapshot and previous_snapshot != self.last_success_image:
-                    self._remove_snapshot_image(previous_snapshot)
-                print(f"[Snapshot Created] {self.last_success_image[:12]}")
-            else:
-                print("[Skip Snapshot] Command is read-only or informational.")
-            
             return True, output
         else:
             print(f"Command failed (exit {exit_code}). Preserving current state for agent decision.")
@@ -579,27 +565,6 @@ class Sandbox:
             return True
         return status == "running"
     
-    def _should_commit(self, command):
-        """
-        判断指令是否会对环境产生影响，从而决定是否需要 commit。
-        """
-        # 常见的不产生副作用的指令
-        readonly_commands = [
-            'ls', 'cat', 'pwd', 'echo', 'env', 'hostname', 'whoami', 
-            'head', 'tail', 'grep', 'find', 'du', 'df', 'top', 'ps', 
-            'date', 'which', 'type', 'file'
-        ]
-        
-        # 获取指令的第一个单词
-        first_word = command.strip().split()[0].lower() if command.strip() else ""
-        
-        # 如果指令在只读列表中，则不 commit
-        if first_word in readonly_commands:
-            return False
-            
-        # 默认需要 commit
-        return True
-
     def _track_runtime_command(self, command):
         """Remember pure runtime service commands so they can be replayed after rollback."""
         normalized_command = (command or "").strip()

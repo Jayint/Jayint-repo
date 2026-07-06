@@ -36,6 +36,16 @@ class FakeContainer:
         return SimpleNamespace(id="snapshot123456")
 
 
+class CountingCommitContainer(FakeContainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.commit_calls = 0
+
+    def commit(self):
+        self.commit_calls += 1
+        return SimpleNamespace(id="should-not-happen")
+
+
 class FakeContainerManager:
     def __init__(self, containers=None):
         self.containers_to_return = list(containers or [])
@@ -435,6 +445,24 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(output, "installed cmake")
         self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_execute_success_does_not_commit_per_command(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = CountingCommitContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"ok")],
+            status="running",
+        )
+        sandbox.last_success_image = "baseline-img"
+
+        success, output = sandbox.execute("pip3 install foo")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "ok")
+        self.assertEqual(sandbox.container.commit_calls, 0)  # no per-command snapshot
+        self.assertEqual(sandbox.last_success_image, "baseline-img")  # unchanged
+
+    def test_should_commit_attribute_removed(self):
+        self.assertFalse(hasattr(Sandbox, "_should_commit"))
 
     def test_command_wrapper_uses_pipefail_without_timeout(self):
         sandbox = self._make_sandbox()
