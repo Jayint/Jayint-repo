@@ -44,7 +44,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from python_deps.depgraph.build_script import render_build_script  # noqa: E402
 from python_deps.depgraph.schema import NodeType  # noqa: E402
-from src.envstate.repair_scope import build_repair_scope  # noqa: E402
+from src.envstate.repair_scope import RepairScope  # noqa: E402
 from src.envstate.repair_scope import render_repair_scope as _render_repair_scope  # noqa: E402
 from src.envstate.v3_build_agent import V3BuildAgent  # noqa: E402
 from src.eval.graph_repair_ablation.context import graph_context  # noqa: E402
@@ -53,6 +53,7 @@ from src.eval.graph_repair_ablation.inject import apply_injection  # noqa: E402
 from src.eval.graph_repair_ablation.oracle import Injection  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
     _MountedContainer, _write_file, base_image_for_repo, build_graph_construction_only,
+    first_failure_evidence,
 )
 
 ARMS: tuple[str, ...] = ("C0", "C1")
@@ -176,6 +177,38 @@ def _augmented_render(scope, arm: str, graph) -> str:
     return base + ("\n\n" + ctx if ctx else "")
 
 
+def _build_ablation_scope(graph, install_output: str) -> RepairScope:
+    """Construct a GRAPH-FREE base `RepairScope` carrying the real failure text.
+
+    Two experiment-validity reasons NOT to use `build_repair_scope` here:
+    1. **Floor-effect fix.** `build_repair_scope` populates `failed_output` only
+       from an `EvidenceBundle` (`bundle`), which this replay path has none of,
+       so the agent's prompt would omit the error entirely and both arms would
+       diagnose blind. Here we thread the container's actual failed command +
+       stderr tail (via `first_failure_evidence`) straight into the scope.
+    2. **Confound fix.** `build_repair_scope` also fills `slice_lines` with a
+       graph requirement-slice, which `render_repair_scope` prints as "Graph
+       context:" -- i.e. it would leak graph structure into the BASE scope that
+       BOTH arms see, contaminating C0 (the no-graph baseline). We force
+       `slice_lines=()`; the graph reaches the agent ONLY via C1's `arm_context`,
+       so a C1-vs-C0 difference is attributable to the graph alone.
+
+    `target_node_id` (the project node id) is a single minimal label identical
+    across arms -- not graph structure -- so it is not a differential confound.
+    """
+    ff = first_failure_evidence(install_output)
+    project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    return RepairScope(
+        target_node_id=(project.id if project else None),
+        failed_command=ff["command"],
+        failed_output=ff["stderr_tail"],
+        slice_lines=(),
+        known_invalid=(),
+        constraints=(),
+        known_evidence_ids=frozenset(),
+    )
+
+
 def run_one(inj: Injection, arm: str, *, agent_client, model: str, smoke_root,
             max_diag_turns: int = 4) -> dict:
     """Build the graph for `inj.repo`, inject its known failure into the
@@ -213,15 +246,10 @@ def run_one(inj: Injection, arm: str, *, agent_client, model: str, smoke_root,
                 "trace": None, "score": None, "install_failed": False,
             }
 
-        project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
-        scope = build_repair_scope(
-            graph, target_node_id=(project.id if project else None),
-            # No real `Block`/`EvidenceBundle` available on this replay path
-            # (recon §1: `failed_block` needs a `.commands`-bearing object,
-            # which the mutated script string is not) -- pass None for both
-            # and rely on `render_repair_scope`'s graceful-empty handling.
-            failed_block=None, bundle=None,
-        )
+        # Graph-free base scope carrying the REAL failed command + stderr (so the
+        # agent can diagnose) with EMPTY slice_lines (so the graph reaches the
+        # agent only via C1's arm_context). See `_build_ablation_scope`.
+        scope = _build_ablation_scope(graph, (install.stdout or "") + (install.stderr or ""))
 
         rec = RecordingExec(box)
 

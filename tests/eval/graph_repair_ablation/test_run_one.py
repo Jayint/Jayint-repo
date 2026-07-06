@@ -203,6 +203,29 @@ def test_arm_context_unknown_arm_raises():
 
 
 # --------------------------------------------------------------------------
+# (c') the base repair scope is GRAPH-FREE but carries the real failure text:
+# fixes the floor-effect (agent must see the error) AND the slice_lines
+# confound (no graph leaks into the C0 baseline). See `_build_ablation_scope`.
+# --------------------------------------------------------------------------
+
+def test_build_ablation_scope_is_graph_free_but_carries_error_text():
+    g = _graph()
+    out = ("+ apt-get install -y libgraphviz-dev\n"
+           "E: Unable to locate package libgraphviz-dev\n")
+    scope = run._build_ablation_scope(g, out)
+    assert scope.slice_lines == ()                        # GRAPH-FREE base (no leak to C0)
+    assert "libgraphviz-dev" in scope.failed_output       # agent sees the error (no floor-effect)
+    assert scope.target_node_id == "project:pygraphviz"   # minimal label, same both arms
+    assert scope.failed_command                            # a failing command was extracted
+
+    # render must NOT contain a graph slice for the base scope (the only graph
+    # the agent may see is C1's appended arm_context).
+    rendered = run._render_repair_scope(scope)
+    assert "Graph context:" not in rendered
+    assert "Failure output:" in rendered
+
+
+# --------------------------------------------------------------------------
 # Full run_one integration (mocked): install fails -> repair loop runs ->
 # trace/patch/score assembled. Exercised once per arm to also nail down (c)
 # end-to-end: the rendered scope text the fake LLM actually received differs
@@ -244,6 +267,10 @@ def test_run_one_wires_agent_and_augments_render_per_arm(monkeypatch, arm, expec
         assert "libgraphviz-dev" in user_content
     else:
         assert "Dependency graph (typed, tiered):" not in user_content
+
+    # both arms: the agent MUST see the real failure output (fixes floor-effect;
+    # previously build_repair_scope left failed_output empty on this path).
+    assert "could not locate package libgraphviz-dev" in user_content
 
 
 def test_run_one_skips_when_injection_does_not_fail_install(monkeypatch):
