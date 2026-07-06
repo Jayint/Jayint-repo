@@ -62,6 +62,21 @@ def _norm(name: str) -> str:
     return (name or "").strip().lower().replace("_", "-")
 
 
+def _previously_disproven(disc, import_name: str, invalid_names: frozenset[str]) -> bool:
+    """True when this failing import was already pip-disproven and must not be retried.
+
+    Matches the resolved distribution name when the runtime classifier produced one
+    AND the raw import name. The strict runtime classifier deliberately withholds a
+    package name for an unmapped import (``name=None``, "never guessed as itself"),
+    but the disproven distribution normalizes straight from the import that triggered
+    it (``frobnicate_9000`` -> ``frobnicate-9000``), so retry-suppression must not
+    depend on a package name the classifier refuses to guess.
+    """
+    if disc is not None and disc.name is not None and _norm(disc.name) in invalid_names:
+        return True
+    return bool(import_name) and _norm(import_name) in invalid_names
+
+
 # An assertion / logic failure is a residual (non-environment) bug: the graph
 # cannot close it by adding a node. Conservative — anything else stays AMBIGUOUS.
 _RESIDUAL_RE = re.compile(r"\bAssertionError\b")
@@ -95,9 +110,9 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
         if disc is None:
             return Diagnosis(Mode.AMBIGUOUS, None,
                              f"import {import_name!r} had no package mapping")
-        if disc.name is not None and _norm(disc.name) in ctx.invalid_names:
+        if _previously_disproven(disc, import_name, ctx.invalid_names):
             return Diagnosis(Mode.INVALID_ATTEMPT, None,
-                             f"package {disc.name!r} was previously disproven")
+                             f"import {import_name!r} was previously disproven")
         return Diagnosis(Mode.ENVIRONMENT, disc,
                          f"external import {import_name!r} -> package requirement")
 
@@ -122,9 +137,9 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
             return Diagnosis(Mode.AMBIGUOUS, None,
                              f"import_name_error for {failed_from!r} has no confirmed "
                              "top-level package mapping — probe before repair")
-        if disc.name is not None and _norm(disc.name) in ctx.invalid_names:
+        if _previously_disproven(disc, import_name, ctx.invalid_names):
             return Diagnosis(Mode.INVALID_ATTEMPT, None,
-                             f"package {disc.name!r} was previously disproven")
+                             f"import {import_name!r} was previously disproven")
         return Diagnosis(Mode.ENVIRONMENT, disc,
                          f"external import {failed_from!r} -> package requirement")
 
