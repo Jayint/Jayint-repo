@@ -242,8 +242,8 @@ def test_ldd_probe_opencv_creates_syslib_nodes(fake_executor, make_result_fixtur
 
     out = ldd_probe(graph, fake_executor)
 
-    # libGL.so.1 is in NATIVE_LIB_TO_APT -> apt=libgl1; no RESOLVER seed ->
-    # fresh node keyed by soname (syslib_id("libGL.so.1")).
+    # libGL.so.1 is in os_resolver.PROVIDER_TABLE -> apt=libgl1; no RESOLVER
+    # seed -> fresh node keyed by soname (syslib_id("libGL.so.1")).
     gl = out.get(syslib_id("libGL.so.1"))
     assert gl is not None
     assert gl.type is NodeType.SYSTEM_LIB
@@ -397,6 +397,47 @@ def test_ldd_probe_reconciles_resolver_prediction_keeps_discovered_by(
     assert len(requires_to_predicted) == 1
 
 
+def test_ldd_probe_fills_chosen_fix_left_none_by_seed(fake_executor, make_result_fixture):
+    """Real defect this guards: a RESOLVER seed (e.g. wheel_preflight) resolved
+    NO provider (chosen_fix=None); ldd_probe's own resolve() finds the apt
+    (table hit for libGL.so.1 -> libgl1) and reconcile_predicted must fill it
+    into the SAME node instead of leaving it permanently unrenderable.
+    """
+    pkg = _package("opencv-python", "4.9.0.80")
+    predicted = _predicted_syslib("libGL.so.1")
+    assert predicted.chosen_fix is None  # seed resolved no provider
+    graph = (
+        DepGraph()
+        .with_node(pkg)
+        .with_node(predicted)
+        .with_edge(
+            Edge(
+                src=pkg.id,
+                dst=predicted.id,
+                relation=EdgeType.REQUIRES,
+                origin="resolver",
+            )
+        )
+    )
+    fake_executor.responses = {
+        "locate_file": make_result_fixture(
+            stdout=json.dumps({"opencv-python": [_CV2_SO]})
+        ),
+        "ldd ": make_result_fixture(
+            stdout=f"{_CV2_SO}:\n\tlibGL.so.1 => not found\n"
+        ),
+    }
+
+    out = ldd_probe(graph, fake_executor)
+
+    node = out.get(syslib_id("libGL.so.1"))
+    assert node is not None
+    assert node.discovered_by is DiscoveredBy.RESOLVER  # reconciled, not replaced
+    assert node.chosen_fix == "apt:libgl1"  # filled in, was None
+    assert node.fix_candidates == ("apt:libgl1",)
+    assert node.data["resolution_status"] == "resolved"
+
+
 def test_seed_and_ldd_reconcile_even_when_apt_resolution_unresolved(
     fake_executor, make_result_fixture
 ):
@@ -409,10 +450,10 @@ def test_seed_and_ldd_reconcile_even_when_apt_resolution_unresolved(
     the soname, so reconciliation succeeds by string match alone, independent
     of apt resolution.
     """
-    # A soname NOT in NATIVE_LIB_TO_APT, so seed's own apt lookup already came
-    # up empty (mirrors a real curated-table gap) and ldd's resolve_soname_apt
-    # will also fail (FakeExecutor has no apt-file response registered ->
-    # rc=127 -> "unresolved").
+    # A soname NOT in os_resolver.PROVIDER_TABLE, so seed's own apt lookup
+    # already came up empty (mirrors a real curated-table gap) and ldd's
+    # os_resolver.resolve will also fail (FakeExecutor has no apt-file
+    # response registered -> rc=127 -> empty candidates).
     predicted = Node(
         id=syslib_id("libcustomthing.so.2"),
         type=NodeType.SYSTEM_LIB,
@@ -477,7 +518,7 @@ def test_ldd_probe_unknown_soname_empty_fix_candidates(fake_executor, make_resul
     node with EMPTY fix_candidates — the *need* is surfaced, the apt name is not.
 
     The FakeExecutor returns rc=127 for all unregistered commands, which causes
-    resolve_soname_apt to return (None, "unresolved"), giving fix_candidates=().
+    os_resolver.resolve to return [] (no candidates), giving fix_candidates=().
     """
     _UNKNOWN_SO = "/usr/local/lib/python3.11/dist-packages/somepkg/foo.cpython-311-x86_64-linux-gnu.so"
     pkg = _package("somepkg", "1.0.0")

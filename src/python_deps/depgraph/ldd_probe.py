@@ -11,7 +11,7 @@ This is the *primary authoritative* source for run-time native-lib nodes
 proactive/install-fail fallback (seeded before install; ldd supersedes it for
 successfully installed packages).
 
-``resolve_soname_apt`` is table-first with an apt-file fallback that is ABSENT on
+``os_resolver.resolve`` is table-first with an apt-file fallback that is ABSENT on
 slim images.  An unknown soname yields a node with EMPTY ``fix_candidates``
 (option A: *need* surfaced, apt *name* not known).  Option B (lazy apt-file)
 closes that gap — see plan Future TODOs.
@@ -25,9 +25,9 @@ from __future__ import annotations
 import json
 import shlex
 
-from python_deps.depgraph.apt_resolve import resolve_soname_apt
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.ids import syslib_id
+from python_deps.depgraph.os_resolver import ObservedNeed, resolve
 from python_deps.depgraph.probe import reconcile_predicted
 from python_deps.depgraph.schema import (
     Attempt,
@@ -35,11 +35,11 @@ from python_deps.depgraph.schema import (
     DiscoveredBy,
     Edge,
     EdgeType,
-    Layer,
     Node,
     NodeType,
     State,
 )
+from python_deps.depgraph.syslib import make_syslib_node
 from python_deps.import_mapping import normalize_package_name
 
 # One container round-trip: emit JSON {canonical_dist_name: [absolute ext-.so paths]}
@@ -125,7 +125,7 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
     """Stage 4.5: discover run-time native-lib gaps via ldd on extension modules.
 
     For each Package node: batch-ldd its extension ``.so`` files; collect
-    ``=> not found`` sonames; resolve soname → apt via ``resolve_soname_apt``
+    ``=> not found`` sonames; resolve soname → apt via ``os_resolver.resolve``
     (fills ``chosen_fix`` only — never the id); then either reconcile with a
     seed RESOLVER prediction of the same CANONICAL SONAME id (keeping
     ``discovered_by=RESOLVER``) or create a fresh ``discovered_by=PROBE`` node.
@@ -139,8 +139,8 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
     round (the prior apt-keyed reconciliation split into two nodes whenever
     resolution failed; this cannot happen anymore).
 
-    Option A: ``resolve_soname_apt`` is table-first with an apt-file fallback
-    ABSENT on slim images.  An unknown soname (not in ``NATIVE_LIB_TO_APT``)
+    Option A: ``os_resolver.resolve`` is table-first with an apt-file fallback
+    ABSENT on slim images.  An unknown soname (not in ``PROVIDER_TABLE``)
     yields a node with EMPTY ``fix_candidates`` — the *need* is surfaced but
     the apt *name* is not.  Option B (lazy apt-file) closes this gap — see
     plan Future TODOs.
@@ -167,7 +167,8 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
 
         sonames = parse_ldd_not_found(ldd_result.stdout or "")
         for soname in sonames:
-            apt, _source = resolve_soname_apt(soname, executor)
+            cands = resolve(ObservedNeed("soname", soname, context="runtime"), executor)
+            apt = cands[0].package if cands else None
             check = f"ldconfig -p | grep {soname}"
             evidence = _first_line_with(ldd_result.stdout or "", soname)
 
@@ -176,7 +177,13 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             # to a fresh PROBE node using the soname as the id.
             predicted_id = syslib_id(soname)
             reconciled = reconcile_predicted(
-                new, predicted_id, check=check, evidence=evidence, command=ldd_cmd
+                new,
+                predicted_id,
+                check=check,
+                evidence=evidence,
+                command=ldd_cmd,
+                chosen_fix=f"apt:{apt}" if apt else None,
+                fix_candidates=tuple(f"apt:{c.package}" for c in cands),
             )
             if reconciled is not None:
                 node_id = reconciled.id
@@ -216,17 +223,12 @@ def _make_syslib_node(
 ) -> Node:
     """Fresh probe-discovered SystemLib for a soname reported by ldd."""
     check = f"ldconfig -p | grep {soname}"
-    node = Node(
-        id=syslib_id(soname),
-        type=NodeType.SYSTEM_LIB,
-        name=soname,
-        layer=Layer.SYSTEM,
+    node = make_syslib_node(
+        soname,
         discovered_by=DiscoveredBy.PROBE,
         state=State.MISSING,
-        check_command=check,
+        apt=apt,
         evidence=_first_line_with(ldd_output, soname),
-        fix_candidates=(f"apt:{apt}",) if apt else (),
-        chosen_fix=f"apt:{apt}" if apt else None,
         provenance="ldd (observed)",
     )
     return node.with_attempt(Attempt(command=command, outcome="failed", check=check))
