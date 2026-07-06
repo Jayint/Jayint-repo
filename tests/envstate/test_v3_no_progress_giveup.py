@@ -212,6 +212,87 @@ def test_real_progress_is_never_cut_off(monkeypatch):
     )
 
 
+def test_task_branch_evidence_threaded_on_failing_gate(monkeypatch):
+    """Part D (design §D): when the verified test-gate FAILED this cycle, the
+    task-branch's ``_fb is None`` call site must thread that failing
+    VERIFY_TEST_CMD output as citable evidence (reusing the ``_gate_out``/
+    ``_gate_passed_now`` already sampled by the no-progress detector) instead
+    of an empty ``EvidenceBundle()`` — collapsing the wasted hallucination
+    turns a proposer would otherwise burn with nothing to cite."""
+    monkeypatch.setattr(gs_module, "next_decision", _obligation_decision)
+
+    captured_bundles = []
+
+    def _fake_repair(graph, failed_id, bundle, cycle, **kwargs):
+        captured_bundles.append(bundle)
+        return RepairOutcome(
+            graph=graph, still_failing_id=None, manual_blocks=(),
+            known_invalid=frozenset(), turns_spent=1, budget_exhausted=True,
+        )
+
+    monkeypatch.setattr(orch, "run_structured_repair", _fake_repair)
+
+    _STABLE_FAIL = (
+        "FAILED tests/t.py::test_x - RuntimeError\n=== 1 failed in 0.10s ==="
+    )
+
+    def sandbox_execute(cmd):
+        if cmd == orchestrator.VERIFY_TEST_CMD:
+            return (False, _STABLE_FAIL)
+        return (True, "ok")
+
+    inputs = _base_inputs(sandbox_execute, max_cycles=1)
+    orchestrator.run_v3(**inputs)
+
+    assert len(captured_bundles) == 1
+    bundle = captured_bundles[0]
+    assert bundle.items, (
+        "expected a non-empty EvidenceBundle citing the failing test-gate "
+        "output, got an empty bundle"
+    )
+    ev = bundle.items[0]
+    assert ev.command == orchestrator.VERIFY_TEST_CMD
+    assert _STABLE_FAIL in ev.output_excerpt, (
+        "the threaded evidence must cite the ACTUAL failing gate output"
+    )
+    assert ev.rc == 1
+
+
+def test_task_branch_evidence_stays_empty_on_passing_gate(monkeypatch):
+    """Companion to the failing-gate case above: when the verified test-gate
+    PASSED this cycle (a frontier obligation can be handed out even while the
+    gate would pass — next_decision returns before testing), the task-branch
+    must keep the empty EvidenceBundle() — threading a passing run as
+    'failure evidence' would mislead the proposer."""
+    monkeypatch.setattr(gs_module, "next_decision", _obligation_decision)
+
+    captured_bundles = []
+
+    def _fake_repair(graph, failed_id, bundle, cycle, **kwargs):
+        captured_bundles.append(bundle)
+        return RepairOutcome(
+            graph=graph, still_failing_id=None, manual_blocks=(),
+            known_invalid=frozenset(), turns_spent=1, budget_exhausted=True,
+        )
+
+    monkeypatch.setattr(orch, "run_structured_repair", _fake_repair)
+
+    def sandbox_execute(cmd):
+        if cmd == orchestrator.VERIFY_TEST_CMD:
+            return (True, "1 passed in 0.01s")
+        return (True, "ok")
+
+    inputs = _base_inputs(sandbox_execute, max_cycles=1)
+    orchestrator.run_v3(**inputs)
+
+    assert len(captured_bundles) == 1
+    bundle = captured_bundles[0]
+    assert bundle.items == (), (
+        "a passing test-gate must keep the empty EvidenceBundle() — nothing "
+        "failed to cite this cycle"
+    )
+
+
 def test_hollow_pass_churn_is_caught(monkeypatch):
     """A raw rc=0 'pass' that the anti-hollow gate rejects (no execution
     evidence) must sign as a STABLE FAILURE, not a real pass — exercising the

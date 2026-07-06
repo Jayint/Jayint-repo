@@ -354,6 +354,29 @@ def _build_install_evidence(result, failed_id, cycle):
     return EvidenceBundle().with_item(ev)
 
 
+def _build_testgate_evidence(out, cycle, target_id):
+    """Wrap the latest FAILING VERIFY_TEST_CMD output as a single citable Evidence
+    item so a task-branch obligation repair with no attached manual block sees the
+    real failure text AND can cite it — instead of the empty EvidenceBundle() that
+    forces the proposer to hallucinate an evidence_ref against an empty citation
+    list before finding the add_providers loophole. Mirrors _build_install_evidence
+    (which threads install stderr on the binding path)."""
+    from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+    if not out:
+        return EvidenceBundle()
+    ev = Evidence(
+        evidence_id=f"testgate.{cycle}.{target_id or 'unknown'}",
+        container_kind="fresh_replay",
+        command=VERIFY_TEST_CMD,
+        rc=1,
+        output_excerpt=(out or "")[-2000:],
+        cycle=cycle,
+        node_id=target_id,
+        block_id=target_id,
+    )
+    return EvidenceBundle().with_item(ev)
+
+
 def run_v3(
     build_agent,
     maintainer,
@@ -1151,9 +1174,17 @@ def run_v3(
             # charged up to ~2x MAX_REPAIRS attempts in a single cycle — the GLOBAL
             # bound is still _repair_turns (checked as `_repair_turns <= 0`).
             if _fb is None:
-                # No manual block targets this node yet — nothing to pre-check;
-                # route the (empty) bundle through diagnosis and repair directly.
-                _g = _repair_or_route(_g, _tid, EvidenceBundle(), cycle, target_hint=_tid)
+                # No manual block targets this node yet — nothing to pre-check.
+                # Thread THIS cycle's failing test-gate output as citable evidence
+                # (reusing the `_gate_out`/`_gate_passed_now` already sampled by the
+                # no-progress detector) instead of an empty EvidenceBundle() that
+                # would make the proposer burn turns hallucinating an evidence_ref.
+                # Only when the gate actually FAILED; a frontier obligation handed
+                # out while the gate passes has no failure to cite, so the scope
+                # falls back to the node's requirement slice via target_hint.
+                _ev = (_build_testgate_evidence(_gate_out, cycle, _tid)
+                       if not _gate_passed_now else EvidenceBundle())
+                _g = _repair_or_route(_g, _tid, _ev, cycle, target_hint=_tid)
             else:
                 # A manual block already targets this node (prior-cycle repair) — replay
                 # once (Model B) to see whether it still fails before spending another
