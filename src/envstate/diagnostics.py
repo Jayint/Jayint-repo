@@ -22,6 +22,7 @@ def log_llm_exchange(
     response: Any,
     parsed: Any = None,
     *,
+    messages: Any = None,
     log_path: str | None = None,
 ) -> None:
     """Append one JSON line describing an LLM round-trip to *log_path*.
@@ -37,13 +38,20 @@ def log_llm_exchange(
         Optional structured result derived from the response (task_spec dict,
         action dict, proposal summary, …).  Will be ``repr``-truncated to
         ~500 chars.
+    messages:
+        Optional INPUT prompt sent to the model — the list of
+        ``{"role", "content"}`` dicts (system + user + any accumulated ReAct
+        turns).  Recorded VERBATIM (untruncated) so the exact information the
+        agent was given can be inspected offline.  ``None`` → the ``prompt``
+        field is omitted (back-compat: existing callers that log only the
+        response are unaffected).
     log_path:
         Explicit file path.  If ``None``, the value of the environment variable
         ``ENVSTATE_LLM_LOG`` is used.  If that is also ``None`` / empty, the
         function is a no-op.
     """
     try:
-        _log_llm_exchange(role, response, parsed, log_path=log_path)
+        _log_llm_exchange(role, response, parsed, messages=messages, log_path=log_path)
     except Exception:
         # Logging must never break a run.
         pass
@@ -54,6 +62,7 @@ def _log_llm_exchange(
     response: Any,
     parsed: Any,
     *,
+    messages: Any = None,
     log_path: str | None,
 ) -> None:
     """Inner (non-exception-proof) implementation."""
@@ -111,6 +120,18 @@ def _log_llm_exchange(
         "usage": usage,
         "parsed": parsed_repr,
     }
+    # The exact input prompt the agent was given (system + user + ReAct turns),
+    # recorded verbatim for offline inspection. Coerced to a plain list of
+    # {role, content} so json.dumps never fails on an exotic message object.
+    if messages is not None:
+        try:
+            record["prompt"] = [
+                {"role": m.get("role"), "content": m.get("content")}
+                if isinstance(m, dict) else {"role": None, "content": str(m)}
+                for m in messages
+            ]
+        except TypeError:
+            record["prompt"] = repr(messages)
 
     os.makedirs(os.path.dirname(os.path.abspath(resolved)), exist_ok=True)
     with open(resolved, "a", encoding="utf-8") as fh:

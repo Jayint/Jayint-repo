@@ -176,7 +176,11 @@ class V3BuildAgent:
                 self.client, self.model, messages, temperature=0, stop=["Observation:"])
             if self.on_usage:
                 self.on_usage(usage)
-            log_llm_exchange("build_agent_propose", raw, parsed={"turn": _turn})
+            # Log the RESPONSE and the exact INPUT prompt (messages) the agent
+            # was given this turn — `messages` here is the prompt as SENT (it is
+            # only mutated later, after the ReAct observation is appended).
+            log_llm_exchange("build_agent_propose", raw, parsed={"turn": _turn},
+                             messages=messages)
 
             if "Final Patch" in text or extract_json_object(text) is not None:
                 proposal, err = _parse(text)
