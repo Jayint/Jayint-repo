@@ -756,9 +756,7 @@ def run_v3(
             return
         from python_deps.depgraph.schema import NodeType, State
         from src.envstate.world_model import Fact
-        from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
-        # Make a bare `python` resolve to python3 before any check runs.
-        ensure_python_shim(sandbox_execute)
+        from src.envstate.depgraph_live import certify_refresh
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Certify still runs (populating the frontier); the fresh-replay emit
         # below is the SOLE executor (Phase 4) — LLM turns are counted only

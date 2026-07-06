@@ -202,7 +202,12 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
     if graph is None:
         graph = DepGraph()
     graph = populate_setup_commands(graph)  # single call site: derive commands, then emit
-    parts: list[str] = _manifest(graph, manual_blocks) + ["set -Eeuo pipefail"]
+    parts: list[str] = _manifest(graph, manual_blocks) + [
+        "set -Eeuo pipefail",
+        "",
+        "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.",
+        'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python',
+    ]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
     for b in manual_blocks:

@@ -347,6 +347,9 @@ def test_golden_snapshot_byte_for_byte():
         "#\n"
         "set -Eeuo pipefail\n"
         "\n"
+        "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.\n"
+        'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python\n'
+        "\n"
         "# ==================== SYSTEM ====================\n"
         "export DEBIAN_FRONTEND=noninteractive\n"
         "apt-get update\n"
@@ -377,6 +380,21 @@ def test_golden_snapshot_byte_for_byte():
         "#     (no command — propose a governed block to satisfy this)\n"
     )
     assert normalized == expected
+
+
+def test_python_shim_baked_after_pipefail():
+    out = render_build_script(_rich_graph())
+    shim = 'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python'
+    assert out.count(shim) == 1
+    assert out.index("set -Eeuo pipefail") < out.index(shim)
+    # shim precedes the first section header (runs before any node install/check)
+    assert out.index(shim) < out.index("# ====================")
+
+
+def test_python_shim_present_for_empty_graph():
+    for g in (None, DepGraph()):
+        out = render_build_script(g)
+        assert 'ln -sf "$(command -v python3)" /usr/local/bin/python' in out
 
 
 def test_runtime_and_interpreter_precede_pip():
