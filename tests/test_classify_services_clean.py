@@ -145,12 +145,12 @@ def test_per_service_translate_error_is_isolated_not_batch_fatal(tmp_path, monke
     assert out.get("config:CACHE_URL") is not None   # OTHER nodes survive the per-service error
 
 
-def test_service_nodes_skips_app_build_services_no_client(tmp_path):
-    # Real-repo shape: app build-services (web/worker — a `build:`, no `image:`) sit
-    # alongside backing services (postgres/redis — pulled images). With client=None
-    # the build-services must be skipped BEFORE the exotic LLM path (which would crash
-    # on a None client and, unchecked, drop every service), while the known-kind
-    # backing services still produce Service nodes deterministically.
+def test_service_nodes_skips_app_build_services_no_client(tmp_path, monkeypatch):
+    # Real-repo shape: app services (web/worker = `build:`-only; frontend = `build:`
+    # PLUS an `image:` tag) alongside backing services (postgres/redis = pulled
+    # images). The app services must be skipped BEFORE translate_service (proven by
+    # the spy) so they never reach the exotic LLM path, while the known-kind backing
+    # services still produce Service nodes deterministically with client=None.
     (tmp_path / "compose.yaml").write_text(
         "services:\n"
         "  web:\n"
@@ -158,6 +158,9 @@ def test_service_nodes_skips_app_build_services_no_client(tmp_path):
         "  worker:\n"
         "    build: .\n"
         "    command: celery worker\n"
+        "  frontend:\n"                       # build: + image: tag -> still the app
+        "    build: ./frontend\n"
+        "    image: 'myapp/frontend:latest'\n"
         "  postgres:\n"
         "    image: 'postgres:16'\n"
         "    environment:\n"
@@ -166,12 +169,23 @@ def test_service_nodes_skips_app_build_services_no_client(tmp_path):
         "  redis:\n"
         "    image: 'redis:7'\n"
     )
+    translated: list[str] = []
+    _real = csc.translate_service
+
+    def _spy(client, model, spec, arch):
+        translated.append(spec.service_name)
+        return _real(client, model, spec, arch)
+    monkeypatch.setattr(csc, "translate_service", _spy)
+
     Hit = namedtuple("Hit", "evidence_id kind name")
     hit = Hit("ev-svc", "import", "psycopg2")
     nodes = csc._service_nodes(str(tmp_path), _ARCH, None, "", [hit], [])
     names = {n.name for n in nodes}
-    assert {"postgres", "redis"} <= names                 # backing services -> nodes (no client)
-    assert "web" not in names and "worker" not in names   # app build-services skipped, no crash
+
+    assert {"postgres", "redis"} <= names                  # backing services -> nodes (no client)
+    assert names.isdisjoint({"web", "worker", "frontend"})  # all app services dropped
+    # proven skipped BEFORE translate (not merely caught by the per-service except after):
+    assert set(translated) == {"postgres", "redis"}         # incl. the build+image app never translated
 
 
 def test_never_crashes(tmp_path, monkeypatch):

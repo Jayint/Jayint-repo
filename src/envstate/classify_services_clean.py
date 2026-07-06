@@ -82,10 +82,13 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
     service. Two guards keep the app itself and one bad service from poisoning the
     whole batch (real-repo e2e finding 2026-07-06):
 
-    - A service with no recognized kind AND no pulled ``image:`` is the application
-      under test (a ``build:``-only compose service like web/worker/js/css), not a
-      dependency to provision. Skip it BEFORE ``translate_service`` — routing it to
-      the exotic LLM branch wastes a call and, with no client, raises.
+    - A service with no recognized kind that is either ``build:``-based (locally
+      built — the application under test, e.g. web/worker/js/css) or has no pulled
+      ``image:`` at all is NOT a dependency to provision. Skip it BEFORE
+      ``translate_service`` — routing it to the exotic LLM branch wastes a call
+      (and, with no client, raises). ``build:`` is checked explicitly because the
+      common ``build:`` + ``image:`` tag-a-local-build pattern still carries an
+      image, so an image alone cannot distinguish the app from a pulled dependency.
     - Each service is translated in isolation: one failure (an exotic image with no
       client available, an LLM/parse error) skips only THAT service instead of
       unwinding the batch and discarding the others that translated cleanly.
@@ -96,8 +99,12 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
         node_id = f"service:{spec.service_name}"
         if node_id in seen_ids:
             continue
-        # The app itself (build-only, unrecognized) — never a backing dependency.
-        if spec.kind is None and not spec.image:
+        # The app itself (locally built or image-less, unrecognized) — never a
+        # backing dependency. Trace the skip so a future zero-services surprise is
+        # diagnosable (the original silent-drop incident had no such trace).
+        if spec.kind is None and (spec.build or not spec.image):
+            logger.debug("skipping non-provisionable service %s (kind=None, build=%s, image=%r)",
+                         spec.service_name, spec.build, spec.image)
             continue
         try:
             res = translate_service(client, model, spec, arch)

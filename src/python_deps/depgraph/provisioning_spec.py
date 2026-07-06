@@ -27,6 +27,7 @@ class ProvisioningSpec:
     init_files: tuple = ()
     probe: str | None = None
     port: int | None = None
+    build: bool = False   # compose `build:` present -> locally-built (the app), not a pulled dep
 
 
 _ENV_KEYS = {
@@ -90,7 +91,8 @@ def parse_provisioning_spec(name, entry):
     image = entry.get("image", "")
     kind = _kind_of(name, image)
     return ProvisioningSpec(name, kind, image, _params_from_env(kind, entry),
-                            _init_files(entry), _probe(entry), _port(entry))
+                            _init_files(entry), _probe(entry), _port(entry),
+                            build=bool(entry.get("build")))
 
 
 def _compose_paths(repo):
