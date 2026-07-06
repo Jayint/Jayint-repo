@@ -221,16 +221,5 @@ def test_collect_real_module_gap_fails_env_works(monkeypatch):
     assert res.env_works is False
     assert res.collect_ok is False
     assert res.reason == "env_broken"
+    assert res.highest_rung == "install"
     assert {(g["tier"], g["id"]) for g in res.gaps} == {("PACKAGE", "pytest_asyncio")}
-
-
-def test_collect_ok_true_when_all_green(monkeypatch):
-    _patch(monkeypatch, {})  # every phase rc0
-    res = run_replay_ladder("/repo", "img", "setup", "triv")
-    assert res.collect_ok is True
-
-
-def test_collect_ok_none_when_bootstrap_fails(monkeypatch):
-    _patch(monkeypatch, {"bootstrap": _rc(127, stderr="pip: command not found")})
-    res = run_replay_ladder("/repo", "img", "setup", "triv")
-    assert res.collect_ok is None

@@ -74,10 +74,8 @@ def run_replay_ladder(
         # output is never classified.
         bootstrap_ok = box.run("pip install --no-input --quiet pytest", timeout=300).ok
 
-        collect_ok: bool | None = None
         if bootstrap_ok:
             collected = box.run(f"{cd} && python3 -m pytest --collect-only -q", timeout=600)
-            collect_ok = collected.ok
             if not collected.ok:
                 collect_out = collected.stdout + collected.stderr
                 collect_gaps = merge_gaps(

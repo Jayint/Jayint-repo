@@ -56,7 +56,9 @@ def classify_pytest_result(returncode: int) -> tuple[bool, bool, str | None]:
 
 
 def env_works_passed(ladder: LadderResult) -> bool:
-    """The HEADLINE gate: setup.sh installed clean AND the env imports + collects."""
+    """The HEADLINE gate: setup.sh installed clean AND the repo imports. Test
+    COLLECTION is a separate diagnostic (`collect_ok`), NOT part of this gate — a
+    pytest-version/config incompatibility must not sink the headline."""
     return ladder.install_ok and ladder.env_works
 
 
