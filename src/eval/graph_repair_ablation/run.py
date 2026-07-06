@@ -239,3 +239,67 @@ def run_one(inj: Injection, arm: str, *, agent_client, model: str, smoke_root,
         "injection_id": inj.injection_id, "arm": arm, "failure_class": inj.failure_class,
         "trace": trace, "score": score.__dict__, "install_failed": True,
     }
+
+
+def aggregate(results: list[dict]) -> dict:
+    """Group `run_one`-shaped result dicts by `(failure_class, arm)` -> mean
+    `localized_at_1`, mean `localized_at_3`, mean `first_correct_rank` (over
+    finite ranks only; `None` if every rank in the cell is `None`), mean
+    `wasted_rate`, and a `mislocalized` count. This is the per-cell surface a
+    C1-vs-C0 comparison reads off directly (`agg[(cls, "C1")]["localized_at_1"]
+    - agg[(cls, "C0")]["localized_at_1"]`).
+
+    Entries whose `score` is falsy (`run_one`'s `install_failed=False` guard
+    returns `score=None` -- a corpus/injection bug already logged loudly at the
+    source, never a real data point) are excluded from every cell, not counted
+    as zero -- silently averaging them in would understate the effect for a
+    reason that has nothing to do with either arm."""
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for r in results:
+        score = r.get("score")
+        if not score:
+            continue
+        groups.setdefault((r["failure_class"], r["arm"]), []).append(score)
+
+    agg: dict[tuple[str, str], dict] = {}
+    for key, scores in groups.items():
+        n = len(scores)
+        ranks = [s["first_correct_rank"] for s in scores if s.get("first_correct_rank") is not None]
+        agg[key] = {
+            "n": n,
+            "localized_at_1": sum(1 for s in scores if s["localized_at_1"]) / n,
+            "localized_at_3": sum(1 for s in scores if s["localized_at_3"]) / n,
+            "first_correct_rank": (sum(ranks) / len(ranks)) if ranks else None,
+            "wasted_rate": sum(s["wasted_rate"] for s in scores) / n,
+            "mislocalized": sum(1 for s in scores if s["mislocalized"]),
+        }
+    return agg
+
+
+def render_report_md(agg: dict) -> str:
+    """Per-failure-class x per-arm markdown table -- the C1-vs-C0 comparison
+    readable at a glance, one row per (class, arm) cell."""
+    lines = ["# Graph-Repair-Ablation Report", ""]
+    if not agg:
+        lines.append("(no data)")
+        return "\n".join(lines) + "\n"
+
+    lines += [
+        "| Failure Class | Arm | N | localized@1 | localized@3 | "
+        "first_correct_rank | wasted_rate | mislocalized |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    classes = sorted({cls for cls, _arm in agg})
+    for cls in classes:
+        cell_arms = {a for c, a in agg if c == cls}
+        ordered_arms = [a for a in ARMS if a in cell_arms] + sorted(cell_arms - set(ARMS))
+        for arm in ordered_arms:
+            cell = agg[(cls, arm)]
+            rank = f"{cell['first_correct_rank']:.2f}" if cell["first_correct_rank"] is not None else "n/a"
+            lines.append(
+                f"| {cls} | {arm} | {cell['n']} | {cell['localized_at_1']:.0%} | "
+                f"{cell['localized_at_3']:.0%} | {rank} | {cell['wasted_rate']:.2f} | "
+                f"{cell['mislocalized']} |"
+            )
+    lines.append("")
+    return "\n".join(lines)
