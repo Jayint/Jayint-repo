@@ -793,7 +793,16 @@ def run_v3(
         from python_deps.depgraph.schema import NodeType, State
         from src.envstate.world_model import Fact
         from src.envstate.depgraph_live import certify_refresh
+        from python_deps.depgraph.emit import partition
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
+        # Snapshot: was the graph already fully certified BEFORE this cycle's
+        # fresh replay? (Same predicate as the provisional installability
+        # gate, gates.py:97-99.) If so, a clean replay reproduces the
+        # identical container this certify just certified against, so the
+        # post-emit re-certify below is a redundant no-op (design:
+        # testgate-certify.md §3).
+        _pre = partition(graph)
+        _pre_fully_certified = not (_pre.emittable + _pre.frontier)
         # Certify still runs (populating the frontier); the fresh-replay emit
         # below is the SOLE executor (Phase 4) — LLM turns are counted only
         # through run_structured_repair (_repair_turns), never global_step,
@@ -813,12 +822,18 @@ def run_v3(
             graph = _repair_or_route(
                 graph, _failed_node, _bundle, cycle,
                 target_hint=_failed_node, cap_failed_id=True)
-        # Final re-certify after the emit: the start-of-cycle certify (above) ran
-        # BEFORE any install this cycle. A node whose install completes during
-        # THIS cycle's emit/repair must be reflected before the scheduler's
-        # done-decision — otherwise it stays MISSING because the next cycle's
-        # certify never runs once the done-gate finalizes the run. Idempotent.
-        graph = certify_refresh(graph, exec_readonly, cycle)
+        # Post-emit re-certify — only when the emit could have changed a
+        # node's certification versus the start-of-cycle certify above: the
+        # fresh install failed / a reciped node stayed unsatisfied
+        # (_failed_node is not None), OR there was installable work
+        # outstanding at the start of the cycle that this cycle's fresh
+        # reinstall may have satisfied (not _pre_fully_certified). When the
+        # graph was already fully certified AND the replay was clean, the
+        # reinstall reproduces the exact container already certified against,
+        # so re-certifying here would be a redundant probe sweep. Idempotent
+        # when it does run.
+        if _failed_node is not None or not _pre_fully_certified:
+            graph = certify_refresh(graph, exec_readonly, cycle)
         # Fold emit-certified packages into installed so the synthesizer's closure
         # recipe includes them even when the planner finalizes immediately.
         sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
