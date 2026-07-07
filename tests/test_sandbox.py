@@ -684,6 +684,10 @@ class SandboxCacheVolumeTests(unittest.TestCase):
             {"bind": "/root/.cache/pip", "mode": "rw"},
         )
         self.assertEqual(
+            sandbox.volumes["jayint_uv_cache"],
+            {"bind": "/root/.cache/uv", "mode": "rw"},
+        )
+        self.assertEqual(
             sandbox.volumes["jayint_apt_cache"],
             {"bind": "/var/cache/apt/archives", "mode": "rw"},
         )

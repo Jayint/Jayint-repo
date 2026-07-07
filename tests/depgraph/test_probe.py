@@ -114,6 +114,9 @@ def test_install_cmd_uses_uv():
 
     cmd = _install_cmd("numpy==2.2.6 scipy==1.15.3")
     assert cmd.startswith("uv pip install")
+    # --system is the guard against installing into the wrong interpreter/venv
+    # (uv defaults to a project venv otherwise); dropping it must fail this test.
+    assert "--system" in cmd
     assert "numpy==2.2.6 scipy==1.15.3" in cmd
 
 
@@ -192,11 +195,17 @@ def test_install_closure_drops_build_failing_package_and_reinstalls_survivors(
 
     out = install_closure(graph, fake_executor)
 
-    install_cmds = [c for c in fake_executor.calls if "pip install" in c]
-    assert len(install_cmds) == 2  # bulk (failed) + survivor reinstall
+    install_idxs = [i for i, c in enumerate(fake_executor.calls) if "pip install" in c]
+    assert len(install_idxs) == 2  # bulk (failed) + survivor reinstall
+    install_cmds = [fake_executor.calls[i] for i in install_idxs]
     retry = install_cmds[1]
     assert "numpy==2.0.0" in retry and "opencv-python==4.9.0.80" in retry
     assert "picamera" not in retry
+    # the survivor reinstall must keep the same generous timeout as the bulk
+    # install, not silently fall back to the executor's short default — a cold
+    # multi-package retry can be just as slow as the first attempt.
+    from python_deps.depgraph.probe import INSTALL_TIMEOUT
+    assert fake_executor.timeouts[install_idxs[1]] == INSTALL_TIMEOUT
     # survivors ended up installed; the build-failing package did not
     assert any(a.outcome == "succeeded" for a in out.get(opencv.id).attempts)
     assert any(a.outcome == "succeeded" for a in out.get(numpy.id).attempts)
