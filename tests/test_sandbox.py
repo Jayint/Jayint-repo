@@ -521,6 +521,17 @@ class SandboxAptBootstrapTests(unittest.TestCase):
         self.assertEqual(sandbox.container.calls[0]["command"][0:2], ["/bin/bash", "-lc"])
         self.assertIn("99jayint-retries", sandbox.container.calls[0]["command"][2])
 
+    def test_bootstrap_uv_executes_once_on_container(self):
+        sandbox = self._make_sandbox()
+
+        sandbox._bootstrap_uv_if_supported()
+
+        self.assertEqual(len(sandbox.container.calls), 1)
+        self.assertEqual(
+            sandbox.container.calls[0]["command"],
+            ["/bin/bash", "-lc", "python -m pip install -q uv"],
+        )
+
     def test_resolve_apt_mirror_url_prefers_explicit_value(self):
         sandbox = Sandbox.__new__(Sandbox)
 
@@ -542,6 +553,21 @@ class SandboxAptBootstrapTests(unittest.TestCase):
 
         self.assertIs(sandbox.client, fake_client)
         mock_from_env.assert_called_once_with(timeout=600)
+
+    @mock.patch("src.sandbox.docker.from_env")
+    def test_setup_initial_container_bootstraps_uv(self, mock_from_env):
+        fake_container = FakeContainer()
+        fake_client = FakeDockerClient(containers=[fake_container])
+        mock_from_env.return_value = fake_client
+
+        Sandbox(base_image="ubuntu:22.04", seed_dir=None)
+
+        uv_calls = [
+            call
+            for call in fake_container.calls
+            if call["command"] == ["/bin/bash", "-lc", "python -m pip install -q uv"]
+        ]
+        self.assertEqual(len(uv_calls), 1)
 
     def test_extra_hosts_added_when_arm_on(self):
         import os

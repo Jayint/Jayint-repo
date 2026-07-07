@@ -121,6 +121,7 @@ class Sandbox:
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
         self._bootstrap_apt_if_supported()
+        self._bootstrap_uv_if_supported()
         if self.seed_dir:
             self._seed_workdir_from_host()
         # Always keep a baseline snapshot so the first failed command can roll back
@@ -161,6 +162,31 @@ class Sandbox:
         print(
             f"[Apt Bootstrap Warning] Failed to prepare apt mirror/retry settings (exit {exit_code})."
         )
+        if output.strip():
+            print(output)
+
+    def _bootstrap_uv_if_supported(self) -> None:
+        """Install `uv` into the construction container at boot.
+
+        Stock base images (e.g. python:3.x-slim) don't ship `uv`, but
+        install_closure shells out to `uv pip install --system`. Mirrors
+        _bootstrap_apt_if_supported: best-effort, never fatal here — a real
+        absence of uv will surface later as a clear failure at install time.
+        """
+        if not self.container:
+            return
+
+        exec_result = self.container.exec_run(
+            ["/bin/bash", "-lc", "python -m pip install -q uv"],
+            workdir=self.workdir,
+        )
+        exit_code = exec_result.exit_code
+        output = exec_result.output.decode("utf-8", errors="replace")
+        if exit_code == 0:
+            print("[uv Bootstrap] uv installed.")
+            return
+
+        print(f"[uv Bootstrap Warning] Failed to install uv (exit {exit_code}).")
         if output.strip():
             print(output)
 
@@ -416,6 +442,7 @@ class Sandbox:
         )
         self.container.exec_run(f"mkdir -p {self.workdir}")
         self._bootstrap_apt_if_supported()
+        self._bootstrap_uv_if_supported()
         if self.seed_dir:
             self._seed_workdir_from_host()
         self.current_image = self.base_image
