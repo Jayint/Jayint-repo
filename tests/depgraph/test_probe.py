@@ -1174,3 +1174,63 @@ def test_import_probe_unknown_soname_uses_apt_file_fallback(fake_executor, make_
     assert lib.type is NodeType.SYSTEM_LIB
     assert lib.state is State.MISSING
     assert lib.fix_candidates == ("apt:libwidget3",)
+
+
+# --------------------------------------------------------------------------- #
+# pip<->uv equivalence: build-failure attribution/survivor-drop must be       #
+# installer-independent (uv 0.11+ frames wheel-build failures differently)    #
+# --------------------------------------------------------------------------- #
+# Real uv 0.11 build-failure stderr (captured from python:3.11-slim), trimmed:
+_UV_FAIL_STDERR = (
+    "Using Python 3.11.15 environment at: /usr/local\n"
+    "Resolved 1 package in 1ms\n"
+    "   Building psutil==5.9.8\n"
+    "  × Failed to build `psutil==5.9.8`\n"
+    "  ├─▶ The build backend returned an error\n"
+    "      error: command 'gcc' failed: No such file or directory\n"
+)
+# Equivalent pip stderr for the same failure:
+_PIP_FAIL_STDERR = (
+    "  Building wheel for psutil (setup.py): started\n"
+    "  Building wheel for psutil (setup.py): finished with status 'error'\n"
+    "  ERROR: Failed building wheel for psutil\n"
+    "      error: command 'gcc' failed: No such file or directory\n"
+)
+
+
+def test_failed_build_packages_parses_uv_format():
+    from python_deps.depgraph.probe import _failed_build_packages
+
+    assert _failed_build_packages(_UV_FAIL_STDERR) == {"psutil"}
+
+
+def test_failed_build_packages_uv_matches_pip():
+    # The equivalence invariant: same underlying failure, same attributed name,
+    # regardless of which installer framed it.
+    from python_deps.depgraph.probe import _failed_build_packages
+
+    assert _failed_build_packages(_UV_FAIL_STDERR) == {"psutil"}
+    assert _failed_build_packages(_UV_FAIL_STDERR) == _failed_build_packages(
+        _PIP_FAIL_STDERR
+    )
+
+
+def test_build_owners_parses_uv_format():
+    from python_deps.depgraph.probe import _build_owners
+
+    packages = [_package("psutil", "5.9.8")]
+    expected = {packages[0].id}
+    assert _build_owners(packages, _UV_FAIL_STDERR) == expected
+    assert _build_owners(packages, _UV_FAIL_STDERR) == _build_owners(
+        packages, _PIP_FAIL_STDERR
+    )
+
+
+def test_uv_building_re_matches_uv_line_only():
+    # Guard against cross-contaminating the two installers' parsing: the uv
+    # pattern must match uv's own framing and must NOT match pip's "Building
+    # wheel for X" (no trailing "==version").
+    from python_deps.depgraph.probe import _UV_BUILDING_RE
+
+    assert _UV_BUILDING_RE.search("   Building psutil==5.9.8")
+    assert not _UV_BUILDING_RE.search("Building wheel for psutil")

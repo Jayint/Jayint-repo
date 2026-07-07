@@ -79,6 +79,13 @@ _FAILED_TO_BUILD_RE = re.compile(
     r"Failed to build installable wheels for some pyproject\.toml based projects "
     r"\(([A-Za-z0-9_.,\s-]+)\)"
 )
+# uv (0.11+) build-failure markers. uv does NOT use pip's "Building wheel for X" /
+# "Failed building wheel for X"; it prints "Building <name>==<version>" and
+# "× Failed to build `<name>==<version>`". Parse both installers so attribution +
+# survivor-drop are installer-independent (extract_needs already is — it keys off
+# the forwarded compiler/linker text, not the pip/uv framing).
+_UV_BUILDING_RE = re.compile(r"(?m)^\s*Building ([A-Za-z0-9_.][A-Za-z0-9_.-]*)==")
+_UV_FAILED_RE = re.compile(r"Failed to build `([A-Za-z0-9_.][A-Za-z0-9_.-]*)==")
 
 
 def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
@@ -142,6 +149,8 @@ def _failed_build_packages(stderr: str) -> set[str]:
     """
     names: set[str] = set()
     for match in _FAILED_WHEEL_RE.finditer(stderr):
+        names.add(match.group(1))
+    for match in _UV_FAILED_RE.finditer(stderr):  # NEW: uv format
         names.add(match.group(1))
     for pattern in (_COULD_NOT_BUILD_RE, _FAILED_TO_BUILD_RE):
         for match in pattern.finditer(stderr):
@@ -523,15 +532,19 @@ def _edge_sources(target: dict) -> set[str]:
 def _build_owners(packages: list[Node], stderr: str) -> set[str]:
     """Packages a build-time gap is attributable to.
 
-    Prefer the distribution named in a "Building wheel for X" line; otherwise
-    fall back to the native-risk packages present in the closure (the gap came
-    from *some* compiled build, and those are the ones that compile).
+    Prefer the distribution named in a "Building wheel for X" (pip) or
+    "Building X==version" (uv) line; otherwise fall back to the native-risk
+    packages present in the closure (the gap came from *some* compiled build,
+    and those are the ones that compile). Matching is on the PEP 503
+    canonical name (uv emits the canonical name; pip's "Building wheel for X"
+    already is the distribution name) so both installers attribute the same.
     """
-    by_name = {p.name: p.id for p in packages}
+    by_name = {normalize_package_name(p.name): p.id for p in packages}
     owners = {
-        by_name[m.group(1)]
-        for m in _WHEEL_FOR_RE.finditer(stderr)
-        if m.group(1) in by_name
+        by_name[normalize_package_name(m.group(1))]
+        for rx in (_WHEEL_FOR_RE, _UV_BUILDING_RE)
+        for m in rx.finditer(stderr)
+        if normalize_package_name(m.group(1)) in by_name
     }
     if owners:
         return owners
