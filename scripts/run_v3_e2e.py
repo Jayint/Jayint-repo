@@ -109,6 +109,28 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _resolve_llm_endpoint(model: str) -> tuple[str | None, str | None]:
+    """Pick the ``(api_key, base_url)`` for *model*, preferring the provider that
+    matches the model slug.
+
+    A ``minimax-*``/``abab-*`` slug (or ``LLM_API_PROVIDER=minimax``) routes to
+    MINIMAX_API_KEY/MINIMAX_API_BASE **even when an OPENROUTER_API_KEY is also
+    present** — otherwise the old first-non-empty fallback would send a MiniMax
+    run to OpenRouter (wrong provider, and the ``minimaxi`` thinking-off gate
+    would never fire). Mirrors ``libkit.config.get_llm_config``'s MiniMax-first
+    selection order. Every other model keeps the original OpenRouter -> MiniMax
+    -> OpenAI fallback.
+    """
+    provider = os.getenv("LLM_API_PROVIDER", "").strip().lower()
+    if provider == "minimax" or model.lower().startswith(("minimax", "abab")):
+        return os.getenv("MINIMAX_API_KEY"), os.getenv("MINIMAX_API_BASE")
+    api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
+               or os.getenv("OPENAI_API_KEY"))
+    base_url = (os.getenv("OPENROUTER_API_BASE") or os.getenv("MINIMAX_API_BASE")
+                or os.getenv("OPENAI_API_BASE"))
+    return api_key, base_url
+
+
 def _target_arch(platform_override: str | None) -> dict:
     """Map a docker --platform string (or None -> host default) to the
     {dpkg, uname} arch dict translate_service's exotic path fills into
@@ -122,13 +144,14 @@ def _target_arch(platform_override: str | None) -> dict:
 
 
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
-    # ── 1. LLM client (OAI-compatible; OpenRouter -> MiniMax -> OpenAI) ───────
-    api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
-               or os.getenv("OPENAI_API_KEY"))
-    base_url = (os.getenv("OPENROUTER_API_BASE") or os.getenv("MINIMAX_API_BASE")
-                or os.getenv("OPENAI_API_BASE"))
+    # ── 1. LLM client (OAI-compatible; provider chosen to match the model slug,
+    #       else OpenRouter -> MiniMax -> OpenAI fallback) ───────────────────────
+    model = args.model or os.getenv("LLM_MODEL", "gpt-4o")
+    api_key, base_url = _resolve_llm_endpoint(model)
     if not api_key:
-        print("ERROR: set OPENROUTER_API_KEY / MINIMAX_API_KEY / OPENAI_API_KEY.",
+        print(f"ERROR: no API key for model {model!r} — set OPENROUTER_API_KEY / "
+              "MINIMAX_API_KEY / OPENAI_API_KEY (a minimax-* model needs "
+              "MINIMAX_API_KEY + MINIMAX_API_BASE).",
               file=sys.stderr)
         return 2
     client = OpenAI(
@@ -136,7 +159,6 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         timeout=Timeout(connect=10.0, read=float(os.getenv("LLM_READ_TIMEOUT", "120")),
                         write=30.0, pool=10.0),
     )
-    model = args.model or os.getenv("LLM_MODEL", "gpt-4o")
 
     # ── 1.5 SELECT: pick + pin the base image (auto) or honor an explicit tag ─
     choice = choose_base_image(

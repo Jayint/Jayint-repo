@@ -31,6 +31,52 @@ _MAX_TRANSPORT_ATTEMPTS = int(os.getenv("LLM_MAX_TRANSPORT_RETRIES", "4"))
 _TRANSPORT_BASE_DELAY = float(os.getenv("LLM_TRANSPORT_BASE_DELAY", "2.0"))
 _TRANSPORT_MAX_DELAY = float(os.getenv("LLM_TRANSPORT_MAX_DELAY", "30.0"))
 
+# ── MiniMax thinking-mode control ────────────────────────────────────────────
+# MiniMax-M2.x reasoning is always-on and non-tunable; M3 lets it be disabled via
+# ``extra_body={"thinking": {"type": "disabled"}}``. The v3 agent runs M3 with
+# thinking OFF, so every MiniMax-bound call gets this block injected centrally.
+# The endpoint (base_url contains "minimaxi") is the gate — same as the RAT
+# baseline — so no non-MiniMax provider ever receives a ``thinking`` block, and a
+# ``disabled`` sent to an M2.x endpoint is simply ignored server-side (harmless,
+# so no model-id check is needed, matching the baseline's guard).
+_MINIMAX_THINKING_MODES = frozenset({"disabled", "adaptive", "enabled"})
+
+
+def _minimax_thinking_mode() -> Optional[str]:
+    """Resolve the MiniMax thinking mode from ``MINIMAX_THINKING``.
+
+    The v3 agent defaults to ``"disabled"`` (thinking OFF) — this is the one
+    intentional divergence from the RAT baseline, whose default is unset/leave
+    the model default. ``adaptive``/``enabled`` turn it back on; any other value
+    yields ``None`` = leave the model default untouched (send no ``thinking``).
+    """
+    mode = os.getenv("MINIMAX_THINKING", "disabled").strip().lower()
+    return mode if mode in _MINIMAX_THINKING_MODES else None
+
+
+def apply_minimax_thinking(client: Any, kwargs: dict) -> dict:
+    """Return a copy of *kwargs* with MiniMax's thinking-mode ``extra_body``
+    merged in when *client* targets MiniMax (``base_url`` contains ``"minimaxi"``);
+    otherwise return *kwargs* unchanged.
+
+    Keyed on the endpoint (read off the client) like the RAT baseline, so a
+    provider-pin ``extra_body`` (e.g. OpenRouter's) never leaks a ``thinking``
+    block to a non-MiniMax provider. An existing ``extra_body`` and an existing
+    ``thinking`` key are preserved (``setdefault``); the caller's dict is never
+    mutated.
+    """
+    base_url = str(getattr(client, "base_url", "") or "")
+    if "minimaxi" not in base_url:
+        return kwargs
+    mode = _minimax_thinking_mode()
+    if mode is None:
+        return kwargs
+    merged = dict(kwargs)
+    extra_body = dict(merged.get("extra_body") or {})
+    extra_body.setdefault("thinking", {"type": mode})
+    merged["extra_body"] = extra_body
+    return merged
+
 
 def strip_reasoning_markup(text: str | None) -> str:
     """Remove ``<think>...</think>`` reasoning markup leaked into message content.
@@ -80,6 +126,32 @@ def strip_reasoning_markup(text: str | None) -> str:
     return cleaned.strip()
 
 
+_MINIMAX_TOOLCALL_MARKER = "<minimax:tool_call>"
+_MINIMAX_INVOKE_OPEN = re.compile(r'<invoke\s+name="[^"]*"\s*>')
+
+
+def strip_minimax_toolcall(text: str | None) -> str | None:
+    """Strip MiniMax's native ``<minimax:tool_call><invoke name="...">...`` XML
+    wrapper, keeping the inner payload so a downstream JSON extractor sees clean
+    content.
+
+    Unlike the RAT baseline (which rewrites the call into a ```bash block for its
+    bash-block parser), the v3 agent parses JSON, so this only REMOVES the
+    wrapper/``<invoke>`` tags and leaves the inner text (a JSON patch, prose, …)
+    intact for :func:`python_deps...`/``extract_json_object`` to pick up. No-op —
+    returns the input unchanged — when no ``<minimax:tool_call>`` marker is
+    present, so ordinary providers (deepseek, OpenRouter) pass through
+    byte-identical. ``<think>`` markup is handled separately by
+    :func:`strip_reasoning_markup`.
+    """
+    if not text or _MINIMAX_TOOLCALL_MARKER not in text:
+        return text
+    cleaned = _MINIMAX_INVOKE_OPEN.sub("", text)
+    cleaned = cleaned.replace("</invoke>", "")
+    cleaned = cleaned.replace(_MINIMAX_TOOLCALL_MARKER, "").replace("</minimax:tool_call>", "")
+    return cleaned
+
+
 def response_text(response: Any) -> str:
     """Return the assistant message text from an OpenAI-compatible chat completion.
 
@@ -104,13 +176,13 @@ def response_text(response: Any) -> str:
         return ""
 
     content = getattr(message, "content", None)
-    clean = strip_reasoning_markup(content)
+    clean = strip_reasoning_markup(strip_minimax_toolcall(content))
     if clean:
         return clean
 
     reasoning = getattr(message, "reasoning", None)
     if reasoning:
-        return strip_reasoning_markup(reasoning) or reasoning
+        return strip_reasoning_markup(strip_minimax_toolcall(reasoning)) or reasoning
 
     extra = getattr(message, "model_extra", None) or {}
     return extra.get("reasoning") or ""
@@ -144,6 +216,10 @@ def _create_with_backoff(client, model, messages, kwargs, *, attempts, base, cap
     transport attempts are exhausted. Re-raises non-retryable (fatal) errors
     immediately so real bugs (bad key, malformed request) surface."""
     attempts = max(1, attempts)
+    # Centralize MiniMax M3 thinking-off here so EVERY complete_with_retry caller
+    # (repair proposer, service/config classifier, base-image judge, …) gets it
+    # automatically; no-op for non-MiniMax clients (byte-identical passthrough).
+    kwargs = apply_minimax_thinking(client, kwargs)
     for n in range(attempts):
         try:
             return client.chat.completions.create(model=model, messages=messages, **kwargs)

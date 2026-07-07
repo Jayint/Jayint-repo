@@ -9,6 +9,7 @@ from openai import OpenAI
 import json
 
 from src.constants import DEFAULT_LLM_MODEL
+from src.envstate.llm_response import apply_minimax_thinking
 from src.language_handlers import (
     LanguageHandler, 
     get_language_handler, 
@@ -205,6 +206,14 @@ class ImageSelector:
             f.write(structure)
             f.write("\n------ END REPOSITORY STRUCTURE ------\n")
 
+    def _create(self, **kwargs):
+        """Route every base-image-selector LLM call through the shared MiniMax
+        thinking-off injection (no-op for other providers), so the selector stays
+        consistent with the rest of the v3 LLM path — see
+        ``llm_response.apply_minimax_thinking``. Base-image selection bypasses
+        ``complete_with_retry``, so it needs this thin wrapper to opt in."""
+        return self.client.chat.completions.create(**apply_minimax_thinking(self.client, kwargs))
+
     def _record_usage(self, response):
         usage = getattr(response, "usage", None)
         if not usage:
@@ -224,7 +233,7 @@ class ImageSelector:
             available_languages=", ".join(available_languages)
         )
         try:
-            response = self.client.chat.completions.create(
+            response = self._create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0
@@ -385,7 +394,7 @@ class ImageSelector:
 
         prompt = LOCATE_FILES_PROMPT.format(structure=truncated_structure)
         
-        response = self.client.chat.completions.create(
+        response = self._create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0
@@ -441,7 +450,7 @@ class ImageSelector:
             prompt = DETERMINE_RELEVANCE_PROMPT.format(file=file_info)
             
             try:
-                response = self.client.chat.completions.create(
+                response = self._create(
                     model=self.model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0
@@ -537,7 +546,7 @@ class ImageSelector:
         messages = [{"role": "user", "content": prompt}]
         
         for attempt in range(max_retries):
-            response = self.client.chat.completions.create(
+            response = self._create(
                 model=self.model,
                 messages=messages,
                 temperature=0
