@@ -74,6 +74,7 @@ def next_decision(
     attempt_cap: int = 3,
     *,
     allow_services: bool | None = None,
+    residual_ids: frozenset[str] = frozenset(),
 ) -> tuple[PlannerDecision, str | None]:
     """Decide the next action from the certified graph (no LLM).
 
@@ -89,7 +90,11 @@ def next_decision(
     if allow_services is None:
         allow_services = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
     frontier = scheduler_frontier(graph, allow_services=allow_services) if graph is not None else ()
-    eligible = [n for n in frontier if handed.get(n.id, 0) < attempt_cap]
+    # residual_ids: nodes whose repair diagnosed RESIDUAL (unrepairable by any
+    # env change) — excluded so the scheduler stops re-handing them; the loop's
+    # residual-stall giveup owns convergence (design: residual-node-drop.md).
+    eligible = [n for n in frontier
+                if handed.get(n.id, 0) < attempt_cap and n.id not in residual_ids]
     if eligible:
         node = eligible[0]
         decision = PlannerDecision(

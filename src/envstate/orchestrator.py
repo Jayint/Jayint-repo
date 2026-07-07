@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 from src.envstate._loop_common import host_refresh_facts
 from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
-from src.envstate.constants import NO_PROGRESS_CYCLES
+from src.envstate.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_CYCLES
 from src.envstate.gate_signature import outcome_signature, next_stall
 from src.envstate.ledger import ActionLedger, make_action_event
 from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
@@ -498,6 +498,14 @@ def run_v3(
     _sched_last_nodes: int = -1           # dep-graph node count at the last discover cycle
     _prev_gate_sig: str | None = None     # verified test-gate signature from the previous cycle
     _gate_stall: int = 0                  # consecutive cycles sharing that failing signature
+    _residual_ids: set[str] = set()       # node ids whose repair diagnosed RESIDUAL
+                                          # (unrepairable by env) -> excluded from the
+                                          # actionable frontier via next_decision so the
+                                          # scheduler stops re-handing them (part a).
+    _residual_stall: int = 0              # consecutive cycles whose only repair was
+                                          # residual (handout-immune; part b).
+    _cycle_had_residual: bool = False     # per-cycle flags set by _repair_or_route;
+    _cycle_had_env_repair: bool = False   # reset at the top of every cycle.
     _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
     _budget_exhausted: bool = False
     _known_invalid: set[str] = set()
@@ -740,6 +748,7 @@ def run_v3(
         than read off ``d.discovery.name`` (which would always be ``None``).
         """
         nonlocal _manual_blocks, _known_invalid, _repair_turns, _budget_exhausted
+        nonlocal _residual_ids, _cycle_had_residual, _cycle_had_env_repair
         observations = (
             tuple((it.command, it.output_excerpt) for it in bundle.items) if bundle else ()
         )
@@ -748,6 +757,13 @@ def run_v3(
         _loop_log(f"cycle {cycle}: diagnose failed={failed_id} "
                   f"modes={sorted(m.value for m in modes) or ['(none)']}")
         if Mode.REPO_INTERNAL_REF in modes or Mode.RESIDUAL in modes:
+            if Mode.RESIDUAL in modes:
+                _cycle_had_residual = True
+                if failed_id:
+                    # Unrepairable by env: drop from the actionable frontier so the
+                    # scheduler stops re-handing it (part a). The residual-stall
+                    # counter (main loop) owns convergence; a handout never resets it.
+                    _residual_ids.add(failed_id)
             return graph
         if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
             from python_deps.failure_classifier import classify_dependency_failure
@@ -760,6 +776,7 @@ def run_v3(
             return graph
         _loop_log(f"cycle {cycle}: LLM repair → propose "
                   f"(node={failed_id}, turns_left={_repair_turns})")
+        _cycle_had_env_repair = True   # a real ENVIRONMENT/AMBIGUOUS repair this cycle
         _out = run_structured_repair(
             graph, failed_id, bundle, cycle,
             propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
@@ -1070,6 +1087,8 @@ def run_v3(
 
     for cycle in range(1, max_cycles + 1):
         _loop_log(f"══════ cycle {cycle}/{max_cycles} ══════")
+        _cycle_had_residual = False
+        _cycle_had_env_repair = False
         # ── 0. Graph-first: certify + emit the certified closure ────────────
         _dep_emit_phase(cycle)
         if _budget_exhausted:
@@ -1087,6 +1106,7 @@ def run_v3(
             _run_tests_verified,
             handed=_handed,
             attempt_cap=graph_scheduler_attempt_cap,
+            residual_ids=frozenset(_residual_ids),
         )
         _loop_log(f"cycle {cycle}: scheduler decision={decision.action}"
                   + (f" node={chosen}" if chosen is not None else ""))
@@ -1201,6 +1221,24 @@ def run_v3(
             # untouched — the discover path is bounded by _sched_stuck (Task 5c), not
             # the LLM-repair budget.
             report = _run_discover_gate(task, cycle)
+
+        # ── Residual-churn giveup (design: residual-node-drop.md) ─────────────
+        # A node whose repair diagnosed RESIDUAL is unrepairable by any env
+        # change: part (a) already dropped it from the frontier (_residual_ids)
+        # so it stops being re-handed. This counter converges the loop even when
+        # a FRESH phantom is minted every cycle and the outcome signature is
+        # unstable (defeating the gate-signature no-progress detector above). A
+        # node HANDOUT never resets it; a real ENVIRONMENT repair (this cycle)
+        # does — so a genuinely-progressing multi-cycle repair is never cut off.
+        if _cycle_had_env_repair:
+            _residual_stall = 0
+        elif _cycle_had_residual:
+            _residual_stall += 1
+            if _residual_stall >= RESIDUAL_GIVEUP_CYCLES:
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, report)
+                return _finish(TerminationReason.GIVEUP_RESIDUAL)
+
         if _budget_exhausted or _repair_turns <= 0:
             return _finish(TerminationReason.GIVEUP_BUDGET)
         # Scheduler mode: a passing host check can return zero commands; floor the

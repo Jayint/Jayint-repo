@@ -64,3 +64,22 @@ def test_packet_to_task_maps_fields():
     assert t.target_node_ids == ("pkg:requests",)
     assert t.done_when == "python -c 'import requests'"
     assert t.layer == Layer.PIP.value
+
+
+def test_residual_ids_excluded_from_frontier():
+    # A node marked residual is dropped from the eligible frontier -> the
+    # scheduler falls through to a discover task instead of re-handing it
+    # (design: residual-node-drop.md, part a).
+    decision, chosen = next_decision(
+        _missing(), run_tests=lambda: False,
+        residual_ids=frozenset({"pkg:requests"}),
+    )
+    assert chosen is None
+    assert decision.task.target_node_ids == ()   # discover, not the excluded node
+
+
+def test_residual_ids_default_is_noop():
+    # Default frozenset() -> byte-identical to today's behavior for every
+    # existing caller that doesn't pass residual_ids.
+    decision, chosen = next_decision(_missing(), run_tests=lambda: False)
+    assert chosen == "pkg:requests"

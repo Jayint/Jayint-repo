@@ -17,3 +17,12 @@ VERIFY_TEST_CMD: str = "python -m pytest -q"
 # attempt_cap so a single obligation gets its full retry budget before "even
 # fully repairing it did not move the gate" can be concluded.
 NO_PROGRESS_CYCLES: int = 3
+
+# run_v3 residual-churn bound: give up honestly after this many consecutive
+# cycles whose ONLY repair diagnosis was RESIDUAL (a test-logic / phantom
+# obligation that no environment change can close) with no real ENVIRONMENT
+# repair in between. Unlike NO_PROGRESS_CYCLES this does NOT depend on a stable
+# pytest outcome signature — it is driven by the (reliable) repair-time
+# diagnosis — so it converges even when pytest output is nondeterministic and
+# a fresh phantom is minted every cycle (design: residual-node-drop.md).
+RESIDUAL_GIVEUP_CYCLES: int = 3
