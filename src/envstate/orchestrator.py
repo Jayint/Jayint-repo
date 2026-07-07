@@ -439,7 +439,9 @@ def run_v3(
     retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
     so a repo-local import is never mistaken for a missing PyPI package.
     """
-    from src.envstate.graph_scheduler import next_decision
+    from src.envstate.graph_scheduler import (
+        next_decision, unsatisfied_provisionable_services,
+    )
     # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
     # the actual ``tracer.record_*``/``tracer.set_*`` CALLS below are guarded by
     # ``if tracer is not None:``, not this import.
@@ -508,6 +510,11 @@ def run_v3(
     _cycle_had_env_repair: bool = False   # reset at the top of every cycle.
     _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
     _budget_exhausted: bool = False
+    # Resolved once here (not per-call) so next_decision's 'done' door and the
+    # loop's fast-termination below apply the IDENTICAL service anti-hollow guard.
+    _allow_services: bool = (
+        os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+    )
     _known_invalid: set[str] = set()
     _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
     MAX_REPAIRS_PER_BLOCK: int = 5
@@ -1107,6 +1114,7 @@ def run_v3(
             handed=_handed,
             attempt_cap=graph_scheduler_attempt_cap,
             residual_ids=frozenset(_residual_ids),
+            allow_services=_allow_services,
         )
         _loop_log(f"cycle {cycle}: scheduler decision={decision.action}"
                   + (f" node={chosen}" if chosen is not None else ""))
@@ -1147,6 +1155,33 @@ def run_v3(
         _prev_gate_sig = _gate_sig
         _loop_log(f"cycle {cycle}: test-gate sig={_gate_sig} "
                   f"stall={_gate_stall}/{NO_PROGRESS_CYCLES}")
+
+        # ── 1c. Fast-termination on a verified test pass (design: fast-termination) ──
+        # The scheduler only reaches its 'done' door when the frontier is EMPTY,
+        # so an over-predicted OPTIONAL node (a phantom tool, an unused optional
+        # import) keeps the frontier non-empty and next_decision hands it out
+        # attempt_cap times WITHOUT re-checking tests — burning ~3 cycles per
+        # stuck node even though the suite already passes. Recall-first: a
+        # VERIFIED test pass is the SUFFICIENT signal; a node still MISSING when
+        # tests pass WITHOUT it is an over-prediction, not a requirement. When the
+        # scheduler wants to keep working (action != 'done') but the verified gate
+        # passes, take the SAME replay-bound DONE door the scheduler's own 'done'
+        # branch uses — after honoring the SAME service anti-hollow guard (an
+        # unsatisfied provisionable service the tests actually need is NOT an
+        # over-prediction, so it still blocks success). _gate_passed_now is the
+        # anti-hollow-verified result, so a hollow pass (zero collected / all
+        # skipped) is already False here and never fast-terminates.
+        if (_gate_passed_now
+                and decision.action != "done"
+                and not unsatisfied_provisionable_services(
+                    current_map.dep_graph, allow_services=_allow_services)):
+            _loop_log(f"cycle {cycle}: fast-terminate — verified test pass with "
+                      f"{'frontier node ' + str(chosen) if chosen is not None else 'a discover task'} "
+                      f"still pending (over-prediction) → DONE")
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return _finalize_if_replayed(TerminationReason.DONE)
+
         if _gate_stall >= NO_PROGRESS_CYCLES:
             if on_cycle is not None:
                 on_cycle(cycle, current_map, decision, None)

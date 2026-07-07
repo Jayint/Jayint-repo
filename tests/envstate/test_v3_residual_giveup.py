@@ -283,3 +283,41 @@ def test_single_stable_phantom_converges_via_frontier_drop(monkeypatch):
         "expected tool:less to be handed out exactly once (cycle 1), then "
         f"excluded from the frontier by part (a); got {targeted_cycles!r}"
     )
+
+
+def test_verified_pass_fast_terminates_over_predicted_frontier_node():
+    """Fast-termination (design: fast-termination) — the complement of IT3.
+
+    Same single stable MISSING tool:less node on the frontier (it never
+    certifies: exec_readonly returns rc=1), driven through the REAL
+    next_decision. But this time the VERIFIED suite PASSES at cycle 1. The loop
+    must declare planner_done at cycle 1 — a node still MISSING while tests pass
+    WITHOUT it is an over-prediction, not a requirement — instead of handing
+    tool:less out attempt_cap (3) times before re-checking tests (the pre-fix
+    behavior would reach DONE only at cycle ~4 after burning a repair turn per
+    handout). No repair turn is spent; the legacy build path is never used."""
+    def sandbox_execute(cmd):
+        if cmd == orchestrator.VERIFY_TEST_CMD:
+            return (True, "1 passed in 0.01s")
+        return (True, "ok")
+
+    build_agent = _RecordingBuildAgent()
+    cycles_seen: list[int] = []
+    inputs = _base_inputs(
+        sandbox_execute, _single_tool_graph_map(), max_cycles=12,
+        build_agent=build_agent,
+        on_cycle=lambda cycle, *_a: cycles_seen.append(cycle),
+    )
+
+    final_map, stop = orchestrator.run_v3(**inputs)
+
+    assert stop == "planner_done", (
+        f"a verified test pass must fast-terminate to DONE, got {stop!r}"
+    )
+    assert max(cycles_seen) == 1, (
+        f"expected DONE at cycle 1 (no attempt_cap churn), got cycles {cycles_seen!r}"
+    )
+    assert build_agent.propose_calls == 0, (
+        "fast-termination must short-circuit BEFORE any repair turn is spent"
+    )
+    assert build_agent.run_calls == 0

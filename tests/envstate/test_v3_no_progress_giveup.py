@@ -258,12 +258,20 @@ def test_task_branch_evidence_threaded_on_failing_gate(monkeypatch):
     assert ev.rc == 1
 
 
-def test_task_branch_evidence_stays_empty_on_passing_gate(monkeypatch):
-    """Companion to the failing-gate case above: when the verified test-gate
-    PASSED this cycle (a frontier obligation can be handed out even while the
-    gate would pass — next_decision returns before testing), the task-branch
-    must keep the empty EvidenceBundle() — threading a passing run as
-    'failure evidence' would mislead the proposer."""
+def test_passing_gate_fast_terminates_before_task_branch(monkeypatch):
+    """Fast-termination (design: fast-termination) supersedes the old
+    'evidence stays empty on a passing gate' behavior.
+
+    Previously a frontier obligation was handed out and repaired even while the
+    verified gate would pass (next_decision returns the obligation before
+    testing), and the task branch threaded an empty EvidenceBundle(). The
+    fast-termination fix now short-circuits to DONE the moment the VERIFIED gate
+    passes — a node still MISSING while tests pass without it is an
+    over-prediction — so the task-branch repair is NEVER reached on a passing
+    cycle. This test pins that: run_structured_repair is not called and the run
+    reports planner_done. (The empty-EvidenceBundle path still exists, but is now
+    reachable only behind the service anti-hollow guard, which blocks
+    fast-termination — covered by the graph_scheduler service tests.)"""
     monkeypatch.setattr(gs_module, "next_decision", _obligation_decision)
 
     captured_bundles = []
@@ -283,13 +291,14 @@ def test_task_branch_evidence_stays_empty_on_passing_gate(monkeypatch):
         return (True, "ok")
 
     inputs = _base_inputs(sandbox_execute, max_cycles=1)
-    orchestrator.run_v3(**inputs)
+    _final_map, stop = orchestrator.run_v3(**inputs)
 
-    assert len(captured_bundles) == 1
-    bundle = captured_bundles[0]
-    assert bundle.items == (), (
-        "a passing test-gate must keep the empty EvidenceBundle() — nothing "
-        "failed to cite this cycle"
+    assert stop == "planner_done", (
+        f"a verified test pass must fast-terminate to DONE, got {stop!r}"
+    )
+    assert captured_bundles == [], (
+        "fast-termination must short-circuit BEFORE the task-branch repair — "
+        "run_structured_repair should never run when the gate already passes"
     )
 
 

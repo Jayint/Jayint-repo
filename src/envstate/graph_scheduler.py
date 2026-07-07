@@ -67,6 +67,33 @@ def _discover_task() -> Task:
     )
 
 
+def unsatisfied_provisionable_services(
+    graph: DepGraph | None, *, allow_services: bool
+) -> tuple:
+    """Provisionable (``data["setup"]``) SERVICE nodes not yet host-certified and
+    not demoted out of the gate (``certify_fail_count < 3``).
+
+    When ``allow_services`` and this is non-empty, a "passing" suite is a HOLLOW
+    pass — the in-image service the tests need is not up (the
+    1-unit-test-rides-to-0.2 trap, design §10) — so neither the scheduler's
+    ``done`` door nor the loop's fast-termination may declare success. Returns
+    ``()`` when services are off or ``graph`` is None, so a caller can treat any
+    non-empty result as an unconditional "block done" signal. Shared by
+    ``next_decision`` (below) and ``orchestrator.run_v3``'s fast-termination so
+    the two apply the identical guard.
+    """
+    from python_deps.depgraph.schema import NodeType, State
+    if not allow_services or graph is None:
+        return ()
+    return tuple(
+        n for n in graph.nodes
+        if n.type is NodeType.SERVICE
+        and n.data.get("setup") is not None                         # only a provisionable (setup) service gates 'done'
+        and n.state is not State.SATISFIED
+        and n.data.get("certify_fail_count", 0) < 3                 # demote: 3 strikes -> drop out of the gate
+    )
+
+
 def next_decision(
     graph: DepGraph | None,
     run_tests: Callable[[], bool],
@@ -101,16 +128,8 @@ def next_decision(
             action="task", task=packet_to_task(frame_obligation(graph, node))
         )
         return decision, node.id
-    from python_deps.depgraph.schema import NodeType, State
     if run_tests():
-        promoted_unsatisfied = [
-            n for n in (graph.nodes if graph is not None else ())
-            if n.type is NodeType.SERVICE
-            and n.data.get("setup") is not None                         # only a provisionable (setup) service gates 'done'
-            and n.state is not State.SATISFIED
-            and n.data.get("certify_fail_count", 0) < 3                 # demote: 3 strikes -> drop out of the gate
-        ]
-        if allow_services and promoted_unsatisfied:
+        if unsatisfied_provisionable_services(graph, allow_services=allow_services):
             # Anti-hollow: tests "passing" while a required in-image service is not
             # host-certified up is the 1-unit-test-rides-to-0.2 trap (design §10).
             return PlannerDecision(action="task", task=_discover_task()), None
