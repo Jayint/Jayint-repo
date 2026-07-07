@@ -21,8 +21,17 @@ from .models import (
 
 try:
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
-    tomllib = None
+except ModuleNotFoundError:  # Python < 3.11 — fall back to the tomli backport.
+    # WITHOUT this fallback the whole declared-dependency reader silently returns
+    # ZERO requirements on a <3.11 interpreter (e.g. the 3.10 benchmark box):
+    # `tomllib is None` -> pyproject parsing is skipped -> select_roots gets no
+    # roots -> the entire declared closure (runtime AND dev/test groups) vanishes.
+    # Every other tomllib site in this codebase already does this; evidence.py was
+    # the lone exception. tomli is declared in requirements.txt for python<3.11.
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:  # pragma: no cover - neither parser available
+        tomllib = None
 
 
 def collect_python_dependency_evidence(repo_path: str | Path) -> PythonDependencyEvidence:
