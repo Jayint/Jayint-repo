@@ -545,7 +545,7 @@ class _ConstructionOnlyExecutor:
 def build_graph_construction_only(repo_dir: str, base_image: str, target_python: str) -> DepGraph:
     """Build the dep graph in a scratch container -- no agent, no repair loop,
     the real test suite intercepted (see ``_ConstructionOnlyExecutor``)."""
-    with DockerExecutor(base_image, bootstrap_uv=True, cache_volumes=True) as scratch:
+    with DockerExecutor(base_image, bootstrap_uv=True) as scratch:  # cache_volumes OFF: observe gaps cold
         wrapped = _ConstructionOnlyExecutor(scratch)
         return build_dep_graph(
             repo_dir, wrapped, host_executor=LocalSubprocessExecutor(), target_python=target_python,

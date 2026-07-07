@@ -141,6 +141,13 @@ def test_docker_run_command_includes_cache_volumes_when_set():
     cmd = ex._run_command()
     assert "-v jayint_uv_cache:/root/.cache/uv" in cmd
     assert "-v jayint_pip_cache:/root/.cache/pip" in cmd
+    # Pin the FULL command so the mounts stay before --name/image/sleep (a
+    # `docker run ... image -v ...` regression would break the mount silently).
+    assert cmd == (
+        "docker run -d "
+        "-v jayint_uv_cache:/root/.cache/uv -v jayint_pip_cache:/root/.cache/pip "
+        f"--name {ex._name} python:3.11-slim-bookworm sleep infinity"
+    )
 
 
 def test_docker_run_command_omits_cache_volumes_by_default():

@@ -325,9 +325,12 @@ def build_advisory_for_repo(
     """
     try:
         host = host_executor or LocalSubprocessExecutor()
-        with DockerExecutor(
-            base_image, bootstrap_uv=True, cache_volumes=True
-        ) as scratch:
+        # cache_volumes intentionally OFF: a cross-run built-wheel cache could
+        # (in principle) mask a toolchain gap by reusing a wheel built when the
+        # toolchain was present; construction must observe every gap cold. The
+        # intra-repo round>=2 speedup comes from the persistent container's own
+        # installed state, not the volume, so nothing is lost here.
+        with DockerExecutor(base_image, bootstrap_uv=True) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
             )
