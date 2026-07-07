@@ -130,3 +130,31 @@ def test_platform_flag_absent_from_docker_run_argv_when_none(monkeypatch):
         pass
     run_argv = captured[0]
     assert "--platform" not in run_argv
+
+
+# --- DockerExecutor bootstrap_uv / cache_volumes params (additive; default
+# False = byte-identical to the pre-existing docker run command) ---
+
+
+def test_docker_run_command_includes_cache_volumes_when_set():
+    ex = DockerExecutor("python:3.11-slim-bookworm", cache_volumes=True)
+    cmd = ex._run_command()
+    assert "-v jayint_uv_cache:/root/.cache/uv" in cmd
+    assert "-v jayint_pip_cache:/root/.cache/pip" in cmd
+
+
+def test_docker_run_command_omits_cache_volumes_by_default():
+    ex = DockerExecutor("python:3.11-slim-bookworm")
+    cmd = ex._run_command()
+    assert "jayint_uv_cache" not in cmd
+    assert "jayint_pip_cache" not in cmd
+    # Byte-identical to the historical (pre-cache-volumes) docker run command.
+    assert cmd == (
+        f"docker run -d --name {ex._name} python:3.11-slim-bookworm sleep infinity"
+    )
+
+
+def test_bootstrap_uv_and_cache_volumes_default_false():
+    ex = DockerExecutor("python:3.11-slim-bookworm")
+    assert ex.bootstrap_uv is False
+    assert ex.cache_volumes is False

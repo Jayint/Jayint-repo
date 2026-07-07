@@ -145,7 +145,7 @@ def test_wheel_preflight_seeds_runtime_soname_reconciled_by_ldd(tmp_path):
     (tmp_path / "main.py").write_text("import pyodbc\n")
 
     host_executor = LocalSubprocessExecutor()
-    with DockerExecutor(_BASE_IMAGE) as container_executor:
+    with DockerExecutor(_BASE_IMAGE, bootstrap_uv=True) as container_executor:
         graph = build_dep_graph(
             str(tmp_path),
             container_executor,

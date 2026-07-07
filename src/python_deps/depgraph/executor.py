@@ -84,11 +84,19 @@ class DockerExecutor:
     """
 
     def __init__(
-        self, image: str, *, network: bool = True, platform: str | None = None
+        self,
+        image: str,
+        *,
+        network: bool = True,
+        platform: str | None = None,
+        bootstrap_uv: bool = False,
+        cache_volumes: bool = False,
     ) -> None:
         self.image = image
         self.network = network
         self.platform = platform
+        self.bootstrap_uv = bootstrap_uv
+        self.cache_volumes = cache_volumes
         self.container_id: str | None = None
         self._name = f"depgraph-probe-{uuid.uuid4().hex[:12]}"
 
@@ -96,7 +104,12 @@ class DockerExecutor:
         """The ``docker run`` command that starts the probe container (pure/testable)."""
         net = "" if self.network else "--network none "
         plat = f"--platform {self.platform} " if self.platform else ""
-        return f"docker run -d {net}{plat}--name {self._name} {self.image} sleep infinity"
+        vols = (
+            "-v jayint_uv_cache:/root/.cache/uv -v jayint_pip_cache:/root/.cache/pip "
+            if self.cache_volumes
+            else ""
+        )
+        return f"docker run -d {net}{plat}{vols}--name {self._name} {self.image} sleep infinity"
 
     def __enter__(self) -> "DockerExecutor":
         start = _run_subprocess(self._run_command(), timeout=300)
@@ -105,7 +118,25 @@ class DockerExecutor:
                 f"failed to start probe container: {start.stderr.strip()}"
             )
         self.container_id = start.stdout.strip()
+        if self.bootstrap_uv and self.network:
+            self._bootstrap_uv()
         return self
+
+    def _bootstrap_uv(self) -> None:
+        """Install ``uv`` into the probe container (non-fatal on failure).
+
+        ``install_closure`` uses ``uv pip install`` for speed; the base images
+        used here don't ship it.  Best-effort: a failure here surfaces later as
+        a real ``uv: command not found`` failure from the closure install, with
+        richer context than we could produce here.
+        """
+        result = self.run("python -m pip install -q uv", timeout=300)
+        if result.returncode != 0:
+            stderr_tail = result.stderr.strip()[-500:]
+            print(
+                f"[DockerExecutor] warning: uv bootstrap failed (rc={result.returncode}): "
+                f"{stderr_tail}"
+            )
 
     def __exit__(self, *exc: object) -> None:
         # Only tear down a container that __enter__ actually started; if the

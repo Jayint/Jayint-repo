@@ -325,7 +325,9 @@ def build_advisory_for_repo(
     """
     try:
         host = host_executor or LocalSubprocessExecutor()
-        with DockerExecutor(base_image) as scratch:
+        with DockerExecutor(
+            base_image, bootstrap_uv=True, cache_volumes=True
+        ) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
             )

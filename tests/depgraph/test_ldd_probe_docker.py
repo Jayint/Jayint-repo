@@ -106,7 +106,7 @@ def test_ldd_probe_table_independent_knowledge(tmp_path: Path) -> None:
     repo_path = _make_pygame_repo(tmp_path)
     host_executor = LocalSubprocessExecutor()
 
-    with DockerExecutor(_BASE_IMAGE) as container_executor:
+    with DockerExecutor(_BASE_IMAGE, bootstrap_uv=True) as container_executor:
         graph = build_dep_graph(
             repo_path,
             container_executor,
