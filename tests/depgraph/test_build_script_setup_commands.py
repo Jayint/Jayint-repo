@@ -25,7 +25,11 @@ def test_renderer_emits_setup_commands_verbatim():
     g = DepGraph(nodes=(_pkg(setup_commands=("echo CUSTOM_INSTALL",)),))
     script = render_build_script(g)
     assert "echo CUSTOM_INSTALL" in script
-    assert "pip install" not in script
+    # the custom command is used verbatim, not replaced by a derived pip install
+    # for this node; ignore the global pytest-runner precondition line (a gate
+    # precondition baked into every setup.sh, not a node install).
+    assert "pip install" not in script.replace(
+        "python3 -m pip install --break-system-packages pytest", "")
 
 
 def test_render_auto_populates_reciped_nodes():

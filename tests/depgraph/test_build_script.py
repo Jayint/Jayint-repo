@@ -350,6 +350,9 @@ def test_golden_snapshot_byte_for_byte():
         "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.\n"
         'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python\n'
         "\n"
+        "# Ensure the pytest test-runner (testability-gate precondition; not a graph node).\n"
+        'python3 -c "import pytest" >/dev/null 2>&1 || python3 -m pip install --break-system-packages pytest\n'
+        "\n"
         "# ==================== SYSTEM ====================\n"
         "export DEBIAN_FRONTEND=noninteractive\n"
         "apt-get update\n"
