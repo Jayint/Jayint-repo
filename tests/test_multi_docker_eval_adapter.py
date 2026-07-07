@@ -78,3 +78,42 @@ def test_base_image_fallback_when_unparsed(tmp_path):
     r = a.process_single_instance(
         {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
     assert r["dockerfile"].startswith("FROM python:3.10-slim")
+
+
+def _capture_run_v3_cmd(tmp_path, monkeypatch):
+    """Drive the REAL _run_v3 with subprocess mocked so we can inspect the argv
+    it builds (and confirm the LLM model is still passed)."""
+    import multi_docker_eval_adapter as M
+
+    class _Proc:
+        returncode = 0
+        stdout = "[v3] base-image: python:3.11-slim (py 3.11) — auto"
+        stderr = ""
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        out = cmd[cmd.index("--out") + 1]  # write the artifact the adapter validates
+        Path(out).write_text("echo built")
+        return _Proc()
+
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    setup, base = a._run_v3(tmp_path / "src", "auto", "deepseek/deepseek-v4-flash")
+    assert base == "python:3.11-slim"
+    return captured["cmd"]
+
+
+def test_construction_only_env_adds_flag_keeps_model(tmp_path, monkeypatch):
+    monkeypatch.setenv("V3_CONSTRUCTION_ONLY", "1")
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--construction-only" in cmd, "V3_CONSTRUCTION_ONLY=1 must pass the flag"
+    # LLM stays ON in construction-only mode (base-image + service classify use it).
+    assert "--model" in cmd and "deepseek/deepseek-v4-flash" in cmd
+
+
+def test_construction_only_absent_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("V3_CONSTRUCTION_ONLY", raising=False)
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--construction-only" not in cmd, "default must run the full repair loop"

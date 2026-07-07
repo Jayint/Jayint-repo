@@ -98,6 +98,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Where to write the run's RunTrace JSON (Task 8 proof harness). "
              "Omitted -> no tracer is built and behavior is unchanged.",
     )
+    ap.add_argument(
+        "--construction-only", action="store_true", dest="construction_only",
+        help="Build the graph (LLM base-image + service/config classify STILL "
+             "INCLUDED) and render the INITIAL setup.sh, then STOP — skip the "
+             "run_v3 repair loop entirely. Measures how well first-pass "
+             "construction alone provisions the repo; the caller (e.g. the "
+             "ratbench harness) then runs pytest against that first build script.",
+    )
     return ap
 
 
@@ -151,6 +159,22 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     except Exception as exc:  # graceful degradation — graph is advisory at construction
         print(f"[v3] dep-graph build failed (graceful degradation): {exc}", file=sys.stderr)
         graph = None
+
+    # ── construction-only short-circuit ──────────────────────────────────────
+    # Render the FIRST-PASS setup.sh from the just-constructed graph and STOP —
+    # no repair loop, no fresh-replay cycles. The LLM-driven construction above
+    # (base-image selection + service/config classify) is UNCHANGED; only the
+    # iterative repair is skipped, so this isolates first-pass construction
+    # quality. The caller builds the image from this setup.sh and runs pytest.
+    if args.construction_only:
+        script_text = render_build_script(graph, ()) if graph is not None else ""
+        with open(args.out, "w") as fh:
+            fh.write(script_text)
+        n = sum(1 for _ in graph.nodes) if graph is not None else 0
+        print(f"[v3] construction-only: wrote INITIAL setup.sh ({n} nodes) -> {args.out}")
+        print("stop_reason=construction_only unresolved=[]")
+        print("V3 E2E:", "CONSTRUCTION_ONLY")
+        return 0
 
     manifest = parse_manifests(args.repo)
     world_map = initial_map(

@@ -139,6 +139,12 @@ class MultiDockerEvalAdapter:
                "--out", str(setup_path)]
         if model:
             cmd += ["--model", model]
+        # First-pass-construction benchmark mode (V3_CONSTRUCTION_ONLY=1): render the
+        # initial setup.sh from LLM-driven construction and skip the repair loop, so
+        # the harness scores how well construction ALONE provisions the repo. The LLM
+        # (base-image + service/config classify) stays on — only repair is skipped.
+        if os.getenv("V3_CONSTRUCTION_ONLY") == "1":
+            cmd.append("--construction-only")
         # Ensure `from src...` resolves when run_v3_e2e runs as a subprocess.
         env = dict(os.environ)
         env["PYTHONPATH"] = str(_AGENT_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
