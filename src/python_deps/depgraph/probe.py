@@ -101,7 +101,7 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
     if not packages:
         return graph
 
-    command = "python -m pip install " + " ".join(_spec(p) for p in _sorted(packages))
+    command = _install_cmd(" ".join(_spec(p) for p in _sorted(packages)))
     result = executor.run(command, timeout=INSTALL_TIMEOUT)
     outcome = "succeeded" if result.ok else "failed"
 
@@ -200,7 +200,7 @@ def _reinstall_survivors(
 
     new = graph
     for _round in range(MAX_INSTALL_ROUNDS):
-        command = "python -m pip install " + " ".join(_spec(p) for p in _sorted(survivors))
+        command = _install_cmd(" ".join(_spec(p) for p in _sorted(survivors)))
         result = executor.run(command, timeout=INSTALL_TIMEOUT)
         attempt = Attempt(command=command, outcome="succeeded" if result.ok else "failed")
         for pkg in survivors:
@@ -541,6 +541,15 @@ def _build_owners(packages: list[Node], stderr: str) -> set[str]:
 # --------------------------------------------------------------------------- #
 # Small pure helpers                                                          #
 # --------------------------------------------------------------------------- #
+def _install_cmd(specs: str) -> str:
+    """The closure-install command. uv installs into the container's SYSTEM
+    python (where pip installs today, so import_probe/ldd_probe find the .so),
+    using hardlinks from its cache (fast on warm cache) + parallel downloads.
+    Build-backend errors pass through to stderr identically to pip, so
+    extract_needs still surfaces toolchain gaps. Cache stays ON (no --no-cache)."""
+    return f"uv pip install --system {specs}"
+
+
 def _spec(pkg: Node) -> str:
     return f"{pkg.name}=={pkg.version}" if pkg.version else pkg.name
 

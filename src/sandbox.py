@@ -91,6 +91,7 @@ class Sandbox:
         if enable_cache_volume:
             cache = dict(self.volumes or {})
             cache.setdefault("jayint_pip_cache", {"bind": "/root/.cache/pip", "mode": "rw"})
+            cache.setdefault("jayint_uv_cache", {"bind": "/root/.cache/uv", "mode": "rw"})
             cache.setdefault("jayint_apt_cache", {"bind": "/var/cache/apt/archives", "mode": "rw"})
             self.volumes = cache
         self._setup_initial_container()

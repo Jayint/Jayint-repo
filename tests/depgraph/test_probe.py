@@ -103,10 +103,18 @@ def test_install_closure_records_attempt_on_packages(fake_executor, make_result_
 
     node = out.get(pkg.id)
     assert len(node.attempts) == 1
-    assert node.attempts[0].command.startswith("python -m pip install")
+    assert node.attempts[0].command.startswith("uv pip install")
     assert node.attempts[0].outcome == "failed"
     # the command pins the resolved version
     assert "psycopg2==2.9.9" in node.attempts[0].command
+
+
+def test_install_cmd_uses_uv():
+    from python_deps.depgraph.probe import _install_cmd
+
+    cmd = _install_cmd("numpy==2.2.6 scipy==1.15.3")
+    assert cmd.startswith("uv pip install")
+    assert "numpy==2.2.6 scipy==1.15.3" in cmd
 
 
 def test_make_syslib_node_is_self_contained():
