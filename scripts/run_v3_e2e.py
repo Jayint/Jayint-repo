@@ -223,6 +223,15 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         print("ERROR: --seed-script requires an explicit --base-image (not auto).", file=sys.stderr)
         return 2
 
+    seed_script_text = None
+    if args.seed_script:
+        try:
+            with open(args.seed_script) as fh:
+                seed_script_text = fh.read()
+        except OSError as exc:
+            print(f"ERROR: cannot read --seed-script {args.seed_script!r}: {exc}", file=sys.stderr)
+            return 2
+
     # ── 1.5 SELECT: pick + pin the base image (auto) or honor an explicit tag ─
     choice = choose_base_image(
         args.repo, client, model,
@@ -287,10 +296,6 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     #     state into the planner (the graph-guided variant). ─────────────────
     if args.arm == "react":
         from src.react_repair.entry import run_react_arm
-        seed = None
-        if args.seed_script:
-            with open(args.seed_script) as fh:
-                seed = fh.read()
         if args.graph_context:
             print("[react] WARNING: --graph-context is not yet implemented; "
                   "running BASELINE (no graph guidance). The run is identical to omitting the flag.")
@@ -299,7 +304,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
                 graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
                 max_steps=args.max_steps, test_threshold=args.test_threshold,
                 graph_context=args.graph_context, trace_out=args.trace_out,
-                initial_script=seed)
+                initial_script=seed_script_text)
         finally:
             try:
                 if getattr(sandbox, "container", None) is not None:
