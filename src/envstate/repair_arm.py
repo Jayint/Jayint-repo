@@ -17,7 +17,7 @@ def _default_diagnose(error):
     return "ENVIRONMENT"                            # production injects the real DiagnosisRouter
 
 
-def run_repair_arm(graph, *, replay, certify, agent, log,
+def run_repair_arm(graph, *, replay, certify, agent, log, readonly=None,
                    localize=None, diagnose=None, max_errors: int = 20):
     localize = localize or _default_localize
     diagnose = diagnose or _default_diagnose
@@ -40,7 +40,7 @@ def run_repair_arm(graph, *, replay, certify, agent, log,
                 return "GIVEUP", graph
             continue
         graph, outcome = fix_one_error(graph, error, agent=agent, replay=replay,
-                                       certify=certify, log=log)
+                                       certify=certify, log=log, readonly=readonly)
         if outcome == "stalled":
             k = error.failing_node
             stuck[k] = stuck.get(k, 0) + 1

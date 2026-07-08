@@ -24,7 +24,7 @@ def run_one(name, expect, factory, silent=False):
     log = DesignLog(silent=silent)
     outcome, graph = run_repair_arm(
         graph, replay=lambda gr, mb=(): world.replay_from_base(gr),
-        certify=world.certify, agent=agent, log=log)
+        certify=world.certify, readonly=world.readonly, agent=agent, log=log)
     fired = {t for t, _ in log.events}
     if not silent:
         print(f"\n  RESULT: {outcome}  ({'PASS' if outcome == expect else 'FAIL — expected ' + expect})")

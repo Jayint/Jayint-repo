@@ -20,6 +20,7 @@ class Step:
     accepted: bool | None = None
     replay: ReplayResult | None = None
     progress: bool | None = None
+    output: str = ""                 # probe result (read-only investigation output)
 
 
 @dataclass
@@ -40,6 +41,8 @@ class RepairSession:
             tail = ""
             if s.kind == "patch" and s.replay is not None:
                 tail = "→ok" if s.replay.ok else f"→{s.replay.failing_cap}"
+            elif s.kind == "probe" and s.output:
+                tail = f"→{s.output}"
             parts.append(f"{i + 1}.{s.summary}{tail}")
         return " | ".join(parts)
 

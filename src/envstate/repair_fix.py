@@ -17,7 +17,7 @@ from src.envstate.repair_session import (
 EVIDENCE = frozenset({"ev.1"})
 
 
-def fix_one_error(graph, error, *, agent, replay, certify, log,
+def fix_one_error(graph, error, *, agent, replay, certify, log, readonly=None,
                   stall_limit: int = 2, turn_cap: int = 15,
                   known_evidence_ids=EVIDENCE):
     session = RepairSession(error.failing_node, error.failing_cap)
@@ -28,8 +28,10 @@ def fix_one_error(graph, error, *, agent, replay, certify, log,
         act = agent.next_action(session, current, log)
         if act[0] == "probe":
             _, cmd, cap = act
-            session.steps.append(Step("probe", f"probe:{cmd}", cap=cap))
-            log.d("SESSION_PROBE", f"{cmd} (read-only, no mutation)")
+            rc, out = readonly(cmd) if readonly is not None else (0, "")
+            session.steps.append(Step("probe", f"probe:{cmd}", cap=cap,
+                                      output=(out or "").strip()[:200]))
+            log.d("SESSION_PROBE", f"{cmd} -> rc{rc} (read-only, no mutation)")
             continue
         _, patch, cap = act
         admit = admit_proposal(graph, patch, known_evidence_ids=known_evidence_ids)
