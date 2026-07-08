@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-_SCRIPT_BLOCK = re.compile(r"Script:\s*```(?:bash|sh)?\s*\n(.*?)```", re.DOTALL)
+# Any fenced bash/sh (or unlabeled) block IS the replacement script. We match the fence
+# itself, not a `Script:` label, so the patch parses regardless of how the model announces it
+# — `Script:`, markdown `**Script:**`, `### Script`, or no label at all. (A ```python block
+# won't match, so an explore Action isn't hijacked by an incidental code snippet.)
+_SCRIPT_BLOCK = re.compile(r"```(?:bash|sh)?[ \t]*\r?\n(.*?)```", re.DOTALL)
 _ACTION_LINE = re.compile(r"^Action:\s*(.+)$", re.MULTILINE)
 _THOUGHT = re.compile(r"Thought:\s*(.+?)(?=\n(?:Action|Script):|$)", re.DOTALL)
 
