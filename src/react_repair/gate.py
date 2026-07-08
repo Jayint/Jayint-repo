@@ -17,6 +17,12 @@ class TestOutcome:
     output: str = ""
 
 
+# Not a pytest test despite the "Test" prefix: this is a plain dataclass. Without
+# this, any test module doing `from ...gate import TestOutcome` makes pytest try to
+# collect it as a test class (PytestCollectionWarning: cannot collect test class).
+TestOutcome.__test__ = False
+
+
 def _count(text: str, word: str) -> int:
     m = re.search(rf"(\d+)\s+{word}\b", text)
     return int(m.group(1)) if m else 0
