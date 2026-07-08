@@ -117,10 +117,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
              "ratbench harness) then runs pytest against that first build script.",
     )
     ap.add_argument(
-        "--arm", default="v3", choices=("v3", "session"),
-        help="Repair arm: 'v3' (default — the graph-scheduler loop) or 'session' "
+        "--arm", default="v3", choices=("v3", "session", "react"),
+        help="Repair arm: 'v3' (default — the graph-scheduler loop), 'session' "
              "(arm C — one loop over errors + a sustained per-error RepairSession "
-             "with compounding agent memory; a NEW arm, no cutover).",
+             "with compounding agent memory; a NEW arm, no cutover), or 'react' "
+             "(flat ReAct script-repair — one loop that patches the build script).",
+    )
+    ap.add_argument(
+        "--graph-context", action="store_true", dest="graph_context",
+        help="react arm only: feed certified graph state into the planner "
+             "(graph-guided variant).",
     )
     return ap
 
@@ -276,6 +282,30 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         print(f"[v3] ({LOOP_MODE}) wrote setup.sh -> {args.out}")
         print(f"stop_reason={outcome} unresolved={unresolved}")
         ok = outcome == "DONE" and not unresolved
+        print("V3 E2E:", "PASS" if ok else "FAIL")
+        return 0 if ok else 1
+
+    # ── arm react — flat ReAct script-repair: ONE loop that patches the build
+    #     SCRIPT (script-primary). Reuses the SAME construction above (base
+    #     image, dep-graph, sandbox); --graph-context feeds certified graph
+    #     state into the planner (the graph-guided variant). ─────────────────
+    if args.arm == "react":
+        from src.react_repair.entry import run_react_arm
+        try:
+            outcome, script_text, out_graph = run_react_arm(
+                graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
+                graph_context=args.graph_context, trace_out=args.trace_out)
+        finally:
+            try:
+                if getattr(sandbox, "container", None) is not None:
+                    sandbox.close()
+            except Exception:
+                pass
+        with open(args.out, "w") as fh:
+            fh.write(script_text)
+        print(f"[v3] (react{'+graph' if args.graph_context else ''}) wrote setup.sh -> {args.out}")
+        print(f"stop_reason={outcome}")
+        ok = outcome == "DONE"                          # host-owned done (script green + tests ≥80%)
         print("V3 E2E:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
 
