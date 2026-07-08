@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import is_read_only
+from src.react_repair.script_prep import strip_graph_framing
 
 _FORMAT_REMINDER = ("Respond with Thought + exactly one `Action: <read-only cmd>` or "
                     "`Script:` + one fenced ```bash block. No prose-only replies.")
@@ -27,7 +28,10 @@ def _observation(result: RunResult, test) -> str:
 
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None):
-    script = _initial_script if _initial_script is not None else render_build_script(graph)
+    # Seed from the graph, but strip the graph-primary framing: the react agent edits this
+    # script, so it must not carry "DO NOT EDIT / edit the graph and re-render" (spec §9/§14).
+    script = (_initial_script if _initial_script is not None
+              else strip_graph_framing(render_build_script(graph)))
 
     def rerun(s):
         reset()
