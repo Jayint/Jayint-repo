@@ -117,10 +117,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
              "ratbench harness) then runs pytest against that first build script.",
     )
     ap.add_argument(
-        "--arm", default="v3", choices=("v3", "session", "react"),
-        help="Repair arm: 'v3' (default — the graph-scheduler loop), 'session' "
-             "(arm C — one loop over errors + a sustained per-error RepairSession "
-             "with compounding agent memory; a NEW arm, no cutover), or 'react' "
+        "--arm", default="v3", choices=("v3", "react"),
+        help="Repair arm: 'v3' (default — the graph-scheduler loop) or 'react' "
              "(flat ReAct script-repair — one loop that patches the build script).",
     )
     ap.add_argument(
@@ -257,33 +255,6 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     sandbox = Sandbox(base_image=base_image, workdir="/app",
                        platform=choice.platform_override, seed_dir=args.repo,
                        enable_cache_volume=True)
-
-    # ── arm C (session) — a NEW arm, no cutover: one loop over errors + a
-    #     sustained per-error RepairSession. Reuses the SAME construction above
-    #     (base image, dep-graph, sandbox); only the repair loop differs. ─────
-    if args.arm == "session":
-        from src.envstate.repair_arm_entry import run_v3_session, docker_adapters, LOOP_MODE
-        replay, certify, readonly = docker_adapters(sandbox)
-        try:
-            outcome, out_graph = run_v3_session(
-                graph, replay=replay, certify=certify, readonly=readonly,
-                client=client, model=model, repo_path=args.repo)
-        finally:
-            try:
-                if getattr(sandbox, "container", None) is not None:
-                    sandbox.close()
-            except Exception:
-                pass
-        unresolved = ([n.id for n in out_graph.nodes if n.state is State.MISSING]
-                      if out_graph is not None else [])
-        script_text = render_build_script(out_graph, ()) if out_graph is not None else ""
-        with open(args.out, "w") as fh:
-            fh.write(script_text)
-        print(f"[v3] ({LOOP_MODE}) wrote setup.sh -> {args.out}")
-        print(f"stop_reason={outcome} unresolved={unresolved}")
-        ok = outcome == "DONE" and not unresolved
-        print("V3 E2E:", "PASS" if ok else "FAIL")
-        return 0 if ok else 1
 
     # ── arm react — flat ReAct script-repair: ONE loop that patches the build
     #     SCRIPT (script-primary). Reuses the SAME construction above (base
