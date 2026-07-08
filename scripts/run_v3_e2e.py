@@ -135,6 +135,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="react arm only: fraction of executed tests that must pass to certify DONE "
              "(default 0.9). Sweep this to trade accuracy vs cost.",
     )
+    ap.add_argument(
+        "--seed-script", default=None, dest="seed_script",
+        help="react arm only: run the repair loop starting from THIS pre-generated setup.sh "
+             "instead of rendering a fresh one; SKIPS graph construction (repair-only "
+             "ablation). Requires an explicit --base-image (not auto).",
+    )
     return ap
 
 
@@ -213,6 +219,10 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
                         write=30.0, pool=10.0),
     )
 
+    if args.seed_script and args.base_image == "auto":
+        print("ERROR: --seed-script requires an explicit --base-image (not auto).", file=sys.stderr)
+        return 2
+
     # ── 1.5 SELECT: pick + pin the base image (auto) or honor an explicit tag ─
     choice = choose_base_image(
         args.repo, client, model,
@@ -221,19 +231,25 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     print(f"[v3] base-image: {choice.image} (py {choice.minor}) — {choice.reason}")
     base_image = choice.image
 
-    # ── 2. BELIEF: build the dep-graph; the deterministic classifier proposes typed nodes
+    # ── 2. BELIEF: build the dep-graph (skipped in --seed-script repair-only mode) ──────
     arch = _target_arch(choice.platform_override)
-    classify = make_construction_classifier(client, model, arch)
-    graph = None
-    try:
-        _advisory, graph = build_advisory_for_repo(
-            args.repo, base_image, target_python=choice.minor, classify=classify,
-        )
-        n = sum(1 for _ in graph.nodes) if graph is not None else 0
-        print(f"[v3] dep-graph: {n} nodes")
-    except Exception as exc:  # graceful degradation — graph is advisory at construction
-        print(f"[v3] dep-graph build failed (graceful degradation): {exc}", file=sys.stderr)
+    if args.seed_script:
+        from python_deps.depgraph.schema import DepGraph
+        graph = DepGraph()          # empty — repair-only ablation doesn't use graph state
+        print(f"[v3] seed-script mode: repair-only on {args.seed_script} "
+              f"(construction skipped, empty graph)")
+    else:
+        classify = make_construction_classifier(client, model, arch)
         graph = None
+        try:
+            _advisory, graph = build_advisory_for_repo(
+                args.repo, base_image, target_python=choice.minor, classify=classify,
+            )
+            n = sum(1 for _ in graph.nodes) if graph is not None else 0
+            print(f"[v3] dep-graph: {n} nodes")
+        except Exception as exc:  # graceful degradation — graph is advisory at construction
+            print(f"[v3] dep-graph build failed (graceful degradation): {exc}", file=sys.stderr)
+            graph = None
 
     # ── construction-only short-circuit ──────────────────────────────────────
     # Render the FIRST-PASS setup.sh from the just-constructed graph and STOP —
@@ -271,6 +287,10 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     #     state into the planner (the graph-guided variant). ─────────────────
     if args.arm == "react":
         from src.react_repair.entry import run_react_arm
+        seed = None
+        if args.seed_script:
+            with open(args.seed_script) as fh:
+                seed = fh.read()
         if args.graph_context:
             print("[react] WARNING: --graph-context is not yet implemented; "
                   "running BASELINE (no graph guidance). The run is identical to omitting the flag.")
@@ -278,7 +298,8 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
             outcome, script_text, _ = run_react_arm(
                 graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
                 max_steps=args.max_steps, test_threshold=args.test_threshold,
-                graph_context=args.graph_context, trace_out=args.trace_out)
+                graph_context=args.graph_context, trace_out=args.trace_out,
+                initial_script=seed)
         finally:
             try:
                 if getattr(sandbox, "container", None) is not None:
