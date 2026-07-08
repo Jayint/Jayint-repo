@@ -16,6 +16,7 @@ from src.react_repair.history import History
 from src.react_repair.log import ReactLog
 from src.react_repair.loop import RunResult, run_react
 from src.react_repair.planner import ReactPlanner
+from src.react_repair.script_prep import strip_graph_framing
 
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).
 _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS)
@@ -79,17 +80,20 @@ def _make_compressor(client: Any, model: str):
 
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
-                  test_threshold: float = 0.9):
+                  test_threshold: float = 0.9, initial_script: str | None = None):
     owns_log = log is None
     log = log or ReactLog(trace_path=trace_out)
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
     ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
     planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None), log=log)
     history = History(compressor=_make_compressor(client, model), log=log)
+    # Seed step-0 from a pre-generated setup.sh (repair-only ablation); strip the graph-primary
+    # header so a copy from a prior v3 run doesn't carry "DO NOT EDIT / edit the graph" contradictions.
+    seed = strip_graph_framing(initial_script) if initial_script is not None else None
     try:
         return run_react(graph, reset=reset, run_script=run_script, certify=certify,
                          exec_readonly=exec_readonly, run_tests=run_tests, planner=planner,
-                         history=history, log=log, max_steps=max_steps)
+                         history=history, log=log, max_steps=max_steps, _initial_script=seed)
     finally:
         if owns_log:
             log.close()

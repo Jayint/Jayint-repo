@@ -5,6 +5,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
         sys.path.insert(0, p)
 
 from src.react_repair.entry import docker_adapters
+from src.react_repair.log import ReactLog
 
 
 class _FakeSandbox:
@@ -57,3 +58,30 @@ def test_run_tests_threshold_is_configurable():
     assert rt_low().ok is True                    # 0.7 >= 0.6
     _, _, _, _, rt_default = docker_adapters(_CapSandbox(0, "7 passed, 3 failed in 1s"))
     assert rt_default().ok is False               # 0.7 < 0.9 default
+
+
+def test_run_react_arm_strips_and_forwards_seed(monkeypatch):
+    import src.react_repair.entry as entry_mod
+    captured = {}
+    def fake_run_react(graph, **kw):
+        captured.update(kw)
+        return ("DONE", kw.get("_initial_script"), graph)
+    monkeypatch.setattr(entry_mod, "run_react", fake_run_react)
+    seed = ("#!/usr/bin/env bash\n#\n"
+            "# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.\n#\n"
+            "set -Eeuo pipefail\npip install app\n")
+    entry_mod.run_react_arm(object(), sandbox=_FakeSandbox(0, ""), client=object(),
+                            model="m", initial_script=seed, log=ReactLog(silent=True))
+    fwd = captured["_initial_script"]
+    assert fwd is not None
+    assert "DO NOT EDIT" not in fwd and "graph" not in fwd.lower()   # header stripped
+    assert "pip install app" in fwd and "set -Eeuo pipefail" in fwd  # body preserved
+
+def test_run_react_arm_without_seed_forwards_none(monkeypatch):
+    import src.react_repair.entry as entry_mod
+    captured = {}
+    monkeypatch.setattr(entry_mod, "run_react",
+                        lambda graph, **kw: captured.update(kw) or ("DONE", None, graph))
+    entry_mod.run_react_arm(object(), sandbox=_FakeSandbox(0, ""), client=object(),
+                            model="m", log=ReactLog(silent=True))
+    assert captured["_initial_script"] is None       # unchanged default behavior
