@@ -40,12 +40,13 @@ def _make_diagnose(repo_path):
     return diagnose
 
 
-def docker_adapters(sandbox, exec_readonly):
-    """Live-only glue: build (replay, certify, readonly) from a Sandbox + read-only Executor.
-    Not unit-tested (needs Docker); exercised on the live path. Faithful to the current
-    Model-B replay (render → reset_to_base → run_install_script)."""
+def docker_adapters(sandbox):
+    """Live-only glue: build (replay, certify, readonly) from a ``Sandbox``. Not unit-tested
+    (needs Docker); exercised on the live path. Faithful to the current Model-B replay
+    (render → reset_to_base → run_install_script) and to how ``run_v3`` certifies —
+    ``certify_refresh`` wraps the sandbox's ``exec_readonly`` callable in the read-only adapter."""
     from python_deps.depgraph.build_script import render_build_script
-    from python_deps.depgraph.certify import certify_all
+    from src.envstate.depgraph_live import certify_refresh
     from src.envstate.install_localizer import localize_install_failure
 
     def replay(graph, manual_blocks=()):
@@ -57,15 +58,13 @@ def docker_adapters(sandbox, exec_readonly):
         node = localize_install_failure(script, r.failing_command).node_id
         # failing_cap = the failing command: a signature that changes when the failure moves
         # forward, which is exactly what the progress rule keys on.
-        return ReplayResult(False, node, r.failing_command, r.failing_command,
-                            getattr(r, "output", "") or "")
+        return ReplayResult(False, node, r.failing_command, r.failing_command, r.stderr or "")
 
     def certify(graph):
-        return certify_all(graph, exec_readonly)
+        return certify_refresh(graph, sandbox.exec_readonly, cycle=0)
 
     def readonly(cmd):
-        res = exec_readonly.run(cmd)
-        return (res.returncode, (res.stdout or res.stderr or "")[:200])
+        return sandbox.exec_readonly(cmd)          # already returns (rc, output)
 
     return replay, certify, readonly
 
