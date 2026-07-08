@@ -51,4 +51,8 @@ class ReactPlanner:
         thought, action = extract_thought(text), parse_action(text)
         if self.log is not None:
             self.log.d("PLAN", f"thought={thought[:60]!r} action={action.kind}")
+            self.log.trace("plan", observation=observation, prompt=messages, reply_raw=text,
+                           thought=thought,
+                           action={"kind": action.kind, "command": action.command,
+                                   "new_script": action.new_script})
         return thought, action, usage

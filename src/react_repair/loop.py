@@ -35,6 +35,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         r = run_script(s)
         g = certify(graph)
         log.d("CERTIFY", "install-tier node states refreshed" if r.ok else f"build failed: {r.failing_command}")
+        log.trace("run", script_len=len(s.splitlines()), ok=r.ok,
+                  failing_command=r.failing_command, output_tail=(r.output or "")[-500:])
         return r, g
 
     result, graph = rerun(script)
@@ -44,8 +46,11 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             if test is None:
                 test = run_tests()
                 log.d("TEST_GATE", f"{test.passed}/{test.executed} passed → {'ok' if test.ok else 'below 80%'}")
+                log.trace("test", passed=test.passed, executed=test.executed, ok=test.ok,
+                          output_tail=(test.output or "")[-500:])
             if test.ok:
                 log.d("DONE", "build green AND tests ≥80% — host-verified")
+                log.trace("end", outcome="DONE", steps=step + 1); log.summary()
                 return "DONE", script, graph
         observation = _observation(result, test)
 
@@ -66,4 +71,5 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         history.record(step, thought, "invalid", _FORMAT_REMINDER)   # explore-not-readonly or unparseable
         log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
     log.d("GIVEUP", f"max_steps {max_steps} hit — returning best-effort script")
+    log.trace("end", outcome="GIVEUP", steps=max_steps); log.summary()
     return "GIVEUP", script, graph

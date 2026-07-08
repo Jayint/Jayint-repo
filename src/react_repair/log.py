@@ -1,6 +1,12 @@
-"""Design-point logger for the react arm (fresh — NOT arm C's repair_log). Every line is
-tagged with the spec guarantee it demonstrates so a later reader can grep-verify the design."""
+"""Observability sink for the react arm (spec §15; fresh — NOT arm C's repair_log). One object
+threaded as `log`, three roles: (1) design-point tags to stdout [DESIGN:*] proving control
+flow; (2) a structured per-step trace (`.trace`) — prompts, compaction, run/test — appended to
+JSONL when `trace_path` is set and always kept in memory; (3) a run-end `.summary` coverage.
+Stdout gated by REACT_VERBOSE (off → quiet)."""
 from __future__ import annotations
+
+import json
+import os
 
 DESIGN = {
     "RUN":       "§2 run the WHOLE build script fresh from base",
@@ -16,9 +22,11 @@ DESIGN = {
 
 
 class ReactLog:
-    def __init__(self, silent: bool = False):
+    def __init__(self, silent: bool | None = None, trace_path: str | None = None):
+        self.silent = (os.getenv("REACT_VERBOSE") != "1") if silent is None else silent
         self.events: list[tuple[str, str]] = []
-        self.silent = silent
+        self.records: list[dict] = []
+        self._fh = open(trace_path, "w") if trace_path else None
 
     def d(self, tag: str, msg: str) -> None:
         self.events.append((tag, msg))
@@ -29,5 +37,23 @@ class ReactLog:
         if inv:
             print(f"   {'':<12}└─ {inv}")
 
+    def trace(self, phase: str, **fields) -> None:
+        rec = {"phase": phase, **fields}
+        self.records.append(rec)
+        if self._fh is not None:
+            self._fh.write(json.dumps(rec, default=str) + "\n")
+            self._fh.flush()
+
     def count(self, tag: str) -> int:
         return sum(1 for t, _ in self.events if t == tag)
+
+    def summary(self) -> str:
+        line = " ".join(f"{t}×{self.count(t)}" for t in sorted({t for t, _ in self.events}))
+        if not self.silent:
+            print(f"  --- coverage: {line} ---")
+        return line
+
+    def close(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None

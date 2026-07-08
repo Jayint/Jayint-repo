@@ -63,6 +63,9 @@ class History:
         target.observation_prompt = reduced
         if self.log is not None:
             self.log.d("COMPRESS", f"step {target.step_id}: {len(target.observation_raw)} chars → summary")
+            self.log.trace("compress", tier=2, target_step=target.step_id,
+                           raw_chars=len(target.observation_raw), summary_chars=len(reduced),
+                           summary=reduced)
 
     def render(self) -> str:
         if not self.steps:
