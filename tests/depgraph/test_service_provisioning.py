@@ -12,6 +12,10 @@ and .superpowers/sdd/service-mechanism-report.md for this mechanism's report.
 """
 from __future__ import annotations
 
+import subprocess
+import tempfile
+from pathlib import Path
+
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from python_deps.depgraph.build_script import render_build_script, render_service_start_script
 from python_deps.depgraph.service_recipes import render_probe_poll
@@ -72,13 +76,19 @@ def test_start_script_postgres_emits_start_probe_createdb_post_and_execs():
     g = DepGraph(nodes=(_service(),))
     out = render_service_start_script(g)
     assert "service postgresql start" in out
-    assert "for i in $(seq 1 15); do pg_isready && exit 0; sleep 2; done; exit 1" in out
+    # Bounded wait loop that does NOT exit the script (see the shell-execution
+    # tests below) — deliberately NOT service_recipes.render_probe_poll's
+    # `exit 0`/`exit 1` wrapper, which would kill v3_start_services.sh dead
+    # the instant the first service's probe succeeds.
+    assert "for _i in $(seq 1 30); do pg_isready && break; sleep 1; done" in out
     assert "createdb -O app app" in out
     assert "CREATE USER app" in out
     assert out.rstrip("\n").endswith('exec "$@"')
+    assert "exit 0" not in out
+    assert "exit 1" not in out
     # ordering: start -> probe -> post (createuser) -> createdb -> exec
     start_i = out.index("service postgresql start")
-    probe_i = out.index("for i in $(seq 1 15);")
+    probe_i = out.index("for _i in $(seq 1 30);")
     post_i = out.index("CREATE USER app")
     createdb_i = out.index("createdb -O app app")
     exec_i = out.index('exec "$@"')
@@ -109,12 +119,118 @@ def test_start_script_is_deterministic():
 
 
 # ---------------------------------------------------------------------------
+# Shell-execution — LOAD-BEARING: proves the rendered script actually reaches
+# `exec "$@"` past a succeeding probe. Regression test for the bug where
+# service_recipes.render_probe_poll's `exit 0` (safe as the tail of a
+# throwaway check script) terminated the WHOLE v3_start_services.sh the
+# instant the first probe succeeded — later services' post/createdb and the
+# final `exec "$@"` never ran, so `docker run -d <image> tail -f /dev/null`
+# exited immediately and the container was dead before any `docker exec`.
+# Requires a real `bash` on PATH.
+# ---------------------------------------------------------------------------
+
+def _true_probe_service(id_="service:fake", name="fake"):
+    setup = {"install": [], "start": ":", "probe": "true", "createdb": None, "post": []}
+    return Node(id=id_, type=NodeType.SERVICE, name=name, layer=Layer.SERVICES,
+                discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING,
+                data={"setup": setup})
+
+
+def _run_start_script(script_text: str, *args: str) -> subprocess.CompletedProcess:
+    with tempfile.TemporaryDirectory() as tmp:
+        script_path = Path(tmp) / "v3_start_services.sh"
+        script_path.write_text(script_text)
+        return subprocess.run(
+            ["bash", str(script_path), *args],
+            capture_output=True, text=True, timeout=30,
+        )
+
+
+def test_start_script_reaches_exec_past_a_succeeding_probe():
+    g = DepGraph(nodes=(_true_probe_service(),))
+    script = render_service_start_script(g)
+    proc = _run_start_script(script, "echo", "__REACHED_EXEC__")
+    assert "__REACHED_EXEC__" in proc.stdout, (
+        f'start script did not reach exec "$@": rc={proc.returncode} '
+        f"stdout={proc.stdout!r} stderr={proc.stderr!r}\nscript:\n{script}"
+    )
+
+
+def test_start_script_two_services_first_probe_success_does_not_short_circuit_second(tmp_path):
+    """The FIRST service's probe succeeding must not skip the SECOND service's
+    setup — each service's block (start/probe/post/createdb) must run to
+    completion before the next one starts, and exec "$@" must still be the
+    final thing reached."""
+    marker_post = tmp_path / "second_post_ran"
+    marker_createdb = tmp_path / "second_createdb_ran"
+    second_setup = {
+        "install": [], "start": ":", "probe": "true",
+        "createdb": f"touch {marker_createdb}",
+        "post": [f"touch {marker_post}"],
+    }
+    g = DepGraph(nodes=(
+        _true_probe_service("service:first", "first"),
+        Node(id="service:second", type=NodeType.SERVICE, name="second",
+             layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+             state=State.MISSING, data={"setup": second_setup}),
+    ))
+    script = render_service_start_script(g)
+    proc = _run_start_script(
+        script, "bash", "-c",
+        f"test -f {marker_post} && echo POST_RAN; "
+        f"test -f {marker_createdb} && echo CREATEDB_RAN; "
+        "echo __REACHED_EXEC__",
+    )
+    assert "POST_RAN" in proc.stdout, f"second service's post never ran: {proc}"
+    assert "CREATEDB_RAN" in proc.stdout, f"second service's createdb never ran: {proc}"
+    assert "__REACHED_EXEC__" in proc.stdout, f'exec "$@" never reached: {proc}'
+
+
+# ---------------------------------------------------------------------------
+# Coercion — `post` (and the other list-valued setup fields) may arrive as a
+# bare string instead of a list; naive `for cmd in post` iteration over a
+# string explodes it character-by-character (list("mc mb x") == ['m', 'c',
+# ' ', 'm', 'b', ...]).
+# ---------------------------------------------------------------------------
+
+def test_start_script_coerces_string_post_into_one_command_line():
+    setup = {"install": [], "start": ":", "probe": "true",
+             "createdb": None, "post": "createbucket foo"}
+    g = DepGraph(nodes=(
+        Node(id="service:strpost", type=NodeType.SERVICE, name="strpost",
+             layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+             state=State.MISSING, data={"setup": setup}),
+    ))
+    out = render_service_start_script(g)
+    lines = out.splitlines()
+    assert any(ln.strip() == "createbucket foo" for ln in lines), (
+        f"expected 'createbucket foo' as one literal command line, got:\n{out}"
+    )
+    # no one-char-per-line artifact from character-splitting the string
+    exploded_chars = set("createbucto fg")
+    assert not any(ln.strip() and ln.strip() in exploded_chars for ln in lines)
+
+
+# ---------------------------------------------------------------------------
 # render_build_script(include_services=...) — the setup.sh half
 # ---------------------------------------------------------------------------
 
 def test_flag_off_default_is_byte_identical_to_explicit_false():
     g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _service()))
     assert render_build_script(g) == render_build_script(g, include_services=False)
+
+
+def test_flag_off_default_contains_none_of_the_service_commands_and_matches_explicit_false():
+    # Strengthened byte-identity-off check, combined into one assertion: the
+    # default call (no `include_services` kwarg at all) must both equal the
+    # explicit-False call AND contain none of the service's install/start
+    # command strings, for a graph that DOES carry a service node.
+    g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _service()))
+    default_out = render_build_script(g)
+    assert default_out == render_build_script(g, include_services=False)
+    for cmd in _POSTGRES_SETUP["install"]:
+        assert cmd not in default_out
+    assert _POSTGRES_SETUP["start"] not in default_out
 
 
 def test_flag_off_no_active_service_commands_in_setup_sh():

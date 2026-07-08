@@ -25,7 +25,6 @@ from python_deps.depgraph.emit import (
 )
 from python_deps.depgraph.populate import populate_setup_commands
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
-from python_deps.depgraph.service_recipes import render_probe_poll
 
 _BANNER = (
     "#!/usr/bin/env bash",
@@ -326,8 +325,48 @@ def _service_nodes_for_start(graph: DepGraph) -> tuple[Node, ...]:
     return topo_order(graph, nodes)
 
 
+_PROBE_WAIT_ATTEMPTS = 30
+
+
+def _as_command_list(value) -> list[str]:
+    """Coerce a setup field that may be a bare string, a list, or falsy into a
+    list of command strings. Fields like ``post``/``install``/``bind`` are
+    documented as "a string OR a list" — a naive ``for cmd in value`` over a
+    bare string silently iterates its CHARACTERS (``list("mc mb x")`` ==
+    ``['m', 'c', ' ', 'm', 'b', ...]``), which would render one command per
+    letter instead of one command per line. A string is exactly ONE command."""
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(v) for v in value]
+
+
+def _probe_wait_lines(node_id: str, probe: str) -> list[str]:
+    """Bounded readiness wait that does NOT exit the script.
+
+    Deliberately NOT ``service_recipes.render_probe_poll`` — that helper ends
+    in ``&& exit 0 ... exit 1``, which is safe only as the LAST line of a
+    throwaway check script. Inside ``v3_start_services.sh`` (a single script
+    that starts EVERY service, in order, before ``exec "$@"``), an ``exit 0``
+    the instant the FIRST service's probe succeeds would terminate the whole
+    script before any later service's start/post/createdb or the final
+    ``exec "$@"`` ever ran — the container would then have no foreground
+    process and `docker run -d ... tail -f /dev/null` would exit immediately,
+    leaving a dead container for any subsequent `docker exec ... pytest`.
+
+    On timeout, a warning is printed to stderr (a trace, not a fatal) and the
+    script STILL proceeds — a not-yet-ready service is recoverable; a dead
+    container (never reaching ``exec "$@"``) is not."""
+    return [
+        f"for _i in $(seq 1 {_PROBE_WAIT_ATTEMPTS}); do {probe} && break; sleep 1; done",
+        f'{probe} || echo "[v3] WARNING: {node_id} probe did not succeed within '
+        f'{_PROBE_WAIT_ATTEMPTS}s: {probe}" >&2',
+    ]
+
+
 def _service_start_block(node: Node) -> list[str]:
-    """start -> probe-poll -> post -> createdb, for one SERVICE node.
+    """start -> probe-wait -> post -> createdb, for one SERVICE node.
 
     post BEFORE createdb: the known-kind recipes put the CREATE USER statement
     in ``post`` and a ``createdb -O <user> ...`` (owner = that just-created user)
@@ -339,14 +378,13 @@ def _service_start_block(node: Node) -> list[str]:
     start = setup.get("start")
     probe = setup.get("probe")
     createdb = setup.get("createdb")
-    post = setup.get("post") or []
+    post = _as_command_list(setup.get("post"))
     out: list[str] = [f"# ---- {node.id} ----"]
     if start:
         out.append(str(start))
     if probe:
-        out.append(render_probe_poll(str(probe)))
-    for cmd in post:
-        out.append(str(cmd))
+        out.extend(_probe_wait_lines(node.id, str(probe)))
+    out.extend(post)
     if createdb:
         out.append(str(createdb))
     return out
