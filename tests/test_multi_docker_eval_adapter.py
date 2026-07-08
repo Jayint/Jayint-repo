@@ -117,3 +117,44 @@ def test_construction_only_absent_by_default(tmp_path, monkeypatch):
     monkeypatch.delenv("V3_CONSTRUCTION_ONLY", raising=False)
     cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
     assert "--construction-only" not in cmd, "default must run the full repair loop"
+
+
+def test_include_services_env_adds_services_out_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("V3_INCLUDE_SERVICES", "1")
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--services-out" in cmd, "V3_INCLUDE_SERVICES=1 must request the services artifact"
+    services_path = Path(cmd[cmd.index("--services-out") + 1])
+    assert services_path.parent == tmp_path
+
+
+def test_include_services_absent_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("V3_INCLUDE_SERVICES", raising=False)
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--services-out" not in cmd, "default must not request the services artifact"
+
+
+def test_dockerfile_no_entrypoint_by_default(tmp_path):
+    # _adapter()'s mocked _run_v3 never writes services_start.sh -> no ENTRYPOINT,
+    # byte-identical Dockerfile shape to before this mechanism existed.
+    a = _adapter(tmp_path)
+    r = a.process_single_instance(
+        {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
+    assert "ENTRYPOINT" not in r["dockerfile"]
+    assert "services_start.sh" not in r["dockerfile"]
+    assert "services_start.sh" not in r["setup_scripts"]
+
+
+def test_dockerfile_gets_entrypoint_when_services_script_present(tmp_path):
+    # Simulate what the REAL _run_v3 does under V3_INCLUDE_SERVICES=1: it leaves
+    # a services_start.sh artifact in output_dir for process_single_instance to
+    # pick up via _read_services_script.
+    (tmp_path / "services_start.sh").write_text(
+        "#!/usr/bin/env bash\nservice postgresql start\nexec \"$@\"\n")
+    a = _adapter(tmp_path)
+    r = a.process_single_instance(
+        {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
+    df = r["dockerfile"]
+    assert 'ENTRYPOINT ["/bin/bash", "/v3_start_services.sh"]' in df
+    assert "COPY services_start.sh /v3_start_services.sh" in df
+    assert df.index("RUN bash /tmp/v3_setup.sh") < df.index("ENTRYPOINT")
+    assert r["setup_scripts"]["services_start.sh"].startswith("#!/usr/bin/env bash")

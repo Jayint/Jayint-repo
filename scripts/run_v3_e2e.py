@@ -70,7 +70,10 @@ from src.envstate.base_image_selection import choose_base_image
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
 from python_deps.depgraph.advise import build_advisory_for_repo
-from python_deps.depgraph.build_script import render_build_script
+from python_deps.depgraph.build_script import (
+    render_build_script,
+    render_service_start_script,
+)
 from python_deps.depgraph.schema import State
 
 
@@ -93,6 +96,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
              "override verbatim.",
     )
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
+    ap.add_argument(
+        "--services-out", default=None, dest="services_out",
+        help="Where to write the service-start ENTRYPOINT-wrapper script "
+             "(render_service_start_script). Only written when the "
+             "V3_INCLUDE_SERVICES=1 env var is set AND the graph has at least "
+             "one reciped SERVICE node; omitted otherwise (and by default).",
+    )
     ap.add_argument(
         "--trace-out", default=None, dest="trace_out",
         help="Where to write the run's RunTrace JSON (Task 8 proof harness). "
@@ -143,6 +153,30 @@ def _target_arch(platform_override: str | None) -> dict:
             else {"dpkg": "amd64", "uname": "x86_64"})
 
 
+def _include_services() -> bool:
+    """The V3_INCLUDE_SERVICES gate (default OFF — see build_script.
+    render_build_script's docstring). Read ONLY here, at the impure
+    orchestration boundary; render_build_script/render_service_start_script
+    stay pure and take an explicit ``include_services``/graph argument."""
+    return os.getenv("V3_INCLUDE_SERVICES") == "1"
+
+
+def _maybe_write_services_script(graph, args) -> None:
+    """Write the service-start ENTRYPOINT-wrapper alongside setup.sh, iff the
+    flag is on, a --services-out path was given, and the graph actually has a
+    reciped SERVICE node (render_service_start_script returns "" otherwise —
+    the common, zero-service case writes nothing, matching setup.sh's own
+    no-op)."""
+    if not args.services_out or not _include_services() or graph is None:
+        return
+    text = render_service_start_script(graph)
+    if not text:
+        return
+    with open(args.services_out, "w") as fh:
+        fh.write(text)
+    print(f"[v3] wrote service start script -> {args.services_out}")
+
+
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 1. LLM client (OAI-compatible; provider chosen to match the model slug,
     #       else OpenRouter -> MiniMax -> OpenAI fallback) ───────────────────────
@@ -189,11 +223,13 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # iterative repair is skipped, so this isolates first-pass construction
     # quality. The caller builds the image from this setup.sh and runs pytest.
     if args.construction_only:
-        script_text = render_build_script(graph, ()) if graph is not None else ""
+        script_text = (render_build_script(graph, (), include_services=_include_services())
+                       if graph is not None else "")
         with open(args.out, "w") as fh:
             fh.write(script_text)
         n = sum(1 for _ in graph.nodes) if graph is not None else 0
         print(f"[v3] construction-only: wrote INITIAL setup.sh ({n} nodes) -> {args.out}")
+        _maybe_write_services_script(graph, args)
         print("stop_reason=construction_only unresolved=[]")
         print("V3 E2E:", "CONSTRUCTION_ONLY")
         return 0
@@ -245,10 +281,14 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
                   if dep_graph is not None else [])
     script_text = ""
     if dep_graph is not None:
-        script_text = render_build_script(dep_graph, getattr(final_map, "manual_blocks", ()))
+        script_text = render_build_script(
+            dep_graph, getattr(final_map, "manual_blocks", ()),
+            include_services=_include_services(),
+        )
         with open(args.out, "w") as fh:
             fh.write(script_text)
         print(f"[v3] wrote certified setup.sh -> {args.out}")
+        _maybe_write_services_script(dep_graph, args)
 
     if gates_seen:
         for g in gates_seen[-1]:

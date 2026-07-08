@@ -14,6 +14,7 @@ from python_deps.depgraph.emit import (
     _apt_name,
     _is_installable_project,
     _is_reciped,
+    _is_service_reciped,
     _pip_spec,
 )
 from python_deps.depgraph.schema import DepGraph, Node, NodeType, Strength
@@ -49,13 +50,37 @@ def _should_populate(node: Node) -> bool:
     return _is_reciped(node) or _is_installable_project(node)
 
 
-def populate_setup_commands(graph: DepGraph) -> DepGraph:
+def _service_install_commands(node: Node) -> tuple[str, ...]:
+    """Build-time-safe commands for a reciped SERVICE node: ONLY ``data['setup']
+    ['install']`` (e.g. ``apt-get install -y postgresql``) — a package install is
+    idempotent and safe to bake into a Docker ``RUN`` layer. ``start``/``createdb``/
+    ``post`` start a DAEMON PROCESS, which does not survive the build-time layer
+    into the later ``docker run`` container (see build_script.render_service_start_
+    script's module docstring for the runtime half of this split) — they must
+    NEVER be returned here."""
+    install = (node.data.get("setup") or {}).get("install") or []
+    return tuple(str(c) for c in install)
+
+
+def populate_setup_commands(graph: DepGraph, *, include_services: bool = False) -> DepGraph:
     """Return a NEW graph in which every populatable node lacking setup_commands
     gets its install command + strength=HARD. Idempotent; leaves Service/Config,
-    non-installable projects, and already-populated nodes untouched."""
+    non-installable projects, and already-populated nodes untouched.
+
+    ``include_services`` (default False, keeps this byte-identical to before):
+    when True, every ``_is_service_reciped`` SERVICE node also gets its
+    ``data['setup']['install']`` commands populated (build-time apt installs
+    only — never start/createdb/post, which are runtime-only; see
+    ``_service_install_commands``)."""
     new = graph
     for node in graph.nodes:
         if node.setup_commands:
+            continue
+        if include_services and _is_service_reciped(node):
+            cmds = _service_install_commands(node)
+            if not cmds:
+                continue
+            new = new.with_node(replace(node, setup_commands=cmds, strength=Strength.HARD))
             continue
         if not _should_populate(node):
             continue

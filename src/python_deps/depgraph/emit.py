@@ -129,6 +129,23 @@ def _is_reciped(node: Node) -> bool:
     return False
 
 
+def _is_service_reciped(node: Node) -> bool:
+    """A SERVICE node the deterministic recipe layer can provision — gated behind
+    ``V3_INCLUDE_SERVICES`` at the impure orchestration boundary (run_v3_e2e.py),
+    never here: this module stays pure (no env reads), so the predicate is purely
+    data-driven and the caller decides whether to consult it.
+
+    Deliberately a SEPARATE predicate from ``_is_reciped`` (never folded in) so
+    every existing caller of ``_is_reciped`` (annotation ``requires=``/``unblocks=``,
+    ``failed_reciped_nodes``, etc.) is unaffected unless it explicitly opts in —
+    this must never silently change PACKAGE/SYSTEM_LIB/TOOL semantics.
+
+    A node qualifies once ``classify_services_clean``/``patch_gate`` have admitted
+    it with a well-formed ``data['setup']`` dict (``install``/``start``/``probe``
+    at minimum; see service_recipes.render_setup / patch_gate._requirement_errors)."""
+    return node.type is NodeType.SERVICE and bool(node.data.get("setup"))
+
+
 def _is_installable_project(node: Node) -> bool:
     """The repo under test, when it declares a build system (pyproject/setup.py,
     recorded as ``data['installable']`` at construction). Rendered as the FINAL

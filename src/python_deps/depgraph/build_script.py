@@ -20,10 +20,12 @@ from python_deps.depgraph.emit import (
     _apt_name,
     _is_installable_project,
     _is_reciped,
+    _is_service_reciped,
     topo_order,
 )
 from python_deps.depgraph.populate import populate_setup_commands
 from python_deps.depgraph.schema import DepGraph, Layer, Node, NodeType
+from python_deps.depgraph.service_recipes import render_probe_poll
 
 _BANNER = (
     "#!/usr/bin/env bash",
@@ -86,6 +88,14 @@ def _reciped_in_layer(graph: DepGraph, layer: Layer) -> tuple[Node, ...]:
     return topo_order(graph, nodes)
 
 
+def _service_reciped_in_layer(graph: DepGraph, layer: Layer) -> tuple[Node, ...]:
+    """V3_INCLUDE_SERVICES-gated mirror of ``_reciped_in_layer`` for SERVICE
+    nodes. Only consulted by ``render_build_script`` when ``include_services``
+    is True — callers must gate it explicitly (this module stays pure/env-free)."""
+    nodes = tuple(n for n in graph.nodes if n.layer is layer and _is_service_reciped(n))
+    return topo_order(graph, nodes)
+
+
 _PROJECT_HEADER = "# ==================== PROJECT (editable) ===================="
 
 
@@ -118,10 +128,16 @@ def _need_block(graph: DepGraph, node: Node) -> list[str]:
     return out
 
 
-def _need_in_layer(graph: DepGraph, layer: Layer, covered: set[str]) -> list[Node]:
+def _need_in_layer(
+    graph: DepGraph, layer: Layer, covered: set[str], *, include_services: bool = False
+) -> list[Node]:
     nodes = [n for n in graph.nodes
              if n.layer is layer and n.type in _NEED_TYPES
-             and not _is_reciped(n) and n.id not in covered]
+             and not _is_reciped(n) and n.id not in covered
+             # once a SERVICE node is install-active (include_services), it must
+             # not ALSO render as a #@need stub — mirrors _reciped_in_layer's
+             # exclusion of _is_reciped nodes above.
+             and not (include_services and _is_service_reciped(n))]
     return sorted(nodes, key=lambda n: n.id)
 
 
@@ -168,17 +184,19 @@ def _closure_meta(graph: DepGraph) -> dict[str, str]:
 
 
 _TYPE_WORD = {NodeType.SYSTEM_LIB: "system", NodeType.TOOL: "toolchain",
-              NodeType.PACKAGE: "pip"}
+              NodeType.PACKAGE: "pip", NodeType.SERVICE: "service"}
 _NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config"}
 
 
-def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
-    reciped = [n for n in graph.nodes if _is_reciped(n)]
+def _manifest(graph: DepGraph, manual_blocks, *, include_services: bool = False) -> list[str]:
+    reciped = [n for n in graph.nodes
+               if _is_reciped(n) or (include_services and _is_service_reciped(n))]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     needs = [n for n in graph.nodes
-             if n.type in _NEED_TYPES and not _is_reciped(n) and n.id not in covered]
+             if n.type in _NEED_TYPES and not _is_reciped(n) and n.id not in covered
+             and not (include_services and _is_service_reciped(n))]
     counts = Counter(_TYPE_WORD.get(n.type, n.type.value) for n in reciped)
-    count_str = ", ".join(f"{counts[w]} {w}" for w in ("system", "toolchain", "pip")
+    count_str = ", ".join(f"{counts[w]} {w}" for w in ("system", "toolchain", "pip", "service")
                           if counts.get(w))
     need_counts = Counter(_NEED_WORD.get(n.type, n.type.value) for n in needs)
     need_str = ", ".join(f"{need_counts[w]} {w}"
@@ -198,11 +216,29 @@ def _manifest(graph: DepGraph, manual_blocks) -> list[str]:
     return lines
 
 
-def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...] = ()) -> str:
+def render_build_script(
+    graph: DepGraph | None,
+    manual_blocks: tuple[Block, ...] = (),
+    *,
+    include_services: bool = False,
+) -> str:
+    """Project a certified DepGraph into one install-only setup.sh.
+
+    ``include_services`` (default False — the pre-existing, byte-identical
+    behavior: SERVICE nodes render as inert ``#@need`` stubs, same as CONFIG)
+    gates a SECOND behavior, additive on top of the first: when True, every
+    ``_is_service_reciped`` SERVICE node's ``data['setup']['install']`` commands
+    (build-time-safe package installs, e.g. ``apt-get install -y postgresql``)
+    become ACTIVE lines in this script, and that node no longer renders as a
+    ``#@need`` stub. ``start``/``createdb``/``post`` are NEVER emitted here — a
+    daemon started inside a Dockerfile ``RUN`` layer is dead by the time a later
+    ``docker run`` container starts (see ``render_service_start_script``, the
+    runtime counterpart rendered as a separate ENTRYPOINT-wrapper artifact)."""
     if graph is None:
         graph = DepGraph()
-    graph = populate_setup_commands(graph)  # single call site: derive commands, then emit
-    parts: list[str] = _manifest(graph, manual_blocks) + [
+    # single call site: derive commands, then emit
+    graph = populate_setup_commands(graph, include_services=include_services)
+    parts: list[str] = _manifest(graph, manual_blocks, include_services=include_services) + [
         "set -Eeuo pipefail",
         "",
         "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.",
@@ -226,9 +262,12 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
         section: list[str] = []
         for node in _reciped_in_layer(graph, layer):
             section += _node_block(graph, node, apt_done)
+        if include_services:
+            for node in _service_reciped_in_layer(graph, layer):
+                section += _node_block(graph, node, apt_done)
         for b in blocks_by_wave.get(layer.value, ()):
             section += _block_block(b)
-        for node in _need_in_layer(graph, layer, covered):
+        for node in _need_in_layer(graph, layer, covered, include_services=include_services):
             section += _need_block(graph, node)
         if section:
             parts.append("")
@@ -251,4 +290,87 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
     if illegal:
         raise ValueError(f"render_build_script: manual blocks have illegal waves "
                          f"(not a Layer value): {illegal}")
+    return "\n".join(parts) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Service start script — the RUNTIME half of the SERVICE split (design
+# 2026-07-08, V3_INCLUDE_SERVICES). setup.sh runs entirely at Docker BUILD time
+# (a single ``RUN bash setup.sh`` layer); any daemon started there is dead by
+# the time the eval harness's ``docker run -d <image> tail -f /dev/null`` boots
+# a brand-new container and later ``docker exec``s pytest into it (filesystem
+# layers persist, running processes never do). This function renders a SEPARATE
+# artifact meant to be baked in as a Dockerfile ``ENTRYPOINT``: it starts every
+# reciped SERVICE node's daemon, blocks on its probe, runs createdb/post, and
+# finally ``exec "$@"`` — so ``docker run -d ... tail -f /dev/null`` hands off to
+# the foreground ``tail`` only once every service is live, well before any
+# subsequent ``docker exec ... pytest`` call reaches the container.
+# ---------------------------------------------------------------------------
+
+_SERVICE_START_BANNER = (
+    "#!/usr/bin/env bash",
+    "#",
+    "# v3_start_services.sh — COMPILED from the certified dependency graph. DO NOT EDIT.",
+    "# Runtime ENTRYPOINT wrapper: starts each SERVICE node's daemon, waits for its",
+    "# probe, runs createdb/post, then execs the container's original command ($@).",
+    "#",
+)
+
+
+def _service_nodes_for_start(graph: DepGraph) -> tuple[Node, ...]:
+    """Every reciped SERVICE node, dependency-ordered. Not layer-filtered (unlike
+    the setup.sh walk) — this is a single flat script, not a section-by-layer
+    artifact, so every SERVICE node in the graph (they all share Layer.SERVICES
+    in practice) belongs in it regardless of the caller's layer loop."""
+    nodes = tuple(n for n in graph.nodes if _is_service_reciped(n))
+    return topo_order(graph, nodes)
+
+
+def _service_start_block(node: Node) -> list[str]:
+    """start -> probe-poll -> post -> createdb, for one SERVICE node.
+
+    post BEFORE createdb: the known-kind recipes put the CREATE USER statement
+    in ``post`` and a ``createdb -O <user> ...`` (owner = that just-created user)
+    in ``createdb`` (service_recipes.render_setup) — the owner must exist before
+    ``createdb -O`` runs, or it fails. This ordering is correct for every kind in
+    ``service_recipes._KIND_BASE`` (mysql's createdb doesn't reference a user at
+    all, so the ordering is a no-op there)."""
+    setup = node.data.get("setup") or {}
+    start = setup.get("start")
+    probe = setup.get("probe")
+    createdb = setup.get("createdb")
+    post = setup.get("post") or []
+    out: list[str] = [f"# ---- {node.id} ----"]
+    if start:
+        out.append(str(start))
+    if probe:
+        out.append(render_probe_poll(str(probe)))
+    for cmd in post:
+        out.append(str(cmd))
+    if createdb:
+        out.append(str(createdb))
+    return out
+
+
+def render_service_start_script(graph: DepGraph | None) -> str:
+    """Bash ENTRYPOINT-wrapper script: start + probe-wait + post + createdb for
+    every reciped SERVICE node (dependency-ordered), terminated with
+    ``exec "$@"`` so it composes as ``ENTRYPOINT ["/bin/bash",
+    "/v3_start_services.sh"]`` — the wrapped foreground command (``tail -f
+    /dev/null`` in the eval harness) still runs, just after every service is
+    live. Pure — no Docker, no network, no LLM.
+
+    Empty string when the graph has no reciped SERVICE node — the Dockerfile
+    side must then add NO ``ENTRYPOINT`` at all, so a repo with zero services
+    (the common case) is a strict no-op end to end."""
+    if graph is None:
+        graph = DepGraph()
+    nodes = _service_nodes_for_start(graph)
+    if not nodes:
+        return ""
+    parts: list[str] = list(_SERVICE_START_BANNER) + ["set -Eeuo pipefail", ""]
+    for node in nodes:
+        parts.extend(_service_start_block(node))
+        parts.append("")
+    parts.append('exec "$@"')
     return "\n".join(parts) + "\n"

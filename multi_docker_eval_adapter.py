@@ -94,7 +94,15 @@ class MultiDockerEvalAdapter:
             setup_sh = _APP_WORKDIR_RE.sub("/testbed", setup_sh)
             result["base_image"] = resolved_base
             result["setup_scripts"] = {"setup.sh": setup_sh}
-            result["dockerfile"] = self._render_dockerfile(resolved_base, repo_url)
+            # V3_INCLUDE_SERVICES=1: _run_v3 asked run_v3_e2e for a second
+            # artifact (the service-start ENTRYPOINT wrapper); pick it up if it
+            # wrote one. "" (the default/no-service-nodes case) adds nothing —
+            # setup_scripts and the Dockerfile stay exactly as before.
+            services_sh = self._read_services_script()
+            if services_sh:
+                result["setup_scripts"]["services_start.sh"] = services_sh
+            result["dockerfile"] = self._render_dockerfile(
+                resolved_base, repo_url, include_services=bool(services_sh))
             result["logs"] = {"head_sha": head_sha, "resolved_base": resolved_base}
         except subprocess.CalledProcessError as e:
             tail = (getattr(e, "stderr", "") or "")[-2000:]
@@ -134,6 +142,9 @@ class MultiDockerEvalAdapter:
         setup_path = self.output_dir / "setup.sh"
         if setup_path.exists():
             setup_path.unlink()
+        services_path = self.output_dir / "services_start.sh"
+        if services_path.exists():
+            services_path.unlink()   # drop any stale artifact from a prior instance
         cmd = [sys.executable, str(_RUN_V3_E2E), str(src_dir),
                "--base-image", base_image or "auto",
                "--out", str(setup_path)]
@@ -145,6 +156,13 @@ class MultiDockerEvalAdapter:
         # (base-image + service/config classify) stays on — only repair is skipped.
         if os.getenv("V3_CONSTRUCTION_ONLY") == "1":
             cmd.append("--construction-only")
+        # V3_INCLUDE_SERVICES=1: also request the runtime service-start script.
+        # run_v3_e2e only WRITES this file when its own env-var check passes AND
+        # the graph has a reciped SERVICE node — passing the flag through env
+        # (inherited below) plus this --services-out path is enough; nothing
+        # downstream needs to know the flag's value directly.
+        if os.getenv("V3_INCLUDE_SERVICES") == "1":
+            cmd += ["--services-out", str(services_path)]
         # Ensure `from src...` resolves when run_v3_e2e runs as a subprocess.
         env = dict(os.environ)
         env["PYTHONPATH"] = str(_AGENT_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
@@ -163,11 +181,35 @@ class MultiDockerEvalAdapter:
             base_image if base_image and base_image != "auto" else "python:3.11-slim")
         return setup_sh, resolved
 
-    def _render_dockerfile(self, base_image: str, repo_url: str) -> str:
+    def _read_services_script(self) -> str:
+        """The service-start artifact ``_run_v3`` asked run_v3_e2e to write
+        (V3_INCLUDE_SERVICES=1 only). "" when absent — the flag is off, or the
+        graph had no reciped SERVICE node, or ``_run_v3`` was overridden by a
+        test double that never invoked the real subprocess (so no file exists
+        under ``self.output_dir``); every one of those cases must leave the
+        Dockerfile untouched, which returning "" here guarantees."""
+        path = self.output_dir / "services_start.sh"
+        if not path.exists():
+            return ""
+        return path.read_text()
+
+    def _render_dockerfile(
+        self, base_image: str, repo_url: str, include_services: bool = False,
+    ) -> str:
         """Self-contained Dockerfile: clone the repo into /testbed (same default
         HEAD run_v3 analyzed) and run the certified install-only setup.sh with
-        CWD=/testbed so the trailing ``pip install -e .`` resolves."""
-        return f"""FROM {base_image}
+        CWD=/testbed so the trailing ``pip install -e .`` resolves.
+
+        ``include_services`` (default False — byte-identical to before) adds an
+        ENTRYPOINT that starts every SERVICE node's daemon before handing off to
+        the harness's ``tail -f /dev/null`` (see build_script.render_service_
+        start_script's module docstring for why this can't just be another RUN
+        line: setup.sh runs at BUILD time, but the daemon needs to be alive in
+        the LATER container the harness `docker run -d`s and `docker exec`s
+        pytest into). ``docker run -d ... tail -f /dev/null`` does not pass
+        ``--entrypoint``, so this ENTRYPOINT survives and runs first, blocking
+        until every probe passes, before ``exec "$@"`` hands off to ``tail``."""
+        df = f"""FROM {base_image}
 WORKDIR /testbed
 
 # git for cloning (slim bases omit it); keep the layer lean.
@@ -183,3 +225,14 @@ RUN git clone --depth=1 {repo_url} /testbed
 COPY setup.sh /tmp/v3_setup.sh
 RUN bash /tmp/v3_setup.sh
 """
+        if include_services:
+            df += """
+# V3_INCLUDE_SERVICES=1: start each SERVICE node's daemon, wait for its probe,
+# then exec the container's original command — the ENTRYPOINT seam so
+# `docker run -d <image> tail -f /dev/null` brings every service up before any
+# later `docker exec ... pytest` call reaches the container.
+COPY services_start.sh /v3_start_services.sh
+RUN chmod +x /v3_start_services.sh
+ENTRYPOINT ["/bin/bash", "/v3_start_services.sh"]
+"""
+        return df
