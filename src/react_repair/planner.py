@@ -16,7 +16,13 @@ when it last ran, and your history. Respond with a Thought and exactly ONE of:
   Action: <one read-only shell command>     (investigate; you get its output next turn)
   Script: followed by one fenced ```bash block with the COMPLETE new setup.sh
 Rules: read-only commands only for Action (ls, cat, ldconfig, pip show, apt-cache — never install/modify).
-The ONLY way to change the build is to emit a new Script. Do not claim success; the host runs the tests."""
+The ONLY way to change the build is to emit a new Script. Do not claim success; the host runs the tests.
+Integrity: set up the REAL environment — install genuine packages from the package index and add
+the real system libraries/tools a build needs. Do NOT fake it: never create stub/dummy/placeholder
+modules or packages to satisfy an import, never edit, delete, or skip the repo's tests, and never
+inject pytest options to deselect failures. A failing test must be fixed by installing the real
+dependency it needs; if a dependency genuinely cannot be installed, leave the test failing rather
+than fabricate a way to pass it."""
 
 
 class ReactPlanner:
