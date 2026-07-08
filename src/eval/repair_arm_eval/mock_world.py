@@ -52,13 +52,17 @@ class FakeWorld:
             self.present.add(r.provides)
         return ReplayResult(True)
 
+    def _check(self, command) -> bool:
+        """Does ``command`` (a node's check_command) currently pass against ``present``?"""
+        cap = self.check_map.get(command)
+        return cap is not None and cap in self.present
+
     def _executor(self):
         world = self
 
         class _Ex:
             def run(self, command, *, timeout=300):
-                cap = world.check_map.get(command)
-                ok = cap is not None and cap in world.present
+                ok = world._check(command)
                 return CommandResult(command, 0 if ok else 1, "", "" if ok else "not found")
 
         return _Ex()
@@ -68,6 +72,5 @@ class FakeWorld:
         return certify_all(graph, self._executor())
 
     def readonly(self, command) -> tuple[int, str]:
-        cap = self.check_map.get(command)
-        ok = cap is not None and cap in self.present
+        ok = self._check(command)
         return (0 if ok else 1, "present" if ok else "absent")

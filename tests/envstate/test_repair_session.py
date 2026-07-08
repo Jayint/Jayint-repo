@@ -53,6 +53,28 @@ def test_progress_true_on_resolution():
     assert made_progress(s, ReplayResult(True)) is True
 
 
+def test_progress_false_on_first_patch_that_matches_the_seed():
+    """A no-op first PATCH (e.g. SessionAgent's empty-PatchProposal fallback) must NOT
+    get a free 'progress' pass just because there is no prior patch history yet —
+    compare against the session's own SEED signature instead of defaulting to True."""
+    s = RepairSession("pkg:p", "libx")
+    assert made_progress(s, ReplayResult(False, "pkg:p", "libx", "c", "")) is False
+
+
+def test_progress_true_on_first_patch_that_changes_the_signature():
+    s = RepairSession("pkg:p", "libx")
+    assert made_progress(s, ReplayResult(False, "pkg:p", "liby", "c", "")) is True
+
+
+def test_progress_true_when_the_failing_node_itself_moves():
+    """§13.1: fixing node A can reveal a genuinely different failing node B — that
+    must count as progress even if (coincidentally) the cap signature is unchanged."""
+    s = RepairSession("pkg:a", "cap1")
+    s.steps.append(Step("patch", "add x", cap="cap1",
+                        replay=ReplayResult(False, "pkg:a", "cap1", "c", "")))
+    assert made_progress(s, ReplayResult(False, "pkg:b", "cap1", "c", "")) is True
+
+
 def test_patch_steps_land_on_attempts_axis():
     g = DepGraph().with_node(Node(id="pkg:p", type=NodeType.PACKAGE, name="p", layer=Layer.PIP,
                                   discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,

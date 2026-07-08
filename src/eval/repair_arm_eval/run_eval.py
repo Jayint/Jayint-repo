@@ -16,7 +16,9 @@ if str(_SRC) not in sys.path:
 
 from src.envstate.repair_arm import run_repair_arm  # noqa: E402
 from src.eval.repair_arm_eval.design_log import DesignLog, DESIGN
-from src.eval.repair_arm_eval.scenarios import scenario_simple, scenario_chain, scenario_stall
+from src.eval.repair_arm_eval.scenarios import (
+    scenario_simple, scenario_chain, scenario_stall, scenario_hidden_gap,
+)
 
 
 def run_one(name, expect, factory, silent=False):
@@ -39,6 +41,7 @@ def main():
         ("simple (1 syslib)", "DONE", scenario_simple),
         ("chain (libpq→pg_config, follows fwd)", "DONE", scenario_chain),
         ("stall (unfixable, honest give-up)", "GIVEUP", scenario_stall),
+        ("hidden gap (green replay hides an unrendered node)", "DONE", scenario_hidden_gap),
     ]
     results, all_fired = [], set()
     for name, expect, factory in cases:

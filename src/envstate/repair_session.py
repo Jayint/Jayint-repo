@@ -50,16 +50,23 @@ class RepairSession:
 def made_progress(session: RepairSession, result: ReplayResult) -> bool:
     """Spec §5.4: the SINGLE progress rule (replaces 4 counters + 2 turn caps).
 
-    Progress iff the error is resolved, or the missing capability changed vs the last
-    patch's replay. (Certified-delta and block-moved are subsumed by cap-change in the
-    reality model; the production adapter feeds the same normalized signal.)"""
+    Progress iff the error is resolved, or the failing NODE or its missing capability
+    changed vs a baseline — the last patch's replay, or (on the session's FIRST patch,
+    where there is no prior replay yet) the session's own SEED signature. Comparing the
+    first patch against the seed — instead of unconditionally crediting it — means a
+    no-op patch (e.g. SessionAgent's empty-PatchProposal fallback) is correctly judged
+    as no-progress even on turn 1, so the stall rule can actually end it honestly.
+
+    Node identity is compared alongside cap: fixing node A can legitimately reveal a
+    DIFFERENT failing node B (spec §13.1, "the session follows the failure forward") —
+    that must also register as progress, not just a same-node signature change."""
     if result.ok:
         return True
     last = next((s for s in reversed(session.steps)
                  if s.kind == "patch" and s.replay is not None), None)
-    if last is None:
-        return True
-    return result.failing_cap != last.replay.failing_cap
+    baseline_node = last.replay.failing_node if last is not None else session.seed_node
+    baseline_cap = last.replay.failing_cap if last is not None else session.seed_cap
+    return result.failing_node != baseline_node or result.failing_cap != baseline_cap
 
 
 def persist_session_to_attempts(graph, session: RepairSession, node_id: str):

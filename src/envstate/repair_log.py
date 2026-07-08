@@ -18,7 +18,8 @@ DESIGN = {
     "SESSION_RESOLVED": "§5.4 session ends when the host confirms the error is gone",
     "SESSION_STALL":    "§5.4 honest bounded give-up (stall/turn-cap)",
     "ATTEMPTS_PERSIST": "§13.2 session transcript persisted to the node's attempts axis",
-    "DONE":             "§5.1 done = clean replay green (host-verified)",
+    "DONE":             "§5.1 done = clean replay green AND no required node still MISSING "
+                        "(host-verified closure, not just an exit code)",
     "GIVEUP":           "§5.1 global give-up (same error unrepaired)",
 }
 

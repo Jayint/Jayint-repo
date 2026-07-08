@@ -58,3 +58,26 @@ def scenario_stall():
                                 "python -c 'import mystery'"),
     }
     return _base_graph("pkg:mystery", "mystery"), FakeWorld(reality), ScriptedSolver({})
+
+
+def scenario_hidden_gap():
+    """The KNOWN-BUG shape: a required SystemLib node already exists in the graph
+    (check_command set) but has no chosen_fix yet, so render_build_script emits
+    NOTHING for it (emit._is_reciped is False) — the script trivially exits 0 on
+    the FIRST cycle even though the obligation was never installed. FakeWorld's own
+    replay is blind to this too (a node with no chosen_fix is skipped from its
+    install-order walk), so only the top-level unmet-required-node check (not the
+    replay result) can catch it. The agent DOES have a fix, so the loop must
+    localize + repair it and reach a REAL DONE on the next cycle."""
+    reality = {
+        "pkg:widget": RealNode("widget", frozenset(), "python -c 'import widget'"),
+        "syslib:ghost": RealNode("ghost", frozenset(), "ldconfig -p | grep -q libghost"),
+    }
+    g = _base_graph("pkg:widget", "widget")
+    g = g.with_node(Node(id="syslib:ghost", type=NodeType.SYSTEM_LIB, name="ghost",
+                         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.STATIC_SCAN,
+                         state=State.MISSING, check_command="ldconfig -p | grep -q libghost"))
+    fixes = {"syslib:ghost": Fix("ldconfig -p | grep -q libghost",
+                                 syslib_patch("ghost", "syslib:ghost", "libghost-dev",
+                                              "ldconfig -p | grep -q libghost", "pkg:widget"))}
+    return g, FakeWorld(reality), ScriptedSolver(fixes)

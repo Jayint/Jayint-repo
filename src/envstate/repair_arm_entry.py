@@ -46,6 +46,7 @@ def docker_adapters(sandbox):
     (render → reset_to_base → run_install_script) and to how ``run_v3`` certifies —
     ``certify_refresh`` wraps the sandbox's ``exec_readonly`` callable in the read-only adapter."""
     from python_deps.depgraph.build_script import render_build_script
+    from python_deps.failure_classifier import classify_dependency_failure
     from src.envstate.depgraph_live import certify_refresh
     from src.envstate.install_localizer import localize_install_failure
 
@@ -56,9 +57,18 @@ def docker_adapters(sandbox):
         if r.rc == 0:
             return ReplayResult(True)
         node = localize_install_failure(script, r.failing_command).node_id
-        # failing_cap = the failing command: a signature that changes when the failure moves
-        # forward, which is exactly what the progress rule keys on.
-        return ReplayResult(False, node, r.failing_command, r.failing_command, r.stderr or "")
+        # failing_cap = a normalized error-CLASS signature (spec §5.4's "normalized
+        # error class"), NOT the raw failing command: populate.py emits one FIXED
+        # install command per node, so the SAME node failing twice for two DIFFERENT
+        # root causes (e.g. libpq fixed, now missing an openssl header) would show
+        # identical command text — made_progress would then read genuine progress as
+        # a stall. classify_dependency_failure is the existing failure classifier the
+        # DiagnosisRouter already wraps (no new classifier introduced).
+        failure = classify_dependency_failure(r.failing_command or "", r.stderr or "")
+        detail = (failure.import_name or failure.package_name
+                  or failure.details.get("library") or failure.details.get("symbol") or "")
+        cap = f"{failure.failure_type}:{detail}" if detail else failure.failure_type
+        return ReplayResult(False, node, cap, r.failing_command, r.stderr or "")
 
     def certify(graph):
         return certify_refresh(graph, sandbox.exec_readonly, cycle=0)

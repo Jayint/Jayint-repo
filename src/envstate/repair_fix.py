@@ -17,6 +17,12 @@ from src.envstate.repair_session import (
 EVIDENCE = frozenset({"ev.1"})
 
 
+def _give_up(graph, session, node_id, log, msg):
+    """Honest bounded give-up on this error (spec §5.4): log + persist the transcript."""
+    log.d("SESSION_STALL", msg)
+    return persist_session_to_attempts(graph, session, node_id), "stalled"
+
+
 def fix_one_error(graph, error, *, agent, replay, certify, log, readonly=None,
                   stall_limit: int = 2, turn_cap: int = 15,
                   known_evidence_ids=EVIDENCE):
@@ -41,8 +47,8 @@ def fix_one_error(graph, error, *, agent, replay, certify, log, readonly=None,
             session.steps.append(Step("patch", f"REJECTED:{added}", cap=cap, accepted=False))
             no_progress += 1
             if no_progress >= stall_limit:
-                log.d("SESSION_STALL", f"{no_progress} rejects — give up {error.failing_node}")
-                return persist_session_to_attempts(graph, session, error.failing_node), "stalled"
+                return _give_up(graph, session, error.failing_node, log,
+                                f"{no_progress} rejects — give up {error.failing_node}")
             continue
         graph = admit.graph
         before = {n.id for n in graph.nodes if n.state is State.SATISFIED}
@@ -58,8 +64,8 @@ def fix_one_error(graph, error, *, agent, replay, certify, log, readonly=None,
         log.d("SESSION_PATCH",
               f"applied {added}; replay {'green' if result.ok else result.failing_cap}")
         log.d("PROGRESS", f"progress={prog}")
-        if result.ok or result.failing_node != error.failing_node:
-            log.d("SESSION_RESOLVED", f"{error.failing_node} past seed error")
+        if result.ok:
+            log.d("SESSION_RESOLVED", f"{error.failing_node} — clean replay confirms the fix")
             graph = persist_session_to_attempts(graph, session, error.failing_node)
             log.d("ATTEMPTS_PERSIST",
                   f"{sum(1 for s in session.steps if s.kind == 'patch')} "
@@ -68,7 +74,6 @@ def fix_one_error(graph, error, *, agent, replay, certify, log, readonly=None,
         current = result
         no_progress = 0 if prog else no_progress + 1
         if no_progress >= stall_limit:
-            log.d("SESSION_STALL", f"{no_progress} no-progress — give up {error.failing_node}")
-            return persist_session_to_attempts(graph, session, error.failing_node), "stalled"
-    log.d("SESSION_STALL", f"turn cap {turn_cap} hit")
-    return persist_session_to_attempts(graph, session, error.failing_node), "stalled"
+            return _give_up(graph, session, error.failing_node, log,
+                            f"{no_progress} no-progress — give up {error.failing_node}")
+    return _give_up(graph, session, error.failing_node, log, f"turn cap {turn_cap} hit")
