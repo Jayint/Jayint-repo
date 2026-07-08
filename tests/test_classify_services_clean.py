@@ -18,6 +18,7 @@ for _p in (str(_ROOT), str(_SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from python_deps.depgraph.emit import _is_service_reciped
 from python_deps.depgraph.schema import DepGraph, NodeType, State
 from python_deps.depgraph.service_recipes import render_probe_poll
 
@@ -197,6 +198,74 @@ def test_never_crashes(tmp_path, monkeypatch):
     out = classify_services_clean(g, _make_repo(tmp_path),
                                   client=None, model="m", arch=_ARCH)
     assert out is g                                                 # best-effort: error -> input graph
+
+
+# ---------------------------------------------------------------------------
+# GitHub Actions `jobs.<job>.services:` discovery (rq/rq gap — findings §5).
+# `redis` is a KNOWN kind (service_recipes._KIND_BASE), so translate_service's
+# `render_setup` path is LLM-free — these tests use the REAL translate_service
+# (client=None is never touched for a known kind).
+# ---------------------------------------------------------------------------
+
+def _make_ci_only_repo(tmp_path, service_name="redis", image="redis:7"):
+    """A repo with NO compose file — the only service declaration is a GH
+    Actions workflow's `jobs.test.services.<name>` block (the rq/rq shape)."""
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True, exist_ok=True)
+    (wf / "ci.yml").write_text(
+        "jobs:\n"
+        "  test:\n"
+        "    services:\n"
+        f"      {service_name}:\n"
+        f"        image: {image}\n"
+        "        ports:\n"
+        "          - '6379:6379'\n"
+    )
+    (tmp_path / "app.py").write_text(
+        "import redis\n"
+        "r = redis.Redis()\n"
+    )
+    return str(tmp_path)
+
+
+def test_ci_only_service_produces_reciped_service_node(tmp_path):
+    out = classify_services_clean(DepGraph(), _make_ci_only_repo(tmp_path),
+                                  client=None, model="m", arch=_ARCH)
+    node = out.get("service:redis")
+    assert node is not None
+    assert node.type is NodeType.SERVICE
+    setup = node.data.get("setup")
+    assert setup is not None
+    assert setup.get("start")                       # non-empty start command
+    assert setup.get("probe")                        # non-empty probe command
+    assert _is_service_reciped(node)                 # provisionable via V3_INCLUDE_SERVICES
+
+
+def test_ci_and_compose_dedupe_produces_one_node(tmp_path):
+    (tmp_path / "docker-compose.yml").write_text(
+        "services:\n"
+        "  redis:\n"
+        "    image: redis:7\n"
+    )
+    repo = _make_ci_only_repo(tmp_path)  # adds the .github/workflows/ci.yml redis block too
+    out = classify_services_clean(DepGraph(), repo, client=None, model="m", arch=_ARCH)
+    service_nodes = [n for n in out.nodes if n.type is NodeType.SERVICE and n.name == "redis"]
+    assert len(service_nodes) == 1
+
+
+def test_malformed_workflow_does_not_crash_classify(tmp_path):
+    (tmp_path / "docker-compose.yml").write_text(
+        "services:\n"
+        "  db:\n"
+        "    image: postgres:16\n"
+    )
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True, exist_ok=True)
+    (wf / "broken.yml").write_text("jobs:\n  test:\n    services: [redis: image: redis:7\n")
+    (tmp_path / "app.py").write_text("import psycopg2\n")
+    out = classify_services_clean(DepGraph(), str(tmp_path), client=None, model="m", arch=_ARCH)
+    assert isinstance(out, DepGraph)                 # never raises
+    assert out.get("service:db") is not None          # the valid compose service still admitted
 
 
 def test_make_construction_classifier_returns_callable(tmp_path, monkeypatch):
