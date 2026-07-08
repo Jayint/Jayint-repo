@@ -41,7 +41,7 @@ class History:
         prompt_obs, _ = safety_truncate(observation_raw or "", max_chars=self.safety_max_chars)
         step = Step(step_id, thought, action_summary, observation_raw or "", prompt_obs)
         self.steps.append(step)
-        self._maybe_compress()           # Tier 2 — no-op until Task 4 wires a compressor
+        self._maybe_compress()           # Tier 2 — reflective compression (no-op if no compressor injected)
         return step
 
     def _maybe_compress(self) -> None:

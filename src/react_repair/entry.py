@@ -69,6 +69,7 @@ def _make_compressor(client: Any, model: str):
 
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30):
+    owns_log = log is None
     log = log or ReactLog(trace_path=trace_out)
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox)
     ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
@@ -79,4 +80,5 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                          exec_readonly=exec_readonly, run_tests=run_tests, planner=planner,
                          history=history, log=log, max_steps=max_steps)
     finally:
-        log.close()
+        if owns_log:
+            log.close()

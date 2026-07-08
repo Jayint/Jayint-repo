@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from src.envstate.llm_response import complete_with_retry
-from src.react_repair.actions import Action, extract_thought, parse_action
+from src.react_repair.actions import extract_thought, parse_action
 
 SYSTEM_PROMPT = """\
 You are configuring a Python repo's environment by editing ONE build script (setup.sh) until
