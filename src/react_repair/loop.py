@@ -3,14 +3,21 @@
 no re-run) or PATCH (replace the script, reset + re-run). All adapters injected → Docker-free."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import is_read_only
+from src.react_repair.history import safety_truncate
 from src.react_repair.script_prep import strip_graph_framing
 
 _FORMAT_REMINDER = ("Respond with Thought + exactly one `Action: <read-only cmd>` or "
                     "`Script:` + one fenced ```bash block. No prose-only replies.")
+
+# Cap the build/test log shown to the planner so a repo with a huge failure dump can't bloat
+# (or overflow) the prompt every turn. Keep the TAIL — pytest's summary + last failures live
+# there, which is what the model needs to diagnose.
+_OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 
 
 @dataclass(frozen=True)
@@ -22,8 +29,10 @@ class RunResult:
 
 def _observation(result: RunResult, test) -> str:
     if not result.ok:
-        return f"BUILD FAILED at `{result.failing_command}`:\n{result.output}"
-    return f"BUILD OK. TESTS {test.passed}/{test.executed} passed:\n{test.output}"
+        body, _ = safety_truncate(result.output or "", max_chars=_OBS_MAX_CHARS)
+        return f"BUILD FAILED at `{result.failing_command}`:\n{body}"
+    body, _ = safety_truncate(test.output or "", max_chars=_OBS_MAX_CHARS)
+    return f"BUILD OK. TESTS {test.passed}/{test.executed} passed:\n{body}"
 
 
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,

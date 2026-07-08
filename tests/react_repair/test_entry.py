@@ -25,3 +25,28 @@ def test_run_script_adapter_maps_installresult():
 def test_run_tests_adapter_applies_80pct_verdict():
     _, _, _, _, run_tests = docker_adapters(_FakeSandbox(0, "9 passed, 1 failed in 1s"))
     assert run_tests().ok is True                       # 0.9 >= 0.8
+
+
+class _CapSandbox:
+    """Captures the command run_tests passes to exec_readonly, returns a scripted (rc, out)."""
+    def __init__(self, rc, out): self._rc, self._out = rc, out
+    def reset_to_base(self): pass
+    def exec_readonly(self, cmd):
+        self.last_cmd = cmd
+        return (self._rc, self._out)
+
+
+def test_run_tests_bounds_pytest_with_timeout():
+    sb = _CapSandbox(0, "5 passed in 0.1s")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    r = run_tests()
+    assert "timeout" in sb.last_cmd and "pytest" in sb.last_cmd     # bounded
+    assert "command -v timeout" in sb.last_cmd                      # graceful fallback if absent
+    assert r.ok is True                                            # verdict still applied to output
+
+
+def test_run_tests_timeout_kill_is_not_ok():
+    # coreutils `timeout` exits 124 on kill; a killed run has no real passes -> not ok.
+    sb = _CapSandbox(124, "")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    assert run_tests().ok is False

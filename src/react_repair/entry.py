@@ -4,6 +4,7 @@ layer) so the suite is not run twice; `run_tests` is the single authoritative py
 through the 80% verdict. No arm-C imports."""
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER, certify_all
@@ -18,6 +19,9 @@ from src.react_repair.planner import ReactPlanner
 
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).
 _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS)
+
+# Hard cap on a single pytest run so a hanging suite can't stall the whole benchmark.
+_TEST_TIMEOUT_S = int(os.getenv("REACT_TEST_TIMEOUT", "600"))
 
 
 class _ExecAdapter:
@@ -45,7 +49,13 @@ def docker_adapters(sandbox):
         return sandbox.exec_readonly(cmd)
 
     def run_tests():
-        rc, out = sandbox.exec_readonly(VERIFY_TEST_CMD)
+        # Bound the suite with coreutils `timeout` (SIGTERM at the cap, SIGKILL 10s later) so a
+        # hanging test can't stall the run; fall back to unbounded only where `timeout` is absent.
+        cmd = (f"if command -v timeout >/dev/null 2>&1; then "
+               f"timeout -k 10 {_TEST_TIMEOUT_S} {VERIFY_TEST_CMD}; else {VERIFY_TEST_CMD}; fi")
+        rc, out = sandbox.exec_readonly(cmd)
+        if rc == 124:                      # timeout killed pytest — surface it as a repair signal
+            out = f"{out or ''}\n[react] TIMEOUT: pytest exceeded {_TEST_TIMEOUT_S}s and was killed."
         return test_verdict(out)
 
     return reset, run_script, certify, exec_readonly, run_tests

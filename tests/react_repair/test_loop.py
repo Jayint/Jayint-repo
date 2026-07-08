@@ -4,11 +4,28 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.loop import run_react, RunResult
+from src.react_repair.loop import run_react, RunResult, _observation
 from src.react_repair.gate import TestOutcome
 from src.react_repair.history import History
 from src.react_repair.log import ReactLog
 from src.react_repair.actions import Action
+
+
+def test_observation_bounds_huge_test_output_keeping_tail():
+    big = "EARLY_FAILURE\n" + ("x" * 50000) + "\n3 failed, 100 passed in 9s"
+    obs = _observation(RunResult(True), TestOutcome(False, 100, 103, output=big))
+    assert len(obs) < 12000                       # not the full 50k+ dumped into the prompt
+    assert obs.rstrip().endswith("3 failed, 100 passed in 9s")   # diagnostic tail preserved
+
+def test_observation_bounds_huge_build_failure_keeping_tail():
+    big = ("y" * 40000) + "\nERROR: could not build wheel"
+    obs = _observation(RunResult(False, failing_command="pip install foo", output=big), None)
+    assert len(obs) < 12000
+    assert obs.rstrip().endswith("ERROR: could not build wheel")
+
+def test_observation_small_output_untouched():
+    obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
+    assert "5 passed in 0.1s" in obs and "truncated" not in obs
 
 
 class _ScriptedPlanner:

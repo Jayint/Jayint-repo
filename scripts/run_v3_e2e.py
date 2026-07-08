@@ -126,6 +126,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="react arm only: feed certified graph state into the planner "
              "(graph-guided variant).",
     )
+    ap.add_argument(
+        "--max-steps", type=int, default=30, dest="max_steps",
+        help="react arm only: max ReAct steps (full script re-runs) before GIVEUP.",
+    )
     return ap
 
 
@@ -268,6 +272,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         try:
             outcome, script_text, _ = run_react_arm(
                 graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
+                max_steps=args.max_steps,
                 graph_context=args.graph_context, trace_out=args.trace_out)
         finally:
             try:
