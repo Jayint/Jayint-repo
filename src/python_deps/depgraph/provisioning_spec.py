@@ -171,6 +171,13 @@ def _ci_services(repo):
             if not isinstance(svcs, dict):
                 continue
             for name, entry in svcs.items():
+                # A real GitHub Actions service container ALWAYS declares an
+                # ``image:`` (required syntax). Skip non-mapping values
+                # (``redis: "disabled"``) and ``${{ }}``-expression / imageless
+                # entries so we never mint a provisionable service by
+                # name-inference from a block that declares no concrete service.
+                if not isinstance(entry, dict) or not entry.get("image"):
+                    continue
                 yield os.path.relpath(path, repo), name, entry
 
 

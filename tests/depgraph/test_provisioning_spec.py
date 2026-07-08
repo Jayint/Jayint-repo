@@ -101,6 +101,23 @@ def test_iter_picks_up_ci_only_service(tmp_path):
     assert specs[0].port == 6379
 
 
+def test_iter_ci_skips_imageless_and_nonmapping_service_entries(tmp_path):
+    # A GH Actions service container always declares `image:`. A non-mapping
+    # value (`redis: "disabled"`) or an imageless/expression entry must NOT mint
+    # a provisionable service by name-inference.
+    _write_workflow(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          test:
+            services:
+              redis: "disabled"
+              postgres:
+                ports:
+                  - "5432:5432"
+    """)
+    specs = list(iter_provisioning_specs(str(tmp_path)))
+    assert specs == []
+
+
 def test_iter_ci_service_env_params():
     # GH Actions services set vars via `env:`, not compose's `environment:`.
     entry = {"image": "postgres:15", "env": {"POSTGRES_DB": "app", "POSTGRES_USER": "u",
