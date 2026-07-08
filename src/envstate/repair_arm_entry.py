@@ -11,6 +11,7 @@ Docker glue in ``docker_adapters`` is thin and exercised only on the live path."
 from __future__ import annotations
 
 from src.envstate.repair_arm import run_repair_arm
+from src.envstate.repair_fix import EVIDENCE
 from src.envstate.repair_log import DesignLog
 from src.envstate.repair_types import ReplayResult
 from src.envstate.session_agent import SessionAgent
@@ -81,11 +82,18 @@ def docker_adapters(sandbox):
 
 def run_v3_session(graph, *, replay, certify, readonly=None, agent=None, log=None,
                    client=None, model=None, repo_path=None,
-                   known_evidence_ids=frozenset(), loop_mode_sink=None, max_errors=20):
+                   known_evidence_ids=None, loop_mode_sink=None, max_errors=20):
     """Assemble + run arm C. Provide ``agent`` directly (tests), or ``client``+``model`` to
     build a ``SessionAgent``. ``log`` defaults to a verbose ``DesignLog`` (the heavy
     design-area logging). ``loop_mode_sink`` (e.g. ``tracer.set_loop_mode``) is called with
-    ``LOOP_MODE`` so the run is tagged as the session-repair arm."""
+    ``LOOP_MODE`` so the run is tagged as the session-repair arm.
+
+    ``known_evidence_ids`` is the SAME set the SessionAgent is told to cite AND the gate
+    validates against — they MUST match or every real patch is rejected. Defaults to the
+    single synthetic ``EVIDENCE`` id (follow-up: derive it from the real failure so the
+    node's stored evidence ties to the actual diagnostic)."""
+    if known_evidence_ids is None:
+        known_evidence_ids = EVIDENCE
     if agent is None:
         agent = SessionAgent(client, model, known_evidence_ids=known_evidence_ids)
     if log is None:
@@ -94,4 +102,4 @@ def run_v3_session(graph, *, replay, certify, readonly=None, agent=None, log=Non
         loop_mode_sink(LOOP_MODE)
     return run_repair_arm(graph, replay=replay, certify=certify, readonly=readonly,
                           agent=agent, log=log, diagnose=_make_diagnose(repo_path),
-                          max_errors=max_errors)
+                          known_evidence_ids=known_evidence_ids, max_errors=max_errors)

@@ -8,7 +8,7 @@ agent keep it Docker-free; production injects Docker adapters, the eval injects 
 from __future__ import annotations
 
 from python_deps.depgraph.emit import partition
-from src.envstate.repair_fix import fix_one_error
+from src.envstate.repair_fix import fix_one_error, EVIDENCE
 from src.envstate.repair_types import ReplayResult
 
 
@@ -58,7 +58,8 @@ def _mark_stuck(stuck: dict[str, int], node_id: str) -> int:
 
 
 def run_repair_arm(graph, *, replay, certify, agent, log, readonly=None,
-                   localize=None, diagnose=None, max_errors: int = 20):
+                   localize=None, diagnose=None, known_evidence_ids=EVIDENCE,
+                   max_errors: int = 20):
     localize = localize or _default_localize
     diagnose = diagnose or _default_diagnose
     stuck: dict[str, int] = {}
@@ -82,7 +83,8 @@ def run_repair_arm(graph, *, replay, certify, agent, log, readonly=None,
                 return "GIVEUP", graph
             continue
         graph, outcome = fix_one_error(graph, error, agent=agent, replay=replay,
-                                       certify=certify, log=log, readonly=readonly)
+                                       certify=certify, log=log, readonly=readonly,
+                                       known_evidence_ids=known_evidence_ids)
         if outcome == "stalled" and _mark_stuck(stuck, error.failing_node) >= 2:
             log.d("GIVEUP", f"same error at {error.failing_node} unrepaired — honest give-up")
             return "GIVEUP", graph
