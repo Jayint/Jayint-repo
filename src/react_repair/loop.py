@@ -19,6 +19,12 @@ _FORMAT_REMINDER = ("Respond with Thought + exactly one `Action: <read-only cmd>
 # there, which is what the model needs to diagnose.
 _OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 
+# Cost lever: stop early once repair stops helping. After this many CONSECUTIVE patches that
+# add no net-new passing tests, we've hit the achievable ceiling for this env — repairing
+# further just burns steps/LLM cost, so stop and report the best achieved (PLATEAU). Lets the
+# pass threshold be strict without paying to chase an unreachable ceiling.
+_PLATEAU_PATIENCE = int(os.getenv("REACT_PLATEAU_PATIENCE", "2"))
+
 
 @dataclass(frozen=True)
 class RunResult:
@@ -42,29 +48,50 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
     script = (_initial_script if _initial_script is not None
               else strip_graph_framing(render_build_script(graph)))
 
-    def rerun(s):
+    def build_and_test():
+        """Reset → run the WHOLE current script fresh from base → certify (install-tier) → and,
+        if the build is green, run the suite once. Returns (result, graph, test|None)."""
         reset()
-        log.d("RUN", f"running {len(s.splitlines())}-line build script from base")
-        r = run_script(s)
+        log.d("RUN", f"running {len(script.splitlines())}-line build script from base")
+        r = run_script(script)
         g = certify(graph)
         log.d("CERTIFY", "install-tier node states refreshed" if r.ok else f"build failed: {r.failing_command}")
-        log.trace("run", script_len=len(s.splitlines()), ok=r.ok,
+        log.trace("run", script_len=len(script.splitlines()), ok=r.ok,
                   failing_command=r.failing_command, output_tail=(r.output or "")[-500:])
-        return r, g
+        t = None
+        if r.ok:
+            t = run_tests()
+            log.d("TEST_GATE", f"{t.passed}/{t.executed} passed → {'ok' if t.ok else 'below threshold'}")
+            log.trace("test", passed=t.passed, executed=t.executed, ok=t.ok,
+                      output_tail=(t.output or "")[-500:])
+        return r, g, t
 
-    result, graph = rerun(script)
-    test = None
+    best_passed = -1
+    stall = 0
+
+    def register(r, t) -> bool:
+        """Fold a fresh build into the plateau counters. Returns True once repair has stalled —
+        no net-new passing tests for `_PLATEAU_PATIENCE` consecutive builds."""
+        nonlocal best_passed, stall
+        passed_now = t.passed if (r.ok and t is not None) else 0
+        if passed_now > best_passed:
+            best_passed, stall = passed_now, 0
+            return False
+        stall += 1
+        return stall >= _PLATEAU_PATIENCE
+
+    result, graph, test = build_and_test()
+    plateaued = register(result, test)                  # baseline: first build never plateaus
     for step in range(max_steps):
-        if result.ok:
-            if test is None:
-                test = run_tests()
-                log.d("TEST_GATE", f"{test.passed}/{test.executed} passed → {'ok' if test.ok else 'below 80%'}")
-                log.trace("test", passed=test.passed, executed=test.executed, ok=test.ok,
-                          output_tail=(test.output or "")[-500:])
-            if test.ok:
-                log.d("DONE", "build green AND tests ≥80% — host-verified")
-                log.trace("end", outcome="DONE", steps=step + 1); log.summary()
-                return "DONE", script, graph
+        if result.ok and test is not None and test.ok:
+            log.d("DONE", "build green AND tests pass the gate — host-verified")
+            log.trace("end", outcome="DONE", steps=step + 1); log.summary()
+            return "DONE", script, graph
+        if plateaued:
+            log.d("PLATEAU", f"no new tests passing in {_PLATEAU_PATIENCE} repairs "
+                             f"(best {best_passed}) — stopping early")
+            log.trace("end", outcome="PLATEAU", steps=step + 1, best_passed=best_passed); log.summary()
+            return "PLATEAU", script, graph
         observation = _observation(result, test)
 
         thought, action, _usage = planner.plan(history, script, observation, graph)
@@ -73,16 +100,18 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             rc, out = exec_readonly(action.command)
             history.record(step, thought, f"explore: {action.command}", out)
             log.d("EXPLORE", f"{action.command} → rc{rc} (read-only)")
-            continue                                    # same container/result — a free turn
+            continue                                    # free turn — no rebuild, plateau unchanged
         if action.kind == "patch" and action.new_script:
             script = action.new_script
             history.record(step, thought, "patch", "(replaced build script)")
             log.d("PATCH", "agent replaced setup.sh; re-running fresh")
-            result, graph = rerun(script)
-            test = None                                 # invalidate cached test result
+            result, graph, test = build_and_test()
+            plateaued = register(result, test)
             continue
         history.record(step, thought, "invalid", _FORMAT_REMINDER)   # explore-not-readonly or unparseable
         log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
-    log.d("GIVEUP", f"max_steps {max_steps} hit — returning best-effort script")
-    log.trace("end", outcome="GIVEUP", steps=max_steps); log.summary()
-    return "GIVEUP", script, graph
+
+    outcome = "PLATEAU" if plateaued else "GIVEUP"      # plateau on the final step lands here
+    log.d(outcome, f"stopped at max_steps {max_steps} (best {best_passed}) — best-effort script")
+    log.trace("end", outcome=outcome, steps=max_steps, best_passed=best_passed); log.summary()
+    return outcome, script, graph

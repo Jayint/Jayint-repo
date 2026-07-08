@@ -130,6 +130,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--max-steps", type=int, default=30, dest="max_steps",
         help="react arm only: max ReAct steps (full script re-runs) before GIVEUP.",
     )
+    ap.add_argument(
+        "--test-threshold", type=float, default=0.9, dest="test_threshold",
+        help="react arm only: fraction of executed tests that must pass to certify DONE "
+             "(default 0.9). Sweep this to trade accuracy vs cost.",
+    )
     return ap
 
 
@@ -272,7 +277,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         try:
             outcome, script_text, _ = run_react_arm(
                 graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
-                max_steps=args.max_steps,
+                max_steps=args.max_steps, test_threshold=args.test_threshold,
                 graph_context=args.graph_context, trace_out=args.trace_out)
         finally:
             try:

@@ -34,7 +34,7 @@ class _ExecAdapter:
         return CommandResult(command, rc, out if rc == 0 else "", "" if rc == 0 else out)
 
 
-def docker_adapters(sandbox):
+def docker_adapters(sandbox, test_threshold: float = 0.9):
     def reset():
         sandbox.reset_to_base()
 
@@ -56,7 +56,7 @@ def docker_adapters(sandbox):
         rc, out = sandbox.exec_readonly(cmd)
         if rc == 124:                      # timeout killed pytest — surface it as a repair signal
             out = f"{out or ''}\n[react] TIMEOUT: pytest exceeded {_TEST_TIMEOUT_S}s and was killed."
-        return test_verdict(out)
+        return test_verdict(out, threshold=test_threshold)
 
     return reset, run_script, certify, exec_readonly, run_tests
 
@@ -78,10 +78,11 @@ def _make_compressor(client: Any, model: str):
 
 
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
-                  graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30):
+                  graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
+                  test_threshold: float = 0.9):
     owns_log = log is None
     log = log or ReactLog(trace_path=trace_out)
-    reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox)
+    reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
     ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
     planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None), log=log)
     history = History(compressor=_make_compressor(client, model), log=log)

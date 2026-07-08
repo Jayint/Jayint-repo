@@ -89,3 +89,28 @@ def test_explore_is_a_free_turn_no_rerun_needed():
 def test_unfixable_gives_up():
     outcome, _, _ = _run([], installed_needs=("libunobtainium",))
     assert outcome == "GIVEUP"
+
+def test_plateau_stops_when_repairs_stop_helping():
+    # Patches that never add the needed token -> pass count never rises -> PLATEAU (not a
+    # 30-step thrash). Default patience is 2, so two no-gain patches trip it.
+    p1 = Action("patch", new_script="pip install app\necho a\n")
+    p2 = Action("patch", new_script="pip install app\necho b\n")
+    p3 = Action("patch", new_script="pip install app\necho c\n")
+    outcome, _, log = _run([p1, p2, p3], tests_need=("magic",))
+    assert outcome == "PLATEAU" and log.count("PLATEAU") == 1
+
+def test_plateau_tolerates_one_no_gain_then_reaches_done():
+    # initial 2/5 (fail) -> patch1 no gain (stall 1, tolerated) -> patch2 gains to 5/5 -> DONE.
+    outcomes = iter([
+        TestOutcome(False, 2, 5, "2 passed, 3 failed"),   # initial build
+        TestOutcome(False, 2, 5, "2 passed, 3 failed"),   # after patch1 (no gain)
+        TestOutcome(True, 5, 5, "5 passed"),               # after patch2 (progress + ok)
+    ])
+    planner = _ScriptedPlanner([Action("patch", new_script="a\n"),
+                                Action("patch", new_script="b\n")])
+    outcome, _, _ = run_react(
+        object(), reset=lambda: None, run_script=lambda s: RunResult(True),
+        certify=lambda g: g, exec_readonly=lambda c: (0, ""),
+        run_tests=lambda: next(outcomes), planner=planner, history=History(),
+        log=ReactLog(silent=True), max_steps=10, _initial_script="x\n")
+    assert outcome == "DONE"

@@ -50,3 +50,10 @@ def test_run_tests_timeout_kill_is_not_ok():
     sb = _CapSandbox(124, "")
     _, _, _, _, run_tests = docker_adapters(sb)
     assert run_tests().ok is False
+
+
+def test_run_tests_threshold_is_configurable():
+    _, _, _, _, rt_low = docker_adapters(_CapSandbox(0, "7 passed, 3 failed in 1s"), test_threshold=0.6)
+    assert rt_low().ok is True                    # 0.7 >= 0.6
+    _, _, _, _, rt_default = docker_adapters(_CapSandbox(0, "7 passed, 3 failed in 1s"))
+    assert rt_default().ok is False               # 0.7 < 0.9 default

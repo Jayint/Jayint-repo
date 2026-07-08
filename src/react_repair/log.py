@@ -16,7 +16,8 @@ DESIGN = {
     "EXPLORE":   "§4 read-only investigation (no container mutation)",
     "PATCH":     "§4 agent's mutation = a replacement build script; re-run fresh",
     "COMPRESS":  "§6 observation compression (per-run context management)",
-    "DONE":      "§5 script green AND tests ≥80% — host-verified",
+    "DONE":      "§5 script green AND tests pass the gate — host-verified",
+    "PLATEAU":   "§5 repair stopped adding passing tests — stop early (cost), report best",
     "GIVEUP":    "§11 max_steps hit — honest stop with best-effort script",
 }
 

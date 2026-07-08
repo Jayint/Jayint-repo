@@ -13,7 +13,7 @@ def test_all_scenarios_pass_and_cover_design():
     fired = set()
     for factory in (S.scenario_green, S.scenario_build_fail_then_patch,
                     S.scenario_tests_fail_then_patch, S.scenario_explore_then_patch,
-                    S.scenario_unfixable_giveup):
+                    S.scenario_unfixable_giveup, S.scenario_plateau):
         ok, f = run_one(factory.__name__, factory, silent=True)
         assert ok, factory.__name__
         fired |= f

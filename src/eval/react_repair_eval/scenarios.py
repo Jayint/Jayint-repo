@@ -47,3 +47,11 @@ def scenario_explore_then_patch():
 def scenario_unfixable_giveup():
     return (_INIT, FakeSandbox(install_tokens=("libunobtainium",)),
             ScriptedPlanner([]), "GIVEUP")
+
+def scenario_plateau():
+    # Two distinct patches that never add the needed test token -> pass count never rises ->
+    # PLATEAU after 2 no-gain repairs (cost-saving early stop, not a 30-step thrash).
+    a = Action("patch", new_script=_INIT + "echo a\n")
+    b = Action("patch", new_script=_INIT + "echo b\n")
+    return (_INIT, FakeSandbox(test_tokens=("magic",)),
+            ScriptedPlanner([("ModuleNotFoundError", a), ("ModuleNotFoundError", b)]), "PLATEAU")
