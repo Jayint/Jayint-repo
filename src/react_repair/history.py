@@ -45,7 +45,24 @@ class History:
         return step
 
     def _maybe_compress(self) -> None:
-        return                            # implemented in Task 4
+        if self.compressor is None:
+            return
+        target_idx = len(self.steps) - 1 - self.compress_delay
+        if target_idx < 0:
+            return
+        target = self.steps[target_idx]
+        already = target.observation_prompt != target.observation_raw and "[summary" in target.observation_prompt
+        if already or len(target.observation_raw) < self.compress_threshold_chars:
+            return
+        try:
+            reduced = self.compressor(target, self.steps[:target_idx])
+        except Exception as exc:                                 # never break the run (spec §10)
+            if self.log is not None:
+                self.log.d("COMPRESS", f"compression failed, keeping raw: {exc}")
+            return
+        target.observation_prompt = reduced
+        if self.log is not None:
+            self.log.d("COMPRESS", f"step {target.step_id}: {len(target.observation_raw)} chars → summary")
 
     def render(self) -> str:
         if not self.steps:
