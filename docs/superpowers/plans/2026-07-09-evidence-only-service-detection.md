@@ -3127,9 +3127,17 @@ Run: `python3 -m pytest tests/depgraph/test_service_parse_fidelity.py -q` → al
 
 - [ ] **Step 1: Build the repo-level oracle**
 
-Transcribe the per-repo backing-service names from `ratbench-service-catalog.md` into this exact
-shape. One entry per repo that declares ≥1 genuine backing service (the catalog says 22). Repos with
-no backing service are represented by an empty list so false positives are scored.
+Transcribe the per-repo backing-service names from `.superpowers/sdd/ratbench-service-catalog.md`
+into this exact shape. One entry per repo that declares ≥1 genuine backing service (the catalog says
+22). Repos with no backing service are represented by an empty list so false positives are scored.
+
+> **The oracle is ground truth and must be derived from the CATALOG ALONE.**
+> Never build, check, or "sanity-adjust" it by running `build_service_nodes`. An oracle fitted to the
+> detector measures nothing. The catalog was produced by a careful human reading of the real repos
+> (it applied semantic judgment: app-vs-backing, fixture-vs-real); that judgment is exactly what we
+> are scoring the heuristics against. For every repo you add, cite the catalog line you took it from,
+> in a sibling file `tests/eval/fixtures/service_oracle.provenance.md`. If the catalog is ambiguous
+> for a repo, record the ambiguity there rather than picking the answer our detector would give.
 
 ```json
 {
@@ -3141,7 +3149,20 @@ no backing service are represented by an empty list so false positives are score
 }
 ```
 
-- [ ] **Step 2: Write the scorer and run it to see it fail**
+- [ ] **Step 2: Write the scorer, and a unit test for the scorer itself**
+
+The 50 repos live on the VM, so the scorer cannot be run against the real corpus from this machine.
+That is exactly why it needs its own test: a scorer whose arithmetic is wrong will produce a
+confident, wrong headline number the first time it is pointed at real data.
+
+Create `tests/eval/test_service_detection_fidelity.py`. Build two synthetic repos under `tmp_path`
+(one declaring `db` + `cache`, one declaring nothing), write a matching oracle JSON, and assert:
+- a perfect match scores `precision == recall == F1 == 1.0`;
+- one extra detected service lowers precision but not recall;
+- one missed service lowers recall but not precision;
+- a repo whose directory is absent raises `SystemExit` — it is **not** scored as zero.
+
+Import the scorer's functions directly; do not shell out.
 
 ```python
 # scripts/eval_service_detection_fidelity.py
@@ -3165,7 +3186,13 @@ def main(root: str, oracle_path: str) -> int:
     for full, expected in sorted(oracle.items()):
         owner, repo = full.split("/", 1)
         rd = os.path.join(root, owner, repo)
-        got = {n.name for n in build_service_nodes(rd, owner=owner)} if os.path.isdir(rd) else set()
+        if not os.path.isdir(rd):
+            # A missing checkout must never be scored as "detected nothing": that is
+            # indistinguishable from a total recall failure and would silently fake a bad
+            # number. The repos live on the VM; a layout mistake is the likely cause.
+            raise SystemExit(f"repo not found: {rd}\n"
+                             f"  (expected <repos_root>/<owner>/<repo>; check --root)")
+        got = {n.name for n in build_service_nodes(rd, owner=owner)}
         exp = set(expected)
         t, f, m = len(got & exp), len(got - exp), len(exp - got)
         tp, fp, fn = tp + t, fp + f, fn + m
