@@ -2527,7 +2527,7 @@ def test_check_ladder_never_raises_and_records_its_rung(case):
     assert check.source in ("declared_healthcheck", "tcp_port", "none")
     assert port_source in ("ports", "expose", "env_dsn", "sibling_dsn", "none")
     if check.source == "none":
-        assert check.command == ""
+        assert check.command is None      # Task 1: Check.command is `str | None`
     else:
         assert check.command
 
