@@ -23,7 +23,7 @@ from multi_docker_eval_adapter import MultiDockerEvalAdapter
 
 def _adapter(tmp_path, *, setup_text="cd /app && pip install -e .", base="python:3.12-slim"):
     a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
-    a._clone = lambda repo_url: tmp_path / "v3_src"          # type: ignore[assignment]
+    a._clone = lambda repo_url, **kw: tmp_path / "v3_src"    # type: ignore[assignment]
     a._head_sha = lambda src_dir: "deadbeef"                 # type: ignore[assignment]
     a._run_v3 = lambda src_dir, base_image, model, **kw: (setup_text, base)  # type: ignore[assignment]
     return a
@@ -61,7 +61,7 @@ def test_missing_repo_url_is_clean_failure(tmp_path):
 
 def test_run_v3_failure_yields_error_log_not_crash(tmp_path):
     a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
-    a._clone = lambda repo_url: tmp_path / "v3_src"          # type: ignore[assignment]
+    a._clone = lambda repo_url, **kw: tmp_path / "v3_src"    # type: ignore[assignment]
     a._head_sha = lambda src_dir: "abc"                      # type: ignore[assignment]
 
     def _boom(src_dir, base_image, model, **kw):
@@ -285,3 +285,58 @@ def test_full_name_from_repo_url():
     assert fn("https://github.com/o/r", "o__r") == "o/r"
     assert fn("https://github.com/o/r.git", "o__r") == "o/r"
     assert fn("", "owner__repo") == "owner/repo"       # fallback to instance_id
+
+
+# ── Bug A: pin the ablation to construction's commit (faithful baseline + VCS tags) ────────────
+
+def test_seed_head_sha_off_returns_none(tmp_path, monkeypatch):
+    monkeypatch.delenv("V3_REPAIR_ABLATION", raising=False)
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    assert a._seed_head_sha("o/r") is None
+
+def test_seed_head_sha_reads_meta(tmp_path, monkeypatch):
+    inst = tmp_path / "seeds" / "o" / "r"
+    inst.mkdir(parents=True)
+    (inst / "_meta.json").write_text(json.dumps({"head_sha": "cafebabe", "base_image": "python:3.11-slim"}))
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(tmp_path / "seeds"))
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    assert a._seed_head_sha("o/r") == "cafebabe"
+
+def _capture_clone_cmds(tmp_path, monkeypatch, *, pin_sha=None):
+    import multi_docker_eval_adapter as M
+    cmds = []
+    class _P:
+        returncode = 0; stdout = ""; stderr = ""
+    def fake_run(cmd, **kw):
+        cmds.append(cmd); return _P()
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    a._clone("https://github.com/o/r", pin_sha=pin_sha)
+    return [c for c in cmds if isinstance(c, list) and c and c[0] == "git"]
+
+def test_clone_default_is_shallow(tmp_path, monkeypatch):
+    gits = _capture_clone_cmds(tmp_path, monkeypatch, pin_sha=None)
+    clone = next(c for c in gits if "clone" in c)
+    assert "--depth=1" in clone
+    assert not any("checkout" in c for c in gits)
+
+def test_clone_pins_sha_with_full_history(tmp_path, monkeypatch):
+    gits = _capture_clone_cmds(tmp_path, monkeypatch, pin_sha="cafebabe")
+    clone = next(c for c in gits if "clone" in c)
+    assert "--depth=1" not in clone                 # full history + tags for VCS versioning
+    checkout = next(c for c in gits if "checkout" in c)
+    assert "cafebabe" in checkout
+
+def test_render_dockerfile_default_shallow(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r")
+    assert "git clone --depth=1 https://github.com/o/r /testbed" in df
+    assert "checkout" not in df
+
+def test_render_dockerfile_pins_sha(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", pin_sha="cafebabe")
+    assert "git clone https://github.com/o/r /testbed" in df   # full clone (no --depth=1)
+    assert "--depth=1" not in df
+    assert "checkout" in df and "cafebabe" in df

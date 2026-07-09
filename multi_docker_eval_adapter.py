@@ -98,11 +98,12 @@ class MultiDockerEvalAdapter:
             "logs": {},
         }
         try:
-            src_dir = self._clone(repo_url)
+            full_name = self._full_name(repo_url, instance_id)
+            pin_sha = self._seed_head_sha(full_name)      # None off-ablation → shallow current-HEAD clone
+            src_dir = self._clone(repo_url, pin_sha=pin_sha)
             head_sha = self._head_sha(src_dir)
             setup_sh, resolved_base = self._run_v3(
-                src_dir, base_image, model,
-                full_name=self._full_name(repo_url, instance_id), max_steps=max_steps)
+                src_dir, base_image, model, full_name=full_name, max_steps=max_steps)
             setup_sh = _APP_WORKDIR_RE.sub("/testbed", setup_sh)
             result["base_image"] = resolved_base
             result["setup_scripts"] = {"setup.sh": setup_sh}
@@ -114,7 +115,7 @@ class MultiDockerEvalAdapter:
             if services_sh:
                 result["setup_scripts"]["services_start.sh"] = services_sh
             result["dockerfile"] = self._render_dockerfile(
-                resolved_base, repo_url, include_services=bool(services_sh))
+                resolved_base, repo_url, include_services=bool(services_sh), pin_sha=pin_sha)
             result["logs"] = {"head_sha": head_sha, "resolved_base": resolved_base}
         except subprocess.CalledProcessError as e:
             tail = (getattr(e, "stderr", "") or "")[-2000:]
@@ -124,17 +125,23 @@ class MultiDockerEvalAdapter:
         return {instance_id: result}
 
     # ── steps (individually overridable/mockable) ─────────────────────────────
-    def _clone(self, repo_url: str) -> Path:
-        """Fresh shallow checkout for run_v3 to analyze. Idempotent per output_dir."""
+    def _clone(self, repo_url: str, pin_sha: str | None = None) -> Path:
+        """Fresh checkout for run_v3 to analyze. Idempotent per output_dir. Default: shallow clone
+        of current HEAD. ``pin_sha`` (repair-ablation): FULL clone (history + tags, so VCS-versioned
+        backends resolve) checked out at construction's commit for a faithful baseline."""
         if not repo_url:
             raise ValueError("instance has no repo_url")
         dst = self.output_dir / "v3_src"
         if dst.exists():
             subprocess.run(["rm", "-rf", str(dst)], check=True, timeout=300)
-        subprocess.run(
-            ["git", "clone", "--depth=1", repo_url, str(dst)],
-            check=True, capture_output=True, text=True, timeout=_CLONE_TIMEOUT,
-        )
+        if pin_sha:
+            subprocess.run(["git", "clone", repo_url, str(dst)],
+                           check=True, capture_output=True, text=True, timeout=_CLONE_TIMEOUT)
+            subprocess.run(["git", "-C", str(dst), "checkout", "--detach", pin_sha],
+                           check=True, capture_output=True, text=True, timeout=300)
+        else:
+            subprocess.run(["git", "clone", "--depth=1", repo_url, str(dst)],
+                           check=True, capture_output=True, text=True, timeout=_CLONE_TIMEOUT)
         return dst
 
     def _head_sha(self, src_dir: Path) -> str:
@@ -200,6 +207,25 @@ class MultiDockerEvalAdapter:
             if m:
                 return m.group(1)
         return ""
+
+    def _seed_head_sha(self, full_name: str | None) -> str | None:
+        """The commit construction analyzed for this instance (repair-ablation only), from its
+        ``_meta.json``. Pinning the react Sandbox AND the eval image to it reproduces the SAME tree
+        + git tags construction measured — not a drifted current HEAD, which both makes the A/B
+        unfaithful and breaks VCS-versioned installs (hatch-vcs/setuptools_scm need reachable tags,
+        absent from a shallow clone). ``None`` off-ablation or when unrecorded."""
+        if os.getenv("V3_REPAIR_ABLATION") != "1" or not full_name:
+            return None
+        root = os.getenv("V3_SEED_DIR")
+        if not root:
+            return None
+        meta = Path(root) / full_name / "_meta.json"
+        if meta.is_file():
+            try:
+                return (json.loads(meta.read_text()) or {}).get("head_sha") or None
+            except (ValueError, OSError):
+                return None
+        return None
 
     def _run_v3(self, src_dir: Path, base_image: str, model: str | None,
                 *, full_name: str | None = None, max_steps: int = 30) -> Tuple[str, str]:
@@ -275,10 +301,15 @@ class MultiDockerEvalAdapter:
 
     def _render_dockerfile(
         self, base_image: str, repo_url: str, include_services: bool = False,
+        pin_sha: str | None = None,
     ) -> str:
         """Self-contained Dockerfile: clone the repo into /testbed (same default
         HEAD run_v3 analyzed) and run the certified install-only setup.sh with
         CWD=/testbed so the trailing ``pip install -e .`` resolves.
+
+        ``pin_sha`` (repair-ablation): FULL clone (history + tags) checked out at
+        construction's commit, so the tested tree matches the one the react arm just
+        repaired AND matches what construction measured (default: shallow current HEAD).
 
         ``include_services`` (default False — byte-identical to before) adds an
         ENTRYPOINT that starts every SERVICE node's daemon before handing off to
@@ -289,6 +320,13 @@ class MultiDockerEvalAdapter:
         pytest into). ``docker run -d ... tail -f /dev/null`` does not pass
         ``--entrypoint``, so this ENTRYPOINT survives and runs first, blocking
         until every probe passes, before ``exec "$@"`` hands off to ``tail``."""
+        if pin_sha:
+            clone_step = (f"# Full clone (history + tags) pinned to construction's commit.\n"
+                          f"RUN git clone {repo_url} /testbed \\\n"
+                          f"        && git -C /testbed checkout --detach {pin_sha}")
+        else:
+            clone_step = (f"# Fresh clone of the repo run_v3 analyzed.\n"
+                          f"RUN git clone --depth=1 {repo_url} /testbed")
         df = f"""FROM {base_image}
 WORKDIR /testbed
 
@@ -297,8 +335,7 @@ RUN command -v git >/dev/null 2>&1 || (apt-get update \\
         && apt-get install -y --no-install-recommends git \\
         && rm -rf /var/lib/apt/lists/*)
 
-# Fresh clone of the repo run_v3 analyzed.
-RUN git clone --depth=1 {repo_url} /testbed
+{clone_step}
 
 # The certified install-only script (system tier -> pinned pip closure ->
 # editable install of the repo). CWD is /testbed so `pip install -e .` resolves.
