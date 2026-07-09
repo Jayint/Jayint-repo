@@ -226,6 +226,42 @@ def test_render_single_failed_edit_stays_a_passive_note():
     assert "change your approach" not in low and "stuck" not in low
 
 
+# ───────────────────────── recency-window build/test bodies ──────────────────────────────────
+def test_render_recent_prior_mutation_shows_compressed_body():
+    # A recent PRIOR attempt that CHANGED the error carries its compressed body (detail the
+    # signature collapses); the current attempt is excluded (shown in full under LAST RUN OBSERVATION).
+    prior = "BUILD FAILED at `pip install -e .` (line 45):\nERROR: egg-info conflict\nHINT_ALPHA_marker"
+    curr  = "BUILD FAILED at `pip install -e .` (line 45):\nERROR: egg-info conflict\nHINT_BRAVO_marker"
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _edit(1, "insert@5 +apt-get install -y libxml2-dev", "BUILD FAILED", prior),
+             _edit(2, "replace@45 +pip install -e . --no-build-isolation", "BUILD FAILED", curr)]
+    out = render_history(steps)
+    assert "HINT_ALPHA_marker" in out         # prior mutation body carried
+    assert "HINT_BRAVO_marker" not in out      # current excluded (shown separately in full)
+
+def test_render_mutation_body_dropped_beyond_recency_window():
+    o2 = "BUILD FAILED at `cmd2`:\nfatal error: bbb.h: No such file\nMID_MARKER"
+    o3 = "BUILD FAILED at `cmd3`:\nfatal error: ccc.h: No such file\nNEAR_MARKER"
+    o4 = "BUILD FAILED at `cmd4`:\nfatal error: ddd.h: No such file\nCURR_MARKER"
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _edit(1, "c1", "BUILD FAILED", o2),
+             _edit(2, "c2", "BUILD FAILED", o3),
+             _edit(3, "c3", "BUILD FAILED", o4)]
+    out = render_history(steps)   # K=2 → edit1,edit2 (priors) get bodies; edit3 is current
+    assert "MID_MARKER" in out and "NEAR_MARKER" in out
+    assert "CURR_MARKER" not in out
+
+def test_render_still_blocked_prior_omits_redundant_body():
+    # A prior attempt hitting the SAME blocker just restates the signature — no body (avoids bloating
+    # a fixation chain where the anti-repeat directive already fires).
+    same = "BUILD FAILED at `pip install -e .`:\nERROR: egg-info conflict\nREDUNDANT_MARKER"
+    steps = [_base("BUILD FAILED", same),
+             _edit(1, "c1", "BUILD FAILED", same),
+             _edit(2, "c2", "BUILD FAILED", same)]
+    out = render_history(steps)
+    assert "REDUNDANT_MARKER" not in out
+
+
 def test_grouped_view_stays_compact_regardless_of_observation_size():
     # The grouped view IS the compaction: 8 KB observations still render tiny (blocker + score only,
     # never the body). Locks that nobody re-introduces per-step body rendering or an LLM compressor.

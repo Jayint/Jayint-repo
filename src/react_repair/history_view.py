@@ -143,6 +143,27 @@ def _explore_finding(obs: str | None) -> str:
     return flat if len(flat) <= _EXPLORE_FINDING_CAP else flat[:_EXPLORE_FINDING_CAP].rstrip() + " …"
 
 
+# Recency window for build/test BODIES. The grouped view is signature-only by default; but the last
+# few PRIOR attempts' actual error text can carry detail the signature collapses (WHICH egg-info
+# dirs, WHICH missing symbol). Show the compressed body of the last _RECENT_BODY_STEPS mutations that
+# CHANGED the error (a transition — a still-blocked prior just restates the signature, and the
+# current attempt is already shown in full under LAST RUN OBSERVATION). Signatures still do the bulk.
+_RECENT_BODY_STEPS = int(os.getenv("REACT_RECENT_BODY_STEPS", "2"))
+_RECENT_BODY_CAP = int(os.getenv("REACT_RECENT_BODY_CHARS", "1200"))
+
+
+def _recent_body(obs: str | None) -> str:
+    """Compressed body of a recent prior attempt, indented under its summary line ("" if empty)."""
+    if not obs:
+        return ""
+    body, _ = safety_compress_observation(
+        obs, threshold_chars=_RECENT_BODY_CAP, target_chars=_RECENT_BODY_CAP)
+    body = body.strip()
+    if not body:
+        return ""
+    return "      └ output (prior attempt):\n" + "\n".join("        " + ln for ln in body.splitlines())
+
+
 def render_history(steps) -> str:
     if not steps:
         return "HISTORY — (no prior steps yet)"
@@ -151,6 +172,11 @@ def render_history(steps) -> str:
     block_no = 0
     failed_deltas: list[str] = []
     last = steps[-1]                                 # the just-run step gets its full explore output
+    # The last _RECENT_BODY_STEPS PRIOR mutations (exclude the current one — it's already shown in
+    # full under LAST RUN OBSERVATION) may carry their compressed body on an error transition.
+    mut_positions = [i for i, s in enumerate(steps) if _PAT_MUTATION.match(s.action_summary or "")]
+    body_window = (set(mut_positions[-(_RECENT_BODY_STEPS + 1):-1])
+                   if len(mut_positions) >= 2 else set())
 
     def open_block(sig, context):
         nonlocal block_no, failed_deltas
@@ -159,7 +185,7 @@ def render_history(steps) -> str:
         lines.append(f"[{block_no}] BLOCKER: {shown}   ({context})")
         failed_deltas = []
 
-    for st in steps:
+    for idx, st in enumerate(steps):
         summ = st.action_summary or ""
 
         me = _PAT_EXPLORE.match(summ)
@@ -190,6 +216,9 @@ def render_history(steps) -> str:
         ver, change, score = mp.group(1), mp.group(2), mp.group(3)
         change_s = f"({change}) " if change else ""
         sig = extract_blocker(st.observation_raw)
+        # A recent prior attempt's body — only attached on an error TRANSITION below (where the body
+        # carries detail the signature collapses); a still-blocked repeat just restates the signature.
+        body = _recent_body(st.observation_raw) if idx in body_window else ""
 
         if sig is None:                             # reached a passing / gate-meeting state
             lines.append(f"      v{ver} {change_s}→ {score}   previous error no longer present → gate reached")
@@ -204,11 +233,15 @@ def render_history(steps) -> str:
             continue
         if _specific(sig) and _specific(prev_sig):  # CONFIDENT change → close block, open the next
             lines.append(f"      v{ver} {change_s}→ {score}   {_short(prev_sig)} no longer present")
+            if body:
+                lines.append(body)
             open_block(sig, f"surfaced after v{ver}")
             prev_sig = sig
             continue
         # low-confidence change (weak signature on one side) → do NOT split; note inline
         lines.append(f"      v{ver} {change_s}→ {score}   error changed (signature uncertain)")
+        if body:
+            lines.append(body)
         prev_sig = sig
 
     if failed_deltas:                               # still-open blocker: consolidate what didn't help
