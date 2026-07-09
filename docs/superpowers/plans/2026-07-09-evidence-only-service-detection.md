@@ -622,6 +622,18 @@ def test_sibling_url_with_templated_host_does_not_raise():
     assert derive_port((), (), {}, "db", ("redis://$HOST:6379",)) == (None, "none")
 
 
+def test_malformed_url_never_raises():
+    """`urlparse("redis://[db:6379")` raises ValueError: Invalid IPv6 URL.
+    derive_port must degrade the field, never explode."""
+    assert derive_port((), (), {}, "db", ("redis://[db:6379",)) == (None, "none")
+
+
+def test_malformed_url_does_not_fall_back_to_the_regex():
+    """A `://` value is decided by urlparse ALONE. Falling back to the token regex
+    when urlparse fails would re-open the userinfo hole this rung exists to close."""
+    assert derive_port((), (), {}, "db", ("postgres://[db:5432@other/app",)) == (None, "none")
+
+
 def test_port_ladder_gives_up_cleanly():
     assert derive_port((), (), {}, "svc", ()) == (None, "none")
 ```
@@ -642,20 +654,29 @@ from python_deps.depgraph.service_evidence import PortSource
 _DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")   # own-env rung (host position)
 
 
-def _url_port_for_host(value: str, name: str) -> int | None:
-    """A value containing `://` is a URL: its host field is authoritative.
+def _url_host_port(value: str) -> tuple[str, int | None] | None:
+    """`(host, port)` for a URL value, or None if it is not a usable URL.
 
     `postgres://db:5432@other/app` has USERNAME `db`, PASSWORD `5432`, HOST `other`.
     A bare token regex misreads that as "db is on 5432". urlparse cannot.
+
+    `.port` raises ValueError on a templated port (`redis://db:$PORT`); the HOST is
+    still authoritative there, so we keep the host and drop only the port.
     """
     try:
         parsed = urlparse(value)
-        host, port = parsed.hostname, parsed.port
-    except ValueError:                     # templated port, e.g. `redis://db:$PORT`
+        if not parsed.scheme:
+            return None
+        host = parsed.hostname
+    except ValueError:                     # e.g. `redis://[db:6379` -> Invalid IPv6 URL
         return None
-    if host is None:                       # malformed: fall through to the token rung
+    if host is None:
         return None
-    return port if host == name else None
+    try:
+        port = parsed.port
+    except ValueError:                     # templated port: degrade the field, keep host
+        port = None
+    return host, port
 
 
 def _rescue_from_siblings(name: str, sibling_values: tuple[str, ...]) -> int | None:
@@ -666,26 +687,22 @@ def _rescue_from_siblings(name: str, sibling_values: tuple[str, ...]) -> int | N
       * URL values (`postgres://u:p@db:5432/app`) — decided by urlparse HOST equality.
       * bare tokens (`KAFKA_HOSTS=kafka:9092`) — 8 of the PoC's 9 rescues. `\b` bounds
         stop `db` matching inside `mydb:5432`.
-    A `://` value is NEVER handed to the regex unless urlparse found no host at all.
+
+    A value containing `://` is decided by urlparse ALONE and never reaches the regex —
+    not even when urlparse fails. Falling back to the regex there would re-open the
+    userinfo hole (`postgres://[db:5432@other/app` is unparseable, yet the regex would
+    happily rescue 5432 for `db`). Unparseable evidence yields no evidence.
     """
     for value in sibling_values:
         if "://" in value:
-            if (parsed := urlparse(value)).scheme and _has_host(parsed):
-                port = _url_port_for_host(value, name)
-                if port:
-                    return port
-                continue                   # host known and != name: do NOT regex it
+            hp = _url_host_port(value)
+            if hp is not None and hp[0] == name and hp[1]:
+                return hp[1]
+            continue                       # URL values NEVER reach the regex
         m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", value)
         if m:
             return int(m.group(1))
     return None
-
-
-def _has_host(parsed) -> bool:
-    try:
-        return parsed.hostname is not None
-    except ValueError:
-        return False
 
 
 def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
