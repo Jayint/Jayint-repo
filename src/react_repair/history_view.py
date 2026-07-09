@@ -124,15 +124,17 @@ _PAT_MUTATION = re.compile(r"^(?:patch|edit) v(\d+)(?: \((.*)\))? → (.+)$")
 _PAT_BASE = re.compile(r"^baseline → (.+)$")
 _PAT_EXPLORE = re.compile(r"^explore: (.+)$")
 
-# An AGED explore's value is the FACT it surfaced, not its full body: carry a compact, hard-capped
-# digest forward (the knowledge ledger) so old probes don't bloat the prompt.
+# An explore OLDER than the recency window keeps only the FACT it surfaced, not its full body: a
+# compact, hard-capped digest (the knowledge ledger) so old probes don't bloat the prompt.
 _EXPLORE_FINDING_CAP = 200
 
-# The MOST RECENT explore is different: the agent is about to act on what it just read, so it needs
-# the real output — the flat 200-char digest blinded it into re-probing the same file (addons re-cat
-# pyproject.toml 16×; azure 30 explores / 0 edits). Show the latest explore's output content-aware
-# (radical's safety_compress_observation) at this char budget instead of a stub. Tunable.
-_EXPLORE_LATEST_CAP = int(os.getenv("REACT_EXPLORE_OUTPUT_CAP", "4000"))
+# The last few explores are different: the agent is acting on what it just read, and it needs the
+# real output — the flat 200-char digest blinded it into re-probing the same file (addons re-cat
+# pyproject.toml 16×; azure re-read tools/setup.py ~13×). Show the last _EXPLORE_BODY_STEPS explores'
+# output content-aware (radical's safety_compress_observation) at this char budget, in-block beside
+# the patch each informed; older ones fall back to the digest. Both tunable.
+_EXPLORE_BODY_STEPS = int(os.getenv("REACT_EXPLORE_BODY_STEPS", "3"))
+_EXPLORE_BODY_CAP = int(os.getenv("REACT_EXPLORE_OUTPUT_CAP", "4000"))
 
 
 def _explore_finding(obs: str | None) -> str:
@@ -177,6 +179,10 @@ def render_history(steps) -> str:
     mut_positions = [i for i, s in enumerate(steps) if _PAT_MUTATION.match(s.action_summary or "")]
     body_window = (set(mut_positions[-(_RECENT_BODY_STEPS + 1):-1])
                    if len(mut_positions) >= 2 else set())
+    # The last _EXPLORE_BODY_STEPS explores (by recency, across blocks) render their FULL output;
+    # recency lands them in the active block, beside the patch they informed. Older ones → digest.
+    explore_positions = [i for i, s in enumerate(steps) if _PAT_EXPLORE.match(s.action_summary or "")]
+    explore_body_window = set(explore_positions[-_EXPLORE_BODY_STEPS:])
 
     def open_block(sig, context):
         nonlocal block_no, failed_deltas
@@ -190,13 +196,16 @@ def render_history(steps) -> str:
 
         me = _PAT_EXPLORE.match(summ)
         if me:
-            if st is last:                          # the just-run probe → give the agent the real output
+            if idx in explore_body_window:          # recent probe → real output, in-block by the patch
                 body, _ = safety_compress_observation(
                     st.observation_raw or "",
-                    threshold_chars=_EXPLORE_LATEST_CAP, target_chars=_EXPLORE_LATEST_CAP)
+                    threshold_chars=_EXPLORE_BODY_CAP, target_chars=_EXPLORE_BODY_CAP)
                 body = body.strip()
-                lines.append(f"      explored `{me.group(1)}` →\n{body}" if body
-                             else f"      explored `{me.group(1)}`")
+                if body:                            # indent the body under its `explored` line
+                    indented = "\n".join("        " + ln for ln in body.splitlines())
+                    lines.append(f"      explored `{me.group(1)}` →\n{indented}")
+                else:
+                    lines.append(f"      explored `{me.group(1)}`")
             else:                                   # aged probe → compact digest (knowledge ledger)
                 finding = _explore_finding(st.observation_raw)
                 lines.append(f"      explored `{me.group(1)}`" + (f" → {finding}" if finding else ""))

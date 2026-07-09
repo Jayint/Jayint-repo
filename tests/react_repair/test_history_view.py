@@ -145,14 +145,43 @@ def test_render_explore_carries_compact_finding():
     assert "hatchling" in out                                # finding surfaced, not dropped
 
 def test_render_aged_explore_finding_is_capped():
-    # An AGED explore (a NEWER step follows it) stays a compact digest — no file dump for old probes.
+    # An explore OLDER than the recent-K window stays a compact digest — no file dump for old probes.
     steps = [_base("BUILD FAILED", _LXML_HDR),
-             _explore("find /app", "x" * 5000),
+             _explore("find /app", "x" * 5000),          # oldest — pushed past the window by 3 newer
+             _explore("e2", "y"), _explore("e3", "z"), _explore("e4", "w"),
              _patch(1, "+apt-get install -y libxml2-dev", "BUILD FAILED", _LXML_HDR)]
     out = render_history(steps)
     explore_line = [ln for ln in out.splitlines() if "explored `find /app`" in ln][0]
     assert len(explore_line) < 300                           # aged probe hard-capped
     assert "…" in explore_line
+
+
+# ───────────────────────── explore recency window (last K explores full, in-block) ───────────
+def test_render_recent_explores_show_full_body_even_after_edit():
+    # The last K explores render FULL output in-block, beside the patch they informed — even when the
+    # final step is an EDIT (not the explore). Here the explore before v1 must still show full.
+    big = "line0: head\n" + "\n".join(f"line{i}: filler content" for i in range(1, 60)) + "\nMARKER_TAIL"
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("cat pyproject.toml", big),
+             _edit(1, "insert@2 +apt-get install -y libxml2-dev", "BUILD FAILED", _LXML_HDR)]
+    out = render_history(steps)
+    assert "MARKER_TAIL" in out             # full body (tail survives), not a 200-char head digest
+
+def test_render_recent_explore_body_is_indented_under_the_command():
+    # The full explore body nests under its `explored` line (indented), matching the patch-body style.
+    steps = [_base("BUILD FAILED", _LXML_HDR), _explore("cat x", "alpha\nbeta")]
+    out = render_history(steps)
+    assert "\n        alpha" in out and "\n        beta" in out
+
+def test_render_explores_beyond_window_stay_digests():
+    # Default window K=3: the 4th-most-recent explore decays to a digest (its tail is dropped).
+    def big(tag): return "head\n" + "\n".join("x" * 40 for _ in range(12)) + "\n" + tag + "_TAIL"
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("e1", big("OLDEST")), _explore("e2", big("E2")),
+             _explore("e3", big("E3")), _explore("e4", big("E4"))]
+    out = render_history(steps)
+    assert "E4_TAIL" in out and "E3_TAIL" in out and "E2_TAIL" in out   # last 3 full
+    assert "OLDEST_TAIL" not in out                                     # 4th-oldest → digest, tail gone
 
 
 def test_render_latest_explore_shows_real_output():
