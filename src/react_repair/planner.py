@@ -31,6 +31,9 @@ The current setup.sh already installs the package closure resolved from the repo
 treat it as a near-complete starting point, not a blank slate. The remaining failure is usually a
 missing system library, a wrong install method, an unset config/env var, or a service — so read the
 last run's error and the ENVIRONMENT block first; they usually name it.
+The build halts at the first failing command (set -e): the error names that command and its line,
+tagged ← BUILD HALTED HERE in the script below. Everything above that line already succeeded — don't
+re-install it; everything below never ran, so don't touch a line the failure hasn't reached yet.
 Make the smallest change the evidence supports — the last run's output and the repo's own declared
 setup (its manifests and test config). Preserve the existing script unless the evidence shows a line
 is wrong; don't strip a working setup.sh to a stub, and don't add packages or services you can't tie
@@ -67,15 +70,29 @@ def build_system_prompt(env_info: str = "") -> str:
 
 SYSTEM_PROMPT = build_system_prompt()          # env-less form (no facts gathered / tests)
 
+# Tag appended to the gutter line the build halted on, so the ERR-trap localization is visible
+# WHERE the agent edits (the numbered script) — not only buried in the observation header. Matches
+# the "← BUILD HALTED HERE" reference in the APPROACH prompt so the marker is self-explaining.
+_HALT_MARKER = "  ← BUILD HALTED HERE (set -e stopped the script)"
 
-def _numbered(script: str) -> str:
+
+def _numbered(script: str, fail_lineno: int | None = None) -> str:
     """The current setup.sh with a 1-based line-number gutter, aligned with the ERR-trap `lineno`
-    the build failure reports — so `Edit: replace 40` targets exactly the line named as failed."""
+    the build failure reports — so `Edit: replace 40` targets exactly the line named as failed.
+    When `fail_lineno` names the line the build halted on, that line is tagged with `_HALT_MARKER`
+    so the localization is anchored in the script the agent edits. An out-of-range/None line is
+    simply left untagged (no crash), so a stale or missing lineno degrades gracefully."""
     lines = (script or "").splitlines()
     if not lines:
         return "(empty)"
     w = len(str(len(lines)))
-    return "\n".join(f"{i:>{w}}| {ln}" for i, ln in enumerate(lines, 1))
+    rows = []
+    for i, ln in enumerate(lines, 1):
+        row = f"{i:>{w}}| {ln}"
+        if fail_lineno is not None and i == fail_lineno:
+            row += _HALT_MARKER
+        rows.append(row)
+    return "\n".join(rows)
 
 
 class ReactPlanner:
@@ -90,10 +107,12 @@ class ReactPlanner:
         # per-run constant, so the system message is stable across turns.
         self.system_prompt = build_system_prompt(env_info)
 
-    def _render(self, history, script: str, observation: str, graph) -> str:
+    def _render(self, history, script: str, observation: str, graph,
+                fail_lineno: int | None = None) -> str:
         parts = [
             ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
-             "\"line N\" — the \"n| \" prefix is NOT part of the script):\n" + _numbered(script)),
+             "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
+             + _numbered(script, fail_lineno)),
             "LAST RUN OBSERVATION:\n" + (observation or ""),
             render_history(history.steps),
         ]
@@ -104,10 +123,11 @@ class ReactPlanner:
         parts.append("Reason briefly, then call one tool — explore or edit.")
         return "\n\n".join(parts)
 
-    def plan(self, history, script: str, observation: str, graph):
+    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None):
         messages = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": self._render(history, script, observation, graph)},
+            {"role": "user",
+             "content": self._render(history, script, observation, graph, fail_lineno)},
         ]
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text

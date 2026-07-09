@@ -118,3 +118,36 @@ def test_build_system_prompt_injects_env_and_placeholder():
 def test_planner_bakes_env_info_into_system_prompt():
     p = ReactPlanner(client=object(), model="m", env_info="  Base image : python:3.11-slim")
     assert "python:3.11-slim" in p.system_prompt
+
+
+# --- failure-line anchoring in the numbered script ------------------------
+def test_numbered_marks_the_failing_line():
+    from src.react_repair.planner import _numbered, _HALT_MARKER
+    lines = _numbered("aa\nbb\ncc", fail_lineno=2).splitlines()
+    assert _HALT_MARKER in lines[1] and "bb" in lines[1]     # the failing line is tagged where it's edited
+    assert _HALT_MARKER not in lines[0] and _HALT_MARKER not in lines[2]
+
+def test_numbered_no_marker_without_fail_lineno():
+    from src.react_repair.planner import _numbered, _HALT_MARKER
+    assert _HALT_MARKER not in _numbered("aa\nbb", fail_lineno=None)
+
+def test_numbered_ignores_out_of_range_fail_lineno():
+    from src.react_repair.planner import _numbered, _HALT_MARKER
+    out = _numbered("aa\nbb", fail_lineno=99)                 # stale/OOB line: don't crash, don't tag
+    assert _HALT_MARKER not in out and "1| aa" in out
+
+def test_plan_marks_failing_line_in_rendered_user_message(monkeypatch):
+    from src.react_repair.planner import _HALT_MARKER
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(
+        History(), "aa\nbb\ncc", "BUILD FAILED at `x` (line 2)", graph=None, fail_lineno=2)
+    marked = [ln for ln in seen["user"].splitlines() if _HALT_MARKER in ln]
+    assert len(marked) == 1 and "bb" in marked[0]
+
+
+# --- set -e halt semantics in the prompt ----------------------------------
+def test_system_prompt_explains_set_e_halt_semantics():
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "halts at the first failing command" in sp        # fail-fast is stated
+    assert "never ran" in sp                                 # lines below the halt are unexecuted
+    assert "BUILD HALTED HERE" in sp                         # ties the prose to the inline script marker

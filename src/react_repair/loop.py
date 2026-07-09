@@ -177,7 +177,11 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             return "PLATEAU", best_script, graph
         observation = _observation(result, test)
 
-        thought, action, usage = planner.plan(history, script, observation, graph)
+        # Pass the line the build halted on so the planner can anchor "← BUILD HALTED HERE" in the
+        # numbered script it shows the agent. None when the build was green (tests-below-threshold) or
+        # the ERR trap didn't localize — the renderer leaves it untagged.
+        thought, action, usage = planner.plan(history, script, observation, graph,
+                                              fail_lineno=result.lineno)
         _emit_tokens(usage)
 
         if action.kind == "explore" and action.command and is_read_only(action.command):

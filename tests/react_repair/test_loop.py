@@ -71,7 +71,7 @@ def test_added_lines_empty_when_no_change():
 class _ScriptedPlanner:
     """Emits a fixed queue of moves; ignores the prompt."""
     def __init__(self, moves): self.moves = list(moves)
-    def plan(self, history, script, observation, graph):
+    def plan(self, history, script, observation, graph, fail_lineno=None):
         return "t", (self.moves.pop(0) if self.moves else Action("invalid")), {}
 
 
