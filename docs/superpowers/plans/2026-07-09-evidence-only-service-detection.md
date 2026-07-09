@@ -35,7 +35,7 @@
 - Unit tests must be **Docker-free and LLM-free** — pure functions over dicts/tmp_path.
 - **SERVICE/CONFIG nodes stay excluded from the graph-hash.** `V3_INCLUDE_SERVICES` remains default-OFF. The byte-identical baseline must not change.
 - **BRANCH HYGIENE (shared branch `john-v3-multi-lang`):** commit locally, never push/rebase/reset. `git add` **only the files your task names** — never `-A`, `.`, or `-u`. Never stage this pre-existing WIP: `.context/codex-session-id`, `src/python_deps/depgraph/{emit,resolve_link,resolve_lock,wheel_oracle}.py`, `tests/depgraph/test_{resolve,wheel_oracle,uninstallable_gate}.py`.
-  - **Exception:** Task 9 legitimately modifies `emit.py`. Stage *only* the `_is_service_reciped` hunk; leave the other session's hunks unstaged (`git add -p`).
+  - **No exceptions.** No task in this plan touches `emit.py`. (`git add -p` is interactive and unavailable in this environment; Task 9 was amended so the need never arises.)
 
 ---
 
@@ -110,7 +110,7 @@ Only two files import the doomed modules:
 | **Create** `src/python_deps/depgraph/service_construct.py` | The pipeline: fuse → classify → certify → `build_service_nodes`. |
 | **Modify** `src/envstate/classify_services_clean.py` | Build nodes from `build_service_nodes`; drop `translate_service`. |
 | **Modify** `src/python_deps/depgraph/repoint.py:36` | `render_bind_steps` matches by declared hostname, not `kind`. |
-| **Modify** `src/python_deps/depgraph/emit.py:150` | `_is_service_reciped` → state-based. |
+| ~~Modify~~ `src/python_deps/depgraph/emit.py` | **Untouched.** `_is_service_reciped` already reads `bool(data["setup"])`, and the compat view emits `setup` only for certifiable nodes — so the existing predicate already means "certifiable". Pinned by Task 9's tests. |
 | **Modify** `src/python_deps/depgraph/patch.py:11` | Add `data: dict \| None = None` to `NodeSpec` (it has no such field today). |
 | **Modify** `src/python_deps/depgraph/patch_gate.py:118,233` | Allow an empty `setup['start']`; merge `NodeSpec.data` into `Node.data`. |
 | **Delete** `src/envstate/service_translate.py` | Construction-time LLM recipes. |
