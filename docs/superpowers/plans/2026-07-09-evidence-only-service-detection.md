@@ -2122,6 +2122,99 @@ probe, so it can never be host-certified and must not block `done`. It sits behi
 `None` for any scheme outside its `_SCHEME_TO_KIND` map, which would silently drop a valid DSN
 pointing at an exotic service. You need only `parsed.hostname` and `parsed.port` — no kind.
 
+
+### Task 9 — post-review corrections (BINDING; found by code review, all reproduced live)
+
+**C1 (Important) — the kind coupling moved upstream instead of dying.**
+`render_bind_steps` no longer uses `service_from_url`, but its *caller* still does:
+`classify_services_clean._dsn_configs` keeps only values that `service_from_url(...)` recognizes,
+and that function is gated by the hardcoded `_SCHEME_TO_KIND` map. Verified:
+```
+service_from_url("postgres://u@db:5432/x")  -> ('postgres', 'db', 5432)
+service_from_url("clickhouse://u@ch:9000/x") -> None      # dropped before repoint ever runs
+service_from_url("valkey://cache:6379")      -> None
+```
+So an exotic service's DSN is filtered out at construction. **Fix:** `_dsn_configs` must keep any
+value that parses as a URL with a hostname — no scheme table. Add a guarded helper and use it:
+
+```python
+def _looks_like_dsn(value: str) -> bool:
+    """A value we can repoint: it parses as a URL with a scheme and a host.
+
+    NOT `service_from_url`: that is gated by a hardcoded scheme->kind map, so it drops
+    `clickhouse://` and `valkey://` before `render_bind_steps` can match them by hostname.
+    """
+    if "://" not in value:
+        return False
+    try:
+        u = urlsplit(value)
+    except ValueError:
+        return False
+    return bool(u.scheme) and bool(u.hostname)
+```
+Then `if var in seen or not _looks_like_dsn(value): continue`. Drop the `service_from_url` import
+from `classify_services_clean.py` if it becomes unused.
+
+**C2 (Important) — one malformed env value silently deletes the whole service tier.**
+`_host_of` guards `urlsplit`, but `_repoint_host` then reads `u.port` **unguarded**. Verified:
+```
+render_bind_steps(("db",), [("URL", "postgres://db:bad/app")])
+    -> ValueError: Port could not be cast to integer value as 'bad'
+```
+`classify_services_clean` wraps construction in a broad `except`, so that one bad config makes it
+return the input graph unchanged — every service node vanishes, with no error surfaced.
+
+**Fix:** parse once, guard both fields, and **skip the config** rather than repointing it with the
+bad port dropped (silently rewriting a value we could not parse is worse than ignoring it).
+
+```python
+def _safe_split(dsn: str):
+    """`urlsplit` result whose `.hostname` and `.port` are both safe to read, or None.
+
+    `urlsplit` itself raises on `redis://[db:6379`, and `.port` raises on
+    `postgres://db:bad/app` — a value that `urlsplit` parses happily.
+    """
+    try:
+        u = urlsplit(dsn)
+        _ = u.hostname, u.port          # force both to validate now
+    except ValueError:
+        return None
+    return u
+```
+`_host_of` and `render_bind_steps` both go through `_safe_split`; `_repoint_host` takes the already
+validated `SplitResult`. A config that fails validation is skipped.
+
+**C3 (Important) — the 324-line test deletion removed live coverage.**
+Only three deleted tests were about the removed `translate_service` path
+(`test_parse_failed_service_skipped`, `test_empty_probe_service_skipped`,
+`test_per_service_translate_error_is_isolated_not_batch_fatal`). These four test behaviour that
+**still exists** and must be restored, adapted to the new node shape:
+- `test_config_node_emitted` — CONFIG nodes are still emitted.
+- `test_ci_only_service_produces_reciped_service_node` — a CI-only service still becomes a node.
+- `test_ci_and_compose_dedupe_produces_one_node` — compose+CI for one name still fuse to one node.
+- `test_malformed_workflow_does_not_crash_classify` — resilience.
+Also restore the parts of `test_service_node_admitted` that pinned the **admitted-service contract**:
+`NodeType.SERVICE`, `State.MISSING`, `check_command == render_probe_poll(probe)`, and the absence of
+legacy keys (`service_kind`, `service_params`) on the node's `data`.
+
+Add one more, pinning C1 end-to-end: a compose declaring `ch: clickhouse/clickhouse-server:24` plus
+`.env.example` containing `CLICKHOUSE_URL=clickhouse://user@ch:9000/db` must yield a `setup["bind"]`
+step exporting the repointed DSN. Under the old `_dsn_configs` gate this is empty.
+
+And one pinning C2: `.env.example` with `BAD_URL=postgres://db:bad/app` must **not** crash
+`classify_services_clean`; the service node must still be built and the bad config simply skipped.
+
+**C4 (Minor) — `NodeSpec.data` merge precedence.**
+`data.update(r.data)` runs *after* `promotion`, `setup`, and `service_kind` are set, so a
+programmatic caller can overwrite them (including a validated `setup`, whose probe the gate has
+already checked for `is_read_only`). `parse_patch_proposal` does not parse `data`, so a JSON patch
+cannot reach it today — but the precedence is backwards. Merge `r.data` **first**, so the
+gate-derived keys win:
+```python
+data: dict = dict(r.data or {})     # caller-supplied, lowest precedence
+...                                  # then promotion / setup / service_kind as before
+```
+
 - [ ] **Step 1: Write the failing test**
 
 ```python
