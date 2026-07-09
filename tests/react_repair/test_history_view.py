@@ -141,13 +141,32 @@ def test_render_explore_carries_compact_finding():
     assert "explored `cat pyproject.toml`" in out
     assert "hatchling" in out                                # finding surfaced, not dropped
 
-def test_render_explore_finding_is_capped():
+def test_render_aged_explore_finding_is_capped():
+    # An AGED explore (a NEWER step follows it) stays a compact digest — no file dump for old probes.
     steps = [_base("BUILD FAILED", _LXML_HDR),
-             _explore("find /app", "x" * 5000)]
+             _explore("find /app", "x" * 5000),
+             _patch(1, "+apt-get install -y libxml2-dev", "BUILD FAILED", _LXML_HDR)]
     out = render_history(steps)
-    explore_line = [ln for ln in out.splitlines() if "explored" in ln][0]
-    assert len(explore_line) < 300                           # hard-capped, no file dump into the prompt
+    explore_line = [ln for ln in out.splitlines() if "explored `find /app`" in ln][0]
+    assert len(explore_line) < 300                           # aged probe hard-capped
     assert "…" in explore_line
+
+
+def test_render_latest_explore_shows_real_output():
+    # The just-run explore (LAST step) must reach the agent content-aware — the whole file, not a
+    # 200-char stub — so it can act instead of re-probing. This reverses the old cap-everything rule.
+    big = "\n".join(f"line {i}: pyproject key = value here" for i in range(200))
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("cat /app/pyproject.toml", big)]
+    out = render_history(steps)
+    assert "line 199:" in out                                # the TAIL survives → not a 200-char head
+    assert len(out) > 1000
+
+def test_render_latest_small_explore_is_verbatim():
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("git --version", "git version 2.39.2")]
+    out = render_history(steps)
+    assert "git version 2.39.2" in out
 
 def test_render_explore_no_output_shows_command_only():
     steps = [_base("BUILD FAILED", _LXML_HDR),

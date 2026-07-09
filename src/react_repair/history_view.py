@@ -20,7 +20,10 @@ failures.
 """
 from __future__ import annotations
 
+import os
 import re
+
+from src.react_repair.observation import safety_compress_observation
 
 # Distinguishing failure tokens, most-specific first. Vocabulary widened from the radical
 # baseline's SAFETY_ERROR_PATTERNS / select_failure_lines so service/tool/permission/timeout
@@ -117,10 +120,15 @@ _PAT_PATCH = re.compile(r"^patch v(\d+)(?: \((.*)\))? → (.+)$")
 _PAT_BASE = re.compile(r"^baseline → (.+)$")
 _PAT_EXPLORE = re.compile(r"^explore: (.+)$")
 
-# An explore's value is the FACT it surfaced, not just that it ran. Carry a compact, hard-capped
-# digest of its output forward (the knowledge ledger) so the agent doesn't re-probe or reason
-# blind — without dumping a file/listing into the prompt.
+# An AGED explore's value is the FACT it surfaced, not its full body: carry a compact, hard-capped
+# digest forward (the knowledge ledger) so old probes don't bloat the prompt.
 _EXPLORE_FINDING_CAP = 200
+
+# The MOST RECENT explore is different: the agent is about to act on what it just read, so it needs
+# the real output — the flat 200-char digest blinded it into re-probing the same file (addons re-cat
+# pyproject.toml 16×; azure 30 explores / 0 edits). Show the latest explore's output content-aware
+# (radical's safety_compress_observation) at this char budget instead of a stub. Tunable.
+_EXPLORE_LATEST_CAP = int(os.getenv("REACT_EXPLORE_OUTPUT_CAP", "4000"))
 
 
 def _explore_finding(obs: str | None) -> str:
@@ -138,6 +146,7 @@ def render_history(steps) -> str:
     prev_sig = "\x00"                                # sentinel: nothing seen yet
     block_no = 0
     failed_deltas: list[str] = []
+    last = steps[-1]                                 # the just-run step gets its full explore output
 
     def open_block(sig, context):
         nonlocal block_no, failed_deltas
@@ -151,8 +160,16 @@ def render_history(steps) -> str:
 
         me = _PAT_EXPLORE.match(summ)
         if me:
-            finding = _explore_finding(st.observation_raw)
-            lines.append(f"      explored `{me.group(1)}`" + (f" → {finding}" if finding else ""))
+            if st is last:                          # the just-run probe → give the agent the real output
+                body, _ = safety_compress_observation(
+                    st.observation_raw or "",
+                    threshold_chars=_EXPLORE_LATEST_CAP, target_chars=_EXPLORE_LATEST_CAP)
+                body = body.strip()
+                lines.append(f"      explored `{me.group(1)}` →\n{body}" if body
+                             else f"      explored `{me.group(1)}`")
+            else:                                   # aged probe → compact digest (knowledge ledger)
+                finding = _explore_finding(st.observation_raw)
+                lines.append(f"      explored `{me.group(1)}`" + (f" → {finding}" if finding else ""))
             continue
 
         mb = _PAT_BASE.match(summ)
