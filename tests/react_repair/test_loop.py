@@ -271,6 +271,28 @@ def test_plateau_returns_the_improved_script_over_a_later_regression(monkeypatch
     assert outcome == "PLATEAU"
     assert "pip install extra" in script                  # patch1 (the best), not seed, not a regressor
 
+def test_keep_best_prefers_more_collected_tests_when_passed_ties(monkeypatch):
+    # A fix that unblocks COLLECTION (executed 5 -> 8) but doesn't yet make tests PASS (passed stays
+    # 0) is real progress and must be KEPT as best, not discarded because passed==0. Regression from
+    # the M3 run: baserow's one good edit dropped collection errors 6->5 but a (built,passed)-only
+    # key treated it as no-gain and reverted the final script to the seed.
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_PLATEAU_PATIENCE", 2)
+    seed = "pip install app\n"
+    builds = iter([RunResult(True), RunResult(True),                     # baseline + patch1 build green
+                   RunResult(False, "x", "e"), RunResult(False, "x", "e")])  # patch2/3 regress -> PLATEAU
+    tests = iter([TestOutcome(False, 0, 5, "5 collected, 0 passed"),     # baseline: 5 executed
+                  TestOutcome(False, 0, 8, "8 collected, 0 passed")])    # patch1: MORE collected, still 0 pass
+    outcome, script, _ = run_react(
+        object(), reset=lambda: None, run_script=lambda s: next(builds),
+        certify=lambda g: g, exec_readonly=lambda c: (0, ""), run_tests=lambda: next(tests),
+        planner=_ScriptedPlanner([Action("patch", new_script="pip install app\npip install localpkg\n"),
+                                  Action("patch", new_script="broken\n"),
+                                  Action("patch", new_script="also broken\n")]),
+        history=History(), log=ReactLog(silent=True), max_steps=10, _initial_script=seed)
+    assert outcome == "PLATEAU"
+    assert "pip install localpkg" in script               # patch1 kept (more collected), NOT the seed
+
 def test_giveup_at_max_steps_returns_best_script_seed():
     # A build that never passes the gate + a planner that only EXPLORES (free turns, no patch) runs
     # to max_steps -> GIVEUP. The returned script must be the seed (best), never a corrupted one.

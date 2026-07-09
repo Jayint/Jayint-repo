@@ -135,8 +135,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
                       output_tail=(t.output or "")[-500:])
         return r, g, t
 
-    best_key: tuple[bool, int] = (False, -1)   # (built_ok, passed) — a green build outranks a failed one
-    best_script = script                        # the seed is the FLOOR: never ship worse than this
+    best_key: tuple[bool, int, int] = (False, -1, -1)   # (built_ok, passed, executed): green > failed;
+    best_script = script                                 # among passed-ties, MORE tests collected wins
     stall = 0
 
     def register(r, t) -> bool:
@@ -144,11 +144,15 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         just its pass count) so a later regressing patch can never be what we ship: every non-DONE
         exit returns `best_script`, making repair structurally incapable of doing worse than the seed
         (the observed regression was PLATEAU/GIVEUP returning the last, often-broken, patch). Ranks by
-        (built, passed) so a green build always beats a failed one. Returns True once repair has
-        stalled — no net-new best for `_PLATEAU_PATIENCE` consecutive builds."""
+        (built, passed, executed): a green build beats a failed one, then more passing tests, then —
+        crucially, when passed ties (often at 0) — more tests EXECUTED. That last term keeps a fix
+        that unblocks collection (fewer collection errors → more tests runnable) even before any test
+        passes, instead of discarding it as no-gain (the M3 baserow regression). Returns True once
+        repair has stalled — no net-new best for `_PLATEAU_PATIENCE` consecutive builds."""
         nonlocal best_key, best_script, stall
         passed_now = t.passed if (r.ok and t is not None) else 0
-        key = (bool(r.ok), passed_now)
+        executed_now = t.executed if (r.ok and t is not None) else 0
+        key = (bool(r.ok), passed_now, executed_now)
         if key > best_key:
             best_key, best_script, stall = key, script, 0   # `script` = the one just built
             return False
