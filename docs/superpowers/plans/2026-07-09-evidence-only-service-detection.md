@@ -1329,7 +1329,10 @@ from python_deps.depgraph.service_evidence import Relevance
 from python_deps.depgraph.service_sources import RawDeclaration
 
 # `docker compose -f X`, `docker-compose --file X`
-_COMPOSE_REF = re.compile(r"docker[-\s]compose[^\n;|&]*?(?:-f|--file)\s+(\S+)")
+# Two levels, not one: a single regex captures only the FIRST -f, silently dropping
+# the second file of `docker compose -f a.yml -f b.yml up`.
+_COMPOSE_CMD = re.compile(r"docker[-\s]compose[^\n;|&]*")
+_FILE_FLAG = re.compile(r"""(?:-f|--file)(?:\s+|=)("[^"]+"|'[^']+'|\S+)""")
 
 # Compose auto-loads an `override` file alongside its base when invoked with no `-f`,
 # so a root override IS part of the repo's default environment.
