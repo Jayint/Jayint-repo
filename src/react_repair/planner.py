@@ -48,7 +48,8 @@ TOOLS — each turn, output a Thought, then exactly ONE tool call:
           replace the line the failure points to.
     How:  Edit: replace <n>[-<m>] | insert after <n> | delete <n>[-<m>]   (line numbers are the
           ones shown in CURRENT setup.sh — the same ones the build failure names). For replace and
-          insert, follow with one fenced ```bash block of the new line(s)."""
+          insert, follow the directive with one fenced ```bash block containing ONLY the shell
+          line(s) to add — no prose or explanation inside the block."""
 
 
 def build_system_prompt(env_info: str = "") -> str:

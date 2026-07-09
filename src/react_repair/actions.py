@@ -125,8 +125,11 @@ def parse_action(text: str) -> Action:
         end = int(m_edit.group(3)) if m_edit.group(3) else start
         content = ""
         if verb in ("replace", "insert"):   # these carry the new line(s) as one fenced block
-            mb = _SCRIPT_BLOCK.search(t)
-            if mb is None:                  # replace/insert without a block is unusable
+            # Grab the fence that FOLLOWS the Edit directive — not the first block anywhere, so an
+            # example fence in the model's prose before `Edit:` can't be spliced in by mistake. Only
+            # this block's contents become the new lines (any surrounding prose is discarded).
+            mb = _SCRIPT_BLOCK.search(t, m_edit.end())
+            if mb is None:                  # replace/insert without a following block is unusable
                 return Action("invalid")
             content = mb.group(1).strip("\n")
         return Action("edit", edit=EditOp(verb, start, end, content))

@@ -122,6 +122,14 @@ def test_parse_edit_replace_single_line_with_block():
     a = parse_action("Thought: pin\nEdit: replace 3\n```bash\npip install narwhals\n```")
     assert a.kind == "edit" and a.edit == EditOp("replace", 3, 3, "pip install narwhals")
 
+def test_edit_uses_the_bash_block_after_the_directive():
+    # A model may show an example fence in its prose BEFORE `Edit:`; the edit content must be the
+    # block that FOLLOWS the directive, so only the intended bash is applied (not a stray earlier one).
+    text = ("Thought: e.g. add a line like this\n```bash\necho stray\n```\n"
+            "Edit: insert after 3\n```bash\napt-get install -y redis-server\n```")
+    a = parse_action(text)
+    assert a.kind == "edit" and a.edit.content == "apt-get install -y redis-server"
+
 def test_parse_edit_replace_range():
     a = parse_action("Edit: replace 3-5\n```bash\npip install x\n```")
     assert a.kind == "edit" and a.edit.verb == "replace" and (a.edit.start, a.edit.end) == (3, 5)
