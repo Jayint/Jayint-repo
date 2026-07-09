@@ -170,11 +170,13 @@ Rung 2 is what replaces the canonical-probe table. A listening port is a weaker 
 `pg_isready` (open socket ≠ semantically ready) — hence `check.source`, which records the strength of
 the certificate we were given.
 
-**Portability:** use Python, not `bash </dev/tcp/...` or `nc`. `nc` is absent from slim images; Python
+**Portability:** use `python3`, not `python`, `bash </dev/tcp/...`, or `nc`. `nc` is absent from slim images; `python`
+is absent from any image that ships only a `python3` binary (and from plain Debian/Ubuntu with `python3`
+installed). `python3`
 is guaranteed present in a Python repo's environment. Verified to pass `is_read_only`:
 
 ```bash
-python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 1).close()"
+python3 -c "import socket; socket.create_connection(('127.0.0.1', 5432), 1).close()"
 ```
 
 **Measured cost of the read-only precondition** (corpus, 158 nodes): 11 of 54 declared healthchecks

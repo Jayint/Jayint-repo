@@ -789,7 +789,7 @@ def test_ci_healthcheck_absent_options():
 
 def test_tcp_check_is_the_portable_python_one_liner():
     cmd = tcp_check(5432)
-    assert cmd.startswith("python -c")
+    assert cmd.startswith("python3 -c")
     assert "socket.create_connection" in cmd and "5432" in cmd
     assert "nc " not in cmd and "/dev/tcp" not in cmd
 
@@ -837,7 +837,7 @@ import shlex
 
 from python_deps.depgraph.service_evidence import Check
 
-TCP_CHECK = ("python -c \"import socket; "
+TCP_CHECK = ("python3 -c \"import socket; "
              "socket.create_connection(('127.0.0.1', {port}), 1).close()\"")
 
 
