@@ -1,7 +1,6 @@
 """The governing constraint (spec §2): no service-specific table anywhere."""
 import importlib
-
-import pytest
+import importlib.util
 
 
 def test_kind_of_is_gone():
@@ -30,7 +29,23 @@ def test_render_probe_poll_survives_for_patch_gate():
 
 
 def test_deleted_modules_are_gone():
+    """Strict absence. A ``pytest.raises(ModuleNotFoundError)`` around
+    ``import_module`` would ALSO pass if the module came back with a broken
+    transitive import -- proving only that *some* import in the chain failed, not
+    that the target is gone. ``find_spec`` resolves the parent package and returns
+    ``None`` for an absent submodule *without executing it*, so it proves the module
+    itself is absent (the real guard against resurrecting the construction-time LLM).
+    """
     for name in ("src.envstate.service_translate",
                  "python_deps.depgraph.provisioning_spec"):
-        with pytest.raises(ModuleNotFoundError):
-            importlib.import_module(name)
+        try:
+            spec = importlib.util.find_spec(name)
+        except ModuleNotFoundError as exc:
+            # find_spec imports parent packages; a ModuleNotFoundError here means a
+            # *parent* package is gone -- a different failure than the target module
+            # returning. Fail loudly and name it; never count it as absence.
+            raise AssertionError(
+                f"cannot prove {name!r} absent: parent package unimportable "
+                f"(missing {exc.name!r})"
+            ) from exc
+        assert spec is None, f"{name} is back"
