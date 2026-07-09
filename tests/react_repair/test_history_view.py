@@ -32,6 +32,49 @@ def test_extract_blocker_distinguishes_six_from_toml():
     assert a != b
 
 
+# widened vocabulary (borrowed from radical's SAFETY_ERROR_PATTERNS / select_failure_lines):
+# service/tool/permission/timeout failures must get a real signature, not the weak fallback.
+def test_extract_blocker_connection_refused_surfaces_host_port():
+    obs = ("BUILD OK. TESTS 1/3 passed:\nredis.exceptions.ConnectionError: "
+           "Error 111 connecting to localhost:6379. Connection refused.")
+    sig = extract_blocker(obs)
+    assert "connection refused" in sig.lower() and "localhost:6379" in sig
+
+def test_extract_blocker_command_not_found():
+    sig = extract_blocker("BUILD FAILED at `bash setup.sh`:\n/bin/sh: 1: pg_config: command not found")
+    assert "command not found" in sig.lower() and "pg_config" in sig
+
+def test_extract_blocker_permission_denied():
+    sig = extract_blocker("BUILD FAILED at `pip install x`:\n"
+                          "PermissionError: [Errno 13] Permission denied: '/usr/lib/python3'")
+    assert "permission denied" in sig.lower()
+
+def test_extract_blocker_no_such_file():
+    sig = extract_blocker("BUILD FAILED at `make`:\n"
+                          "FileNotFoundError: [Errno 2] No such file or directory: 'config.h'")
+    assert "no such file" in sig.lower()
+
+def test_extract_blocker_timeout():
+    sig = extract_blocker("BUILD OK. TESTS 2/5 passed:\nTimeoutError: operation timed out after 30s")
+    assert "timed out" in sig.lower()
+
+def test_extract_blocker_generic_python_exception():
+    sig = extract_blocker("BUILD OK. TESTS 3/4 passed:\nE   RuntimeError: database schema mismatch")
+    assert "RuntimeError" in sig
+
+def test_extract_blocker_widened_sigs_are_specific_enough_to_split():
+    # a module blocker → a connection-refused blocker is a CONFIDENT change (both specific): 2 blocks.
+    from src.react_repair.history_view import render_history
+    from src.react_repair.history import Step
+    steps = [
+        Step(0, "", "baseline → 1/3", "BUILD OK. TESTS 1/3 passed:\nNo module named 'redis'", ""),
+        Step(1, "", "patch v1 (+pip install redis) → 1/3",
+             "BUILD OK. TESTS 1/3 passed:\nredis.exceptions.ConnectionError: connecting to localhost:6379. Connection refused.", ""),
+    ]
+    out = render_history(steps)
+    assert out.count("BLOCKER:") == 2 and "connection refused" in out.lower()
+
+
 # ───────────────────────── render_history (grouped, chronological) ─────────────────────────
 
 def _base(score, obs): return Step(0, "", f"baseline → {score}", obs, obs)

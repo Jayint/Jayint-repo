@@ -22,26 +22,50 @@ from __future__ import annotations
 
 import re
 
-# Strong, distinguishing error tokens — specific enough to trust a block split on.
+# Distinguishing failure tokens, most-specific first. Vocabulary widened from the radical
+# baseline's SAFETY_ERROR_PATTERNS / select_failure_lines so service/tool/permission/timeout
+# failures get a real signature instead of the weak "build failed: <cmd>" fallback.
 _MOD = re.compile(r"No module named ['\"]([\w.]+)['\"]")
 _FATAL = re.compile(r"fatal error: *([^\n]+)")
-_IMPORT = re.compile(r"(ImportError: [^\n]+)")
+_CONN_REFUSED = re.compile(r"[Cc]onnection refused")
+_CONN_HOSTPORT = re.compile(r"connecting to ([\w.\-]+:\d+)")
+_CMD_NF = re.compile(r"([\w.\-+/]+): command not found")
+_CMD_NF2 = re.compile(r"command not found: ([\w.\-+/]+)")
+_PERM = re.compile(r"Permission denied(?::? *['\"]?([^'\"\n]{0,60}))?", re.IGNORECASE)
+_NOFILE = re.compile(r"No such file or directory(?::? *['\"]?([^'\"\n]{0,60}))?", re.IGNORECASE)
+_TIMEOUT = re.compile(r"timed out|TimeoutError|ETIMEDOUT", re.IGNORECASE)
+_PYEXC = re.compile(r"([A-Z]\w*(?:Error|Exception): [^\n]+)")   # generic Python exception tail
 _PIPERR = re.compile(r"(ERROR: [^\n]+)")
 _HDR_FAIL = re.compile(r"^BUILD FAILED at `([^`]*)`")
 _HDR_OK = re.compile(r"^BUILD OK\. TESTS (\d+)/(\d+)")
 
-_SPECIFIC_MARKERS = ("No module named", "fatal error:", "ImportError:")
-
 
 def _detail(obs: str) -> str | None:
-    """The most distinguishing failure token in *obs*, or None."""
+    """The most distinguishing failure token in *obs*, or None. Ordered most-specific first so a
+    precise class (missing module, fatal header, connection refused, …) wins over generic ones."""
     m = _MOD.search(obs)
     if m:
         return f"No module named '{m.group(1)}'"
     m = _FATAL.search(obs)
     if m:
         return f"fatal error: {m.group(1).strip()}"[:90]
-    m = _IMPORT.search(obs)
+    if _CONN_REFUSED.search(obs):                          # service unreachable (redis/postgres/…)
+        hp = _CONN_HOSTPORT.search(obs)
+        return f"connection refused: {hp.group(1)}" if hp else "connection refused"
+    m = _CMD_NF.search(obs) or _CMD_NF2.search(obs)        # missing tool/binary
+    if m:
+        return f"command not found: {m.group(1)}"
+    m = _PERM.search(obs)
+    if m:
+        path = (m.group(1) or "").strip().strip("'\"")
+        return f"permission denied: {path}"[:90] if path else "permission denied"
+    m = _NOFILE.search(obs)
+    if m:
+        path = (m.group(1) or "").strip().strip("'\"")
+        return f"no such file: {path}"[:90] if path else "no such file or directory"
+    if _TIMEOUT.search(obs):
+        return "timed out"
+    m = _PYEXC.search(obs)                                 # any other Python exception (RuntimeError…)
     if m:
         return m.group(1).strip()[:90]
     m = _PIPERR.search(obs)
@@ -73,7 +97,9 @@ def extract_blocker(observation: str | None) -> str | None:
 
 
 def _specific(sig: str | None) -> bool:
-    return bool(sig) and any(marker in sig for marker in _SPECIFIC_MARKERS)
+    """Trustworthy enough to split a block on — i.e. NOT one of the two weak fallbacks
+    (`build failed: <cmd>` / `tests failing (N/M)`) that carry no distinguishing error token."""
+    return bool(sig) and not sig.startswith("build failed:") and not sig.startswith("tests failing (")
 
 
 def _short(sig: str) -> str:
