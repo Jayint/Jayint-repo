@@ -66,6 +66,16 @@ def test_reference_paths_are_normalized_not_char_stripped(tmp_path):
     assert compute_relevance(_decl("docker-compose.yml"), refs) == "ci_referenced_compose"
 
 
+def test_norm_rejects_absolute_and_degenerate_paths():
+    """`_norm`'s contract: a repo-relative POSIX path, or None. `C:\\x` becomes `C:/x`
+    after backslash conversion — absolute, and never a repo declaration."""
+    from python_deps.depgraph.service_relevance import _norm
+    for bad in ("/abs/x.yml", "//x.yml", "C:\\x.yml", "c:/x.yml", "..", "../", "a/../..", "", "  ", "."):
+        assert _norm(bad) is None, bad
+    assert _norm("./deploy/../docker-compose.yml") == "docker-compose.yml"
+    assert _norm("dir with space/b.yml") == "dir with space/b.yml"
+
+
 def test_a_reference_escaping_the_repo_is_not_a_reference(tmp_path):
     _write(tmp_path, ".github/workflows/ci.yml", """
         jobs:

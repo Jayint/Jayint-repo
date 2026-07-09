@@ -23,6 +23,7 @@ _COMPOSE_CMD = re.compile(r"docker[-\s]compose[^\n;|&]*")
 # form and quoted paths that contain spaces, and a single invocation may name
 # several files (`-f base.yml -f override.yml`) -- every one is a referenced env.
 _FILE_FLAG = re.compile(r"""(?:-f|--file)(?:=|\s+)("[^"]*"|'[^']*'|\S+)""")
+_DRIVE = re.compile(r"^[A-Za-z]:")   # `C:\x` -> `C:/x` is absolute, not repo-relative
 
 # Compose auto-loads an `override` file alongside its base when invoked with no
 # `-f`, so a root override IS part of the repo's default environment.
@@ -43,8 +44,9 @@ def _norm(path: str) -> str | None:
     if not raw:
         return None
     norm = posixpath.normpath(raw)
-    if posixpath.isabs(norm) or norm == ".." or norm.startswith("../"):
-        return None                       # escapes the repo: cannot be a declaration
+    if (posixpath.isabs(norm) or _DRIVE.match(norm)
+            or norm in (".", "..") or norm.startswith("../")):
+        return None                       # absolute, or escapes the repo: not a declaration
     return norm
 
 
