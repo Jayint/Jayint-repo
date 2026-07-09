@@ -14,7 +14,14 @@ from python_deps.depgraph.patch_gate import is_read_only
 _SCRIPT_BLOCK = re.compile(r"```(?:bash|sh)?[ \t]*\r?\n(.*?)```", re.DOTALL)
 _ACTION_LINE = re.compile(r"^Action:\s*(.+)$", re.MULTILINE)
 _ACTION_PREFIX = re.compile(r"^Action:\s*", re.IGNORECASE)
-_THOUGHT = re.compile(r"Thought:\s*(.+?)(?=\n(?:Action|Script):|$)", re.DOTALL)
+_THOUGHT = re.compile(r"Thought:\s*(.+?)(?=\n\s*(?:Action|Edit|Script)\b|\n```|$)",
+                      re.DOTALL | re.IGNORECASE)
+# When the model skips the "Thought:" label (writes plain reasoning, then a directive/fence — as
+# MiniMax/deepseek often do), capture that leading prose as the thought so the trace still records
+# WHY the move was made. Bounded to the text before the first tool directive or fenced block.
+_LEADING_PROSE = re.compile(r"\A(.*?)(?=\n\s*(?:Action|Edit|Script)\b|\n?```)",
+                            re.DOTALL | re.IGNORECASE)
+_STARTS_DIRECTIVE = re.compile(r"\A(?:Action|Edit|Script)\b|\A```", re.IGNORECASE)
 
 # First tokens that are pure read-only INVESTIGATION. A fenced block that is JUST one of these is a
 # mis-wrapped explore probe, not a build script (which installs/builds something). Conservative —
@@ -149,5 +156,12 @@ def parse_action(text: str) -> Action:
 
 
 def extract_thought(text: str) -> str:
-    m = _THOUGHT.search(text or "")
-    return m.group(1).strip() if m else ""
+    t = text or ""
+    m = _THOUGHT.search(t)
+    if m:
+        return m.group(1).strip()
+    lead = _LEADING_PROSE.match(t)                 # no "Thought:" label — take the leading prose
+    prose = (lead.group(1).strip() if lead else "")
+    if not prose or _STARTS_DIRECTIVE.match(prose):  # a bare directive is not a thought
+        return ""
+    return prose[:500]

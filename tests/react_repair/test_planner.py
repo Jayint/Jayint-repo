@@ -57,6 +57,18 @@ def test_build_system_prompt_injects_env_and_placeholder():
     assert "python:3.10-slim" in filled and "/app" in filled
     assert "environment details unavailable" in planner_mod.build_system_prompt("")
 
+def test_plan_traces_the_edit_op(monkeypatch):
+    # the trace must record the structured edit op (verb/line/content), not just kind="edit" — so a
+    # run is diagnosable from the trace alone (no need to re-parse reply_raw).
+    from src.react_repair.log import ReactLog
+    monkeypatch.setattr(planner_mod, "complete_with_retry",
+                        _fake_llm("Thought: add redis\nEdit: insert after 54\n```bash\nredis-server --daemonize yes\n```"))
+    log = ReactLog(silent=True)
+    ReactPlanner(client=object(), model="m", log=log).plan(History(), "s", "obs", graph=None)
+    plan_rec = [r for r in log.records if r["phase"] == "plan"][0]
+    edit = plan_rec["action"]["edit"]
+    assert edit["verb"] == "insert" and edit["start"] == 54 and "redis-server" in edit["content"]
+
 def test_planner_bakes_env_info_into_system_prompt():
     p = ReactPlanner(client=object(), model="m", env_info="  Base image : python:3.11-slim")
     assert "python:3.11-slim" in p.system_prompt

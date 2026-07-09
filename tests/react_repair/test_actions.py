@@ -177,3 +177,15 @@ def test_apply_edit_out_of_range_returns_none():
 
 def test_extract_thought():
     assert extract_thought("Thought: the header is missing\nAction: ls") == "the header is missing"
+
+def test_extract_thought_stops_before_edit_directive():
+    assert extract_thought("Thought: add redis\nEdit: insert after 3\n```bash\nx\n```") == "add redis"
+
+def test_extract_thought_from_leading_prose_without_label():
+    # the model wrote reasoning as plain prose then an Edit (no "Thought:" label) — capture the prose.
+    reply = ("The tests fail because redis isn't running; add a local redis.\n\n"
+             "Edit: insert after 54\n```bash\nredis-server --daemonize yes\n```")
+    assert extract_thought(reply).startswith("The tests fail because redis isn't running")
+
+def test_extract_thought_empty_when_reply_is_bare_directive():
+    assert extract_thought("Edit: insert after 3\n```bash\nx\n```") == ""
