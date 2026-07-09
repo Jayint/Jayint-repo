@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from src.envstate.llm_response import complete_with_retry
-from src.react_repair.actions import extract_thought, parse_action
+from src.envstate.llm_response import complete_with_tools
+from src.react_repair.actions import (
+    TOOLS_SCHEMA, action_from_tool_call, extract_reasoning, extract_thought, parse_action)
 from src.react_repair.history_view import render_history
 
 # GOAL + APPROACH + INTEGRITY are STATIC and ablation-invariant (identical for the no-graph and
@@ -37,19 +38,18 @@ skipping, or deselecting tests, no error-suppressing flags. If a dependency or s
 cannot be provided, leave the test failing rather than fabricate a way to pass."""
 
 _TOOLS = """\
-TOOLS — each turn, output a Thought, then exactly ONE tool call:
-  Action  — investigate, read-only.
+TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:
+  explore — investigate, read-only.
     When: you need a fact before you can fix the build — what a manifest lists, where a
           package/pyproject.toml lives, what's installed, or why an import fails.
-    How:  Action: <one read-only shell command>   (ls, cat, find, pip show, ldconfig — never
-          install or modify). Its output comes back to you next turn.
-  Edit    — change setup.sh by line number. This is how you repair the build.
+    Call:  explore(command=<one read-only shell command>)   (ls, cat, find, pip show, ldconfig —
+           never install or modify). Its output comes back to you next turn.
+  edit    — change setup.sh by line number. This is how you repair the build.
     When: you know the change to make — add a missing dependency, repin a version, or remove/
-          replace the line the failure points to.
-    How:  Edit: replace <n>[-<m>] | insert after <n> | delete <n>[-<m>]   (line numbers are the
-          ones shown in CURRENT setup.sh — the same ones the build failure names). For replace and
-          insert, follow the directive with one fenced ```bash block containing ONLY the shell
-          line(s) to add — no prose or explanation inside the block."""
+          replace the line the failure points to. Don't keep exploring once you can act.
+    Call:  edit(verb, start, end, content). verb = replace | insert | delete; start/end are the
+           line numbers shown in CURRENT setup.sh (the same ones the build failure names); content
+           is the shell line(s) to add for replace/insert (omit for delete)."""
 
 
 def build_system_prompt(env_info: str = "") -> str:
@@ -96,7 +96,7 @@ class ReactPlanner:
             ctx = self.graph_context(graph) or ""
             if ctx.strip():
                 parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
-        parts.append("Respond with Thought + one Action or Edit.")
+        parts.append("Reason briefly, then call one tool — explore or edit.")
         return "\n\n".join(parts)
 
     def plan(self, history, script: str, observation: str, graph):
@@ -104,13 +104,24 @@ class ReactPlanner:
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": self._render(history, script, observation, graph)},
         ]
-        text, usage, _raw = complete_with_retry(self.client, self.model, messages,
-                                                temperature=0, stop=["Observation:"])
-        thought, action = extract_thought(text), parse_action(text)
+        # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
+        # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text
+        # path (parse_action on the message content) is a FALLBACK for a provider/turn that returns
+        # no tool call, so the arm still works model-agnostically.
+        calls, content, usage, _raw = complete_with_tools(
+            self.client, self.model, messages, tools=TOOLS_SCHEMA, tool_choice="required", temperature=0)
+        if calls:
+            name, args = calls[0]
+            action = action_from_tool_call(name, args)
+            thought = extract_reasoning(content)
+        else:
+            action = parse_action(content)
+            thought = extract_thought(content)
         if self.log is not None:
             self.log.d("PLAN", f"thought={thought[:60]!r} action={action.kind}")
             e = action.edit
-            self.log.trace("plan", observation=observation, prompt=messages, reply_raw=text,
+            self.log.trace("plan", observation=observation, prompt=messages, reply_raw=content,
+                           tool_calls=[{"name": n, "arguments": a} for n, a in calls],
                            thought=thought,
                            action={"kind": action.kind, "command": action.command,
                                    "new_script": action.new_script,

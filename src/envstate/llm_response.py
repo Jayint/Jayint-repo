@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import os
 import random
 import re
@@ -230,6 +231,91 @@ def _create_with_backoff(client, model, messages, kwargs, *, attempts, base, cap
                 return None
             _sleep_backoff(n, base, cap)
     return None
+
+
+def tool_calls_of(response: Any) -> list[tuple[str, str]]:
+    """Extract ``(name, arguments_json)`` pairs from a chat.completions response's first message.
+    getattr-safe (offline/stub clients may omit fields); returns ``[]`` when there are no calls."""
+    try:
+        msg = response.choices[0].message
+    except (AttributeError, IndexError, TypeError):
+        return []
+    out: list[tuple[str, str]] = []
+    for tc in (getattr(msg, "tool_calls", None) or []):
+        fn = getattr(tc, "function", None)
+        name = getattr(fn, "name", None)
+        if fn is None or name is None:
+            continue
+        args = getattr(fn, "arguments", None)
+        out.append((str(name), args if isinstance(args, str) else json.dumps(args or {})))
+    return out
+
+
+def _content_of(response: Any) -> str:
+    try:
+        return response.choices[0].message.content or ""
+    except (AttributeError, IndexError, TypeError):
+        return ""
+
+
+_DEFAULT_TOOL_NUDGE = "You must call the explore or edit tool with a single tool call. Do not reply with prose."
+
+
+def complete_with_tools(
+    client: Any,
+    model: str,
+    messages: list[dict],
+    tools: list[dict],
+    tool_choice: Any = "required",
+    max_attempts: int = 3,
+    retry_nudge: Optional[str] = None,
+    max_transport_attempts: Optional[int] = None,
+    **kwargs: Any,
+) -> tuple[list[tuple[str, str]], str, dict, Any]:
+    """Native tool-calling counterpart of :func:`complete_with_retry`.
+
+    Forces the model to emit a tool call (``tool_choice`` defaults to ``"required"``) and returns
+    ``(calls, content, usage, response)`` where *calls* is a list of ``(name, arguments_json)``
+    pairs and *content* is the message text (chain-of-thought, e.g. a ``<think>`` block). A
+    response is "good" iff it carries ≥1 tool call; otherwise a corrective nudge is appended and
+    the call is retried (up to *max_attempts*). Transport backoff and usage accumulation mirror
+    :func:`complete_with_retry`; MiniMax thinking-off is applied by ``_create_with_backoff``. The
+    caller's *messages* list is never mutated. Structured args mean the react planner needs no
+    text parsing — see :func:`src.react_repair.actions.action_from_tool_call`.
+    """
+    nudge = retry_nudge if retry_nudge is not None else _DEFAULT_TOOL_NUDGE
+    accumulated = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    current_messages = list(messages)
+    call_kwargs = dict(kwargs)
+    call_kwargs["tools"] = tools
+    call_kwargs["tool_choice"] = tool_choice
+    t_attempts = (
+        max_transport_attempts if max_transport_attempts is not None else _MAX_TRANSPORT_ATTEMPTS
+    )
+    last_calls: list[tuple[str, str]] = []
+    last_content = ""
+    last_response: Any = None
+
+    for attempt in range(max_attempts):
+        response = _create_with_backoff(
+            client, model, current_messages, call_kwargs,
+            attempts=t_attempts, base=_TRANSPORT_BASE_DELAY, cap=_TRANSPORT_MAX_DELAY,
+        )
+        if response is None:
+            break
+        usage_obj = getattr(response, "usage", None)
+        accumulated["input_tokens"] += getattr(usage_obj, "prompt_tokens", 0) or 0
+        accumulated["output_tokens"] += getattr(usage_obj, "completion_tokens", 0) or 0
+        accumulated["total_tokens"] += getattr(usage_obj, "total_tokens", 0) or 0
+
+        calls = tool_calls_of(response)
+        last_calls, last_content, last_response = calls, _content_of(response), response
+        if calls:
+            return calls, last_content, accumulated, response
+        if attempt < max_attempts - 1:
+            current_messages = current_messages + [{"role": "user", "content": nudge}]
+
+    return last_calls, last_content, accumulated, last_response
 
 
 def complete_with_retry(

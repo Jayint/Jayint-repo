@@ -1,7 +1,13 @@
-"""The agent's move (spec §4): one read-only EXPLORE command or a full-script PATCH.
-Parsing is pure; the loop enforces read-only on explore and applies the patch."""
+"""The agent's move (spec §4): one read-only EXPLORE command or a line-anchored EDIT.
+Parsing is pure; the loop enforces read-only on explore and applies the edit.
+
+Two input shapes are supported. The PRIMARY path is native tool-calling: the model calls the
+`explore`/`edit` function and we map its structured JSON args to an Action (`action_from_tool_call`)
+— no markdown/backtick/`Action:`-label drift is possible because the args are JSON. The text path
+(`parse_action`) remains as a FALLBACK for providers/turns that return no tool_call."""
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -59,6 +65,83 @@ class Action:
     command: str | None = None      # explore
     new_script: str | None = None   # patch (whole-script fallback)
     edit: "EditOp | None" = None    # edit — a line-anchored change (preferred over patch)
+
+
+# The two tools offered to the model (OpenAI function-calling schema). Structured args are why
+# tool-calling has none of the text-parser's drift: the command / edit fields arrive as JSON, so
+# markdown bold, wrapping backticks, `[bracket]` tags, and "no directive at all" are impossible.
+# `tool_choice="required"` (set by the planner) forces exactly one of these every turn.
+TOOLS_SCHEMA = [
+    {"type": "function", "function": {
+        "name": "explore",
+        "description": ("Run ONE read-only shell command to investigate before you fix the build "
+                        "(ls, cat, find, pip show, ldconfig, …). Never installs or modifies. Its "
+                        "output comes back to you next turn."),
+        "parameters": {"type": "object", "properties": {
+            "command": {"type": "string", "description": "a single read-only shell command"}},
+            "required": ["command"]}}},
+    {"type": "function", "function": {
+        "name": "edit",
+        "description": ("Change setup.sh by line number — this is how you repair the build. Line "
+                        "numbers are the ones shown in CURRENT setup.sh (the same ones the build "
+                        "failure names)."),
+        "parameters": {"type": "object", "properties": {
+            "verb": {"type": "string", "enum": ["replace", "insert", "delete"],
+                     "description": "replace/delete lines start..end; insert AFTER line `start` (0 = top)"},
+            "start": {"type": "integer", "description": "1-based anchor line"},
+            "end": {"type": "integer", "description": "1-based inclusive end; omit for a single line"},
+            "content": {"type": "string",
+                        "description": "the shell line(s) to add for replace/insert; omit for delete"}},
+            "required": ["verb", "start"]}}},
+]
+
+_THINK = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)
+
+
+def extract_reasoning(content: str | None) -> str:
+    """The turn's reasoning for the trace, from the tool-call response's message content. Models
+    put chain-of-thought in a `<think>…</think>` block (MiniMax) — return its inner text; otherwise
+    return the plain content. Empty when there is nothing (a bare tool call with no prose)."""
+    t = (content or "").strip()
+    m = _THINK.search(t)
+    if m:
+        return m.group(1).strip()
+    return t
+
+
+def action_from_tool_call(name: str, arguments: str) -> Action:
+    """Map a native tool call (function name + JSON-string arguments) to an Action. Pure and
+    total: any malformed/unknown call becomes `invalid` so the loop re-prompts (never crashes)."""
+    try:
+        args = json.loads(arguments or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return Action("invalid")
+    if not isinstance(args, dict):
+        return Action("invalid")
+    if name == "explore":
+        cmd = str(args.get("command") or "").strip()
+        return Action("explore", command=cmd) if cmd else Action("invalid")
+    if name == "edit":
+        verb = str(args.get("verb") or "").strip().lower()
+        if verb.startswith("insert"):
+            verb = "insert"
+        if verb not in ("replace", "insert", "delete"):
+            return Action("invalid")
+        try:
+            start = int(args["start"])
+        except (KeyError, TypeError, ValueError):
+            return Action("invalid")
+        try:
+            end = int(args.get("end", start))
+        except (TypeError, ValueError):
+            end = start
+        if end < start:
+            end = start
+        content = str(args.get("content") or "")
+        if verb in ("replace", "insert") and not content.strip():
+            return Action("invalid")     # nothing to add — unusable
+        return Action("edit", edit=EditOp(verb, start, end, content))
+    return Action("invalid")
 
 
 # One Edit directive per turn (v1): `Edit: replace 40` / `replace 40-42` / `insert after 40` /

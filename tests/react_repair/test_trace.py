@@ -18,8 +18,9 @@ def test_trace_kept_and_written(tmp_path):
     assert json.loads((tmp_path / "t.jsonl").read_text().strip())["phase"] == "run"
 
 def test_planner_emits_plan_record_with_prompt(monkeypatch):
-    monkeypatch.setattr(planner_mod, "complete_with_retry",
-                        lambda *a, **k: ("Action: ls", {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}, "raw"))
+    monkeypatch.setattr(planner_mod, "complete_with_tools",
+                        lambda *a, **k: ([("explore", '{"command":"ls"}')], "reasoning",
+                                         {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}, "resp"))
     log = ReactLog(silent=True)
     ReactPlanner(object(), "m", log=log).plan(History(), "script", "obs", graph=None)
     rec = next(r for r in log.records if r["phase"] == "plan")
