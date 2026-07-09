@@ -154,5 +154,17 @@ def test_sibling_url_with_templated_host_does_not_raise():
     assert derive_port((), (), {}, "db", ("redis://$HOST:6379",)) == (None, "none")
 
 
+def test_malformed_url_never_raises():
+    """`urlparse("redis://[db:6379")` raises ValueError: Invalid IPv6 URL.
+    derive_port must degrade the field, never explode."""
+    assert derive_port((), (), {}, "db", ("redis://[db:6379",)) == (None, "none")
+
+
+def test_malformed_url_does_not_fall_back_to_the_regex():
+    """A `://` value is decided by urlparse ALONE. Falling back to the token regex
+    when urlparse fails would re-open the userinfo hole this rung exists to close."""
+    assert derive_port((), (), {}, "db", ("postgres://[db:5432@other/app",)) == (None, "none")
+
+
 def test_port_ladder_gives_up_cleanly():
     assert derive_port((), (), {}, "svc", ()) == (None, "none")
