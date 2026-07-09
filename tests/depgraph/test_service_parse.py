@@ -39,6 +39,12 @@ def test_parse_ports_handles_ranges_and_long_syntax_and_templates():
     assert parse_ports({"ports": "not-a-list"}) == ()
 
 
+def test_short_syntax_port_range_is_skipped_not_fatal():
+    # "5000-5999:5000-5999" (short-syntax RANGE) once crashed int(); it must be
+    # skipped, not fatal — and a well-formed sibling in the same list survives.
+    assert parse_ports({"ports": ["5000-5999:5000-5999", "6379:6379"]}) == (Port(6379, 6379),)
+
+
 def test_parse_env_accepts_dict_list_and_ci_env_key():
     assert parse_env({"environment": {"A": "1"}}) == {"A": "1"}
     assert parse_env({"environment": ["A=1", "B=2"]}) == {"A": "1", "B": "2"}
