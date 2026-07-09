@@ -5,6 +5,7 @@ no ``kind`` field and no recipe table anywhere in this package.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -78,7 +79,8 @@ class ServiceNode:
     unresolved: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
-        # Defensive shallow copy: a node must never alias a caller's dict, or a
-        # later mutation would corrupt already-built evidence during fusion.
+        # Defensively copy so a node never aliases a caller's dict during fusion.
+        # env values are immutable strings, so an outer-dict copy fully isolates;
+        # raw values are nested mutable YAML, so only a deep copy isolates them.
         object.__setattr__(self, "env", dict(self.env))
-        object.__setattr__(self, "raw", dict(self.raw))
+        object.__setattr__(self, "raw", copy.deepcopy(self.raw))

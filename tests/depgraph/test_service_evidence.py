@@ -55,19 +55,26 @@ def _make_node(env=None, raw=None):
     )
 
 
-def test_env_and_raw_are_defensively_copied_from_caller():
-    # Mutating the caller's original dicts after construction must not leak into
-    # the node — evidence fusion builds many nodes and reuses source dicts.
+def test_env_is_defensively_copied_from_caller():
+    # env values are immutable strings, so an outer-dict copy is total isolation.
     env = {"POSTGRES_DB": "app"}
-    raw = {"ci": {"image": "postgres:16"}}
-    node = _make_node(env=env, raw=raw)
+    node = _make_node(env=env)
 
     env["POSTGRES_DB"] = "MUTATED"
     env["INJECTED"] = "x"
-    raw["ci"] = {"image": "MUTATED"}
 
     assert node.env == {"POSTGRES_DB": "app"}
-    assert node.raw == {"ci": {"image": "postgres:16"}}
+
+
+def test_raw_is_deep_copied_so_nested_yaml_is_not_aliased():
+    # raw values are nested mutable YAML dicts. A shallow outer copy still shares
+    # the inner dicts with the caller, so mutating a nested value would leak in.
+    caller_raw = {"ci": {"image": "postgres:16"}}
+    node = _make_node(raw=caller_raw)
+
+    caller_raw["ci"]["image"] = "MUTATED"
+
+    assert node.raw["ci"]["image"] == "postgres:16"
 
 
 def test_service_node_is_unhashable_because_it_holds_dict_fields():
