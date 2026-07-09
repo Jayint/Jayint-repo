@@ -101,7 +101,7 @@ class ServiceNode:
     relevance: Relevance       # ci_service|ci_referenced_compose|root_compose
                                # |unreferenced_compose
     provenance: list[Source]   # ALL contributing decls [{file, locator, kind}]
-    raw: dict[str, dict]       # verbatim entry per source — the agent's primary source
+    raw: dict[str, dict]       # verbatim entry, keyed "<kind>:<file>" — the agent's primary source
 
     # ── honesty ───────────────────────────────────────────────────────────
     state: State               # certifiable_obligation | declared_unverifiable
