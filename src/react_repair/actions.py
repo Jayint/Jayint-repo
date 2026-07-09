@@ -12,7 +12,17 @@ from python_deps.depgraph.patch_gate import is_read_only
 # — `Script:`, markdown `**Script:**`, `### Script`, or no label at all. (A ```python block
 # won't match, so an explore Action isn't hijacked by an incidental code snippet.)
 _SCRIPT_BLOCK = re.compile(r"```(?:bash|sh)?[ \t]*\r?\n(.*?)```", re.DOTALL)
-_ACTION_LINE = re.compile(r"^Action:\s*(.+)$", re.MULTILINE)
+
+# Models (MiniMax especially) decorate the directive line with markdown — `**Edit:**`, `### Action:`,
+# `> Edit:` — instead of a bare `Edit:`/`Action:`. Tolerate a leading blockquote/heading/emphasis run
+# and a closing emphasis run between the label and its argument, so the directive still parses (else
+# the turn is wasted as `invalid` — the gitingest run lost turns exactly this way). This does NOT relax
+# edit-only: a fenced block carrying no directive still falls through to invalid.
+_EMPH = r"[*_]*"                                                       # a run of bold/italic markers
+_LABEL_PFX = rf"^[ \t]*(?:>[ \t]*)?(?:#{{1,6}}[ \t]*)?{_EMPH}[ \t]*"   # line start → optional md → label
+_LABEL_SEP = rf"[ \t]*{_EMPH}[ \t]*"                                   # `Label:` → optional `**`/space → arg
+
+_ACTION_LINE = re.compile(_LABEL_PFX + r"Action:" + _LABEL_SEP + r"(.+)$", re.MULTILINE)
 _ACTION_PREFIX = re.compile(r"^Action:\s*", re.IGNORECASE)
 _THOUGHT = re.compile(r"Thought:\s*(.+?)(?=\n\s*(?:Action|Edit|Script)\b|\n```|$)",
                       re.DOTALL | re.IGNORECASE)
@@ -56,7 +66,8 @@ class Action:
 # failure (the sandbox reports lineno relative to THIS script), so "line 40 failed" and `Edit: replace
 # 40` name the same line. An optional `line`/`lines` word after the verb is tolerated.
 _EDIT_RE = re.compile(
-    r"^Edit:\s*(replace|insert\s+after|delete)\s+(?:lines?\s+)?(\d+)(?:\s*-\s*(\d+))?\b",
+    _LABEL_PFX + r"Edit:" + _LABEL_SEP +
+    r"(replace|insert\s+after|delete)\s+(?:lines?\s+)?(\d+)(?:\s*-\s*(\d+))?\b",
     re.IGNORECASE | re.MULTILINE)
 
 

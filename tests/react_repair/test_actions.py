@@ -118,6 +118,43 @@ def test_multiline_install_block_is_invalid():
             '```')
     assert parse_action(text).kind == "invalid"
 
+def test_parse_markdown_bold_edit_directive():
+    # Issue A: MiniMax decorates directives with markdown — `**Edit:**` (bold) instead of a bare
+    # `Edit:`. The directive must still parse; otherwise the turn is wasted as `invalid` (the gitingest
+    # run lost 5/24 turns this way). The closing `**` between the label and the verb is also tolerated.
+    a = parse_action("**Thought:** add git\n\n**Edit:** insert after 3\n```bash\napt-get install -y git\n```")
+    assert a.kind == "edit" and a.edit.verb == "insert" and a.edit.start == 3
+    assert a.edit.content == "apt-get install -y git"
+
+def test_parse_markdown_bold_edit_directive_real_minimax_gitingest():
+    # Verbatim shape from the live gitingest MiniMax run (react_trace idx 2): a bold Edit with a
+    # "line N" number and trailing prose, then the bash block. Was mis-parsed as invalid → wasted turn.
+    reply = ("**Thought:** git CLI missing.\n\n"
+             "**Action:** Add apt-get install -y git early in the script.\n\n"
+             "**Edit:** Insert after line 8 (after the python symlink line) and before the pytest check:\n"
+             "```bash\napt-get update -qq && apt-get install -y -qq git >/dev/null 2>&1\n```")
+    a = parse_action(reply)
+    assert a.kind == "edit" and a.edit.verb == "insert" and a.edit.start == 8
+    assert "install -y -qq git" in a.edit.content
+
+def test_parse_heading_prefixed_edit_directive():
+    # `### Edit: …` (a markdown heading) must parse the same as a bare `Edit:`.
+    a = parse_action("### Edit: replace 2\n```bash\npip install narwhals\n```")
+    assert a.kind == "edit" and a.edit.verb == "replace" and (a.edit.start, a.edit.end) == (2, 2)
+
+def test_parse_markdown_bold_action_directive():
+    # `**Action:** <cmd>` (bold) must parse as an explore, same as a bare `Action:`.
+    a = parse_action("**Thought:** check\n\n**Action:** ls /app")
+    assert a.kind == "explore" and a.command == "ls /app"
+
+def test_markdown_bold_edit_wins_over_bold_action_prose():
+    # The model emitted BOTH a bold Action (prose) and a bold Edit (the concrete change). Edit wins —
+    # same precedence as bare directives — so the edit is applied, not the Action prose.
+    reply = ("**Action:** Add git to the script.\n\n"
+             "**Edit:** insert after 8\n```bash\napt-get install -y git\n```")
+    a = parse_action(reply)
+    assert a.kind == "edit" and a.edit.start == 8 and a.edit.content == "apt-get install -y git"
+
 def test_parse_edit_replace_single_line_with_block():
     a = parse_action("Thought: pin\nEdit: replace 3\n```bash\npip install narwhals\n```")
     assert a.kind == "edit" and a.edit == EditOp("replace", 3, 3, "pip install narwhals")
