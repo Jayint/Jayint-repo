@@ -52,6 +52,59 @@ def test_a_tests_dir_compose_named_by_CI_is_the_test_environment(tmp_path):
     assert compute_relevance(d, frozenset({"tests/db/compose.yml"})) == "ci_referenced_compose"
 
 
+def test_reference_paths_are_normalized_not_char_stripped(tmp_path):
+    """`lstrip("./")` is character stripping. `../compose.yml` must NOT match a root
+    declaration, and `deploy/../compose.yml` MUST normalize to `compose.yml`."""
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose -f ./deploy/../docker-compose.yml up
+    """)
+    refs = ci_referenced_compose_files(str(tmp_path))
+    assert refs == frozenset({"docker-compose.yml"})
+    assert compute_relevance(_decl("docker-compose.yml"), refs) == "ci_referenced_compose"
+
+
+def test_a_reference_escaping_the_repo_is_not_a_reference(tmp_path):
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose -f ../outside/docker-compose.yml up
+    """)
+    assert ci_referenced_compose_files(str(tmp_path)) == frozenset()
+
+
+def test_only_run_step_bodies_are_scanned(tmp_path):
+    """Scanning raw file text would turn a step NAME into a compose reference."""
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - name: docker compose -f decoy.yml up
+                uses: actions/checkout@v4
+    """)
+    assert ci_referenced_compose_files(str(tmp_path)) == frozenset()
+
+
+def test_equals_form_and_quoted_paths(tmp_path):
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose --file=a.yml up
+              - run: docker compose -f "dir with space/b.yml" up
+    """)
+    refs = ci_referenced_compose_files(str(tmp_path))
+    assert refs == frozenset({"a.yml", "dir with space/b.yml"})
+
+
+def test_root_override_compose_is_the_default_environment():
+    """`docker compose up` with no -f auto-loads docker-compose.override.yml."""
+    assert compute_relevance(_decl("docker-compose.override.yml"), frozenset()) == "root_compose"
+
+
 def test_root_compose_unreferenced_is_ambiguous():
     assert compute_relevance(_decl("docker-compose.yml"), frozenset()) == "root_compose"
     assert compute_relevance(_decl("compose.yaml"), frozenset()) == "root_compose"

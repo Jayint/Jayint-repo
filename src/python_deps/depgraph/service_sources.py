@@ -39,7 +39,7 @@ _PRUNED_DIRS = frozenset({
 })
 
 
-def _load(path: str) -> object | None:
+def load_yaml(path: str) -> object | None:
     """A bad file skips itself. Narrow: an unexpected exception is a bug, not a bad file.
 
     Matches the convention already landed in `service_scan._load_yaml`.
@@ -77,7 +77,7 @@ class ComposeSource:
             low = os.path.basename(path).lower()
             if "compose" not in low or not low.endswith((".yml", ".yaml")):
                 continue
-            doc = _load(path)
+            doc = load_yaml(path)
             svcs = doc.get("services") if isinstance(doc, dict) else None
             if not isinstance(svcs, dict):
                 continue
@@ -97,7 +97,7 @@ class GithubActionsSource:
             if not fname.lower().endswith((".yml", ".yaml")):
                 continue
             path = os.path.join(wf, fname)
-            doc = _load(path)
+            doc = load_yaml(path)
             jobs = doc.get("jobs") if isinstance(doc, dict) else None
             if not isinstance(jobs, dict):
                 continue
