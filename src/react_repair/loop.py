@@ -19,6 +19,13 @@ _FORMAT_REMINDER = ("Call exactly one tool — explore or edit. explore is READ-
                     "pip show); a package you install inside explore is gone next turn and won't "
                     "persist. To install a dependency or change the environment, add the line to "
                     "setup.sh with edit() instead.")
+_OUT_OF_RANGE_HINT = "edit line out of range — check the numbered setup.sh and retry"
+
+# A tool misuse (non-read-only explore, out-of-range edit, unusable action) is a harness error, not a
+# repair step: re-prompt with the reason IN PLACE (no turn spent, nothing written to the agent-facing
+# history) up to this many times. Only if the agent still can't produce a valid call do we fall back
+# to recording one invalid step and moving on. Every misuse is still traced for the misuse-rate metric.
+_INVALID_RETRIES = int(os.getenv("REACT_INVALID_RETRIES", "2"))
 
 # Cap the build/test log shown to the planner so a repo with a huge failure dump can't bloat
 # (or overflow) the prompt every turn. Keep the TAIL — pytest's summary + last failures live
@@ -114,6 +121,22 @@ def _added_lines(old: str, new: str, cap: int = 3) -> str:
     return "; ".join("+" + ln for ln in added)
 
 
+def _classify_action(action, script: str) -> tuple[str, str | None]:
+    """Map a planned action to how the loop should dispatch it: ("explore", command) /
+    ("edit", new_script) / ("patch", new_script) for a usable move, or ("invalid", hint) for a tool
+    misuse. Edit validity requires computing the splice, so the new script rides back in the payload."""
+    if action.kind == "explore":
+        if action.command and is_read_only(action.command):
+            return "explore", action.command
+        return "invalid", _FORMAT_REMINDER              # non-read-only or empty command
+    if action.kind == "edit" and action.edit is not None:
+        new = apply_edit(script, action.edit)
+        return ("edit", new) if new is not None else ("invalid", _OUT_OF_RANGE_HINT)
+    if action.kind == "patch" and action.new_script:
+        return "patch", action.new_script
+    return "invalid", _FORMAT_REMINDER                  # unusable / unparseable move
+
+
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
@@ -182,32 +205,40 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             return "PLATEAU", best_script, graph
         observation = _observation(result, test)
 
-        # Pass the line the build halted on so the planner can anchor "← BUILD HALTED HERE" in the
-        # numbered script it shows the agent. None when the build was green (tests-below-threshold) or
-        # the ERR trap didn't localize — the renderer leaves it untagged.
-        thought, action, usage = planner.plan(history, script, observation, graph,
-                                              fail_lineno=result.lineno,
-                                              turn=step + 1, max_turns=max_steps)
-        _emit_tokens(usage)
+        # Resolve a DISPATCHABLE action. A tool misuse is re-prompted IN PLACE (fail_lineno anchors
+        # "← BUILD HALTED HERE"; the rejection reason rides in the next prompt) without spending the
+        # turn or writing to the agent-facing history — bounded by _INVALID_RETRIES. Only if the agent
+        # can't produce a valid call do we fall back to recording one invalid step and moving on.
+        rejection = None
+        for attempt in range(_INVALID_RETRIES + 1):
+            thought, action, usage = planner.plan(history, script, observation, graph,
+                                                  fail_lineno=result.lineno, turn=step + 1,
+                                                  max_turns=max_steps, rejection=rejection)
+            _emit_tokens(usage)
+            kind, payload = _classify_action(action, script)
+            if kind != "invalid":
+                break
+            rejection = payload
+            log.d("PLAN", f"invalid move ({action.kind}) — retry {attempt + 1}/{_INVALID_RETRIES}")
+            log.trace("invalid", attempt=attempt + 1, kind=action.kind, command=action.command,
+                      reason=payload, thought=thought)
+        else:
+            # Cap exhausted — the agent keeps misusing the tools. Record ONE invalid step (visible +
+            # already traced above) and consume the turn so we can't spin here forever.
+            history.record(step + 1, thought, "invalid", rejection)
+            log.d("PLAN", f"invalid after {_INVALID_RETRIES} retries — recording, moving on")
+            continue
 
-        if action.kind == "explore" and action.command and is_read_only(action.command):
-            rc, out = exec_readonly(action.command)
-            history.record(step + 1, thought, f"explore: {action.command}", out)
-            log.d("EXPLORE", f"{action.command} → rc{rc} (read-only)")
+        if kind == "explore":
+            rc, out = exec_readonly(payload)
+            history.record(step + 1, thought, f"explore: {payload}", out)
+            log.d("EXPLORE", f"{payload} → rc{rc} (read-only)")
             continue                                    # free turn — no rebuild, plateau unchanged
-        if action.kind == "edit" and action.edit is not None:
-            # PREFERRED change: a line-anchored edit. Apply to the current script (pure splice); an
-            # out-of-range ref re-prompts (no rebuild). Same rebuild+register+record path as a patch,
-            # so keep-best guards a bad edit exactly as it guards a bad patch.
-            new = apply_edit(script, action.edit)
-            if new is None:
-                history.record(step + 1, thought, "invalid",
-                               "edit line out of range — check the numbered setup.sh and retry")
-                log.d("PLAN", f"edit out of range ({action.edit.verb} {action.edit.start})")
-                continue
-            old_script, script = script, new
-            e = action.edit
-            change = _edit_summary(e)          # op-based: verb@span + preview (captures deletes too)
+        if kind == "edit":
+            # A line-anchored edit (pure splice, validated in _classify_action). Same rebuild+register
+            # +record path as a patch, so keep-best guards a bad edit exactly as it guards a bad patch.
+            old_script, script = script, payload
+            change = _edit_summary(action.edit)   # op-based: verb@span + preview (captures deletes too)
             log.d("EDIT", f"{change}; re-running fresh")
             result, graph, test = build_and_test()
             plateaued = register(result, test)
@@ -216,21 +247,18 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             history.record(step + 1, thought, f"edit v{version} ({change}) → {verdict}",
                            _observation(result, test))
             continue
-        if action.kind == "patch" and action.new_script:
-            old_script, script = script, action.new_script
-            log.d("PATCH", "agent replaced setup.sh; re-running fresh")
-            result, graph, test = build_and_test()
-            plateaued = register(result, test)
-            version += 1
-            # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed
-            # (order-free set diff) → the REAL build/test outcome. Both survive compaction.
-            change = _added_lines(old_script, script)
-            verdict = _verdict(result, test)
-            summary = f"patch v{version} ({change}) → {verdict}" if change else f"patch v{version} → {verdict}"
-            history.record(step + 1, thought, summary, _observation(result, test))
-            continue
-        history.record(step + 1, thought, "invalid", _FORMAT_REMINDER)  # explore-not-readonly or unparseable
-        log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
+        # kind == "patch"
+        old_script, script = script, payload
+        log.d("PATCH", "agent replaced setup.sh; re-running fresh")
+        result, graph, test = build_and_test()
+        plateaued = register(result, test)
+        version += 1
+        # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed
+        # (order-free set diff) → the REAL build/test outcome. Both survive compaction.
+        change = _added_lines(old_script, script)
+        verdict = _verdict(result, test)
+        summary = f"patch v{version} ({change}) → {verdict}" if change else f"patch v{version} → {verdict}"
+        history.record(step + 1, thought, summary, _observation(result, test))
 
     outcome = "PLATEAU" if plateaued else "GIVEUP"      # plateau on the final step lands here
     log.d(outcome, f"stopped at max_steps {max_steps} (best {best_key[1]}) — returning best script")

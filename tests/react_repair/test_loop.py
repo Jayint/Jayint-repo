@@ -71,7 +71,8 @@ def test_added_lines_empty_when_no_change():
 class _ScriptedPlanner:
     """Emits a fixed queue of moves; ignores the prompt."""
     def __init__(self, moves): self.moves = list(moves)
-    def plan(self, history, script, observation, graph, fail_lineno=None, turn=None, max_turns=None):
+    def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
+             max_turns=None, rejection=None):
         return "t", (self.moves.pop(0) if self.moves else Action("invalid")), {}
 
 
@@ -142,7 +143,8 @@ def test_loop_passes_turn_budget_to_planner():
     # The loop feeds the live turn counter (1-based) + max to the planner every turn.
     seen = []
     class _P:
-        def plan(self, history, script, observation, graph, fail_lineno=None, turn=None, max_turns=None):
+        def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
+                 max_turns=None, rejection=None):
             seen.append((turn, max_turns)); return "t", Action("explore", command="ls"), {}
     box = ["pip install app\n"]
     reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
@@ -150,6 +152,52 @@ def test_loop_passes_turn_budget_to_planner():
               run_tests=run_tests, planner=_P(), history=History(), log=ReactLog(silent=True),
               max_steps=3, _initial_script="pip install app\n")
     assert seen == [(1, 3), (2, 3), (3, 3)]
+
+def test_invalid_move_retried_in_place_not_recorded_when_corrected():
+    # A tool misuse is a harness error, not a repair step: if the agent corrects it on retry, the
+    # misuse must NOT appear in history and must NOT consume a turn.
+    bad = Action("explore", command="pip install libpq-dev")     # not read-only → rejected
+    good = Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev"))
+    hist = History()
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    outcome, script, _ = run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([bad, good]), history=hist,
+        log=ReactLog(silent=True), max_steps=5, _initial_script="pip install app\n")
+    from src.react_repair.history_view import render_history
+    assert "invalid move" not in render_history(hist.steps)   # corrected in-place → not in history
+    assert outcome == "DONE" and "libpq-dev" in script         # the retried edit applied
+
+def test_invalid_move_exhausts_retries_then_records_one_invalid():
+    # An agent that only emits misuse: after the retry cap, exactly ONE invalid step is recorded
+    # (visible + traced), not silently dropped and not one-per-retry.
+    bad = Action("explore", command="pip install x")            # always non-read-only
+    hist = History()
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=_ScriptedPlanner([bad] * 10), history=hist,
+              log=ReactLog(silent=True), max_steps=1, _initial_script="pip install app\n")
+    assert len([s for s in hist.steps if s.action_summary == "invalid"]) == 1
+
+def test_retry_passes_rejection_hint_to_planner():
+    seen = []
+    class _P:
+        def __init__(self): self.n = 0
+        def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
+                 max_turns=None, rejection=None):
+            seen.append(rejection); self.n += 1
+            if self.n == 1:
+                return "t", Action("explore", command="pip install x"), {}   # misuse
+            return "t", Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev")), {}
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=_P(), history=History(), log=ReactLog(silent=True),
+              max_steps=2, _initial_script="pip install app\n")
+    assert seen[0] is None                                   # first call: no rejection
+    assert seen[1] is not None and "edit()" in seen[1]       # retry carries the misuse hint
 
 def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
     # `pip install` via explore is not read-only → rejected. The agent must be pointed at edit()

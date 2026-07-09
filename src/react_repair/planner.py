@@ -134,7 +134,8 @@ class ReactPlanner:
 
     def _render(self, history, script: str, observation: str, graph,
                 fail_lineno: int | None = None,
-                turn: int | None = None, max_turns: int | None = None) -> str:
+                turn: int | None = None, max_turns: int | None = None,
+                rejection: str | None = None) -> str:
         parts = [
             ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
              "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
@@ -146,16 +147,18 @@ class ReactPlanner:
             ctx = self.graph_context(graph) or ""
             if ctx.strip():
                 parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
+        if rejection:                          # same-turn retry after a tool misuse (high salience)
+            parts.append("YOUR LAST TOOL CALL WAS REJECTED — fix it and try again: " + rejection)
         parts.append(_closing_line(turn, max_turns))
         return "\n\n".join(parts)
 
     def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
-             turn: int | None = None, max_turns: int | None = None):
+             turn: int | None = None, max_turns: int | None = None, rejection: str | None = None):
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user",
              "content": self._render(history, script, observation, graph, fail_lineno,
-                                     turn, max_turns)},
+                                     turn, max_turns, rejection)},
         ]
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text

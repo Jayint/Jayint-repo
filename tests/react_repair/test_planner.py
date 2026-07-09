@@ -102,6 +102,13 @@ def test_tools_section_names_explore_and_edit():
     sp = planner_mod.SYSTEM_PROMPT
     assert "explore" in sp and "edit" in sp and "Script:" not in sp
 
+def test_render_injects_rejection_hint(monkeypatch):
+    # On a same-turn retry after a tool misuse, the rejection reason is injected into the prompt.
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(
+        History(), "s", "o", graph=None, rejection="explore is READ-ONLY, use edit() instead")
+    assert "REJECTED" in seen["user"] and "use edit()" in seen["user"]
+
 # --- turn budget (drive agency: finite turns to reach green) ---------------
 def test_render_shows_turn_budget_counter(monkeypatch):
     seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
