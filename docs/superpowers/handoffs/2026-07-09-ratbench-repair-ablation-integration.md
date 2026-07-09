@@ -35,9 +35,21 @@ Env-gated repair-only mode in **`multi_docker_eval_adapter.py` ONLY** — mirror
     --model dockeragent --llm MiniMax-M2.7-highspeed --repos-json <python50.json> [--num-turn 30]
   ```
 
+## VERIFIED end-to-end (2026-07-09) — deployed `/opt/agents/john-react` @ `e9fe34c`
+Two single-instance full-worker runs through the RAT pipeline (`--only`, `MiniMax-M2.7-highspeed`, `--repair-mode off`), both `status=success` with valid RAT scoring:
+- **`coderamp-labs/gitingest`** (happy path, non-VCS): baseline built but **0 tests executed** → **1 repair patch** → **157/160 passed** (0.9812, `pass_rate_exclude_code_issues=1.0`; the 3 "fails" are dead-bitbucket network tests). 160 executed = NO skip-gaming; matches construction exactly. Proves the loop does REAL repair and the green is valid.
+- **`bruin-data/ingestr`** (VCS/`hatch-vcs`): after the Bug-A pin fix, the seed's `pip install -e .` succeeds; loop reaches DONE at baseline with the clean real seed (0 patches). 5 passed / 14 skipped (live-DB tests, same as construction). Pin verified: v3_src is-shallow=false, 336 tags, HEAD==construction `head_sha` (`a98d1193`), `git describe`=`v1.0.68`, eval Dockerfile `checkout --detach a98d1193`.
+
+**Two bugs the smoke caught + fixed (committed, pushed, deployed):**
+- **Bug B — `4155197`** (`src/react_repair/actions.py` + `history_view.py`): the planner accepted ANY ```` ```bash ```` fence as a patch, so MiniMax wrapping a read-only probe (`Action: cat …`, bare `find … | head`) REPLACED the whole setup.sh with a non-installing one-liner → build "succeeds" installing nothing → skip-heavy suite gamed the gate (FALSE GREEN). Fix: a single-line fence that is a mis-wrapped explore (an `Action:` directive OR a bare read-only investigation command in the probe allowlist) is recovered as the explore it meant, not applied as a patch. Also: explore history now carries a compact finding, not just the command.
+- **Bug A — `e9fe34c`** (`multi_docker_eval_adapter.py`): adapter cloned current HEAD, shallow (`--depth=1`, no tags) → (1) drifted tree = unfaithful A/B, (2) VCS-versioned backends (hatch-vcs/setuptools_scm) can't compute a version without reachable tags → `metadata-generation-failed`, seed never reproduces baseline. Fix (ablation only): `_seed_head_sha` reads `_meta.json head_sha`; `_clone`/`_render_dockerfile` do a FULL clone (history+tags) pinned to that commit, in BOTH the react Sandbox and the eval image.
+
+Tests across the two fixes: adapter 25 pass, react_repair suite; combined **123 pass**.
+
 ## Remaining
-- **Deploy** the new commit to `/opt/agents/john-react` (worktree; append-only; push origin first — ask before pushing).
-- **Verify one instance** end-to-end on the VM with `MiniMax-M2.7-highspeed`: skips construction, seeds, repairs, emits Dockerfile, produces RAT pytest JSONs + ESSR. Then full 49 (1 repo has no seed).
+- **Run the full 49** (1 repo has an empty seed → clean `no_dockerfile` skip). Use the scheduler: `--concurrency N` instead of `--only` (same env vars), then `--aggregate-only` + `scripts/compute_essr.py` for ESSR. Compare vs the construction-only baseline run (`V3_CONSTRUCTION_ONLY=1`) to isolate the repair-loop gain.
+- **Weak-discriminator caveat:** repos whose tests mostly skip without live services (ingestr: 14/19) barely move with env quality — their pass count isn't a good repair signal. gitingest-style repos (real executed suites) are. When reporting ESSR, note which repos are service-gated.
+- Consider a 2–3 repo spot-check before the full 49 (one VCS, one service-repo, one plain lib).
 
 ## Watch-outs
 - **Service daemons don't survive to the test container.** If the react arm provisions a daemon (e.g. rq's redis) inside `setup.sh`, it starts at Docker *build* time and is dead when RAT `docker exec … pytest` runs later. Same limitation `--construction-only` has. Fix path if service repos matter: `V3_INCLUDE_SERVICES=1` (adds the ENTRYPOINT seam via `services_start.sh`) — but the react arm's repaired setup.sh isn't wired to emit a services script; would need work. For now, service repos under-score; note it, don't let it silently read as a repair failure.
