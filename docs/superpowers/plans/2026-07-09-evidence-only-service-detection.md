@@ -39,6 +39,66 @@
 
 ---
 
+## Pre-Flight Resolutions (BINDING — supersede any conflicting task text below)
+
+A pre-flight consistency review (2026-07-09, before Task 1) found four plan-vs-reality
+blockers. These resolutions are authoritative. Where a task section below still carries the
+old text, **this section wins**.
+
+**R1 — `_kind_of` is NOT dead code; the evidence layer is kind-gated.**
+`service_scan._services_from_yaml_doc` (line ~109) calls `_kind_of` *and keys its output dict
+by the returned kind*. Unknown kinds are therefore **silently dropped before any consumer sees
+them** — rq's `valkey` never reaches `static_collect`. Two kept consumers depend on this:
+`static_collect.py:43,47` and `src/eval/language_package_eval/oracle.py:127` (which reads
+`.keys()`, i.e. *kinds*, not service names).
+**RESOLUTION (user-approved): rekey by service name.** Rewrite `_services_from_yaml_doc` to key
+by the declared service name and return `image`/`port`/`healthcheck`/`source` per service, then
+delete `_kind_of` and the now-unused `KNOWN_SERVICE_KINDS` import. Update `static_collect` and
+`oracle` for the new key semantics, and their tests. This removes the last kind table *and*
+fixes the exotic-drop bug. Now **Task 10a**.
+
+**R2 — `provisioning_spec.py` has importers the plan never listed.**
+Real importers: `repoint.py:20`, `classify_services_clean.py:31`,
+`evals/service_config_detection/stage_parse_admit.py:30`,
+`evals/service_config_detection/stage_translate.py:42,113`,
+`tests/depgraph/test_provisioning_spec.py`, `tests/depgraph/test_repoint.py:3`,
+`tests/test_service_translate.py:21`.
+**RESOLUTION:** Task 9 must also delete the module-level import at `repoint.py:20`. Task 10's
+delete set expands (below).
+
+**R3 — deleting `_KIND_BASE`/`render_setup` breaks a surviving test, and `RECIPE_KINDS` too.**
+`tests/depgraph/test_service_recipes_clean.py:5` imports `_KIND_BASE, render_setup`;
+`evals/service_config_detection/stage_translate.py:43` imports `RECIPE_KINDS`
+(defined at `service_recipes.py:33`). The plan's own new `test_no_service_tables.py` asserts
+these are gone — the two tests cannot both pass.
+**RESOLUTION:** Task 10 deletes `tests/depgraph/test_service_recipes_clean.py` and removes
+`RECIPE_KINDS` alongside `KindBase`/`_KIND_BASE`/`render_setup`. Keep `render_probe_poll` and
+`normalize_probe` (used by `patch_gate.py:21` and surviving tests).
+
+**R4 — the "seven consumers of `data["setup"]`" count is wrong.**
+Real **readers** (8): `advise.py:166`, `build_script.py:377`, `certify.py:87`, `emit.py:150`,
+`populate.py:61`, `schedule.py:40`, `schedule.py:104`, **`src/envstate/graph_scheduler.py:91`**.
+`patch_gate.py:237` is the **writer**, not a reader. The compat view keeps all eight working.
+**Note the behavior shift, and state it in the Task 9 report:** because Task 9 emits `setup`
+only for `state == "certifiable_obligation"`, `graph_scheduler.unsatisfied_provisionable_services`
+now gates `done` on *certifiable* services only. This is intended (a `declared_unverifiable`
+service has no probe, so it can never be host-certified and must not block `done`), and it is
+behind `allow_services`, default-OFF, so the byte-identical baseline is unaffected.
+
+**R5 — fate of `evals/service_config_detection/` (user-approved: retire translate, port parse).**
+`provision_corpus.py`, `provision_certify.py`, `level3_labels.py` are **pure data/subprocess
+modules with no pipeline imports** — they survive untouched, as do
+`tests/evals/test_provision_corpus.py` and `tests/evals/test_provision_certify.py`.
+Only two files import the doomed modules:
+- **DELETE** `evals/service_config_detection/stage_translate.py` + `tests/evals/test_stage_translate.py`
+  — they measure the construction-time LLM stage this plan removes; obsolete by construction.
+- **DELETE** `evals/service_config_detection/stage_parse_admit.py` + `tests/evals/test_stage_parse_admit.py`
+  — its role passes to **Task 12**, whose known-answer oracle is now
+  `provision_corpus.PROVISION_CASES` (18 verbatim-labeled compose blocks, ground truth, already
+  green) rather than a hand transcription of `ratbench-service-catalog.md`.
+
+---
+
 ## File Structure
 
 | File | Responsibility |
@@ -1582,24 +1642,38 @@ git commit -m "test(depgraph): real-world service fixtures (rq valkey, ci-named 
 - Modify: `src/envstate/classify_services_clean.py` (replace `_service_nodes`)
 - Modify: `src/python_deps/depgraph/patch.py:11` (add `NodeSpec.data`)
 - Modify: `src/python_deps/depgraph/patch_gate.py:118` (empty `start` allowed) and `:233` (merge `r.data`)
-- Modify: `src/python_deps/depgraph/repoint.py:36` (`render_bind_steps` matches by hostname, not `kind`)
+- Modify: `src/python_deps/depgraph/repoint.py:36` (`render_bind_steps` matches by hostname, not `kind`) **and delete the module-level import at `repoint.py:20`** (`from python_deps.depgraph.provisioning_spec import ProvisioningSpec`) — pre-flight resolution R2. Task 10 deletes that module; if this import survives, importing `repoint` (hence `classify_services_clean`, hence the whole construction path) raises `ModuleNotFoundError`.
 - Modify: `src/python_deps/depgraph/emit.py:150` (`_is_service_reciped` → state-based)
-- Test: `tests/test_classify_services_clean.py` (update), `tests/depgraph/test_repoint.py` (update), `tests/depgraph/test_patch_gate_admit_clean.py` (add empty-start case)
+- Test: `tests/test_classify_services_clean.py` (update), `tests/depgraph/test_repoint.py` (**rewrite** — all 7 existing tests construct `ProvisioningSpec(...)` and call the old two-arg signature; both are gone. Remove them all, do not append), `tests/depgraph/test_patch_gate_admit_clean.py` (add empty-start case)
 
 **Interfaces:**
 - Consumes: `build_service_nodes` (Task 7).
 - Produces: graph nodes carrying `data["service"]` (canonical, `dataclasses.asdict(ServiceNode)`) **and** `data["setup"]` (derived compat view).
 
-**The compat view is the whole trick.** `data["setup"]` has seven consumers (`emit`, `build_script`, `populate`, `certify`, `schedule`, `patch_gate`, `advise`). Emit it *derived* so none of them change:
+**The compat view is the whole trick.** `data["setup"]` has **eight readers** — pre-flight
+resolution R4 corrects the plan's earlier count of seven: `advise.py:166`, `build_script.py:377`,
+`certify.py:87`, `emit.py:150`, `populate.py:61`, `schedule.py:40`, `schedule.py:104`, and
+**`src/envstate/graph_scheduler.py:91`**. (`patch_gate.py:237` is the *writer*, not a reader.)
+Emit it *derived* so none of them change:
 
 ```python
 {"install": [], "start": "", "probe": check.command, "createdb": None,
  "post": [], "bind": bind_steps}
 ```
 
-`install: []` and `start: ""` are **correct** under the new design — construction emits no commands. `build_script._service_start_block` (line 368) already no-ops on empty `start`. Emit `setup` **only** when `state == "certifiable_obligation"`, which makes `_is_service_reciped` mean "certifiable" for free.
+`install: []` and `start: ""` are **correct** under the new design — construction emits no commands. `build_script._service_start_block` (line 383) already no-ops on empty `start`. Emit `setup` **only** when `state == "certifiable_obligation"`, which makes `_is_service_reciped` mean "certifiable" for free.
 
-**`render_bind_steps` must stop using `kind`.** It currently matches a config DSN to a service by `kind` (`repoint.py:44`, `declared_kinds = {s.kind for s in specs if s.kind}`). Match by **declared hostname** instead: the DSN's host equals the service `name`. This is evidence-based *and* strictly more precise — it disambiguates a repo with two postgres services, which `kind` cannot.
+**Intended behavior shift, state it in your report (R4).** Because `setup` is emitted only for
+certifiable services, `graph_scheduler.unsatisfied_provisionable_services` (line 91) now gates
+`done` on certifiable services only. This is correct: a `declared_unverifiable` service has no
+probe, so it can never be host-certified and must not block `done`. It sits behind
+`allow_services` (default-OFF), so the byte-identical baseline is unaffected.
+
+**`render_bind_steps` must stop using `kind`.** It currently matches a config DSN to a service by `kind` (`repoint.py:47`, `declared_kinds = {s.kind for s in specs if s.kind}`). Match by **declared hostname** instead: the DSN's host equals the service `name`. This is evidence-based *and* strictly more precise — it disambiguates a repo with two postgres services, which `kind` cannot.
+
+**Use `urllib.parse.urlparse` directly, not `service_scan.service_from_url`.** The latter returns
+`None` for any scheme outside its `_SCHEME_TO_KIND` map, which would silently drop a valid DSN
+pointing at an exotic service. You need only `parsed.hostname` and `parsed.port` — no kind.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1857,22 +1931,243 @@ git commit -m "feat: evidence-only service construction; delete construction-tim
 
 ---
 
+## Task 10a: Rekey the evidence scanners by service name; delete `_kind_of`
+
+> **Pre-flight resolution R1.** The original Task 10 said "remove `_kind_of` **only**". That is
+> impossible: `_services_from_yaml_doc` *calls* `_kind_of` and **keys its output dict by the
+> returned kind**, so an unknown kind is dropped entirely. `scan_compose_services` and
+> `scan_ci_services` — both kept — are therefore blind to every exotic service (rq's `valkey`
+> among them). This task removes the table by rekeying on the declared service name, which is
+> what the evidence actually says.
+
+**Files:**
+- Modify: `src/python_deps/depgraph/service_scan.py` (rewrite `_services_from_yaml_doc`; delete `_kind_of`; drop the now-unused `KNOWN_SERVICE_KINDS` import)
+- Modify: `src/eval/language_package_eval/oracle.py:127` (keys are now service names)
+- Test: `tests/depgraph/test_service_scan.py` (update key expectations), `tests/eval/language_package_eval/test_oracle.py` (verify)
+
+**Interfaces:**
+- Produces: `scan_compose_services(repo_path) -> dict[str, dict]` and
+  `scan_ci_services(repo_path) -> tuple[dict[str, dict], bool]`, both keyed by **declared
+  service name**. Each value keeps its existing shape:
+  `{"image": str, "port": int | None, "healthcheck": str, "source": str}`.
+- Consumers unchanged otherwise: `static_collect.py:43,47` (uses `svc` as `name=`, `meta` for the
+  snippet), `oracle.py:127`.
+
+**Do NOT touch** `service_from_url` / `_SCHEME_TO_KIND` in this task. That map is a *lexical*
+URL-scheme parse (`postgresql+psycopg2://` → the `postgres` scheme family), it is on the config
+path, not the ServiceNode path, and `classify_services_clean.py:33` + `runtime_classify` depend
+on it. Task 9 removes `repoint`'s dependence on its `kind` return value.
+
+- [ ] **Step 1: Write the failing test**
+
+Replace `test_scan_compose_services` and `test_scan_ci_services_and_presence` in
+`tests/depgraph/test_service_scan.py` with these, and add the exotic-service regression:
+
+```python
+def test_scan_compose_services(tmp_path):
+    _w(tmp_path, "docker-compose.yml", """
+        services:
+          db:
+            image: postgres:15
+            ports: ["5432:5432"]
+          cache:
+            image: redis:7
+    """)
+    found = scan_compose_services(str(tmp_path))
+    assert set(found) == {"db", "cache"}          # keyed by DECLARED NAME, not kind
+    assert found["db"]["image"] == "postgres:15"
+    assert found["db"]["port"] == 5432
+    assert found["cache"]["image"] == "redis:7"
+
+
+def test_scan_compose_services_keeps_exotic_services(tmp_path):
+    """The bug this task fixes: an unknown kind used to be dropped silently."""
+    _w(tmp_path, "docker-compose.yml", """
+        services:
+          valkey:
+            image: valkey/valkey:8
+            ports: ["6379:6379"]
+          weaviate:
+            image: semitechnologies/weaviate:1.25.0
+    """)
+    found = scan_compose_services(str(tmp_path))
+    assert set(found) == {"valkey", "weaviate"}
+    assert found["valkey"]["image"] == "valkey/valkey:8"
+
+
+def test_scan_ci_services_and_presence(tmp_path):
+    _w(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          test:
+            services:
+              postgres:
+                image: postgres:14
+    """)
+    found, present = scan_ci_services(str(tmp_path))
+    assert present is True
+    assert "postgres" in found
+    assert found["postgres"]["image"] == "postgres:14"
+
+
+def test_scan_ci_services_keeps_exotic_service(tmp_path):
+    _w(tmp_path, ".github/workflows/valkey.yml", """
+        jobs:
+          valkey-test:
+            services:
+              valkey:
+                image: valkey/valkey:8
+    """)
+    found, present = scan_ci_services(str(tmp_path))
+    assert present is True
+    assert "valkey" in found
+
+
+def test_first_declaration_of_a_name_wins(tmp_path):
+    _w(tmp_path, "docker-compose.yml", """
+        services:
+          db:
+            image: postgres:15
+    """)
+    _w(tmp_path, "docker-compose.override.yml", """
+        services:
+          db:
+            image: postgres:16
+    """)
+    found = scan_compose_services(str(tmp_path))
+    assert found["db"]["image"] == "postgres:15"
+```
+
+Keep `test_scan_compose_services_modern_compose_yaml`,
+`test_scan_compose_services_override_variant`, `test_scan_compose_services_ignores_lookalike`,
+`test_compose_meta_captures_healthcheck`, and `test_compose_meta_healthcheck_absent_returns_empty`
+— but update any assertion that indexes by kind so it indexes by the declared service name.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python3 -m pytest tests/depgraph/test_service_scan.py -v`
+Expected: FAIL — `set(found) == {"db", "cache"}` gets `{"postgres", "redis"}`; the exotic tests
+get an empty dict.
+
+- [ ] **Step 3: Write minimal implementation**
+
+In `src/python_deps/depgraph/service_scan.py`, delete `_kind_of` entirely, delete the
+`from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS` import (verify with
+`grep -n KNOWN_SERVICE_KINDS src/python_deps/depgraph/service_scan.py` that nothing else in the
+file uses it), and replace `_services_from_yaml_doc` with:
+
+```python
+def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
+    """Merge a parsed YAML doc's `services:` blocks into `out`, keyed by the DECLARED
+    service name (first declaration of a name wins).
+
+    Evidence-only: no kind recognition. An unknown image is still a declared service —
+    keying by kind used to drop it silently (spec §2, pre-flight resolution R1).
+    """
+    if not isinstance(doc, dict):
+        return
+    blocks = []
+    if isinstance(doc.get("services"), dict):
+        blocks.append(doc["services"])           # compose top-level
+    for job in (doc.get("jobs") or {}).values() if isinstance(doc.get("jobs"), dict) else []:
+        if isinstance(job, dict) and isinstance(job.get("services"), dict):
+            blocks.append(job["services"])       # GitHub Actions job.services
+    for block in blocks:
+        for svc_name, entry in block.items():
+            if not svc_name or svc_name in out:
+                continue
+            entry = entry if isinstance(entry, dict) else {}
+            out[str(svc_name)] = {
+                "image": entry.get("image") or "",
+                "port": _port_of(entry),
+                "healthcheck": _healthcheck_of(entry),
+                "source": source,
+            }
+```
+
+Then update the docstring at the top of the module: the `package->service` table sentence is
+about `static_collect`, not this module — leave it, but change "first kind wins" wording
+anywhere it appears to "first declaration of a name wins".
+
+In `src/eval/language_package_eval/oracle.py`, line 127 currently reads:
+
+```python
+        services |= set(scan_compose_services(str(repo_dir)).keys())
+```
+
+The keys are now declared service names rather than kinds. That is the correct oracle semantics
+(the oracle declares what the repo declares). Leave the line as-is, but update the comment
+above it if it says "kind". Then run `tests/eval/language_package_eval/test_oracle.py` — the
+`compose_postgres` fixture declares a service *named* `postgres`, so
+`declared_by_tier["SERVICE"] == ("postgres",)` still holds. **If any fixture names a service
+differently from its kind, update the expectation to the declared name and say so in your
+report** — do not rename the fixture to make the old assertion pass.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run:
+```bash
+python3 -m pytest tests/depgraph/test_service_scan.py tests/eval/language_package_eval/test_oracle.py \
+    tests/depgraph/test_static_collect.py -q
+```
+Expected: PASS. Then confirm the table is gone:
+```bash
+grep -n "_kind_of\|KNOWN_SERVICE_KINDS" src/python_deps/depgraph/service_scan.py
+```
+Expected: no output.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/python_deps/depgraph/service_scan.py src/eval/language_package_eval/oracle.py \
+        tests/depgraph/test_service_scan.py tests/eval/language_package_eval/test_oracle.py
+git commit -m "refactor(service_scan): key evidence by declared service name, delete _kind_of
+
+The kind table was silently dropping every exotic service (valkey, weaviate)
+before static_collect or the oracle could see it. Evidence is the declared name."
+```
+
+---
+
 ## Task 10: Delete the dead code
+
+> **Pre-flight resolutions R2/R3/R5 apply.** The delete set below is the verified one. The
+> original plan's set left three dangling importers that turn `pytest tests/ -q` red.
 
 **Files:**
 - Delete: `src/envstate/service_translate.py`
 - Delete: `src/python_deps/depgraph/provisioning_spec.py`
-- Delete: `tests/test_service_translate.py`, `tests/evals/test_stage_translate.py`, `tests/depgraph/test_provisioning_spec.py`
-- Modify: `src/python_deps/depgraph/service_scan.py` (remove `_kind_of` **only**)
-- Modify: `src/python_deps/depgraph/service_recipes.py` (remove `KindBase`, `_KIND_BASE`, `render_setup` **only**)
-- Modify: `tests/evals/test_stage_parse_admit.py` (port off `parse_provisioning_spec`)
+- Delete: `evals/service_config_detection/stage_translate.py`
+- Delete: `evals/service_config_detection/stage_parse_admit.py`
+- Delete: `tests/test_service_translate.py`
+- Delete: `tests/evals/test_stage_translate.py`
+- Delete: `tests/evals/test_stage_parse_admit.py`
+- Delete: `tests/depgraph/test_provisioning_spec.py`
+- Delete: `tests/depgraph/test_service_recipes_clean.py`
+- Modify: `src/python_deps/depgraph/service_recipes.py` (remove `KindBase`, `_KIND_BASE`, `render_setup`, `RECIPE_KINDS`)
+- Create: `tests/depgraph/test_no_service_tables.py`
 
-**Do NOT delete** `service_scan.py` or `service_recipes.py`. Verified consumers that must keep working:
+**Why these evals go (R5).** `stage_translate.py` measures the construction-time LLM recipe
+stage that this plan removes — it is obsolete by construction. `stage_parse_admit.py` measures
+parsing/admission, whose role passes to **Task 12**; Task 12's oracle is
+`evals/service_config_detection/provision_corpus.PROVISION_CASES` (18 verbatim-labeled compose
+blocks). `provision_corpus.py`, `provision_certify.py`, `level3_labels.py` are pure data /
+subprocess modules with **no pipeline imports** — they and their tests
+(`tests/evals/test_provision_corpus.py`, `tests/evals/test_provision_certify.py`) survive
+untouched. Verify with `grep -rn "provisioning_spec\|service_translate\|service_recipes" evals/`
+before you commit: the only hits must be in files you deleted.
+
+**Do NOT delete** `service_scan.py` or `service_recipes.py`. Verified consumers that must keep
+working:
 - `service_scan.service_bind_url` → `service_recipes.py:14`
 - `service_scan.service_from_url` → `repoint.py:21`, `classify_services_clean.py:33`
 - `service_scan.scan_ci_services` / `scan_compose_services` → `static_collect.py:14`, `src/eval/language_package_eval/oracle.py:55`
 - `service_scan.classify_service_error` → `runtime_classify.py:119`
 - `service_recipes.render_probe_poll` → `patch_gate.py:21`
+- `service_recipes.normalize_probe` → keep (used by surviving tests and `render_probe_poll`)
+
+**Precondition:** Task 9 already removed `from python_deps.depgraph.provisioning_spec import
+ProvisioningSpec` at `repoint.py:20`. If that import is still present, stop and report — Task 9
+was not completed.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1894,6 +2189,7 @@ def test_recipe_table_is_gone():
     assert not hasattr(mod, "_KIND_BASE")
     assert not hasattr(mod, "render_setup")
     assert not hasattr(mod, "KindBase")
+    assert not hasattr(mod, "RECIPE_KINDS")
 
 
 def test_surviving_service_scan_exports_still_import():
@@ -1917,41 +2213,66 @@ def test_deleted_modules_are_gone():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/depgraph/test_no_service_tables.py -v`
-Expected: FAIL — `_kind_of` still present; `service_translate` still importable.
+Run: `python3 -m pytest tests/depgraph/test_no_service_tables.py -v`
+Expected: FAIL — `_KIND_BASE`/`render_setup`/`RECIPE_KINDS` still present; `service_translate`
+still importable. (`test_kind_of_is_gone` already passes: Task 10a removed it.)
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```bash
-git rm src/envstate/service_translate.py src/python_deps/depgraph/provisioning_spec.py
-git rm tests/test_service_translate.py tests/evals/test_stage_translate.py \
-       tests/depgraph/test_provisioning_spec.py
+git rm src/envstate/service_translate.py \
+       src/python_deps/depgraph/provisioning_spec.py \
+       evals/service_config_detection/stage_translate.py \
+       evals/service_config_detection/stage_parse_admit.py \
+       tests/test_service_translate.py \
+       tests/evals/test_stage_translate.py \
+       tests/evals/test_stage_parse_admit.py \
+       tests/depgraph/test_provisioning_spec.py \
+       tests/depgraph/test_service_recipes_clean.py
 ```
 
-In `src/python_deps/depgraph/service_scan.py`: delete the `_kind_of` function and its `KNOWN_SERVICE_KINDS` import **if that import becomes unused**. Keep everything else.
+In `src/python_deps/depgraph/service_recipes.py`: delete `KindBase`, `_KIND_BASE`,
+`render_setup`, `RECIPE_KINDS` (line 33), and the `_START` dict that `RECIPE_KINDS` is built
+from — plus any import that becomes unused (check `service_bind_url` at line 14: keep it only if
+something still calls it in this module). Keep `render_probe_poll` and `normalize_probe`.
 
-In `src/python_deps/depgraph/service_recipes.py`: delete `KindBase`, `_KIND_BASE`, `render_setup`, and the now-unused `service_bind_url` import **only if unused**. Keep `render_probe_poll` and `render_bind_steps` re-exports if present.
-
-In `tests/evals/test_stage_parse_admit.py`: replace `parse_provisioning_spec(name, entry)` with the equivalent evidence call:
-
-```python
-from python_deps.depgraph.service_construct import build_service_nodes
-# Build a one-service compose in tmp_path, then assert on the returned ServiceNode
-# (image_repo / port / port_source / check.source) instead of the old spec fields.
-```
+Then remove the now-stale docstring references to `render_setup` — these are prose, not code, so
+they will not break anything, but leaving them is a lie in the source:
+`build_script.py:373,375`, `repoint.py:7`, `emit.py:149`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/ -q`
-Expected: full suite PASS. No import errors anywhere.
+Run: `python3 -m pytest tests/ -q`
+Expected: full suite PASS, **no collection errors**. Then prove no dangling references:
+```bash
+grep -rn "provisioning_spec\|service_translate\|render_setup\|_KIND_BASE\|RECIPE_KINDS" \
+     src/ tests/ evals/ scripts/
+```
+Expected: no output. (Any hit is a dangling reference — fix it before committing.)
+
+> **Baseline note for your report:** this branch carries pre-existing failures in
+> `tests/depgraph/*` from another session's WIP (`resolve_*.py`, `wheel_oracle.py`,
+> `emit.py`). Record the failure count from `git stash list`-free baseline
+> (`python3 -m pytest tests/ -q` on the commit *before* your change) and confirm your change
+> adds none. Do not attempt to fix them; they are not yours.
 
 - [ ] **Step 5: Commit**
 
+Stage **only** the files this task names. Never `git add -A`.
+
 ```bash
-git add src/python_deps/depgraph/service_scan.py src/python_deps/depgraph/service_recipes.py \
-        tests/depgraph/test_no_service_tables.py tests/evals/test_stage_parse_admit.py
-git commit -m "refactor: delete kind table, recipe table, and construction-time translate_service"
+git add src/python_deps/depgraph/service_recipes.py \
+        src/python_deps/depgraph/build_script.py \
+        src/python_deps/depgraph/repoint.py \
+        tests/depgraph/test_no_service_tables.py
+git commit -m "refactor: delete recipe table and construction-time translate_service
+
+Retires the obsolete stage_translate/stage_parse_admit evals with them; their
+ground-truth corpus (provision_corpus.PROVISION_CASES) survives and becomes the
+Task 12 detection-fidelity oracle."
 ```
+
+(The `git rm` in Step 3 already staged the deletions.)
 
 ---
 
@@ -2135,11 +2456,12 @@ explains *why*.
 ## Task 12: Detection fidelity against a known-answer oracle
 
 **Files:**
-- Create: `tests/eval/fixtures/service_oracle.json`
-- Create: `scripts/eval_service_detection_fidelity.py`
+- Create: `tests/depgraph/test_service_parse_fidelity.py` (block-level — inherits the retired `stage_parse_admit` signal)
+- Create: `tests/eval/fixtures/service_oracle.json` (repo-level)
+- Create: `scripts/eval_service_detection_fidelity.py` (repo-level)
 
 **Interfaces:**
-- Consumes: `build_service_nodes(repo, owner)` (Task 7).
+- Consumes: `build_service_nodes(repo, owner)` (Task 7); `parse_image`, `derive_port`, `derive_check` (Tasks 2–4).
 - Produces: pooled precision / recall / F1 of detected backing services vs the oracle.
 
 **Why an oracle:** Task 11 reports what we *extracted*; it cannot tell us whether that set is *right*.
@@ -2147,7 +2469,83 @@ explains *why*.
 judgment: app-vs-backing, fixture-vs-real). Scoring against it measures whether our evidence-only
 heuristics reproduce that judgment.
 
-- [ ] **Step 1: Build the oracle**
+**Two oracles, two levels (pre-flight resolution R5).** Task 10 deletes
+`evals/service_config_detection/stage_parse_admit.py`. Its measurement does not die with it — its
+ground-truth corpus is a **pure data module with no pipeline imports**, so it survives and moves here.
+
+- [ ] **Step 0: Block-level parse fidelity (inherit the retired eval's corpus)**
+
+`evals/service_config_detection/provision_corpus.py` holds `PROVISION_CASES`: 18 `ServiceCase`
+records, each pairing a verbatim compose-service YAML block with transcribed ground truth
+(`name`, `kind`, `compose_entry`, `expect`, `expected_probe_family`, `known_failure`). It stays
+green and untouched. Score the **new** parser against it — but score only what evidence-only
+detection *claims* to know. Do **not** assert on `case.kind` or `case.expected_probe_family`:
+those are exactly the semantic lookups this design refuses to perform. Assert instead that every
+declared service is *admitted* (the exotic ones especially) and that its lexical fields parse.
+
+```python
+# tests/depgraph/test_service_parse_fidelity.py
+"""Block-level parse fidelity, inherited from the retired stage_parse_admit eval.
+
+The old eval asked "does the parser recover (kind, params) for a known kind?". The new
+design has no kinds, so we ask the evidence-only question instead: is every declared
+service ADMITTED, and are its lexical fields recovered? The corpus is unchanged ground
+truth (`provision_corpus.PROVISION_CASES`, 18 cases incl. 4 adversarial).
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / "src"))
+
+from evals.service_config_detection.provision_corpus import PROVISION_CASES  # noqa: E402
+from python_deps.depgraph.service_parse import parse_image, derive_check, derive_port  # noqa: E402
+
+
+@pytest.mark.parametrize("case", PROVISION_CASES, ids=lambda c: c.name)
+def test_every_declared_service_is_admitted(case):
+    """No case is dropped. The old kind-keyed path dropped every exotic service."""
+    entry = yaml.safe_load(case.compose_entry)
+    entry = entry if isinstance(entry, dict) else {}
+    image = entry.get("image") or ""
+    repo, _tag = parse_image(image)
+    assert repo, f"{case.name}: image {image!r} yielded no repo — service would be dropped"
+
+
+@pytest.mark.parametrize("case", PROVISION_CASES, ids=lambda c: c.name)
+def test_check_ladder_never_raises_and_records_its_rung(case):
+    entry = yaml.safe_load(case.compose_entry)
+    entry = entry if isinstance(entry, dict) else {}
+    port, port_source = derive_port(entry, siblings={})
+    check = derive_check(entry, port)
+    assert check.source in ("declared_healthcheck", "tcp_port", "none")
+    assert port_source in ("ports", "expose", "env_dsn", "sibling_dsn", "none")
+    if check.source == "none":
+        assert check.command == ""
+    else:
+        assert check.command
+
+
+def test_corpus_admits_the_exotic_tail():
+    """The whole point: kinds outside any table still produce a node."""
+    exotic = [c for c in PROVISION_CASES if c.kind in ("weaviate", "milvus", "qdrant")]
+    assert exotic, "corpus lost its exotic cases"
+    for case in exotic:
+        entry = yaml.safe_load(case.compose_entry) or {}
+        repo, _ = parse_image(entry.get("image") or "")
+        assert repo, f"{case.name} dropped"
+```
+
+Run: `python3 -m pytest tests/depgraph/test_service_parse_fidelity.py -q` → all 18 cases admitted.
+**If a case is dropped, that is a real detection bug — fix the parser, not the test.**
+
+- [ ] **Step 1: Build the repo-level oracle**
 
 Transcribe the per-repo backing-service names from `ratbench-service-catalog.md` into this exact
 shape. One entry per repo that declares ≥1 genuine backing service (the catalog says 22). Repos with
