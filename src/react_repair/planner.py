@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from src.envstate.llm_response import complete_with_retry
 from src.react_repair.actions import extract_thought, parse_action
+from src.react_repair.history_view import render_history
 
 SYSTEM_PROMPT = """\
 You are configuring a Python repo's environment by editing ONE build script (setup.sh) until
@@ -38,7 +39,7 @@ class ReactPlanner:
         parts = [
             "CURRENT setup.sh:\n```bash\n" + (script or "") + "\n```",
             "LAST RUN OBSERVATION:\n" + (observation or ""),
-            "HISTORY (your prior moves and what happened):\n" + history.render(),
+            render_history(history.steps),
         ]
         if self.graph_context is not None:
             ctx = self.graph_context(graph) or ""
