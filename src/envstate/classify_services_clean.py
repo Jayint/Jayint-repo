@@ -26,6 +26,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+from urllib.parse import urlsplit
 
 from python_deps.depgraph.config_scan import (
     parse_env_example,
@@ -37,7 +38,6 @@ from python_deps.depgraph.patch import NodeSpec, PatchProposal
 from python_deps.depgraph.patch_gate import admit_proposal
 from python_deps.depgraph.repoint import render_bind_steps
 from python_deps.depgraph.service_construct import build_service_nodes
-from python_deps.depgraph.service_scan import service_from_url
 from python_deps.depgraph.static_collect import collect_static_evidence
 
 logger = logging.getLogger(__name__)
@@ -48,17 +48,35 @@ _STRONG_SERVICE_KINDS = frozenset({"compose_service", "service_binding", "ci_ser
 _CONFIG_EVIDENCE_KINDS = frozenset({"env_read", "env_var"})
 
 
+def _looks_like_dsn(value: str) -> bool:
+    """A value we can repoint: it parses as a URL with a scheme and a host.
+
+    NOT ``service_from_url``: that is gated by a hardcoded scheme->kind map, so it drops
+    ``clickhouse://`` and ``valkey://`` before ``render_bind_steps`` can match them by
+    hostname. Here any URL-with-a-host is a repoint candidate; the kind is irrelevant.
+    """
+    if "://" not in value:
+        return False
+    try:
+        u = urlsplit(value)
+    except ValueError:
+        return False
+    return bool(u.scheme) and bool(u.hostname)
+
+
 def _dsn_configs(repo_path: str) -> list[tuple[str, str]]:
     """`(var, dsn)` pairs from env defaults + `.env.example` whose value is a service DSN.
 
-    The repoint source: only values ``service_from_url`` recognizes as a DSN are kept.
-    Order is deterministic (defaults first, then example) and each var appears once.
+    The repoint source: any value that parses as a URL with a host is kept (scheme-agnostic
+    — exotic services are NOT dropped). Order is deterministic (defaults first, then example)
+    and each var appears once. A DSN with an unparseable port is still kept here; the
+    downstream ``render_bind_steps`` validates and skips it (never crashes).
     """
     configs: list[tuple[str, str]] = []
     seen: set[str] = set()
     for source in (scan_env_defaults(repo_path), parse_env_example(repo_path)):
         for var, value in source.items():
-            if var in seen or service_from_url(value) is None:
+            if var in seen or not _looks_like_dsn(value):
                 continue
             configs.append((var, value))
             seen.add(var)

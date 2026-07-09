@@ -230,7 +230,10 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
         if g.get(r.id) is not None:
             continue                                    # dedup no-op (validate ensured non-conflicting)
         nt = NodeType(r.type)
-        data: dict = {}
+        # Caller-supplied payload (e.g. data["service"]) is the LOWEST precedence: the
+        # gate-derived keys below (promotion / setup / service_kind) must win, so a
+        # programmatic caller can never overwrite a probe the gate already validated.
+        data: dict = dict(r.data or {})
         if r.promotion:
             data["promotion"] = r.promotion
         check_command = r.check_command
@@ -242,8 +245,6 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
             if r.service_kind:
                 data["service_kind"] = r.service_kind
             check_command = render_probe_poll(r.setup["probe"])
-        if r.data:
-            data.update(r.data)          # evidence payload (e.g. data["service"]) for evidence-only nodes
         g = g.with_node(Node(
             id=r.id, type=nt, name=r.name or r.id.split(":", 1)[-1],
             layer=Layer(r.layer), discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING,

@@ -17,14 +17,30 @@ that points at an exotic-scheme service.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 _LOCALHOST = "127.0.0.1"
 
 
-def _repoint_host(value: str) -> str:
-    """Return ``value`` with its host rewritten to loopback, all else preserved."""
-    u = urlsplit(value)
+def _safe_split(dsn: str) -> SplitResult | None:
+    """A ``urlsplit`` result whose ``.hostname`` and ``.port`` are both safe to read,
+    or ``None`` if the value cannot be fully parsed.
+
+    ``urlsplit`` itself raises on e.g. ``redis://[db:6379``, and ``.port`` raises on
+    ``postgres://db:bad/app`` — a value ``urlsplit`` otherwise parses happily. Both
+    are forced here so a caller never trips over them later. A value that fails
+    validation is SKIPPED, never silently rewritten with the bad component dropped.
+    """
+    try:
+        u = urlsplit(dsn)
+        _ = u.hostname, u.port          # force both to validate now
+    except ValueError:
+        return None
+    return u
+
+
+def _repoint_host(u: SplitResult) -> str:
+    """Rewrite an already-validated ``SplitResult``'s host to loopback, all else preserved."""
     userinfo = ""
     if u.username:
         userinfo = u.username + (f":{u.password}" if u.password else "") + "@"
@@ -35,13 +51,11 @@ def _repoint_host(value: str) -> str:
 def _host_of(dsn: str) -> str | None:
     """The hostname component of a DSN: ``postgres://u:p@db:5432/x`` -> ``'db'``.
 
-    Uses ``urlsplit`` (no kind table), so an exotic scheme is parsed too; a non-URL
-    value yields ``None`` and is skipped by the caller.
+    Goes through ``_safe_split`` (no kind table), so an exotic scheme is parsed too and
+    an unparseable value yields ``None``.
     """
-    try:
-        return urlsplit(dsn).hostname
-    except ValueError:
-        return None
+    u = _safe_split(dsn)
+    return u.hostname if u is not None else None
 
 
 def render_bind_steps(
@@ -52,14 +66,14 @@ def render_bind_steps(
 
     Matched by the service's DECLARED HOSTNAME (its compose/CI key), not by a service
     ``kind``: the DSN ``postgres://u@db:5432/x`` binds to the service named ``db``.
-    Order is preserved over ``configs``; a config whose value is not a DSN, or whose
-    host is not a declared service, is skipped.
+    Order is preserved over ``configs``; a config whose value cannot be fully parsed (bad
+    port), is not a DSN, or whose host is not a declared service, is skipped — never a crash.
     """
     names = {n for n in service_names if n}
     steps: list[str] = []
     for var, value in configs:
-        host = _host_of(value)
-        if host is None or host not in names:
+        u = _safe_split(value)
+        if u is None or u.hostname is None or u.hostname not in names:
             continue
-        steps.append(f"export {var}={_repoint_host(value)}")
+        steps.append(f"export {var}={_repoint_host(u)}")
     return steps

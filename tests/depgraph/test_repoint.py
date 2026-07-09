@@ -62,3 +62,14 @@ def test_bind_ignores_empty_service_names():
         configs=[("CACHE_URL", "redis://redis:6379/0")],
     )
     assert steps == []
+
+
+def test_bind_skips_a_dsn_with_an_unparseable_port():
+    # C2 regression: `urlsplit` parses this happily, but `.port` raises
+    # ("bad" is not an int). render_bind_steps must SKIP it, never raise -- a broad
+    # `except` upstream would otherwise wipe the whole service tier.
+    steps = render_bind_steps(
+        service_names=("db",),
+        configs=[("URL", "postgres://db:bad/app")],
+    )
+    assert steps == []
