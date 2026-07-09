@@ -3176,11 +3176,24 @@ it must never be used to under-report **recall**. Every name the catalog states 
 | `a(+b)` where `b` is a full name | two services | `a`, `b` | `postgres(+postgresql)` → `postgres`, `postgresql` |
 | `a(-suffix)` | a service and its suffixed variant | `a`, `a-suffix` | `ezdata-es(-dev)` → `ezdata-es`, `ezdata-es-dev` |
 | `a/b` or `a/b/c` | alternative names across files/sources | `a`, `b`, `c` | `db/postgres` → `db`, `postgres` |
+| `p-a/b/c` — **shared-prefix compression** | one prefix, several services | `p-a`, `p-b`, `p-c` | `redis-cache/queue/socketio` → `redis-cache`, `redis-queue`, `redis-socketio` |
 | `a(+x,y,z)` where the items are **not** full names | descriptors, not names | `a` only | `redis(+7,cluster,nodes)` → `redis` |
 | `*-x` | glob; the prefix is unknown | **nothing** | `*-redis(-dev)` → omit |
 
 A row can mix them: `*-db/mysql-dev/ruoyi-mysql` yields `mysql-dev` and `ruoyi-mysql` (both plainly
 stated) and omits `*-db` (glob). Rows the catalog marks **INFRA/ADMIN** are excluded everywhere.
+
+**Disambiguating slash rows** — apply in this order:
+1. Drop any `*`-glob item.
+2. A row is **shared-prefix compression** iff the first remaining item contains `-` **and** every
+   later item contains **no** `-`. The prefix is the first item up to and including its last `-`.
+   `redis-cache/queue/socketio` → `redis-cache`, `redis-queue`, `redis-socketio`.
+3. Otherwise the items are **alternative names**, taken verbatim.
+   `db/postgres` → `db`, `postgres` (first item has no `-`).
+   `mysql-dev/ruoyi-mysql` → both verbatim (a later item contains `-`).
+
+Shared-prefix expansion assumes the separator is `-`, as written. Note that assumption in the
+provenance file; it is the one place the oracle infers rather than transcribes.
 
 A repo is `complete: false` if **any** of its rows is a glob or a non-name descriptor group;
 otherwise `complete: true`. Record, per partial repo, exactly which rows were unrecoverable.
