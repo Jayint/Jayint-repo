@@ -82,6 +82,9 @@ def _patch(v, change, score, obs):
     summ = f"patch v{v} ({change}) → {score}" if change else f"patch v{v} → {score}"
     return Step(v, "", summ, obs, obs)
 def _explore(cmd, out): return Step(99, "", f"explore: {cmd}", out, out)
+def _edit(v, change, score, obs):
+    summ = f"edit v{v} ({change}) → {score}" if change else f"edit v{v} → {score}"
+    return Step(v, "", summ, obs, obs)
 
 _SIX  = "BUILD OK. TESTS 1/2 passed:\n.F\nModuleNotFoundError: No module named 'six'"
 _TOML = "BUILD OK. TESTS 1/2 passed:\n.F\nModuleNotFoundError: No module named 'toml'"
@@ -177,6 +180,29 @@ def test_render_explore_no_output_shows_command_only():
 
 def test_render_empty_is_safe():
     assert isinstance(render_history([]), str)
+
+# ───────────────────────── edit moves render like patches (native tool-calling arm) ──────────
+def test_render_handles_edit_moves_like_patches():
+    # The native-tool-calling arm records repairs as `edit v..`, NOT `patch v..` — render_history
+    # must treat them identically, or every real edit shows as "(invalid move — re-prompted)" and
+    # the blocker/ledger tracking (which lives in that branch) never runs for the current arm.
+    steps = [_base("1/2", _SIX),
+             _edit(1, "insert@40 +pip install six", "2/2", _PASS)]
+    out = render_history(steps)
+    assert "invalid move" not in out
+    assert "v1" in out and "insert@40 +pip install six" in out
+    assert "no longer present" in out.lower()          # blocker tracking runs for edits too
+
+def test_render_edit_populates_do_not_retry_ledger():
+    # The anti-repeat "already tried (didn't help)" ledger must accumulate EDIT deltas.
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _edit(1, "insert@5 +pip install lxml2", "BUILD FAILED", _LXML_HDR),
+             _edit(2, "insert@6 +apt-get install libxml", "BUILD FAILED", _LXML_HDR)]
+    out = render_history(steps)
+    assert out.count("BLOCKER:") == 1
+    assert "already tried" in out.lower()
+    assert "+pip install lxml2" in out and "+apt-get install libxml" in out
+
 
 def test_grouped_view_stays_compact_regardless_of_observation_size():
     # The grouped view IS the compaction: 8 KB observations still render tiny (blocker + score only,

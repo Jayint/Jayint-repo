@@ -116,7 +116,11 @@ def _short(sig: str) -> str:
     return sig.split(" → ")[-1][:40]
 
 
-_PAT_PATCH = re.compile(r"^patch v(\d+)(?: \((.*)\))? → (.+)$")
+# A build-mutating move: the native-tool-calling arm records these as `edit v..`; the whole-script
+# path records `patch v..`. BOTH must hit this branch — else an edit (the arm's PRIMARY action)
+# falls through to "(invalid move — re-prompted)" and the blocker/do-not-retry tracking below never
+# runs for the current arm.
+_PAT_MUTATION = re.compile(r"^(?:patch|edit) v(\d+)(?: \((.*)\))? → (.+)$")
 _PAT_BASE = re.compile(r"^baseline → (.+)$")
 _PAT_EXPLORE = re.compile(r"^explore: (.+)$")
 
@@ -178,7 +182,7 @@ def render_history(steps) -> str:
             open_block(prev_sig, f"baseline: {mb.group(1)}")
             continue
 
-        mp = _PAT_PATCH.match(summ)
+        mp = _PAT_MUTATION.match(summ)
         if not mp:
             lines.append("      (invalid move — re-prompted)")
             continue
