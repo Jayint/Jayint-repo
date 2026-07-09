@@ -2074,7 +2074,12 @@ git commit -m "test(depgraph): real-world service fixtures (rq valkey, ci-named 
 - Modify: `src/python_deps/depgraph/patch.py:11` (add `NodeSpec.data`)
 - Modify: `src/python_deps/depgraph/patch_gate.py:118` (empty `start` allowed) and `:233` (merge `r.data`)
 - Modify: `src/python_deps/depgraph/repoint.py:36` (`render_bind_steps` matches by hostname, not `kind`) **and delete the module-level import at `repoint.py:20`** (`from python_deps.depgraph.provisioning_spec import ProvisioningSpec`) — pre-flight resolution R2. Task 10 deletes that module; if this import survives, importing `repoint` (hence `classify_services_clean`, hence the whole construction path) raises `ModuleNotFoundError`.
-- Modify: `src/python_deps/depgraph/emit.py:150` (`_is_service_reciped` → state-based)
+- **`src/python_deps/depgraph/emit.py` — DO NOT TOUCH.** `_is_service_reciped` already reads
+  `bool(node.data.get("setup"))`, and the compat view emits `setup` *only* for certifiable nodes,
+  so the existing predicate already means "certifiable". Editing it would be a behavioural no-op
+  that (a) buys nothing and (b) forces an interactive `git add -p` into a file another session is
+  actively editing. Two tests below pin the invariant *through the existing predicate*, which is a
+  stronger guarantee than rewriting it. This also removes the only `git add -p` in the plan.
 - Test: `tests/test_classify_services_clean.py` (update), `tests/depgraph/test_repoint.py` (**rewrite** — all 7 existing tests construct `ProvisioningSpec(...)` and call the old two-arg signature; both are gone. Remove them all, do not append), `tests/depgraph/test_patch_gate_admit_clean.py` (add empty-start case)
 
 **Interfaces:**
@@ -2238,23 +2243,6 @@ def _host_of(dsn: str) -> str | None:
         return None
 ```
 
-```python
-# src/python_deps/depgraph/emit.py — replace _is_service_reciped (line 150)
-def _is_service_reciped(node: Node) -> bool:
-    """A SERVICE node the host can certify — i.e. one whose evidence yielded a
-    readiness check (``state == "certifiable_obligation"``). Gated behind
-    ``V3_INCLUDE_SERVICES`` at the orchestration boundary, never here.
-
-    Backward-compatible: construction emits ``data['setup']`` only for certifiable
-    nodes, so the legacy ``bool(data['setup'])`` predicate and the state check agree.
-    """
-    if node.type is not NodeType.SERVICE:
-        return False
-    service = node.data.get("service") or {}
-    if service:
-        return service.get("state") == "certifiable_obligation"
-    return bool(node.data.get("setup"))          # pre-migration graphs
-```
 
 **`NodeSpec` has no `data=` field.** Verified: it lives at `patch.py:11` with fields
 `id, type, name, layer, check_command, evidence_ref, promotion, service_kind, service_params, setup`.
@@ -2349,12 +2337,11 @@ Expected: PASS. `test_construction_makes_no_llm_call` proves the LLM is gone.
 
 - [ ] **Step 5: Commit**
 
-Stage `emit.py` with `-p` (another session has unrelated hunks in that file):
+No `git add -p` is needed: this task does not touch `emit.py`.
 
 ```bash
 git add src/envstate/classify_services_clean.py src/python_deps/depgraph/repoint.py \
         src/python_deps/depgraph/patch.py src/python_deps/depgraph/patch_gate.py
-git add -p src/python_deps/depgraph/emit.py     # ONLY the _is_service_reciped hunk
 git add tests/test_classify_services_clean.py tests/depgraph/test_repoint.py \
         tests/depgraph/test_patch_gate_admit_clean.py
 git commit -m "feat: evidence-only service construction; delete construction-time LLM"
