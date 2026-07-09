@@ -27,6 +27,11 @@ def test_observation_small_output_untouched():
     obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
     assert "5 passed in 0.1s" in obs and "truncated" not in obs
 
+def test_observation_includes_failing_line_number():
+    obs = _observation(RunResult(False, failing_command="pip install psycopg2",
+                                 output="fatal error", lineno=40), None)
+    assert "line 40" in obs and "pip install psycopg2" in obs
+
 
 def test_added_lines_shows_meaningful_additions_order_free():
     from src.react_repair.loop import _added_lines

@@ -9,13 +9,19 @@ from src.react_repair.log import ReactLog
 
 
 class _FakeSandbox:
-    def __init__(self, rc, out): self._rc, self._out = rc, out
+    def __init__(self, rc, out, lineno=None): self._rc, self._out, self._lineno = rc, out, lineno
     def reset_to_base(self): pass
     def run_install_script(self, script):
         from src.sandbox import InstallResult
         return InstallResult(rc=self._rc, failing_command=None if self._rc == 0 else "pip install x",
-                             lineno=None, stderr=self._out)
+                             lineno=self._lineno, stderr=self._out)
     def exec_readonly(self, cmd): return (0, self._out)
+
+
+def test_run_script_adapter_maps_lineno():
+    _, run_script, _, _, _ = docker_adapters(_FakeSandbox(1, "boom", lineno=7))
+    r = run_script("pip install x")
+    assert r.lineno == 7 and r.ok is False
 
 
 def test_run_script_adapter_maps_installresult():

@@ -31,12 +31,14 @@ class RunResult:
     ok: bool
     failing_command: str | None = None
     output: str = ""
+    lineno: int | None = None          # setup.sh line the ERR trap halted on (localization signal)
 
 
 def _observation(result: RunResult, test) -> str:
     if not result.ok:
         body, _ = safety_truncate(result.output or "", max_chars=_OBS_MAX_CHARS)
-        return f"BUILD FAILED at `{result.failing_command}`:\n{body}"
+        loc = f" (line {result.lineno})" if result.lineno else ""
+        return f"BUILD FAILED at `{result.failing_command}`{loc}:\n{body}"
     body, _ = safety_truncate(test.output or "", max_chars=_OBS_MAX_CHARS)
     return f"BUILD OK. TESTS {test.passed}/{test.executed} passed:\n{body}"
 
@@ -88,7 +90,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         g = certify(graph)
         log.d("CERTIFY", "install-tier node states refreshed" if r.ok else f"build failed: {r.failing_command}")
         log.trace("run", script_len=len(script.splitlines()), ok=r.ok,
-                  failing_command=r.failing_command, output_tail=(r.output or "")[-500:])
+                  failing_command=r.failing_command, lineno=r.lineno,
+                  output_tail=(r.output or "")[-500:])
         t = None
         if r.ok:
             t = run_tests()

@@ -40,7 +40,8 @@ def docker_adapters(sandbox, test_threshold: float = 0.9):
 
     def run_script(script: str) -> RunResult:
         r = sandbox.run_install_script(script)
-        return RunResult(ok=(r.rc == 0), failing_command=r.failing_command, output=r.stderr or "")
+        return RunResult(ok=(r.rc == 0), failing_command=r.failing_command, output=r.stderr or "",
+                         lineno=r.lineno)
 
     def certify(graph):
         return certify_all(graph, _ExecAdapter(sandbox.exec_readonly), layer_order=_INSTALL_LAYERS)

@@ -6,6 +6,27 @@ from src.sandbox import Sandbox
 from src.synthesizer import Synthesizer
 
 
+class ErrTrapLineno(unittest.TestCase):
+    def test_wrap_with_err_trap_reports_injected_line_count(self):
+        from src.sandbox import _wrap_with_err_trap
+        wrapped, n_injected = _wrap_with_err_trap("#!/usr/bin/env bash\nfalse\n")
+        self.assertEqual(n_injected, 1)                 # exactly one trap line prepended
+        self.assertTrue(wrapped.startswith("trap "))
+        self.assertIn("false", wrapped)
+
+    def test_localize_failure_corrects_err_trap_off_by_one(self):
+        # The ERR trap prints $LINENO in the WRAPPED script's numbering; the prepended trap line
+        # makes it +1 (verified empirically in ubuntu bash: script line N reports N+1).
+        from src.sandbox import _localize_failure
+        cmd, lineno = _localize_failure("__INSTALL_FAIL__:pip install psycopg2==2.9.9:41", n_injected=1)
+        self.assertEqual(cmd, "pip install psycopg2==2.9.9")
+        self.assertEqual(lineno, 40)                    # 41 reported - 1 injected = script line 40
+
+    def test_localize_failure_no_marker_returns_none(self):
+        from src.sandbox import _localize_failure
+        self.assertEqual(_localize_failure("all good\n", n_injected=1), (None, None))
+
+
 class FakeContainer:
     def __init__(self, results=None, status="running", short_id="fake123"):
         self.results = list(results or [])

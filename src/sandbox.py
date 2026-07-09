@@ -20,22 +20,26 @@ class InstallResult:
     stderr: str
 
 
-def _wrap_with_err_trap(script: str) -> str:
-    """Prepend an ERR trap so a `set -e` abort prints the failing command + line.
+def _wrap_with_err_trap(script: str) -> tuple[str, int]:
+    """Prepend an ERR trap so a `set -e` abort prints the failing command + line. Returns
+    ``(wrapped, n_injected)`` where *n_injected* is the number of lines prepended — the trap prints
+    ``$LINENO`` in the WRAPPED script's numbering, so the caller subtracts *n_injected* to recover
+    the setup.sh-relative line the agent actually edits (see ``_localize_failure``).
 
-    render_build_script is reuse-only (its preamble already sets `set -Eeuo pipefail`);
-    we add ONLY the trap line, immediately after the shebang/preamble is irrelevant —
-    bash applies the most recent trap, and `-E` makes the trap inherit into functions.
+    render_build_script is reuse-only (its preamble already sets `set -Eeuo pipefail`); we add ONLY
+    the trap line, immediately after the shebang/preamble is irrelevant — bash applies the most
+    recent trap, and `-E` makes the trap inherit into functions.
     """
     trap = (
         "trap 'rc=$?; echo "
         f"\"{_INSTALL_FAIL_MARKER}:$BASH_COMMAND:$LINENO\" >&2; exit $rc' ERR\n"
     )
-    return trap + script
+    return trap + script, trap.count("\n")
 
 
 def _parse_install_failure(output: str) -> tuple[str | None, int | None]:
-    """Return (failing_command, lineno) from the FIRST install-fail marker, else (None, None)."""
+    """Return (failing_command, RAW reported lineno) from the FIRST install-fail marker. The lineno
+    is in the WRAPPED script's numbering; use _localize_failure to map it back to setup.sh."""
     for line in (output or "").splitlines():
         if line.startswith(_INSTALL_FAIL_MARKER + ":"):
             rest = line[len(_INSTALL_FAIL_MARKER) + 1:]
@@ -45,6 +49,16 @@ def _parse_install_failure(output: str) -> tuple[str | None, int | None]:
             except ValueError:
                 return (cmd or None), None
     return None, None
+
+
+def _localize_failure(output: str, n_injected: int) -> tuple[str | None, int | None]:
+    """(failing_command, setup.sh-relative lineno). The ERR trap reports the wrapped line number;
+    subtract the prepended trap lines so the number matches the script the agent edits. Verified
+    empirically in ubuntu bash: a failure on script line N reports N + n_injected."""
+    cmd, reported = _parse_install_failure(output)
+    if reported is None:
+        return cmd, None
+    return cmd, max(1, reported - n_injected)
 
 
 def _service_extra_hosts():
@@ -455,13 +469,13 @@ class Sandbox:
         Invariant: this does NOT commit a snapshot; the Stage-2 gate always calls
         reset_to_base() before this, so last_success_image is never relied upon here.
         """
-        wrapped = _wrap_with_err_trap(script)
+        wrapped, n_injected = _wrap_with_err_trap(script)
         result = self.container.exec_run(["/bin/bash", "-c", wrapped], workdir=self.workdir)
         output = result.output
         if isinstance(output, (bytes, bytearray)):
             output = output.decode("utf-8", errors="replace")
         rc = result.exit_code if result.exit_code is not None else -1
-        failing_command, lineno = _parse_install_failure(output or "")
+        failing_command, lineno = _localize_failure(output or "", n_injected)
         return InstallResult(rc=rc, failing_command=failing_command, lineno=lineno,
                              stderr=output or "")
 
