@@ -156,9 +156,12 @@ built-in knowledge of what it is.
 
 ### 3.1 The check ladder (evidence-only, no table)
 
-1. **Declared healthcheck.** compose `healthcheck.test` (strip `CMD` / `CMD-SHELL`), or CI
-   `options: --health-cmd "..."`. Semantic and strongest. → `source: declared_healthcheck`
-   (**66%** of declarations, per the catalog).
+**Precondition on every rung: the check must pass `patch_gate.is_read_only`.** The check runs inside
+certification, so it must never mutate the container. A declared healthcheck that fails this gate does
+not disqualify the service — it **falls through to the next rung**.
+
+1. **Declared healthcheck**, if read-only. compose `healthcheck.test` (strip `CMD` / `CMD-SHELL`), or
+   CI `options: --health-cmd "..."`. Semantic and strongest. → `source: declared_healthcheck`
 2. **TCP liveness on the declared port** — universal, service-agnostic, derived from `ports:`.
    → `source: tcp_port`
 3. **Neither** → `source: none` → **declared, unverifiable**: surfaced to the agent, never enforced.
@@ -168,11 +171,17 @@ Rung 2 is what replaces the canonical-probe table. A listening port is a weaker 
 the certificate we were given.
 
 **Portability:** use Python, not `bash </dev/tcp/...` or `nc`. `nc` is absent from slim images; Python
-is guaranteed present in a Python repo's environment.
+is guaranteed present in a Python repo's environment. Verified to pass `is_read_only`:
 
 ```bash
 python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 1).close()"
 ```
+
+**Measured cost of the read-only precondition** (corpus, 158 nodes): 11 of 54 declared healthchecks
+fail `is_read_only` — all of them `curl`/`wget` HTTP probes (PostHog's kafka/elasticsearch/opensearch,
+mlflow's storage, gitingest's minio). **9 fall back to `tcp_port`; 2 have no port and become `none`.**
+Net certifiable rate 75% → **73%**. The gate costs 2 points and buys a guarantee that certification
+cannot mutate the environment.
 
 ### 3.2 Port/endpoint derivation (also evidence-only)
 
