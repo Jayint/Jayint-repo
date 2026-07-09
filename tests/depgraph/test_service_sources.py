@@ -50,6 +50,36 @@ def test_ci_source_reads_jobs_services_and_requires_an_image(tmp_path):
     assert decls[0].doc_env_values == ()
 
 
+def test_vendored_trees_are_pruned(tmp_path):
+    """A compose file under node_modules/ belongs to a dependency, not this repo."""
+    _write(tmp_path, "node_modules/pkg/docker-compose.yml", """
+        services:
+          vendored:
+            image: postgres:16
+    """)
+    _write(tmp_path, "docker-compose.yml", """
+        services:
+          db:
+            image: postgres:16
+    """)
+    assert [d.name for d in ComposeSource().discover(str(tmp_path))] == ["db"]
+
+
+def test_list_form_environment_reaches_doc_env_values(tmp_path):
+    """compose allows `environment:` as a LIST of `K=V` strings, not only a mapping."""
+    _write(tmp_path, "docker-compose.yml", """
+        services:
+          web:
+            image: app:1
+            environment:
+              - DATABASE_URL=postgres://u:p@db:5432/app
+          db:
+            image: postgres:16
+    """)
+    db = next(d for d in ComposeSource().discover(str(tmp_path)) if d.name == "db")
+    assert any("db:5432" in v for v in db.doc_env_values)
+
+
 def test_sources_never_raise_on_malformed_yaml(tmp_path):
     _write(tmp_path, "docker-compose.yml", "services: [redis: image: redis:7\n")
     _write(tmp_path, ".github/workflows/x.yml", "jobs:\n  t:\n    services: 'nope'\n")

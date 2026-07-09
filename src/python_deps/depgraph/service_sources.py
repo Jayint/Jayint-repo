@@ -31,16 +31,29 @@ class ServiceEvidenceSource(Protocol):
     def discover(self, repo: str) -> Iterator[RawDeclaration]: ...
 
 
+# Vendored/derived trees. A compose file under `node_modules/` or `site-packages/`
+# belongs to a dependency, not to this repo, and the 50-repo corpus has thousands of them.
+_PRUNED_DIRS = frozenset({
+    ".git", "node_modules", ".venv", "venv", "site-packages",
+    ".tox", "__pycache__", ".mypy_cache", ".pytest_cache",
+})
+
+
 def _load(path: str) -> object | None:
+    """A bad file skips itself. Narrow: an unexpected exception is a bug, not a bad file.
+
+    Matches the convention already landed in `service_scan._load_yaml`.
+    """
     try:
         with open(path, errors="replace") as fh:
             return yaml.safe_load(fh)
-    except Exception:                      # noqa: BLE001 - a bad file skips itself
+    except (OSError, yaml.YAMLError):
         return None
 
 
 def _walk(repo: str) -> Iterator[tuple[str, str]]:
-    for root, _dirs, files in os.walk(repo):
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in _PRUNED_DIRS]   # prune in place
         for fn in files:
             path = os.path.join(root, fn)
             yield path, os.path.relpath(path, repo)
