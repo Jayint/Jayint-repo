@@ -1643,7 +1643,10 @@ def test_fuse_merges_compose_and_ci_evidence_for_the_same_name(tmp_path):
     assert len(node.volumes) == 1                          # from compose
     assert node.port == 6379
     assert {p.kind for p in node.provenance} == {"compose", "ci"}
-    assert set(node.raw) == {"compose", "ci"}
+    # `raw` is keyed "<kind>:<file>" uniformly, so a second file declaring the same
+    # service name cannot silently overwrite the first.
+    assert set(node.raw) == {"compose:docker-compose.yml",
+                             "ci:.github/workflows/ci.yml"}
 
 
 def test_no_healthcheck_but_a_port_yields_a_tcp_check(tmp_path):
