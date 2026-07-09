@@ -29,6 +29,21 @@ def test_baseline_prompt_has_no_graph_context(monkeypatch):
     ReactPlanner(client=object(), model="m").plan(History(), "script", "obs", graph=None)
     assert "GRAPH CONTEXT" not in seen["user"]
 
+def test_render_numbers_the_current_script(monkeypatch):
+    # The current setup.sh is shown with a 1-based line-number gutter so Edit refs (and the build
+    # failure's "line N") point at the same line.
+    seen = {}
+    def capture(client, model, messages, **k):
+        seen["user"] = messages[-1]["content"]
+        return "Action: ls", {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}, "raw"
+    monkeypatch.setattr(planner_mod, "complete_with_retry", capture)
+    ReactPlanner(client=object(), model="m").plan(History(), "line-one\nline-two", "obs", graph=None)
+    assert "1| line-one" in seen["user"] and "2| line-two" in seen["user"]
+
+def test_system_prompt_offers_edit_directive():
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "Edit:" in sp and "insert after" in sp and "replace" in sp
+
 def test_system_prompt_has_preserve_and_investigate_directives():
     # The two GENERAL behavioral fixes from the repair-regression forensics: don't strip the seed's
     # closure ("preserve and extend"), and investigate the repo instead of guessing from one error.

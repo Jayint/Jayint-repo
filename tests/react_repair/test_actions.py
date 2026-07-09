@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.actions import parse_action, extract_thought
+from src.react_repair.actions import parse_action, extract_thought, apply_edit, EditOp
 
 
 def test_parse_explore():
@@ -125,6 +125,55 @@ def test_multiline_readonly_check_before_install_stays_patch():
             'pip install -e .\n'
             '```')
     assert parse_action(text).kind == "patch"
+
+def test_parse_edit_replace_single_line_with_block():
+    a = parse_action("Thought: pin\nEdit: replace 3\n```bash\npip install narwhals\n```")
+    assert a.kind == "edit" and a.edit == EditOp("replace", 3, 3, "pip install narwhals")
+
+def test_parse_edit_replace_range():
+    a = parse_action("Edit: replace 3-5\n```bash\npip install x\n```")
+    assert a.kind == "edit" and a.edit.verb == "replace" and (a.edit.start, a.edit.end) == (3, 5)
+
+def test_parse_edit_insert_after_with_block():
+    a = parse_action("Edit: insert after 2\n```bash\napt-get install -y libpq-dev\n```")
+    assert a.kind == "edit" and a.edit.verb == "insert" and a.edit.start == 2
+    assert "libpq-dev" in a.edit.content
+
+def test_parse_edit_delete_needs_no_block():
+    a = parse_action("Thought: drop the bad pin\nEdit: delete 7")
+    assert a.kind == "edit" and a.edit == EditOp("delete", 7, 7, "")
+
+def test_parse_edit_tolerates_line_word():
+    a = parse_action("Edit: delete lines 4-6")
+    assert a.kind == "edit" and (a.edit.start, a.edit.end) == (4, 6)
+
+def test_parse_edit_replace_without_block_is_invalid():
+    # replace/insert must carry the new line(s); a bare Edit header can't be applied.
+    assert parse_action("Edit: replace 3").kind == "invalid"
+
+def test_edit_directive_wins_over_script_block():
+    # An Edit: with a fenced block uses the block as the EDIT content, not a whole-script patch.
+    a = parse_action("Edit: replace 2\n```bash\npip install six\n```")
+    assert a.kind == "edit" and a.edit.content == "pip install six"
+
+def test_apply_edit_replace_single_can_expand():
+    assert apply_edit("a\nb\nc\n", EditOp("replace", 2, 2, "B1\nB2")) == "a\nB1\nB2\nc\n"
+
+def test_apply_edit_replace_range():
+    assert apply_edit("a\nb\nc\nd\n", EditOp("replace", 2, 3, "X")) == "a\nX\nd\n"
+
+def test_apply_edit_insert_after_and_at_top():
+    assert apply_edit("a\nb\n", EditOp("insert", 1, 1, "mid")) == "a\nmid\nb\n"
+    assert apply_edit("a\nb\n", EditOp("insert", 0, 0, "top")) == "top\na\nb\n"
+
+def test_apply_edit_delete_removes_lines():
+    assert apply_edit("a\nb\nc\n", EditOp("delete", 2, 2, "")) == "a\nc\n"
+    assert apply_edit("a\nb\nc\nd\n", EditOp("delete", 2, 3, "")) == "a\nd\n"
+
+def test_apply_edit_out_of_range_returns_none():
+    assert apply_edit("a\nb\n", EditOp("replace", 5, 5, "x")) is None
+    assert apply_edit("a\nb\n", EditOp("insert", 9, 9, "x")) is None
+    assert apply_edit("a\nb\n", EditOp("replace", 2, 1, "x")) is None   # end < start
 
 def test_extract_thought():
     assert extract_thought("Thought: the header is missing\nAction: ls") == "the header is missing"

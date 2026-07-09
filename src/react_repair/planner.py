@@ -15,9 +15,13 @@ You are configuring a Python repo's environment by editing ONE build script (set
 it runs green and the repo's tests pass. Each turn you see the current script, what happened
 when it last ran, and your history. Respond with a Thought and exactly ONE of:
   Action: <one read-only shell command>     (investigate; you get its output next turn)
-  Script: followed by one fenced ```bash block with the COMPLETE new setup.sh
+  Edit: replace <n>[-<m>] | insert after <n> | delete <n>[-<m>]     (change setup.sh BY LINE NUMBER —
+        the numbers shown in CURRENT setup.sh, the same ones the build failure names. For replace and
+        insert, follow with one fenced ```bash block of the new line(s). PREFER a small Edit — it keeps
+        every other line intact.)
+  Script: one fenced ```bash block with the COMPLETE new setup.sh     (only for a large rewrite)
 Rules: read-only commands only for Action (ls, cat, ldconfig, pip show, apt-cache — never install/modify).
-The ONLY way to change the build is to emit a new Script. Do not claim success; the host runs the tests.
+Change the build with an Edit (preferred) or a Script. Do not claim success; the host runs the tests.
 Preserve and extend — do NOT rewrite from scratch. The current setup.sh is usually a mostly-correct
 dependency closure. When you emit a new Script, KEEP its working install lines and ADD what is missing.
 Change or remove a line only when that exact line is the proven cause of the failure. Never shrink the
@@ -33,6 +37,16 @@ dependency it needs; if a dependency genuinely cannot be installed, leave the te
 than fabricate a way to pass it."""
 
 
+def _numbered(script: str) -> str:
+    """The current setup.sh with a 1-based line-number gutter, aligned with the ERR-trap `lineno`
+    the build failure reports — so `Edit: replace 40` targets exactly the line named as failed."""
+    lines = (script or "").splitlines()
+    if not lines:
+        return "(empty)"
+    w = len(str(len(lines)))
+    return "\n".join(f"{i:>{w}}| {ln}" for i, ln in enumerate(lines, 1))
+
+
 class ReactPlanner:
     def __init__(self, client: Any, model: str,
                  graph_context: "Callable[[Any], str] | None" = None,
@@ -44,7 +58,8 @@ class ReactPlanner:
 
     def _render(self, history, script: str, observation: str, graph) -> str:
         parts = [
-            "CURRENT setup.sh:\n```bash\n" + (script or "") + "\n```",
+            ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
+             "\"line N\" — the \"n| \" prefix is NOT part of the script):\n" + _numbered(script)),
             "LAST RUN OBSERVATION:\n" + (observation or ""),
             render_history(history.steps),
         ]
@@ -52,7 +67,7 @@ class ReactPlanner:
             ctx = self.graph_context(graph) or ""
             if ctx.strip():
                 parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
-        parts.append("Respond with Thought + one Action or Script.")
+        parts.append("Respond with Thought + one Action, Edit, or Script.")
         return "\n\n".join(parts)
 
     def plan(self, history, script: str, observation: str, graph):

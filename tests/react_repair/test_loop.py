@@ -8,7 +8,7 @@ from src.react_repair.loop import run_react, RunResult, _observation, _emit_toke
 from src.react_repair.gate import TestOutcome
 from src.react_repair.history import History
 from src.react_repair.log import ReactLog
-from src.react_repair.actions import Action
+from src.react_repair.actions import Action, EditOp
 
 
 def test_emit_tokens_prints_runlog_format(capsys):
@@ -125,6 +125,18 @@ def test_explore_is_a_free_turn_no_rerun_needed():
     outcome, _, log = _run([Action("explore", command="cat setup.py"), fix],
                            installed_needs=("libpq-dev",))
     assert outcome == "DONE" and log.count("EXPLORE") == 1
+
+def test_edit_op_applies_by_line_and_reaches_done():
+    # An `edit` action mutates the script by line (insert) and rebuilds — same path as a patch.
+    ins = Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev"))
+    outcome, script, log = _run([ins], installed_needs=("libpq-dev",))
+    assert outcome == "DONE" and "libpq-dev" in script and log.count("EDIT") == 1
+
+def test_edit_out_of_range_is_invalid_and_never_regresses_seed():
+    # An out-of-range edit is rejected (no rebuild) and the seed is retained (keep-best floor).
+    bad = Action("edit", edit=EditOp("replace", 99, 99, "junk"))
+    outcome, script, _ = _run([bad], tests_need=("magic",))
+    assert outcome == "GIVEUP" and script == "pip install app\n"
 
 def test_unfixable_gives_up():
     outcome, _, _ = _run([], installed_needs=("libunobtainium",))

@@ -29,10 +29,47 @@ _READ_PROBE_CMDS = frozenset({
 
 
 @dataclass(frozen=True)
+class EditOp:
+    verb: str            # "replace" | "insert" | "delete"
+    start: int           # 1-based line (for insert: the anchor; 0 = top of file)
+    end: int             # 1-based inclusive; == start for a single line
+    content: str = ""    # new line(s); empty for a delete
+
+
+@dataclass(frozen=True)
 class Action:
-    kind: str                       # "explore" | "patch" | "invalid"
+    kind: str                       # "explore" | "patch" | "edit" | "invalid"
     command: str | None = None      # explore
-    new_script: str | None = None   # patch
+    new_script: str | None = None   # patch (whole-script fallback)
+    edit: "EditOp | None" = None    # edit — a line-anchored change (preferred over patch)
+
+
+# One Edit directive per turn (v1): `Edit: replace 40` / `replace 40-42` / `insert after 40` /
+# `delete 40` / `delete 40-42`. Line numbers are 1-based and match the ERR-trap `lineno` in the build
+# failure (the sandbox reports lineno relative to THIS script), so "line 40 failed" and `Edit: replace
+# 40` name the same line. An optional `line`/`lines` word after the verb is tolerated.
+_EDIT_RE = re.compile(
+    r"^Edit:\s*(replace|insert\s+after|delete)\s+(?:lines?\s+)?(\d+)(?:\s*-\s*(\d+))?\b",
+    re.IGNORECASE | re.MULTILINE)
+
+
+def apply_edit(script: str, op: EditOp) -> "str | None":
+    """Apply a line-anchored edit to *script*; return the new script text, or None if the line ref is
+    out of range (the loop then re-prompts). Pure list-splice on physical lines. keep-best is the
+    safety net for a wrong-but-in-range edit: one that breaks the build scores worse than the seed and
+    is discarded, so we don't need a content-echo guard here."""
+    lines = (script or "").splitlines()
+    n = len(lines)
+    new_lines = op.content.splitlines() if op.content else []
+    if op.verb == "insert":                        # insert AFTER line `start` (0 = top of file)
+        if not (0 <= op.start <= n):
+            return None
+        result = lines[:op.start] + new_lines + lines[op.start:]
+    else:                                          # replace / delete lines start..end (inclusive)
+        if not (1 <= op.start <= op.end <= n):
+            return None
+        result = lines[:op.start - 1] + new_lines + lines[op.end:]   # new_lines == [] → delete
+    return "\n".join(result) + "\n"
 
 
 def _single_meaningful_line(body: str) -> str | None:
@@ -94,7 +131,19 @@ def _is_all_readonly_block(body: str) -> bool:
 
 def parse_action(text: str) -> Action:
     t = text or ""
-    m = _SCRIPT_BLOCK.search(t)             # a fenced block is normally the whole replacement script
+    m_edit = _EDIT_RE.search(t)             # a line-anchored Edit is the PREFERRED change (v1: one op)
+    if m_edit:
+        verb = "insert" if m_edit.group(1).lower().startswith("insert") else m_edit.group(1).lower()
+        start = int(m_edit.group(2))
+        end = int(m_edit.group(3)) if m_edit.group(3) else start
+        content = ""
+        if verb in ("replace", "insert"):   # these carry the new line(s) as one fenced block
+            mb = _SCRIPT_BLOCK.search(t)
+            if mb is None:                  # replace/insert without a block is unusable
+                return Action("invalid")
+            content = mb.group(1).strip("\n")
+        return Action("edit", edit=EditOp(verb, start, end, content))
+    m = _SCRIPT_BLOCK.search(t)             # a fenced block is otherwise the whole replacement script
     if m:
         body = m.group(1).strip()
         recovered = _explore_from_script_block(body)

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import is_read_only
+from src.react_repair.actions import apply_edit
 from src.react_repair.history import safety_truncate
 from src.react_repair.script_prep import strip_graph_framing
 
@@ -165,6 +166,28 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             history.record(step + 1, thought, f"explore: {action.command}", out)
             log.d("EXPLORE", f"{action.command} → rc{rc} (read-only)")
             continue                                    # free turn — no rebuild, plateau unchanged
+        if action.kind == "edit" and action.edit is not None:
+            # PREFERRED change: a line-anchored edit. Apply to the current script (pure splice); an
+            # out-of-range ref re-prompts (no rebuild). Same rebuild+register+record path as a patch,
+            # so keep-best guards a bad edit exactly as it guards a bad patch.
+            new = apply_edit(script, action.edit)
+            if new is None:
+                history.record(step + 1, thought, "invalid",
+                               "edit line out of range — check the numbered setup.sh and retry")
+                log.d("PLAN", f"edit out of range ({action.edit.verb} {action.edit.start})")
+                continue
+            old_script, script = script, new
+            e = action.edit
+            span = f"{e.start}" if e.end == e.start else f"{e.start}-{e.end}"
+            log.d("EDIT", f"{e.verb} {span}; re-running fresh")
+            result, graph, test = build_and_test()
+            plateaued = register(result, test)
+            version += 1
+            change = _added_lines(old_script, script)
+            verdict = _verdict(result, test)
+            summary = f"edit v{version} ({change}) → {verdict}" if change else f"edit v{version} → {verdict}"
+            history.record(step + 1, thought, summary, _observation(result, test))
+            continue
         if action.kind == "patch" and action.new_script:
             old_script, script = script, action.new_script
             log.d("PATCH", "agent replaced setup.sh; re-running fresh")
