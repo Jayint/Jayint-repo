@@ -147,11 +147,12 @@ class TestCiWorkflow:
 
 
 # ---------------------------------------------------------------------------
-# docker-compose: postgres service -> SERVICE, its env -> CONFIG.
+# docker-compose: every declared service -> SERVICE (by declared name), its
+# env -> CONFIG.
 # ---------------------------------------------------------------------------
 
 class TestComposePostgres:
-    def test_postgres_image_maps_to_service_kind(self):
+    def test_compose_services_map_to_service_tier_by_declared_name(self):
         # Evidence-only keying: the SERVICE tier now names EVERY declared compose
         # service, including the app under build (`web`). The fixture declares
         # `web` (build: .) and `db` (postgres:15) -- no service named `postgres`.
