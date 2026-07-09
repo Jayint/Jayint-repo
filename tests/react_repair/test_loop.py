@@ -28,6 +28,26 @@ def test_observation_small_output_untouched():
     assert "5 passed in 0.1s" in obs and "truncated" not in obs
 
 
+def test_added_lines_shows_meaningful_additions_order_free():
+    from src.react_repair.loop import _added_lines
+    s = _added_lines("pip install app\n",
+                     "pip install app\napt-get install -y libpq-dev\npip install psycopg2\n")
+    assert "+apt-get install -y libpq-dev" in s and "+pip install psycopg2" in s
+    assert "pip install app" not in s               # unchanged line not shown
+
+def test_added_lines_skips_blank_and_comment_lines():
+    from src.react_repair.loop import _added_lines
+    assert _added_lines("a\n", "a\n\n# a comment\nb\n") == "+b"
+
+def test_added_lines_collapses_big_rewrite_to_a_count():
+    from src.react_repair.loop import _added_lines
+    assert _added_lines("a\nb\nc\n", "x\ny\nz\nw\n") == "rewrote +4/-3 lines"   # 4 added > cap 3
+
+def test_added_lines_empty_when_no_change():
+    from src.react_repair.loop import _added_lines
+    assert _added_lines("a\nb\n", "a\nb\n") == ""
+
+
 class _ScriptedPlanner:
     """Emits a fixed queue of moves; ignores the prompt."""
     def __init__(self, moves): self.moves = list(moves)
@@ -112,8 +132,10 @@ def test_history_records_baseline_then_patch_outcome_with_score_in_bracket():
     assert outcome == "DONE"
     # baseline is recorded first, with its verdict in the (never-truncated) bracket
     assert hist.steps[0].action_summary == "baseline → BUILD FAILED"
-    # the patch records its REAL build/test outcome + score in the bracket, not a placeholder
-    assert hist.steps[1].action_summary == "patch v1 → 5/5"
+    # the patch records what it changed + its REAL outcome/score, all in the bracket (no placeholder)
+    assert hist.steps[1].action_summary.startswith("patch v1 ")
+    assert "+apt-get install -y libpq-dev" in hist.steps[1].action_summary   # the change is recorded
+    assert "→ 5/5" in hist.steps[1].action_summary
     assert "(replaced build script)" not in hist.steps[1].observation_raw
     assert "BUILD OK" in hist.steps[1].observation_raw and "5/5" in hist.steps[1].observation_raw
 
@@ -126,7 +148,8 @@ def test_history_patch_that_regresses_records_build_failed_not_placeholder():
         object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
         run_tests=run_tests, planner=_ScriptedPlanner([bad]), history=hist,
         log=ReactLog(silent=True), max_steps=3, _initial_script=box[0])
-    assert hist.steps[1].action_summary == "patch v1 → BUILD FAILED"
+    assert hist.steps[1].action_summary.startswith("patch v1 ") and "→ BUILD FAILED" in hist.steps[1].action_summary
+    assert "+echo still-missing" in hist.steps[1].action_summary
     assert "(replaced build script)" not in hist.steps[1].observation_raw
 
 def test_plateau_tolerates_one_no_gain_then_reaches_done():

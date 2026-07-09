@@ -52,6 +52,26 @@ def _verdict(result: RunResult, test) -> str:
     return f"{test.passed}/{test.executed}"
 
 
+def _added_lines(old: str, new: str, cap: int = 3) -> str:
+    """What a patch changed, for the history bracket — the ReAct 'action' half. A SET difference
+    (order-free, no line numbers) so it can't go stale as the script is rewritten: patches are
+    whole-script siblings from base, not a continuous chain. Blank/comment lines are ignored; a
+    large rewrite collapses to a `+N/-M lines` count so the bracket stays compact."""
+    def meaningful(s: str) -> list[str]:
+        return [ln.strip() for ln in s.splitlines()
+                if ln.strip() and not ln.strip().startswith("#")]
+    old_set = set(meaningful(old))
+    new_meaningful = meaningful(new)
+    added = [ln for ln in new_meaningful if ln not in old_set]
+    if not added:
+        return ""
+    if len(added) > cap:
+        new_set = set(new_meaningful)
+        removed = sum(1 for ln in meaningful(old) if ln not in new_set)
+        return f"rewrote +{len(added)}/-{removed} lines"
+    return "; ".join("+" + ln for ln in added)
+
+
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
@@ -117,15 +137,17 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             log.d("EXPLORE", f"{action.command} → rc{rc} (read-only)")
             continue                                    # free turn — no rebuild, plateau unchanged
         if action.kind == "patch" and action.new_script:
-            script = action.new_script
+            old_script, script = script, action.new_script
             log.d("PATCH", "agent replaced setup.sh; re-running fresh")
             result, graph, test = build_and_test()
             plateaued = register(result, test)
             version += 1
-            # Record the patch's REAL build/test outcome (not a placeholder), with its score in
-            # the bracket so it survives truncation/compression like the baseline entry.
-            history.record(step + 1, thought, f"patch v{version} → {_verdict(result, test)}",
-                           _observation(result, test))
+            # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed
+            # (order-free set diff) → the REAL build/test outcome. Both survive compaction.
+            change = _added_lines(old_script, script)
+            verdict = _verdict(result, test)
+            summary = f"patch v{version} ({change}) → {verdict}" if change else f"patch v{version} → {verdict}"
+            history.record(step + 1, thought, summary, _observation(result, test))
             continue
         history.record(step + 1, thought, "invalid", _FORMAT_REMINDER)  # explore-not-readonly or unparseable
         log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
