@@ -6,6 +6,7 @@ invariant: **degrade the field, never the node**. No service-specific knowledge.
 from __future__ import annotations
 
 import re
+from urllib.parse import urlparse
 
 from python_deps.depgraph.service_evidence import Mount, Port, PortSource
 
@@ -132,22 +133,58 @@ def parse_depends_on(entry: dict) -> tuple[str, ...]:
     return tuple(str(x) for x in d) if isinstance(d, list) else ()
 
 
-_DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")
+_DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")   # own-env rung (host position)
 
 
-def _rescue_from_siblings(name: str, sibling_env_blob: str) -> int | None:
+def _has_host(parsed) -> bool:
+    try:
+        return parsed.hostname is not None
+    except ValueError:
+        return False
+
+
+def _url_port_for_host(value: str, name: str) -> int | None:
+    """A value containing `://` is a URL: its host field is authoritative.
+
+    `postgres://db:5432@other/app` has USERNAME `db`, PASSWORD `5432`, HOST `other`.
+    A bare token regex misreads that as "db is on 5432". urlparse cannot.
+    """
+    try:
+        parsed = urlparse(value)
+        host, port = parsed.hostname, parsed.port
+    except ValueError:                     # templated port, e.g. `redis://db:$PORT`
+        return None
+    if host is None:                       # malformed: fall through to the token rung
+        return None
+    return port if host == name else None
+
+
+def _rescue_from_siblings(name: str, sibling_values: tuple[str, ...]) -> int | None:
     """`db` declares no ports, but the app declares `DATABASE_URL=...@db:5432/x`.
     The port is still evidence — it just lives in a sibling service's env.
 
-    The `\\b` boundaries stop "db" from matching inside "mydb:5432".
+    Two rungs, because real repos use both forms (measured on the 50-repo corpus):
+      * URL values (`postgres://u:p@db:5432/app`) — decided by urlparse HOST equality.
+      * bare tokens (`KAFKA_HOSTS=kafka:9092`) — 8 of the PoC's 9 rescues. `\b` bounds
+        stop `db` matching inside `mydb:5432`.
+    A `://` value is NEVER handed to the regex unless urlparse found no host at all.
     """
-    m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", sibling_env_blob)
-    return int(m.group(1)) if m else None
+    for value in sibling_values:
+        if "://" in value:
+            if (parsed := urlparse(value)).scheme and _has_host(parsed):
+                port = _url_port_for_host(value, name)
+                if port:
+                    return port
+                continue                   # host known and != name: do NOT regex it
+        m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", value)
+        if m:
+            return int(m.group(1))
+    return None
 
 
 def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
                 env: dict[str, str], name: str,
-                sibling_env_blob: str) -> tuple[int | None, PortSource]:
+                sibling_values: tuple[str, ...]) -> tuple[int | None, PortSource]:
     """ports: -> expose: -> own-env DSN -> sibling-env DSN -> unknown. Evidence-only."""
     for p in ports:
         if p.container:
@@ -158,7 +195,7 @@ def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
         m = _DSN_PORT.search(v)
         if m:
             return int(m.group(1)), "env_dsn"
-    rescued = _rescue_from_siblings(name, sibling_env_blob)
+    rescued = _rescue_from_siblings(name, sibling_values)
     if rescued:
         return rescued, "sibling_dsn"
     return None, "none"

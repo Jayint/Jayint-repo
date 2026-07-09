@@ -83,30 +83,76 @@ def test_parse_expose():
 
 
 def test_port_ladder_prefers_declared_ports():
-    got = derive_port((Port(5432, 5432),), (6379,), {"URL": "x://h:1234"}, "db", "")
+    got = derive_port((Port(5432, 5432),), (6379,), {"URL": "x://h:1234"}, "db", ())
     assert got == (5432, "ports")
 
 
 def test_port_ladder_falls_back_to_expose():
-    assert derive_port((), (6379,), {}, "cache", "") == (6379, "expose")
+    assert derive_port((), (6379,), {}, "cache", ()) == (6379, "expose")
+
+
+def test_expose_beats_own_env_dsn():
+    """Pins the MIDDLE of the ladder, not just its ends."""
+    env = {"DATABASE_URL": "postgres://u:p@db:5432/app"}
+    assert derive_port((), (6379,), env, "db", ()) == (6379, "expose")
 
 
 def test_port_ladder_falls_back_to_own_env_dsn():
     env = {"DATABASE_URL": "postgres://u:p@db:5432/app"}
-    assert derive_port((), (), env, "db", "") == (5432, "env_dsn")
+    assert derive_port((), (), env, "db", ()) == (5432, "env_dsn")
 
 
-def test_port_ladder_rescues_from_sibling_dsn():
-    # `db` declares nothing; the APP declares the DSN naming `db:5432`.
-    blob = "postgres://u:p@db:5432/app redis://cache:6379/0"
-    assert derive_port((), (), {}, "db", blob) == (5432, "sibling_dsn")
-    assert derive_port((), (), {}, "cache", blob) == (6379, "sibling_dsn")
+def test_own_env_dsn_beats_sibling_dsn():
+    """Pins the MIDDLE of the ladder: own evidence wins over a sibling's."""
+    env = {"URL": "postgres://u:p@db:5432/app"}
+    siblings = ("postgres://u:p@db:9999/app",)
+    assert derive_port((), (), env, "db", siblings) == (5432, "env_dsn")
+
+
+def test_port_ladder_rescues_from_sibling_url_dsn():
+    # `db` declares nothing; the APP declares the DSN naming host `db`.
+    siblings = ("postgres://u:p@db:5432/app", "redis://cache:6379/0")
+    assert derive_port((), (), {}, "db", siblings) == (5432, "sibling_dsn")
+    assert derive_port((), (), {}, "cache", siblings) == (6379, "sibling_dsn")
+
+
+def test_port_ladder_rescues_from_sibling_bare_token():
+    """8 of the PoC's 9 real rescues are bare `host:port` tokens, not URLs:
+    KAFKA_HOSTS=kafka:9092, TEMPORAL_ADDRESS=temporal:7233, MEMCACHE_LOCATION=memcached:11211.
+    The regex rung must survive."""
+    assert derive_port((), (), {}, "kafka", ("kafka:9092",)) == (9092, "sibling_dsn")
+    assert derive_port((), (), {}, "redis", ("local:redis:6379",)) == (6379, "sibling_dsn")
+
+
+def test_sibling_url_must_match_the_HOST_not_the_userinfo():
+    """THE CRITICAL CASE. In `postgres://db:5432@other/app`, `db` is the USERNAME and
+    `5432` the PASSWORD; the real host is `other`. A bare `\bdb:5432\b` regex wrongly
+    rescues 5432 for service `db`. A value containing `://` MUST be decided by urlparse."""
+    assert derive_port((), (), {}, "db", ("postgres://db:5432@other/app",)) == (None, "none")
+
+
+def test_sibling_url_attributes_the_port_to_the_real_host():
+    siblings = ("postgres://db:5432@other:6543/app",)
+    assert derive_port((), (), {}, "other", siblings) == (6543, "sibling_dsn")
+    assert derive_port((), (), {}, "db", siblings) == (None, "none")
 
 
 def test_sibling_rescue_requires_a_name_boundary():
     # must not match "mydb:5432" when looking for service "db"
-    assert derive_port((), (), {}, "db", "postgres://u@mydb:5432/x") == (None, "none")
+    assert derive_port((), (), {}, "db", ("mydb:5432",)) == (None, "none")
+
+
+def test_sibling_url_with_no_port_yields_nothing():
+    assert derive_port((), (), {}, "db", ("postgres://u:p@db/app",)) == (None, "none")
+
+
+def test_sibling_url_with_templated_port_does_not_raise():
+    assert derive_port((), (), {}, "db", ("redis://db:$PORT",)) == (None, "none")
+
+
+def test_sibling_url_with_templated_host_does_not_raise():
+    assert derive_port((), (), {}, "db", ("redis://$HOST:6379",)) == (None, "none")
 
 
 def test_port_ladder_gives_up_cleanly():
-    assert derive_port((), (), {}, "svc", "") == (None, "none")
+    assert derive_port((), (), {}, "svc", ()) == (None, "none")
