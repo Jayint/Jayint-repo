@@ -2702,8 +2702,17 @@ subprocess modules with **no pipeline imports** — they and their tests
 untouched. Verify with `grep -rn "provisioning_spec\|service_translate\|service_recipes" evals/`
 before you commit: the only hits must be in files you deleted.
 
-**Do NOT delete** `service_scan.py` or `service_recipes.py`. Verified consumers that must keep
-working:
+**Do NOT delete** `service_scan.py`, `service_recipes.py`, or `service_tables.py`.
+
+`service_tables.py` survives with all its exports. It is still consumed by:
+- `service_recipes.py:13` → `SERVICE_DEFAULTS`
+- `patch_gate.py:22,94` → `KNOWN_SERVICE_KINDS`, validating the **legacy** `NodeSpec.service_kind`
+  field on repair-time patch proposals. That is the old LLM-patch path, not the construction path
+  this plan replaced, and it is out of scope here. `test_no_service_tables.py` deliberately does
+  **not** assert that `service_tables` is gone.
+- `tests/depgraph/test_service_tables.py`, `tests/evals/test_provision_corpus.py`
+
+Verified consumers that must keep working:
 - `service_scan.service_bind_url` → `service_recipes.py:14`
 - `service_scan.service_from_url` → `repoint.py:21`, `classify_services_clean.py:33`
 - `service_scan.scan_ci_services` / `scan_compose_services` → `static_collect.py:14`, `src/eval/language_package_eval/oracle.py:55`
@@ -2782,25 +2791,43 @@ In `src/python_deps/depgraph/service_recipes.py`: delete `KindBase`, `_KIND_BASE
 from — plus any import that becomes unused (check `service_bind_url` at line 14: keep it only if
 something still calls it in this module). Keep `render_probe_poll` and `normalize_probe`.
 
-Then remove the now-stale docstring references to `render_setup` — these are prose, not code, so
-they will not break anything, but leaving them is a lie in the source:
-`build_script.py:373,375`, `repoint.py:7`, `emit.py:149`.
+Then remove the now-stale docstring references to `render_setup` — prose, not code, but leaving
+them is a lie in the source: **`build_script.py:373,375` and `repoint.py:7` only**.
+
+> **`emit.py:149` also carries a stale `service_recipes.render_setup` mention. LEAVE IT.**
+> `emit.py` holds another session's uncommitted work; `git add -p` is interactive and unavailable,
+> so there is no way to stage a one-word docstring fix without risking their hunks. A stale comment
+> is cheaper than a corrupted commit. It is recorded in the progress ledger's Minor roll-up for the
+> final whole-branch review.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python3 -m pytest tests/ -q`
-Expected: full suite PASS, **no collection errors**. Then prove no dangling references:
-```bash
-grep -rn "provisioning_spec\|service_translate\|render_setup\|_KIND_BASE\|RECIPE_KINDS" \
-     src/ tests/ evals/ scripts/
-```
-Expected: no output. (Any hit is a dangling reference — fix it before committing.)
+Expected: **no NEW failing test file**, and **no collection errors**. (See the baseline note below —
+the suite is not green on this branch, and never was during this plan.)
 
-> **Baseline note for your report:** this branch carries pre-existing failures in
-> `tests/depgraph/*` from another session's WIP (`resolve_*.py`, `wheel_oracle.py`,
-> `emit.py`). Record the failure count from `git stash list`-free baseline
-> (`python3 -m pytest tests/ -q` on the commit *before* your change) and confirm your change
-> adds none. Do not attempt to fix them; they are not yours.
+Then prove no dangling *code* references:
+```bash
+grep -rn "provisioning_spec\|service_translate\|_KIND_BASE\|RECIPE_KINDS\|KindBase" \
+     src/ tests/ evals/ scripts/
+grep -rn "render_setup" src/ tests/ evals/ scripts/ | grep -v render_setup_sh
+```
+Expected from the first: no output.
+Expected from the second: **exactly one hit** — the stale docstring at `emit.py:149`, which is
+deliberately left (see above). Anything else is a dangling reference; fix it before committing.
+
+> `script.render_setup_sh` is an **unrelated function** — it is not `service_recipes.render_setup`.
+> A bare `grep render_setup` matches it and produces five false positives in
+> `script.py`, `test_script_render.py`, `test_gsm_invariants_phase1.py`, `test_compose_script.py`,
+> and `scripts/l1_engine_swap_smoke.py`. Do not "clean up" any of those.
+
+> **Baseline (measured, do NOT chase):** `python3 -m pytest tests/ -q --ignore=tests/evals/test_stage_translate.py`
+> → **57 failed, 2807 passed**. All 57 live in eight files owned by another session's uncommitted
+> WIP: `test_apt_verify.py`, `test_resolve.py`, `test_build.py`, `test_certify.py`,
+> `test_build_native_prepass.py`, `test_repo2run_dataset.py`, `test_syslib_emit.py`,
+> `test_certify_setup_service.py`. **A new failing file not on that list is yours.**
+> After this task, `tests/evals/test_stage_translate.py` is deleted, so the `--ignore` flag and its
+> collection error both disappear — the suite should run clean end-to-end for the first time.
 
 - [ ] **Step 5: Commit**
 
