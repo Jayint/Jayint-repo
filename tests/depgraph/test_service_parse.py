@@ -199,13 +199,24 @@ def test_ci_healthcheck_parses_health_cmd_from_options():
     assert timing == {"interval": "10s", "timeout": "5s", "retries": "5"}
 
 
+def test_ci_healthcheck_parses_the_equals_form():
+    """`--health-cmd=X` (and `--health-interval=10s`, etc.) are valid docker flags that
+    appear in real workflows; shlex yields `--health-cmd="valkey-cli ping"` as ONE token.
+    Both the space-separated and the equals form must be recovered."""
+    entry = {"options": '--health-cmd="valkey-cli ping" --health-interval=10s '
+                        '--health-timeout=5s --health-retries=5'}
+    cmd, timing = ci_healthcheck(entry)
+    assert cmd == "valkey-cli ping"
+    assert timing == {"interval": "10s", "timeout": "5s", "retries": "5"}
+
+
 def test_ci_healthcheck_absent_options():
     assert ci_healthcheck({"image": "redis"}) == (None, {})
 
 
 def test_tcp_check_is_the_portable_python_one_liner():
     cmd = tcp_check(5432)
-    assert cmd.startswith("python -c")
+    assert cmd.startswith("python3 -c")     # `python` is absent from python3-only images
     assert "socket.create_connection" in cmd and "5432" in cmd
     assert "nc " not in cmd and "/dev/tcp" not in cmd
 
@@ -238,3 +249,14 @@ def test_a_non_read_only_healthcheck_with_no_port_becomes_none():
 def test_the_tcp_check_itself_is_read_only():
     from python_deps.depgraph.patch_gate import is_read_only
     assert is_read_only(tcp_check(5432))
+
+
+def test_a_whitespace_only_declared_healthcheck_falls_through_to_tcp():
+    """`healthcheck: {test: "   "}` carries no real command — the host would execute
+    whitespace. It must NOT be admitted as a declared check; with a port it falls through
+    to the TCP rung, with none it degrades to `none` — but the node is still produced."""
+    with_port = derive_check("   ", {}, 6379)
+    assert with_port.source == "tcp_port" and "6379" in with_port.command
+
+    without_port = derive_check("   ", {}, None)
+    assert without_port.source == "none" and without_port.command is None

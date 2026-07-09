@@ -207,14 +207,16 @@ def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
     return None, "none"
 
 
-TCP_CHECK = ("python -c \"import socket; "
+TCP_CHECK = ("python3 -c \"import socket; "
              "socket.create_connection(('127.0.0.1', {port}), 1).close()\"")
 
 
 def tcp_check(port: int) -> str:
     """Universal, service-agnostic liveness check derived from the declared port.
 
-    Python, not `nc` (absent from slim images) and not `bash </dev/tcp/...`.
+    `python3`, not `python` (absent from python3-only images and plain Debian/Ubuntu
+    with only python3 installed), not `nc` (absent from slim images) and not
+    `bash </dev/tcp/...`.
     """
     return TCP_CHECK.format(port=port)
 
@@ -239,7 +241,13 @@ def compose_healthcheck(entry: dict) -> tuple[str | None, dict]:
 
 
 def ci_healthcheck(entry: dict) -> tuple[str | None, dict]:
-    """GH Actions: `options: --health-cmd "pg_isready" --health-interval 10s ...`"""
+    """GH Actions: `options: --health-cmd "pg_isready" --health-interval 10s ...`
+
+    Both the space-separated (`--health-cmd X`) and the equals (`--health-cmd=X`) forms
+    are valid docker flags and appear in real workflows. After `shlex.split`, the equals
+    form arrives as ONE token (`--health-cmd=pg_isready`), so split each token on its first
+    `=` and fall back to the next token when there is no inline value.
+    """
     opts = entry.get("options")
     if not isinstance(opts, str):
         return None, {}
@@ -252,13 +260,14 @@ def ci_healthcheck(entry: dict) -> tuple[str | None, dict]:
     keys = {"--health-interval": "interval", "--health-timeout": "timeout",
             "--health-retries": "retries"}
     for i, t in enumerate(toks):
-        nxt = toks[i + 1] if i + 1 < len(toks) else None
-        if not nxt:
+        flag, sep, inline = t.partition("=")
+        val = inline if sep else (toks[i + 1] if i + 1 < len(toks) else None)
+        if not val:
             continue
-        if t == "--health-cmd":
-            cmd = nxt
-        elif t in keys:
-            timing[keys[t]] = nxt
+        if flag == "--health-cmd":
+            cmd = val
+        elif flag in keys:
+            timing[keys[flag]] = val
     return cmd, timing
 
 
@@ -271,7 +280,10 @@ def derive_check(hc_cmd: str | None, timing: dict, port: int | None) -> Check:
     """
     from python_deps.depgraph.patch_gate import is_read_only   # local: avoids a cycle
 
-    if hc_cmd and is_read_only(hc_cmd):
+    # A whitespace-only command (`test: "   "`) carries no content; strip before the
+    # truthiness test so it falls THROUGH to the TCP rung rather than being admitted as a
+    # declared check the host would then execute as blank whitespace.
+    if hc_cmd and hc_cmd.strip() and is_read_only(hc_cmd):
         return Check(command=hc_cmd, source="declared_healthcheck",
                      interval_s=timing.get("interval"), retries=timing.get("retries"),
                      timeout_s=timing.get("timeout"))
