@@ -57,40 +57,98 @@ start, not for the readiness probe.
 Extends the existing project invariants (graph certifies *necessary*, tests certify *sufficient*, host
 owns *done*).
 
-## 3. The service-universal node schema
+## 3. The service-universal node schema (normative)
 
-One shape for every service — postgres, redis, ClickHouse, Oracle, anything. All fields are extracted
-or derived from the repo's own compose / CI declarations.
+One shape for every service — postgres, redis, ClickHouse, Oracle, anything. Every field is extracted
+or derived from the repo's own compose / CI declarations. Validated by PoC against all 50 python50
+repos (`.superpowers/sdd/service-schema-poc-findings.md`).
 
 ```python
-ServiceNode {
-  id:         "service:db"
-  name:       "db"                       # the declaration key (= its hostname in compose/CI)
+@dataclass(frozen=True)
+class ServiceNode:
+    # ── identity ──────────────────────────────────────────────────────────
+    id: str                    # "service:db"
+    name: str                  # "db" — the declaration key; ALSO its declared
+                               #        hostname (what the app's DSN says)
 
-  image:      "postgres:16"              # verbatim, the identity
-  image_repo: "postgres"                 # lexical parse only
-  image_tag:  "16"
+    # ── what the repo declared: the software's identity ────────────────────
+    image: str                 # "postgres:16" — verbatim, may contain templates
+    image_repo: str            # "postgres" — lexical parse (registry/org/name)
+    image_tag: str | None      # "16"; None if absent or templated
 
-  ports:      [{container: 5432, host: 5432}]
-  env:        {POSTGRES_DB: "app", POSTGRES_USER: "u", POSTGRES_PASSWORD: "p"}
-  command:    "postgres -c max_connections=200" | null   # declared start args
-  entrypoint: null
-  volumes:    [{host: "./init.sql", container: "/docker-entrypoint-initdb.d/init.sql"}]
-  depends_on: ["cache"]
+    # ── how to reach it ───────────────────────────────────────────────────
+    ports: list[Port]          # all declared, verbatim: [{container, host}]
+    port: int | None           # the one we will use
+    port_source: PortSource    # ports|expose|env_dsn|sibling_dsn|none
+    endpoint: str | None       # "localhost:5432" (single-container world)
 
-  endpoint:   "localhost:5432"           # derived (see §3.2)
+    # ── how to configure it ───────────────────────────────────────────────
+    env: dict[str, str]        # from `environment:` / `env:`
 
-  check: {                               # derived, never mapped (see §3.1)
-    command:   "pg_isready -U u"
-    source:    "declared_healthcheck" | "tcp_port" | "none"
-    interval_s: 10, retries: 5, timeout_s: 30
-  }
+    # ── declared run hints (NOT recipes) ──────────────────────────────────
+    command: str | None        # declared `command:` — start args
+    entrypoint: str | None
+    volumes: list[Mount]       # verbatim [{host, container}]
+    seed: list[Mount]          # derived subset: initdb.d-style mounts
 
-  provenance: [{file: ".github/workflows/ci.yml",
-                locator: "jobs.test.services.postgres"}]
-  raw:        {...}                      # verbatim YAML entry — the agent's primary source
-}
+    # ── the certificate (the host's contract) ─────────────────────────────
+    check: Check               # {command, source, interval_s, retries, timeout_s}
+
+    # ── ordering ──────────────────────────────────────────────────────────
+    depends_on: list[str]      # declared; becomes AFTER edges
+
+    # ── why we believe this, and how sure ─────────────────────────────────
+    relevance: Relevance       # ci_service|ci_referenced_compose|root_compose
+                               # |unreferenced_compose
+    provenance: list[Source]   # ALL contributing decls [{file, locator, kind}]
+    raw: dict[str, dict]       # verbatim entry per source — the agent's primary source
+
+    # ── honesty ───────────────────────────────────────────────────────────
+    state: State               # certifiable_obligation | declared_unverifiable
+    unresolved: list[str]      # fields whose evidence was templated, e.g.
+                               # ["image_tag", "env.POSTGRES_PASSWORD"]
 ```
+
+### 3.0 Enums (fixed)
+
+```python
+PortSource = "ports" | "expose" | "env_dsn" | "sibling_dsn" | "none"
+CheckSource = "declared_healthcheck" | "tcp_port" | "none"
+Relevance  = "ci_service" | "ci_referenced_compose" | "root_compose" | "unreferenced_compose"
+State      = "certifiable_obligation" | "declared_unverifiable"
+```
+
+### 3.0.1 Who consumes what
+
+| Group | Consumer | Why it exists |
+|---|---|---|
+| identity, `image*` | **agent** | `postgres:16` is what its world knowledge keys off |
+| `ports`/`port`/`endpoint` | **host + agent** | where it must answer; `port_source` says how we knew |
+| `env` | **agent + CONFIG node** | credentials to configure it with |
+| `command`/`volumes`/`seed` | **agent** | the repo's own start args + schema seeding |
+| **`check`** | **host** | the *only* thing the host runs — the certificate |
+| `depends_on` | **renderer** | ACTIVATE ordering |
+| `relevance`/`provenance`/`raw` | **agent + audit** | why we believe it; primary source to reason from |
+| `state`/`unresolved` | **renderer + honesty** | drives cold-start rendering; records what we could not resolve |
+
+### 3.0.2 Invariants
+
+1. **The node contains exactly one executable string: `check.command`.** Everything else is
+   declarative evidence. There are no install/start commands at construction — the agent writes those
+   into the script.
+2. **No `kind`, no `fix`, no `phase`.** `kind` is a table (removed). `fix` is the agent's job. `phase`
+   is constant for all services (install→PROVISION; start/seed/check→ACTIVATE), so it belongs to the
+   *type*, not the node.
+3. **Every derived field records its rung** (`port_source`, `check.source`, `relevance`). This is what
+   makes detection measurable and debuggable: we can always answer *"why do we think redis is on
+   6379?"*
+4. **Degrade the field, never the node.** A templated tag nulls `image_tag` and appends to
+   `unresolved`; it never deletes the service. (This bug silently dropped rq — see PoC findings.)
+5. **`state` is derived, not declared.** `check.source == "none"` ⇒ `declared_unverifiable` ⇒ surfaced
+   to the agent, never enforced by the host.
+
+`name` doubles as the **declared hostname**: the app's DSN says `@db:5432` while we provision to
+`localhost`, so keeping the declared host is what lets the CONFIG node rewrite the connection string.
 
 `raw` is not decoration. **Normalized fields serve the host; raw evidence serves the agent.** The exact
 image tag, `command:` flags, and env are what let a general agent reconstruct the service without any
@@ -118,8 +176,18 @@ python -c "import socket; socket.create_connection(('127.0.0.1', 5432), 1).close
 
 ### 3.2 Port/endpoint derivation (also evidence-only)
 
-`ports:` → else `expose:` → else parse the port out of a DSN in `env`
-(`DATABASE_URL=postgres://db:5432/app`) → else unknown (`check.source: none`).
+A ladder, best-rung-wins, recording which rung fired in `port_source`:
+
+1. **`ports:`** — the declared mapping. (55% of services)
+2. **`expose:`** — container-only ports. (3%)
+3. **own-env DSN** — `DATABASE_URL=postgres://db:5432/app` in the service's own env. (4%)
+4. **sibling-env DSN** — the port often exists *only* in another service's DSN: `db` declares no
+   ports, but the app declares `…@db:5432/…`. Search sibling env values for `\b{name}:(\d+)\b`. (6%)
+5. else unknown → `port_source: none` → `check.source: none`.
+
+Rung 4 was discovered by the PoC: `Spoolman/db (postgres:11-alpine)` and `OpenCTI/redis:8.4.0` declare
+neither ports nor healthcheck, yet their ports are plainly stated in a sibling's connection string. It
+rescued 9 services. Still evidence-only — no table.
 
 Since we provision into the same container (§5), the endpoint is `localhost:<container_port>`.
 
@@ -272,44 +340,140 @@ including third-party installs, which are safe precisely because they are measur
    core is unperturbed. All behind `V3_INCLUDE_SERVICES=1` (default off;
    `multi_docker_eval_adapter.py:164`, `render_build_script(..., include_services=False)`).
 
-## 10. Detection changes
+## 10. Node construction: an evidence-fusion pipeline
 
-Detection is already strong: `iter_provisioning_specs` parses compose **and** GitHub-Actions
-`jobs.<job>.services:`, and `env_classifier.py` is deleted (structured-only). Changes:
+```
+DISCOVER  →  SCOPE  →  FUSE  →  CLASSIFY  →  CERTIFY
+(sources)   (relevance) (ladders) (app?)      (check)
+```
 
-**Add — lossless evidence capture.** `ProvisioningSpec` normalizes to
-`(service_name, kind, image, params, init_files, probe, port, build)` and **discards** everything else.
-Capture instead: `provenance{file, locator}`, the verbatim `raw` entry, `command:`, `entrypoint:`,
-`depends_on:`, `expose:`, and healthcheck timing (`interval`/`retries`/`timeout`).
+Each stage generalizes along a different axis, and none of them knows anything about a specific
+service.
 
-**Add — the check ladder + `check.source`** (§3.1), and the port/endpoint derivation ladder (§3.2).
+### 10.1 DISCOVER — sources are adapters (generalizes across *evidence*)
 
-**Change — admit gate.** Stop dropping probe-less services (`classify_services_clean.py:115`). Admit
-with `check.source: "none"`; surface, do not enforce.
+```python
+class ServiceEvidenceSource(Protocol):
+    def discover(self, repo: str) -> Iterator[RawDeclaration]:
+        """RawDeclaration = {name, entry, file, locator, source_kind}"""
+```
 
-**Remove:**
-- `kind` normalization and `_kind_of` aliasing (`service_scan.py:57`).
-- `service_recipes._KIND_BASE` as a construction-time recipe source.
-- `translate_service` at construction. **This deletes the `feasible` admit-gate bug entirely** — the
-  code path that could emit an infeasible plan no longer runs.
+Today: `ComposeSource`, `GithubActionsSource`. Later: GitLab CI, k8s manifests, `devcontainer.json`,
+tox/Makefile targets, testcontainers-in-code. **Adding a source never touches the schema or its
+consumers** — the same seam pattern as `EcosystemProvider`.
 
-### 10.1 What the corpus says (`.superpowers/sdd/ratbench-service-catalog.md`, 50 repos)
+### 10.2 SCOPE — relevance is *reachability*, not paths (generalizes across *build tools*)
 
-- **22/50** repos declare ≥1 genuine backing service; **30 distinct kinds**; a short head
-  (`postgres 16, redis 11, mysql 8, minio 6, elasticsearch 4`) and ~20 singleton exotics.
-- **CI parsing is load-bearing:** rq, pretix, frappe/press declare their service **only** in CI.
-- **66%** (132/199) of declarations carry a healthcheck → a free semantic check.
+> **A declaration is test-relevant if something that runs the tests references it.**
 
-Two of the catalog's most alarming numbers **dissolve** under evidence-only detection:
+Path filtering is **unsound in both directions** (PoC): `mlflow/tests/db/compose.yml` and
+`ezdata/tests/docker-compose.test.pg.yml` *are* the test environment, while
+`testcontainers/tests/core/compose_fixtures/*` is the library's own API fixture data. No path rule
+separates them. Instead, follow the edge from the test command to the declaration:
 
-- *"Aliasing is load-bearing — 7/22 repos depend on it; rq shows zero services without valkey→redis."*
-  → With no `kind` field, there is nothing to alias. rq's service is simply `image: valkey/valkey:8`,
-  and the agent reads that. **The aliasing problem does not exist.**
+| Evidence | `relevance` |
+|---|---|
+| CI `services:` on a test job | `ci_service` — intrinsic; the job *is* the test |
+| CI runs `docker compose -f X up` before pytest | `ci_referenced_compose` — X is the test env |
+| root-level compose, unreferenced | `root_compose` — ambiguous |
+| nested compose, never referenced | `unreferenced_compose` — surface, do not enforce |
+
+This mirrors the package layer's import-reachability, applied to service declarations. Measured on the
+corpus: 10 repos expose `ci_service`, 11 expose `ci_referenced_compose` (`docker-compose.dev.yml` 31×,
+`docker-compose.mysql-pr.yml` 6×, `docker-compose.test.pg.yml` 4×, …) — union ≈ 20 repos of the 23 we
+detect, with **no path or kind heuristic**.
+
+### 10.3 FUSE — fields have ladders, not values (generalizes across *incomplete evidence*)
+
+Group declarations **by service name across all sources**, then merge field-by-field, best-rung-wins,
+recording which rung fired:
+
+```
+port  := ports: → expose: → own-env DSN → sibling-env DSN → unknown
+check := healthcheck → CI --health-cmd → derived TCP(port) → none
+config:= env → env_file → .env
+start := command: → entrypoint: → unknown
+```
+
+**Fuse, do not dedup.** Today `iter_provisioning_specs` dedups by name (compose wins) and *discards*
+the other source's evidence — so a compose entry with `volumes:` but no healthcheck loses the CI
+entry's `--health-cmd`. Fusion recovers it. Invariant: **degrade the field, never the node** (§3.0.2).
+
+### 10.4 CLASSIFY — app vs backing, from evidence only
+
+1. `build:` present → locally built → the app.
+2. Image named after the repo (`podman-compose` ⊂ `podman-compose-test`). *Direction matters.*
+3. **First-party image** (org matches repo owner) that publishes **no port and declares no
+   healthcheck** → the app being deployed. Kills OpenCTI's 271 `opencti/connector-*` composes while
+   keeping `supabase/postgres` (first-party, but exposes a port).
+
+Prefer the **structural** signal where available: `depends_on` forms a DAG — anything with in-degree
+> 0 is backing; a `build:`-ed node that depends on others is the app. Rules 1–3 are the fallback for
+composes with no `depends_on`. Together these took over-detection from **594 → 158**.
+
+### 10.5 CERTIFY — the check ladder (§3.1) sets `state`
+
+`declared_healthcheck | tcp_port` ⇒ `certifiable_obligation`. `none` ⇒ `declared_unverifiable`
+(admitted and surfaced; never enforced).
+
+### 10.6 What changes in the current code
+
+**Add:** the source-adapter seam; reference-derived `relevance`; the sibling-DSN port rung; lossless
+capture (`provenance{file,locator}`, verbatim `raw`, `command:`, `entrypoint:`, `depends_on:`,
+`expose:`, healthcheck timing); fuse-not-dedup.
+
+**Change:** admit gate — stop dropping probe-less services (`classify_services_clean.py:115`); admit
+with `check.source: "none"`.
+
+**Remove:** `kind` normalization and `_kind_of` aliasing (`service_scan.py:57`);
+`service_recipes._KIND_BASE` as a construction-time recipe source; `translate_service` at construction
+— **this deletes the `feasible` admit-gate bug entirely**, since the path that could emit an infeasible
+plan no longer runs.
+
+### 10.7 Free consequence: the service tier is language-agnostic
+
+Compose and CI are language-neutral — a Go or Node repo declares its postgres identically. So the
+service tier needs **no `EcosystemProvider` specialization at all**. Dropping the kind-table did not
+just remove hardcoding; it made the whole tier cross-ecosystem.
+
+### 10.8 Measured on the corpus (PoC, all 50 python50 repos)
+
+Implemented in `.superpowers/sdd/service_schema_poc.py`; findings in
+`service-schema-poc-findings.md`; 158 extracted nodes in `service_nodes_poc.jsonl`.
+
+| | |
+|---|---|
+| repos with ≥1 backing service | **23** |
+| backing services extracted | **158** (147 compose, 11 CI) |
+| **certifiable** (`state = certifiable_obligation`) | **75%** |
+| ├ `declared_healthcheck` | 34% |
+| └ `tcp_port` (derived) | 41% |
+| `declared_unverifiable` | 25% |
+
+Port rungs: `ports:` 55% · `sibling_dsn` 6% · `env_dsn` 4% · `expose:` 3% · none 33%.
+Fields: endpoint 67% · env 56% · `command:` 34% · volumes 46% · `depends_on` 30% · templated `env` 19%.
+
+**The `tcp_port` rung doubles the certifiable set (34% → 75%).** Refusing a canonical-probe table costs
+far less than feared.
+
+**Acid test — rq/rq passes with zero service knowledge.** rq has *no compose file*; its only signal is
+a CI workflow declaring `image: valkey/valkey:${{ matrix.valkey-version }}` with
+`--health-cmd "valkey-cli ping"`. Extracted: `image_repo=valkey/valkey`, `image_tag=null`
+(templated → `unresolved`), `endpoint=localhost:6379` (`port_source: ports`),
+`check={valkey-cli ping, declared_healthcheck}`, `relevance=ci_service`. **No `kind`, no
+`valkey→redis` alias.**
+
+Two catalog findings **dissolve** under evidence-only detection:
+
+- *"Aliasing is load-bearing — 7/22 repos depend on it."* → With no `kind` field there is nothing to
+  alias. **The aliasing problem does not exist.**
 - *"Only 4/22 (18%) repos are fully covered by KNOWN+ALIAS kinds."* → There is no table to cover with;
   coverage is uniform across all 30 kinds.
 
-The remaining honest gap: **10 exotic kinds ship no healthcheck anywhere.** Under the check ladder
-these are rescued by `tcp_port` *if they declare a port* — an unmeasured fraction (see §12).
+The honest residue (25% `declared_unverifiable`) splits into (a) genuine backing services whose port is
+only *implied by the image* (`postgres:11-alpine` with no ports, no healthcheck, no sibling DSN) — the
+real cost of refusing a table; and (b) init/sidecar/observability containers (`kafka-init`,
+`otel-collector`, `jaeger`) that are not test dependencies and which `relevance` precedence drops.
 
 ## 11. Deliberately excluded (YAGNI)
 
@@ -355,14 +519,21 @@ Service provisioning is the *instrument* that measures graph quality, not the co
    renderer emits two strings the agent sees concatenated. Affects `patch` round-tripping.
 2. **Check-verdict struct.** Fields (`service_id`, `ok`, `command`, `source`, `output`, `attempts`) and
    the single-shot vs bounded-wait selection rule.
-3. **`tcp_port` rescue rate.** Of the 10 exotic kinds with no healthcheck, how many declare a port
-   (`ports:`/`expose:`/DSN-in-env)? Cheap read-only measurement over the catalog; determines how much
-   of the tail becomes certifiable.
-4. **Gating.** Does obligation context ride the existing `graph_context: bool`, or its own
+3. ~~**`tcp_port` rescue rate.**~~ **ANSWERED by the PoC (§10.8): 34% → 75% certifiable.** The TCP
+   rung doubles the certifiable set; the table costs little to remove.
+4. **`relevance` precedence, implemented.** The PoC verified `ci_referenced_compose` by grep
+   (workflows naming `docker compose -f X`); it is not yet wired into the extractor. Decide whether
+   low-relevance nodes (`unreferenced_compose`) are emitted-but-unenforced or dropped entirely.
+5. **Env resolution.** 19% of services carry unresolved `${...}` in `env`. Implement compose
+   `env_file:`/`.env` resolution? Resolve GH-Actions `matrix` to its first `include` entry (would give
+   rq a concrete `image_tag`)? Or leave both in `unresolved` and let the agent read `raw`?
+6. **Multi-file compose merge.** `-f a.yml -f b.yml` override semantics are unimplemented; the PoC
+   treats each file independently.
+7. **Gating.** Does obligation context ride the existing `graph_context: bool`, or its own
    `V3_INCLUDE_SERVICES` gate? Ablation cleanliness argues for one switch.
-5. **Cost of no table.** Every service — even redis — now costs agent turns. Measure turns-to-green
+8. **Cost of no table.** Every service — even redis — now costs agent turns. Measure turns-to-green
    and run-to-run variance on the head kinds; if the cost is material, a memoized fast path can be
    reintroduced *as an optimization behind the same schema* (never as the source of truth).
-6. **Graph persistence.** The last full-50 run saved `setup.sh` per repo but **no graph**
+9. **Graph persistence.** The last full-50 run saved `setup.sh` per repo but **no graph**
    (`construction-python50-20260707-072356`). Post-hoc obligation forensics needs a compact
    `env_graph.json` dump. Decide whether it lands here or separately.
