@@ -69,7 +69,9 @@ def _make_compressor(client: Any, model: str):
     def compress(target, _context) -> str:
         messages = [
             {"role": "system", "content": "Summarize this build/test output in 2-3 lines, keeping "
-                                          "the exact error and any missing package/library names."},
+                                          "the BUILD OK/FAILED verdict, the test pass/fail counts "
+                                          "(e.g. 5/7 passed), the exact error, and any missing "
+                                          "package/library names."},
             {"role": "user", "content": target.observation_raw[:8000]},
         ]
         text, _usage, _raw = complete_with_retry(client, model, messages, temperature=0)

@@ -99,6 +99,36 @@ def test_plateau_stops_when_repairs_stop_helping():
     outcome, _, log = _run([p1, p2, p3], tests_need=("magic",))
     assert outcome == "PLATEAU" and log.count("PLATEAU") == 1
 
+def test_history_records_baseline_then_patch_outcome_with_score_in_bracket():
+    # baseline can't install libpq-dev (BUILD FAILED); one patch adds it -> green 5/5 -> DONE.
+    hist = History()
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    fix = Action("patch", new_script="pip install app\napt-get install -y libpq-dev\n")
+    outcome, _, _ = run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([fix]), history=hist,
+        log=ReactLog(silent=True), max_steps=10, _initial_script=box[0])
+    assert outcome == "DONE"
+    # baseline is recorded first, with its verdict in the (never-truncated) bracket
+    assert hist.steps[0].action_summary == "baseline → BUILD FAILED"
+    # the patch records its REAL build/test outcome + score in the bracket, not a placeholder
+    assert hist.steps[1].action_summary == "patch v1 → 5/5"
+    assert "(replaced build script)" not in hist.steps[1].observation_raw
+    assert "BUILD OK" in hist.steps[1].observation_raw and "5/5" in hist.steps[1].observation_raw
+
+def test_history_patch_that_regresses_records_build_failed_not_placeholder():
+    hist = History()
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    bad = Action("patch", new_script="pip install app\necho still-missing\n")   # never adds libpq-dev
+    run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([bad]), history=hist,
+        log=ReactLog(silent=True), max_steps=3, _initial_script=box[0])
+    assert hist.steps[1].action_summary == "patch v1 → BUILD FAILED"
+    assert "(replaced build script)" not in hist.steps[1].observation_raw
+
 def test_plateau_tolerates_one_no_gain_then_reaches_done():
     # initial 2/5 (fail) -> patch1 no gain (stall 1, tolerated) -> patch2 gains to 5/5 -> DONE.
     outcomes = iter([

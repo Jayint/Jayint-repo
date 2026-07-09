@@ -77,6 +77,21 @@ def test_run_react_arm_strips_and_forwards_seed(monkeypatch):
     assert "DO NOT EDIT" not in fwd and "graph" not in fwd.lower()   # header stripped
     assert "pip install app" in fwd and "set -Eeuo pipefail" in fwd  # body preserved
 
+def test_compressor_prompt_preserves_counts_and_verdict(monkeypatch):
+    # Patch outcomes now live in history and get compressed; the compressor MUST keep the BUILD
+    # verdict and the test pass/fail counts (the signal the agent compares attempts by).
+    import src.envstate.llm_response as llm
+    cap = {}
+    monkeypatch.setattr(
+        llm, "complete_with_retry",
+        lambda client, model, messages, **kw: (cap.update(messages=messages) or ("s", {}, None)))
+    from src.react_repair.entry import _make_compressor
+    from src.react_repair.history import Step
+    compress = _make_compressor(object(), "m")
+    compress(Step(1, "t", "patch v1 → 5/7", "BUILD OK. TESTS 5/7 passed\n" + "x" * 50, "..."), [])
+    sys_prompt = cap["messages"][0]["content"].lower()
+    assert "verdict" in sys_prompt and "count" in sys_prompt
+
 def test_run_react_arm_without_seed_forwards_none(monkeypatch):
     import src.react_repair.entry as entry_mod
     captured = {}

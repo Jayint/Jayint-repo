@@ -41,6 +41,17 @@ def _observation(result: RunResult, test) -> str:
     return f"BUILD OK. TESTS {test.passed}/{test.executed} passed:\n{body}"
 
 
+def _verdict(result: RunResult, test) -> str:
+    """The attempt's score/verdict for the history bracket — the ONE signal the agent compares
+    attempts by. Lives in `action_summary` (never truncated/compressed) so Tier-1 truncation or
+    the LLM compressor can't eat it, even when the observation body is squeezed to nothing."""
+    if not result.ok:
+        return "BUILD FAILED"
+    if test is None:
+        return "BUILD OK"
+    return f"{test.passed}/{test.executed}"
+
+
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
@@ -82,6 +93,10 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
     result, graph, test = build_and_test()
     plateaued = register(result, test)                  # baseline: first build never plateaus
+    # Seed history with the baseline outcome (v0) so later patches have something to compare
+    # against; the verdict rides in the (never-truncated) bracket, the detail in the body.
+    history.record(0, "", f"baseline → {_verdict(result, test)}", _observation(result, test))
+    version = 0
     for step in range(max_steps):
         if result.ok and test is not None and test.ok:
             log.d("DONE", "build green AND tests pass the gate — host-verified")
@@ -98,17 +113,21 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
         if action.kind == "explore" and action.command and is_read_only(action.command):
             rc, out = exec_readonly(action.command)
-            history.record(step, thought, f"explore: {action.command}", out)
+            history.record(step + 1, thought, f"explore: {action.command}", out)
             log.d("EXPLORE", f"{action.command} → rc{rc} (read-only)")
             continue                                    # free turn — no rebuild, plateau unchanged
         if action.kind == "patch" and action.new_script:
             script = action.new_script
-            history.record(step, thought, "patch", "(replaced build script)")
             log.d("PATCH", "agent replaced setup.sh; re-running fresh")
             result, graph, test = build_and_test()
             plateaued = register(result, test)
+            version += 1
+            # Record the patch's REAL build/test outcome (not a placeholder), with its score in
+            # the bracket so it survives truncation/compression like the baseline entry.
+            history.record(step + 1, thought, f"patch v{version} → {_verdict(result, test)}",
+                           _observation(result, test))
             continue
-        history.record(step, thought, "invalid", _FORMAT_REMINDER)   # explore-not-readonly or unparseable
+        history.record(step + 1, thought, "invalid", _FORMAT_REMINDER)  # explore-not-readonly or unparseable
         log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
 
     outcome = "PLATEAU" if plateaued else "GIVEUP"      # plateau on the final step lands here
