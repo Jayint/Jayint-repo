@@ -119,6 +119,23 @@ def test_all_empty_oracle_yields_na_not_zero() -> None:
     assert scorer._fmt(None) == "  n/a"
 
 
+def test_genuine_zero_prints_zero_not_na() -> None:
+    # A `complete` repo where every detection is wrong AND a name is missed gives a
+    # *defined* worst-case: precision == recall == f1 == 0.0. Testing truthiness
+    # (`if prec and rec`) instead of definedness would silently print `n/a`, converting
+    # total failure into "not measured" — the most dangerous bug an eval can have.
+    detected = {"o/a": {"wrong"}}
+    oracle = {"o/a": _complete(["right"])}
+
+    r = scorer.score(detected, oracle)
+
+    assert r["precision"] == 0.0
+    assert r["recall"] == 0.0
+    assert r["f1"] == 0.0                     # NOT None
+    assert scorer._fmt(r["f1"]) == "0.000"    # NOT "  n/a"
+    assert (r["tp"], r["fp"], r["fn"]) == (0, 1, 1)
+
+
 # --------------------------------------------------------------------------- #
 # main(): filesystem walk, fail-loud paths, threshold exit code               #
 # --------------------------------------------------------------------------- #

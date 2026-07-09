@@ -33,7 +33,14 @@ def score(detected: dict[str, set[str]], oracle: dict[str, dict]) -> dict:
 
     prec = tp_complete / (tp_complete + fp_complete) if (tp_complete + fp_complete) else None
     rec = tp / (tp + fn) if (tp + fn) else None
-    f1 = (2 * prec * rec / (prec + rec)) if (prec and rec) else None
+    # `if (prec and rec)` would be WRONG: a genuine precision of 0.0 is falsy, and F1 would
+    # print `n/a` for a defined, very bad result. Test definedness, not truthiness.
+    if prec is None or rec is None:
+        f1 = None
+    elif prec + rec == 0:
+        f1 = 0.0
+    else:
+        f1 = 2 * prec * rec / (prec + rec)
     return {"precision": prec, "recall": rec, "f1": f1, "tp": tp, "fp": fp, "fn": fn,
             "tp_complete": tp_complete, "fp_complete": fp_complete, "rows": rows}
 
