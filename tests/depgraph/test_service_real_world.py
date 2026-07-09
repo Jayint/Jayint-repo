@@ -30,6 +30,7 @@ def test_rq_valkey_is_detected_with_zero_service_knowledge(tmp_path):
     assert node.check.command == "valkey-cli ping"
     assert node.check.source == "declared_healthcheck"
     assert node.check.retries == "5" and node.check.interval_s == "10s"
+    assert node.check.timeout_s == "5s"
     assert node.relevance == "ci_service"
     assert node.state == "certifiable_obligation"
     assert node.provenance[0].locator == "jobs.valkey-test.services.valkey"
