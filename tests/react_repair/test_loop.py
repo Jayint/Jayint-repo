@@ -71,7 +71,7 @@ def test_added_lines_empty_when_no_change():
 class _ScriptedPlanner:
     """Emits a fixed queue of moves; ignores the prompt."""
     def __init__(self, moves): self.moves = list(moves)
-    def plan(self, history, script, observation, graph, fail_lineno=None):
+    def plan(self, history, script, observation, graph, fail_lineno=None, turn=None, max_turns=None):
         return "t", (self.moves.pop(0) if self.moves else Action("invalid")), {}
 
 
@@ -137,6 +137,19 @@ def test_edit_out_of_range_is_invalid_and_never_regresses_seed():
     bad = Action("edit", edit=EditOp("replace", 99, 99, "junk"))
     outcome, script, _ = _run([bad], tests_need=("magic",))
     assert outcome == "GIVEUP" and script == "pip install app\n"
+
+def test_loop_passes_turn_budget_to_planner():
+    # The loop feeds the live turn counter (1-based) + max to the planner every turn.
+    seen = []
+    class _P:
+        def plan(self, history, script, observation, graph, fail_lineno=None, turn=None, max_turns=None):
+            seen.append((turn, max_turns)); return "t", Action("explore", command="ls"), {}
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=_P(), history=History(), log=ReactLog(silent=True),
+              max_steps=3, _initial_script="pip install app\n")
+    assert seen == [(1, 3), (2, 3), (3, 3)]
 
 def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
     # `pip install` via explore is not read-only → rejected. The agent must be pointed at edit()

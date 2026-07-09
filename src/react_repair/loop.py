@@ -186,7 +186,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         # numbered script it shows the agent. None when the build was green (tests-below-threshold) or
         # the ERR trap didn't localize — the renderer leaves it untagged.
         thought, action, usage = planner.plan(history, script, observation, graph,
-                                              fail_lineno=result.lineno)
+                                              fail_lineno=result.lineno,
+                                              turn=step + 1, max_turns=max_steps)
         _emit_tokens(usage)
 
         if action.kind == "explore" and action.command and is_read_only(action.command):

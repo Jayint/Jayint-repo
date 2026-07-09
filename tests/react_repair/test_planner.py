@@ -102,6 +102,26 @@ def test_tools_section_names_explore_and_edit():
     sp = planner_mod.SYSTEM_PROMPT
     assert "explore" in sp and "edit" in sp and "Script:" not in sp
 
+# --- turn budget (drive agency: finite turns to reach green) ---------------
+def test_render_shows_turn_budget_counter(monkeypatch):
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(History(), "s", "o", graph=None, turn=12, max_turns=30)
+    assert "Turn 12/30" in seen["user"] and "18 left" in seen["user"]
+
+def test_render_escalates_when_turn_budget_low(monkeypatch):
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(History(), "s", "o", graph=None, turn=28, max_turns=30)
+    assert "commit your best edit now" in seen["user"].lower()   # urgency when budget is low
+
+def test_render_omits_turn_counter_without_turn(monkeypatch):
+    # backward compatible: no turn info → the plain closing instruction, no counter.
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(History(), "s", "o", graph=None)
+    assert "Turn " not in seen["user"] and "call one tool" in seen["user"]
+
+def test_system_prompt_frames_the_turn_budget():
+    assert "limited, counted number of turns" in planner_mod.SYSTEM_PROMPT
+
 def test_system_prompt_directs_edit_until_pass_and_explore_is_ephemeral():
     # The agent over-explored (azure: 30 explores / 0 edits). The prompt must state that repair is an
     # EDIT loop to green, and that installs done inside explore don't persist (edit setup.sh instead).

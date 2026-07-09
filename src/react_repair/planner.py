@@ -4,6 +4,7 @@ the baseline and populated for the graph-guided variant — the ONLY difference 
 (spec §14). No arm-C imports; uses the shared `complete_with_retry`."""
 from __future__ import annotations
 
+import os
 from typing import Any, Callable
 
 from src.envstate.llm_response import complete_with_tools
@@ -36,7 +37,8 @@ is the only thing that carries over — the script re-runs from a clean base eac
 you install inside an explore is gone next turn; put the fix in setup.sh with edit(). Prefer an edit
 every turn and explore only when you genuinely can't yet name the change; once the error and the
 files show you the fix, stop exploring and make it. Exploring turn after turn with no edit is a
-failure, not diligence.
+failure, not diligence. You have a limited, counted number of turns (shown each turn) — treat
+exploring as spending them, and as the budget runs low commit your best edit rather than investigate.
 The build halts at the first failing command (set -e): the error names that command and its line,
 tagged ← BUILD HALTED HERE in the script below. Everything above that line already succeeded — don't
 re-install it; everything below never ran, so don't touch a line the failure hasn't reached yet.
@@ -76,6 +78,23 @@ def build_system_prompt(env_info: str = "") -> str:
 
 SYSTEM_PROMPT = build_system_prompt()          # env-less form (no facts gathered / tests)
 
+# When this few turns remain, the closing line switches from a neutral counter to an urgency nudge —
+# a visible countdown pushes a paralysis-prone agent to commit rather than explore the budget away.
+_LOW_BUDGET_TURNS = int(os.getenv("REACT_LOW_BUDGET_TURNS", "5"))
+
+
+def _closing_line(turn: "int | None", max_turns: "int | None") -> str:
+    """The last thing the agent reads before it acts (recency spot). Augmented with the live turn
+    budget so the finiteness is salient; escalates to an edit-now nudge once the budget is low. With
+    no turn info it degrades to the plain instruction (backward compatible)."""
+    if not turn or not max_turns:
+        return "Reason briefly, then call one tool — explore or edit."
+    left = max_turns - turn
+    if left <= _LOW_BUDGET_TURNS:
+        return (f"Turn {turn}/{max_turns} — the turn budget is almost gone. You have enough: commit "
+                f"your best edit now, don't spend the rest exploring. Then call one tool.")
+    return f"Turn {turn}/{max_turns} ({left} left). Reason briefly, then call one tool — explore or edit."
+
 # Tag appended to the gutter line the build halted on, so the ERR-trap localization is visible
 # WHERE the agent edits (the numbered script) — not only buried in the observation header. Matches
 # the "← BUILD HALTED HERE" reference in the APPROACH prompt so the marker is self-explaining.
@@ -114,7 +133,8 @@ class ReactPlanner:
         self.system_prompt = build_system_prompt(env_info)
 
     def _render(self, history, script: str, observation: str, graph,
-                fail_lineno: int | None = None) -> str:
+                fail_lineno: int | None = None,
+                turn: int | None = None, max_turns: int | None = None) -> str:
         parts = [
             ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
              "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
@@ -126,14 +146,16 @@ class ReactPlanner:
             ctx = self.graph_context(graph) or ""
             if ctx.strip():
                 parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
-        parts.append("Reason briefly, then call one tool — explore or edit.")
+        parts.append(_closing_line(turn, max_turns))
         return "\n\n".join(parts)
 
-    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None):
+    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
+             turn: int | None = None, max_turns: int | None = None):
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user",
-             "content": self._render(history, script, observation, graph, fail_lineno)},
+             "content": self._render(history, script, observation, graph, fail_lineno,
+                                     turn, max_turns)},
         ]
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text
