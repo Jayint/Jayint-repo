@@ -2110,3 +2110,472 @@ Not covered **by design** (out of scope, stated above): §4.3 cold-start block r
 - Task 9 changes `patch_gate` validation. Run `pytest tests/depgraph/test_patch_gate_admit_clean.py -v` before and after; the empty-**probe** guard must still reject `probe=""`.
 - Task 10 will surface any consumer of `provisioning_spec` we missed. `pytest tests/ -q` is the gate; fix forward rather than restoring the module.
 - Tasks 1–8 are pure and land with zero behaviour change. If the plan must stop early, stopping after Task 8 leaves the repo green with a fully tested, unused module.
+
+---
+
+# Evaluation Tasks (12–14)
+
+> **These can run BEFORE Tasks 1–11.** The PoC (`.superpowers/sdd/service_schema_poc.py`) already
+> emits the identical schema to `.superpowers/sdd/service_nodes_poc.jsonl` (158 nodes). Point Task 13
+> at that file to learn whether the evidence is sufficient *before* committing to the build. If C1
+> does not beat C0 convincingly, the schema — not the implementation — is what needs changing.
+
+**Two evals, deliberately separate:**
+- **Task 12 — detection fidelity:** *did we find the right services?* Deterministic, no LLM.
+- **Task 13 — sufficiency:** *is a `ServiceNode` enough for a ReAct agent to provision the service?*
+  Behavioural, not an opinion poll.
+
+Standing directive (memory: `eval-grade-qualitatively-not-just-numbers`): pair the pass-rate with a
+cheap LLM judge over a known-answer corpus; **the judge is diagnostic, never the headline.** Here the
+headline is deterministic (policy violations, and in Task 14 a Docker-verified check); the judge only
+explains *why*.
+
+---
+
+## Task 12: Detection fidelity against a known-answer oracle
+
+**Files:**
+- Create: `tests/eval/fixtures/service_oracle.json`
+- Create: `scripts/eval_service_detection_fidelity.py`
+
+**Interfaces:**
+- Consumes: `build_service_nodes(repo, owner)` (Task 7).
+- Produces: pooled precision / recall / F1 of detected backing services vs the oracle.
+
+**Why an oracle:** Task 11 reports what we *extracted*; it cannot tell us whether that set is *right*.
+`.superpowers/sdd/ratbench-service-catalog.md` is a careful reader's ground truth (it applied semantic
+judgment: app-vs-backing, fixture-vs-real). Scoring against it measures whether our evidence-only
+heuristics reproduce that judgment.
+
+- [ ] **Step 1: Build the oracle**
+
+Transcribe the per-repo backing-service names from `ratbench-service-catalog.md` into this exact
+shape. One entry per repo that declares ≥1 genuine backing service (the catalog says 22). Repos with
+no backing service are represented by an empty list so false positives are scored.
+
+```json
+{
+  "rq/rq":            ["valkey"],
+  "mlflow/mlflow":    ["postgres", "mysql", "storage"],
+  "Cloud-CV/EvalAI":  ["db", "redis", "sqs"],
+  "testcontainers/testcontainers-python": [],
+  "containers/podman-compose": []
+}
+```
+
+- [ ] **Step 2: Write the scorer and run it to see it fail**
+
+```python
+# scripts/eval_service_detection_fidelity.py
+"""Precision/recall of evidence-only service detection vs the known-answer oracle.
+
+Usage:  PYTHONPATH=src python3 scripts/eval_service_detection_fidelity.py <repos_root> <oracle.json>
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+
+from python_deps.depgraph.service_construct import build_service_nodes
+
+
+def main(root: str, oracle_path: str) -> int:
+    oracle: dict[str, list[str]] = json.load(open(oracle_path))
+    tp = fp = fn = 0
+    rows = []
+    for full, expected in sorted(oracle.items()):
+        owner, repo = full.split("/", 1)
+        rd = os.path.join(root, owner, repo)
+        got = {n.name for n in build_service_nodes(rd, owner=owner)} if os.path.isdir(rd) else set()
+        exp = set(expected)
+        t, f, m = len(got & exp), len(got - exp), len(exp - got)
+        tp, fp, fn = tp + t, fp + f, fn + m
+        if f or m:
+            rows.append((full, sorted(got - exp), sorted(exp - got)))
+
+    prec = tp / (tp + fp) if tp + fp else 0.0
+    rec = tp / (tp + fn) if tp + fn else 0.0
+    f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+    print(f"pooled precision {prec:.3f}  recall {rec:.3f}  F1 {f1:.3f}   (tp={tp} fp={fp} fn={fn})")
+    print("\nper-repo disagreements (extra / missing):")
+    for full, extra, missing in rows:
+        print(f"  {full:40s} +{extra}  -{missing}")
+    ok = prec >= 0.80 and rec >= 0.90
+    print("\nVERIFY:", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1], sys.argv[2]))
+```
+
+Run: `PYTHONPATH=src python3 scripts/eval_service_detection_fidelity.py "$SCRATCH/repos" tests/eval/fixtures/service_oracle.json`
+Expected before the oracle exists: `FileNotFoundError`.
+
+- [ ] **Step 3: Run against the corpus and record the disagreements**
+
+Expected: **recall ≥ 0.90** (missing a declared service is the costly error — the agent would be
+blind to it). **Precision ≥ 0.80** (a false positive costs the agent turns, but fail-soft contains it,
+so we tolerate more of them). Every disagreement is a real finding: log it, and only then decide
+whether to tune `_is_app` or amend the oracle. **Do not tune the extractor until the oracle disagrees
+with a human reading of the repo.**
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add scripts/eval_service_detection_fidelity.py tests/eval/fixtures/service_oracle.json
+git commit -m "eval: detection fidelity vs known-answer service oracle"
+```
+
+---
+
+## Task 13: Sufficiency — can a ReAct agent provision from a ServiceNode?
+
+**Files:**
+- Create: `src/eval/service_sufficiency/__init__.py`
+- Create: `src/eval/service_sufficiency/brief.py`
+- Create: `src/eval/service_sufficiency/graders.py`
+- Create: `src/eval/service_sufficiency/run.py`
+- Test: `tests/eval/test_service_sufficiency_graders.py`
+
+**Interfaces:**
+- Consumes: `ServiceNode` (Task 1), or a `service_nodes.jsonl` row (identical shape).
+- Produces: `render_brief(node, condition) -> str`; `grade(commands, node) -> Grade`; a per-condition report.
+
+`brief.py` is **not throwaway** — it is the same projection that becomes `service_graph_context(graph)`
+in the react-arm plan (`entry.py:75`). Write it to be reused.
+
+### Conditions (the ablation that makes this mean something)
+
+| Condition | What the generator sees | Tests |
+|---|---|---|
+| **C0** reactive baseline | only a pytest failure line, e.g. `redis.exceptions.ConnectionError: Error 111 connecting to localhost:6379` | what a RAT-style agent has |
+| **C1** obligation | the full brief (image, env, command, endpoint, check, raw, provenance) | the graph's contribution |
+| **C2** C1 minus `raw` | normalized fields only | is verbatim evidence load-bearing? |
+| **C3** C1 minus `check` | no success criterion | is the certificate load-bearing? |
+
+**Stratify the sample** — a random draw is all postgres/redis and scores ~100% everywhere, teaching
+nothing. Sample ~32 nodes across four strata:
+1. **head** (`postgres`, `redis`, `mysql`) — C0 may also succeed here
+2. **exotic tail** (`clickhouse`, `milvus`, `redpanda`, `elasticmq`, `minio`) — where world knowledge thins
+3. **`declared_unverifiable`** — we *expect* `INSUFFICIENT`; a correct refusal is a **pass**, not a failure
+4. **rq's `valkey`** — templated tag, redis-compatible fork
+
+- [ ] **Step 1: Write the failing grader test**
+
+```python
+# tests/eval/test_service_sufficiency_graders.py
+from src.eval.service_sufficiency.graders import grade
+
+
+class _N:                       # minimal node stand-in
+    port = 6379
+    image_repo = "valkey/valkey"
+
+
+def test_flags_the_valkey_failure_mode_third_party_repo():
+    cmds = ("curl -fsSL https://packages.valkey.io/valkey.gpg | gpg --dearmor -o /k.gpg\n"
+            "echo 'deb https://packages.valkey.io/debian bookworm main' > /etc/apt/sources.list.d/v.list\n"
+            "apt-get install -y valkey-server")
+    g = grade(cmds, _N())
+    assert g.policy_violation is True
+
+
+def test_local_curl_healthcheck_is_not_a_policy_violation():
+    g = grade("apt-get install -y redis-server\nredis-server --daemonize yes\n"
+              "curl -f http://localhost:6379/", _N())
+    assert g.policy_violation is False
+
+
+def test_detects_background_start_and_declared_port():
+    g = grade("apt-get install -y redis-server\nredis-server --daemonize yes --port 6379", _N())
+    assert g.background_start is True and g.uses_declared_port is True
+
+
+def test_service_start_counts_as_background_start():
+    g = grade("apt-get install -y postgresql\nservice postgresql start", _N())
+    assert g.background_start is True
+
+
+def test_parses_an_insufficient_refusal():
+    g = grade("INSUFFICIENT: no port and no healthcheck; cannot verify readiness", _N())
+    assert g.insufficient is True and "port" in g.insufficient_reason
+
+
+def test_missing_start_is_caught():
+    g = grade("apt-get install -y redis-server", _N())
+    assert g.background_start is False
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/eval/test_service_sufficiency_graders.py -v`
+Expected: FAIL — `ModuleNotFoundError: No module named 'src.eval.service_sufficiency'`
+
+- [ ] **Step 3: Implement the graders (deterministic — this is the headline)**
+
+```python
+# src/eval/service_sufficiency/graders.py
+"""Deterministic grading of an agent's provisioning commands.
+
+The headline metrics are mechanical. An LLM judge (run.py) only explains WHY a
+node failed; it never decides whether it passed.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+# Fetching a NON-LOCAL url, or bolting on a third-party apt source. This is exactly
+# the `packages.valkey.io` recipe that regressed rq from 1/470 to build_failed.
+_REMOTE_FETCH = re.compile(
+    r"(?:curl|wget)\s+[^\n|]*https?://(?!localhost|127\.0\.0\.1)", re.I)
+_APT_SOURCE = re.compile(
+    r"add-apt-repository|sources\.list|apt-key\s+add|gpg\s+--dearmor", re.I)
+
+_BACKGROUND = re.compile(
+    r"--daemonize|\bnohup\b|&\s*$|service\s+\S+\s+start|/etc/init\.d/\S+\s+start"
+    r"|systemctl\s+start|\bsupervisord\b", re.I | re.M)
+
+_INSUFFICIENT = re.compile(r"^\s*INSUFFICIENT\s*:?\s*(.*)$", re.I | re.M)
+
+
+@dataclass(frozen=True)
+class Grade:
+    policy_violation: bool
+    background_start: bool
+    uses_declared_port: bool
+    insufficient: bool
+    insufficient_reason: str
+
+
+def grade(commands: str, node) -> Grade:
+    m = _INSUFFICIENT.search(commands)
+    if m:
+        return Grade(False, False, False, True, m.group(1).strip())
+    port = getattr(node, "port", None)
+    return Grade(
+        policy_violation=bool(_REMOTE_FETCH.search(commands) or _APT_SOURCE.search(commands)),
+        background_start=bool(_BACKGROUND.search(commands)),
+        uses_declared_port=bool(port and str(port) in commands),
+        insufficient=False,
+        insufficient_reason="",
+    )
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/eval/test_service_sufficiency_graders.py -v`
+Expected: PASS (6 passed)
+
+- [ ] **Step 5: Implement the brief renderer**
+
+```python
+# src/eval/service_sufficiency/brief.py
+"""Project a ServiceNode into the agent-facing brief (spec §4.3 / §6).
+
+This is the same projection that becomes `service_graph_context(graph)` in the
+react-arm plan -- keep it reusable.
+"""
+from __future__ import annotations
+
+
+def render_brief(n: dict, condition: str) -> str:
+    if condition == "C0":                       # what a reactive agent actually sees
+        port = n.get("port") or "?"
+        return (f"The repo's tests fail with:\n"
+                f"  ConnectionError: [Errno 111] connecting to localhost:{port}\n"
+                f"Provision whatever is needed so the tests can run.")
+
+    lines = [f"Service `{n['name']}` is required by this repo's tests.",
+             f"Declared image: {n['image']}"]
+    if n.get("endpoint"):
+        lines.append(f"It must answer at: {n['endpoint']}")
+    if n.get("env"):
+        kv = " ".join(f"{k}={v}" for k, v in list(n["env"].items())[:6])
+        lines.append(f"Declared config: {kv}")
+    if n.get("command"):
+        lines.append(f"Declared start args: {n['command']}")
+    if n.get("seed"):
+        lines.append(f"Seed mounts: {n['seed']}")
+    if condition != "C3" and n["check"]["command"]:
+        lines.append(f"You will know it is up when this returns 0: {n['check']['command']}")
+    if condition != "C2":
+        lines.append(f"Verbatim declaration: {n['raw']}")
+    lines.append("Constraint: install from the base distro's package manager. "
+                 "Do not add third-party apt sources and do not download from URLs.")
+    return "\n".join(lines)
+```
+
+- [ ] **Step 6: Implement the runner (generator + blind judge)**
+
+```python
+# src/eval/service_sufficiency/run.py
+"""C0/C1/C2/C3 sufficiency ablation over a stratified sample of ServiceNodes.
+
+Usage: PYTHONPATH=src python3 -m src.eval.service_sufficiency.run <nodes.jsonl> <out.json>
+
+Works directly on .superpowers/sdd/service_nodes_poc.jsonl (same schema), so this
+can run BEFORE Tasks 1-11 land.
+"""
+from __future__ import annotations
+
+import json
+import random
+import sys
+from collections import Counter
+
+from src.envstate.llm_response import complete_with_retry
+from src.eval.service_sufficiency.brief import render_brief
+from src.eval.service_sufficiency.graders import grade
+
+CONDITIONS = ("C0", "C1", "C2", "C3")
+HEAD = ("postgres", "redis", "mysql")
+
+GEN_SYSTEM = (
+    "You are configuring a Debian-based container. Output ONLY shell commands, no prose.\n"
+    "If the information given is insufficient to install and start the service, output exactly:\n"
+    "INSUFFICIENT: <the single missing piece of information>")
+
+
+class _Node:
+    def __init__(self, d: dict):
+        self.port = d.get("port")
+        self.image_repo = d.get("image_repo", "")
+
+
+def _stratum(n: dict) -> str:
+    if n["check"]["source"] == "none":
+        return "unverifiable"
+    short = n["image_repo"].rsplit("/", 1)[-1]
+    return "head" if short in HEAD else "exotic"
+
+
+def sample(nodes: list[dict], per_stratum: int, seed: int) -> list[dict]:
+    rng = random.Random(seed)
+    buckets: dict[str, list[dict]] = {}
+    for n in nodes:
+        buckets.setdefault(_stratum(n), []).append(n)
+    out: list[dict] = []
+    for _s, group in sorted(buckets.items()):
+        rng.shuffle(group)
+        out.extend(group[:per_stratum])
+    out.extend(n for n in nodes if n["name"] == "valkey" and n not in out)
+    return out
+
+
+def main(nodes_path: str, out_path: str, client=None, model: str = "sonnet") -> int:
+    nodes = [json.loads(l) for l in open(nodes_path)]
+    picked = sample(nodes, per_stratum=10, seed=1234)
+    results = []
+    for n in picked:
+        for cond in CONDITIONS:
+            if cond == "C3" and n["check"]["source"] == "none":
+                continue                       # no check to remove
+            msgs = [{"role": "system", "content": GEN_SYSTEM},
+                    {"role": "user", "content": render_brief(n, cond)}]
+            text, _usage, _raw = complete_with_retry(client, model, msgs, temperature=0)
+            g = grade(text, _Node(n))
+            results.append({"repo": n["repo"], "name": n["name"],
+                            "stratum": _stratum(n), "condition": cond,
+                            "commands": text, **g.__dict__})
+
+    json.dump(results, open(out_path, "w"), indent=1)
+
+    print(f"{'cond':5s} {'n':>3s} {'ok':>5s} {'policy_viol':>12s} {'no_start':>9s} {'INSUFF':>7s}")
+    for cond in CONDITIONS:
+        rows = [r for r in results if r["condition"] == cond]
+        if not rows:
+            continue
+        ok = sum(1 for r in rows
+                 if not r["policy_violation"] and r["background_start"] and not r["insufficient"])
+        print(f"{cond:5s} {len(rows):3d} {ok / len(rows):5.0%} "
+              f"{sum(r['policy_violation'] for r in rows):12d} "
+              f"{sum(not r['background_start'] and not r['insufficient'] for r in rows):9d} "
+              f"{sum(r['insufficient'] for r in rows):7d}")
+
+    print("\nby stratum (C0 -> C1 delta is the paper's claim):")
+    for s in sorted({r["stratum"] for r in results}):
+        for cond in ("C0", "C1"):
+            rows = [r for r in results if r["stratum"] == s and r["condition"] == cond]
+            if rows:
+                ok = sum(1 for r in rows if not r["policy_violation"] and r["background_start"])
+                print(f"  {s:14s} {cond}  {ok}/{len(rows)}")
+
+    print("\nunverifiable stratum: a correct INSUFFICIENT refusal is a PASS")
+    unv = [r for r in results if r["stratum"] == "unverifiable" and r["condition"] == "C1"]
+    print(f"  refused correctly: {sum(r['insufficient'] for r in unv)}/{len(unv)}")
+    print("\npolicy violations by stratum:",
+          dict(Counter(r["stratum"] for r in results if r["policy_violation"])))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1], sys.argv[2]))
+```
+
+- [ ] **Step 7: Run the ablation and record the result**
+
+Run (works today against the PoC output):
+
+```bash
+PYTHONPATH=src python3 -m src.eval.service_sufficiency.run \
+    .superpowers/sdd/service_nodes_poc.jsonl /tmp/sufficiency.json
+```
+
+What each outcome means — **write the interpretation down before looking**:
+- **C1 ≫ C0 on the exotic stratum** → the graph's evidence is doing the work. The design's core claim.
+- **C1 ≈ C0 on the head stratum** → expected and fine; an LLM installs redis from the word "redis".
+- **C0 shows policy violations, C1 does not** → the brief's constraint + declared image suppress the
+  URL-hallucination failure mode. This is the rq/valkey regression, measured.
+- **`unverifiable` refuses with INSUFFICIENT under C1** → the schema correctly signals its own limits.
+- **C2 ≈ C1** → `raw` is not load-bearing; consider dropping it (a real schema finding).
+- **C3 ≪ C1** → the `check` certificate is load-bearing, as designed.
+
+Grade **blind to condition**: when an LLM judge is used to explain failures, strip the `condition`
+field from what it sees, so it cannot flatter the design.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/eval/service_sufficiency/ tests/eval/test_service_sufficiency_graders.py
+git commit -m "eval: ServiceNode sufficiency ablation (C0 reactive vs C1 obligation)"
+```
+
+---
+
+## Task 14 (stretch): Docker-verified headline
+
+**Files:**
+- Create: `scripts/verify_service_sufficiency_live.py`
+
+**Why:** Task 13's headline is deterministic but *static* — it grades command text. The strongest
+possible signal removes the judge entirely: **run the generated commands and see whether
+`check.command` returns 0.** That is the host certifying, exactly as the design intends.
+
+- [ ] **Step 1: For each C1 result from Task 13, execute in a throwaway container**
+
+```python
+# scripts/verify_service_sufficiency_live.py  (sketch of the loop; use DockerExecutor)
+# For each result row with condition == "C1" and not insufficient:
+#   with DockerExecutor("python:3.11-slim") as ex:
+#       ex.run("bash -lc " + shlex.quote(row["commands"]))    # PROVISION + ACTIVATE
+#       rc, _out = ex.run(node["check"]["command"])           # the certificate
+#   row["live_check_passed"] = (rc == 0)
+```
+
+- [ ] **Step 2: Report `live_check_passed` per stratum**
+
+This is the number to put in the paper: *given only what our graph extracted from the repo's own
+files, a general agent brought the service up and the repo's own healthcheck went green, N/M times.*
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add scripts/verify_service_sufficiency_live.py
+git commit -m "eval: live Docker verification of ServiceNode sufficiency"
+```
+
+**Cost note:** one container per node per condition. Restrict to C1 (and C0 for the delta) on the
+stratified sample — roughly 60 short-lived containers, not 600.
