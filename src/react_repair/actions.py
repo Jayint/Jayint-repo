@@ -5,13 +5,27 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from python_deps.depgraph.patch_gate import is_read_only
+
 # Any fenced bash/sh (or unlabeled) block IS the replacement script. We match the fence
 # itself, not a `Script:` label, so the patch parses regardless of how the model announces it
 # — `Script:`, markdown `**Script:**`, `### Script`, or no label at all. (A ```python block
 # won't match, so an explore Action isn't hijacked by an incidental code snippet.)
 _SCRIPT_BLOCK = re.compile(r"```(?:bash|sh)?[ \t]*\r?\n(.*?)```", re.DOTALL)
 _ACTION_LINE = re.compile(r"^Action:\s*(.+)$", re.MULTILINE)
+_ACTION_PREFIX = re.compile(r"^Action:\s*", re.IGNORECASE)
 _THOUGHT = re.compile(r"Thought:\s*(.+?)(?=\n(?:Action|Script):|$)", re.DOTALL)
+
+# First tokens that are pure read-only INVESTIGATION. A fenced block that is JUST one of these is a
+# mis-wrapped explore probe, not a build script (which installs/builds something). Conservative —
+# extend as real transcripts surface new probes. `echo`/`printf`/`true` are deliberately EXCLUDED:
+# they can be trivial script statements, and a lone script is still a (degenerate) patch, not a probe.
+_READ_PROBE_CMDS = frozenset({
+    "cat", "ls", "find", "grep", "egrep", "fgrep", "head", "tail", "ldconfig", "ldd", "nm",
+    "stat", "file", "which", "type", "readlink", "realpath", "dirname", "basename", "wc",
+    "dpkg", "apt-cache", "pip", "pip3", "python", "python3", "env", "printenv", "du", "df",
+    "objdump", "sed", "awk", "test", "pkg-config", "sha256sum", "md5sum",
+})
 
 
 @dataclass(frozen=True)
@@ -21,11 +35,43 @@ class Action:
     new_script: str | None = None   # patch
 
 
+def _single_meaningful_line(body: str) -> str | None:
+    """The lone non-blank, non-comment line of *body*, or None if there are zero or several."""
+    lines = [ln.strip() for ln in body.splitlines()
+             if ln.strip() and not ln.strip().startswith("#")]
+    return lines[0] if len(lines) == 1 else None
+
+
+def _explore_from_script_block(body: str) -> str | None:
+    """Recover the explore a model MEANT when it wrapped a read-only probe in a ```bash fence
+    (Bug B). Accepting such a block as a patch replaces the whole setup.sh with a non-installing
+    one-liner (observed on MiniMax: `Action: cat pyproject.toml`, then a bare `find … | head`), so
+    the build 'succeeds' while installing nothing. Two conservative triggers, single-line blocks only:
+      • the line is an `Action:` directive — unambiguous; no genuine setup.sh line starts with Action:
+        (a non-read-only recovered command is still rejected downstream by the loop's is_read_only gate);
+      • the line is a bare read-only INVESTIGATION command (first token in _READ_PROBE_CMDS).
+    A single-line INSTALL (`pip install …`) is not read-only, so it correctly stays a patch."""
+    line = _single_meaningful_line(body)
+    if line is None:
+        return None
+    if _ACTION_PREFIX.match(line):
+        return _ACTION_PREFIX.sub("", line).strip() or None
+    first = line.split()[0] if line.split() else ""
+    if first in _READ_PROBE_CMDS and is_read_only(line):
+        return line
+    return None
+
+
 def parse_action(text: str) -> Action:
     t = text or ""
-    m = _SCRIPT_BLOCK.search(t)             # patch wins if both are present
+    m = _SCRIPT_BLOCK.search(t)             # a fenced block is normally the whole replacement script
     if m:
-        return Action("patch", new_script=m.group(1).strip() + "\n")
+        body = m.group(1).strip()
+        recovered = _explore_from_script_block(body)
+        if recovered is not None:           # a mis-wrapped read-only probe → the explore it meant
+            return Action("explore", command=recovered)
+        if body:                            # a real (non-empty) build script → the patch
+            return Action("patch", new_script=body + "\n")
     m = _ACTION_LINE.search(t)
     if m:
         return Action("explore", command=m.group(1).strip())

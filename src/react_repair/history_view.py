@@ -117,6 +117,19 @@ _PAT_PATCH = re.compile(r"^patch v(\d+)(?: \((.*)\))? → (.+)$")
 _PAT_BASE = re.compile(r"^baseline → (.+)$")
 _PAT_EXPLORE = re.compile(r"^explore: (.+)$")
 
+# An explore's value is the FACT it surfaced, not just that it ran. Carry a compact, hard-capped
+# digest of its output forward (the knowledge ledger) so the agent doesn't re-probe or reason
+# blind — without dumping a file/listing into the prompt.
+_EXPLORE_FINDING_CAP = 200
+
+
+def _explore_finding(obs: str | None) -> str:
+    """Whitespace-flattened, hard-capped head of an explore's output ("" when it produced none)."""
+    if not obs:
+        return ""
+    flat = " ".join(obs.split())
+    return flat if len(flat) <= _EXPLORE_FINDING_CAP else flat[:_EXPLORE_FINDING_CAP].rstrip() + " …"
+
 
 def render_history(steps) -> str:
     if not steps:
@@ -138,7 +151,8 @@ def render_history(steps) -> str:
 
         me = _PAT_EXPLORE.match(summ)
         if me:
-            lines.append(f"      explore: {me.group(1)}")
+            finding = _explore_finding(st.observation_raw)
+            lines.append(f"      explored `{me.group(1)}`" + (f" → {finding}" if finding else ""))
             continue
 
         mb = _PAT_BASE.match(summ)

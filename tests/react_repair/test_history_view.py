@@ -130,7 +130,31 @@ def test_render_explore_nests_without_changing_blocker():
              _patch(1, "+apt-get install -y libxml2-dev", "6/6", _PASS)]
     out = render_history(steps)
     assert out.count("BLOCKER:") == 1
-    assert "explore: apt-cache search libxml2" in out
+    assert "apt-cache search libxml2" in out                 # command still shown (do-not-retry)
+
+def test_render_explore_carries_compact_finding():
+    # The explore's OUTPUT (not just the command) is the point of exploring — carry it forward as a
+    # compact fact so the agent doesn't re-probe or reason blind (knowledge ledger).
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("cat pyproject.toml", "[build-system]\nrequires = ['hatchling']")]
+    out = render_history(steps)
+    assert "explored `cat pyproject.toml`" in out
+    assert "hatchling" in out                                # finding surfaced, not dropped
+
+def test_render_explore_finding_is_capped():
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("find /app", "x" * 5000)]
+    out = render_history(steps)
+    explore_line = [ln for ln in out.splitlines() if "explored" in ln][0]
+    assert len(explore_line) < 300                           # hard-capped, no file dump into the prompt
+    assert "…" in explore_line
+
+def test_render_explore_no_output_shows_command_only():
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _explore("ls /app", "")]
+    out = render_history(steps)
+    assert "explored `ls /app`" in out
+    assert "→" not in [ln for ln in out.splitlines() if "explored" in ln][0]
 
 def test_render_empty_is_safe():
     assert isinstance(render_history([]), str)

@@ -42,5 +42,38 @@ def test_python_fence_does_not_hijack_explore():
     a = parse_action("Action: ls\n```python\nprint('hi')\n```")
     assert a.kind == "explore" and a.command == "ls"
 
+def test_wrapped_action_in_fence_recovered_as_explore():
+    # Bug B: MiniMax wrapped a read-only probe in a ```bash fence. Accepting it as a patch would
+    # replace the whole setup.sh with `Action: cat …` (a non-bash line) → build corruption.
+    a = parse_action("Thought: inspect deps\n```bash\nAction: cat /app/pyproject.toml\n```")
+    assert a.kind == "explore" and a.command == "cat /app/pyproject.toml"
+
+def test_bare_readonly_probe_in_fence_recovered_as_explore():
+    # The degenerate follow-on shape: a lone read-only investigation command in a fence.
+    a = parse_action("```bash\nfind /app -maxdepth 3 -name 'pyproject.toml' | head -30\n```")
+    assert a.kind == "explore" and a.command.startswith("find /app")
+
+def test_shebang_then_action_in_fence_is_explore():
+    # A shebang is a comment line; the single meaningful line is still the Action directive.
+    a = parse_action("```bash\n#!/usr/bin/env bash\nAction: ls /app\n```")
+    assert a.kind == "explore" and a.command == "ls /app"
+
+def test_single_line_install_stays_patch():
+    # A one-line INSTALL is a genuine (if minimal) build change — not read-only, stays a patch.
+    a = parse_action("```bash\npip install six\n```")
+    assert a.kind == "patch" and "pip install six" in a.new_script
+
+def test_echo_oneliner_stays_patch():
+    # `echo` is read-only but NOT an investigation probe — a lone script statement stays a patch
+    # (guards the probe allowlist against over-catching; preserves patch-wins semantics).
+    a = parse_action("```bash\necho hi\n```")
+    assert a.kind == "patch" and "echo hi" in a.new_script
+
+def test_multiline_probe_block_stays_patch():
+    # Only SINGLE-line blocks are recovered; a multi-line block is a real script even if it opens
+    # with a read-only line (conservative — don't second-guess genuine scripts).
+    a = parse_action("```bash\ncat /app/pyproject.toml\npip install -e .\n```")
+    assert a.kind == "patch"
+
 def test_extract_thought():
     assert extract_thought("Thought: the header is missing\nAction: ls") == "the header is missing"
