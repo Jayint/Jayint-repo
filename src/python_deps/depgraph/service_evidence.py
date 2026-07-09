@@ -76,3 +76,9 @@ class ServiceNode:
 
     state: State
     unresolved: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        # Defensive shallow copy: a node must never alias a caller's dict, or a
+        # later mutation would corrupt already-built evidence during fusion.
+        object.__setattr__(self, "env", dict(self.env))
+        object.__setattr__(self, "raw", dict(self.raw))
