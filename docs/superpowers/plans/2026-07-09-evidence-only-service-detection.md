@@ -538,7 +538,7 @@ git commit -m "feat(depgraph): evidence field parsers; templated tag degrades fi
 
 **Interfaces:**
 - Consumes: `Port` (Task 1), `parse_ports`/`parse_expose` (Task 2).
-- Produces: `derive_port(ports, expose, env, name, sibling_env_blob) -> tuple[int | None, PortSource]`.
+- Produces: `derive_port(ports, expose, env, name, sibling_values) -> tuple[int | None, PortSource]`, where `sibling_values: tuple[str, ...]`.
 
 **Why:** `Spoolman/db` (`postgres:11-alpine`) declares no `ports:` and no healthcheck — but the app declares `DATABASE_URL=...@db:5432/...`. The port is evidence; it just lives in a *sibling*. This rung rescued 9 services in the PoC.
 
@@ -551,33 +551,79 @@ from python_deps.depgraph.service_parse import derive_port
 
 
 def test_port_ladder_prefers_declared_ports():
-    got = derive_port((Port(5432, 5432),), (6379,), {"URL": "x://h:1234"}, "db", "")
+    got = derive_port((Port(5432, 5432),), (6379,), {"URL": "x://h:1234"}, "db", ())
     assert got == (5432, "ports")
 
 
 def test_port_ladder_falls_back_to_expose():
-    assert derive_port((), (6379,), {}, "cache", "") == (6379, "expose")
+    assert derive_port((), (6379,), {}, "cache", ()) == (6379, "expose")
+
+
+def test_expose_beats_own_env_dsn():
+    """Pins the MIDDLE of the ladder, not just its ends."""
+    env = {"DATABASE_URL": "postgres://u:p@db:5432/app"}
+    assert derive_port((), (6379,), env, "db", ()) == (6379, "expose")
 
 
 def test_port_ladder_falls_back_to_own_env_dsn():
     env = {"DATABASE_URL": "postgres://u:p@db:5432/app"}
-    assert derive_port((), (), env, "db", "") == (5432, "env_dsn")
+    assert derive_port((), (), env, "db", ()) == (5432, "env_dsn")
 
 
-def test_port_ladder_rescues_from_sibling_dsn():
-    # `db` declares nothing; the APP declares the DSN naming `db:5432`.
-    blob = "postgres://u:p@db:5432/app redis://cache:6379/0"
-    assert derive_port((), (), {}, "db", blob) == (5432, "sibling_dsn")
-    assert derive_port((), (), {}, "cache", blob) == (6379, "sibling_dsn")
+def test_own_env_dsn_beats_sibling_dsn():
+    """Pins the MIDDLE of the ladder: own evidence wins over a sibling's."""
+    env = {"URL": "postgres://u:p@db:5432/app"}
+    siblings = ("postgres://u:p@db:9999/app",)
+    assert derive_port((), (), env, "db", siblings) == (5432, "env_dsn")
+
+
+def test_port_ladder_rescues_from_sibling_url_dsn():
+    # `db` declares nothing; the APP declares the DSN naming host `db`.
+    siblings = ("postgres://u:p@db:5432/app", "redis://cache:6379/0")
+    assert derive_port((), (), {}, "db", siblings) == (5432, "sibling_dsn")
+    assert derive_port((), (), {}, "cache", siblings) == (6379, "sibling_dsn")
+
+
+def test_port_ladder_rescues_from_sibling_bare_token():
+    """8 of the PoC's 9 real rescues are bare `host:port` tokens, not URLs:
+    KAFKA_HOSTS=kafka:9092, TEMPORAL_ADDRESS=temporal:7233, MEMCACHE_LOCATION=memcached:11211.
+    The regex rung must survive."""
+    assert derive_port((), (), {}, "kafka", ("kafka:9092",)) == (9092, "sibling_dsn")
+    assert derive_port((), (), {}, "redis", ("local:redis:6379",)) == (6379, "sibling_dsn")
+
+
+def test_sibling_url_must_match_the_HOST_not_the_userinfo():
+    """THE CRITICAL CASE. In `postgres://db:5432@other/app`, `db` is the USERNAME and
+    `5432` the PASSWORD; the real host is `other`. A bare `\bdb:5432\b` regex wrongly
+    rescues 5432 for service `db`. A value containing `://` MUST be decided by urlparse."""
+    assert derive_port((), (), {}, "db", ("postgres://db:5432@other/app",)) == (None, "none")
+
+
+def test_sibling_url_attributes_the_port_to_the_real_host():
+    siblings = ("postgres://db:5432@other:6543/app",)
+    assert derive_port((), (), {}, "other", siblings) == (6543, "sibling_dsn")
+    assert derive_port((), (), {}, "db", siblings) == (None, "none")
 
 
 def test_sibling_rescue_requires_a_name_boundary():
     # must not match "mydb:5432" when looking for service "db"
-    assert derive_port((), (), {}, "db", "postgres://u@mydb:5432/x") == (None, "none")
+    assert derive_port((), (), {}, "db", ("mydb:5432",)) == (None, "none")
+
+
+def test_sibling_url_with_no_port_yields_nothing():
+    assert derive_port((), (), {}, "db", ("postgres://u:p@db/app",)) == (None, "none")
+
+
+def test_sibling_url_with_templated_port_does_not_raise():
+    assert derive_port((), (), {}, "db", ("redis://db:$PORT",)) == (None, "none")
+
+
+def test_sibling_url_with_templated_host_does_not_raise():
+    assert derive_port((), (), {}, "db", ("redis://$HOST:6379",)) == (None, "none")
 
 
 def test_port_ladder_gives_up_cleanly():
-    assert derive_port((), (), {}, "svc", "") == (None, "none")
+    assert derive_port((), (), {}, "svc", ()) == (None, "none")
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -593,22 +639,58 @@ import re
 
 from python_deps.depgraph.service_evidence import PortSource
 
-_DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")
+_DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")   # own-env rung (host position)
 
 
-def _rescue_from_siblings(name: str, sibling_env_blob: str) -> int | None:
+def _url_port_for_host(value: str, name: str) -> int | None:
+    """A value containing `://` is a URL: its host field is authoritative.
+
+    `postgres://db:5432@other/app` has USERNAME `db`, PASSWORD `5432`, HOST `other`.
+    A bare token regex misreads that as "db is on 5432". urlparse cannot.
+    """
+    try:
+        parsed = urlparse(value)
+        host, port = parsed.hostname, parsed.port
+    except ValueError:                     # templated port, e.g. `redis://db:$PORT`
+        return None
+    if host is None:                       # malformed: fall through to the token rung
+        return None
+    return port if host == name else None
+
+
+def _rescue_from_siblings(name: str, sibling_values: tuple[str, ...]) -> int | None:
     """`db` declares no ports, but the app declares `DATABASE_URL=...@db:5432/x`.
     The port is still evidence — it just lives in a sibling service's env.
 
-    The `\\b` boundaries stop "db" from matching inside "mydb:5432".
+    Two rungs, because real repos use both forms (measured on the 50-repo corpus):
+      * URL values (`postgres://u:p@db:5432/app`) — decided by urlparse HOST equality.
+      * bare tokens (`KAFKA_HOSTS=kafka:9092`) — 8 of the PoC's 9 rescues. `\b` bounds
+        stop `db` matching inside `mydb:5432`.
+    A `://` value is NEVER handed to the regex unless urlparse found no host at all.
     """
-    m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", sibling_env_blob)
-    return int(m.group(1)) if m else None
+    for value in sibling_values:
+        if "://" in value:
+            if (parsed := urlparse(value)).scheme and _has_host(parsed):
+                port = _url_port_for_host(value, name)
+                if port:
+                    return port
+                continue                   # host known and != name: do NOT regex it
+        m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", value)
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def _has_host(parsed) -> bool:
+    try:
+        return parsed.hostname is not None
+    except ValueError:
+        return False
 
 
 def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
                 env: dict[str, str], name: str,
-                sibling_env_blob: str) -> tuple[int | None, PortSource]:
+                sibling_values: tuple[str, ...]) -> tuple[int | None, PortSource]:
     """ports: -> expose: -> own-env DSN -> sibling-env DSN -> unknown. Evidence-only."""
     for p in ports:
         if p.container:
@@ -619,7 +701,7 @@ def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
         m = _DSN_PORT.search(v)
         if m:
             return int(m.group(1)), "env_dsn"
-    rescued = _rescue_from_siblings(name, sibling_env_blob)
+    rescued = _rescue_from_siblings(name, sibling_values)
     if rescued:
         return rescued, "sibling_dsn"
     return None, "none"
@@ -837,9 +919,9 @@ git commit -m "feat(depgraph): check ladder — declared healthcheck, TCP fallba
 - Test: `tests/depgraph/test_service_sources.py`
 
 **Interfaces:**
-- Produces: `RawDeclaration` (frozen dataclass: `name: str`, `entry: dict`, `file: str`, `locator: str`, `kind: str`, `doc_env_blob: str`); `ServiceEvidenceSource` Protocol with `discover(repo: str) -> Iterator[RawDeclaration]`; `ComposeSource`, `GithubActionsSource`; `DEFAULT_SOURCES: tuple[ServiceEvidenceSource, ...]`; `discover_all(repo, sources=DEFAULT_SOURCES) -> list[RawDeclaration]`.
+- Produces: `RawDeclaration` (frozen dataclass: `name: str`, `entry: dict`, `file: str`, `locator: str`, `kind: str`, `doc_env_values: tuple[str, ...]`); `ServiceEvidenceSource` Protocol with `discover(repo: str) -> Iterator[RawDeclaration]`; `ComposeSource`, `GithubActionsSource`; `DEFAULT_SOURCES: tuple[ServiceEvidenceSource, ...]`; `discover_all(repo, sources=DEFAULT_SOURCES) -> list[RawDeclaration]`.
 
-`doc_env_blob` is the concatenation of *all* env values in the same compose document — the input to the sibling-DSN rung. CI declarations carry `""`.
+`doc_env_values` is the tuple of *all* env values declared in the same compose document — the input to the sibling-DSN rung. It is a **tuple of individual values, not a concatenated blob**: Task 3's rescue must `urlparse` each value on its own to check its hostname, which a blob makes impossible. CI declarations carry `()`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -875,7 +957,8 @@ def test_compose_source_yields_each_service_with_locator_and_blob(tmp_path):
     assert db.kind == "compose"
     assert db.locator == "services.db"
     assert db.file == "docker-compose.yml"
-    assert "db:5432" in db.doc_env_blob            # sibling evidence is carried along
+    assert any("db:5432" in v for v in db.doc_env_values)   # sibling evidence carried along
+    assert isinstance(db.doc_env_values, tuple)             # values, not a blob
 
 
 def test_ci_source_reads_jobs_services_and_requires_an_image(tmp_path):
@@ -893,7 +976,7 @@ def test_ci_source_reads_jobs_services_and_requires_an_image(tmp_path):
     assert [d.name for d in decls] == ["valkey"]
     assert decls[0].kind == "ci"
     assert decls[0].locator == "jobs.test.services.valkey"
-    assert decls[0].doc_env_blob == ""
+    assert decls[0].doc_env_values == ()
 
 
 def test_sources_never_raise_on_malformed_yaml(tmp_path):
@@ -944,7 +1027,8 @@ class RawDeclaration:
     file: str            # repo-relative
     locator: str
     kind: str            # "compose" | "ci"
-    doc_env_blob: str    # all env values in the same document (sibling-DSN input)
+    doc_env_values: tuple[str, ...]   # each env value in the same document, separately
+                                     # (sibling-DSN input; NOT joined — Task 3 urlparses each)
 
 
 class ServiceEvidenceSource(Protocol):
@@ -1431,12 +1515,12 @@ def _fuse(name: str, decls: list[RawDeclaration], owner: str,
         entrypoint = entrypoint or parse_entrypoint(d.entry)
         volumes = volumes or parse_volumes(d.entry)
         depends_on = depends_on or parse_depends_on(d.entry)
-        blob = blob or d.doc_env_blob
+        sibling_values = sibling_values or d.doc_env_values
         if hc_cmd is None:
             hc_cmd, timing = _healthcheck(d)
 
     unresolved += [f"env.{k}" for k, v in env.items() if "$" in v]
-    port, port_source = derive_port(ports, expose, env, name, blob)
+    port, port_source = derive_port(ports, expose, env, name, sibling_values)
     check: Check = derive_check(hc_cmd, timing, port)
 
     return ServiceNode(
@@ -2505,7 +2589,10 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "src"))
 
 from evals.service_config_detection.provision_corpus import PROVISION_CASES  # noqa: E402
-from python_deps.depgraph.service_parse import parse_image, derive_check, derive_port  # noqa: E402
+from python_deps.depgraph.service_parse import (  # noqa: E402
+    compose_healthcheck, derive_check, derive_port, parse_env, parse_expose,
+    parse_image, parse_ports,
+)
 
 
 @pytest.mark.parametrize("case", PROVISION_CASES, ids=lambda c: c.name)
@@ -2522,8 +2609,12 @@ def test_every_declared_service_is_admitted(case):
 def test_check_ladder_never_raises_and_records_its_rung(case):
     entry = yaml.safe_load(case.compose_entry)
     entry = entry if isinstance(entry, dict) else {}
-    port, port_source = derive_port(entry, siblings={})
-    check = derive_check(entry, port)
+    ports = parse_ports(entry)
+    expose = parse_expose(entry)
+    env = parse_env(entry)
+    port, port_source = derive_port(ports, expose, env, case.name, ())
+    hc_cmd, timing = compose_healthcheck(entry)
+    check = derive_check(hc_cmd, timing, port)
     assert check.source in ("declared_healthcheck", "tcp_port", "none")
     assert port_source in ("ports", "expose", "env_dsn", "sibling_dsn", "none")
     if check.source == "none":
