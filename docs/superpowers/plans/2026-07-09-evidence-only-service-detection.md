@@ -1613,10 +1613,15 @@ def test_no_healthcheck_and_no_port_is_admitted_but_unverifiable(tmp_path):
 
 
 def test_sibling_dsn_rescues_the_port(tmp_path):
+    # `web` carries `build:` so CLASSIFY rule 1 drops it, exactly as Spoolman declares it.
+    # Its env still feeds `doc_env_values`, which is per-DOCUMENT, so `db` is still rescued.
+    # (A bare `image: myapp:1` app with no port and no healthcheck would be SURFACED as a
+    # backing service under `owner=""` — the documented limit of evidence-only CLASSIFY,
+    # not something a fourth rule should paper over.)
     _write(tmp_path, "docker-compose.yml", """
         services:
           web:
-            image: myapp:1
+            build: .
             environment: {DATABASE_URL: "postgres://u:p@db:5432/app"}
           db:
             image: postgres:16
