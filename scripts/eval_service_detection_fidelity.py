@@ -1,82 +1,80 @@
 """Precision/recall of evidence-only service detection vs the known-answer oracle.
 
+Recall is pooled over every repo. Precision is pooled over `complete` repos ONLY: a repo whose
+catalog list is a known-true subset cannot tell us that an extra detection is wrong.
+
 Usage:  PYTHONPATH=src python3 scripts/eval_service_detection_fidelity.py <repos_root> <oracle.json>
-
-The oracle (``tests/eval/fixtures/service_oracle.json``) is a human reading of the
-real repos; it is ground truth and is never derived from the detector. This script
-runs ``build_service_nodes`` over each repo and scores the detected service-name set
-against the oracle's, pooled across repos.
-
-``score`` is factored out of ``main`` so the arithmetic can be unit-tested without the
-real corpus (which lives on the VM): see ``tests/eval/test_service_detection_fidelity.py``.
 """
 from __future__ import annotations
 
 import json
 import os
 import sys
-from typing import NamedTuple
 
 from python_deps.depgraph.service_construct import build_service_nodes
 
-# Acceptance thresholds for the real run. Asymmetric on purpose: a missed backing
-# service blinds the agent (recall is the costly axis); a false positive only spends
-# turns and is contained by fail-soft, so precision is allowed more slack.
-RECALL_FLOOR = 0.90
-PRECISION_FLOOR = 0.80
 
-
-class Fidelity(NamedTuple):
-    """Pooled scoring result plus the per-repo disagreements for logging."""
-    precision: float
-    recall: float
-    f1: float
-    tp: int
-    fp: int
-    fn: int
-    rows: list[tuple[str, list[str], list[str]]]   # (repo, extra, missing)
-
-
-def score(root: str, oracle: dict[str, list[str]]) -> Fidelity:
-    """Pool tp/fp/fn of detected service names vs the oracle over every repo.
-
-    A missing checkout raises ``SystemExit`` rather than scoring as "detected
-    nothing": an empty detection for an absent directory is indistinguishable from a
-    catastrophic recall failure and would silently fake a bad number. The repos live
-    on the VM; a layout mistake is the likely cause.
-    """
+def score(detected: dict[str, set[str]], oracle: dict[str, dict]) -> dict:
     tp = fp = fn = 0
-    rows: list[tuple[str, list[str], list[str]]] = []
-    for full, expected in sorted(oracle.items()):
-        owner, repo = full.split("/", 1)
-        rd = os.path.join(root, owner, repo)
-        if not os.path.isdir(rd):
-            raise SystemExit(f"repo not found: {rd}\n"
-                             f"  (expected <repos_root>/<owner>/<repo>; check --root)")
-        got = {n.name for n in build_service_nodes(rd, owner=owner)}
-        exp = set(expected)
-        t, f, m = len(got & exp), len(got - exp), len(exp - got)
-        tp, fp, fn = tp + t, fp + f, fn + m
-        if f or m:
-            rows.append((full, sorted(got - exp), sorted(exp - got)))
+    tp_complete = fp_complete = 0
+    rows = []
+    for full, spec in sorted(oracle.items()):
+        exp = set(spec["must_detect"])
+        got = detected[full]
+        hit, extra, missing = got & exp, got - exp, exp - got
+        tp += len(hit)
+        fn += len(missing)
+        if spec["complete"]:
+            tp_complete += len(hit)
+            fp_complete += len(extra)
+            fp += len(extra)
+        if extra or missing:
+            rows.append((full, spec["complete"], sorted(extra), sorted(missing)))
 
-    prec = tp / (tp + fp) if tp + fp else 0.0
-    rec = tp / (tp + fn) if tp + fn else 0.0
-    f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
-    return Fidelity(prec, rec, f1, tp, fp, fn, rows)
+    prec = tp_complete / (tp_complete + fp_complete) if (tp_complete + fp_complete) else None
+    rec = tp / (tp + fn) if (tp + fn) else None
+    f1 = (2 * prec * rec / (prec + rec)) if (prec and rec) else None
+    return {"precision": prec, "recall": rec, "f1": f1, "tp": tp, "fp": fp, "fn": fn,
+            "tp_complete": tp_complete, "fp_complete": fp_complete, "rows": rows}
+
+
+def _fmt(x: float | None) -> str:
+    return "  n/a" if x is None else f"{x:.3f}"
 
 
 def main(root: str, oracle_path: str) -> int:
     with open(oracle_path) as fh:
-        oracle: dict[str, list[str]] = json.load(fh)
-    r = score(root, oracle)
-    print(f"pooled precision {r.precision:.3f}  recall {r.recall:.3f}  F1 {r.f1:.3f}"
-          f"   (tp={r.tp} fp={r.fp} fn={r.fn})")
-    print("\nper-repo disagreements (extra / missing):")
-    for full, extra, missing in r.rows:
-        print(f"  {full:40s} +{extra}  -{missing}")
-    ok = r.precision >= PRECISION_FLOOR and r.recall >= RECALL_FLOOR
-    print("\nVERIFY:", "PASS" if ok else "FAIL")
+        oracle: dict[str, dict] = json.load(fh)
+
+    detected: dict[str, set[str]] = {}
+    for full in oracle:
+        if "/" not in full:
+            raise SystemExit(f"malformed oracle key (want '<owner>/<repo>'): {full!r}")
+        owner, repo = full.split("/", 1)
+        rd = os.path.join(root, owner, repo)
+        if not os.path.isdir(rd):
+            # A missing checkout must NEVER be scored as "detected nothing": that is
+            # indistinguishable from a total recall failure and would silently fake a bad
+            # number. The repos live on the VM; a layout mistake is the likely cause.
+            raise SystemExit(f"repo not found: {rd}\n"
+                             f"  (expected <repos_root>/<owner>/<repo>; check the root argument)")
+        detected[full] = {n.name for n in build_service_nodes(rd, owner=owner)}
+
+    r = score(detected, oracle)
+    n_complete = sum(1 for v in oracle.values() if v["complete"])
+    print(f"recall    {_fmt(r['recall'])}   (pooled over all {len(oracle)} repos; "
+          f"tp={r['tp']} fn={r['fn']})")
+    print(f"precision {_fmt(r['precision'])}   (pooled over {n_complete} `complete` repos ONLY; "
+          f"tp={r['tp_complete']} fp={r['fp_complete']})")
+    print(f"F1        {_fmt(r['f1'])}")
+    print("\nper-repo disagreements (+extra / -missing; `~` = partial oracle, extras not scored):")
+    for full, complete, extra, missing in r["rows"]:
+        mark = " " if complete else "~"
+        print(f" {mark}{full:40s} +{extra}  -{missing}")
+
+    ok = (r["recall"] is not None and r["recall"] >= 0.90
+          and r["precision"] is not None and r["precision"] >= 0.80)
+    print("\nVERIFY:", "PASS" if ok else "FAIL", " (recall >= 0.90, precision >= 0.80)")
     return 0 if ok else 1
 
 
