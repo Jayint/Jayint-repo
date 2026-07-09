@@ -33,19 +33,38 @@ its rows is a glob or a non-name descriptor group.
 |---|---|---|
 | `a(+b)`, `b` a full name | `a`, `b` | `postgres(+postgresql)` → postgres, postgresql |
 | `a(-suffix)` | `a`, `a-suffix` | `ezdata-es(-dev)` → ezdata-es, ezdata-es-dev |
-| `a/b` or `a/b/c` | `a`, `b`, `c` | `db/postgres` → db, postgres |
+| `a/b` or `a/b/c` slash | see ordered slash rule below | `db/postgres` → db, postgres |
 | `a(+x,y,z)`, items **not** names | `a` only (triggers `complete:false`) | `redis(+7,cluster,nodes)` → redis |
 | `*-x` glob | nothing (triggers `complete:false`) | `*-redis(-dev)` → omit |
+
+**Ordered slash rule** (applied left-to-right, first matching branch wins):
+
+1. Drop any `*`-glob item first (a glob still sets `complete:false`).
+2. **Shared-prefix** iff the first remaining item contains `-` **and** every later item
+   contains **no** `-`. The shared prefix runs to the first item's last `-`.
+   `redis-cache/queue/socketio` → `redis-cache`, `redis-queue`, `redis-socketio`.
+3. **Otherwise alternatives**, verbatim. `db/postgres` → `db`, `postgres` (first item has
+   no `-`); `mysql-dev/ruoyi-mysql` → both verbatim (a later item contains `-`).
+
+A pure slash row (shared-prefix or alternatives, no glob) is **fully recoverable** and does
+**not** set `complete:false`. Only globs and non-name descriptor groups do.
+
+> **The one inferred edge in the whole oracle.** Shared-prefix expansion assumes the
+> separator is `-`, exactly as the catalog writes it (`redis-cache/queue/socketio`). This is
+> the single place where we *infer* service keys rather than *transcribe* them: if
+> `frappe/press` actually names its services `redis_queue`/`redis_socketio` (underscore),
+> our recall would drop and we would wrongly blame the detector. Flagged here on purpose so
+> a reader can see and challenge it, rather than have it hidden inside a rule.
 
 INFRA/ADMIN rows (reverse-proxy, admin UI, observability sidecar, CLI/init helper) are
 excluded everywhere — the catalog's §1 legend says they are not backing services. Where a
 parenthetical sibling is itself INFRA (`opensearch(+dashboards)`, `temporal(+admin,ui)`,
 `minio(+setup)`), the base is kept and the sibling dropped.
 
-## `complete: true` backing-service repos (14)
+## `complete: true` backing-service repos (15)
 
-Every row is a plain name or an *enumerating* notation (`a(+b full name)`, `a/b full
-names`) — nothing is hidden, so the list is exhaustive and scores precision.
+Every row is a plain name or a *fully-recoverable* notation (`a(+b full name)`, a pure
+slash, an `a(-suffix)`) — nothing is hidden, so the list is exhaustive and scores precision.
 
 | Repo | must_detect | Notable expansions (catalog row → names) |
 |---|---|---|
@@ -63,12 +82,14 @@ names`) — nothing is hidden, so the list is exhaustive and scores precision.
 | sooperset/mcp-atlassian | confluence, jira, confluence-db, jira-db | `confluence-db/jira-db` → confluence-db, jira-db |
 | tgoai/tgo | postgres, db, redis, wukongim | `postgres(+db)` → postgres, db (flower/adminer/redis-commander/nginx INFRA) |
 | mlflow/mlflow | minio, storage, mssql, mysql, postgres, postgresql | `minio/storage` → minio, storage; `postgres(+postgresql)` → postgres, postgresql (`minio-create-bucket` INFRA) |
+| frappe/press | frankfurter, mariadb, postgres, redis-cache, redis-queue, redis-socketio | `redis-cache/queue/socketio` shared-prefix slash → redis-cache, redis-queue, redis-socketio (nginx INFRA) |
 
-`mlflow` is now `complete: true`: after mechanical expansion its two compound rows
-enumerate full names (no glob, no descriptor group). It was previously omitted, and then
-under-reported (`postgres` only); both are corrected here.
+`mlflow` and `frappe/press` are `complete: true`. mlflow's two compound rows enumerate
+full names; press's only compound row is a pure shared-prefix slash — both are fully
+recoverable (no glob, no descriptor group), so the flag follows the rule, not comfort.
+`press`'s expansion is the one inferred edge (see the `-`-separator note above).
 
-## `complete: false` backing-service repos (8) — expansion + unrecoverable rows
+## `complete: false` backing-service repos (7) — expansion + unrecoverable rows
 
 Each `must_detect` includes every plainly-stated name; the unrecoverable rows (globs /
 descriptor groups) that set the flag are listed.
@@ -78,7 +99,6 @@ descriptor groups) that set the flag are listed.
 | PostHog/posthog | clickhouse, db, elasticsearch, etcd, kafka, localstack, objectstorage, objectstorage-azure, opensearch, postgres, redis, seaweedfs, temporal, zookeeper | `objectstorage/seaweedfs` → objectstorage, seaweedfs; `db/postgres` → db, postgres; `opensearch(+dashboards)` → opensearch (dashboards INFRA). **Descriptor groups** (base only, set the flag): `kafka(+redpanda,console,init)` → kafka, `redis(+7,cluster,nodes)` → redis, `temporal(+admin,ui)` → temporal. |
 | bruin-data/ingestr | bench-mongo-source, bench-mssql-dest, bench-mysql-source | **Glob**: `*-postgres (4x)` → omitted. |
 | django-oauth/django-oauth-toolkit | mysql, postgres | **Descriptor groups**: `mysql(+primary,replica)` → mysql; `postgres(+primary,replica)` → postgres. |
-| frappe/press | frankfurter, mariadb, postgres, redis-cache, redis-queue, redis-socketio | `redis-cache/queue/socketio` is a shared-prefix slash → redis-cache, redis-queue, redis-socketio (the compression required expanding the shared `redis-` prefix, so the repo is marked partial rather than treating `queue`/`socketio` as standalone keys). |
 | polarsource/polar | db, localstack, minio, postgres, redis, tinybird | `db/postgres` → db, postgres. **Descriptor group**: `minio(+setup)` → minio (setup is an INFRA init container). |
 | supabase/supabase-py | db, gotrue, rest | **Descriptor group**: `gotrue(+autoconfirm,disabled)` → gotrue (mail INFRA). |
 | wecode-ai/Wegent | elasticsearch, mysql, redis | **Descriptor groups**: `mysql(+test)` → mysql; `redis(+test)` → redis (jaeger/kibana/otel INFRA). |
@@ -109,6 +129,6 @@ and the catalog does not name them individually, so they are excluded (no invent
 ## Summary
 
 - **32 total oracle keys** = 22 backing-service repos (all of the catalog's 22) + 10 empty.
-- **24 `complete: true`** (14 backing + 10 empty) → recall AND precision.
-- **8 `complete: false`** → recall only; each `must_detect` is a documented known-true subset.
-- **90 total `must_detect` names** (46 in complete backing repos + 44 in partial repos).
+- **25 `complete: true`** (15 backing + 10 empty) → recall AND precision.
+- **7 `complete: false`** → recall only; each `must_detect` is a documented known-true subset.
+- **90 total `must_detect` names** (52 in complete backing repos + 38 in partial repos).
