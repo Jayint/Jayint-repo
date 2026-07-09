@@ -5,7 +5,9 @@ invariant: **degrade the field, never the node**. No service-specific knowledge.
 """
 from __future__ import annotations
 
-from python_deps.depgraph.service_evidence import Mount, Port
+import re
+
+from python_deps.depgraph.service_evidence import Mount, Port, PortSource
 
 _SEED_MARKERS = ("docker-entrypoint-initdb.d", "/initdb")
 
@@ -128,3 +130,35 @@ def parse_depends_on(entry: dict) -> tuple[str, ...]:
     if isinstance(d, dict):
         return tuple(str(k) for k in d)
     return tuple(str(x) for x in d) if isinstance(d, list) else ()
+
+
+_DSN_PORT = re.compile(r"://[^/\s]*?:(\d{2,5})")
+
+
+def _rescue_from_siblings(name: str, sibling_env_blob: str) -> int | None:
+    """`db` declares no ports, but the app declares `DATABASE_URL=...@db:5432/x`.
+    The port is still evidence — it just lives in a sibling service's env.
+
+    The `\\b` boundaries stop "db" from matching inside "mydb:5432".
+    """
+    m = re.search(rf"\b{re.escape(name)}:(\d{{2,5}})\b", sibling_env_blob)
+    return int(m.group(1)) if m else None
+
+
+def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
+                env: dict[str, str], name: str,
+                sibling_env_blob: str) -> tuple[int | None, PortSource]:
+    """ports: -> expose: -> own-env DSN -> sibling-env DSN -> unknown. Evidence-only."""
+    for p in ports:
+        if p.container:
+            return p.container, "ports"
+    if expose:
+        return expose[0], "expose"
+    for v in env.values():
+        m = _DSN_PORT.search(v)
+        if m:
+            return int(m.group(1)), "env_dsn"
+    rescued = _rescue_from_siblings(name, sibling_env_blob)
+    if rescued:
+        return rescued, "sibling_dsn"
+    return None, "none"

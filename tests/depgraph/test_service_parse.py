@@ -1,7 +1,8 @@
 from python_deps.depgraph.service_evidence import Mount, Port
 from python_deps.depgraph.service_parse import (
-    is_templated, parse_command, parse_depends_on, parse_entrypoint, parse_env,
-    parse_expose, parse_image, parse_ports, parse_volumes, seed_mounts,
+    derive_port, is_templated, parse_command, parse_depends_on,
+    parse_entrypoint, parse_env, parse_expose, parse_image, parse_ports,
+    parse_volumes, seed_mounts,
 )
 
 
@@ -79,3 +80,33 @@ def test_parse_depends_on_list_and_mapping():
 def test_parse_expose():
     assert parse_expose({"expose": [5432, "6379/tcp"]}) == (5432, 6379)
     assert parse_expose({}) == ()
+
+
+def test_port_ladder_prefers_declared_ports():
+    got = derive_port((Port(5432, 5432),), (6379,), {"URL": "x://h:1234"}, "db", "")
+    assert got == (5432, "ports")
+
+
+def test_port_ladder_falls_back_to_expose():
+    assert derive_port((), (6379,), {}, "cache", "") == (6379, "expose")
+
+
+def test_port_ladder_falls_back_to_own_env_dsn():
+    env = {"DATABASE_URL": "postgres://u:p@db:5432/app"}
+    assert derive_port((), (), env, "db", "") == (5432, "env_dsn")
+
+
+def test_port_ladder_rescues_from_sibling_dsn():
+    # `db` declares nothing; the APP declares the DSN naming `db:5432`.
+    blob = "postgres://u:p@db:5432/app redis://cache:6379/0"
+    assert derive_port((), (), {}, "db", blob) == (5432, "sibling_dsn")
+    assert derive_port((), (), {}, "cache", blob) == (6379, "sibling_dsn")
+
+
+def test_sibling_rescue_requires_a_name_boundary():
+    # must not match "mydb:5432" when looking for service "db"
+    assert derive_port((), (), {}, "db", "postgres://u@mydb:5432/x") == (None, "none")
+
+
+def test_port_ladder_gives_up_cleanly():
+    assert derive_port((), (), {}, "svc", "") == (None, "none")
