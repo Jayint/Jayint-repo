@@ -257,7 +257,13 @@ class MultiDockerEvalAdapter:
             # Seed the react arm from the construction setup.sh and SKIP graph construction
             # (run_v3_e2e --seed-script). Mutually exclusive with --construction-only:
             # construction is exactly what this ablation replays instead of rebuilding.
-            cmd += ["--arm", "react", "--seed-script", seed_script, "--max-steps", str(max_steps)]
+            # --trace-out PERSISTS the react loop's Thought/Action/Observation JSONL next to run.log
+            # (run_v3_e2e threads it to the react ReactLog); without it the loop's stdout is swallowed
+            # on success and a regressed repo can't be diagnosed. react/seed-only — the construction
+            # path's --trace-out builds a different (Task-8d) tracer, so it stays off there.
+            trace_path = self.output_dir / "react_trace.jsonl"
+            cmd += ["--arm", "react", "--seed-script", seed_script,
+                    "--max-steps", str(max_steps), "--trace-out", str(trace_path)]
         elif os.getenv("V3_CONSTRUCTION_ONLY") == "1":
             # First-pass-construction benchmark mode: render the initial setup.sh from
             # LLM-driven construction and skip the repair loop, so the harness scores how

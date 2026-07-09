@@ -23,7 +23,12 @@ _OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 # add no net-new passing tests, we've hit the achievable ceiling for this env — repairing
 # further just burns steps/LLM cost, so stop and report the best achieved (PLATEAU). Lets the
 # pass threshold be strict without paying to chase an unreachable ceiling.
-_PLATEAU_PATIENCE = int(os.getenv("REACT_PLATEAU_PATIENCE", "2"))
+# Set to 5 (was 2): now that keep-best/seed-floor makes an early stop SAFE (the loop always
+# returns best_script, never worse than the seed), a genuine multi-step repair deserves more than
+# two attempts before we give up — 2 cut real fixes short. A stuck repo still auto-cuts at 5 rather
+# than thrashing the full step budget, so the ~service-gated repos (unrepairable by a script edit)
+# don't burn 30 turns for zero gain.
+_PLATEAU_PATIENCE = int(os.getenv("REACT_PLATEAU_PATIENCE", "5"))
 
 
 @dataclass(frozen=True)
@@ -114,16 +119,22 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
                       output_tail=(t.output or "")[-500:])
         return r, g, t
 
-    best_passed = -1
+    best_key: tuple[bool, int] = (False, -1)   # (built_ok, passed) — a green build outranks a failed one
+    best_script = script                        # the seed is the FLOOR: never ship worse than this
     stall = 0
 
     def register(r, t) -> bool:
-        """Fold a fresh build into the plateau counters. Returns True once repair has stalled —
-        no net-new passing tests for `_PLATEAU_PATIENCE` consecutive builds."""
-        nonlocal best_passed, stall
+        """Fold a fresh build into the best-so-far + plateau counters. Tracks the best SCRIPT (not
+        just its pass count) so a later regressing patch can never be what we ship: every non-DONE
+        exit returns `best_script`, making repair structurally incapable of doing worse than the seed
+        (the observed regression was PLATEAU/GIVEUP returning the last, often-broken, patch). Ranks by
+        (built, passed) so a green build always beats a failed one. Returns True once repair has
+        stalled — no net-new best for `_PLATEAU_PATIENCE` consecutive builds."""
+        nonlocal best_key, best_script, stall
         passed_now = t.passed if (r.ok and t is not None) else 0
-        if passed_now > best_passed:
-            best_passed, stall = passed_now, 0
+        key = (bool(r.ok), passed_now)
+        if key > best_key:
+            best_key, best_script, stall = key, script, 0   # `script` = the one just built
             return False
         stall += 1
         return stall >= _PLATEAU_PATIENCE
@@ -141,9 +152,9 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             return "DONE", script, graph
         if plateaued:
             log.d("PLATEAU", f"no new tests passing in {_PLATEAU_PATIENCE} repairs "
-                             f"(best {best_passed}) — stopping early")
-            log.trace("end", outcome="PLATEAU", steps=step + 1, best_passed=best_passed); log.summary()
-            return "PLATEAU", script, graph
+                             f"(best {best_key[1]}) — stopping early, returning best script")
+            log.trace("end", outcome="PLATEAU", steps=step + 1, best_passed=best_key[1]); log.summary()
+            return "PLATEAU", best_script, graph
         observation = _observation(result, test)
 
         thought, action, usage = planner.plan(history, script, observation, graph)
@@ -171,6 +182,6 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         log.d("PLAN", f"invalid move ({action.kind}) — re-prompting")
 
     outcome = "PLATEAU" if plateaued else "GIVEUP"      # plateau on the final step lands here
-    log.d(outcome, f"stopped at max_steps {max_steps} (best {best_passed}) — best-effort script")
-    log.trace("end", outcome=outcome, steps=max_steps, best_passed=best_passed); log.summary()
-    return outcome, script, graph
+    log.d(outcome, f"stopped at max_steps {max_steps} (best {best_key[1]}) — returning best script")
+    log.trace("end", outcome=outcome, steps=max_steps, best_passed=best_key[1]); log.summary()
+    return outcome, best_script, graph

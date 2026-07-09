@@ -222,6 +222,27 @@ def test_repair_ablation_seeds_react_arm(tmp_path, monkeypatch):
     assert "--model" in cmd and "MiniMax-M2.7-highspeed" in cmd
 
 
+def test_repair_ablation_wires_trace_out_into_output_dir(tmp_path, monkeypatch):
+    # Observability: the react loop's Thought/Action trace must be PERSISTED next to run.log so a
+    # regressed repo is diagnosable from a real trace (not reconstruction). The adapter passes
+    # --trace-out into its per-repo output_dir -> run_v3_e2e threads it to the react ReactLog.
+    root = _seed_corpus(tmp_path, "o/r", base="python:3.11-slim")
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(root))
+    cmd = _capture_ablation_cmd(tmp_path, monkeypatch, full_name="o/r")["cmd"]
+    assert "--trace-out" in cmd
+    assert cmd[cmd.index("--trace-out") + 1] == str(tmp_path / "react_trace.jsonl")
+
+
+def test_construction_path_has_no_trace_out(tmp_path, monkeypatch):
+    # --trace-out on the construction path would build the (different) Task-8d RunTracer; keep
+    # construction byte-identical — trace-out is react/seed-only.
+    monkeypatch.delenv("V3_REPAIR_ABLATION", raising=False)
+    monkeypatch.delenv("V3_CONSTRUCTION_ONLY", raising=False)
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--trace-out" not in cmd
+
+
 def test_repair_ablation_and_construction_only_are_mutually_exclusive(tmp_path, monkeypatch):
     root = _seed_corpus(tmp_path, "o/r")
     monkeypatch.setenv("V3_REPAIR_ABLATION", "1")

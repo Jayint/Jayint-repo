@@ -130,14 +130,40 @@ def test_unfixable_gives_up():
     outcome, _, _ = _run([], installed_needs=("libunobtainium",))
     assert outcome == "GIVEUP"
 
-def test_plateau_stops_when_repairs_stop_helping():
+def test_plateau_stops_when_repairs_stop_helping(monkeypatch):
     # Patches that never add the needed token -> pass count never rises -> PLATEAU (not a
-    # 30-step thrash). Default patience is 2, so two no-gain patches trip it.
+    # 30-step thrash). Pinned to patience 2 so this tests the MECHANISM independent of the default.
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_PLATEAU_PATIENCE", 2)
     p1 = Action("patch", new_script="pip install app\necho a\n")
     p2 = Action("patch", new_script="pip install app\necho b\n")
     p3 = Action("patch", new_script="pip install app\necho c\n")
     outcome, _, log = _run([p1, p2, p3], tests_need=("magic",))
     assert outcome == "PLATEAU" and log.count("PLATEAU") == 1
+
+def test_default_plateau_patience_is_five():
+    # keep-best made early-stop SAFE (best_script is always returned), so the default patience was
+    # raised 2 -> 5 to give genuine multi-step repairs room before the loop gives up.
+    import os, src.react_repair.loop as L
+    if "REACT_PLATEAU_PATIENCE" not in os.environ:            # robust to an explicit override
+        assert L._PLATEAU_PATIENCE == 5
+
+def test_patience_five_uses_all_five_attempts_before_plateau(monkeypatch):
+    # At patience 5, five consecutive no-gain patches are needed to trip PLATEAU — old patience 2
+    # would have quit after two, cutting real repairs short. Every attempt is measured; keep-best
+    # means none of them can ship a worse script.
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_PLATEAU_PATIENCE", 5)
+    builds = iter([RunResult(True)] * 6)                      # baseline + 5 patches all build green
+    tests = iter([TestOutcome(False, 2, 5, "2")] * 6)         # never improves, never passes the gate
+    moves = [Action("patch", new_script=f"pip install app\necho {i}\n") for i in range(5)]
+    rlog = ReactLog(silent=True)
+    outcome, _, _ = run_react(
+        object(), reset=lambda: None, run_script=lambda s: next(builds),
+        certify=lambda g: g, exec_readonly=lambda c: (0, ""), run_tests=lambda: next(tests),
+        planner=_ScriptedPlanner(moves), history=History(), log=rlog,
+        max_steps=20, _initial_script="pip install app\n")
+    assert outcome == "PLATEAU" and rlog.count("PATCH") == 5
 
 def test_history_records_baseline_then_patch_outcome_with_score_in_bracket():
     # baseline can't install libpq-dev (BUILD FAILED); one patch adds it -> green 5/5 -> DONE.
@@ -171,6 +197,54 @@ def test_history_patch_that_regresses_records_build_failed_not_placeholder():
     assert hist.steps[1].action_summary.startswith("patch v1 ") and "→ BUILD FAILED" in hist.steps[1].action_summary
     assert "+echo still-missing" in hist.steps[1].action_summary
     assert "(replaced build script)" not in hist.steps[1].observation_raw
+
+def test_plateau_returns_best_script_not_last_regressing_patch(monkeypatch):
+    # keep-best/seed-floor: the seed builds green at 4/5 (below the 0.9 gate, so not DONE); two
+    # patches each REGRESS (break the build). Without keep-best the loop shipped the LAST (broken)
+    # patch — the regression bug. It must now return the SEED, the best-scoring script it ever saw.
+    # Pinned to patience 2 so two regressing patches deterministically trip PLATEAU here.
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_PLATEAU_PATIENCE", 2)
+    seed = "pip install app\n"
+    builds = iter([RunResult(True),                       # baseline: seed builds
+                   RunResult(False, "syntax", "err"),     # patch1: build fails
+                   RunResult(False, "syntax", "err")])    # patch2: build fails
+    tests = iter([TestOutcome(False, 4, 5, "4 passed, 1 failed")])   # only baseline runs tests
+    outcome, script, _ = run_react(
+        object(), reset=lambda: None, run_script=lambda s: next(builds),
+        certify=lambda g: g, exec_readonly=lambda c: (0, ""), run_tests=lambda: next(tests),
+        planner=_ScriptedPlanner([Action("patch", new_script="broken one\n"),
+                                  Action("patch", new_script="broken two\n")]),
+        history=History(), log=ReactLog(silent=True), max_steps=10, _initial_script=seed)
+    assert outcome == "PLATEAU"
+    assert script == seed                                 # NOT "broken two\n"
+
+def test_plateau_returns_the_improved_script_over_a_later_regression(monkeypatch):
+    # keep-best keeps the highest-scoring attempt, not the seed and not a later regressor: baseline
+    # 2/5 -> patch1 improves to 4/5 (new best, still below gate) -> patch2/patch3 break the build ->
+    # PLATEAU returns patch1's script. Pinned to patience 2 (two regressors trip the stop).
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_PLATEAU_PATIENCE", 2)
+    seed = "pip install app\n"
+    builds = iter([RunResult(True), RunResult(True),
+                   RunResult(False, "x", "e"), RunResult(False, "x", "e")])
+    tests = iter([TestOutcome(False, 2, 5, "2"), TestOutcome(False, 4, 5, "4")])
+    outcome, script, _ = run_react(
+        object(), reset=lambda: None, run_script=lambda s: next(builds),
+        certify=lambda g: g, exec_readonly=lambda c: (0, ""), run_tests=lambda: next(tests),
+        planner=_ScriptedPlanner([Action("patch", new_script="pip install app\npip install extra\n"),
+                                  Action("patch", new_script="broken\n"),
+                                  Action("patch", new_script="also broken\n")]),
+        history=History(), log=ReactLog(silent=True), max_steps=10, _initial_script=seed)
+    assert outcome == "PLATEAU"
+    assert "pip install extra" in script                  # patch1 (the best), not seed, not a regressor
+
+def test_giveup_at_max_steps_returns_best_script_seed():
+    # A build that never passes the gate + a planner that only EXPLORES (free turns, no patch) runs
+    # to max_steps -> GIVEUP. The returned script must be the seed (best), never a corrupted one.
+    outcome, script, _ = _run([Action("explore", command="ls") for _ in range(5)],
+                              tests_need=("never",), initial="pip install app\n")
+    assert outcome == "GIVEUP" and script == "pip install app\n"
 
 def test_plateau_tolerates_one_no_gain_then_reaches_done():
     # initial 2/5 (fail) -> patch1 no gain (stall 1, tolerated) -> patch2 gains to 5/5 -> DONE.

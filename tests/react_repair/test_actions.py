@@ -91,6 +91,32 @@ def test_multiline_all_readonly_probe_block_is_invalid_ingestr():
             '```')
     assert parse_action(text).kind == "invalid"
 
+def test_single_line_cd_probe_compound_recovered_as_explore_ezdata():
+    # ezdata regression: a `cd … && find … && ls … && cat …` chain (every segment read-only) was
+    # applied as a PATCH and overwrote the 188-install seed with a non-installing script that still
+    # "built green" (false green). Its first token is `cd` (not an install/probe verb), so the old
+    # first-token allowlist missed it. Driving off is_read_only per &&/||/; segment recovers it as
+    # the explore the model meant — never a patch.
+    text = ('```bash\n'
+            'cd /app && find . -maxdepth 3 -type d | head -60 && echo "---" && ls -la '
+            '&& cat pyproject.toml 2>/dev/null || true\n'
+            '```')
+    a = parse_action(text)
+    assert a.kind == "explore" and a.command.startswith("cd /app")
+
+def test_single_line_cd_probe_compound_recovered_as_explore_promnesia():
+    text = ('```bash\n'
+            'cd /app && cat pyproject.toml && cat requirements*.txt 2>/dev/null '
+            '|| echo "no requirements.txt" && ls -la tests/ 2>/dev/null || echo "no tests dir"\n'
+            '```')
+    a = parse_action(text)
+    assert a.kind == "explore" and a.command.startswith("cd /app")
+
+def test_cd_then_install_compound_stays_patch():
+    # A `cd … && pip install …` compound HAS a mutation (pip install) -> a genuine (minimal) patch.
+    a = parse_action("```bash\ncd /app && pip install -e .\n```")
+    assert a.kind == "patch" and "pip install -e ." in a.new_script
+
 def test_multiline_readonly_check_before_install_stays_patch():
     # The common real seed pattern: a read-only guard whose OR-tail installs. The line contains
     # `pip install` so it is NOT read-only → the block is a genuine patch.

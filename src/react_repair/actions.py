@@ -59,7 +59,24 @@ def _explore_from_script_block(body: str) -> str | None:
     first = line.split()[0] if line.split() else ""
     if first in _READ_PROBE_CMDS and is_read_only(line):
         return line
+    # A single-line COMPOUND whose every &&/||/; segment is read-only (e.g.
+    # `cd /app && cat pyproject.toml && ls -la`) is a mis-wrapped explore probe, not a build
+    # script — even when its FIRST token (`cd`) is neither an install verb nor a probe verb, so
+    # the first-token allowlist above misses it. Applying it as a patch overwrote the seed with a
+    # non-installing script that still "built green" (false green: ezdata, promnesia). Deciding by
+    # is_read_only PER SEGMENT (not the first token) recovers it as the explore the model meant. A
+    # compound with any install segment (`cd … && pip install …`) is NOT all-read-only → stays a patch.
+    if _is_readonly_compound(line):
+        return line
     return None
+
+
+def _is_readonly_compound(line: str) -> bool:
+    """True when *line* chains ≥2 commands (on &&/||/;) that are ALL read-only — a mis-wrapped
+    investigation probe, never a build script. Single simple statements (`echo hi`) have one
+    segment and are left to the patch path, preserving patch-wins semantics."""
+    segments = [seg.strip() for seg in re.split(r"&&|\|\||;", line) if seg.strip()]
+    return len(segments) >= 2 and all(is_read_only(seg) for seg in segments)
 
 
 def _is_all_readonly_block(body: str) -> bool:
