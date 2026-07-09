@@ -31,6 +31,12 @@ The current setup.sh already installs the package closure resolved from the repo
 treat it as a near-complete starting point, not a blank slate. The remaining failure is usually a
 missing system library, a wrong install method, an unset config/env var, or a service — so read the
 last run's error and the ENVIRONMENT block first; they usually name it.
+Repair is an EDIT loop: keep editing setup.sh until the build is clean and the tests pass. The edit
+is the only thing that carries over — the script re-runs from a clean base each turn, so a package
+you install inside an explore is gone next turn; put the fix in setup.sh with edit(). Prefer an edit
+every turn and explore only when you genuinely can't yet name the change; once the error and the
+files show you the fix, stop exploring and make it. Exploring turn after turn with no edit is a
+failure, not diligence.
 The build halts at the first failing command (set -e): the error names that command and its line,
 tagged ← BUILD HALTED HERE in the script below. Everything above that line already succeeded — don't
 re-install it; everything below never ran, so don't touch a line the failure hasn't reached yet.

@@ -262,6 +262,25 @@ def test_render_still_blocked_prior_omits_redundant_body():
     assert "REDUNDANT_MARKER" not in out
 
 
+# ───────────────────────── invalid-move guidance is visible ──────────────────────────────────
+def test_render_latest_invalid_shows_the_guidance():
+    # The reminder for the JUST-MADE invalid move must reach the agent (it's about to retry) — not be
+    # swallowed into a bare "(invalid move)". Without this the rejection feedback was dead (azure's
+    # rejected pip-install-via-explore left the agent with zero direction).
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             Step(1, "", "invalid", "explore is READ-ONLY — use edit() to install", "x")]
+    out = render_history(steps)
+    assert "use edit() to install" in out
+
+def test_render_aged_invalid_stays_terse():
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             Step(1, "", "invalid", "SOME_OLD_REMINDER", "x"),
+             _edit(1, "c1", "BUILD FAILED", _LXML_HDR)]
+    out = render_history(steps)
+    assert "SOME_OLD_REMINDER" not in out          # aged invalid → terse, no reminder pile-up
+    assert "invalid move" in out.lower()
+
+
 def test_grouped_view_stays_compact_regardless_of_observation_size():
     # The grouped view IS the compaction: 8 KB observations still render tiny (blocker + score only,
     # never the body). Locks that nobody re-introduces per-step body rendering or an LLM compressor.

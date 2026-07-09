@@ -12,8 +12,13 @@ from src.react_repair.actions import apply_edit
 from src.react_repair.history import safety_truncate
 from src.react_repair.script_prep import strip_graph_framing
 
-_FORMAT_REMINDER = ("Respond with Thought + exactly one `Action: <read-only cmd>` or "
-                    "`Script:` + one fenced ```bash block. No prose-only replies.")
+# Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
+# action). Tool-calling aware — the old text referenced the retired `Action:`/`Script:` free-text
+# syntax, which gave the agent no usable direction (azure kept trying `pip install` inside explore).
+_FORMAT_REMINDER = ("Call exactly one tool — explore or edit. explore is READ-ONLY (ls/cat/find/"
+                    "pip show); a package you install inside explore is gone next turn and won't "
+                    "persist. To install a dependency or change the environment, add the line to "
+                    "setup.sh with edit() instead.")
 
 # Cap the build/test log shown to the planner so a repo with a huge failure dump can't bloat
 # (or overflow) the prompt every turn. Keep the TAIL — pytest's summary + last failures live

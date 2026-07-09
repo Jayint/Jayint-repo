@@ -102,6 +102,14 @@ def test_tools_section_names_explore_and_edit():
     sp = planner_mod.SYSTEM_PROMPT
     assert "explore" in sp and "edit" in sp and "Script:" not in sp
 
+def test_system_prompt_directs_edit_until_pass_and_explore_is_ephemeral():
+    # The agent over-explored (azure: 30 explores / 0 edits). The prompt must state that repair is an
+    # EDIT loop to green, and that installs done inside explore don't persist (edit setup.sh instead).
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "until the build is clean and the tests pass" in sp   # iterate-to-green imperative
+    assert "gone next turn" in sp                                # explore mutations don't persist
+    assert "failure, not diligence" in sp                        # over-exploration is discouraged
+
 def test_system_prompt_orients_seed_is_prebuilt_closure_and_limits_explore():
     # The seed already encodes the graph-resolved package closure, so the agent should read the
     # error/ENVIRONMENT first and NOT explore to re-derive the package list (the M3 over-exploration).

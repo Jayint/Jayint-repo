@@ -210,7 +210,15 @@ def render_history(steps) -> str:
 
         mp = _PAT_MUTATION.match(summ)
         if not mp:
-            lines.append("      (invalid move — re-prompted)")
+            # Surface the loop's guidance for the JUST-MADE invalid move — the agent is about to
+            # retry and needs to know WHY it was rejected (e.g. "explore is read-only, use edit()").
+            # Aged invalids stay terse so old reminders don't pile up. Without this the reminder was
+            # dead: the agent only ever saw "(invalid move)" with no direction (azure).
+            hint = (st.observation_raw or "").strip()
+            if st is last and hint:
+                lines.append("      (invalid move — re-prompted): " + hint)
+            else:
+                lines.append("      (invalid move — re-prompted)")
             continue
 
         ver, change, score = mp.group(1), mp.group(2), mp.group(3)

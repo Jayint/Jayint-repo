@@ -138,6 +138,21 @@ def test_edit_out_of_range_is_invalid_and_never_regresses_seed():
     outcome, script, _ = _run([bad], tests_need=("magic",))
     assert outcome == "GIVEUP" and script == "pip install app\n"
 
+def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
+    # `pip install` via explore is not read-only → rejected. The agent must be pointed at edit()
+    # (not a dead stale reminder) AND actually SEE it (render the latest invalid step's body).
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    hist = History(); log = ReactLog(silent=True)
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests,
+              planner=_ScriptedPlanner([Action("explore", command="pip install libpq-dev")]),
+              history=hist, log=log, max_steps=1, _initial_script="pip install app\n")
+    from src.react_repair.history_view import render_history
+    view = render_history(hist.steps)
+    assert "invalid move" in view.lower()
+    assert "edit()" in view and "won't persist" in view
+
 def test_edit_summary_describes_the_op():
     from src.react_repair.loop import _edit_summary
     assert _edit_summary(EditOp("insert", 23, 23, "pip install hiredis")) == "insert@23 +pip install hiredis"
