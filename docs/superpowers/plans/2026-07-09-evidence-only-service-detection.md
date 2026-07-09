@@ -3125,29 +3125,52 @@ def test_corpus_admits_the_exotic_tail():
 Run: `python3 -m pytest tests/depgraph/test_service_parse_fidelity.py -q` → all 18 cases admitted.
 **If a case is dropped, that is a real detection bug — fix the parser, not the test.**
 
-- [ ] **Step 1: Build the repo-level oracle**
+- [ ] **Step 1: Build the repo-level oracle** (schema revised — see below)
 
-Transcribe the per-repo backing-service names from `.superpowers/sdd/ratbench-service-catalog.md`
-into this exact shape. One entry per repo that declares ≥1 genuine backing service (the catalog says
-22). Repos with no backing service are represented by an empty list so false positives are scored.
+> **Why the schema changed.** The first attempt used a flat `{repo: [names]}` oracle and scored
+> precision and recall from the same list. That forces an impossible choice on the 9 repos where
+> `ratbench-service-catalog.md` *collapses* variant service names (`redis(+7,cluster,nodes)`,
+> `*-postgres (4x)`, `db/postgres`, `mysql(+primary,replica)`): listing a partial set manufactures
+> false positives for services that really exist, and omitting the repo removes exactly the hardest
+> cases from the eval — biasing the score upward. Both are measurement failures.
+>
+> **Precision needs a COMPLETE ground-truth set. Recall needs only known positives.** Conflating
+> them is the bug. Split them.
 
-> **The oracle is ground truth and must be derived from the CATALOG ALONE.**
-> Never build, check, or "sanity-adjust" it by running `build_service_nodes`. An oracle fitted to the
-> detector measures nothing. The catalog was produced by a careful human reading of the real repos
-> (it applied semantic judgment: app-vs-backing, fixture-vs-real); that judgment is exactly what we
-> are scoring the heuristics against. For every repo you add, cite the catalog line you took it from,
-> in a sibling file `tests/eval/fixtures/service_oracle.provenance.md`. If the catalog is ambiguous
-> for a repo, record the ambiguity there rather than picking the answer our detector would give.
+Write `tests/eval/fixtures/service_oracle.json` in this shape:
 
 ```json
 {
-  "rq/rq":            ["valkey"],
-  "mlflow/mlflow":    ["postgres", "mysql", "storage"],
-  "Cloud-CV/EvalAI":  ["db", "redis", "sqs"],
-  "testcontainers/testcontainers-python": [],
-  "containers/podman-compose": []
+  "rq/rq":            {"must_detect": ["valkey"], "complete": true},
+  "Cloud-CV/EvalAI":  {"must_detect": ["db", "memcached", "sqs"], "complete": true},
+  "PostHog/posthog":  {"must_detect": ["clickhouse", "elasticsearch", "etcd"], "complete": false},
+  "containers/podman-compose": {"must_detect": [], "complete": true}
 }
 ```
+
+- `must_detect` — service **names** (the compose `services.<name>` key, or the CI
+  `jobs.<job>.services.<name>` key) that the catalog states **exactly**. Never a kind:
+  `rq/rq` is `["valkey"]`, not `["redis"]`.
+- `complete: true` — the catalog's list for this repo is exhaustive. The repo contributes to
+  **both** recall and precision.
+- `complete: false` — the catalog collapses one or more service names, so the list is a
+  known-true **subset**. The repo contributes to **recall only**. Anything extra the detector
+  finds is not counted against it, because we cannot know it is wrong.
+- Repos with no backing service are `{"must_detect": [], "complete": true}` — they are how false
+  positives get scored, and they must stay.
+
+**Every one of the catalog's 22 backing-service repos now appears.** The 9 previously omitted repos
+enter with `complete: false` and whatever names the catalog states exactly (PostHog: `clickhouse`,
+`elasticsearch`, `etcd`; mlflow: `mysql`, `mssql`, `postgres`; polar: `localstack`, `redis`,
+`tinybird`; ingestr: `bench-mongo-source`, `bench-mssql-dest`, `bench-mysql-source`; and so on).
+Rows the catalog marks **INFRA/ADMIN** (reverse proxy, admin UI, observability sidecar, CLI/init
+helper) are excluded everywhere — the catalog itself says they are not backing services.
+
+> **The oracle is ground truth and must be derived from the CATALOG ALONE.**
+> Never build, check, or "sanity-adjust" it by running `build_service_nodes`. An oracle fitted to the
+> detector measures nothing. Record each entry's catalog line in
+> `tests/eval/fixtures/service_oracle.provenance.md`, and for every `complete: false` repo state
+> exactly **which** names the catalog collapsed and why the list is a subset.
 
 - [ ] **Step 2: Write the scorer, and a unit test for the scorer itself**
 
@@ -3155,18 +3178,12 @@ The 50 repos live on the VM, so the scorer cannot be run against the real corpus
 That is exactly why it needs its own test: a scorer whose arithmetic is wrong will produce a
 confident, wrong headline number the first time it is pointed at real data.
 
-Create `tests/eval/test_service_detection_fidelity.py`. Build two synthetic repos under `tmp_path`
-(one declaring `db` + `cache`, one declaring nothing), write a matching oracle JSON, and assert:
-- a perfect match scores `precision == recall == F1 == 1.0`;
-- one extra detected service lowers precision but not recall;
-- one missed service lowers recall but not precision;
-- a repo whose directory is absent raises `SystemExit` — it is **not** scored as zero.
-
-Import the scorer's functions directly; do not shell out.
-
 ```python
 # scripts/eval_service_detection_fidelity.py
 """Precision/recall of evidence-only service detection vs the known-answer oracle.
+
+Recall is pooled over every repo. Precision is pooled over `complete` repos ONLY: a repo whose
+catalog list is a known-true subset cannot tell us that an extra detection is wrong.
 
 Usage:  PYTHONPATH=src python3 scripts/eval_service_detection_fidelity.py <repos_root> <oracle.json>
 """
@@ -3179,35 +3196,67 @@ import sys
 from python_deps.depgraph.service_construct import build_service_nodes
 
 
-def main(root: str, oracle_path: str) -> int:
-    oracle: dict[str, list[str]] = json.load(open(oracle_path))
+def score(detected: dict[str, set[str]], oracle: dict[str, dict]) -> dict:
     tp = fp = fn = 0
+    tp_complete = fp_complete = 0
     rows = []
-    for full, expected in sorted(oracle.items()):
+    for full, spec in sorted(oracle.items()):
+        exp = set(spec["must_detect"])
+        got = detected[full]
+        hit, extra, missing = got & exp, got - exp, exp - got
+        tp += len(hit)
+        fn += len(missing)
+        if spec["complete"]:
+            tp_complete += len(hit)
+            fp_complete += len(extra)
+            fp += len(extra)
+        if extra or missing:
+            rows.append((full, spec["complete"], sorted(extra), sorted(missing)))
+
+    prec = tp_complete / (tp_complete + fp_complete) if (tp_complete + fp_complete) else None
+    rec = tp / (tp + fn) if (tp + fn) else None
+    f1 = (2 * prec * rec / (prec + rec)) if (prec and rec) else None
+    return {"precision": prec, "recall": rec, "f1": f1, "tp": tp, "fp": fp, "fn": fn,
+            "tp_complete": tp_complete, "fp_complete": fp_complete, "rows": rows}
+
+
+def _fmt(x: float | None) -> str:
+    return "  n/a" if x is None else f"{x:.3f}"
+
+
+def main(root: str, oracle_path: str) -> int:
+    with open(oracle_path) as fh:
+        oracle: dict[str, dict] = json.load(fh)
+
+    detected: dict[str, set[str]] = {}
+    for full in oracle:
+        if "/" not in full:
+            raise SystemExit(f"malformed oracle key (want '<owner>/<repo>'): {full!r}")
         owner, repo = full.split("/", 1)
         rd = os.path.join(root, owner, repo)
         if not os.path.isdir(rd):
-            # A missing checkout must never be scored as "detected nothing": that is
+            # A missing checkout must NEVER be scored as "detected nothing": that is
             # indistinguishable from a total recall failure and would silently fake a bad
             # number. The repos live on the VM; a layout mistake is the likely cause.
             raise SystemExit(f"repo not found: {rd}\n"
-                             f"  (expected <repos_root>/<owner>/<repo>; check --root)")
-        got = {n.name for n in build_service_nodes(rd, owner=owner)}
-        exp = set(expected)
-        t, f, m = len(got & exp), len(got - exp), len(exp - got)
-        tp, fp, fn = tp + t, fp + f, fn + m
-        if f or m:
-            rows.append((full, sorted(got - exp), sorted(exp - got)))
+                             f"  (expected <repos_root>/<owner>/<repo>; check the root argument)")
+        detected[full] = {n.name for n in build_service_nodes(rd, owner=owner)}
 
-    prec = tp / (tp + fp) if tp + fp else 0.0
-    rec = tp / (tp + fn) if tp + fn else 0.0
-    f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
-    print(f"pooled precision {prec:.3f}  recall {rec:.3f}  F1 {f1:.3f}   (tp={tp} fp={fp} fn={fn})")
-    print("\nper-repo disagreements (extra / missing):")
-    for full, extra, missing in rows:
-        print(f"  {full:40s} +{extra}  -{missing}")
-    ok = prec >= 0.80 and rec >= 0.90
-    print("\nVERIFY:", "PASS" if ok else "FAIL")
+    r = score(detected, oracle)
+    n_complete = sum(1 for v in oracle.values() if v["complete"])
+    print(f"recall    {_fmt(r['recall'])}   (pooled over all {len(oracle)} repos; "
+          f"tp={r['tp']} fn={r['fn']})")
+    print(f"precision {_fmt(r['precision'])}   (pooled over {n_complete} `complete` repos ONLY; "
+          f"tp={r['tp_complete']} fp={r['fp_complete']})")
+    print(f"F1        {_fmt(r['f1'])}")
+    print("\nper-repo disagreements (+extra / -missing; `~` = partial oracle, extras not scored):")
+    for full, complete, extra, missing in r["rows"]:
+        mark = " " if complete else "~"
+        print(f" {mark}{full:40s} +{extra}  -{missing}")
+
+    ok = (r["recall"] is not None and r["recall"] >= 0.90
+          and r["precision"] is not None and r["precision"] >= 0.80)
+    print("\nVERIFY:", "PASS" if ok else "FAIL", " (recall >= 0.90, precision >= 0.80)")
     return 0 if ok else 1
 
 
@@ -3215,25 +3264,22 @@ if __name__ == "__main__":
     sys.exit(main(sys.argv[1], sys.argv[2]))
 ```
 
-Run: `PYTHONPATH=src python3 scripts/eval_service_detection_fidelity.py "$SCRATCH/repos" tests/eval/fixtures/service_oracle.json`
-Expected before the oracle exists: `FileNotFoundError`.
+Create `tests/eval/test_service_detection_fidelity.py`. Import `score` directly — do **not** shell
+out, and do not require the corpus. Assert:
+- perfect match on `complete` repos → `precision == recall == f1 == 1.0`;
+- one extra detected service in a `complete` repo → precision drops, recall does not;
+- one missed service → recall drops, precision does not;
+- **an extra detection in a `complete: false` repo does NOT lower precision**, while a *missing*
+  one in that same repo DOES lower recall (this is the whole point of the split);
+- **micro, not macro**: two repos, one with 1/1 correct and one with 1/3 correct, must pool to
+  recall `2/4 = 0.5`, not `mean(1.0, 0.333) = 0.667`;
+- `main()` raises `SystemExit` for an absent repo directory, and for an oracle key with no `/`;
+- thresholds are enforced: `main()` returns non-zero when recall or precision is below the bar;
+- an all-empty oracle yields `n/a` rather than a misleading `0.000`.
 
-- [ ] **Step 3: Run against the corpus and record the disagreements**
-
-Expected: **recall ≥ 0.90** (missing a declared service is the costly error — the agent would be
-blind to it). **Precision ≥ 0.80** (a false positive costs the agent turns, but fail-soft contains it,
-so we tolerate more of them). Every disagreement is a real finding: log it, and only then decide
-whether to tune `_is_app` or amend the oracle. **Do not tune the extractor until the oracle disagrees
-with a human reading of the repo.**
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add scripts/eval_service_detection_fidelity.py tests/eval/fixtures/service_oracle.json
-git commit -m "eval: detection fidelity vs known-answer service oracle"
-```
-
----
+Acceptance for the eventual real run: **recall ≥ 0.90, precision ≥ 0.80.** Asymmetric on purpose —
+a missed service blinds the agent, while a false positive costs only turns and is contained by
+fail-soft. Report both, and report how many repos are `complete`.
 
 ## Task 13: Sufficiency — can a ReAct agent provision from a ServiceNode?
 
