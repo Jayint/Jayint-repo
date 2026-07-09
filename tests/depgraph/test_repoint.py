@@ -73,3 +73,15 @@ def test_bind_skips_a_dsn_with_an_unparseable_port():
         configs=[("URL", "postgres://db:bad/app")],
     )
     assert steps == []
+
+
+def test_non_string_config_value_is_skipped_not_fatal():
+    # A non-string config value (e.g. an int that slipped through) must be SKIPPED,
+    # never raise -- `urlsplit` does not fail cleanly on non-strings (it tries `.decode`
+    # and raises AttributeError). A broad `except` upstream would wipe the whole service
+    # tier, so the guard must handle this without depending on it.
+    steps = render_bind_steps(
+        service_names=("db",),
+        configs=[("URL", 5), ("OK", "postgres://u@db:5432/x")],
+    )
+    assert steps == ["export OK=postgres://u@127.0.0.1:5432/x"]

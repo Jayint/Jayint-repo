@@ -31,6 +31,11 @@ def _safe_split(dsn: str) -> SplitResult | None:
     are forced here so a caller never trips over them later. A value that fails
     validation is SKIPPED, never silently rewritten with the bad component dropped.
     """
+    # `urlsplit` does not fail cleanly on a non-string (it tries ``.decode`` and raises
+    # AttributeError, not ValueError), so guard the type explicitly rather than widen
+    # the `except` to guess at exception types.
+    if not isinstance(dsn, str):
+        return None
     try:
         u = urlsplit(dsn)
         _ = u.hostname, u.port          # force both to validate now
@@ -46,16 +51,6 @@ def _repoint_host(u: SplitResult) -> str:
         userinfo = u.username + (f":{u.password}" if u.password else "") + "@"
     netloc = f"{userinfo}{_LOCALHOST}" + (f":{u.port}" if u.port else "")
     return urlunsplit((u.scheme, netloc, u.path, u.query, u.fragment))
-
-
-def _host_of(dsn: str) -> str | None:
-    """The hostname component of a DSN: ``postgres://u:p@db:5432/x`` -> ``'db'``.
-
-    Goes through ``_safe_split`` (no kind table), so an exotic scheme is parsed too and
-    an unparseable value yields ``None``.
-    """
-    u = _safe_split(dsn)
-    return u.hostname if u is not None else None
 
 
 def render_bind_steps(
