@@ -8,8 +8,11 @@ clones the repo into /testbed and runs the certified setup.sh.
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
+
+import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
@@ -22,7 +25,7 @@ def _adapter(tmp_path, *, setup_text="cd /app && pip install -e .", base="python
     a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
     a._clone = lambda repo_url: tmp_path / "v3_src"          # type: ignore[assignment]
     a._head_sha = lambda src_dir: "deadbeef"                 # type: ignore[assignment]
-    a._run_v3 = lambda src_dir, base_image, model: (setup_text, base)  # type: ignore[assignment]
+    a._run_v3 = lambda src_dir, base_image, model, **kw: (setup_text, base)  # type: ignore[assignment]
     return a
 
 
@@ -61,7 +64,7 @@ def test_run_v3_failure_yields_error_log_not_crash(tmp_path):
     a._clone = lambda repo_url: tmp_path / "v3_src"          # type: ignore[assignment]
     a._head_sha = lambda src_dir: "abc"                      # type: ignore[assignment]
 
-    def _boom(src_dir, base_image, model):
+    def _boom(src_dir, base_image, model, **kw):
         raise RuntimeError("run_v3_e2e produced no setup.sh")
 
     a._run_v3 = _boom                                        # type: ignore[assignment]
@@ -158,3 +161,127 @@ def test_dockerfile_gets_entrypoint_when_services_script_present(tmp_path):
     assert "COPY services_start.sh /v3_start_services.sh" in df
     assert df.index("RUN bash /tmp/v3_setup.sh") < df.index("ENTRYPOINT")
     assert r["setup_scripts"]["services_start.sh"].startswith("#!/usr/bin/env bash")
+
+
+# ── repair-only ablation (V3_REPAIR_ABLATION=1) ────────────────────────────────
+# Seed the react repair loop from a construction run's PRE-GENERATED setup.sh so
+# only the repair loop varies; construction (graph build) is skipped. Same eval
+# path downstream -> ESSR/case_studies for free.
+
+def _seed_corpus(tmp_path, full_name, *, setup="cd /app && pip install -e .",
+                 base="python:3.11-slim", meta=True, dockerfile_from=None):
+    """Lay down what a construction run leaves per instance:
+    <root>/<owner>/<repo>/{setup.sh,_meta.json,eval_build/Dockerfile}. Returns the root."""
+    inst = tmp_path / "seeds" / full_name
+    inst.mkdir(parents=True)
+    (inst / "setup.sh").write_text(setup)
+    if meta:
+        (inst / "_meta.json").write_text(json.dumps({"base_image": base}))
+    if dockerfile_from:
+        (inst / "eval_build").mkdir()
+        (inst / "eval_build" / "Dockerfile").write_text(f"FROM {dockerfile_from}\nWORKDIR /testbed\n")
+    return tmp_path / "seeds"
+
+
+def _capture_ablation_cmd(tmp_path, monkeypatch, *, full_name="o/r"):
+    """Drive the REAL _run_v3 (subprocess mocked) under repair-ablation and return
+    the argv it builds + the resolved base."""
+    import multi_docker_eval_adapter as M
+
+    class _Proc:
+        returncode = 0
+        stdout = "[v3] base-image: python:3.11-slim (py 3.11) — explicit"
+        stderr = ""
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        Path(cmd[cmd.index("--out") + 1]).write_text("echo repaired")
+        return _Proc()
+
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    _setup, captured["base"] = a._run_v3(
+        tmp_path / "src", "auto", "MiniMax-M2.7-highspeed", full_name=full_name)
+    return captured
+
+
+def test_repair_ablation_seeds_react_arm(tmp_path, monkeypatch):
+    root = _seed_corpus(tmp_path, "o/r", base="python:3.11-slim")
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(root))
+    cmd = _capture_ablation_cmd(tmp_path, monkeypatch, full_name="o/r")["cmd"]
+    assert cmd[cmd.index("--arm") + 1] == "react"
+    assert cmd[cmd.index("--seed-script") + 1] == str(root / "o" / "r" / "setup.sh")
+    # explicit base from _meta.json overrides the incoming "auto" (seed mode rejects auto).
+    assert cmd[cmd.index("--base-image") + 1] == "python:3.11-slim"
+    assert "--max-steps" in cmd
+    assert "--construction-only" not in cmd
+    # LLM still passed through (the repair loop needs it).
+    assert "--model" in cmd and "MiniMax-M2.7-highspeed" in cmd
+
+
+def test_repair_ablation_and_construction_only_are_mutually_exclusive(tmp_path, monkeypatch):
+    root = _seed_corpus(tmp_path, "o/r")
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(root))
+    monkeypatch.setenv("V3_CONSTRUCTION_ONLY", "1")     # ablation must win
+    cmd = _capture_ablation_cmd(tmp_path, monkeypatch)["cmd"]
+    assert "--seed-script" in cmd
+    assert "--construction-only" not in cmd
+
+
+def test_repair_ablation_base_from_dockerfile_when_no_meta(tmp_path, monkeypatch):
+    # _meta.json absent -> fall back to the construction eval_build/Dockerfile FROM.
+    root = _seed_corpus(tmp_path, "o/r", meta=False, dockerfile_from="python:3.9-slim")
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(root))
+    cmd = _capture_ablation_cmd(tmp_path, monkeypatch)["cmd"]
+    assert cmd[cmd.index("--base-image") + 1] == "python:3.9-slim"
+
+
+def test_repair_ablation_off_by_default_no_seed_flags(tmp_path, monkeypatch):
+    monkeypatch.delenv("V3_REPAIR_ABLATION", raising=False)
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)     # existing helper, full_name=None
+    assert "--seed-script" not in cmd
+    assert "--arm" not in cmd
+
+
+def test_resolve_seed_off_returns_none(tmp_path, monkeypatch):
+    monkeypatch.delenv("V3_REPAIR_ABLATION", raising=False)
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    assert a._resolve_seed("o/r") == (None, None)
+
+
+def test_resolve_seed_missing_seed_raises(tmp_path, monkeypatch):
+    (tmp_path / "seeds").mkdir()
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(tmp_path / "seeds"))   # no o/r/setup.sh
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    with pytest.raises(RuntimeError, match="seed"):
+        a._resolve_seed("o/r")
+
+
+def test_resolve_seed_empty_seed_raises(tmp_path, monkeypatch):
+    root = _seed_corpus(tmp_path, "o/r", setup="")     # 0-byte seed = construction produced nothing
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.setenv("V3_SEED_DIR", str(root))
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    with pytest.raises(RuntimeError, match="seed"):
+        a._resolve_seed("o/r")
+
+
+def test_resolve_seed_requires_seed_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("V3_REPAIR_ABLATION", "1")
+    monkeypatch.delenv("V3_SEED_DIR", raising=False)
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    with pytest.raises(RuntimeError, match="V3_SEED_DIR"):
+        a._resolve_seed("o/r")
+
+
+def test_full_name_from_repo_url():
+    fn = MultiDockerEvalAdapter._full_name
+    assert fn("https://github.com/o/r", "o__r") == "o/r"
+    assert fn("https://github.com/o/r.git", "o__r") == "o/r"
+    assert fn("", "owner__repo") == "owner/repo"       # fallback to instance_id

@@ -28,6 +28,7 @@ This replaces the legacy DockerAgent adapter (which drove ``agent.DockerAgent`` 
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -45,6 +46,15 @@ _APP_WORKDIR_RE = re.compile(r"(?<![\w/])/app(?![\w])")
 # run_v3's entrypoint lives in THIS checkout (the agent root == this file's dir).
 _AGENT_ROOT = Path(__file__).resolve().parent
 _RUN_V3_E2E = _AGENT_ROOT / "scripts" / "run_v3_e2e.py"
+
+# Repair-only ablation (V3_REPAIR_ABLATION=1 + V3_SEED_DIR=<construction run>/output):
+# seed the react repair loop from a PRE-GENERATED construction setup.sh and skip graph
+# construction, so only the repair loop varies. The seed's base image (needed because seed
+# mode rejects "auto") comes from the per-instance _meta.json, falling back to the
+# construction eval_build/Dockerfile FROM. Extract the FROM tag for that fallback.
+_DOCKERFILE_FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.IGNORECASE | re.MULTILINE)
+# repo_url is always https://github.com/<owner>/<repo>[.git] — recover <owner>/<repo>.
+_GITHUB_FULLNAME_RE = re.compile(r"github\.com[/:]+([^/]+/[^/]+?)(?:\.git)?/?$")
 
 # run_v3 may report giveup (exit 1) yet still have written a best-effort setup.sh;
 # the benchmark scores whatever environment the agent produced, so a non-zero exit
@@ -90,7 +100,9 @@ class MultiDockerEvalAdapter:
         try:
             src_dir = self._clone(repo_url)
             head_sha = self._head_sha(src_dir)
-            setup_sh, resolved_base = self._run_v3(src_dir, base_image, model)
+            setup_sh, resolved_base = self._run_v3(
+                src_dir, base_image, model,
+                full_name=self._full_name(repo_url, instance_id), max_steps=max_steps)
             setup_sh = _APP_WORKDIR_RE.sub("/testbed", setup_sh)
             result["base_image"] = resolved_base
             result["setup_scripts"] = {"setup.sh": setup_sh}
@@ -132,7 +144,65 @@ class MultiDockerEvalAdapter:
         )
         return out.stdout.strip()
 
-    def _run_v3(self, src_dir: Path, base_image: str, model: str | None) -> Tuple[str, str]:
+    @staticmethod
+    def _full_name(repo_url: str, instance_id: str) -> str:
+        """``<owner>/<repo>`` — the key into the seed corpus. Prefer the repo_url
+        (unambiguous); fall back to un-mangling the instance_id (``owner__repo``)."""
+        m = _GITHUB_FULLNAME_RE.search(repo_url or "")
+        if m:
+            return m.group(1)
+        return (instance_id or "").replace("__", "/")
+
+    def _resolve_seed(self, full_name: str | None) -> Tuple[str | None, str | None]:
+        """Repair-only ablation (``V3_REPAIR_ABLATION=1``): map ``full_name`` to the
+        construction run's seed ``setup.sh`` and its base image, so the react arm repairs
+        a PRE-GENERATED script instead of constructing one. Returns ``(None, None)`` when
+        the flag is off. Raises (→ clean ``no_dockerfile`` skip upstream, never a crash)
+        when enabled but the seed is genuinely unusable — a missing/empty seed (e.g. the
+        one repo whose construction produced nothing) must be recorded, not silently
+        reconstructed, which would defeat the ablation."""
+        if os.getenv("V3_REPAIR_ABLATION") != "1":
+            return None, None
+        root = os.getenv("V3_SEED_DIR")
+        if not root:
+            raise RuntimeError(
+                "V3_REPAIR_ABLATION=1 requires V3_SEED_DIR (the construction run's output/ dir)")
+        if not full_name:
+            raise RuntimeError("repair-ablation: no full_name to map to a seed setup.sh")
+        inst = Path(root) / full_name
+        seed = inst / "setup.sh"
+        if not seed.is_file() or seed.stat().st_size == 0:
+            raise RuntimeError(
+                f"repair-ablation: missing/empty seed setup.sh for {full_name} at {seed}")
+        base = self._seed_base_image(inst)
+        if not base:
+            raise RuntimeError(
+                f"repair-ablation: no base image for {full_name} "
+                "(_meta.json['base_image'] and eval_build/Dockerfile FROM both unusable)")
+        return str(seed), base
+
+    @staticmethod
+    def _seed_base_image(inst: Path) -> str:
+        """Base image the construction run committed to, for this instance. Prefer
+        ``_meta.json['base_image']`` (what run_v3 resolved); fall back to the
+        ``eval_build/Dockerfile`` FROM tag the construction eval baked."""
+        meta = inst / "_meta.json"
+        if meta.is_file():
+            try:
+                base = (json.loads(meta.read_text()) or {}).get("base_image")
+                if base:
+                    return str(base)
+            except (ValueError, OSError):
+                pass
+        dockerfile = inst / "eval_build" / "Dockerfile"
+        if dockerfile.is_file():
+            m = _DOCKERFILE_FROM_RE.search(dockerfile.read_text())
+            if m:
+                return m.group(1)
+        return ""
+
+    def _run_v3(self, src_dir: Path, base_image: str, model: str | None,
+                *, full_name: str | None = None, max_steps: int = 30) -> Tuple[str, str]:
         """Run the run_v3 graph-scheduler loop on ``src_dir``; return
         ``(setup_sh_text, resolved_base_image)``.
 
@@ -145,16 +215,26 @@ class MultiDockerEvalAdapter:
         services_path = self.output_dir / "services_start.sh"
         if services_path.exists():
             services_path.unlink()   # drop any stale artifact from a prior instance
+        # Repair-only ablation: repair a PRE-GENERATED construction setup.sh; the base
+        # image comes with the seed (seed mode rejects "auto"), so it overrides the caller's.
+        seed_script, seed_base = self._resolve_seed(full_name)
+        if seed_base:
+            base_image = seed_base
         cmd = [sys.executable, str(_RUN_V3_E2E), str(src_dir),
                "--base-image", base_image or "auto",
                "--out", str(setup_path)]
         if model:
             cmd += ["--model", model]
-        # First-pass-construction benchmark mode (V3_CONSTRUCTION_ONLY=1): render the
-        # initial setup.sh from LLM-driven construction and skip the repair loop, so
-        # the harness scores how well construction ALONE provisions the repo. The LLM
-        # (base-image + service/config classify) stays on — only repair is skipped.
-        if os.getenv("V3_CONSTRUCTION_ONLY") == "1":
+        if seed_script:
+            # Seed the react arm from the construction setup.sh and SKIP graph construction
+            # (run_v3_e2e --seed-script). Mutually exclusive with --construction-only:
+            # construction is exactly what this ablation replays instead of rebuilding.
+            cmd += ["--arm", "react", "--seed-script", seed_script, "--max-steps", str(max_steps)]
+        elif os.getenv("V3_CONSTRUCTION_ONLY") == "1":
+            # First-pass-construction benchmark mode: render the initial setup.sh from
+            # LLM-driven construction and skip the repair loop, so the harness scores how
+            # well construction ALONE provisions the repo. The LLM (base-image + service/
+            # config classify) stays on — only repair is skipped.
             cmd.append("--construction-only")
         # V3_INCLUDE_SERVICES=1: also request the runtime service-start script.
         # run_v3_e2e only WRITES this file when its own env-var check passes AND
