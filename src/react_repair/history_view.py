@@ -213,4 +213,15 @@ def render_history(steps) -> str:
 
     if failed_deltas:                               # still-open blocker: consolidate what didn't help
         lines.append(f"      ↳ already tried for this blocker (didn't help): {', '.join(failed_deltas)}")
+        if len(failed_deltas) >= 2:
+            # Anti-fixation reframe (HerAgent "Historical Reflection"): >=2 edits against the SAME
+            # blocker with none clearing it is fixation, not progress — promote the passive ledger to
+            # an imperative to change strategy (the addons 3x setuptools re-pin). The factual line
+            # above stays so the agent still sees exactly what NOT to retry.
+            lines.append(
+                "      ⚠ STUCK — this blocker survived every edit above; none cleared it. STOP "
+                "repeating variations of the same fix and CHANGE your APPROACH. Re-read the error "
+                "and reconsider: is the install METHOD wrong (a system library is needed, not a pip "
+                "package; or `pip install -e .` is not right for this repo), or is a service / "
+                "config / env var the real gap?")
     return "\n".join(lines)

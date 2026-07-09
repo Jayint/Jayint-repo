@@ -204,6 +204,28 @@ def test_render_edit_populates_do_not_retry_ledger():
     assert "+pip install lxml2" in out and "+apt-get install libxml" in out
 
 
+# ───────────────────────── anti-repeat reframe (HerAgent "Historical Reflection") ────────────
+def test_render_escalates_to_directive_after_two_failed_edits_on_same_blocker():
+    # When the SAME blocker survives >=2 edits, the passive ledger becomes an ACTIVE directive to
+    # change approach — the anti-fixation lever (the addons 3x setuptools re-pin).
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _edit(1, "insert@5 +pip install lxml2", "BUILD FAILED", _LXML_HDR),
+             _edit(2, "insert@6 +pip install lxml3", "BUILD FAILED", _LXML_HDR)]
+    out = render_history(steps); low = out.lower()
+    assert "change your approach" in low                    # imperative pivot, not a passive note
+    assert "stuck" in low or "stop repeating" in low
+    assert "already tried" in low                           # factual ledger still present
+    assert "+pip install lxml2" in out and "+pip install lxml3" in out
+
+def test_render_single_failed_edit_stays_a_passive_note():
+    # ONE miss is normal progress, not fixation — keep the gentle ledger, don't nag on the first try.
+    steps = [_base("BUILD FAILED", _LXML_HDR),
+             _edit(1, "insert@5 +pip install lxml2", "BUILD FAILED", _LXML_HDR)]
+    out = render_history(steps); low = out.lower()
+    assert "already tried" in low
+    assert "change your approach" not in low and "stuck" not in low
+
+
 def test_grouped_view_stays_compact_regardless_of_observation_size():
     # The grouped view IS the compaction: 8 KB observations still render tiny (blocker + score only,
     # never the body). Locks that nobody re-introduces per-step body rendering or an LLM compressor.
