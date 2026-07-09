@@ -20,8 +20,11 @@ from src.react_repair.script_prep import strip_graph_framing
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).
 _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS)
 
-# Hard cap on a single pytest run so a hanging suite can't stall the whole benchmark.
-_TEST_TIMEOUT_S = int(os.getenv("REACT_TEST_TIMEOUT", "600"))
+# Hard cap on a single pytest run so a hanging suite can't stall the whole benchmark. Matches the
+# eval harness cap (1800s) so a WORKING-but-slow seed isn't read as false-0 by a harsher internal
+# cap than the eval applies — that false-0 was what drove the agent to gut a working closure (darts).
+# Override with REACT_TEST_TIMEOUT.
+_TEST_TIMEOUT_S = int(os.getenv("REACT_TEST_TIMEOUT", "1800"))
 
 
 class _ExecAdapter:
@@ -55,8 +58,14 @@ def docker_adapters(sandbox, test_threshold: float = 0.9):
         cmd = (f"if command -v timeout >/dev/null 2>&1; then "
                f"timeout -k 10 {_TEST_TIMEOUT_S} {VERIFY_TEST_CMD}; else {VERIFY_TEST_CMD}; fi")
         rc, out = sandbox.exec_readonly(cmd)
-        if rc == 124:                      # timeout killed pytest — surface it as a repair signal
-            out = f"{out or ''}\n[react] TIMEOUT: pytest exceeded {_TEST_TIMEOUT_S}s and was killed."
+        if rc in (124, 137):               # 124 = SIGTERM at the cap, 137 = SIGKILL 10s later
+            # Surface the timeout as a DISTINCT signal + an explicit anti-strip hint: a timeout means
+            # the env may be fine but the suite is slow, so removing installs to "fix" it only makes
+            # things worse (the darts failure). Appended last so it survives tail-truncation.
+            out = (f"{out or ''}\n[react] TIMEOUT: pytest exceeded {_TEST_TIMEOUT_S}s and was killed. "
+                   f"The environment may be correctly set up but the suite is just too slow to finish "
+                   f"in the cap — do NOT remove installs to make it faster (a smaller env passes fewer "
+                   f"tests, not more).")
         return test_verdict(out, threshold=test_threshold)
 
     return reset, run_script, certify, exec_readonly, run_tests

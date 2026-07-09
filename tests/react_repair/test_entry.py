@@ -58,6 +58,29 @@ def test_run_tests_timeout_kill_is_not_ok():
     _, _, _, _, run_tests = docker_adapters(sb)
     assert run_tests().ok is False
 
+def test_run_tests_sigkill_137_also_flagged_as_timeout():
+    # `timeout -k 10` SIGKILLs (rc 137) when pytest ignores the SIGTERM (124); both must read as a
+    # timeout, never as a broken env — a WORKING-but-slow seed must not look like "0 tests".
+    sb = _CapSandbox(137, "")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    r = run_tests()
+    assert r.ok is False and "TIMEOUT" in r.output
+
+def test_run_tests_timeout_banner_warns_against_stripping():
+    # The timeout observation carries an explicit anti-strip hint (darts pattern: the agent gutted a
+    # working-but-slow closure because the suite timed out). The banner tells it NOT to remove installs.
+    sb = _CapSandbox(124, "")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    out = run_tests().output.lower()
+    assert "timeout" in out and "do not remove installs" in out
+
+def test_default_test_timeout_matches_eval_cap():
+    # Raised 600 -> 1800 to match the eval harness, so a working-but-slow seed is not read as false-0
+    # by a HARSHER internal cap than the eval will apply.
+    import os, src.react_repair.entry as entry_mod
+    if "REACT_TEST_TIMEOUT" not in os.environ:
+        assert entry_mod._TEST_TIMEOUT_S == 1800
+
 
 def test_run_tests_threshold_is_configurable():
     _, _, _, _, rt_low = docker_adapters(_CapSandbox(0, "7 passed, 3 failed in 1s"), test_threshold=0.6)
