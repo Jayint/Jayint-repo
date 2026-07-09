@@ -3166,6 +3166,25 @@ enter with `complete: false` and whatever names the catalog states exactly (Post
 Rows the catalog marks **INFRA/ADMIN** (reverse proxy, admin UI, observability sidecar, CLI/init
 helper) are excluded everywhere — the catalog itself says they are not backing services.
 
+**Expanding the catalog's compressed notation — apply these rules mechanically.**
+The catalog's *Service* column compresses variant names. `complete: false` shields **precision**;
+it must never be used to under-report **recall**. Every name the catalog states plainly belongs in
+`must_detect`, even in a partial repo.
+
+| Catalog notation | Meaning | `must_detect` gets | Example |
+|---|---|---|---|
+| `a(+b)` where `b` is a full name | two services | `a`, `b` | `postgres(+postgresql)` → `postgres`, `postgresql` |
+| `a(-suffix)` | a service and its suffixed variant | `a`, `a-suffix` | `ezdata-es(-dev)` → `ezdata-es`, `ezdata-es-dev` |
+| `a/b` or `a/b/c` | alternative names across files/sources | `a`, `b`, `c` | `db/postgres` → `db`, `postgres` |
+| `a(+x,y,z)` where the items are **not** full names | descriptors, not names | `a` only | `redis(+7,cluster,nodes)` → `redis` |
+| `*-x` | glob; the prefix is unknown | **nothing** | `*-redis(-dev)` → omit |
+
+A row can mix them: `*-db/mysql-dev/ruoyi-mysql` yields `mysql-dev` and `ruoyi-mysql` (both plainly
+stated) and omits `*-db` (glob). Rows the catalog marks **INFRA/ADMIN** are excluded everywhere.
+
+A repo is `complete: false` if **any** of its rows is a glob or a non-name descriptor group;
+otherwise `complete: true`. Record, per partial repo, exactly which rows were unrecoverable.
+
 > **The oracle is ground truth and must be derived from the CATALOG ALONE.**
 > Never build, check, or "sanity-adjust" it by running `build_service_nodes`. An oracle fitted to the
 > detector measures nothing. Record each entry's catalog line in
@@ -3215,7 +3234,14 @@ def score(detected: dict[str, set[str]], oracle: dict[str, dict]) -> dict:
 
     prec = tp_complete / (tp_complete + fp_complete) if (tp_complete + fp_complete) else None
     rec = tp / (tp + fn) if (tp + fn) else None
-    f1 = (2 * prec * rec / (prec + rec)) if (prec and rec) else None
+    # `if (prec and rec)` would be WRONG: a genuine precision of 0.0 is falsy, and F1 would
+    # print `n/a` for a defined, very bad result. Test definedness, not truthiness.
+    if prec is None or rec is None:
+        f1 = None
+    elif prec + rec == 0:
+        f1 = 0.0
+    else:
+        f1 = 2 * prec * rec / (prec + rec)
     return {"precision": prec, "recall": rec, "f1": f1, "tp": tp, "fp": fp, "fn": fn,
             "tp_complete": tp_complete, "fp_complete": fp_complete, "rows": rows}
 
@@ -3275,7 +3301,11 @@ out, and do not require the corpus. Assert:
   recall `2/4 = 0.5`, not `mean(1.0, 0.333) = 0.667`;
 - `main()` raises `SystemExit` for an absent repo directory, and for an oracle key with no `/`;
 - thresholds are enforced: `main()` returns non-zero when recall or precision is below the bar;
-- an all-empty oracle yields `n/a` rather than a misleading `0.000`.
+- an all-empty oracle yields `n/a` rather than a misleading `0.000`;
+- **a genuine zero prints `0.000`, not `n/a`**: a `complete` repo where every detection is wrong and
+  a name is missed gives `precision == 0.0`, `recall == 0.0`, `f1 == 0.0`. Testing truthiness
+  (`if prec and rec`) instead of definedness silently converts the worst possible result into "not
+  measured", which is the most dangerous bug an eval can have.
 
 Acceptance for the eventual real run: **recall ≥ 0.90, precision ≥ 0.80.** Asymmetric on purpose —
 a missed service blinds the agent, while a false positive costs only turns and is contained by
