@@ -2361,7 +2361,7 @@ git commit -m "feat: evidence-only service construction; delete construction-tim
 
 ---
 
-## Task 10a: Rekey the evidence scanners by service name; delete `_kind_of`
+## Task 10a: Rekey the evidence scanners by service name
 
 > **Pre-flight resolution R1.** The original Task 10 said "remove `_kind_of` **only**". That is
 > impossible: `_services_from_yaml_doc` *calls* `_kind_of` and **keys its output dict by the
@@ -2371,7 +2371,16 @@ git commit -m "feat: evidence-only service construction; delete construction-tim
 > what the evidence actually says.
 
 **Files:**
-- Modify: `src/python_deps/depgraph/service_scan.py` (rewrite `_services_from_yaml_doc`; delete `_kind_of`; drop the now-unused `KNOWN_SERVICE_KINDS` import)
+- Modify: `src/python_deps/depgraph/service_scan.py` (rewrite `_services_from_yaml_doc` **only**)
+
+> **Do NOT delete `_kind_of` in this task.** `provisioning_spec.py:22` still imports it
+> (`from python_deps.depgraph.service_scan import _kind_of`, used at `:100` to populate
+> `ProvisioningSpec.kind`, which `patch_gate.py:94` reads). Deleting it here breaks 29 green tests
+> in files outside this task's scope. `provisioning_spec.py` is deleted in **Task 10**, which is
+> where `_kind_of` and the `KNOWN_SERVICE_KINDS` import die with it — and where
+> `test_no_service_tables.py::test_kind_of_is_gone` already asserts exactly that.
+> After this task `_kind_of` is unreachable from `_services_from_yaml_doc`; it is a dead branch
+> awaiting its deletion task. That is the whole point of ordering 10a before 9.
 - Modify: `src/eval/language_package_eval/oracle.py:127` (keys are now service names)
 - Test: `tests/depgraph/test_service_scan.py` (update key expectations), `tests/eval/language_package_eval/test_oracle.py` (verify)
 
@@ -2480,10 +2489,9 @@ get an empty dict.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `src/python_deps/depgraph/service_scan.py`, delete `_kind_of` entirely, delete the
-`from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS` import (verify with
-`grep -n KNOWN_SERVICE_KINDS src/python_deps/depgraph/service_scan.py` that nothing else in the
-file uses it), and replace `_services_from_yaml_doc` with:
+In `src/python_deps/depgraph/service_scan.py`, replace `_services_from_yaml_doc` with the code
+below. **Leave `_kind_of` and the `KNOWN_SERVICE_KINDS` import in place** — `provisioning_spec.py`
+still imports `_kind_of`, and Task 10 deletes both together:
 
 ```python
 def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
@@ -2526,11 +2534,16 @@ In `src/eval/language_package_eval/oracle.py`, line 127 currently reads:
 
 The keys are now declared service names rather than kinds. That is the correct oracle semantics
 (the oracle declares what the repo declares). Leave the line as-is, but update the comment
-above it if it says "kind". Then run `tests/eval/language_package_eval/test_oracle.py` — the
-`compose_postgres` fixture declares a service *named* `postgres`, so
-`declared_by_tier["SERVICE"] == ("postgres",)` still holds. **If any fixture names a service
-differently from its kind, update the expectation to the declared name and say so in your
-report** — do not rename the fixture to make the old assertion pass.
+above it if it says "kind". Then run `tests/eval/language_package_eval/test_oracle.py`. **Its `compose_postgres` fixture
+declares `web` (an app, with `build:`) and `db` (`postgres:15`) — no service named `postgres`.**
+Under kind-keying, `db` was reported as `"postgres"` and `web` was silently dropped (an app has no
+recognized kind). Under name-keying the SERVICE tier becomes `("db", "web")`.
+
+Update the two affected assertions (`test_postgres_image_maps_to_service_kind`, and the
+`to_dict` test) to the declared names. **Do not rename the fixture to make the old assertion
+pass.** State the change in your report: the oracle's SERVICE tier now means *every declared
+compose service*, including the app under test, which is an honest reading of "what the repo
+declares" — the previous exclusion of `web` was an accident of the kind table, not a decision.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -2539,21 +2552,26 @@ Run:
 python3 -m pytest tests/depgraph/test_service_scan.py tests/eval/language_package_eval/test_oracle.py \
     tests/depgraph/test_static_collect.py -q
 ```
-Expected: PASS. Then confirm the table is gone:
+Expected: PASS. Then confirm `_services_from_yaml_doc` no longer consults the table:
 ```bash
-grep -n "_kind_of\|KNOWN_SERVICE_KINDS" src/python_deps/depgraph/service_scan.py
+grep -n "_kind_of" src/python_deps/depgraph/service_scan.py
 ```
-Expected: no output.
+Expected: exactly two hits — the `def _kind_of(...)` line and nothing inside
+`_services_from_yaml_doc`. (`provisioning_spec.py` still imports it; Task 10 deletes both.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/python_deps/depgraph/service_scan.py src/eval/language_package_eval/oracle.py \
         tests/depgraph/test_service_scan.py tests/eval/language_package_eval/test_oracle.py
-git commit -m "refactor(service_scan): key evidence by declared service name, delete _kind_of
+git commit -m "refactor(service_scan): key evidence by declared service name
 
-The kind table was silently dropping every exotic service (valkey, weaviate)
-before static_collect or the oracle could see it. Evidence is the declared name."
+The kind table was silently dropping every exotic service (valkey, weaviate) before
+static_collect or the oracle could see it, so classify_services_clean bailed at
+'if not hits' and built no node. Evidence is the declared name.
+
+_kind_of survives only because provisioning_spec.py still imports it; Task 10 deletes
+both together."
 ```
 
 ---
@@ -2574,6 +2592,11 @@ before static_collect or the oracle could see it. Evidence is the declared name.
 - Delete: `tests/depgraph/test_provisioning_spec.py`
 - Delete: `tests/depgraph/test_service_recipes_clean.py`
 - Modify: `src/python_deps/depgraph/service_recipes.py` (remove `KindBase`, `_KIND_BASE`, `render_setup`, `RECIPE_KINDS`)
+- Modify: `src/python_deps/depgraph/service_scan.py` — **now** delete `_kind_of` and the
+  `from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS` import. Task 10a made it
+  unreachable from `_services_from_yaml_doc`; its last importer was `provisioning_spec.py`, which
+  this task deletes. Verify with `grep -n "_kind_of\|KNOWN_SERVICE_KINDS" src/python_deps/depgraph/service_scan.py`
+  printing nothing — that is what `test_no_service_tables.py::test_kind_of_is_gone` asserts.
 - Create: `tests/depgraph/test_no_service_tables.py`
 
 **Why these evals go (R5).** `stage_translate.py` measures the construction-time LLM recipe
