@@ -134,3 +134,17 @@ def test_render_explore_nests_without_changing_blocker():
 
 def test_render_empty_is_safe():
     assert isinstance(render_history([]), str)
+
+def test_grouped_view_stays_compact_regardless_of_observation_size():
+    # The grouped view IS the compaction: 8 KB observations still render tiny (blocker + score only,
+    # never the body). Locks that nobody re-introduces per-step body rendering or an LLM compressor.
+    big = ("BUILD OK. TESTS 1/2 passed:\n" + ("noise line of build output\n" * 800)
+           + "\nModuleNotFoundError: No module named 'toml'")
+    steps = [Step(0, "", "baseline → 1/2", big, big[:4000]),
+             Step(1, "", "patch v1 (+pip install toml) → 2/2",
+                  "BUILD OK. TESTS 2/2 passed:\n" + "x" * 8000, "")]
+    out = render_history(steps)
+    assert len(big) > 6000                       # the raw observation really is large
+    assert len(out) < 1000                       # but the grouped view is tiny
+    assert "No module named 'toml'" in out       # blocker signature preserved
+    assert "noise line" not in out               # body noise never rendered

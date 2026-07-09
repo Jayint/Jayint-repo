@@ -5,7 +5,6 @@ through the 80% verdict. No arm-C imports."""
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER, certify_all
 from python_deps.depgraph.executor import CommandResult
@@ -62,24 +61,6 @@ def docker_adapters(sandbox, test_threshold: float = 0.9):
     return reset, run_script, certify, exec_readonly, run_tests
 
 
-def _make_compressor(client: Any, model: str):
-    """Tier-2 reflective compressor: summarize an old observation via the LLM."""
-    from src.envstate.llm_response import complete_with_retry
-
-    def compress(target, _context) -> str:
-        messages = [
-            {"role": "system", "content": "Summarize this build/test output in 2-3 lines, keeping "
-                                          "the BUILD OK/FAILED verdict, the test pass/fail counts "
-                                          "(e.g. 5/7 passed), the exact error, and any missing "
-                                          "package/library names."},
-            {"role": "user", "content": target.observation_raw[:8000]},
-        ]
-        text, _usage, _raw = complete_with_retry(client, model, messages, temperature=0)
-        return f"[summary of step {target.step_id}] {text.strip()}"
-
-    return compress
-
-
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
                   test_threshold: float = 0.9, initial_script: str | None = None):
@@ -88,7 +69,10 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
     ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
     planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None), log=log)
-    history = History(compressor=_make_compressor(client, model), log=log)
+    # No LLM observation compressor: the grouped blocker history view (render_history) is the
+    # compaction now — it distills each step to a blocker signature + score, and never renders the
+    # per-step body, so a Tier-2 summariser would only fire wasted LLM calls whose output is unused.
+    history = History(log=log)
     # Seed step-0 from a pre-generated setup.sh (repair-only ablation); strip the graph-primary
     # header so a copy from a prior v3 run doesn't carry "DO NOT EDIT / edit the graph" contradictions.
     seed = strip_graph_framing(initial_script) if initial_script is not None else None
