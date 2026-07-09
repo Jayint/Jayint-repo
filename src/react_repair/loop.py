@@ -74,6 +74,21 @@ def _verdict(result: RunResult, test) -> str:
     return f"{test.passed}/{test.executed}"
 
 
+def _edit_summary(op) -> str:
+    """Describe a line-anchored edit for the history bracket, straight from the op (verb + line span
+    + a content preview) rather than a whole-script diff. Edits form a CHAIN now (not whole-script
+    siblings), and the line numbers are stable and shown, so `insert@23 +pip install X` / `delete@55`
+    is more precise than a set-diff — and it captures deletes, which an additions-only diff misses."""
+    span = f"{op.start}" if op.end == op.start else f"{op.start}-{op.end}"
+    if op.verb == "delete":
+        return f"delete@{span}"
+    body = [ln for ln in (op.content or "").splitlines() if ln.strip()]
+    preview = (body[0].strip()[:60] if body else "")
+    extra = f" (+{len(body) - 1})" if len(body) > 1 else ""
+    sign = "+" if op.verb == "insert" else ""
+    return f"{op.verb}@{span} {sign}{preview}{extra}".rstrip()
+
+
 def _added_lines(old: str, new: str, cap: int = 3) -> str:
     """What a patch changed, for the history bracket — the ReAct 'action' half. A SET difference
     (order-free, no line numbers) so it can't go stale as the script is rewritten: patches are
@@ -178,15 +193,14 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
                 continue
             old_script, script = script, new
             e = action.edit
-            span = f"{e.start}" if e.end == e.start else f"{e.start}-{e.end}"
-            log.d("EDIT", f"{e.verb} {span}; re-running fresh")
+            change = _edit_summary(e)          # op-based: verb@span + preview (captures deletes too)
+            log.d("EDIT", f"{change}; re-running fresh")
             result, graph, test = build_and_test()
             plateaued = register(result, test)
             version += 1
-            change = _added_lines(old_script, script)
             verdict = _verdict(result, test)
-            summary = f"edit v{version} ({change}) → {verdict}" if change else f"edit v{version} → {verdict}"
-            history.record(step + 1, thought, summary, _observation(result, test))
+            history.record(step + 1, thought, f"edit v{version} ({change}) → {verdict}",
+                           _observation(result, test))
             continue
         if action.kind == "patch" and action.new_script:
             old_script, script = script, action.new_script

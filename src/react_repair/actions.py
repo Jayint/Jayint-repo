@@ -102,7 +102,7 @@ def _explore_from_script_block(body: str) -> str | None:
     # the first-token allowlist above misses it. Applying it as a patch overwrote the seed with a
     # non-installing script that still "built green" (false green: ezdata, promnesia). Deciding by
     # is_read_only PER SEGMENT (not the first token) recovers it as the explore the model meant. A
-    # compound with any install segment (`cd … && pip install …`) is NOT all-read-only → stays a patch.
+    # compound with any install segment (`cd … && pip install …`) is NOT all-read-only → not recovered.
     if _is_readonly_compound(line):
         return line
     return None
@@ -110,23 +110,10 @@ def _explore_from_script_block(body: str) -> str | None:
 
 def _is_readonly_compound(line: str) -> bool:
     """True when *line* chains ≥2 commands (on &&/||/;) that are ALL read-only — a mis-wrapped
-    investigation probe, never a build script. Single simple statements (`echo hi`) have one
-    segment and are left to the patch path, preserving patch-wins semantics."""
+    investigation probe. Recovered as an explore. Single simple statements (`echo hi`) have one
+    segment, so they aren't recovered here and fall through to invalid (edit-only: not a valid move)."""
     segments = [seg.strip() for seg in re.split(r"&&|\|\||;", line) if seg.strip()]
     return len(segments) >= 2 and all(is_read_only(seg) for seg in segments)
-
-
-def _is_all_readonly_block(body: str) -> bool:
-    """A fenced block whose EVERY meaningful line is read-only (≥2 lines) is a mis-formatted set of
-    probes, not a build script — a build script installs/builds. Applying it as a patch replaces
-    setup.sh with a non-installing script, so the build 'succeeds' with an empty env (false green;
-    observed under concurrency on gitingest/ingestr). Single-line probe blocks are handled by
-    _explore_from_script_block; this catches the multi-line case."""
-    lines = [ln.strip() for ln in body.splitlines()
-             if ln.strip() and not ln.strip().startswith("#")]
-    if len(lines) < 2:
-        return False
-    return all(is_read_only(_ACTION_PREFIX.sub("", ln)) for ln in lines)
 
 
 def parse_action(text: str) -> Action:
@@ -143,20 +130,19 @@ def parse_action(text: str) -> Action:
                 return Action("invalid")
             content = mb.group(1).strip("\n")
         return Action("edit", edit=EditOp(verb, start, end, content))
-    m = _SCRIPT_BLOCK.search(t)             # a fenced block is otherwise the whole replacement script
+    # Edit-only: a fenced ```bash block is NOT a way to change setup.sh (whole-script rewrites are
+    # gone — only line-anchored Edits mutate the script). We still RECOVER a mis-wrapped read-only
+    # probe from a fence as the explore the model meant; anything else falls through to invalid so
+    # the loop re-prompts "use Edit".
+    m = _SCRIPT_BLOCK.search(t)
     if m:
-        body = m.group(1).strip()
-        recovered = _explore_from_script_block(body)
-        if recovered is not None:           # a single mis-wrapped read-only probe → the explore it meant
+        recovered = _explore_from_script_block(m.group(1).strip())
+        if recovered is not None:
             return Action("explore", command=recovered)
-        if body and _is_all_readonly_block(body):   # multi-line all-probe block → not a build script
-            return Action("invalid")
-        if body:                            # a real (non-empty) build script → the patch
-            return Action("patch", new_script=body + "\n")
-    m = _ACTION_LINE.search(t)
+    m = _ACTION_LINE.search(t)              # an explicit read-only investigate directive
     if m:
         return Action("explore", command=m.group(1).strip())
-    return Action("invalid")
+    return Action("invalid")                # non-probe fence or prose → re-prompt (use Edit)
 
 
 def extract_thought(text: str) -> str:

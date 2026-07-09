@@ -89,6 +89,43 @@ def test_run_tests_threshold_is_configurable():
     assert rt_default().ok is False               # 0.7 < 0.9 default
 
 
+class _EnvSandbox:
+    base_image = "python:3.10-slim"
+    workdir = "/app"
+    def __init__(self, os_out="Debian GNU/Linux 12 (bookworm)", raise_probe=False):
+        self._os_out, self._raise = os_out, raise_probe
+    def exec_readonly(self, cmd):
+        if self._raise:
+            raise RuntimeError("no container")
+        return (0, self._os_out)
+
+def test_gather_env_info_includes_base_dir_and_layout(tmp_path):
+    from src.react_repair.entry import _gather_env_info
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+    (tmp_path / "rq").mkdir(); (tmp_path / "rq" / "__init__.py").write_text("")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "requirements.txt").write_text("redis\n")
+    (tmp_path / ".git").mkdir(); (tmp_path / ".git" / "junk").write_text("x")   # skipped
+    info = _gather_env_info(_EnvSandbox(), str(tmp_path))
+    assert "python:3.10-slim" in info and "Debian" in info and "/app" in info
+    assert "pyproject.toml" in info and "requirements.txt" in info      # manifests surfaced
+    assert "rq/" in info and "tests/" in info                            # top-level layout
+    assert ".git" not in info                                           # noise dir skipped
+
+def test_gather_env_info_surfaces_monorepo_manifest_paths(tmp_path):
+    # a nested package manifest (monorepo) must show its PATH, not just the name — this is what
+    # lets the agent target the right editable-install dir instead of guessing `pip install -e .`.
+    from src.react_repair.entry import _gather_env_info
+    sub = tmp_path / "premium" / "backend"; sub.mkdir(parents=True)
+    (sub / "pyproject.toml").write_text("[project]\nname='p'\n")
+    info = _gather_env_info(_EnvSandbox(), str(tmp_path))
+    assert "premium/backend/pyproject.toml" in info
+
+def test_gather_env_info_survives_probe_failure(tmp_path):
+    from src.react_repair.entry import _gather_env_info
+    info = _gather_env_info(_EnvSandbox(raise_probe=True), str(tmp_path))
+    assert "python:3.10-slim" in info and "/app" in info    # base+dir kept; OS omitted, no crash
+
 def test_run_react_arm_strips_and_forwards_seed(monkeypatch):
     import src.react_repair.entry as entry_mod
     captured = {}

@@ -11,31 +11,29 @@ def test_parse_explore():
     a = parse_action("Thought: check libs\nAction: ldconfig -p | grep pq")
     assert a.kind == "explore" and a.command == "ldconfig -p | grep pq"
 
-def test_parse_patch_full_script():
-    text = "Thought: add libpq\nScript:\n```bash\napt-get install -y libpq-dev\npip install psycopg2\n```"
-    a = parse_action(text)
-    assert a.kind == "patch"
-    assert "libpq-dev" in a.new_script and a.new_script.endswith("\n")
+def test_whole_script_block_without_edit_is_invalid():
+    # edit-only: a fenced ```bash build script (no Edit: directive) is NOT a way to change setup.sh —
+    # the loop re-prompts "use Edit". Whole-file rewrites (and the strip path they enabled) are gone.
+    text = "Thought: add libpq\n```bash\napt-get install -y libpq-dev\npip install psycopg2\n```"
+    assert parse_action(text).kind == "invalid"
 
-def test_patch_wins_over_action_when_both_present():
-    a = parse_action("Action: ls\nScript:\n```bash\necho hi\n```")
-    assert a.kind == "patch"
+def test_action_directive_wins_over_a_stray_fence():
+    # A non-probe fenced block is not a valid move; an explicit Action directive alongside it wins.
+    a = parse_action("Action: ls\n```bash\necho hi\n```")
+    assert a.kind == "explore" and a.command == "ls"
 
 def test_unparseable_is_invalid():
     assert parse_action("I think we should install stuff").kind == "invalid"
 
-def test_parse_patch_with_markdown_bold_label():
-    # deepseek drifts to markdown: `**Script:**` instead of `Script:` — must still parse.
-    a = parse_action("We need six.\n\n**Script:**\n\n```bash\napt-get install -y libpq-dev\npip install six\n```")
-    assert a.kind == "patch" and "libpq-dev" in a.new_script
+def test_markdown_script_block_is_invalid_not_a_patch():
+    a = parse_action("We need six.\n\n**Script:**\n\n```bash\npip install six\n```")
+    assert a.kind == "invalid"
 
-def test_parse_patch_bare_fenced_block_no_label():
-    a = parse_action("Here is the updated script:\n```bash\npip install six\n```")
-    assert a.kind == "patch" and "pip install six" in a.new_script
+def test_bare_fenced_install_block_is_invalid():
+    assert parse_action("Here is the updated script:\n```bash\npip install six\n```").kind == "invalid"
 
-def test_parse_patch_unlabeled_fence():
-    a = parse_action("```\npip install six\n```")
-    assert a.kind == "patch" and "pip install six" in a.new_script
+def test_unlabeled_fenced_install_block_is_invalid():
+    assert parse_action("```\npip install six\n```").kind == "invalid"
 
 def test_python_fence_does_not_hijack_explore():
     # a ```python snippet is not a shell script; the Action line should win.
@@ -58,21 +56,16 @@ def test_shebang_then_action_in_fence_is_explore():
     a = parse_action("```bash\n#!/usr/bin/env bash\nAction: ls /app\n```")
     assert a.kind == "explore" and a.command == "ls /app"
 
-def test_single_line_install_stays_patch():
-    # A one-line INSTALL is a genuine (if minimal) build change — not read-only, stays a patch.
-    a = parse_action("```bash\npip install six\n```")
-    assert a.kind == "patch" and "pip install six" in a.new_script
+def test_single_line_install_block_is_invalid():
+    # edit-only: a lone install line in a fence is not a valid move — use Edit to add it.
+    assert parse_action("```bash\npip install six\n```").kind == "invalid"
 
-def test_echo_oneliner_stays_patch():
-    # `echo` is read-only but NOT an investigation probe — a lone script statement stays a patch
-    # (guards the probe allowlist against over-catching; preserves patch-wins semantics).
-    a = parse_action("```bash\necho hi\n```")
-    assert a.kind == "patch" and "echo hi" in a.new_script
+def test_echo_oneliner_block_is_invalid():
+    assert parse_action("```bash\necho hi\n```").kind == "invalid"
 
-def test_multiline_mixed_block_stays_patch():
-    # A block with an install line is a real (mixed) script even if it opens with a read-only probe.
-    a = parse_action("```bash\ncat /app/pyproject.toml\npip install -e .\n```")
-    assert a.kind == "patch"
+def test_multiline_mixed_block_is_invalid():
+    # A block with an install line is a build-script fragment, not a probe → invalid (use Edit).
+    assert parse_action("```bash\ncat /app/pyproject.toml\npip install -e .\n```").kind == "invalid"
 
 def test_multiline_all_readonly_probe_block_is_invalid_gitingest():
     # Bug C (concurrency run, gitingest): a fenced block of ONLY read-only version probes must NOT
@@ -112,19 +105,18 @@ def test_single_line_cd_probe_compound_recovered_as_explore_promnesia():
     a = parse_action(text)
     assert a.kind == "explore" and a.command.startswith("cd /app")
 
-def test_cd_then_install_compound_stays_patch():
-    # A `cd … && pip install …` compound HAS a mutation (pip install) -> a genuine (minimal) patch.
-    a = parse_action("```bash\ncd /app && pip install -e .\n```")
-    assert a.kind == "patch" and "pip install -e ." in a.new_script
+def test_cd_then_install_compound_is_invalid_not_recovered():
+    # A `cd … && pip install …` compound HAS a mutation (pip install) so it is NOT a read-only probe
+    # → not recovered as explore; under edit-only it's invalid (use Edit), not a patch.
+    assert parse_action("```bash\ncd /app && pip install -e .\n```").kind == "invalid"
 
-def test_multiline_readonly_check_before_install_stays_patch():
-    # The common real seed pattern: a read-only guard whose OR-tail installs. The line contains
-    # `pip install` so it is NOT read-only → the block is a genuine patch.
+def test_multiline_install_block_is_invalid():
+    # A block that installs (real build-script fragment) is invalid under edit-only — use Edit.
     text = ('```bash\n'
             'python -c "import pytest" || pip install pytest\n'
             'pip install -e .\n'
             '```')
-    assert parse_action(text).kind == "patch"
+    assert parse_action(text).kind == "invalid"
 
 def test_parse_edit_replace_single_line_with_block():
     a = parse_action("Thought: pin\nEdit: replace 3\n```bash\npip install narwhals\n```")

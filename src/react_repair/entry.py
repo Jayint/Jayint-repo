@@ -5,6 +5,7 @@ through the 80% verdict. No arm-C imports."""
 from __future__ import annotations
 
 import os
+import pathlib
 
 from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER, certify_all
 from python_deps.depgraph.executor import CommandResult
@@ -71,6 +72,64 @@ def docker_adapters(sandbox, test_threshold: float = 0.9):
     return reset, run_script, certify, exec_readonly, run_tests
 
 
+# Files that declare a repo's dependencies / build / test setup — surfaced in the ENVIRONMENT block
+# so the agent sees where they live (esp. in a monorepo) instead of guessing from one error.
+_MANIFEST_NAMES = frozenset({
+    "pyproject.toml", "setup.py", "setup.cfg", "tox.ini", "noxfile.py", "Pipfile", "poetry.lock",
+    "uv.lock", "environment.yml", "environment.yaml", "Makefile"})
+_SKIP_DIRS = frozenset({
+    ".git", "__pycache__", "node_modules", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache",
+    ".idea", ".eggs", "build", "dist", ".ruff_cache", ".hypothesis", ".git"})
+
+
+def _repo_layout(repo_path, *, max_top=40, max_manifests=40) -> str:
+    """A curated view of the repo (from the HOST checkout, read-only): top-level entries + every
+    dependency/config manifest up to depth 3 — the structural signal that fixes 'where is the
+    package / which dir owns pyproject.toml' without an exploration turn."""
+    root = pathlib.Path(repo_path)
+    if not root.is_dir():
+        return ""
+    top = []
+    for p in sorted(root.iterdir(), key=lambda q: (q.is_file(), q.name.lower())):
+        if p.name in _SKIP_DIRS or p.name.startswith("."):
+            continue
+        top.append(p.name + "/" if p.is_dir() else p.name)
+    manifests = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS and not d.startswith(".")]
+        rel = pathlib.Path(dirpath).relative_to(root)
+        if len(rel.parts) > 3:
+            dirnames[:] = []
+            continue
+        for f in filenames:
+            if f in _MANIFEST_NAMES or (f.startswith("requirements") and f.endswith(".txt")):
+                manifests.add(f if str(rel) == "." else str(rel / f))
+    lines = ["    top level: " + ", ".join(top[:max_top])] if top else []
+    if manifests:
+        lines.append("    dependency/config files: " + ", ".join(sorted(manifests)[:max_manifests]))
+    return "\n".join(lines)
+
+
+def _gather_env_info(sandbox, repo_path) -> str:
+    """Render the ENVIRONMENT block: base image + OS, the in-container repo/working dir, and the
+    repo layout. Best-effort — any part that can't be gathered is simply omitted."""
+    base = getattr(sandbox, "base_image", None) or "?"
+    workdir = getattr(sandbox, "workdir", "/app")
+    os_family = ""
+    try:                               # one read-only probe of the running container
+        _rc, out = sandbox.exec_readonly(". /etc/os-release 2>/dev/null; printf '%s' \"$PRETTY_NAME\"")
+        os_family = (out or "").strip().splitlines()[0].strip() if (out or "").strip() else ""
+    except Exception:
+        os_family = ""
+    lines = [f"  Base image : {base}" + (f" ({os_family})" if os_family else ""),
+             f"  Working dir: {workdir}   (setup.sh runs here; the repo is checked out AT this path — "
+             f"its files are directly under {workdir}, e.g. {workdir}/pyproject.toml)"]
+    layout = _repo_layout(repo_path) if repo_path else ""
+    if layout:
+        lines += ["  Repo layout:", layout]
+    return "\n".join(lines)
+
+
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
                   test_threshold: float = 0.9, initial_script: str | None = None):
@@ -78,7 +137,9 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
     log = log or ReactLog(trace_path=trace_out)
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
     ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
-    planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None), log=log)
+    env_info = _gather_env_info(sandbox, repo_path)
+    planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None),
+                           log=log, env_info=env_info)
     # No LLM observation compressor: the grouped blocker history view (render_history) is the
     # compaction now — it distills each step to a blocker signature + score, and never renders the
     # per-step body, so a Tier-2 summariser would only fire wasted LLM calls whose output is unused.

@@ -138,6 +138,26 @@ def test_edit_out_of_range_is_invalid_and_never_regresses_seed():
     outcome, script, _ = _run([bad], tests_need=("magic",))
     assert outcome == "GIVEUP" and script == "pip install app\n"
 
+def test_edit_summary_describes_the_op():
+    from src.react_repair.loop import _edit_summary
+    assert _edit_summary(EditOp("insert", 23, 23, "pip install hiredis")) == "insert@23 +pip install hiredis"
+    assert _edit_summary(EditOp("replace", 40, 40, "pip install redis==8.0.1")) == "replace@40 pip install redis==8.0.1"
+    assert _edit_summary(EditOp("delete", 55, 55, "")) == "delete@55"                 # deletes ARE captured
+    assert _edit_summary(EditOp("insert", 5, 5, "a\nb\nc")) == "insert@5 +a (+2)"      # multi-line collapses
+    assert _edit_summary(EditOp("replace", 2, 4, "x")) == "replace@2-4 x"             # range span
+
+def test_edit_history_bracket_uses_op_summary():
+    # the history records the edit BY ITS OP (verb@span + preview), not a whole-script diff.
+    hist = History()
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    ins = Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev"))
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=_ScriptedPlanner([ins]), history=hist,
+              log=ReactLog(silent=True), max_steps=10, _initial_script=box[0])
+    assert hist.steps[1].action_summary.startswith("edit v1 (insert@1 ")
+    assert "apt-get install -y libpq-dev" in hist.steps[1].action_summary
+
 def test_unfixable_gives_up():
     outcome, _, _ = _run([], installed_needs=("libunobtainium",))
     assert outcome == "GIVEUP"

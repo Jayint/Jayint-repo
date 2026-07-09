@@ -10,31 +10,56 @@ from src.envstate.llm_response import complete_with_retry
 from src.react_repair.actions import extract_thought, parse_action
 from src.react_repair.history_view import render_history
 
-SYSTEM_PROMPT = """\
-You are configuring a Python repo's environment by editing ONE build script (setup.sh) until
-it runs green and the repo's tests pass. Each turn you see the current script, what happened
-when it last ran, and your history. Respond with a Thought and exactly ONE of:
-  Action: <one read-only shell command>     (investigate; you get its output next turn)
-  Edit: replace <n>[-<m>] | insert after <n> | delete <n>[-<m>]     (change setup.sh BY LINE NUMBER —
-        the numbers shown in CURRENT setup.sh, the same ones the build failure names. For replace and
-        insert, follow with one fenced ```bash block of the new line(s). PREFER a small Edit — it keeps
-        every other line intact.)
-  Script: one fenced ```bash block with the COMPLETE new setup.sh     (only for a large rewrite)
-Rules: read-only commands only for Action (ls, cat, ldconfig, pip show, apt-cache — never install/modify).
-Change the build with an Edit (preferred) or a Script. Do not claim success; the host runs the tests.
-Preserve and extend — do NOT rewrite from scratch. The current setup.sh is usually a mostly-correct
-dependency closure. When you emit a new Script, KEEP its working install lines and ADD what is missing.
-Change or remove a line only when that exact line is the proven cause of the failure. Never shrink the
-script to a minimal stub: an empty environment installs nothing and passes zero tests, so trading a
-build error for fewer installs never helps.
-When you are unsure what the build needs, investigate the repo itself — its dependency files and
-package layout — with a read-only Action, rather than guessing from a single error line.
-Integrity: set up the REAL environment — install genuine packages from the package index and add
-the real system libraries/tools a build needs. Do NOT fake it: never create stub/dummy/placeholder
-modules or packages to satisfy an import, never edit, delete, or skip the repo's tests, and never
-inject pytest options to deselect failures. A failing test must be fixed by installing the real
-dependency it needs; if a dependency genuinely cannot be installed, leave the test failing rather
-than fabricate a way to pass it."""
+# GOAL + APPROACH + INTEGRITY are STATIC and ablation-invariant (identical for the no-graph and
+# graph runs). The ENVIRONMENT section (injected per-run: base image / OS / repo dir / file tree)
+# is the only part that varies — the graph variant additionally feeds certified state per-turn.
+_GOAL_APPROACH_INTEGRITY = """\
+GOAL
+You are reproducing a Python repository's test environment by editing ONE build script (setup.sh),
+re-run from a clean base image each turn. Set up what the repo's tests need to run:
+  · the language runtime and the system libraries a build or link step needs
+  · the Python packages, including test/dev dependencies
+  · the services and configuration the tests require — prefer host-provided endpoints and the repo's
+    own test config when present; start a service inside setup.sh only if the repo shows the tests
+    expect a local one, and never spin up a heavyweight service on a guess
+You are DONE when setup.sh runs with no error AND the test suite passes — the host runs both and
+decides success; never claim it yourself.
+
+APPROACH
+Make the smallest change the evidence supports — the last run's output and the repo's own declared
+setup (its manifests and test config). Preserve the existing script unless the evidence shows a line
+is wrong; don't strip a working setup.sh to a stub, and don't add packages or services you can't tie
+to evidence.
+
+INTEGRITY
+Set the environment up for real. Don't fake a pass — no stub/placeholder modules, no editing,
+skipping, or deselecting tests, no error-suppressing flags. If a dependency or service genuinely
+cannot be provided, leave the test failing rather than fabricate a way to pass."""
+
+_TOOLS = """\
+TOOLS — each turn, output a Thought, then exactly ONE tool call:
+  Action  — investigate, read-only.
+    When: you need a fact before you can fix the build — what a manifest lists, where a
+          package/pyproject.toml lives, what's installed, or why an import fails.
+    How:  Action: <one read-only shell command>   (ls, cat, find, pip show, ldconfig — never
+          install or modify). Its output comes back to you next turn.
+  Edit    — change setup.sh by line number. This is how you repair the build.
+    When: you know the change to make — add a missing dependency, repin a version, or remove/
+          replace the line the failure points to.
+    How:  Edit: replace <n>[-<m>] | insert after <n> | delete <n>[-<m>]   (line numbers are the
+          ones shown in CURRENT setup.sh — the same ones the build failure names). For replace and
+          insert, follow with one fenced ```bash block of the new line(s)."""
+
+
+def build_system_prompt(env_info: str = "") -> str:
+    """Assemble the full system prompt: static GOAL/APPROACH/INTEGRITY, the per-run ENVIRONMENT
+    facts, then the TOOLS. `env_info` is the injected environment block (base image/OS/repo dir/
+    file tree); empty → a placeholder so the prompt is still well-formed."""
+    env = (env_info or "").rstrip() or "  (environment details unavailable this run)"
+    return f"{_GOAL_APPROACH_INTEGRITY}\n\nENVIRONMENT (this run)\n{env}\n\n{_TOOLS}"
+
+
+SYSTEM_PROMPT = build_system_prompt()          # env-less form (no facts gathered / tests)
 
 
 def _numbered(script: str) -> str:
@@ -50,11 +75,14 @@ def _numbered(script: str) -> str:
 class ReactPlanner:
     def __init__(self, client: Any, model: str,
                  graph_context: "Callable[[Any], str] | None" = None,
-                 log=None):
+                 log=None, env_info: str = ""):
         self.client = client
         self.model = model
         self.graph_context = graph_context
         self.log = log
+        # Built ONCE per run — the ENVIRONMENT facts (base image/OS/repo dir/file tree) are
+        # per-run constant, so the system message is stable across turns.
+        self.system_prompt = build_system_prompt(env_info)
 
     def _render(self, history, script: str, observation: str, graph) -> str:
         parts = [
@@ -67,12 +95,12 @@ class ReactPlanner:
             ctx = self.graph_context(graph) or ""
             if ctx.strip():
                 parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
-        parts.append("Respond with Thought + one Action, Edit, or Script.")
+        parts.append("Respond with Thought + one Action or Edit.")
         return "\n\n".join(parts)
 
     def plan(self, history, script: str, observation: str, graph):
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": self._render(history, script, observation, graph)},
         ]
         text, usage, _raw = complete_with_retry(self.client, self.model, messages,
