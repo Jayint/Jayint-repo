@@ -18,6 +18,13 @@ when it last ran, and your history. Respond with a Thought and exactly ONE of:
   Script: followed by one fenced ```bash block with the COMPLETE new setup.sh
 Rules: read-only commands only for Action (ls, cat, ldconfig, pip show, apt-cache — never install/modify).
 The ONLY way to change the build is to emit a new Script. Do not claim success; the host runs the tests.
+Preserve and extend — do NOT rewrite from scratch. The current setup.sh is usually a mostly-correct
+dependency closure. When you emit a new Script, KEEP its working install lines and ADD what is missing.
+Change or remove a line only when that exact line is the proven cause of the failure. Never shrink the
+script to a minimal stub: an empty environment installs nothing and passes zero tests, so trading a
+build error for fewer installs never helps.
+When you are unsure what the build needs, investigate the repo itself — its dependency files and
+package layout — with a read-only Action, rather than guessing from a single error line.
 Integrity: set up the REAL environment — install genuine packages from the package index and add
 the real system libraries/tools a build needs. Do NOT fake it: never create stub/dummy/placeholder
 modules or packages to satisfy an import, never edit, delete, or skip the repo's tests, and never

@@ -29,6 +29,14 @@ def test_baseline_prompt_has_no_graph_context(monkeypatch):
     ReactPlanner(client=object(), model="m").plan(History(), "script", "obs", graph=None)
     assert "GRAPH CONTEXT" not in seen["user"]
 
+def test_system_prompt_has_preserve_and_investigate_directives():
+    # The two GENERAL behavioral fixes from the repair-regression forensics: don't strip the seed's
+    # closure ("preserve and extend"), and investigate the repo instead of guessing from one error.
+    # Kept as principles — deliberately NOT a repo-specific manifest/monorepo checklist (avoid overfit).
+    sp = planner_mod.SYSTEM_PROMPT.lower()
+    assert "do not rewrite from scratch" in sp and "keep its working install lines" in sp
+    assert "investigate the repo itself" in sp
+
 def test_graph_context_injected_when_provided(monkeypatch):
     seen = {}
     def capture(client, model, messages, **k):
