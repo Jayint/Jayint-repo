@@ -368,12 +368,11 @@ def _probe_wait_lines(node_id: str, probe: str) -> list[str]:
 def _service_start_block(node: Node) -> list[str]:
     """start -> probe-wait -> post -> createdb, for one SERVICE node.
 
-    post BEFORE createdb: the known-kind recipes put the CREATE USER statement
-    in ``post`` and a ``createdb -O <user> ...`` (owner = that just-created user)
-    in ``createdb`` (service_recipes.render_setup) — the owner must exist before
-    ``createdb -O`` runs, or it fails. This ordering is correct for every kind in
-    ``service_recipes._KIND_BASE`` (mysql's createdb doesn't reference a user at
-    all, so the ordering is a no-op there)."""
+    post BEFORE createdb: a setup dict that puts a CREATE USER statement in ``post``
+    and a ``createdb -O <user> ...`` (owner = that just-created user) in ``createdb``
+    needs the owner to exist before ``createdb -O`` runs, or it fails. A ``createdb``
+    that references no user (e.g. a plain ``CREATE DATABASE``) makes the ordering a
+    no-op, so post-before-createdb is always safe."""
     setup = node.data.get("setup") or {}
     start = setup.get("start")
     probe = setup.get("probe")

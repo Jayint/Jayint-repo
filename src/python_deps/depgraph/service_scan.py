@@ -18,8 +18,6 @@ try:  # PyYAML is available; degrade gracefully if ever absent.
 except ImportError:  # pragma: no cover
     yaml = None
 
-from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS
-
 # URL scheme -> canonical service kind.
 _SCHEME_TO_KIND: dict[str, str] = {
     "postgres": "postgres", "postgresql": "postgres", "postgresql+psycopg2": "postgres",
@@ -52,22 +50,6 @@ def _has_port(parsed) -> bool:
         return parsed.port is not None
     except ValueError:
         return False
-
-
-def _kind_of(service_name: str, image: str | None) -> str | None:
-    """Recognize a service kind from its compose/CI name or image."""
-    name = (service_name or "").lower()
-    for kind in KNOWN_SERVICE_KINDS:
-        if kind in name:
-            return kind
-    img = (image or "").lower()
-    for kind in KNOWN_SERVICE_KINDS:
-        if kind in img:
-            return kind
-    # common image aliases not equal to the kind token
-    if "postgres" in img or "postgis" in img:
-        return "postgres"
-    return None
 
 
 def _port_of(entry: dict) -> int | None:
