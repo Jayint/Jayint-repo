@@ -340,3 +340,47 @@ def test_render_dockerfile_pins_sha(tmp_path):
     assert "git clone https://github.com/o/r /testbed" in df   # full clone (no --depth=1)
     assert "--depth=1" not in df
     assert "checkout" in df and "cafebabe" in df
+
+
+# ── token telemetry relay (react loop [Tokens] lines are swallowed by the subprocess) ──────────
+
+def test_run_v3_relays_token_lines_and_writes_usage(tmp_path, monkeypatch, capsys):
+    import multi_docker_eval_adapter as M
+
+    class _Proc:
+        returncode = 0
+        stdout = ("[v3] base-image: python:3.11-slim (py 3.11) — explicit\n"
+                  "[Tokens] Input: 100, Output: 20, Total: 120\n"
+                  "[Tokens] Input: 200, Output: 30, Total: 230\n")
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        Path(cmd[cmd.index("--out") + 1]).write_text("echo built")
+        return _Proc()
+
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    a._run_v3(tmp_path / "src", "auto", "MiniMax-M2.7-highspeed")
+    out = capsys.readouterr().out
+    # both per-call lines relayed to stdout (→ worker run.log → unified_metrics arm0 economy)
+    assert out.count("[Tokens]") == 2
+    # summed total persisted for the case-study consolidator
+    usage = json.loads((tmp_path / "usage.json").read_text())
+    assert usage["total_tokens"] == 350
+
+def test_run_v3_no_usage_file_when_no_token_lines(tmp_path, monkeypatch):
+    import multi_docker_eval_adapter as M
+
+    class _Proc:
+        returncode = 0
+        stdout = "[v3] base-image: python:3.11-slim (py 3.11) — explicit\n"
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        Path(cmd[cmd.index("--out") + 1]).write_text("x")
+        return _Proc()
+
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    a._run_v3(tmp_path / "src", "auto", "m")
+    assert not (tmp_path / "usage.json").exists()

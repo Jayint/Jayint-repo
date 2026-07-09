@@ -69,11 +69,36 @@ def test_echo_oneliner_stays_patch():
     a = parse_action("```bash\necho hi\n```")
     assert a.kind == "patch" and "echo hi" in a.new_script
 
-def test_multiline_probe_block_stays_patch():
-    # Only SINGLE-line blocks are recovered; a multi-line block is a real script even if it opens
-    # with a read-only line (conservative — don't second-guess genuine scripts).
+def test_multiline_mixed_block_stays_patch():
+    # A block with an install line is a real (mixed) script even if it opens with a read-only probe.
     a = parse_action("```bash\ncat /app/pyproject.toml\npip install -e .\n```")
     assert a.kind == "patch"
+
+def test_multiline_all_readonly_probe_block_is_invalid_gitingest():
+    # Bug C (concurrency run, gitingest): a fenced block of ONLY read-only version probes must NOT
+    # replace setup.sh — it installs nothing, so the build "succeeds" with an empty env (false green).
+    text = ('```bash\n'
+            'python -m pip --version 2>&1 || echo "pip not available"\n'
+            'python -m pytest --version 2>&1 || echo "pytest not installed"\n'
+            '```')
+    assert parse_action(text).kind == "invalid"
+
+def test_multiline_all_readonly_probe_block_is_invalid_ingestr():
+    # Bug C (ingestr): find + cat probes wrapped as a Script.
+    text = ('```bash\n'
+            'find /app -maxdepth 2 -name "*.toml" 2>/dev/null | head -20\n'
+            'cat /app/pyproject.toml 2>/dev/null | head -50\n'
+            '```')
+    assert parse_action(text).kind == "invalid"
+
+def test_multiline_readonly_check_before_install_stays_patch():
+    # The common real seed pattern: a read-only guard whose OR-tail installs. The line contains
+    # `pip install` so it is NOT read-only → the block is a genuine patch.
+    text = ('```bash\n'
+            'python -c "import pytest" || pip install pytest\n'
+            'pip install -e .\n'
+            '```')
+    assert parse_action(text).kind == "patch"
 
 def test_extract_thought():
     assert extract_thought("Thought: the header is missing\nAction: ls") == "the header is missing"

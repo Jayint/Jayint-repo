@@ -34,6 +34,20 @@ class RunResult:
     lineno: int | None = None          # setup.sh line the ERR trap halted on (localization signal)
 
 
+def _emit_tokens(usage) -> None:
+    """One `[Tokens] Input: I, Output: O, Total: T` line per LLM call, in the format the ratbench
+    run.log telemetry parses (unified_metrics.TOKENS_RE). The adapter relays these from the react
+    loop's (otherwise swallowed) stdout into the per-repo run.log, where the arm0/dockeragent
+    economy reads them. No-op when usage is absent (offline/stubbed clients emit none)."""
+    if not usage:
+        return
+    i = int(usage.get("input_tokens", 0) or 0)
+    o = int(usage.get("output_tokens", 0) or 0)
+    t = int(usage.get("total_tokens", 0) or 0) or (i + o)
+    if i or o or t:
+        print(f"[Tokens] Input: {i}, Output: {o}, Total: {t}", flush=True)
+
+
 def _observation(result: RunResult, test) -> str:
     if not result.ok:
         body, _ = safety_truncate(result.output or "", max_chars=_OBS_MAX_CHARS)
@@ -132,7 +146,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             return "PLATEAU", script, graph
         observation = _observation(result, test)
 
-        thought, action, _usage = planner.plan(history, script, observation, graph)
+        thought, action, usage = planner.plan(history, script, observation, graph)
+        _emit_tokens(usage)
 
         if action.kind == "explore" and action.command and is_read_only(action.command):
             rc, out = exec_readonly(action.command)

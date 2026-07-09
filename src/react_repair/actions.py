@@ -62,14 +62,29 @@ def _explore_from_script_block(body: str) -> str | None:
     return None
 
 
+def _is_all_readonly_block(body: str) -> bool:
+    """A fenced block whose EVERY meaningful line is read-only (≥2 lines) is a mis-formatted set of
+    probes, not a build script — a build script installs/builds. Applying it as a patch replaces
+    setup.sh with a non-installing script, so the build 'succeeds' with an empty env (false green;
+    observed under concurrency on gitingest/ingestr). Single-line probe blocks are handled by
+    _explore_from_script_block; this catches the multi-line case."""
+    lines = [ln.strip() for ln in body.splitlines()
+             if ln.strip() and not ln.strip().startswith("#")]
+    if len(lines) < 2:
+        return False
+    return all(is_read_only(_ACTION_PREFIX.sub("", ln)) for ln in lines)
+
+
 def parse_action(text: str) -> Action:
     t = text or ""
     m = _SCRIPT_BLOCK.search(t)             # a fenced block is normally the whole replacement script
     if m:
         body = m.group(1).strip()
         recovered = _explore_from_script_block(body)
-        if recovered is not None:           # a mis-wrapped read-only probe → the explore it meant
+        if recovered is not None:           # a single mis-wrapped read-only probe → the explore it meant
             return Action("explore", command=recovered)
+        if body and _is_all_readonly_block(body):   # multi-line all-probe block → not a build script
+            return Action("invalid")
         if body:                            # a real (non-empty) build script → the patch
             return Action("patch", new_script=body + "\n")
     m = _ACTION_LINE.search(t)

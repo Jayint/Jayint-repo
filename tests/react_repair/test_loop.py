@@ -4,11 +4,26 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.loop import run_react, RunResult, _observation
+from src.react_repair.loop import run_react, RunResult, _observation, _emit_tokens
 from src.react_repair.gate import TestOutcome
 from src.react_repair.history import History
 from src.react_repair.log import ReactLog
 from src.react_repair.actions import Action
+
+
+def test_emit_tokens_prints_runlog_format(capsys):
+    _emit_tokens({"input_tokens": 120, "output_tokens": 30, "total_tokens": 150})
+    out = capsys.readouterr().out
+    assert "[Tokens] Input: 120, Output: 30, Total: 150" in out
+
+def test_emit_tokens_derives_total_when_absent(capsys):
+    _emit_tokens({"input_tokens": 10, "output_tokens": 5})
+    assert "Total: 15" in capsys.readouterr().out
+
+def test_emit_tokens_noop_when_empty(capsys):
+    _emit_tokens(None)
+    _emit_tokens({"input_tokens": 0, "output_tokens": 0, "total_tokens": 0})
+    assert capsys.readouterr().out == ""
 
 
 def test_observation_bounds_huge_test_output_keeping_tail():

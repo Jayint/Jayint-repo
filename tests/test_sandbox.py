@@ -750,5 +750,47 @@ class SandboxCacheVolumeTests(unittest.TestCase):
         self.assertIsNone(sandbox.volumes)
 
 
+class CacheVolumeIsolationTests(unittest.TestCase):
+    """Bug D: concurrent Sandboxes must not share one rw pip/uv/apt cache volume (race +
+    cross-repo contamination). isolate_cache gives each run a unique, self-owned volume set."""
+
+    def test_build_cache_volumes_shared_uses_fixed_names(self):
+        from src.sandbox import _build_cache_volumes
+        vols, names = _build_cache_volumes(None, isolate=False)
+        self.assertIn("jayint_pip_cache", vols)
+        self.assertEqual(vols["jayint_uv_cache"], {"bind": "/root/.cache/uv", "mode": "rw"})
+        self.assertEqual(names, ["jayint_pip_cache", "jayint_uv_cache", "jayint_apt_cache"])
+
+    def test_build_cache_volumes_isolated_is_unique_per_call(self):
+        from src.sandbox import _build_cache_volumes
+        _, n1 = _build_cache_volumes(None, isolate=True)
+        _, n2 = _build_cache_volumes(None, isolate=True)
+        self.assertNotEqual(n1, n2)                              # two concurrent runs → different volumes
+        for name in n1:
+            self.assertTrue(name.startswith("jayint_"))
+            self.assertNotIn(name, ("jayint_pip_cache", "jayint_uv_cache", "jayint_apt_cache"))
+
+    def test_build_cache_volumes_preserves_base_volumes(self):
+        from src.sandbox import _build_cache_volumes
+        base = {"/host": {"bind": "/x", "mode": "ro"}}
+        vols, _ = _build_cache_volumes(base, isolate=True)
+        self.assertEqual(vols["/host"], {"bind": "/x", "mode": "ro"})
+
+    @mock.patch("src.sandbox.docker.from_env")
+    def test_isolate_cache_sandbox_owns_unique_volumes(self, mock_from_env):
+        mock_from_env.return_value = FakeDockerClient(containers=[FakeContainer()])
+        sb = Sandbox(base_image="ubuntu:22.04", seed_dir=None,
+                     enable_cache_volume=True, isolate_cache=True)
+        self.assertNotIn("jayint_pip_cache", sb.volumes)         # no bare shared name
+        self.assertEqual(len(sb._owned_cache_volumes), 3)        # owns them → removed on close
+
+    @mock.patch("src.sandbox.docker.from_env")
+    def test_shared_cache_sandbox_owns_nothing(self, mock_from_env):
+        mock_from_env.return_value = FakeDockerClient(containers=[FakeContainer()])
+        sb = Sandbox(base_image="ubuntu:22.04", seed_dir=None, enable_cache_volume=True)
+        self.assertIn("jayint_pip_cache", sb.volumes)            # legacy shared name
+        self.assertEqual(sb._owned_cache_volumes, [])            # never removes the shared cache
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -55,6 +55,8 @@ _RUN_V3_E2E = _AGENT_ROOT / "scripts" / "run_v3_e2e.py"
 _DOCKERFILE_FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.IGNORECASE | re.MULTILINE)
 # repo_url is always https://github.com/<owner>/<repo>[.git] — recover <owner>/<repo>.
 _GITHUB_FULLNAME_RE = re.compile(r"github\.com[/:]+([^/]+/[^/]+?)(?:\.git)?/?$")
+# The react loop's per-call token line: "[Tokens] Input: I, Output: O, Total: T".
+_TOKENS_TOTAL_RE = re.compile(r"\[Tokens\].*Total:\s*(\d+)")
 
 # run_v3 may report giveup (exit 1) yet still have written a best-effort setup.sh;
 # the benchmark scores whatever environment the agent produced, so a non-zero exit
@@ -282,10 +284,30 @@ class MultiDockerEvalAdapter:
                 f"(exit={proc.returncode}); stdout tail:\n{proc.stdout[-2000:]}\n"
                 f"stderr tail:\n{proc.stderr[-2000:]}")
         setup_sh = setup_path.read_text()
+        self._relay_token_telemetry(proc.stdout)
         m = _BASE_IMAGE_RE.search(proc.stdout)
         resolved = m.group(1) if m else (
             base_image if base_image and base_image != "auto" else "python:3.11-slim")
         return setup_sh, resolved
+
+    def _relay_token_telemetry(self, run_v3_stdout: str) -> None:
+        """The react loop prints one ``[Tokens] …`` line per LLM call, but run_v3_e2e's stdout is
+        captured here (not the worker's). Re-emit those lines to THIS process's stdout — which the
+        ratbench scheduler captures into the per-repo ``run.log`` where unified_metrics' arm0 economy
+        reads them — and persist a ``usage.json`` sidecar the case-study consolidator picks up."""
+        total = 0
+        for line in (run_v3_stdout or "").splitlines():
+            if line.startswith("[Tokens]"):
+                print(line)                       # → worker stdout → output/<repo>/run.log
+                mt = _TOKENS_TOTAL_RE.search(line)
+                if mt:
+                    total += int(mt.group(1))
+        if total:
+            try:
+                (self.output_dir / "usage.json").write_text(
+                    json.dumps({"total_tokens": total}))
+            except OSError:
+                pass
 
     def _read_services_script(self) -> str:
         """The service-start artifact ``_run_v3`` asked run_v3_e2e to write

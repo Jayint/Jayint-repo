@@ -3,11 +3,37 @@ import os
 import re
 import shlex
 import tarfile
+import uuid
 import docker
 from dataclasses import dataclass
 from src.synthesizer import Synthesizer
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
+
+# pip/uv/apt caches mounted into the build container to warm repeated installs.
+_CACHE_BINDS = (
+    ("pip", "/root/.cache/pip"),
+    ("uv", "/root/.cache/uv"),
+    ("apt", "/var/cache/apt/archives"),
+)
+
+
+def _build_cache_volumes(base_volumes, isolate: bool):
+    """Return ``(volumes_dict, cache_volume_names)`` for the cache mounts.
+
+    ``isolate=False`` (default/legacy): fixed shared names (``jayint_pip_cache`` …) — cross-RUN reuse,
+    but two CONCURRENT Sandboxes race the same rw volume and cross-contaminate each other's env.
+    ``isolate=True``: a unique per-instance suffix so concurrent runs (e.g. the ratbench scheduler
+    running N repos) each get their own cache — no race, no cross-repo bleed. Within-run reuse across
+    the loop's ``reset_to_base`` cycles is preserved; the caller removes the unique volumes on close."""
+    suffix = ("_" + uuid.uuid4().hex[:12]) if isolate else ""
+    vols = dict(base_volumes or {})
+    names = []
+    for key, bind in _CACHE_BINDS:
+        name = f"jayint_{key}_cache{suffix}"
+        names.append(name)
+        vols.setdefault(name, {"bind": bind, "mode": "rw"})
+    return vols, names
 
 _INSTALL_FAIL_MARKER = "__INSTALL_FAIL__"
 
@@ -82,6 +108,7 @@ class Sandbox:
         apt_https_timeout_seconds=120,
         docker_client_timeout_seconds=None,
         enable_cache_volume: bool = False,
+        isolate_cache: bool = False,
     ):
         self.client = docker.from_env(timeout=docker_client_timeout_seconds)
         self.base_image = base_image
@@ -102,12 +129,11 @@ class Sandbox:
         self.apt_retries = apt_retries
         self.apt_http_timeout_seconds = apt_http_timeout_seconds
         self.apt_https_timeout_seconds = apt_https_timeout_seconds
+        self._owned_cache_volumes = []          # unique volumes THIS run created → remove on close
         if enable_cache_volume:
-            cache = dict(self.volumes or {})
-            cache.setdefault("jayint_pip_cache", {"bind": "/root/.cache/pip", "mode": "rw"})
-            cache.setdefault("jayint_uv_cache", {"bind": "/root/.cache/uv", "mode": "rw"})
-            cache.setdefault("jayint_apt_cache", {"bind": "/var/cache/apt/archives", "mode": "rw"})
-            self.volumes = cache
+            self.volumes, cache_names = _build_cache_volumes(self.volumes, isolate_cache)
+            if isolate_cache:
+                self._owned_cache_volumes = cache_names
         self._setup_initial_container()
 
     def _setup_initial_container(self):
@@ -1050,5 +1076,13 @@ class Sandbox:
             try:
                 self._remove_snapshot_image(snapshot_id)
                 print("[Snapshot Image Cleaned]")
+            except docker.errors.DockerException:
+                pass
+
+        # Remove the per-run isolated cache volumes (unique to this Sandbox) so they don't leak;
+        # shared/legacy caches are never listed here, so cross-run reuse is untouched.
+        for vol in getattr(self, "_owned_cache_volumes", []):
+            try:
+                self.client.volumes.get(vol).remove(force=True)
             except docker.errors.DockerException:
                 pass

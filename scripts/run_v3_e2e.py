@@ -286,9 +286,11 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     )
 
     # ── 3-6. Real container + the v3 loop ────────────────────────────────────
+    # react arm = the repair-ablation, run concurrently by the ratbench scheduler → isolate the
+    # pip/uv/apt cache per run so parallel repos don't race one shared volume or cross-contaminate.
     sandbox = Sandbox(base_image=base_image, workdir="/app",
                        platform=choice.platform_override, seed_dir=args.repo,
-                       enable_cache_volume=True)
+                       enable_cache_volume=True, isolate_cache=(args.arm == "react"))
 
     # ── arm react — flat ReAct script-repair: ONE loop that patches the build
     #     SCRIPT (script-primary). Reuses the SAME construction above (base
