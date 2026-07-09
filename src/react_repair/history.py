@@ -19,9 +19,14 @@ class Step:
 def safety_truncate(text: str, *, max_chars: int, keep_tail: bool = True) -> tuple[str, bool]:
     if len(text) <= max_chars:
         return text, False
-    if keep_tail:
-        return "…[truncated]…\n" + text[-max_chars:], True
-    return text[:max_chars] + "…[truncated]…", True
+    if not keep_tail:
+        return text[:max_chars] + "…[truncated]…", True
+    # Keep BOTH ends: the head carries the build header / failing command / start of the error,
+    # the tail carries the pytest summary + final error line. Tail-only buried the head under
+    # download/compiler noise on recent (not-yet-LLM-compressed) steps.
+    head = max_chars // 4
+    tail = max_chars - head
+    return f"{text[:head]}\n…[omitted]…\n{text[-tail:]}", True
 
 
 class History:
