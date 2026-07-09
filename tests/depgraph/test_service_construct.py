@@ -114,6 +114,55 @@ def test_a_templated_tag_does_report_an_unresolved_tag(tmp_path):
     assert "image_tag" in node.unresolved
 
 
+def test_depends_on_in_an_unreferenced_compose_does_not_reclassify_the_app(tmp_path):
+    """`depends_on` is a WITHIN-DOCUMENT relation. Unioning it repo-wide let an unrelated
+    compose force the repo's own app (build: + image:) to be surfaced as a backing service."""
+    root = tmp_path / "myrepo"
+    root.mkdir()
+    _write(root, "docker-compose.yml", """
+        services:
+          app:
+            build: .
+            image: myorg/app:dev
+            ports: ["8000:8000"]
+          db:
+            image: postgres:16
+            ports: ["5432:5432"]
+    """)
+    _write(root, "sub/docker-compose.yml", """
+        services:
+          other:
+            image: nginx:1
+            depends_on: [app]
+    """)
+    names = sorted(n.name for n in build_service_nodes(str(root)))
+    assert "app" not in names          # rule 1 (build:) still fires
+    assert names == ["db", "other"]
+
+
+def test_same_name_different_images_is_flagged_not_silently_merged(tmp_path):
+    """mlflow ships a postgres variant and a mysql variant, both naming the service `db`.
+    Keep the highest-relevance image, but SAY the image is ambiguous, and keep both raws."""
+    _write(tmp_path, "docker-compose.yml", """
+        services:
+          db:
+            image: postgres:16
+            ports: ["5432:5432"]
+    """)
+    _write(tmp_path, "docker-compose.mysql.yml", """
+        services:
+          db:
+            image: mysql:8
+            ports: ["3306:3306"]
+    """)
+    (node,) = build_service_nodes(str(tmp_path))
+    assert node.image == "postgres:16"                 # root_compose outranks unreferenced
+    assert "image" in node.unresolved                  # ...but the ambiguity is surfaced
+    assert set(node.raw) == {"compose:docker-compose.yml",
+                             "compose:docker-compose.mysql.yml"}
+    assert node.raw["compose:docker-compose.mysql.yml"]["image"] == "mysql:8"
+
+
 def test_fuse_merges_compose_and_ci_evidence_for_the_same_name(tmp_path):
     # compose has volumes but no healthcheck; CI has the --health-cmd. Keep BOTH.
     _write(tmp_path, "docker-compose.yml", """
@@ -137,7 +186,10 @@ def test_fuse_merges_compose_and_ci_evidence_for_the_same_name(tmp_path):
     assert len(node.volumes) == 1                          # from compose
     assert node.port == 6379
     assert {p.kind for p in node.provenance} == {"compose", "ci"}
-    assert set(node.raw) == {"compose", "ci"}
+    # `raw` is keyed "<kind>:<file>" uniformly, so a second file declaring the same
+    # service name cannot silently overwrite the first.
+    assert set(node.raw) == {"compose:docker-compose.yml",
+                             "ci:.github/workflows/ci.yml"}
 
 
 def test_no_healthcheck_but_a_port_yields_a_tcp_check(tmp_path):

@@ -82,12 +82,23 @@ def _merge(ordered: list[RawDeclaration]) -> _Merged:
                    depends_on, hc_cmd, timing, sibling_values)
 
 
-def _unresolved_fields(image: str, image_tag: str | None, env: dict[str, str]) -> tuple[str, ...]:
+def _image_conflict(ordered: list[RawDeclaration]) -> bool:
+    """Two declarations of one name naming different images. We keep the highest-relevance
+    one, but the node must SAY SO — silent selection is how the mysql variant disappears."""
+    repos = {parse_image(d.entry.get("image") or "")[0]
+             for d in ordered if d.entry.get("image")}
+    return len(repos) > 1
+
+
+def _unresolved_fields(image: str, image_tag: str | None, env: dict[str, str],
+                       image_conflict: bool = False) -> tuple[str, ...]:
     out: list[str] = []
     last = image.rsplit("/", 1)[-1]
     # `repo@sha256:...` legitimately has no tag; only a `:tag` that vanished is unresolved.
     if "@" not in last and ":" in last and image_tag is None:
         out.append("image_tag")
+    if image_conflict:
+        out.append("image")
     out += [f"env.{k}" for k, v in env.items() if "$" in v]
     return tuple(out)
 
@@ -108,9 +119,10 @@ def _fuse(name: str, decls: list[RawDeclaration],
     port, port_source = derive_port(m.ports, m.expose, m.env, name, m.sibling_values)
     check: Check = derive_check(m.hc_cmd, m.timing, port)
 
-    raw: dict[str, dict] = {}
-    for d in ordered:
-        raw.setdefault(d.kind, d.entry)          # first (highest-relevance) per source kind
+    # Keyed by kind AND file: two compose files may both declare `db` (mlflow ships a
+    # postgres variant and a mysql variant). Keying by kind alone silently drops one,
+    # and `raw` is the agent's primary evidence.
+    raw = {f"{d.kind}:{d.file}": d.entry for d in ordered}
 
     return ServiceNode(
         id=f"service:{name}", name=name, image=image,
@@ -125,7 +137,7 @@ def _fuse(name: str, decls: list[RawDeclaration],
         raw=raw,
         state=("certifiable_obligation" if check.source != "none"
                else "declared_unverifiable"),
-        unresolved=_unresolved_fields(image, image_tag, m.env),
+        unresolved=_unresolved_fields(image, image_tag, m.env, _image_conflict(ordered)),
     )
 
 
@@ -174,8 +186,15 @@ def build_service_nodes(repo: str, owner: str = "",
     for d in decls:
         grouped.setdefault(d.name, []).append(d)
 
+    # `depends_on` names siblings in the SAME document. Unioning it across the whole repo
+    # lets a `depends_on: [app]` in an unreferenced compose reclassify the repo's own app
+    # as a backing service, defeating CLASSIFY rules 1-3.
+    declared_in: dict[str, set[str]] = {}
+    for d in decls:
+        declared_in.setdefault(d.file, set()).add(d.name)
     backing = frozenset(
-        dep for d in decls for dep in parse_depends_on(d.entry))
+        dep for d in decls for dep in parse_depends_on(d.entry)
+        if dep in declared_in.get(d.file, ()))
 
     repo_name = os.path.basename(os.path.normpath(repo))
 
