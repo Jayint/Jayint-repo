@@ -2069,6 +2069,17 @@ git commit -m "test(depgraph): real-world service fixtures (rq valkey, ci-named 
 
 ## Task 9: Rewire construction; delete the construction-time LLM
 
+> **PREREQUISITE: Task 10a MUST land before this task.** `classify_services_clean` anchors each
+> node to an `evidence_ref` produced by `static_collect.collect_static_evidence` →
+> `service_scan.scan_compose_services`, which is **kind-table-gated**: it keys its output dict by
+> `_kind_of(...)`, so an exotic service (clickhouse, valkey, weaviate) yields no evidence at all and
+> `classify` bails at `if not hits: return graph`. `build_service_nodes` discovers it fine; the
+> legacy collector cannot anchor it. Task 10a rekeys the scanners by declared service name and
+> deletes `_kind_of`, which is the fix. Running Task 9 first makes its own exotic-service acceptance
+> test (`test_construction_makes_no_llm_call`, clickhouse) unpassable.
+> *Execution order for this plan is therefore: 1-8, **10a**, 9, 10, 11-14.*
+
+
 **Files:**
 - Modify: `src/envstate/classify_services_clean.py` (replace `_service_nodes`)
 - Modify: `src/python_deps/depgraph/patch.py:11` (add `NodeSpec.data`)
@@ -2123,7 +2134,8 @@ def test_bind_matches_by_declared_hostname_not_kind():
         service_names=("db",),
         configs=[("DATABASE_URL", "postgres://u:p@db:5432/app")],
     )
-    assert steps == ["export DATABASE_URL=postgres://u:p@localhost:5432/app"]
+    # `_repoint_host` rewrites the host to `_LOCALHOST`, which is "127.0.0.1".
+    assert steps == ["export DATABASE_URL=postgres://u:p@127.0.0.1:5432/app"]
 
 
 def test_bind_skips_a_dsn_whose_host_is_not_a_declared_service():
@@ -2221,11 +2233,11 @@ def render_bind_steps(
     names = {n for n in service_names if n}
     steps: list[str] = []
     for var, value in configs:
-        parsed = service_from_url(value)
-        if parsed is None:
-            continue
+        # NO `service_from_url` gate: it returns None for any scheme outside its
+        # hardcoded _SCHEME_TO_KIND map, silently dropping a valid DSN that points at
+        # an exotic service. The hostname is all the evidence we need.
         host = _host_of(value)
-        if host not in names:
+        if host is None or host not in names:
             continue
         steps.append(f"export {var}={_repoint_host(value)}")
     return steps
