@@ -77,3 +77,25 @@ def test_setup_curl_probe_rejected():
     assert res.accepted is False
     assert any("read-only" in e for e in res.errors)
     assert res.graph.get("service:redis") is None
+
+
+def test_setup_empty_start_admits():
+    """Evidence-only Service nodes carry NO start command (the agent writes it at
+    repair). The gate must ADMIT an empty (but string) `start`, while the non-empty
+    read-only PROBE guard stays load-bearing."""
+    spec = _setup_spec(setup={**_SETUP, "start": ""})
+    res = admit_proposal(DepGraph(), PatchProposal(add_requirements=(spec,)),
+                         known_evidence_ids=_EV)
+    assert res.accepted is True, res.errors
+    node = res.graph.get("service:redis")
+    assert node is not None
+    assert node.data["setup"]["start"] == ""                 # empty start is legal
+    assert node.check_command == render_probe_poll(_PROBE)   # probe still drives the check
+
+
+def test_setup_non_string_start_rejected():
+    """The relaxation is 'must be a string', not 'anything goes': a non-string start
+    (a list, from a malformed proposal) is still rejected."""
+    spec = _setup_spec(setup={**_SETUP, "start": ["redis-server"]})
+    errs = _requirement_errors(DepGraph(), spec, _EV)
+    assert any("start" in e for e in errs)

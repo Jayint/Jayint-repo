@@ -115,8 +115,12 @@ def _requirement_errors(graph: DepGraph, r: NodeSpec,
                 errs.append(f"setup probe for {r.id} is not read-only: {probe!r}")
             if not isinstance(r.setup.get("install"), list):
                 errs.append(f"setup for {r.id} must have an install list")
-            if not (isinstance(r.setup.get("start"), str) and r.setup.get("start", "").strip()):
-                errs.append(f"setup for {r.id} must have a start command")
+            # Evidence-only Service nodes carry NO start command: construction emits
+            # only a readiness check, and the agent writes `start` at repair time
+            # (spec §3.0.2 invariant 1). The non-empty PROBE guard above is what keeps
+            # render_probe_poll from emitting a broken shell -- `start` needs no such guard.
+            if not isinstance(r.setup.get("start"), str):
+                errs.append(f"setup for {r.id} must have a start command (string, may be empty)")
     return errs
 
 
@@ -238,6 +242,8 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
             if r.service_kind:
                 data["service_kind"] = r.service_kind
             check_command = render_probe_poll(r.setup["probe"])
+        if r.data:
+            data.update(r.data)          # evidence payload (e.g. data["service"]) for evidence-only nodes
         g = g.with_node(Node(
             id=r.id, type=nt, name=r.name or r.id.split(":", 1)[-1],
             layer=Layer(r.layer), discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING,

@@ -1,24 +1,31 @@
-"""Deterministic Service + Config classifier (clean tier). The construction default.
+"""Evidence-only Service + Config classifier (clean tier). The construction default.
 
-The LLM-free replacement for the env-classifier's Service+Config output. It reads the
-repo, translates each declared compose service to a CLEAN setup-shape Service node (via
-the shipped :func:`service_translate.translate_service`), repoints config DSNs into
-``setup["bind"]``, and emits advisory Config hint nodes — all admitted through the pure
-:func:`patch_gate.admit_proposal`.
+The LLM-free, table-free replacement for the env-classifier's Service+Config output. It
+reads the repo, builds one evidence-only ServiceNode per declared backing service (via
+:func:`service_construct.build_service_nodes` — no model, no service ``kind`` table),
+attaches a derived ``data["setup"]`` compat view ONLY to certifiable services, repoints
+config DSNs into ``setup["bind"]``, and emits advisory Config hint nodes — all admitted
+through the pure :func:`patch_gate.admit_proposal`. A ``declared_unverifiable`` service
+(no probe) is still admitted and surfaced to the agent, but carries no ``setup``.
 
-Kept in its OWN module (not folded into the now-deleted ``env_classifier.py``). Inc 5B
-wired this in as the construction-time default; ``make_construction_classifier`` (below)
-is the entrypoint ``run_v3_e2e`` / ``build_advisory_for_repo`` call.
+Every graph node gets a canonical ``data["service"]`` (``dataclasses.asdict(ServiceNode)``)
+plus, when certifiable, the derived ``data["setup"]`` view — so the eight existing readers
+of ``data["setup"]`` keep working unchanged, and ``emit._is_service_reciped``
+(``bool(data.get("setup"))``) means "certifiable" for free.
 
-Best-effort, exactly like the old classify: the whole body is wrapped in a try/except
-that returns the input ``graph`` on any error — this NEVER raises into the build. Every
-admitted ``NodeSpec.evidence_ref`` is a real ``collect_static_evidence`` bundle id (else
-``validate_proposal`` would reject the batch); this mirrors the old classify's
-``known_evidence_ids=bundle_ids`` handling.
+Kept in its OWN module; ``make_construction_classifier`` (below) is the entrypoint
+``run_v3_e2e`` / ``build_advisory_for_repo`` call.
+
+Best-effort: the whole body is wrapped in a try/except that returns the input ``graph``
+on any error — this NEVER raises into the build. Every admitted ``NodeSpec.evidence_ref``
+is a real ``collect_static_evidence`` bundle id (else ``validate_proposal`` would reject
+the batch).
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
+import os
 
 from python_deps.depgraph.config_scan import (
     parse_env_example,
@@ -28,13 +35,10 @@ from python_deps.depgraph.config_scan import (
 )
 from python_deps.depgraph.patch import NodeSpec, PatchProposal
 from python_deps.depgraph.patch_gate import admit_proposal
-from python_deps.depgraph.provisioning_spec import iter_provisioning_specs
 from python_deps.depgraph.repoint import render_bind_steps
+from python_deps.depgraph.service_construct import build_service_nodes
 from python_deps.depgraph.service_scan import service_from_url
 from python_deps.depgraph.static_collect import collect_static_evidence
-
-# Module-level so tests can monkeypatch it (no client is ever called with canned results).
-from src.envstate.service_translate import translate_service
 
 logger = logging.getLogger(__name__)
 
@@ -77,59 +81,43 @@ def _config_evidence(hits, var: str) -> str:
     return hits[0].evidence_id
 
 
-def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSpec]:
-    """One CLEAN setup-shape Service NodeSpec per declared, PROVISIONABLE compose
-    service. Two guards keep the app itself and one bad service from poisoning the
-    whole batch (real-repo e2e finding 2026-07-06):
+def _compat_setup(node, bind_steps: list[str]) -> dict:
+    """Derived view of the evidence node in the legacy ``data['setup']`` shape.
 
-    - A service with no recognized kind that is either ``build:``-based (locally
-      built — the application under test, e.g. web/worker/js/css) or has no pulled
-      ``image:`` at all is NOT a dependency to provision. Skip it BEFORE
-      ``translate_service`` — routing it to the exotic LLM branch wastes a call
-      (and, with no client, raises). ``build:`` is checked explicitly because the
-      common ``build:`` + ``image:`` tag-a-local-build pattern still carries an
-      image, so an image alone cannot distinguish the app from a pulled dependency.
-    - Each service is translated in isolation: one failure (an exotic image with no
-      client available, an LLM/parse error) skips only THAT service instead of
-      unwinding the batch and discarding the others that translated cleanly.
+    Construction emits NO commands (spec §3.0.2 invariant 1), so ``install`` and
+    ``start`` are empty BY DESIGN — the agent writes them at repair time. ``probe`` is
+    the evidence-derived readiness check. Eight consumers read this key (emit /
+    build_script / populate / certify / schedule / advise / patch_gate / graph_scheduler);
+    emitting a derived view keeps them all working unchanged.
     """
-    nodes: list[NodeSpec] = []
-    seen_ids: set[str] = set()
-    for spec in iter_provisioning_specs(repo_path):
-        node_id = f"service:{spec.service_name}"
-        if node_id in seen_ids:
-            continue
-        # The app itself (locally built or image-less, unrecognized) — never a
-        # backing dependency. Trace the skip so a future zero-services surprise is
-        # diagnosable (the original silent-drop incident had no such trace).
-        if spec.kind is None and (spec.build or not spec.image):
-            logger.debug("skipping non-provisionable service %s (kind=None, build=%s, image=%r)",
-                         spec.service_name, spec.build, spec.image)
-            continue
-        try:
-            res = translate_service(client, model, spec, arch)
-            setup = res.get("setup")
-            # Skip a parse-failed (setup=None) or probe-less service: a probe-less setup
-            # would render render_probe_poll("") — a broken shell that can never demote at
-            # certify — and validate_proposal rejects it anyway. Never admit one.
-            if setup is None or not setup.get("probe"):
-                continue
-            # Immutable: rebuild the setup dict to attach `bind` — never mutate translate's dict.
-            new_setup = dict(setup)
-            new_setup["bind"] = render_bind_steps([spec], configs)
-            kind = res.get("kind")
-            # Setup-shape Service nodes may carry an EXOTIC kind (couchdb, qdrant, …);
-            # _requirement_errors relaxes the KNOWN_SERVICE_KINDS check for setup nodes.
-            nodes.append(NodeSpec(
-                id=node_id, type="Service", name=spec.service_name, layer="services",
-                setup=new_setup, service_kind=kind,
-                evidence_ref=_service_evidence(hits, spec.service_name, kind),
-            ))
-            seen_ids.add(node_id)
-        except Exception as exc:  # noqa: BLE001 — best-effort, scoped to this one service
-            logger.warning("clean service node skipped for %s: %s", spec.service_name, exc)
-            continue
-    return nodes
+    return {"install": [], "start": "", "probe": node.check.command,
+            "createdb": None, "post": [], "bind": bind_steps}
+
+
+def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSpec]:
+    """One NodeSpec per declared BACKING service, built from evidence only.
+
+    No LLM (``arch``/``client``/``model`` are accepted for signature parity but never
+    used). No kind table. App-vs-backing detection lives inside ``build_service_nodes``.
+    A probe-less service is admitted as ``declared_unverifiable`` (surfaced to the
+    agent, no ``setup``) rather than dropped; only a ``certifiable_obligation`` service
+    gets the derived compat ``setup`` view.
+    """
+    owner = os.path.basename(os.path.dirname(os.path.abspath(repo_path)))
+    services = build_service_nodes(repo_path, owner=owner)
+    names = tuple(s.name for s in services)
+    specs: list[NodeSpec] = []
+    for svc in services:
+        setup = (_compat_setup(svc, render_bind_steps(names, configs))
+                 if svc.state == "certifiable_obligation" else None)
+        specs.append(NodeSpec(
+            id=svc.id, type="Service", name=svc.name, layer="services",
+            setup=setup,                       # None for declared_unverifiable
+            service_kind=None,                 # there is no kind, by design
+            data={"service": dataclasses.asdict(svc)},
+            evidence_ref=_service_evidence(hits, svc.name, svc.image_repo),
+        ))
+    return specs
 
 
 def _config_nodes(repo_path, hits) -> list[NodeSpec]:
@@ -177,9 +165,9 @@ def classify_services_clean(graph, repo_path: str, client=None, model: str = "",
 
 
 def make_construction_classifier(client=None, model: str = "", arch: dict | None = None):
-    """Return classify(graph, repo_path) -> graph: the deterministic construction-time
-    Service+Config classifier (Inc 5 flip; replaces the deleted LLM env_classifier).
-    Only translate_service (exotic images) calls the LLM; known kinds are LLM-free."""
+    """Return classify(graph, repo_path) -> graph: the evidence-only construction-time
+    Service+Config classifier (replaces the deleted LLM env_classifier). No model is
+    ever called; ``client``/``model``/``arch`` are accepted for call-site parity only."""
     def classify(graph, repo_path: str):
         return classify_services_clean(graph, repo_path, client=client, model=model, arch=arch)
     return classify

@@ -23,6 +23,8 @@ class NodeSpec:
     # {install:[...], start, probe, createdb?, post:[...]}; the gate derives check_command from
     # render_probe_poll(setup["probe"]).
     setup: dict | None = None
+    data: dict | None = None      # extra node payload merged into Node.data
+                                  # (evidence-only Service nodes put ServiceNode here)
 
 
 @dataclass(frozen=True)
