@@ -3,12 +3,32 @@ import os
 import re
 import shlex
 import tarfile
+import time
 import uuid
 import docker
 from dataclasses import dataclass
 from src.synthesizer import Synthesizer
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
+
+# container.commit() under concurrency hits a transient containerd content-store race — a 500
+# "failed to export layer: CreateDiff mount callback failed ... rename ingest->blobs: no such file"
+# when ≥2 sandboxes commit their baseline image near-simultaneously. It's non-deterministic and
+# clears on a short retry; without it, concurrent runs of heavy repos die at init (no trace).
+_COMMIT_RETRY_ATTEMPTS = int(os.getenv("SANDBOX_COMMIT_RETRY_ATTEMPTS", "5"))
+
+
+def _commit_with_retry(container, attempts: int | None = None, base_delay: float = 1.0):
+    """Commit *container* to an image, retrying the transient containerd commit race with linear
+    backoff. Re-raises the last APIError after *attempts* tries (a persistent failure is real)."""
+    attempts = attempts if attempts is not None else _COMMIT_RETRY_ATTEMPTS
+    for n in range(max(1, attempts)):
+        try:
+            return container.commit()
+        except docker.errors.APIError:
+            if n >= attempts - 1:
+                raise
+            time.sleep(base_delay * (n + 1))
 
 # pip/uv/apt caches mounted into the build container to warm repeated installs.
 _CACHE_BINDS = (
@@ -165,8 +185,9 @@ class Sandbox:
         if self.seed_dir:
             self._seed_workdir_from_host()
         # Always keep a baseline snapshot so the first failed command can roll back
-        # to the initialized workspace rather than the raw base image.
-        baseline_image = self.container.commit()
+        # to the initialized workspace rather than the raw base image. Retry the commit — under
+        # concurrency it hits a transient containerd content-store race (see _commit_with_retry).
+        baseline_image = _commit_with_retry(self.container)
         self._register_snapshot(baseline_image.id)
         self.last_success_image = baseline_image.id
         print(f"[Baseline Snapshot] {self.last_success_image[:12]}")
