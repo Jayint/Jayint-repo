@@ -1077,12 +1077,14 @@ class ComposeSource:
             svcs = doc.get("services") if isinstance(doc, dict) else None
             if not isinstance(svcs, dict):
                 continue
-            blob = " ".join(v for e in svcs.values() if isinstance(e, dict)
-                            for v in parse_env(e).values())
+            # A TUPLE of individual values, never a joined blob: Task 3's rescue
+            # urlparses each value to compare its HOSTNAME against a service name.
+            values = tuple(v for e in svcs.values() if isinstance(e, dict)
+                           for v in parse_env(e).values())
             for name, entry in svcs.items():
                 if isinstance(entry, dict):
                     yield RawDeclaration(str(name), entry, rel, f"services.{name}",
-                                         "compose", blob)
+                                         "compose", values)
 
 
 class GithubActionsSource:
