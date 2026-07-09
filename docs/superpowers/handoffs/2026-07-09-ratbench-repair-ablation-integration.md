@@ -46,8 +46,17 @@ Two single-instance full-worker runs through the RAT pipeline (`--only`, `MiniMa
 
 Tests across the two fixes: adapter 25 pass, react_repair suite; combined **123 pass**.
 
+## Concurrency verified (2026-07-09) — deployed @ `2e82f2e`
+A 2-repo scheduler run (`--concurrency 2`, ingestr+gitingest) FIRST exposed two bugs, then (after fixes) came back clean:
+- **Bug C (`2e82f2e`, actions.py):** a fenced block whose EVERY meaningful line is read-only (≥2 lines) was applied as a patch → setup.sh replaced by a non-installing probe script → false green. Now `invalid` → re-prompt. (Seen: gitingest 2-line version-probes, ingestr 3-line find/cat.)
+- **Bug D (`2e82f2e`, sandbox.py + run_v3_e2e.py):** concurrent Sandboxes shared fixed-name rw cache volumes (`jayint_{pip,uv,apt}_cache`) → cross-container race + cross-repo contamination. New `isolate_cache` (unique per-run volumes, removed on close) enabled for the react arm; default shared (construction unchanged).
+- **Tokens (`2e82f2e`, loop.py + adapter):** loop now emits `[Tokens] Input/Output/Total` per call; adapter relays them from the swallowed subprocess stdout into the per-repo `run.log` + writes `usage.json`.
+
+Post-fix concurrency-2 result: ingestr real green (5/19, 10-line script), gitingest **157/160** (was 0 under the cache race), 0 leaked volumes, tokens captured. `unified_metrics.py repair-ablation-**dockeragent**=<root>` → **arm=arm0**, T1 EBSR 1.00 / real-success 1.00 / ÷all=÷exec **0.991**, T4 **agentLoopTok=25384**. (Name MUST contain `dockeragent` so arm0 telemetry reads the tokens; the label only affects T2/T4, not the T1 headline which is raw-pytest.)
+
 ## Remaining
-- **Run the full 49** (1 repo has an empty seed → clean `no_dockerfile` skip). Use the scheduler: `--concurrency N` instead of `--only` (same env vars), then `--aggregate-only` + `scripts/compute_essr.py` for ESSR. Compare vs the construction-only baseline run (`V3_CONSTRUCTION_ONLY=1`) to isolate the repair-loop gain.
+- **Run the full 49** (1 repo empty seed → clean `no_dockerfile` skip). Scheduler: `--concurrency N` (env: `V3_REPAIR_ABLATION=1`, `V3_SEED_DIR=<constr>/output`, `DOCKERAGENT_ROOT=/opt/agents/john-react`), then score with `unified_metrics.py repair-ablation-dockeragent=<root>` (aggregate `rat_results.json` is written by the scheduler). Watch disk (full clones); start N=4.
+- Compare vs the construction-only baseline (`V3_CONSTRUCTION_ONLY=1`) to isolate the repair-loop gain (ESSR ÷exec + tokens).
 - **Weak-discriminator caveat:** repos whose tests mostly skip without live services (ingestr: 14/19) barely move with env quality — their pass count isn't a good repair signal. gitingest-style repos (real executed suites) are. When reporting ESSR, note which repos are service-gated.
 - Consider a 2–3 repo spot-check before the full 49 (one VCS, one service-repo, one plain lib).
 
