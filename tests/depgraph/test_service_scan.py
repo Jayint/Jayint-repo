@@ -36,8 +36,25 @@ def test_scan_compose_services(tmp_path):
             image: redis:7
     """)
     found = scan_compose_services(str(tmp_path))
-    assert found["postgres"]["image"] == "postgres:15"
-    assert "redis" in found
+    assert set(found) == {"db", "cache"}          # keyed by DECLARED NAME, not kind
+    assert found["db"]["image"] == "postgres:15"
+    assert found["db"]["port"] == 5432
+    assert found["cache"]["image"] == "redis:7"
+
+
+def test_scan_compose_services_keeps_exotic_services(tmp_path):
+    """The bug this task fixes: an unknown kind used to be dropped silently."""
+    _w(tmp_path, "docker-compose.yml", """
+        services:
+          valkey:
+            image: valkey/valkey:8
+            ports: ["6379:6379"]
+          weaviate:
+            image: semitechnologies/weaviate:1.25.0
+    """)
+    found = scan_compose_services(str(tmp_path))
+    assert set(found) == {"valkey", "weaviate"}
+    assert found["valkey"]["image"] == "valkey/valkey:8"
 
 
 def test_scan_ci_services_and_presence(tmp_path):
@@ -51,6 +68,20 @@ def test_scan_ci_services_and_presence(tmp_path):
     found, present = scan_ci_services(str(tmp_path))
     assert present is True
     assert "postgres" in found
+    assert found["postgres"]["image"] == "postgres:14"
+
+
+def test_scan_ci_services_keeps_exotic_service(tmp_path):
+    _w(tmp_path, ".github/workflows/valkey.yml", """
+        jobs:
+          valkey-test:
+            services:
+              valkey:
+                image: valkey/valkey:8
+    """)
+    found, present = scan_ci_services(str(tmp_path))
+    assert present is True
+    assert "valkey" in found
 
 
 def test_scan_ci_no_services_block(tmp_path):
@@ -77,7 +108,7 @@ def test_scan_compose_services_modern_compose_yaml(tmp_path):
             image: postgres:18
     """)
     found = scan_compose_services(str(tmp_path))
-    assert "postgres" in found and found["postgres"]["image"] == "postgres:18"
+    assert "db" in found and found["db"]["image"] == "postgres:18"
 
 
 def test_scan_compose_services_override_variant(tmp_path):
@@ -86,7 +117,22 @@ def test_scan_compose_services_override_variant(tmp_path):
           cache:
             image: redis:7
     """)
-    assert "redis" in scan_compose_services(str(tmp_path))
+    assert "cache" in scan_compose_services(str(tmp_path))
+
+
+def test_first_declaration_of_a_name_wins(tmp_path):
+    _w(tmp_path, "docker-compose.yml", """
+        services:
+          db:
+            image: postgres:15
+    """)
+    _w(tmp_path, "docker-compose.override.yml", """
+        services:
+          db:
+            image: postgres:16
+    """)
+    found = scan_compose_services(str(tmp_path))
+    assert found["db"]["image"] == "postgres:15"
 
 
 def test_scan_compose_services_ignores_lookalike(tmp_path):
@@ -115,7 +161,7 @@ def test_compose_meta_captures_healthcheck(tmp_path):
         "    healthcheck:\n"
         "      test: ['CMD-SHELL', 'pg_isready -U postgres']\n")
     meta = scan_compose_services(str(tmp_path))
-    pg = meta.get("postgres") or next(iter(meta.values()))
+    pg = meta["db"]                      # keyed by DECLARED NAME, not kind
     assert "pg_isready" in str(pg.get("healthcheck", ""))
 
 
@@ -126,5 +172,5 @@ def test_compose_meta_healthcheck_absent_returns_empty(tmp_path):
         "    image: postgres:16\n"
         "    ports: ['5432:5432']\n")
     meta = scan_compose_services(str(tmp_path))
-    pg = meta.get("postgres") or next(iter(meta.values()))
+    pg = meta["db"]                      # keyed by DECLARED NAME, not kind
     assert pg.get("healthcheck") == ""

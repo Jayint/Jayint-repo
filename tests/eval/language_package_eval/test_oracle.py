@@ -152,8 +152,13 @@ class TestCiWorkflow:
 
 class TestComposePostgres:
     def test_postgres_image_maps_to_service_kind(self):
+        # Evidence-only keying: the SERVICE tier now names EVERY declared compose
+        # service, including the app under build (`web`). The fixture declares
+        # `web` (build: .) and `db` (postgres:15) -- no service named `postgres`.
+        # The previous exclusion of `web` was an accident of the kind table (an
+        # app has no recognized kind), not a decision.
         result = parse_oracle(_FIXTURES / "compose_postgres")
-        assert result.declared_by_tier["SERVICE"] == ("postgres",)
+        assert result.declared_by_tier["SERVICE"] == ("db", "web")
 
     def test_service_environment_keys_map_to_config(self):
         result = parse_oracle(_FIXTURES / "compose_postgres")
@@ -211,7 +216,7 @@ class TestOracleResultToDict:
         parsed = json.loads(blob)
         assert parsed["held_out"] is True
         assert parsed["source"] == ["compose"]
-        assert "postgres" in parsed["declared_by_tier"]["SERVICE"]
+        assert "db" in parsed["declared_by_tier"]["SERVICE"]
 
     def test_is_pure_dataclass_instance(self):
         result = parse_oracle(_FIXTURES / "dockerfile_full")

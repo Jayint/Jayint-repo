@@ -93,7 +93,12 @@ def _healthcheck_of(entry) -> str:
 
 
 def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
-    """Merge a parsed YAML doc's `services:` blocks into `out` (first kind wins)."""
+    """Merge a parsed YAML doc's `services:` blocks into `out`, keyed by the DECLARED
+    service name (first declaration of a name wins).
+
+    Evidence-only: no kind recognition. An unknown image is still a declared service —
+    keying by kind used to drop it silently (spec §2, pre-flight resolution R1).
+    """
     if not isinstance(doc, dict):
         return
     blocks = []
@@ -104,11 +109,15 @@ def _services_from_yaml_doc(doc, source: str, out: dict[str, dict]) -> None:
             blocks.append(job["services"])       # GitHub Actions job.services
     for block in blocks:
         for svc_name, entry in block.items():
+            if not svc_name or svc_name in out:
+                continue
             entry = entry if isinstance(entry, dict) else {}
-            image = entry.get("image")
-            kind = _kind_of(svc_name, image)
-            if kind and kind not in out:
-                out[kind] = {"image": image or "", "port": _port_of(entry), "healthcheck": _healthcheck_of(entry), "source": source}
+            out[str(svc_name)] = {
+                "image": entry.get("image") or "",
+                "port": _port_of(entry),
+                "healthcheck": _healthcheck_of(entry),
+                "source": source,
+            }
 
 
 def _load_yaml(path: str):
@@ -123,7 +132,12 @@ def _load_yaml(path: str):
 
 def scan_compose_services(repo_path: str) -> dict[str, dict]:
     out: dict[str, dict] = {}
-    for fname in os.listdir(repo_path) if os.path.isdir(repo_path) else []:
+    # Deterministic order: canonical base files (fewer dotted segments) before
+    # override/variant files, so "first declaration of a name wins" is stable and
+    # the base compose file's declaration takes precedence over an override's.
+    entries = sorted(os.listdir(repo_path), key=lambda f: (f.count("."), f)) \
+        if os.path.isdir(repo_path) else []
+    for fname in entries:
         low = fname.lower()
         if (low.startswith("docker-compose") or low.startswith("compose.")) and \
                 low.endswith((".yml", ".yaml")):
