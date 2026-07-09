@@ -168,3 +168,73 @@ def test_malformed_url_does_not_fall_back_to_the_regex():
 
 def test_port_ladder_gives_up_cleanly():
     assert derive_port((), (), {}, "svc", ()) == (None, "none")
+
+
+from python_deps.depgraph.service_parse import (
+    ci_healthcheck, compose_healthcheck, derive_check, tcp_check,
+)
+
+
+def test_compose_healthcheck_strips_CMD_and_CMD_SHELL():
+    assert compose_healthcheck({"healthcheck": {"test": ["CMD", "pg_isready", "-U", "u"]}})[0] \
+        == "pg_isready -U u"
+    assert compose_healthcheck({"healthcheck": {"test": ["CMD-SHELL", "redis-cli ping"]}})[0] \
+        == "redis-cli ping"
+    assert compose_healthcheck({"healthcheck": {"test": "curl -f http://x"}})[0] == "curl -f http://x"
+
+
+def test_compose_healthcheck_NONE_disables_and_timing_is_captured():
+    assert compose_healthcheck({"healthcheck": {"test": ["NONE"]}}) == (None, {})
+    _cmd, timing = compose_healthcheck(
+        {"healthcheck": {"test": ["CMD", "x"], "interval": "10s", "retries": 5}})
+    assert timing == {"interval": "10s", "retries": 5}
+
+
+def test_ci_healthcheck_parses_health_cmd_from_options():
+    # rq/rq's real workflow, folded-block `options:`
+    entry = {"options": '--health-cmd "valkey-cli ping" --health-interval 10s '
+                        '--health-timeout 5s --health-retries 5'}
+    cmd, timing = ci_healthcheck(entry)
+    assert cmd == "valkey-cli ping"
+    assert timing == {"interval": "10s", "timeout": "5s", "retries": "5"}
+
+
+def test_ci_healthcheck_absent_options():
+    assert ci_healthcheck({"image": "redis"}) == (None, {})
+
+
+def test_tcp_check_is_the_portable_python_one_liner():
+    cmd = tcp_check(5432)
+    assert cmd.startswith("python -c")
+    assert "socket.create_connection" in cmd and "5432" in cmd
+    assert "nc " not in cmd and "/dev/tcp" not in cmd
+
+
+def test_check_ladder_precedence():
+    declared = derive_check("pg_isready", {"interval": "10s"}, 5432)
+    assert declared.source == "declared_healthcheck" and declared.command == "pg_isready"
+    assert declared.interval_s == "10s"
+
+    derived = derive_check(None, {}, 6379)
+    assert derived.source == "tcp_port" and "6379" in derived.command
+
+    nothing = derive_check(None, {}, None)
+    assert nothing.source == "none" and nothing.command is None
+
+
+def test_a_non_read_only_healthcheck_falls_through_to_tcp():
+    """The check runs inside certification, so it must not mutate. `curl -f ...`
+    fails patch_gate.is_read_only -> fall down the ladder, do NOT drop the node.
+    Real: PostHog elasticsearch, mlflow storage, gitingest minio (11/54 corpus)."""
+    c = derive_check("curl -f http://localhost:9200/_cluster/health", {}, 9200)
+    assert c.source == "tcp_port" and "9200" in c.command
+
+
+def test_a_non_read_only_healthcheck_with_no_port_becomes_none():
+    c = derive_check("wget -q --spider http://localhost:8123/ping", {}, None)
+    assert c.source == "none" and c.command is None
+
+
+def test_the_tcp_check_itself_is_read_only():
+    from python_deps.depgraph.patch_gate import is_read_only
+    assert is_read_only(tcp_check(5432))

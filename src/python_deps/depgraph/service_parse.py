@@ -6,9 +6,10 @@ invariant: **degrade the field, never the node**. No service-specific knowledge.
 from __future__ import annotations
 
 import re
+import shlex
 from urllib.parse import urlparse
 
-from python_deps.depgraph.service_evidence import Mount, Port, PortSource
+from python_deps.depgraph.service_evidence import Check, Mount, Port, PortSource
 
 _SEED_MARKERS = ("docker-entrypoint-initdb.d", "/initdb")
 
@@ -204,3 +205,76 @@ def derive_port(ports: tuple[Port, ...], expose: tuple[int, ...],
     if rescued:
         return rescued, "sibling_dsn"
     return None, "none"
+
+
+TCP_CHECK = ("python -c \"import socket; "
+             "socket.create_connection(('127.0.0.1', {port}), 1).close()\"")
+
+
+def tcp_check(port: int) -> str:
+    """Universal, service-agnostic liveness check derived from the declared port.
+
+    Python, not `nc` (absent from slim images) and not `bash </dev/tcp/...`.
+    """
+    return TCP_CHECK.format(port=port)
+
+
+def compose_healthcheck(entry: dict) -> tuple[str | None, dict]:
+    hc = entry.get("healthcheck")
+    if not isinstance(hc, dict):
+        return None, {}
+    test = hc.get("test")
+    cmd: str | None = None
+    if isinstance(test, list):
+        parts = [str(x) for x in test]
+        if parts and parts[0] == "NONE":
+            return None, {}
+        if parts and parts[0] in ("CMD", "CMD-SHELL"):
+            parts = parts[1:]
+        cmd = " ".join(parts) or None
+    elif isinstance(test, str):
+        cmd = test or None
+    timing = {k: hc.get(k) for k in ("interval", "timeout", "retries") if hc.get(k)}
+    return cmd, timing
+
+
+def ci_healthcheck(entry: dict) -> tuple[str | None, dict]:
+    """GH Actions: `options: --health-cmd "pg_isready" --health-interval 10s ...`"""
+    opts = entry.get("options")
+    if not isinstance(opts, str):
+        return None, {}
+    try:
+        toks = shlex.split(opts)
+    except ValueError:
+        return None, {}
+    cmd: str | None = None
+    timing: dict = {}
+    keys = {"--health-interval": "interval", "--health-timeout": "timeout",
+            "--health-retries": "retries"}
+    for i, t in enumerate(toks):
+        nxt = toks[i + 1] if i + 1 < len(toks) else None
+        if not nxt:
+            continue
+        if t == "--health-cmd":
+            cmd = nxt
+        elif t in keys:
+            timing[keys[t]] = nxt
+    return cmd, timing
+
+
+def derive_check(hc_cmd: str | None, timing: dict, port: int | None) -> Check:
+    """declared healthcheck -> TCP on the declared port -> none. No table.
+
+    Every rung must pass ``is_read_only``: the check runs inside certification and
+    must never mutate the container. A `curl`/`wget` healthcheck fails that gate and
+    falls THROUGH to the TCP rung — it never disqualifies the service.
+    """
+    from python_deps.depgraph.patch_gate import is_read_only   # local: avoids a cycle
+
+    if hc_cmd and is_read_only(hc_cmd):
+        return Check(command=hc_cmd, source="declared_healthcheck",
+                     interval_s=timing.get("interval"), retries=timing.get("retries"),
+                     timeout_s=timing.get("timeout"))
+    if port:
+        return Check(command=tcp_check(port), source="tcp_port")
+    return Check(command=None, source="none")
