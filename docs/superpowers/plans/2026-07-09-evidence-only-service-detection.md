@@ -1184,6 +1184,7 @@ git commit -m "feat(depgraph): pluggable service evidence sources (compose + GH 
 
 **Files:**
 - Create: `src/python_deps/depgraph/service_relevance.py`
+- Modify: `src/python_deps/depgraph/service_sources.py` — rename the private `_load` to a public `load_yaml` (same body) and update its one caller. Both modules must parse YAML the same guarded way; duplicating a loader is how the two drift apart.
 - Test: `tests/depgraph/test_service_relevance.py`
 
 **Interfaces:**
@@ -1237,6 +1238,59 @@ def test_a_tests_dir_compose_named_by_CI_is_the_test_environment(tmp_path):
     assert compute_relevance(d, frozenset({"tests/db/compose.yml"})) == "ci_referenced_compose"
 
 
+def test_reference_paths_are_normalized_not_char_stripped(tmp_path):
+    """`lstrip("./")` is character stripping. `../compose.yml` must NOT match a root
+    declaration, and `deploy/../compose.yml` MUST normalize to `compose.yml`."""
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose -f ./deploy/../docker-compose.yml up
+    """)
+    refs = ci_referenced_compose_files(str(tmp_path))
+    assert refs == frozenset({"docker-compose.yml"})
+    assert compute_relevance(_decl("docker-compose.yml"), refs) == "ci_referenced_compose"
+
+
+def test_a_reference_escaping_the_repo_is_not_a_reference(tmp_path):
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose -f ../outside/docker-compose.yml up
+    """)
+    assert ci_referenced_compose_files(str(tmp_path)) == frozenset()
+
+
+def test_only_run_step_bodies_are_scanned(tmp_path):
+    """Scanning raw file text would turn a step NAME into a compose reference."""
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - name: docker compose -f decoy.yml up
+                uses: actions/checkout@v4
+    """)
+    assert ci_referenced_compose_files(str(tmp_path)) == frozenset()
+
+
+def test_equals_form_and_quoted_paths(tmp_path):
+    _write(tmp_path, ".github/workflows/ci.yml", """
+        jobs:
+          t:
+            steps:
+              - run: docker compose --file=a.yml up
+              - run: docker compose -f "dir with space/b.yml" up
+    """)
+    refs = ci_referenced_compose_files(str(tmp_path))
+    assert refs == frozenset({"a.yml", "dir with space/b.yml"})
+
+
+def test_root_override_compose_is_the_default_environment():
+    """`docker compose up` with no -f auto-loads docker-compose.override.yml."""
+    assert compute_relevance(_decl("docker-compose.override.yml"), frozenset()) == "root_compose"
+
+
 def test_root_compose_unreferenced_is_ambiguous():
     assert compute_relevance(_decl("docker-compose.yml"), frozenset()) == "root_compose"
     assert compute_relevance(_decl("compose.yaml"), frozenset()) == "root_compose"
@@ -1267,7 +1321,9 @@ both directions -- `tests/db/compose.yml` IS an environment; a library's
 from __future__ import annotations
 
 import os
+import posixpath
 import re
+from typing import Iterator
 
 from python_deps.depgraph.service_evidence import Relevance
 from python_deps.depgraph.service_sources import RawDeclaration
@@ -1275,12 +1331,53 @@ from python_deps.depgraph.service_sources import RawDeclaration
 # `docker compose -f X`, `docker-compose --file X`
 _COMPOSE_REF = re.compile(r"docker[-\s]compose[^\n;|&]*?(?:-f|--file)\s+(\S+)")
 
-_ROOT_NAMES = ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml")
+# Compose auto-loads an `override` file alongside its base when invoked with no `-f`,
+# so a root override IS part of the repo's default environment.
+_ROOT_NAMES = ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml",
+               "docker-compose.override.yml", "docker-compose.override.yaml",
+               "compose.override.yml", "compose.override.yaml")
+
+
+def _norm(path: str) -> str | None:
+    """A declaration's repo-relative POSIX path, or None if it cannot be one.
+
+    `lstrip("./")` is NOT path normalization — it strips leading `.` and `/` CHARACTERS,
+    so `../compose.yml` becomes `compose.yml` and falsely matches a root declaration,
+    while `deploy/../compose.yml` is left unnormalized and matches nothing.
+    """
+    raw = path.strip().strip("'\"").replace("\\", "/")
+    if not raw:
+        return None
+    norm = posixpath.normpath(raw)
+    if posixpath.isabs(norm) or norm == ".." or norm.startswith("../"):
+        return None                       # escapes the repo: cannot be a declaration
+    return norm
+
+
+def _run_bodies(doc: object) -> Iterator[str]:
+    """Every `jobs.<job>.steps[].run` string. Scanning raw file TEXT instead would
+    manufacture a reference out of a comment or a `name:` field."""
+    jobs = doc.get("jobs") if isinstance(doc, dict) else None
+    if not isinstance(jobs, dict):
+        return
+    for job in jobs.values():
+        steps = job.get("steps") if isinstance(job, dict) else None
+        if not isinstance(steps, list):
+            continue
+        for step in steps:
+            if isinstance(step, dict) and isinstance(step.get("run"), str):
+                yield step["run"]
 
 
 def ci_referenced_compose_files(repo: str) -> frozenset[str]:
     """Compose paths that a workflow explicitly brings up. This is the edge from
-    'the thing that runs the tests' to 'the environment it needs'."""
+    'the thing that runs the tests' to 'the environment it needs'.
+
+    Known limitation: a `run:` body that merely *quotes* the command
+    (`echo "docker compose -f fake.yml"`) still registers. Accepted — a repo that
+    echoes the command almost always runs it too, and a false `ci_referenced_compose`
+    only promotes a node we would have surfaced anyway.
+    """
     wf = os.path.join(repo, ".github", "workflows")
     if not os.path.isdir(wf):
         return frozenset()
@@ -1288,20 +1385,21 @@ def ci_referenced_compose_files(repo: str) -> frozenset[str]:
     for fname in sorted(os.listdir(wf)):
         if not fname.lower().endswith((".yml", ".yaml")):
             continue
-        try:
-            with open(os.path.join(wf, fname), errors="replace") as fh:
-                text = fh.read()
-        except OSError:
-            continue
-        for m in _COMPOSE_REF.finditer(text):
-            found.add(m.group(1).strip("'\"").lstrip("./"))
+        for body in _run_bodies(load_yaml(os.path.join(wf, fname))):
+            for cmd in _COMPOSE_CMD.finditer(body):
+                for m in _FILE_FLAG.finditer(cmd.group(0)):
+                    ref = _norm(m.group(1))
+                    if ref:
+                        found.add(ref)
     return frozenset(found)
 
 
 def compute_relevance(decl: RawDeclaration, ci_refs: frozenset[str]) -> Relevance:
     if decl.kind == "ci":
         return "ci_service"                       # the job IS the test
-    norm = decl.file.replace(os.sep, "/").lstrip("./")
+    norm = _norm(decl.file)
+    if norm is None:
+        return "unreferenced_compose"
     if norm in ci_refs:
         return "ci_referenced_compose"
     if "/" not in norm and norm.lower() in _ROOT_NAMES:
