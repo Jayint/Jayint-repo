@@ -102,6 +102,13 @@ def test_tools_section_names_explore_and_edit():
     sp = planner_mod.SYSTEM_PROMPT
     assert "explore" in sp and "edit" in sp and "Script:" not in sp
 
+def test_system_prompt_orients_seed_is_prebuilt_closure_and_limits_explore():
+    # The seed already encodes the graph-resolved package closure, so the agent should read the
+    # error/ENVIRONMENT first and NOT explore to re-derive the package list (the M3 over-exploration).
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "already installs the package closure" in sp        # seed = near-complete starting point
+    assert "re-derive the package closure" in sp               # explore is not for rediscovering packages
+
 def test_build_system_prompt_injects_env_and_placeholder():
     filled = planner_mod.build_system_prompt(
         "  Base image : python:3.10-slim (Debian 12)\n  Working dir: /app")

@@ -27,6 +27,10 @@ You are DONE when setup.sh runs with no error AND the test suite passes — the 
 decides success; never claim it yourself.
 
 APPROACH
+The current setup.sh already installs the package closure resolved from the repo's own declarations —
+treat it as a near-complete starting point, not a blank slate. The remaining failure is usually a
+missing system library, a wrong install method, an unset config/env var, or a service — so read the
+last run's error and the ENVIRONMENT block first; they usually name it.
 Make the smallest change the evidence supports — the last run's output and the repo's own declared
 setup (its manifests and test config). Preserve the existing script unless the evidence shows a line
 is wrong; don't strip a working setup.sh to a stub, and don't add packages or services you can't tie
@@ -40,8 +44,9 @@ cannot be provided, leave the test failing rather than fabricate a way to pass."
 _TOOLS = """\
 TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:
   explore — investigate, read-only.
-    When: you need a fact before you can fix the build — what a manifest lists, where a
-          package/pyproject.toml lives, what's installed, or why an import fails.
+    When: the error and the ENVIRONMENT block don't already tell you what you need — the body of a
+          specific config file, WHERE a local package lives, or a runtime probe (ldconfig / pip show).
+          Don't explore to re-derive the package closure — the seed already encodes it.
     Call:  explore(command=<one read-only shell command>)   (ls, cat, find, pip show, ldconfig —
            never install or modify). Its output comes back to you next turn.
   edit    — change setup.sh by line number. This is how you repair the build.
