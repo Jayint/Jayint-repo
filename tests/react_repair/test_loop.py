@@ -42,6 +42,30 @@ def test_observation_small_output_untouched():
     obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
     assert "5 passed in 0.1s" in obs and "truncated" not in obs
 
+def test_observation_renders_error_breakdown_in_test_phase():
+    # Once the build is green the localization is per-CAUSE: a ranked histogram of what the tests
+    # fail on (parsed from the traceback blocks), so the agent targets the dominant blocker instead
+    # of the last-printed traceback.
+    out = ("==================================== ERRORS ====================================\n"
+           "___ ERROR collecting a/test_x.py ___\n"
+           "E   ModuleNotFoundError: No module named 'pkg_resources'\n"
+           "___ ERROR collecting b/test_y.py ___\n"
+           "E   ModuleNotFoundError: No module named 'pkg_resources'\n"
+           "=================================== FAILURES ===================================\n"
+           "___ test_t ___\n"
+           "c/test_z.py:2: AssertionError\n"
+           "=== 3 passed, 2 errors, 1 failed in 1s ===\n")
+    obs = _observation(RunResult(True), TestOutcome(False, 3, 6, output=out))
+    assert "3/6 passed" in obs                                          # headline kept
+    assert "Top failure causes" in obs
+    assert "2 × ModuleNotFoundError" in obs and "pkg_resources" in obs  # dominant cause, counted
+    assert "pytest output (tail)" in obs                                # raw tail still appended
+
+def test_observation_falls_back_to_tail_when_no_failure_summary():
+    # all-passed / unparseable output has no summary lines → the old plain body, no breakdown block.
+    obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
+    assert "Top failure causes" not in obs and "5 passed in 0.1s" in obs
+
 def test_observation_includes_failing_line_number():
     obs = _observation(RunResult(False, failing_command="pip install psycopg2",
                                  output="fatal error", lineno=40), None)

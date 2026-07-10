@@ -11,6 +11,7 @@ from python_deps.depgraph.patch_gate import is_read_only
 from src.react_repair.actions import apply_edit
 from src.react_repair.anti_cheat import narrowing_reason
 from src.react_repair.history import safety_truncate
+from src.react_repair.pytest_summary import format_breakdown, summarize
 from src.react_repair.script_prep import strip_graph_framing
 
 # Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
@@ -66,11 +67,25 @@ def _emit_tokens(usage) -> None:
 
 def _observation(result: RunResult, test) -> str:
     if not result.ok:
+        # Build failing → per-LINE localization (the halt marker rides in the numbered script).
         body, _ = safety_truncate(result.output or "", max_chars=_OBS_MAX_CHARS)
         loc = f" (line {result.lineno})" if result.lineno else ""
         return f"BUILD FAILED at `{result.failing_command}`{loc}:\n{body}"
+    # Build green → the fault is no longer a line but a CAUSE: lead with the ranked failure histogram
+    # (what the tests fail on + how many each blocks) so the agent targets the DOMINANT blocker, not
+    # whichever traceback happens to land in the tail (anthropic-sdk: 430 aiohttp shown, 1448
+    # ConnectionError hidden). Keep the raw tail after it for traceback detail; fall back to the plain
+    # tail when there's nothing to aggregate (all passed / unparseable output).
+    header = f"BUILD OK. TESTS {test.passed}/{test.executed} passed"
+    causes = summarize(test.output or "")
+    if causes:
+        hist = format_breakdown(causes)
+        tail_budget = max(1000, _OBS_MAX_CHARS - len(hist) - 200)
+        tail, _ = safety_truncate(test.output or "", max_chars=tail_budget)
+        return (f"{header}.\nTop failure causes (by tests affected):\n{hist}\n"
+                f"--- pytest output (tail) ---\n{tail}")
     body, _ = safety_truncate(test.output or "", max_chars=_OBS_MAX_CHARS)
-    return f"BUILD OK. TESTS {test.passed}/{test.executed} passed:\n{body}"
+    return f"{header}:\n{body}"
 
 
 def _verdict(result: RunResult, test) -> str:

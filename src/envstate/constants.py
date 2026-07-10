@@ -12,6 +12,8 @@ from __future__ import annotations
 # `--continue-on-collection-errors` matches the ratbench OFFICIAL scorer: one un-importable module
 # must not abort the whole session (strict `pytest -q` zeroed repos that had real passing tests,
 # hiding progress from the agent and optimizing a different target than the benchmark scores).
+# The react arm's per-cause error breakdown (pytest_summary) reads the FAILURES/ERRORS traceback
+# sections, which pytest emits by default — no extra reporting flag is needed here.
 VERIFY_TEST_CMD: str = "python -m pytest -q --continue-on-collection-errors"
 
 # run_v3 no-progress bound: give up honestly once the VERIFY_TEST_CMD outcome
