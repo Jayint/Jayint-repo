@@ -1,6 +1,7 @@
 import textwrap
 
-from python_deps.depgraph.service_construct import build_service_nodes
+from python_deps.depgraph.service_construct import _fuse, build_service_nodes
+from python_deps.depgraph.service_sources import RawDeclaration
 
 
 def _write(tmp_path, rel, src):
@@ -318,3 +319,31 @@ def test_declaration_order_within_a_relevance_tier_is_deterministic(tmp_path):
     assert node.image == "postgres:16"
     assert node.port == 5432
     assert "image" in node.unresolved
+
+
+def _decl(file, image, port):
+    return RawDeclaration(
+        name="db", entry={"image": image, "ports": [f"{port}:{port}"]},
+        file=file, locator="services.db", kind="compose", doc_env_values=(),
+    )
+
+
+def test_fuse_is_independent_of_declaration_input_order():
+    """The order-independence guarantee, pinned where it actually lives.
+
+    Going through `build_service_nodes` cannot pin this: discovery order comes from
+    `os.walk`, so on a filesystem that happens to yield `a/` before `b/` the test passes
+    even against a `_fuse` that has no tiebreak at all. Drive `_fuse` directly with both
+    input orders instead — pre-tiebreak, `sorted` is stable on a rank-only key, so the
+    two calls return different images and this fails.
+    """
+    a = _decl("a/docker-compose.yml", "postgres:16", 5432)
+    b = _decl("b/docker-compose.yml", "mysql:8", 3306)
+
+    forward = _fuse("db", [a, b], frozenset())
+    reverse = _fuse("db", [b, a], frozenset())
+
+    assert forward.image == reverse.image == "postgres:16"
+    assert forward.port == reverse.port == 5432
+    assert forward.provenance == reverse.provenance
+    assert "image" in forward.unresolved            # ambiguity still surfaced, not hidden
