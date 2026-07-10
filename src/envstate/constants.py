@@ -9,7 +9,10 @@ from __future__ import annotations
 
 # Canonical execution-verify command used by the Phase-1 execution gate.
 # The gate requires a bare interpreter (no venv wrapper) and >=1 passed test.
-VERIFY_TEST_CMD: str = "python -m pytest -q"
+# `--continue-on-collection-errors` matches the ratbench OFFICIAL scorer: one un-importable module
+# must not abort the whole session (strict `pytest -q` zeroed repos that had real passing tests,
+# hiding progress from the agent and optimizing a different target than the benchmark scores).
+VERIFY_TEST_CMD: str = "python -m pytest -q --continue-on-collection-errors"
 
 # run_v3 no-progress bound: give up honestly once the VERIFY_TEST_CMD outcome
 # signature is an identical FAILURE for this many consecutive cycles despite

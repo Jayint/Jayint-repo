@@ -29,6 +29,22 @@ def test_run_script_adapter_maps_installresult():
     r = run_script("pip install x")
     assert r.ok is False and r.failing_command == "pip install x" and "boom" in r.output
 
+
+def test_verify_test_cmd_is_lenient_on_collection_errors():
+    # Align the react gate with the ratbench OFFICIAL scorer: one un-importable module must NOT abort
+    # the whole run. Strict `pytest -q` zeroed repos (e.g. PerfKit) that actually had 73 passing
+    # tests — hiding real progress from the agent AND scoring a different target than the benchmark.
+    from src.envstate.constants import VERIFY_TEST_CMD
+    assert "--continue-on-collection-errors" in VERIFY_TEST_CMD
+
+def test_run_tests_runs_the_lenient_command():
+    seen = {}
+    class _Cap(_FakeSandbox):
+        def exec_readonly(self, cmd): seen["cmd"] = cmd; return (0, "5 passed")
+    _, _, _, _, run_tests = docker_adapters(_Cap(0, "5 passed"))
+    run_tests()
+    assert "--continue-on-collection-errors" in seen["cmd"]
+
 def test_run_tests_adapter_applies_80pct_verdict():
     _, _, _, _, run_tests = docker_adapters(_FakeSandbox(0, "9 passed, 1 failed in 1s"))
     assert run_tests().ok is True                       # 0.9 >= 0.8
