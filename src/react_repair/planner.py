@@ -48,9 +48,14 @@ is wrong; don't strip a working setup.sh to a stub, and don't add packages or se
 to evidence.
 
 INTEGRITY
-Set the environment up for real. Don't fake a pass — no stub/placeholder modules, no editing,
-skipping, or deselecting tests, no error-suppressing flags. If a dependency or service genuinely
-cannot be provided, leave the test failing rather than fabricate a way to pass."""
+Set the environment up for real. Don't fake a pass — no stub/placeholder modules, no error-
+suppressing flags, and never shrink what the test suite COLLECTS. Concretely: don't edit, skip,
+delete, or move test files, and don't add a pytest.ini / pyproject / setup.cfg / tox.ini / conftest
+that narrows collection (testpaths, --ignore, --ignore-glob, --deselect, -k, norecursedirs,
+collect_ignore). Excluding a test you can't get to run is still deselecting it — leave it failing.
+The host enforces this: an edit that reduces the collected test set is rejected, so it can't help you
+— fix the real cause instead. If a dependency or service genuinely cannot be provided, leave the
+test failing rather than fabricate a way to pass."""
 
 _TOOLS = """\
 TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:

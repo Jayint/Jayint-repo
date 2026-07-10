@@ -102,6 +102,15 @@ def test_tools_section_names_explore_and_edit():
     sp = planner_mod.SYSTEM_PROMPT
     assert "explore" in sp and "edit" in sp and "Script:" not in sp
 
+def test_integrity_forbids_narrowing_the_collected_test_set():
+    # The podman-compose gaming (agent wrote a pytest.ini --ignore to drop erroring tests, after its
+    # own CoT flagged "faking a pass" then relabeled it "config") must be named explicitly, and the
+    # prompt must state the host ENFORCES it — the ask alone didn't hold.
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "collect" in sp.lower()                        # names WHAT must not shrink (pytest collection)
+    assert "still deselecting" in sp                      # excluding tests you can't run == deselecting
+    assert "rejected" in sp.lower()                       # host rejects an edit that shrinks the set
+
 def test_render_injects_rejection_hint(monkeypatch):
     # On a same-turn retry after a tool misuse, the rejection reason is injected into the prompt.
     seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)

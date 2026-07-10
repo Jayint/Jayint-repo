@@ -214,6 +214,53 @@ def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
     assert "invalid move" in view.lower()
     assert "edit()" in view and "won't persist" in view
 
+def test_gaming_edit_is_rejected_in_place_and_keeps_seed():
+    # An edit that writes a pytest.ini narrowing collection (--ignore) is gaming, not repair: the host
+    # gate rejects it exactly like a tool misuse (no rebuild), and keep-best floors at the seed.
+    gaming = Action("edit", edit=EditOp("insert", 1, 1,
+        "cat > pytest.ini <<'EOF'\n[pytest]\naddopts = --ignore=tests/integration\nEOF"))
+    outcome, script, _ = _run([gaming], tests_need=("magic",))
+    assert outcome == "GIVEUP" and script == "pip install app\n"    # never shipped the gaming edit
+
+def test_gaming_patch_is_rejected_and_keeps_seed():
+    gaming = Action("patch",
+        new_script="pip install app\ncat > pytest.ini <<'EOF'\ntestpaths = tests/unit\nEOF\n")
+    outcome, script, _ = _run([gaming], tests_need=("magic",))
+    assert outcome == "GIVEUP" and script == "pip install app\n"
+
+def test_gaming_edit_reprompts_with_narrowing_hint_then_legit_edit_reaches_done():
+    # The gaming edit is bounced IN PLACE (no turn spent); the agent is re-prompted with a hint that
+    # names the narrowing, and a subsequent real fix (editable install) reaches DONE.
+    seen = []
+    class _P:
+        def __init__(self): self.n = 0
+        def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
+                 max_turns=None, rejection=None):
+            seen.append(rejection); self.n += 1
+            if self.n == 1:
+                return "t", Action("edit", edit=EditOp("insert", 1, 1,
+                    "cat > pytest.ini <<'EOF'\naddopts = --ignore=tests/slow\nEOF")), {}
+            return "t", Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev")), {}
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    outcome, script, _ = run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_P(), history=History(), log=ReactLog(silent=True),
+        max_steps=2, _initial_script="pip install app\n")
+    assert seen[0] is None                                          # first call: no rejection
+    assert seen[1] is not None and "collect" in seen[1].lower()     # gaming hint names test collection
+    assert outcome == "DONE" and "libpq-dev" in script             # the retried legit edit applied
+
+def test_classify_action_rejects_narrowing_edit_directly():
+    from src.react_repair.loop import _classify_action
+    from src.react_repair.actions import Action, EditOp
+    gaming = Action("edit", edit=EditOp("insert", 1, 1, "pytest --deselect tests/test_x.py::t"))
+    kind, hint = _classify_action(gaming, "pip install app\n")
+    assert kind == "invalid" and "collect" in hint.lower()
+    legit = Action("edit", edit=EditOp("insert", 1, 1, "pip install redis"))
+    assert _classify_action(legit, "pip install app\n")[0] == "edit"
+
+
 def test_edit_summary_describes_the_op():
     from src.react_repair.loop import _edit_summary
     assert _edit_summary(EditOp("insert", 23, 23, "pip install hiredis")) == "insert@23 +pip install hiredis"

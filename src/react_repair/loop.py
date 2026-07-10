@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import is_read_only
 from src.react_repair.actions import apply_edit
+from src.react_repair.anti_cheat import narrowing_reason
 from src.react_repair.history import safety_truncate
 from src.react_repair.script_prep import strip_graph_framing
 
@@ -20,6 +21,15 @@ _FORMAT_REMINDER = ("Call exactly one tool — explore or edit. explore is READ-
                     "persist. To install a dependency or change the environment, add the line to "
                     "setup.sh with edit() instead.")
 _OUT_OF_RANGE_HINT = "edit line out of range — check the numbered setup.sh and retry"
+
+
+def _gaming_hint(reason: str) -> str:
+    """Rejection message for an edit that would shrink what pytest collects. Names the specific
+    narrowing so the agent redirects to a REAL fix instead of hiding the failing tests."""
+    return (f"that edit hides tests instead of fixing the environment ({reason}) — rejected. "
+            "Don't narrow what pytest collects: no --ignore/testpaths/--deselect/-k, no conftest "
+            "skips, no removing test files. Fix the real cause so the tests can RUN; if a dependency "
+            "or service genuinely can't be provided, leave those tests failing.")
 
 # A tool misuse (non-read-only explore, out-of-range edit, unusable action) is a harness error, not a
 # repair step: re-prompt with the reason IN PLACE (no turn spent, nothing written to the agent-facing
@@ -131,9 +141,13 @@ def _classify_action(action, script: str) -> tuple[str, str | None]:
         return "invalid", _FORMAT_REMINDER              # non-read-only or empty command
     if action.kind == "edit" and action.edit is not None:
         new = apply_edit(script, action.edit)
-        return ("edit", new) if new is not None else ("invalid", _OUT_OF_RANGE_HINT)
+        if new is None:
+            return "invalid", _OUT_OF_RANGE_HINT
+        reason = narrowing_reason(script, new)          # host anti-gaming gate (Repo2Run lever)
+        return ("invalid", _gaming_hint(reason)) if reason else ("edit", new)
     if action.kind == "patch" and action.new_script:
-        return "patch", action.new_script
+        reason = narrowing_reason(script, action.new_script)
+        return ("invalid", _gaming_hint(reason)) if reason else ("patch", action.new_script)
     return "invalid", _FORMAT_REMINDER                  # unusable / unparseable move
 
 
