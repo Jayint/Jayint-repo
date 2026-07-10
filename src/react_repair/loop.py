@@ -43,6 +43,12 @@ _INVALID_RETRIES = int(os.getenv("REACT_INVALID_RETRIES", "2"))
 # there, which is what the model needs to diagnose.
 _OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 
+# Observation presentation mode (ablation lever, orthogonal to the graph axis). `histogram` (default)
+# leads the test-phase observation with the ranked pytest error-type breakdown, then the raw tail;
+# `raw` is the pure-reactive floor — pass count + raw tail only, no aggregation. Lets the breakdown
+# be measured as its own rung (raw reactive vs reactive+presentation vs +graph) without a code change.
+_OBS_MODE = os.getenv("REACT_OBS_MODE", "histogram").lower()
+
 @dataclass(frozen=True)
 class RunResult:
     ok: bool
@@ -77,7 +83,7 @@ def _observation(result: RunResult, test) -> str:
     # ConnectionError hidden). Keep the raw tail after it for traceback detail; fall back to the plain
     # tail when there's nothing to aggregate (all passed / unparseable output).
     header = f"BUILD OK. TESTS {test.passed}/{test.executed} passed"
-    causes = summarize(test.output or "")
+    causes = summarize(test.output or "") if _OBS_MODE != "raw" else []
     if causes:
         hist = format_breakdown(causes)
         tail_budget = max(1000, _OBS_MAX_CHARS - len(hist) - 200)

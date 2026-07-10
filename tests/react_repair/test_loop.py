@@ -66,6 +66,33 @@ def test_observation_falls_back_to_tail_when_no_failure_summary():
     obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
     assert "Top failure causes" not in obs and "5 passed in 0.1s" in obs
 
+def test_obs_mode_default_is_histogram():
+    # The default (env unset) is the strong reactive baseline: breakdown + tail.
+    import os, src.react_repair.loop as L
+    if "REACT_OBS_MODE" not in os.environ:
+        assert L._OBS_MODE == "histogram"
+
+def test_obs_mode_raw_suppresses_breakdown(monkeypatch):
+    # Ablation floor (REACT_OBS_MODE=raw): pure-reactive observation — pass count + the raw pytest
+    # tail, NO error-type histogram, even when the failures are parseable. Lets the breakdown be
+    # ablated as its own rung (raw reactive vs reactive+presentation vs +graph).
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_OBS_MODE", "raw")
+    out = ("=================================== FAILURES ===================================\n"
+           "___ test_t ___\nc/test_z.py:2: AssertionError\n"
+           "=== 3 passed, 1 failed in 1s ===\n")
+    obs = _observation(RunResult(True), TestOutcome(False, 3, 4, output=out))
+    assert "Top failure causes" not in obs                 # no breakdown in raw mode
+    assert "3/4 passed" in obs and "AssertionError" in obs  # raw tail still present
+
+def test_obs_mode_histogram_renders_breakdown(monkeypatch):
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_OBS_MODE", "histogram")
+    out = ("=================================== FAILURES ===================================\n"
+           "___ test_t ___\nc/test_z.py:2: AssertionError\n=== 3 passed, 1 failed in 1s ===\n")
+    obs = _observation(RunResult(True), TestOutcome(False, 3, 4, output=out))
+    assert "Top failure causes" in obs and "1 × AssertionError" in obs
+
 def test_observation_includes_failing_line_number():
     obs = _observation(RunResult(False, failing_command="pip install psycopg2",
                                  output="fatal error", lineno=40), None)
