@@ -12,7 +12,7 @@ class ScriptedPlanner:
     output lands in HISTORY, not the observation, so it must search both. Skips an explore it
     already ran and a patch identical to the current script, so each rule fires at most once."""
     def __init__(self, rules): self.rules = rules      # list[(needle, Action)]
-    def plan(self, history, script, observation, graph):
+    def plan(self, history, script, observation, graph, **_kw):   # absorbs fail_lineno/turn/max_turns/rejection
         haystack = (observation or "") + "\n" + history.render()
         for needle, move in self.rules:
             if needle not in haystack:
@@ -48,10 +48,11 @@ def scenario_unfixable_giveup():
     return (_INIT, FakeSandbox(install_tokens=("libunobtainium",)),
             ScriptedPlanner([]), "GIVEUP")
 
-def scenario_plateau():
-    # Two distinct patches that never add the needed test token -> pass count never rises ->
-    # PLATEAU after 2 no-gain repairs (cost-saving early stop, not a 30-step thrash).
+def scenario_no_gain_giveup():
+    # Patches that never add the needed test token -> pass count never rises. With plateau REMOVED
+    # the loop no longer early-stops; it runs to max_steps and exits GIVEUP (keep-best floors the
+    # shipped script at the seed).
     a = Action("patch", new_script=_INIT + "echo a\n")
     b = Action("patch", new_script=_INIT + "echo b\n")
     return (_INIT, FakeSandbox(test_tokens=("magic",)),
-            ScriptedPlanner([("ModuleNotFoundError", a), ("ModuleNotFoundError", b)]), "PLATEAU")
+            ScriptedPlanner([("ModuleNotFoundError", a), ("ModuleNotFoundError", b)]), "GIVEUP")

@@ -35,7 +35,7 @@ def main():
         ("tests fail → patch", S.scenario_tests_fail_then_patch),
         ("explore → patch", S.scenario_explore_then_patch),
         ("unfixable → giveup", S.scenario_unfixable_giveup),
-        ("plateau → stop early", S.scenario_plateau),
+        ("no-gain → giveup at max_steps", S.scenario_no_gain_giveup),
     ]
     ok_all, fired_all = True, set()
     for name, factory in cases:

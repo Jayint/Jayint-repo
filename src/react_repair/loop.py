@@ -42,18 +42,6 @@ _INVALID_RETRIES = int(os.getenv("REACT_INVALID_RETRIES", "2"))
 # there, which is what the model needs to diagnose.
 _OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 
-# Cost lever: stop early once repair stops helping. After this many CONSECUTIVE patches that
-# add no net-new passing tests, we've hit the achievable ceiling for this env — repairing
-# further just burns steps/LLM cost, so stop and report the best achieved (PLATEAU). Lets the
-# pass threshold be strict without paying to chase an unreachable ceiling.
-# Set to 5 (was 2): now that keep-best/seed-floor makes an early stop SAFE (the loop always
-# returns best_script, never worse than the seed), a genuine multi-step repair deserves more than
-# two attempts before we give up — 2 cut real fixes short. A stuck repo still auto-cuts at 5 rather
-# than thrashing the full step budget, so the ~service-gated repos (unrepairable by a script edit)
-# don't burn 30 turns for zero gain.
-_PLATEAU_PATIENCE = int(os.getenv("REACT_PLATEAU_PATIENCE", "5"))
-
-
 @dataclass(frozen=True)
 class RunResult:
     ok: bool
@@ -179,30 +167,24 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
     best_key: tuple[bool, int, int] = (False, -1, -1)   # (built_ok, passed, executed): green > failed;
     best_script = script                                 # among passed-ties, MORE tests collected wins
-    stall = 0
 
-    def register(r, t) -> bool:
-        """Fold a fresh build into the best-so-far + plateau counters. Tracks the best SCRIPT (not
-        just its pass count) so a later regressing patch can never be what we ship: every non-DONE
-        exit returns `best_script`, making repair structurally incapable of doing worse than the seed
-        (the observed regression was PLATEAU/GIVEUP returning the last, often-broken, patch). Ranks by
+    def register(r, t) -> None:
+        """Fold a fresh build into the best-so-far. Tracks the best SCRIPT (not just its pass count)
+        so a later regressing patch can never be what we ship: every non-DONE exit returns
+        `best_script`, making repair structurally incapable of doing worse than the seed. Ranks by
         (built, passed, executed): a green build beats a failed one, then more passing tests, then —
         crucially, when passed ties (often at 0) — more tests EXECUTED. That last term keeps a fix
         that unblocks collection (fewer collection errors → more tests runnable) even before any test
-        passes, instead of discarding it as no-gain (the M3 baserow regression). Returns True once
-        repair has stalled — no net-new best for `_PLATEAU_PATIENCE` consecutive builds."""
-        nonlocal best_key, best_script, stall
+        passes, instead of discarding it as no-gain (the M3 baserow regression)."""
+        nonlocal best_key, best_script
         passed_now = t.passed if (r.ok and t is not None) else 0
         executed_now = t.executed if (r.ok and t is not None) else 0
         key = (bool(r.ok), passed_now, executed_now)
         if key > best_key:
-            best_key, best_script, stall = key, script, 0   # `script` = the one just built
-            return False
-        stall += 1
-        return stall >= _PLATEAU_PATIENCE
+            best_key, best_script = key, script         # `script` = the one just built
 
     result, graph, test = build_and_test()
-    plateaued = register(result, test)                  # baseline: first build never plateaus
+    register(result, test)                              # fold baseline into best-so-far
     # Seed history with the baseline outcome (v0) so later patches have something to compare
     # against; the verdict rides in the (never-truncated) bracket, the detail in the body.
     history.record(0, "", f"baseline → {_verdict(result, test)}", _observation(result, test))
@@ -212,11 +194,6 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             log.d("DONE", "build green AND tests pass the gate — host-verified")
             log.trace("end", outcome="DONE", steps=step + 1); log.summary()
             return "DONE", script, graph
-        if plateaued:
-            log.d("PLATEAU", f"no new tests passing in {_PLATEAU_PATIENCE} repairs "
-                             f"(best {best_key[1]}) — stopping early, returning best script")
-            log.trace("end", outcome="PLATEAU", steps=step + 1, best_passed=best_key[1]); log.summary()
-            return "PLATEAU", best_script, graph
         observation = _observation(result, test)
 
         # Resolve a DISPATCHABLE action. A tool misuse is re-prompted IN PLACE (fail_lineno anchors
@@ -247,7 +224,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             rc, out = exec_readonly(payload)
             history.record(step + 1, thought, f"explore: {payload}", out)
             log.d("EXPLORE", f"{payload} → rc{rc} (read-only)")
-            continue                                    # free turn — no rebuild, plateau unchanged
+            continue                                    # free turn — no rebuild
         if kind == "edit":
             # A line-anchored edit (pure splice, validated in _classify_action). Same rebuild+register
             # +record path as a patch, so keep-best guards a bad edit exactly as it guards a bad patch.
@@ -255,7 +232,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             change = _edit_summary(action.edit)   # op-based: verb@span + preview (captures deletes too)
             log.d("EDIT", f"{change}; re-running fresh")
             result, graph, test = build_and_test()
-            plateaued = register(result, test)
+            register(result, test)
             version += 1
             verdict = _verdict(result, test)
             history.record(step + 1, thought, f"edit v{version} ({change}) → {verdict}",
@@ -265,7 +242,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         old_script, script = script, payload
         log.d("PATCH", "agent replaced setup.sh; re-running fresh")
         result, graph, test = build_and_test()
-        plateaued = register(result, test)
+        register(result, test)
         version += 1
         # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed
         # (order-free set diff) → the REAL build/test outcome. Both survive compaction.
@@ -274,7 +251,6 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         summary = f"patch v{version} ({change}) → {verdict}" if change else f"patch v{version} → {verdict}"
         history.record(step + 1, thought, summary, _observation(result, test))
 
-    outcome = "PLATEAU" if plateaued else "GIVEUP"      # plateau on the final step lands here
-    log.d(outcome, f"stopped at max_steps {max_steps} (best {best_key[1]}) — returning best script")
-    log.trace("end", outcome=outcome, steps=max_steps, best_passed=best_key[1]); log.summary()
-    return outcome, best_script, graph
+    log.d("GIVEUP", f"max_steps {max_steps} hit (best {best_key[1]}) — returning best script")
+    log.trace("end", outcome="GIVEUP", steps=max_steps, best_passed=best_key[1]); log.summary()
+    return "GIVEUP", best_script, graph
