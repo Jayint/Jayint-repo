@@ -259,15 +259,32 @@ def test_depends_on_in_degree_marks_backing_even_for_first_party(tmp_path):
 
 
 def test_a_templated_image_in_one_declaration_does_not_delete_the_service(tmp_path):
-    """PostHog declares `db` in seven composes; one templates the registry prefix. The other
-    six resolve. Degrade the FIELD, never the NODE (spec §3.0.2 inv. 4)."""
-    _write(tmp_path, "docker-compose.hobby.yml", """
+    """One declaration's image NAME is genuinely opaque (a `${VAR}` with no declared
+    default, so interpolation cannot recover it); another resolves. `_fuse` must take the
+    first RESOLVABLE image, surface the ambiguity via `_image_conflict`, and never delete
+    the NODE (spec §3.0.2 inv. 4). This is the WITNESS for that rule: it fails against a
+    `_fuse` that takes the first non-empty image string.
+
+    NOTE: PostHog's own `db` used to motivate this test with
+    `${DOCKER_REGISTRY_PREFIX:-}postgres:15.12-alpine`. That is a `${VAR:-}` empty default,
+    which `expand_declared_defaults` now interpolates to `postgres:15.12-alpine` inside
+    `parse_image` (Task 16). Both of PostHog's declarations therefore resolve identically
+    upstream and there is no longer any conflict to surface — `db` is recovered by
+    interpolation alone, not by this `_fuse` rung. A `${VAR:-default}` fixture would make
+    this test vacuous (it would pass even against the old first-non-empty `_fuse`), so a
+    genuinely opaque NAME is required.
+
+    `docker-compose.yml` is `root_compose` and the `.prod.` variant is
+    `unreferenced_compose`, so the opaque declaration is deterministically FIRST in
+    `_fuse`'s `(relevance, file, locator)` ordering — independent of `os.walk` order.
+    """
+    _write(tmp_path, "docker-compose.yml", """
         services:
           db:
-            image: ${DOCKER_REGISTRY_PREFIX:-}postgres:15.12-alpine
+            image: ${POSTGRES_IMAGE}:15.12-alpine
             ports: ["5432:5432"]
     """)
-    _write(tmp_path, "docker-compose.base.yml", """
+    _write(tmp_path, "docker-compose.prod.yml", """
         services:
           db:
             image: postgres:15.12-alpine
@@ -276,8 +293,8 @@ def test_a_templated_image_in_one_declaration_does_not_delete_the_service(tmp_pa
     assert node.name == "db"
     assert node.image_repo == "postgres"            # taken from the declaration that RESOLVES
     assert "image" in node.unresolved               # ...and the ambiguity is surfaced
-    # the templated declaration is still evidence the agent can read
-    assert "compose:docker-compose.hobby.yml" in node.raw
+    # the opaque declaration is still evidence the agent can read
+    assert "compose:docker-compose.yml" in node.raw
 
 
 def test_a_service_templated_in_EVERY_declaration_is_still_dropped(tmp_path):

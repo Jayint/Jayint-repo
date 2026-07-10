@@ -260,3 +260,42 @@ def test_a_whitespace_only_declared_healthcheck_falls_through_to_tcp():
 
     without_port = derive_check("   ", {}, None)
     assert without_port.source == "none" and without_port.command is None
+
+
+from python_deps.depgraph.service_parse import _OPAQUE, expand_declared_defaults
+
+
+def test_expand_declared_defaults_reads_the_literal_the_file_declares():
+    assert expand_declared_defaults("${MINIO_IMAGE:-minio/minio}") == "minio/minio"
+    assert expand_declared_defaults("${A:-${B:-c}}") == "c"            # nested
+    assert expand_declared_defaults("${REGISTRY:-}") == ""             # empty default
+    assert expand_declared_defaults("${VAR-x}") == "x"                 # unset-only form
+    assert expand_declared_defaults("${VAR:?boom}") == _OPAQUE         # no declared value
+    assert expand_declared_defaults("${VAR}") == _OPAQUE
+    assert expand_declared_defaults("$VAR") == _OPAQUE
+    assert expand_declared_defaults("${{ matrix.v }}") == _OPAQUE      # GH Actions
+    assert expand_declared_defaults("${unterminated") is None
+
+
+def test_parse_image_interpolates_before_it_parses():
+    # `:` and `/` inside a ${...} span are template syntax, not reference delimiters.
+    assert parse_image("${MINIO_IMAGE:-minio/minio}") == ("minio/minio", None)
+    assert parse_image("${REDIS_IMAGE:-redis:latest}") == ("redis", "latest")
+    assert parse_image("${ES_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.13.4}") \
+        == ("docker.elastic.co/elasticsearch/elasticsearch", "8.13.4")
+    assert parse_image("${REGISTRY:-}${IMG:-aiidateam/aiida-core-base}${TAG:-}") \
+        == ("aiidateam/aiida-core-base", None)
+    assert parse_image("pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}") == ("pgvector/pgvector", "pg14")
+
+
+def test_a_templated_registry_prefix_is_not_a_usable_name():
+    # `head` was never checked before: `${REG}/img` is not a pullable reference.
+    assert parse_image("${REG}/img:1.2") == ("", None)
+
+
+def test_the_spec_invariants_survive_interpolation():
+    assert parse_image("valkey/valkey:${{ matrix.valkey-version }}") == ("valkey/valkey", None)
+    assert parse_image("$REGISTRY_URL:$POSTHOG_APP_TAG") == ("", None)
+    assert parse_image("${REGISTRY_URL}-node:${POSTHOG_NODE_TAG:-latest}") == ("", None)
+    assert parse_image("img@sha256:abc") == ("img", None)
+    assert parse_image("postgres:16") == ("postgres", "16")

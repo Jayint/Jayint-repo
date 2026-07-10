@@ -13,9 +13,9 @@ from python_deps.depgraph.service_evidence import (
     Check, Mount, Port, ServiceNode, Source,
 )
 from python_deps.depgraph.service_parse import (
-    ci_healthcheck, compose_healthcheck, derive_check, derive_port, parse_command,
-    parse_depends_on, parse_entrypoint, parse_env, parse_expose, parse_image,
-    parse_ports, parse_volumes, seed_mounts,
+    ci_healthcheck, compose_healthcheck, derive_check, derive_port,
+    expand_declared_defaults, parse_command, parse_depends_on, parse_entrypoint,
+    parse_env, parse_expose, parse_image, parse_ports, parse_volumes, seed_mounts,
 )
 from python_deps.depgraph.service_relevance import (
     ci_referenced_compose_files, compute_relevance,
@@ -93,7 +93,12 @@ def _image_conflict(ordered: list[RawDeclaration]) -> bool:
 def _unresolved_fields(image: str, image_tag: str | None, env: dict[str, str],
                        image_conflict: bool = False) -> tuple[str, ...]:
     out: list[str] = []
-    last = image.rsplit("/", 1)[-1]
+    # Test the EXPANDED string: a `:` inside a `${VAR:-redis}` span is template syntax,
+    # not a tag delimiter, so `${REDIS_IMAGE:-redis}` must not be flagged `image_tag`.
+    # Malformed expansion (None) falls back to the raw string's old behaviour.
+    expanded = expand_declared_defaults(image)
+    basis = image if expanded is None else expanded
+    last = basis.rsplit("/", 1)[-1]
     # `repo@sha256:...` legitimately has no tag; only a `:tag` that vanished is unresolved.
     if "@" not in last and ":" in last and image_tag is None:
         out.append("image_tag")

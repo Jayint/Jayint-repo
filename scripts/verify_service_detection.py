@@ -21,6 +21,7 @@ from python_deps.depgraph.service_construct import build_service_nodes
 
 def main(root: str) -> int:
     checks, repos_with, total = Counter(), set(), 0
+    templated_repos = 0
     rq_node = None
     for owner in sorted(os.listdir(root)):
         od = os.path.join(root, owner)
@@ -36,6 +37,11 @@ def main(root: str) -> int:
             total += len(nodes)
             for n in nodes:
                 checks[n.check.source] += 1
+                # A name-only fidelity metric cannot see un-interpolated garbage: an
+                # `image_repo` that still holds `$` or an `image_tag` carrying a stray `}`
+                # is a node advertising a reference that cannot be pulled.
+                if "$" in (n.image_repo or "") or "}" in (n.image_tag or ""):
+                    templated_repos += 1
                 if f"{owner}/{repo}" == "rq/rq":
                     rq_node = n
 
@@ -45,10 +51,12 @@ def main(root: str) -> int:
     for src, n in checks.most_common():
         print(f"  {src:22s} {n:4d}  ({n / max(total, 1) * 100:.0f}%)")
     print(f"certifiable                 : {certifiable / max(total, 1) * 100:.0f}%")
+    print(f"templated image_repo        : {templated_repos}")
     print(f"rq/rq valkey                : {rq_node.check.command if rq_node else 'NOT DETECTED'}")
 
     ok = (len(repos_with) >= 20 and certifiable / max(total, 1) >= 0.65
-          and rq_node is not None and rq_node.check.source == "declared_healthcheck")
+          and rq_node is not None and rq_node.check.source == "declared_healthcheck"
+          and templated_repos == 0)
     print("\nVERIFY:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

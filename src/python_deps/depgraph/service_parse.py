@@ -19,6 +19,67 @@ def is_templated(s: str) -> bool:
     return "$" in s
 
 
+_OPAQUE = "\x00"      # a span whose value is not declared anywhere in the file
+
+# `${VAR:-default}` and `${VAR-default}`: name, then `:?-`, then the default (group 2).
+_DEFAULT_SPAN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(:?-)(.*)", re.DOTALL)
+_BARE_VAR = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def expand_declared_defaults(s: str) -> str | None:
+    """Resolve Compose interpolation to what the file DECLARES, lexically.
+
+    `${VAR:-default}` and `${VAR-default}` carry a default the repo wrote down; that
+    literal is evidence and is substituted. Every other span (`${VAR}`, `${VAR:?err}`,
+    bare `$VAR`, and GitHub Actions `${{ expr }}`) has no declared value and becomes
+    `_OPAQUE` — a sentinel that can never be mistaken for a name, a registry, or a tag.
+
+    Reading a default is PARSING (the bytes are in the file), not MAPPING (`valkey`
+    -> `redis` needs knowledge the file does not contain).
+
+    Returns None if a `${` span is never closed — malformed, therefore no evidence.
+    """
+    out: list[str] = []
+    i, n = 0, len(s)
+    while i < n:
+        c = s[i]
+        if c == "$" and i + 1 < n and s[i + 1] == "{":
+            depth, j, close = 0, i + 1, -1
+            while j < n:                       # match `}` to its `${`, counting nesting
+                if s[j] == "{":
+                    depth += 1
+                elif s[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        close = j
+                        break
+                j += 1
+            if close == -1:
+                return None                    # unterminated span: malformed, no evidence
+            inner = s[i + 1 + 1:close]         # text between `${` and its matching `}`
+            m = _DEFAULT_SPAN.fullmatch(inner)
+            if m:
+                nested = expand_declared_defaults(m.group(2))
+                if nested is None:
+                    return None
+                out.append(nested)             # the declared default, itself expanded
+            else:
+                out.append(_OPAQUE)            # `${VAR}`, `${VAR:?e}`, `${{ gha }}`: no value
+            i = close + 1
+        elif c == "$":
+            m = _BARE_VAR.match(s, i + 1)
+            if m:
+                out.append(_OPAQUE)            # bare `$VAR`: no declared value
+                i = m.end()
+            else:
+                out.append(c)                  # a lone `$` is just a byte
+                i += 1
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
 def _int_or_none(v: object) -> int | None:
     """Ports in the wild: 5432, '5432', '5000-5999' (range), '${PORT}'."""
     try:
@@ -30,19 +91,26 @@ def _int_or_none(v: object) -> int | None:
 def parse_image(image: str) -> tuple[str, str | None]:
     """`postgres:16` -> ("postgres", "16"). Lexical split only, never a lookup.
 
+    Compose interpolates BEFORE it parses: `/` and `:` inside a `${...}` span are
+    template syntax, not reference delimiters. So expand the declared defaults first,
+    then apply the reference grammar to the result.
+
     A templated TAG keeps the repo and nulls the tag (rq's
-    `valkey/valkey:${{ matrix.valkey-version }}`). A templated image NAME yields
-    ("", None) so the caller drops the node — there is no usable evidence.
+    `valkey/valkey:${{ matrix.valkey-version }}`). A templated image NAME or REGISTRY
+    yields ("", None) so the caller drops the node — there is no usable evidence.
     """
     if not image:
         return "", None
-    img = image.split("@", 1)[0]                       # drop digest
+    expanded = expand_declared_defaults(image)
+    if expanded is None:
+        return "", None
+    img = expanded.split("@", 1)[0]                    # drop digest
     head, _, last = img.rpartition("/")
     name, sep, tag = last.partition(":")
-    if is_templated(name):
+    if _OPAQUE in head or _OPAQUE in name:             # the NAME is unknown: no evidence
         return "", None
     repo = f"{head}/{name}" if head else name
-    if not sep or is_templated(tag):
+    if not sep or _OPAQUE in tag:
         return repo, None
     return repo, tag
 
