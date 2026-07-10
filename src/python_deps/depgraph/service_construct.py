@@ -106,14 +106,25 @@ def _unresolved_fields(image: str, image_tag: str | None, env: dict[str, str],
 def _fuse(name: str, decls: list[RawDeclaration],
           ci_refs: frozenset[str]) -> ServiceNode | None:
     """Merge declarations of one service across sources, best-rung-wins per field."""
-    # Highest-relevance declaration wins identity; all contribute evidence.
-    ordered = sorted(decls, key=lambda d: _RELEVANCE_RANK[compute_relevance(d, ci_refs)])
+    # Highest-relevance declaration wins identity; all contribute evidence. The
+    # (file, locator) tiebreak makes `ordered` a TOTAL order, so image selection and
+    # `_merge`'s first-non-empty walk no longer depend on os.walk iteration order.
+    ordered = sorted(decls, key=lambda d: (_RELEVANCE_RANK[compute_relevance(d, ci_refs)],
+                                           d.file, d.locator))
     primary = ordered[0]
 
-    image = next((d.entry.get("image") for d in ordered if d.entry.get("image")), "") or ""
-    image_repo, image_tag = parse_image(image)
+    # First RESOLVABLE image wins, not the first non-empty one. A single templated image
+    # NAME must degrade the FIELD (surfaced via `_image_conflict`), never delete the NODE
+    # (spec §3.0.2 inv. 4). Only when EVERY declaration templates the name is there no evidence.
+    image, image_repo, image_tag = "", "", None
+    for d in ordered:
+        candidate = d.entry.get("image") or ""
+        repo, tag = parse_image(candidate)
+        if repo:
+            image, image_repo, image_tag = candidate, repo, tag
+            break
     if not image_repo:
-        return None                              # templated image NAME: no evidence
+        return None                              # templated in EVERY declaration: no evidence
 
     m = _merge(ordered)
     port, port_source = derive_port(m.ports, m.expose, m.env, name, m.sibling_values)

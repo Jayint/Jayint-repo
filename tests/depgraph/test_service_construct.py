@@ -255,3 +255,66 @@ def test_depends_on_in_degree_marks_backing_even_for_first_party(tmp_path):
     """)
     # `cache` has in-degree 1 -> backing, despite being first-party with no port.
     assert [n.name for n in build_service_nodes(str(tmp_path), owner="acme")] == ["cache"]
+
+
+def test_a_templated_image_in_one_declaration_does_not_delete_the_service(tmp_path):
+    """PostHog declares `db` in seven composes; one templates the registry prefix. The other
+    six resolve. Degrade the FIELD, never the NODE (spec §3.0.2 inv. 4)."""
+    _write(tmp_path, "docker-compose.hobby.yml", """
+        services:
+          db:
+            image: ${DOCKER_REGISTRY_PREFIX:-}postgres:15.12-alpine
+            ports: ["5432:5432"]
+    """)
+    _write(tmp_path, "docker-compose.base.yml", """
+        services:
+          db:
+            image: postgres:15.12-alpine
+    """)
+    (node,) = build_service_nodes(str(tmp_path))
+    assert node.name == "db"
+    assert node.image_repo == "postgres"            # taken from the declaration that RESOLVES
+    assert "image" in node.unresolved               # ...and the ambiguity is surfaced
+    # the templated declaration is still evidence the agent can read
+    assert "compose:docker-compose.hobby.yml" in node.raw
+
+
+def test_a_service_templated_in_EVERY_declaration_is_still_dropped(tmp_path):
+    """The rule is `all`, not `any`. No declaration resolves -> no evidence -> no node."""
+    _write(tmp_path, "docker-compose.yml", """
+        services:
+          broken:
+            image: $REGISTRY_URL:$TAG
+    """)
+    # NOTE: the brief's original fixture used `${OTHER_REGISTRY}/img:$TAG`, but that RESOLVES
+    # -- `parse_image` templates only the image NAME (the last path segment `img`), not the
+    # registry prefix, so its repo is `${OTHER_REGISTRY}/img` and the node is NOT dropped.
+    # To exercise the `all`-not-`any` rule the docstring describes, both NAMES must template.
+    _write(tmp_path, "docker-compose.other.yml", """
+        services:
+          broken:
+            image: ${OTHER_IMAGE}:$TAG
+    """)
+    assert build_service_nodes(str(tmp_path)) == []
+
+
+def test_declaration_order_within_a_relevance_tier_is_deterministic(tmp_path):
+    """Two same-tier declarations naming different images must resolve the same way on every
+    filesystem. Today `sorted` is stable over `os.walk` order, so the winner is incidental."""
+    _write(tmp_path, "b/docker-compose.yml", """
+        services:
+          db:
+            image: mysql:8
+            ports: ["3306:3306"]
+    """)
+    _write(tmp_path, "a/docker-compose.yml", """
+        services:
+          db:
+            image: postgres:16
+            ports: ["5432:5432"]
+    """)
+    (node,) = build_service_nodes(str(tmp_path))
+    # `a/...` sorts before `b/...`; both are `unreferenced_compose`.
+    assert node.image == "postgres:16"
+    assert node.port == 5432
+    assert "image" in node.unresolved
