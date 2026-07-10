@@ -116,8 +116,8 @@ class _NoopMaintainer:
         return world_map
 
 
-_VERIFY_CMD = "python -m pytest -q"
-_PASSING_OUTPUT = "1 passed in 0.01s\n"
+from src.envstate.constants import VERIFY_TEST_CMD as _VERIFY_CMD  # match the REAL gate command,
+_PASSING_OUTPUT = "1 passed in 0.01s\n"                            # not a hardcoded copy of it
 
 
 def _sandbox_tests_pass(cmd):
