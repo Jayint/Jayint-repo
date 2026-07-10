@@ -124,18 +124,16 @@ def summarize(output: str) -> list[Cause]:
     return causes
 
 
-def _short_module(path: str) -> str:
-    parts = [p for p in path.split("/") if p]
-    return "/".join(parts[-2:]) if len(parts) > 2 else path
-
-
 def format_breakdown(causes: list[Cause], top: int = 5) -> str:
-    """Render the ranked histogram (no header, no traceback tail). Top-N rows + a one-line
-    remainder so a long tail of one-off failures stays compact."""
+    """Render the ranked histogram (no header, no traceback tail): each row is pure triage —
+    count + exception type + message. Deliberately NO representative file path: for the dominant
+    import-error case the actionable identifier is already in the message (the missing module), and
+    naming a test file only lures the agent into `cat`-ing it (wasted navigation). The file stays on
+    the Cause as metadata. Top-N rows + a one-line remainder so a long tail stays compact."""
     rows = []
     for c in causes[:top]:
         detail = f": {c.detail}" if c.detail else ""
-        rows.append(f"  {c.count} × {c.exc}{detail}  (e.g. {_short_module(c.module)})")
+        rows.append(f"  {c.count} × {c.exc}{detail}")
     rest = causes[top:]
     if rest:
         rows.append(f"  …and {len(rest)} more cause(s) across {sum(c.count for c in rest)} tests")

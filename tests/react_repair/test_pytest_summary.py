@@ -117,6 +117,15 @@ def test_format_breakdown_top_line_shape():
     out = format_breakdown(summarize(_REAL))
     assert "2 × ModuleNotFoundError" in out and "totally_missing_pkg" in out
 
+def test_format_breakdown_omits_file_path_to_avoid_navigation():
+    # The rendered row is pure triage (count + type + message) — no representative file. Naming a
+    # test file lures the agent into `cat`-ing it (wasted navigation), and the actionable identifier
+    # is already in the message (the missing module name). The file stays on the Cause as metadata.
+    causes = summarize(_REAL)
+    out = format_breakdown(causes)
+    assert "(e.g." not in out and ".py" not in out
+    assert causes[0].module.endswith(".py")            # still available as metadata on the Cause
+
 def test_format_breakdown_caps_top_n_and_notes_remainder():
     causes = [Cause(exc=f"E{i}", detail="d", count=10 - i, outcome="FAILED", module="m.py")
               for i in range(8)]
