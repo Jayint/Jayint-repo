@@ -67,6 +67,37 @@ def test_run_tests_bounds_pytest_with_timeout():
     assert "command -v timeout" in sb.last_cmd                      # graceful fallback if absent
     assert r.ok is True                                            # verdict still applied to output
 
+def test_run_tests_adds_per_test_timeout_matching_scorer():
+    # Align with the ratbench scorer: a PER-TEST timeout so ONE hanging/slow test fails alone,
+    # instead of the coarse whole-suite `timeout` killing a 99%-passing suite and scoring it 0.
+    sb = _CapSandbox(0, "5 passed in 0.1s")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    run_tests()
+    assert "--timeout=120" in sb.last_cmd and "--timeout-method=signal" in sb.last_cmd
+
+def test_run_tests_per_test_timeout_is_guarded_on_plugin_presence():
+    # The flag rides behind a `python -c import pytest_timeout && F=...` guard + a best-effort
+    # install, so a container without pytest-timeout degrades to plain pytest (no "unrecognized
+    # arguments" error that would break the whole gate), never a hard failure.
+    sb = _CapSandbox(0, "5 passed")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    run_tests()
+    assert "import pytest_timeout" in sb.last_cmd        # conditional guard
+    assert "pytest-timeout" in sb.last_cmd               # best-effort ensured
+
+def test_run_tests_does_not_parallelize_with_xdist():
+    # Deliberately NOT `-n auto`: the scorer runs serially, and xdist can flip parallel-unsafe tests
+    # — a fresh divergence from the scorer. Per-test timeout is the correct lever, not parallelism.
+    sb = _CapSandbox(0, "5 passed")
+    _, _, _, _, run_tests = docker_adapters(sb)
+    run_tests()
+    assert "-n auto" not in sb.last_cmd and "xdist" not in sb.last_cmd
+
+def test_per_test_timeout_default_matches_scorer():
+    import os, src.react_repair.entry as entry_mod
+    if "REACT_PER_TEST_TIMEOUT" not in os.environ:
+        assert entry_mod._PER_TEST_TIMEOUT_S == 120     # == the ratbench scorer's --timeout=120
+
 
 def test_run_tests_timeout_kill_is_not_ok():
     # coreutils `timeout` exits 124 on kill; a killed run has no real passes -> not ok.

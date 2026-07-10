@@ -20,16 +20,20 @@ import re
 from dataclasses import dataclass
 
 _EXC_SUFFIX = r"(?:Error|Exception|Warning|Timeout|Failed|Interrupted|Skipped)"
+# An exception type name: an optional dotted prefix then a suffix. The prefix is OPTIONAL so a bare
+# suffix-only name is captured too — pytest-timeout raises "Failed", pytest.fail raises "Failed",
+# and dotted names like "requests.exceptions.ConnectionError" keep their module path.
+_EXC_NAME = r"((?:[A-Za-z_][\w.]*)?" + _EXC_SUFFIX + r")"
 
 # A pytest block banner: a run of underscores, a title, a run of underscores ("___ test_x ___",
 # "___ ERROR collecting a.py ___"). The `===`-delimited section headers use "=" and never match.
 _BANNER = re.compile(r"^_{3,}\s+(.+?)\s+_{3,}\s*$")
 _SECTION = re.compile(r"^={3,}")
 # "E   ModuleNotFoundError: No module named 'x'" — the exception on a marked traceback line (has msg).
-_E_EXC = re.compile(r"^E\s+([A-Za-z_][\w.]*" + _EXC_SUFFIX + r")\b:?\s*(.*)$")
+_E_EXC = re.compile(r"^E\s+" + _EXC_NAME + r"\b:?\s*(.*)$")
 # "tests/test_x.py:2: AssertionError" — the traceback terminator (type, usually no msg). Excludes
 # frame lines like "tests/x.py:1: in <module>" because "in <module>" doesn't end in an exc suffix.
-_LOC_EXC = re.compile(r"^\S+:\d+:\s+([A-Za-z_][\w.]*" + _EXC_SUFFIX + r")\b\s*(.*)$")
+_LOC_EXC = re.compile(r"^\S+:\d+:\s+" + _EXC_NAME + r"\b\s*(.*)$")
 _PYFILE = re.compile(r"([\w./+-]+\.py)")
 
 

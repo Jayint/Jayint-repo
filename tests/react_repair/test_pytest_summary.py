@@ -88,6 +88,19 @@ def test_no_double_count_when_e_line_and_loc_line_both_present():
     assert len(causes) == 1 and causes[0].count == 1
     assert causes[0].exc == "ModuleNotFoundError" and "missing" in causes[0].detail
 
+def test_pytest_timeout_failed_is_captured():
+    # pytest-timeout reports "E   Failed: Timeout (>Ns)..." — the exception name IS the suffix
+    # ("Failed") with no prefix. Regression from the timeout e2e: the parser must still capture it.
+    out = ("=================================== FAILURES ===================================\n"
+           "___ test_hangs ___\n"
+           "    def test_hangs():\n"
+           ">       time.sleep(60)\n"
+           "E       Failed: Timeout (>3.0s) from pytest-timeout.\n"
+           "tests/test_hang.py:4: Failed\n")
+    causes = summarize(out)
+    assert len(causes) == 1
+    assert causes[0].exc == "Failed" and "Timeout" in causes[0].detail
+
 def test_empty_or_all_passed_returns_no_causes():
     assert summarize("") == []
     assert summarize("....                        [100%]\n5 passed in 0.1s\n") == []

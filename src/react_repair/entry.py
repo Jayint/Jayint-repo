@@ -24,8 +24,33 @@ _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS
 # Hard cap on a single pytest run so a hanging suite can't stall the whole benchmark. Matches the
 # eval harness cap (1800s) so a WORKING-but-slow seed isn't read as false-0 by a harsher internal
 # cap than the eval applies — that false-0 was what drove the agent to gut a working closure (darts).
-# Override with REACT_TEST_TIMEOUT.
+# Override with REACT_TEST_TIMEOUT. This is only the COARSE whole-suite backstop now — the per-test
+# timeout below is the primary bound (see _test_command).
 _TEST_TIMEOUT_S = int(os.getenv("REACT_TEST_TIMEOUT", "1800"))
+
+# Per-test timeout (seconds), matching the ratbench OFFICIAL scorer's `--timeout=120
+# --timeout-method=signal`. This is the KEY fix for the timeout-bound repos: the coarse whole-suite
+# `timeout` above kills the ENTIRE run on the first hang and, with no pytest summary line printed,
+# scores a 99%-passing suite as 0 (Qiskit); a hanging network test zeroes the whole suite
+# (websockets). A per-test timeout instead fails just that one test and lets the suite FINISH with a
+# real count — and it matches how the benchmark actually scores. Override with REACT_PER_TEST_TIMEOUT.
+_PER_TEST_TIMEOUT_S = int(os.getenv("REACT_PER_TEST_TIMEOUT", "120"))
+
+
+def _test_command() -> str:
+    """The react test-gate shell. Best-effort ensures `pytest-timeout`, then appends the scorer's
+    per-test timeout (`--timeout=<N> --timeout-method=signal`) ONLY if the plugin imports — so a
+    hanging test fails ALONE (not the coarse whole-suite timeout zeroing the run) and a container
+    lacking the plugin degrades to plain pytest instead of an "unrecognized arguments" hard failure.
+    The whole run stays bounded by the coarse `timeout` backstop. Deliberately NOT `-n auto`: the
+    scorer runs serially, and xdist can flip parallel-unsafe tests — a fresh divergence from it."""
+    ensure = "python -m pip install -q pytest-timeout >/dev/null 2>&1 || true"
+    guard = ('F=""; python -c "import pytest_timeout" >/dev/null 2>&1 && '
+             f'F="--timeout={_PER_TEST_TIMEOUT_S} --timeout-method=signal"')
+    run = f"{VERIFY_TEST_CMD} $F"
+    bounded = (f"if command -v timeout >/dev/null 2>&1; then timeout -k 10 {_TEST_TIMEOUT_S} {run}; "
+               f"else {run}; fi")
+    return f"{ensure}; {guard}; {bounded}"
 
 
 class _ExecAdapter:
@@ -54,11 +79,9 @@ def docker_adapters(sandbox, test_threshold: float = 0.9):
         return sandbox.exec_readonly(cmd)
 
     def run_tests():
-        # Bound the suite with coreutils `timeout` (SIGTERM at the cap, SIGKILL 10s later) so a
-        # hanging test can't stall the run; fall back to unbounded only where `timeout` is absent.
-        cmd = (f"if command -v timeout >/dev/null 2>&1; then "
-               f"timeout -k 10 {_TEST_TIMEOUT_S} {VERIFY_TEST_CMD}; else {VERIFY_TEST_CMD}; fi")
-        rc, out = sandbox.exec_readonly(cmd)
+        # Per-test timeout (matches the scorer) so a hang fails ONE test, not the whole suite; the
+        # coarse `timeout` backstop still bounds the total. See _test_command.
+        rc, out = sandbox.exec_readonly(_test_command())
         if rc in (124, 137):               # 124 = SIGTERM at the cap, 137 = SIGKILL 10s later
             # Surface the timeout as a DISTINCT signal + an explicit anti-strip hint: a timeout means
             # the env may be fine but the suite is slow, so removing installs to "fix" it only makes
