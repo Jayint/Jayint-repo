@@ -34,4 +34,14 @@ def compute_metrics(rows: list[MeasureRow], gold: dict | None = None) -> dict:
         "full_pass_repos": sum(1 for r in ex if r.pass_rate >= 0.999),
         "coverage": _div(n_exec, n),
     }
+    if gold:
+        gold_scores = []
+        for r in rows:
+            g = gold.get(r.repo)
+            if not g:
+                continue
+            gset = set(g)
+            gold_scores.append(len(set(r.passed_node_ids) & gset) / len(gset))
+        out["n_gold"] = len(gold_scores)
+        out["gold_ESSR"] = _div(sum(gold_scores), len(gold_scores))
     return out
