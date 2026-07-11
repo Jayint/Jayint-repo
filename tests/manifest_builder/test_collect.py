@@ -124,3 +124,35 @@ def test_build_and_collect_removes_container_even_if_collect_raises(tmp_path):
     with pytest.raises(RuntimeError):
         build_and_collect(DockerCollectExplodes(), WS(), "/plugin.py", str(tmp_path), ("pkg.py",))
     assert rm_after_start["v"], "container must be rm'd in finally (after start) even when a collect raises"
+
+
+def test_find_injected_flags_untracked_collection_files():
+    from src.manifest_builder.collect import find_injected_collection_files
+    protected = ("pkg/mod.py", "tests/conftest.py", "tests/test_real.py")
+
+    def fake_exec(argv):
+        # emulate `find /src ... -type f` output
+        listing = "\n".join("/src/" + p for p in [
+            "pkg/mod.py",                 # tracked source — ok
+            "tests/conftest.py",          # tracked conftest — ok
+            "tests/test_real.py",         # tracked test — ok
+            "evil/conftest.py",           # INJECTED conftest (collect_ignore) — flag
+            "test_fake.py",               # INJECTED fake test (manifest inflation) — flag
+            "hack.pth",                   # INJECTED .pth — flag
+            "pkg/__pycache__/mod.cpython-311.pyc",  # build byproduct — ignore
+            ".egg-info/SOURCES.txt",      # build byproduct — ignore
+        ])
+        return 0, listing
+
+    got = find_injected_collection_files(fake_exec, "/src", protected)
+    assert got == ["evil/conftest.py", "hack.pth", "test_fake.py"]
+
+
+def test_find_injected_empty_when_all_tracked():
+    from src.manifest_builder.collect import find_injected_collection_files
+    protected = ("a/conftest.py", "a/test_x.py")
+
+    def fake_exec(argv):
+        return 0, "/src/a/conftest.py\n/src/a/test_x.py\n/src/a/__pycache__/x.pyc\n"
+
+    assert find_injected_collection_files(fake_exec, "/src", protected) == []

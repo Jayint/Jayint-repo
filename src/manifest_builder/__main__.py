@@ -26,7 +26,7 @@ def certify(docker, ws, plugin_path, tmp_dir):
     os.makedirs(tmp_dir, exist_ok=True)
     restore_pristine(ws.path)
     try:
-        image_id, build_log, r1, r2, in_img = build_and_collect(
+        image_id, build_log, r1, r2, in_img, injected = build_and_collect(
             docker, ws, plugin_path, tmp_dir, ws.protected)
     except BuildError as e:
         from src.manifest_builder.types import CollectionResult, Verdict
@@ -42,7 +42,7 @@ def certify(docker, ws, plugin_path, tmp_dir):
             protected_file_hashes=ws.pristine_hashes, dockerfile_text=dockerfile_text,
             image_id="", agent_meta={"runner": "claude code", "model": "opus"})
         return v, cert, str(e), empty, empty
-    protected_ok = (in_img == ws.pristine_hashes)
+    protected_ok = (in_img == ws.pristine_hashes) and not injected
     verdict = accept(r1, r2, protected_ok)
     from src.manifest_builder.collect import COLLECT_CMD
     dockerfile_text = (Path(ws.path) / "Dockerfile").read_text()
@@ -51,7 +51,8 @@ def certify(docker, ws, plugin_path, tmp_dir):
         base_image_digest=image_id, collect_command=COLLECT_CMD,
         source_tree_sha256=source_tree_sha256(ws.pristine_hashes),
         protected_file_hashes=in_img, dockerfile_text=dockerfile_text, image_id=image_id,
-        agent_meta={"runner": "claude code", "model": "opus"})
+        agent_meta={"runner": "claude code", "model": "opus"},
+        injected_collection_files=injected)
     return verdict, cert, build_log, r1, r2
 
 

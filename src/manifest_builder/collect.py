@@ -11,6 +11,32 @@ COLLECT_CMD = "pytest --collect-only -q -p no:cacheprovider -p manifest_collect_
 HARDENED = ["--network", "none", "--cpus", "2", "--memory", "4g", "--pids-limit", "512",
             "--security-opt", "no-new-privileges", "--cap-drop", "ALL"]
 
+_COLLECTION_AFFECTING = ("conftest.py", "pytest.ini", "tox.ini", "setup.cfg",
+                         "pyproject.toml", "sitecustomize.py", "usercustomize.py")
+
+
+def find_injected_collection_files(exec_fn, src_root, protected):
+    """Untracked files under src_root that could add or suppress collected tests: pytest
+    config/hook files, .pth files, and test modules that are NOT in the pristine (tracked)
+    protected set. The tracked-only in-image hash gate can't see these, so any hit is an
+    injection. `exec_fn(argv) -> (rc, out)`; returns a sorted list of repo-relative paths."""
+    root = src_root.rstrip("/")
+    _rc, out = exec_fn(["find", root, "-not", "-path", "*/.git/*", "-type", "f"])
+    prot = set(protected)
+    injected = []
+    for line in out.splitlines():
+        p = line.strip()
+        if not p:
+            continue
+        rel = p[len(root) + 1:] if p.startswith(root + "/") else p
+        base = rel.rsplit("/", 1)[-1]
+        suspect = (base in _COLLECTION_AFFECTING or base.endswith(".pth")
+                   or (base.startswith("test_") and base.endswith(".py"))
+                   or base.endswith("_test.py"))
+        if suspect and rel not in prot:
+            injected.append(rel)
+    return sorted(injected)
+
 
 class BuildError(RuntimeError):
     pass
@@ -87,10 +113,12 @@ def build_and_collect(docker, workspace, plugin_host_path, tmp_dir, protected):
     docker.run_detached(tag, name, workspace.src_root)
     try:
         in_img = hash_in_image(lambda argv: docker.exec(name, argv), workspace.src_root, protected)
+        injected = find_injected_collection_files(
+            lambda argv: docker.exec(name, argv), workspace.src_root, protected)
         r1 = collect_once(docker, name, workspace.src_root, plugin_host_path,
                           os.path.join(tmp_dir, "r1.json"))
         r2 = collect_once(docker, name, workspace.src_root, plugin_host_path,
                           os.path.join(tmp_dir, "r2.json"))
     finally:
         docker.rm(name)
-    return img, build_log, r1, r2, in_img
+    return img, build_log, r1, r2, in_img, injected

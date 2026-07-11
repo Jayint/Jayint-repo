@@ -17,7 +17,7 @@ def _sha256_json(obj) -> str:
 
 def build_certificate(verdict, r1, r2, *, repo_url, commit_sha, base_image, base_image_digest,
                       collect_command, source_tree_sha256, protected_file_hashes, dockerfile_text,
-                      image_id, agent_meta) -> dict:
+                      image_id, agent_meta, injected_collection_files=()) -> dict:
     manifest = list(verdict.manifest or ())
     return {
         "status": "CERTIFIED" if verdict.accepted else "REJECTED",
@@ -37,6 +37,8 @@ def build_certificate(verdict, r1, r2, *, repo_url, commit_sha, base_image, base
             "n_skipped_modules": len(r1.skipped_modules),
             "deselected": list(r1.deselected),
             "n_deselected": len(r1.deselected),
+            "injected_collection_files": list(injected_collection_files),
+            "n_injected": len(injected_collection_files),
         },
         "hashes": {
             "source_tree_sha256": source_tree_sha256,

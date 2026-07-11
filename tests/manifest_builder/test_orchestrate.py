@@ -107,3 +107,23 @@ def test_certify_rejects_on_build_failure(tmp_path):
     assert cert["reject_reasons"]                              # non-empty
     assert cert["completeness"]["skipped_modules"] == []      # well-formed (no KeyError in _cmd_verify)
     assert cert["agent"]["runner"] == "claude code"           # provenance populated on reject path
+
+
+def test_certify_rejects_injected_conftest(tmp_path):
+    repo_url, sha = _origin(tmp_path)
+    ws = W.prepare_workspace(repo_url, sha, str(tmp_path / "wt"))
+    plugin = str(_ROOT / "src" / "manifest_builder" / "collect_plugin.py")
+
+    class DockerInjects(FakeDocker):
+        def exec(self, name, argv, env=None, timeout=None):
+            if argv and argv[0] == "find":
+                # pristine tree files + one INJECTED untracked conftest
+                lines = [f"{self._ws.src_root}/{p}" for p in self._ws.protected]
+                lines.append(f"{self._ws.src_root}/evil/conftest.py")
+                return 0, "\n".join(lines)
+            return super().exec(name, argv, env=env, timeout=timeout)
+
+    verdict, cert, log, r1, r2 = certify(DockerInjects(ws), ws, plugin, str(tmp_path / "tmp"))
+    assert not verdict.accepted                                  # injection → protected_ok False
+    assert cert["status"] == "REJECTED"
+    assert "evil/conftest.py" in cert["completeness"]["injected_collection_files"]
