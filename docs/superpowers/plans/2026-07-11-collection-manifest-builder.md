@@ -479,16 +479,19 @@ def compute_protected(worktree: str) -> tuple[str, ...]:
 
 
 def restore_pristine(worktree: str) -> None:
-    # Preserve the agent's Dockerfile whether the repo tracks one or not, and keep
-    # manifest-internal state (.manifest_*). `git checkout -- .` would otherwise revert a
-    # *tracked* Dockerfile to its committed version; `git clean` would drop untracked state.
+    # Preserve the agent's Dockerfile whether the repo tracks one or not, keep manifest-internal
+    # state (.manifest_*), and keep the harness-written `verify` oracle shim. `git checkout HEAD
+    # -- .` reverts tracked files to the pinned commit (not the mutable index, defeating staged
+    # sabotage); `git clean -fdx` also removes gitignored untracked cheat files (a plain `-fd`
+    # would leave them, and the tracked-only hash gate can't see them); the `-e` excludes survive
+    # `-x`.
     df_path = os.path.join(worktree, "Dockerfile")
     df = None
     if os.path.exists(df_path):
         with open(df_path) as f:
             df = f.read()
-    _git(worktree, "checkout", "--", ".")
-    _git(worktree, "clean", "-fdq", "-e", "Dockerfile", "-e", ".manifest_*")
+    _git(worktree, "checkout", "HEAD", "--", ".")
+    _git(worktree, "clean", "-fdxq", "-e", "Dockerfile", "-e", ".manifest_*", "-e", "verify")
     if df is not None:
         with open(df_path, "w") as f:
             f.write(df)
@@ -978,6 +981,14 @@ COPY . /src
 RUN pip install --no-cache-dir -e . || pip install --no-cache-dir . || true
 """
 
+VERIFY_SHIM = """\
+#!/bin/sh
+# Harness-generated agent oracle. Runs the SAME `certify` the harness uses, so the agent
+# optimizes against the real gate. The harness re-certifies independently, so edits here only
+# mislead the agent's own loop, never the certificate.
+cd "{harness_root}" && exec python3 -m src.manifest_builder verify --workspace "{workspace}"
+"""
+
 _STATE_FILE = ".manifest_ws.json"
 
 
@@ -1009,6 +1020,14 @@ def prepare_workspace(repo_url, commit_sha, dest, base_image="python:3.11-slim")
     df = SEED_DOCKERFILE.format(base=base_image)
     with open(os.path.join(dest, "Dockerfile"), "w") as f:
         f.write(df)
+    # Agent oracle: an executable ./verify shim that re-enters the harness's own certify.
+    # Untracked (written after compute_protected, so not in `protected`/`pristine_hashes`, never
+    # hashed); preserved across restore_pristine via `-e verify`.
+    harness_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    verify_path = os.path.join(dest, "verify")
+    with open(verify_path, "w") as f:
+        f.write(VERIFY_SHIM.format(harness_root=harness_root, workspace=os.path.abspath(dest)))
+    os.chmod(verify_path, 0o755)
     ws = Workspace(path=dest, slug=repo_slug(repo_url), repo_url=repo_url, commit_sha=commit_sha,
                    src_root="/src", protected=protected, pristine_hashes=hashes,
                    base_image=base_image, dockerfile_text=df)
