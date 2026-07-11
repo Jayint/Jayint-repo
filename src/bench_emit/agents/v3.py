@@ -27,7 +27,9 @@ def adapt(repo_output_dir: str) -> EmittedEnv:
         "v3",
         base_image=meta_json.get("base_image"),
         produce_s=produce_s,
-        head_sha=meta_json.get("head_sha"),
+        # An absent head_sha is often serialized as "" upstream; coerce it to None so
+        # bench_meta drops the key entirely rather than emitting "head_sha": "".
+        head_sha=(meta_json.get("head_sha") or None),
         dockerfile_source="v3_eval_build",
     )
 

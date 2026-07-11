@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from glob import glob
 
@@ -13,6 +14,7 @@ _ADAPTERS = {"v3": v3, "repo2run": repo2run, "rat": rat}
 
 
 def _write(path: str, content: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         f.write(content)
 
@@ -38,6 +40,10 @@ def emit_run(run_root: str, agent: str, dest: str) -> list[tuple[str, str]]:
             env = EmittedEnv(dockerfile=None, scripts={}, meta={**bench_meta(agent), "error": repr(exc)})
 
         dest_dir = os.path.join(dest, owner, name)
+        # Re-emit into a non-fresh dest must not leave a repo's prior artifacts behind:
+        # a repo that flips ok->missing would otherwise keep a stale Dockerfile next to
+        # the fresh error meta, which bench.harvest reads as a bogus "ok". Clean slate.
+        shutil.rmtree(dest_dir, ignore_errors=True)
         os.makedirs(dest_dir, exist_ok=True)
         _write(os.path.join(dest_dir, "bench_meta.json"), json.dumps(env.meta, indent=2))
 

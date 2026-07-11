@@ -39,6 +39,31 @@ def test_emit_run_writes_tree_and_status(tmp_path):
     assert not (miss / "Dockerfile").exists()
 
 
+def test_emit_run_cleans_stale_dockerfile(tmp_path):
+    # Re-emit into a NON-fresh dest: a repo that flips ok->missing must not keep a
+    # stale Dockerfile beside the fresh error meta (bench.harvest keys "ok" on the
+    # Dockerfile's presence and would silently measure a stale env).
+    dest = tmp_path / "harvest"
+    stale = dest / "o" / "r"
+    stale.mkdir(parents=True)
+    (stale / "Dockerfile").write_text("FROM python:3.9-slim  # stale from a prior run\n")
+    (stale / "bench_meta.json").write_text(json.dumps({"agent": "v3", "stale": True}))
+
+    # Source repo o/r has no eval_build/Dockerfile -> v3 adapter returns dockerfile=None.
+    run_root = tmp_path / "v3run"
+    src = run_root / "output" / "o" / "r"
+    src.mkdir(parents=True)
+    (src / "_meta.json").write_text(json.dumps({"base_image": "python:3.11-slim"}))
+
+    results = emit_run(str(run_root), "v3", str(dest))
+
+    assert ("o/r", "missing") in results
+    assert not (stale / "Dockerfile").exists()      # stale artifact wiped
+    assert (stale / "bench_meta.json").is_file()     # fresh error meta present
+    meta = json.loads((stale / "bench_meta.json").read_text())
+    assert "stale" not in meta                        # it is the FRESH meta, not the old one
+
+
 def test_emit_run_never_mutates_source(tmp_path):
     run_root = _v3_run(tmp_path)
     dest = tmp_path / "harvest"

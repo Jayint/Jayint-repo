@@ -32,6 +32,19 @@ def test_v3_passes_dockerfile_through_and_maps_meta(tmp_path):
     assert "tokens_in" not in env.meta
 
 
+def test_v3_empty_head_sha_is_omitted(tmp_path):
+    # Upstream serializes an absent commit as "" -> it must be dropped, not emitted
+    # as "head_sha": "" (an empty value is not a real sha).
+    repo = tmp_path / "output" / "fastapi" / "typer"
+    eb = repo / "eval_build"
+    eb.mkdir(parents=True)
+    (eb / "Dockerfile").write_text("FROM python:3.10-slim\n")
+    (repo / "_meta.json").write_text(json.dumps(
+        {"base_image": "python:3.10-slim", "duration_s": 5.0, "head_sha": ""}))
+    env = v3.adapt(str(repo))
+    assert "head_sha" not in env.meta
+
+
 def test_v3_missing_eval_build_is_anti_vanish(tmp_path):
     repo = tmp_path / "output" / "o" / "r"
     repo.mkdir(parents=True)
