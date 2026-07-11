@@ -2,6 +2,13 @@
 """multi_docker_eval_adapter.py — bridge the run_v3 graph-scheduler agent to the
 RAT eval harness (``eval/models/dockeragent_model.py``).
 
+NOTE: despite the filename, this is the **v3 -> eval-harness adapter** — it runs
+``run_v3`` and bakes the certified ``setup.sh`` + selected base image into a Dockerfile;
+it does no "multi docker eval". The ``multi_docker_eval`` name is vestigial (clearer:
+``v3_eval_adapter`` / ``V3EvalAdapter``). Rename deferred: the file is referenced BY PATH
+(subprocess/scp) and by import across this repo AND the separate ``/opt/harness`` checkout,
+so a clean rename is a coordinated two-repo change, not a local edit.
+
 Contract (see ``DockerAgentModel.predict``): the harness calls
 ``MultiDockerEvalAdapter(output_dir).process_single_instance(instance, ...)`` and
 consumes ``result["dockerfile"]`` — a self-contained Dockerfile STRING that clones

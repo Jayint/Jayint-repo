@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Run the standalone Repo2Run benchmark against this project without Multi-Docker-Eval."""
+"""Run the standalone Repo2Run **Table-15** benchmark using THIS project's native
+``agent.py`` (NOT the bytedance Repo2Run baseline — that runs via
+``run_rat_benchmark.py --model repo2run``). The "repo2run" here = the Table-15 dataset +
+Repo2Run's collect-only success protocol, not the agent being run.
+
+DEPRECATED / NO LONGER USED: superseded by the RAT benchmark harness
+(``run_rat_benchmark.py``), which drives our agent (``--model dockeragent``) and the
+baselines (``--model rat|repo2run``) through one unified path. Kept for reference; not
+part of the current benchmarking flow.
+"""
 
 from __future__ import annotations
 
