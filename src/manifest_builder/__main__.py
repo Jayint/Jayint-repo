@@ -117,32 +117,76 @@ def _cmd_verify(args):
 
 
 def _cmd_build(args):
-    summary = build_one(args.repo_url, args.sha, args.out, ClaudeRunner(), attempts=args.attempts)
+    summary = build_one(args.repo_url, args.sha, args.out,
+                        ClaudeRunner(model=args.model), attempts=args.attempts)
     print(json.dumps(summary, indent=1))
     return 0 if summary["status"] == "CERTIFIED" else 1
+
+
+def _corpus_summary(results_path) -> dict:
+    """Aggregate a corpus_results.jsonl (one summary dict per line) into counts."""
+    rows = []
+    if os.path.exists(results_path):
+        with open(results_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    by_status: dict = {}
+    for row in rows:
+        st = row.get("status", "?")
+        by_status[st] = by_status.get(st, 0) + 1
+    return {"total": len(rows), "by_status": by_status,
+            "certified": by_status.get("CERTIFIED", 0),
+            "manifest_sizes": {row.get("sha", "?"): row.get("manifest_size")
+                               for row in rows if row.get("status") == "CERTIFIED"}}
 
 
 def _cmd_corpus(args):
     with open(args.corpus) as f:
         data = json.load(f)
-    repos = data.get("repos", data)
+    repos = [r for r in (data.get("repos", data)) if isinstance(r, dict)]
+    if args.limit:
+        repos = repos[:args.limit]
+    os.makedirs(args.out, exist_ok=True)
+    results_path = os.path.join(args.out, "corpus_results.jsonl")
     rc = 0
     for r in repos:
         full = r.get("full_name")
         url = r.get("clone_url") or (f"https://github.com/{full}" if full else None)
         sha = r.get("commit")
         if not url or not sha:
-            print(f"SKIP {url or r}: missing clone_url/full_name or commit", file=sys.stderr)
+            print(f"SKIP {full or r}: missing clone_url/full_name or commit", file=sys.stderr)
             rc = 1
             continue
+        # Resumable: skip a repo already CERTIFIED on disk (unless --force).
+        cert_path = os.path.join(args.out, W.repo_slug(url), sha, "collection-certificate.json")
+        if not args.force and os.path.exists(cert_path):
+            try:
+                if json.load(open(cert_path)).get("status") == "CERTIFIED":
+                    print(f"SKIP {url}@{sha}: already CERTIFIED", file=sys.stderr)
+                    continue
+            except (json.JSONDecodeError, OSError):
+                pass
         try:
-            summary = build_one(url, sha, args.out, ClaudeRunner(), attempts=args.attempts)
+            summary = build_one(url, sha, args.out, ClaudeRunner(model=args.model),
+                                attempts=args.attempts)
         except Exception as e:   # one repo's failure must not abort the whole batch
             print(f"FAIL {url}@{sha}: {type(e).__name__}: {e}", file=sys.stderr)
+            summary = {"repo_url": url, "sha": sha, "status": "ERROR",
+                       "error": f"{type(e).__name__}: {e}"}
             rc = 1
-            continue
         print(json.dumps(summary))
-        rc = rc or (0 if summary["status"] == "CERTIFIED" else 1)
+        with open(results_path, "a") as rf:   # aggregate: append per-repo as it completes
+            rf.write(json.dumps(summary) + "\n")
+        rc = rc or (0 if summary.get("status") == "CERTIFIED" else 1)
+    with open(os.path.join(args.out, "corpus_summary.json"), "w") as f:
+        json.dump(_corpus_summary(results_path), f, indent=1)
+    print(f"[corpus] wrote {results_path} + corpus_summary.json", file=sys.stderr)
     return rc
 
 
@@ -154,10 +198,13 @@ def main(argv=None) -> int:
     b = sub.add_parser("build")
     b.add_argument("--repo-url", required=True); b.add_argument("--sha", required=True)
     b.add_argument("--out", default="artifacts"); b.add_argument("--attempts", type=int, default=3)
+    b.add_argument("--model", default="opus")
     b.set_defaults(fn=_cmd_build)
     c = sub.add_parser("corpus")
     c.add_argument("--corpus", required=True); c.add_argument("--out", default="artifacts")
-    c.add_argument("--attempts", type=int, default=3); c.set_defaults(fn=_cmd_corpus)
+    c.add_argument("--attempts", type=int, default=3); c.add_argument("--model", default="opus")
+    c.add_argument("--limit", type=int, default=0); c.add_argument("--force", action="store_true")
+    c.set_defaults(fn=_cmd_corpus)
     args = ap.parse_args(argv)
     return args.fn(args)
 

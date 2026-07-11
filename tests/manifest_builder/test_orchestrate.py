@@ -131,3 +131,18 @@ def test_certify_rejects_injected_conftest(tmp_path):
     assert not verdict.accepted                                  # injection → protected_ok False
     assert cert["status"] == "REJECTED"
     assert "evil/conftest.py" in cert["completeness"]["injected_collection_files"]
+
+
+def test_corpus_summary_aggregates(tmp_path):
+    from src.manifest_builder.__main__ import _corpus_summary
+    p = tmp_path / "corpus_results.jsonl"
+    p.write_text("\n".join([
+        json.dumps({"sha": "aaa", "status": "CERTIFIED", "manifest_size": 42}),
+        json.dumps({"sha": "bbb", "status": "REJECTED", "manifest_size": 0}),
+        json.dumps({"sha": "ccc", "status": "CERTIFIED", "manifest_size": 16}),
+        json.dumps({"sha": "ddd", "status": "ERROR"}),
+    ]) + "\n")
+    s = _corpus_summary(str(p))
+    assert s["total"] == 4 and s["certified"] == 2
+    assert s["by_status"] == {"CERTIFIED": 2, "REJECTED": 1, "ERROR": 1}
+    assert s["manifest_sizes"] == {"aaa": 42, "ccc": 16}
