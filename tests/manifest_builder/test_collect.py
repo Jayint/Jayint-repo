@@ -87,7 +87,8 @@ def test_build_and_collect_removes_container_even_if_collect_raises(tmp_path):
     import pytest
     from src.manifest_builder.collect import build_and_collect
 
-    removed = []
+    started = {"v": False}
+    rm_after_start = {"v": False}
 
     class WS:
         slug = "x"; path = "/ctx"; src_root = "/src"
@@ -100,10 +101,12 @@ def test_build_and_collect_removes_container_even_if_collect_raises(tmp_path):
             return "sha256:img"
 
         def run_detached(self, tag, name, workdir):
-            pass
+            started["v"] = True
 
         def rm(self, name):
-            removed.append(name)
+            # the pre-run rm fires before run_detached; only the finally rm fires after
+            if started["v"]:
+                rm_after_start["v"] = True
 
         def exec(self, name, argv, env=None, timeout=None):
             # hash_in_image issues sha256sum first — answer it so hashing succeeds,
@@ -120,4 +123,4 @@ def test_build_and_collect_removes_container_even_if_collect_raises(tmp_path):
 
     with pytest.raises(RuntimeError):
         build_and_collect(DockerCollectExplodes(), WS(), "/plugin.py", str(tmp_path), ("pkg.py",))
-    assert removed, "container must be rm'd in finally even when a collect raises"
+    assert rm_after_start["v"], "container must be rm'd in finally (after start) even when a collect raises"
