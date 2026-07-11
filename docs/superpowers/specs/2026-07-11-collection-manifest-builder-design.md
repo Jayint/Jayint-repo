@@ -270,9 +270,11 @@ class AgentRunner(Protocol):
     # AgentResult = (transcript_path, claimed_done: bool, raw_stdout)
 ```
 
-Default binding: **`GrokRunner`** — shells out to grok build headlessly (`prompt` +
-autonomous/bypass-permissions + working-dir), exact binary/flags pinned against grok's docs at
-implementation (a wrong guess is one adapter line). Swappable for `codex` / `claude` unchanged.
+Default binding: **`GrokRunner`** — shells out to grok build headlessly:
+`grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
+--output-format streaming-json -p "<prompt>"` (docs.x.ai/build/cli; `-p` = single-prompt headless,
+`--always-approve` = autonomous writes, `streaming-json` = JSONL transcript). Model/effort/argv
+overridable via constructor or `$MANIFEST_AGENT_CMD`. Swappable for `codex` / `claude` unchanged.
 
 **Task prompt (given to the agent)** — intention stated correctly so anti-gaming rests on
 description + the gate, not rigid rules:
@@ -376,7 +378,9 @@ Batch over the pinned corpus: `--corpus datasets/rat_python_hard_subset.pinned.j
 
 ## 15. Open items
 
-- Exact grok build binary/flags for `GrokRunner` (pin at implementation).
+- ~~Exact grok build binary/flags for `GrokRunner`~~ **DONE (2026-07-11)** — grounded to the real
+  grok CLI: `grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
+  --output-format streaming-json -p "<prompt>"` (docs.x.ai/build/cli). Model/effort overridable.
 - Whether to hand the agent a live container/venv scratch space explicitly, or let it drive Docker
   itself for its inner loop (both work; `verify` is authoritative either way).
 - Multi-arch: pilots are amd64; ARM parity is out of scope for this slice.

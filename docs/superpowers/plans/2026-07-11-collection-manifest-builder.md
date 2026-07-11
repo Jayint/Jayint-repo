@@ -1053,7 +1053,7 @@ git commit -m "feat(manifest): workspace prep (clone@sha, seed Dockerfile, state
 **Interfaces:**
 - Produces: frozen `AgentResult(transcript_path:str|None, claimed_done:bool, raw_stdout:str)`; `AgentRunner` (Protocol) with `run(*, cwd, prompt, autonomous) -> AgentResult`; `GrokRunner(argv_template=None, run=None)`; `FakeRunner(edit_fn=None)`; `TASK_PROMPT:str` (the maximize-collection instruction).
 
-Note: the exact grok binary/flags are **pinned at implementation** against grok's docs; `DEFAULT_AGENT_ARGV` is a placeholder template overridable via `$MANIFEST_AGENT_CMD` and the constructor.
+Note: grok's headless invocation is grounded to the real CLI (docs.x.ai/build/cli) — `grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws> --output-format streaming-json -p "<prompt>"`. `DEFAULT_GROK_ARGV` holds it; overridable via `$MANIFEST_AGENT_CMD` (space-split) or the `model`/`effort`/`argv_template` constructor args.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1069,21 +1069,24 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
 from src.manifest_builder.runner import GrokRunner, FakeRunner, TASK_PROMPT
 
 
-def test_grok_argv_includes_cwd_prompt_and_autonomous(tmp_path):
+def test_grok_argv_targets_grok45_medium_autonomous(tmp_path):
     calls = []
 
     def fake_run(argv, timeout=None):
         calls.append(argv)
-        return 0, "done"
+        return 0, '{"event":"done"}\n'
 
     r = GrokRunner(run=fake_run)
     res = r.run(cwd=str(tmp_path), prompt="do it", autonomous=True)
     argv = calls[0]
-    assert str(tmp_path) in argv
-    prompt_file = tmp_path / ".manifest_prompt.txt"
-    assert prompt_file.exists() and prompt_file.read_text() == "do it"
-    assert any("bypass" in a or "yolo" in a or "auto" in a for a in argv)
+    assert argv[0] == "grok"
+    assert "-p" in argv and "do it" in argv
+    assert "--always-approve" in argv and "--no-auto-update" in argv
+    assert argv[argv.index("-m") + 1] == "grok-4.5"
+    assert argv[argv.index("--effort") + 1] == "medium"
+    assert argv[argv.index("--cwd") + 1] == str(tmp_path)
     assert res.claimed_done is True
+    assert res.transcript_path and pathlib.Path(res.transcript_path).exists()
 
 
 def test_fake_runner_applies_edit(tmp_path):
@@ -1122,10 +1125,13 @@ import subprocess
 from dataclasses import dataclass
 from typing import Protocol
 
-# Exact grok build binary/flags pinned at implementation against grok's docs.
-# Placeholders substituted: {cwd}, {prompt_file}. Overridable via $MANIFEST_AGENT_CMD.
-DEFAULT_AGENT_ARGV = ["grok", "--cwd", "{cwd}", "--dangerously-bypass-permissions",
-                      "--prompt-file", "{prompt_file}"]
+# grok build headless invocation (docs.x.ai/build/cli). Placeholders substituted per run:
+# {cwd}, {prompt}, {model}, {effort}. Overridable via $MANIFEST_AGENT_CMD (space-split).
+#   grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
+#        --output-format streaming-json -p "<prompt>"
+DEFAULT_GROK_ARGV = ["grok", "--no-auto-update", "-m", "{model}", "--effort", "{effort}",
+                     "--always-approve", "--cwd", "{cwd}", "--output-format", "streaming-json",
+                     "-p", "{prompt}"]
 
 TASK_PROMPT = """\
 You are configuring a reproducible test-COLLECTION environment for a Python repository. Your ONLY \
@@ -1195,18 +1201,24 @@ def _default_run(argv, timeout=None):
 
 
 class GrokRunner:
-    def __init__(self, argv_template=None, run=None):
+    def __init__(self, *, model="grok-4.5", effort="medium", argv_template=None, run=None):
         env = os.environ.get("MANIFEST_AGENT_CMD")
-        self.argv_template = argv_template or (env.split() if env else DEFAULT_AGENT_ARGV)
+        self.argv_template = argv_template or (env.split() if env else DEFAULT_GROK_ARGV)
+        self.model = model
+        self.effort = effort
         self._run = run or _default_run
 
     def run(self, *, cwd, prompt, autonomous):
-        prompt_file = os.path.join(cwd, ".manifest_prompt.txt")
-        with open(prompt_file, "w") as f:
+        # Record the prompt for provenance; pass it inline via -p (grok has no --prompt-file).
+        with open(os.path.join(cwd, ".manifest_prompt.txt"), "w") as f:
             f.write(prompt)
-        argv = [a.format(cwd=cwd, prompt_file=prompt_file) for a in self.argv_template]
+        argv = [a.format(cwd=cwd, prompt=prompt, model=self.model, effort=self.effort)
+                for a in self.argv_template]
         rc, out = self._run(argv, timeout=3600)
-        return AgentResult(transcript_path=None, claimed_done=(rc == 0), raw_stdout=out)
+        transcript = os.path.join(cwd, ".manifest_agent_transcript.jsonl")
+        with open(transcript, "w") as f:
+            f.write(out)   # --output-format streaming-json => JSONL event stream
+        return AgentResult(transcript_path=transcript, claimed_done=(rc == 0), raw_stdout=out)
 
 
 class FakeRunner:
@@ -1400,7 +1412,7 @@ def certify(docker, ws, plugin_path, tmp_dir):
         base_image_digest=image_id, collect_command=COLLECT_CMD,
         source_tree_sha256=source_tree_sha256(ws.pristine_hashes),
         protected_file_hashes=in_img, dockerfile_text=dockerfile_text, image_id=image_id,
-        agent_meta={"runner": "grok build", "model": "grok-4.5"})
+        agent_meta={"runner": "grok build", "model": "grok-4.5", "effort": "medium"})
     return verdict, cert, build_log, r1, r2
 
 
@@ -1410,8 +1422,10 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     ws = W.prepare_workspace(repo_url, sha, workdir, base_image=base_image)
     dk = docker or (docker_factory(ws) if docker_factory else Docker())
     best = None
+    last_transcript = None
     for _ in range(attempts):
-        runner.run(cwd=ws.path, prompt=TASK_PROMPT, autonomous=True)
+        agent_res = runner.run(cwd=ws.path, prompt=TASK_PROMPT, autonomous=True)
+        last_transcript = agent_res.transcript_path
         with tempfile.TemporaryDirectory() as td:
             verdict, cert, build_log, r1, r2 = certify(dk, ws, _PLUGIN, td)
         if best is None or (verdict.accepted and (not best[0].accepted or
@@ -1423,7 +1437,7 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     art_dir = os.path.join(out_dir, ws.slug, sha)
     W.save_state(ws)
     _copy_dockerfile(ws, art_dir)
-    C.write_artifacts(art_dir, verdict, cert, r1, r2, build_log)
+    C.write_artifacts(art_dir, verdict, cert, r1, r2, build_log, transcript_src=last_transcript)
     return {"repo_url": repo_url, "sha": sha, "status": cert["status"],
             "manifest_size": cert["manifest_size"], "artifacts_dir": art_dir}
 
@@ -1575,6 +1589,6 @@ git commit -m "docs(manifest): VM ground-truth smoke runbook + recorded iniconfi
 - Corpus batch over pinned dataset (§13) → Task 8 `_cmd_corpus`. ✓
 - Package layout (§13) → Tasks 1–8 create every listed file. ✓
 
-**Placeholder scan:** grok exact flags are the single acknowledged TBD (§15) — encapsulated in `DEFAULT_AGENT_ARGV`, overridable, and behind the seam; every other step has complete code. No `TODO`/"handle edge cases"/bare prose steps.
+**Placeholder scan:** none. grok's flags are grounded to the real CLI (`DEFAULT_GROK_ARGV`, targeting grok-4.5 / effort medium) and overridable via `$MANIFEST_AGENT_CMD`; every step has complete code. No `TODO`/"handle edge cases"/bare prose steps.
 
 **Type consistency:** `CollectionResult`/`Verdict` fields match across gate/certificate/collect/__main__. `Docker` method names (`build/image_id/run_detached/exec/cp_in/cp_out/rm`) consistent between Task 5 and the FakeDocker in Task 8. `certify` return tuple `(verdict, cert, build_log, r1, r2)` consumed identically in `build_one` and `_cmd_verify`. `Workspace` fields consistent across Tasks 6/8.
