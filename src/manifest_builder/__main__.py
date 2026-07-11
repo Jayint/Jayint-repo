@@ -84,6 +84,15 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     else:
         chosen = max(records, key=lambda rec: rec[0].collected_count)   # best-effort reject
     verdict, cert, build_log, r1, r2, transcript, dockerfile_text = chosen
+    # Observability: record every attempt's outcome and which one keep-best selected, so a
+    # multi-attempt run shows that the highest-collected accepted attempt is the one certified.
+    selected_index = next(i for i, rec in enumerate(records) if rec is chosen)
+    attempts_detail = [{"accepted": rec[0].accepted, "collected": rec[0].collected_count,
+                        "status": rec[1]["status"]} for rec in records]
+    for i, det in enumerate(attempts_detail):
+        mark = "  <-- selected (highest accepted)" if i == selected_index else ""
+        print(f"[build_one] attempt {i + 1}/{len(records)}: accepted={det['accepted']} "
+              f"collected={det['collected']}{mark}", file=sys.stderr, flush=True)
     art_dir = os.path.join(out_dir, ws.slug, sha)
     os.makedirs(art_dir, exist_ok=True)
     with open(os.path.join(art_dir, "Dockerfile"), "w") as f:
@@ -91,7 +100,8 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     C.write_artifacts(art_dir, verdict, cert, r1, r2, build_log, transcript_src=transcript)
     return {"repo_url": repo_url, "sha": sha, "status": cert["status"],
             "manifest_size": cert["manifest_size"], "artifacts_dir": art_dir,
-            "attempts": len(records)}
+            "attempts": len(records), "selected_index": selected_index,
+            "attempts_detail": attempts_detail}
 
 
 def _cmd_verify(args):

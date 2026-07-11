@@ -85,6 +85,10 @@ def test_build_one_emits_artifacts(tmp_path):
                         docker_factory=DockerFactory(), attempts=1,
                         workdir=str(tmp_path / "wt2"))
     assert summary["status"] == "CERTIFIED"
+    # per-attempt observability: attempts=1 -> one accepted attempt, selected index 0
+    assert summary["attempts"] == 1 and summary["selected_index"] == 0
+    assert len(summary["attempts_detail"]) == 1
+    assert summary["attempts_detail"][0]["accepted"] and summary["attempts_detail"][0]["collected"] == 2
     art_dir = pathlib.Path(summary["artifacts_dir"])
     assert (art_dir / "collected-nodeids.json").exists()
     assert json.load(open(art_dir / "collected-nodeids.json")) == \
