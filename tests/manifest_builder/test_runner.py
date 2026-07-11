@@ -4,25 +4,25 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from src.manifest_builder.runner import GrokRunner, FakeRunner, TASK_PROMPT
+from src.manifest_builder.runner import ClaudeRunner, FakeRunner, TASK_PROMPT
 
 
-def test_grok_argv_targets_grok45_medium_autonomous(tmp_path):
+def test_claude_argv_autonomous_headless(tmp_path):
     calls = []
 
-    def fake_run(argv, timeout=None):
-        calls.append(argv)
-        return 0, '{"event":"done"}\n'
+    def fake_run(argv, timeout=None, cwd=None):
+        calls.append((argv, cwd))
+        return 0, '{"type":"result"}\n'
 
-    r = GrokRunner(run=fake_run)
+    r = ClaudeRunner(run=fake_run)
     res = r.run(cwd=str(tmp_path), prompt="do it", autonomous=True)
-    argv = calls[0]
-    assert argv[0] == "grok"
+    argv, cwd = calls[0]
+    assert argv[0] == "claude"
     assert "-p" in argv and "do it" in argv
-    assert "--always-approve" in argv and "--no-auto-update" in argv
-    assert argv[argv.index("-m") + 1] == "grok-4.5"
-    assert argv[argv.index("--effort") + 1] == "medium"
-    assert argv[argv.index("--cwd") + 1] == str(tmp_path)
+    assert "--dangerously-skip-permissions" in argv
+    assert argv[argv.index("--model") + 1] == "opus"
+    assert "--output-format" in argv and "stream-json" in argv and "--verbose" in argv
+    assert cwd == str(tmp_path)                       # runs IN the workspace (no --cwd flag)
     assert res.claimed_done is True
     assert res.transcript_path and pathlib.Path(res.transcript_path).exists()
 

@@ -5,13 +5,16 @@ import subprocess
 from dataclasses import dataclass
 from typing import Protocol
 
-# grok build headless invocation (docs.x.ai/build/cli). Placeholders substituted per run:
-# {cwd}, {prompt}, {model}, {effort}. Overridable via $MANIFEST_AGENT_CMD (space-split).
-#   grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
-#        --output-format streaming-json -p "<prompt>"
-DEFAULT_GROK_ARGV = ["grok", "--no-auto-update", "-m", "{model}", "--effort", "{effort}",
-                     "--always-approve", "--cwd", "{cwd}", "--output-format", "streaming-json",
-                     "-p", "{prompt}"]
+# Claude Code headless invocation. Placeholders substituted per run: {prompt}, {model}
+# ({cwd} is honored too if a $MANIFEST_AGENT_CMD override includes it). The subprocess runs
+# with CWD set to the workspace (Claude Code has no --cwd flag), so the agent edits the
+# Dockerfile and runs ./verify in place. --dangerously-skip-permissions = fully autonomous
+# (bypasses ALL permission prompts, may run docker/pip); stream-json + --verbose = JSONL
+# transcript. Overridable via $MANIFEST_AGENT_CMD (space-split).
+#   claude -p "<prompt>" --dangerously-skip-permissions --model <model>
+#          --output-format stream-json --verbose
+DEFAULT_CLAUDE_ARGV = ["claude", "-p", "{prompt}", "--dangerously-skip-permissions",
+                       "--model", "{model}", "--output-format", "stream-json", "--verbose"]
 
 TASK_PROMPT = """\
 You are configuring a reproducible test-COLLECTION environment for a Python repository. Your ONLY \
@@ -75,29 +78,28 @@ class AgentRunner(Protocol):
     def run(self, *, cwd: str, prompt: str, autonomous: bool) -> AgentResult: ...
 
 
-def _default_run(argv, timeout=None):
-    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+def _default_run(argv, timeout=None, cwd=None):
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, cwd=cwd)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
-class GrokRunner:
-    def __init__(self, *, model="grok-4.5", effort="medium", argv_template=None, run=None):
+class ClaudeRunner:
+    def __init__(self, *, model="opus", argv_template=None, run=None):
         env = os.environ.get("MANIFEST_AGENT_CMD")
-        self.argv_template = argv_template or (env.split() if env else DEFAULT_GROK_ARGV)
+        self.argv_template = argv_template or (env.split() if env else DEFAULT_CLAUDE_ARGV)
         self.model = model
-        self.effort = effort
         self._run = run or _default_run
 
     def run(self, *, cwd, prompt, autonomous):
-        # Record the prompt for provenance; pass it inline via -p (grok has no --prompt-file).
+        # Record the prompt for provenance; pass it inline via -p.
         with open(os.path.join(cwd, ".manifest_prompt.txt"), "w") as f:
             f.write(prompt)
-        argv = [a.format(cwd=cwd, prompt=prompt, model=self.model, effort=self.effort)
-                for a in self.argv_template]
-        rc, out = self._run(argv, timeout=3600)
+        argv = [a.format(cwd=cwd, prompt=prompt, model=self.model) for a in self.argv_template]
+        # Run IN the workspace so the agent edits the Dockerfile / runs ./verify in place.
+        rc, out = self._run(argv, timeout=3600, cwd=cwd)
         transcript = os.path.join(cwd, ".manifest_agent_transcript.jsonl")
         with open(transcript, "w") as f:
-            f.write(out)   # --output-format streaming-json => JSONL event stream
+            f.write(out)   # --output-format stream-json => JSONL event stream
         return AgentResult(transcript_path=transcript, claimed_done=(rc == 0), raw_stdout=out)
 
 
