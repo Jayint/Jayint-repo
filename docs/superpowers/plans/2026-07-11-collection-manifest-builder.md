@@ -1525,6 +1525,8 @@ git commit -m "feat(manifest): orchestration CLI (certify/verify/build/corpus) +
 
 This task has no unit test; its "test" is that the certified manifest sizes match the known pristine collection for two digest-pinned ground-truth repos (`iniconfig` → 42, `tomli` → 16 from `swesmith-gold-manifest-investigation`). Run on the **x86_64 VM** (Docker + amd64).
 
+> **Grok sandbox precondition — check before the first agent run.** `--always-approve` bypasses grok's *approval* prompts but **not** its *sandbox* (a separate axis: permissions = what the model may request; sandbox = what the process may do even once approved). Our agent shells out to `./verify`, which runs `docker build`/`docker run`, and may `pip install` while iterating — so grok's sandbox must permit **subprocesses, docker, and network**. On the first run, if docker/network calls fail *despite* `--always-approve`, relax the sandbox via grok's `--sandbox` flag (confirm the exact permissive value with `grok --help`; do **not** guess it into `DEFAULT_GROK_ARGV`) and fold the working value into `$MANIFEST_AGENT_CMD` so later runs stay non-interactive. This concerns only the *agent's* ability to drive docker while iterating — the harness's own certification always collects under `--network none` regardless.
+
 - [ ] **Step 1: Sync the module to the VM**
 
 ```bash
