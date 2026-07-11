@@ -221,7 +221,7 @@ def _make():
         base_image_digest="sha256:abc", collect_command="pytest --collect-only -q",
         source_tree_sha256="sha256:tree", protected_file_hashes={"conftest.py": "sha256:cf"},
         dockerfile_text="FROM python:3.11-slim\n", image_id="sha256:img",
-        agent_meta={"runner": "grok build", "model": "grok-4.5"})
+        agent_meta={"runner": "claude code", "model": "opus"})
     return v, r, cert
 
 
@@ -1051,9 +1051,9 @@ git commit -m "feat(manifest): workspace prep (clone@sha, seed Dockerfile, state
 - Test: `tests/manifest_builder/test_runner.py`
 
 **Interfaces:**
-- Produces: frozen `AgentResult(transcript_path:str|None, claimed_done:bool, raw_stdout:str)`; `AgentRunner` (Protocol) with `run(*, cwd, prompt, autonomous) -> AgentResult`; `GrokRunner(argv_template=None, run=None)`; `FakeRunner(edit_fn=None)`; `TASK_PROMPT:str` (the maximize-collection instruction).
+- Produces: frozen `AgentResult(transcript_path:str|None, claimed_done:bool, raw_stdout:str)`; `AgentRunner` (Protocol) with `run(*, cwd, prompt, autonomous) -> AgentResult`; `ClaudeRunner(argv_template=None, run=None)`; `FakeRunner(edit_fn=None)`; `TASK_PROMPT:str` (the maximize-collection instruction).
 
-Note: grok's headless invocation is grounded to the real CLI (docs.x.ai/build/cli) — `grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws> --output-format streaming-json -p "<prompt>"`. `DEFAULT_GROK_ARGV` holds it; overridable via `$MANIFEST_AGENT_CMD` (space-split) or the `model`/`effort`/`argv_template` constructor args.
+Note: the agent is **Claude Code** run headlessly (`claude -p`) with `--dangerously-skip-permissions` for fully autonomous execution. `DEFAULT_CLAUDE_ARGV` holds `claude -p "<prompt>" --dangerously-skip-permissions --model <model> --output-format stream-json --verbose`, run with the subprocess CWD set to the workspace (so the agent edits the Dockerfile and runs `./verify` in place — Claude Code has no `--cwd` flag). Overridable via `$MANIFEST_AGENT_CMD` (space-split) or the `model`/`argv_template` constructor args. Default model `opus`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1066,25 +1066,25 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from src.manifest_builder.runner import GrokRunner, FakeRunner, TASK_PROMPT
+from src.manifest_builder.runner import ClaudeRunner, FakeRunner, TASK_PROMPT
 
 
-def test_grok_argv_targets_grok45_medium_autonomous(tmp_path):
+def test_claude_argv_autonomous_headless(tmp_path):
     calls = []
 
-    def fake_run(argv, timeout=None):
-        calls.append(argv)
-        return 0, '{"event":"done"}\n'
+    def fake_run(argv, timeout=None, cwd=None):
+        calls.append((argv, cwd))
+        return 0, '{"type":"result"}\n'
 
-    r = GrokRunner(run=fake_run)
+    r = ClaudeRunner(run=fake_run)
     res = r.run(cwd=str(tmp_path), prompt="do it", autonomous=True)
-    argv = calls[0]
-    assert argv[0] == "grok"
+    argv, cwd = calls[0]
+    assert argv[0] == "claude"
     assert "-p" in argv and "do it" in argv
-    assert "--always-approve" in argv and "--no-auto-update" in argv
-    assert argv[argv.index("-m") + 1] == "grok-4.5"
-    assert argv[argv.index("--effort") + 1] == "medium"
-    assert argv[argv.index("--cwd") + 1] == str(tmp_path)
+    assert "--dangerously-skip-permissions" in argv
+    assert argv[argv.index("--model") + 1] == "opus"
+    assert "--output-format" in argv and "stream-json" in argv and "--verbose" in argv
+    assert cwd == str(tmp_path)                       # runs IN the workspace (no --cwd flag)
     assert res.claimed_done is True
     assert res.transcript_path and pathlib.Path(res.transcript_path).exists()
 
@@ -1125,13 +1125,16 @@ import subprocess
 from dataclasses import dataclass
 from typing import Protocol
 
-# grok build headless invocation (docs.x.ai/build/cli). Placeholders substituted per run:
-# {cwd}, {prompt}, {model}, {effort}. Overridable via $MANIFEST_AGENT_CMD (space-split).
-#   grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
-#        --output-format streaming-json -p "<prompt>"
-DEFAULT_GROK_ARGV = ["grok", "--no-auto-update", "-m", "{model}", "--effort", "{effort}",
-                     "--always-approve", "--cwd", "{cwd}", "--output-format", "streaming-json",
-                     "-p", "{prompt}"]
+# Claude Code headless invocation. Placeholders substituted per run: {prompt}, {model}
+# ({cwd} is honored too if a $MANIFEST_AGENT_CMD override includes it). The subprocess runs
+# with CWD set to the workspace (Claude Code has no --cwd flag), so the agent edits the
+# Dockerfile and runs ./verify in place. --dangerously-skip-permissions = fully autonomous
+# (bypasses ALL permission prompts, may run docker/pip); stream-json + --verbose = JSONL
+# transcript. Overridable via $MANIFEST_AGENT_CMD (space-split).
+#   claude -p "<prompt>" --dangerously-skip-permissions --model <model>
+#          --output-format stream-json --verbose
+DEFAULT_CLAUDE_ARGV = ["claude", "-p", "{prompt}", "--dangerously-skip-permissions",
+                       "--model", "{model}", "--output-format", "stream-json", "--verbose"]
 
 TASK_PROMPT = """\
 You are configuring a reproducible test-COLLECTION environment for a Python repository. Your ONLY \
@@ -1195,29 +1198,28 @@ class AgentRunner(Protocol):
     def run(self, *, cwd: str, prompt: str, autonomous: bool) -> AgentResult: ...
 
 
-def _default_run(argv, timeout=None):
-    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+def _default_run(argv, timeout=None, cwd=None):
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, cwd=cwd)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
-class GrokRunner:
-    def __init__(self, *, model="grok-4.5", effort="medium", argv_template=None, run=None):
+class ClaudeRunner:
+    def __init__(self, *, model="opus", argv_template=None, run=None):
         env = os.environ.get("MANIFEST_AGENT_CMD")
-        self.argv_template = argv_template or (env.split() if env else DEFAULT_GROK_ARGV)
+        self.argv_template = argv_template or (env.split() if env else DEFAULT_CLAUDE_ARGV)
         self.model = model
-        self.effort = effort
         self._run = run or _default_run
 
     def run(self, *, cwd, prompt, autonomous):
-        # Record the prompt for provenance; pass it inline via -p (grok has no --prompt-file).
+        # Record the prompt for provenance; pass it inline via -p.
         with open(os.path.join(cwd, ".manifest_prompt.txt"), "w") as f:
             f.write(prompt)
-        argv = [a.format(cwd=cwd, prompt=prompt, model=self.model, effort=self.effort)
-                for a in self.argv_template]
-        rc, out = self._run(argv, timeout=3600)
+        argv = [a.format(cwd=cwd, prompt=prompt, model=self.model) for a in self.argv_template]
+        # Run IN the workspace so the agent edits the Dockerfile / runs ./verify in place.
+        rc, out = self._run(argv, timeout=3600, cwd=cwd)
         transcript = os.path.join(cwd, ".manifest_agent_transcript.jsonl")
         with open(transcript, "w") as f:
-            f.write(out)   # --output-format streaming-json => JSONL event stream
+            f.write(out)   # --output-format stream-json => JSONL event stream
         return AgentResult(transcript_path=transcript, claimed_done=(rc == 0), raw_stdout=out)
 
 
@@ -1240,7 +1242,7 @@ Expected: PASS (3 passed).
 
 ```bash
 git add src/manifest_builder/runner.py tests/manifest_builder/test_runner.py
-git commit -m "feat(manifest): AgentRunner seam (GrokRunner + FakeRunner) + task prompt"
+git commit -m "feat(manifest): AgentRunner seam (ClaudeRunner + FakeRunner) + task prompt"
 ```
 
 ---
@@ -1382,7 +1384,7 @@ from src.manifest_builder import workspace as W
 from src.manifest_builder.collect import Docker, build_and_collect, BuildError
 from src.manifest_builder.gate import accept, pick_best
 from src.manifest_builder.protected import restore_pristine, source_tree_sha256
-from src.manifest_builder.runner import GrokRunner, TASK_PROMPT
+from src.manifest_builder.runner import ClaudeRunner, TASK_PROMPT
 
 _PLUGIN = str(_REPO_ROOT / "src" / "manifest_builder" / "collect_plugin.py")
 
@@ -1412,7 +1414,7 @@ def certify(docker, ws, plugin_path, tmp_dir):
         base_image_digest=image_id, collect_command=COLLECT_CMD,
         source_tree_sha256=source_tree_sha256(ws.pristine_hashes),
         protected_file_hashes=in_img, dockerfile_text=dockerfile_text, image_id=image_id,
-        agent_meta={"runner": "grok build", "model": "grok-4.5", "effort": "medium"})
+        agent_meta={"runner": "claude code", "model": "opus"})
     return verdict, cert, build_log, r1, r2
 
 
@@ -1461,7 +1463,7 @@ def _cmd_verify(args):
 
 
 def _cmd_build(args):
-    summary = build_one(args.repo_url, args.sha, args.out, GrokRunner(), attempts=args.attempts)
+    summary = build_one(args.repo_url, args.sha, args.out, ClaudeRunner(), attempts=args.attempts)
     print(json.dumps(summary, indent=1))
     return 0 if summary["status"] == "CERTIFIED" else 1
 
@@ -1475,7 +1477,7 @@ def _cmd_corpus(args):
         sha = r.get("commit")
         if not sha:
             print(f"SKIP {url}: no commit", file=sys.stderr); rc = 1; continue
-        summary = build_one(url, sha, args.out, GrokRunner(), attempts=args.attempts)
+        summary = build_one(url, sha, args.out, ClaudeRunner(), attempts=args.attempts)
         print(json.dumps(summary))
         rc = rc or (0 if summary["status"] == "CERTIFIED" else 1)
     return rc
@@ -1525,7 +1527,7 @@ git commit -m "feat(manifest): orchestration CLI (certify/verify/build/corpus) +
 
 This task has no unit test; its "test" is that the certified manifest sizes match the known pristine collection for two digest-pinned ground-truth repos (`iniconfig` → 42, `tomli` → 16 from `swesmith-gold-manifest-investigation`). Run on the **x86_64 VM** (Docker + amd64).
 
-> **Grok sandbox precondition — check before the first agent run.** `--always-approve` bypasses grok's *approval* prompts but **not** its *sandbox* (a separate axis: permissions = what the model may request; sandbox = what the process may do even once approved). Our agent shells out to `./verify`, which runs `docker build`/`docker run`, and may `pip install` while iterating — so grok's sandbox must permit **subprocesses, docker, and network**. On the first run, if docker/network calls fail *despite* `--always-approve`, relax the sandbox via grok's `--sandbox` flag (confirm the exact permissive value with `grok --help`; do **not** guess it into `DEFAULT_GROK_ARGV`) and fold the working value into `$MANIFEST_AGENT_CMD` so later runs stay non-interactive. This concerns only the *agent's* ability to drive docker while iterating — the harness's own certification always collects under `--network none` regardless.
+> **Claude Code autonomy precondition — check before the first agent run.** `--dangerously-skip-permissions` makes Claude Code fully autonomous: it bypasses **all** permission prompts, so the agent can run `./verify` (which runs `docker build`/`docker run`) and `pip install` while iterating with no interaction — one flag covers both the "may it ask" and "may it execute" axes (simpler than grok's two-axis approval/sandbox split). Preconditions on the VM: (1) `claude` is installed and **authenticated** (the VM already has Claude Code credentials); (2) the user running it can reach the Docker daemon; (3) the account/CLI has the chosen `--model` (default `opus`) — else override via `$MANIFEST_AGENT_CMD` or `ClaudeRunner(model=...)`. This concerns only the *agent's* ability to drive docker while iterating — the harness's own certification always collects under `--network none` regardless.
 
 - [ ] **Step 1: Sync the module to the VM**
 
@@ -1585,12 +1587,12 @@ git commit -m "docs(manifest): VM ground-truth smoke runbook + recorded iniconfi
 - Maximization + keep-best (§5) → Task 1 `pick_best`, Task 8 `build_one` loop. ✓
 - Protected set + restore + in-image hash (§6) → Task 3. ✓
 - Certificate + completeness + artifacts (§7/§8) → Task 2. ✓
-- AgentRunner seam + grok binding + task prompt (§9) → Task 7. ✓
+- AgentRunner seam + claude-code binding + task prompt (§9) → Task 7. ✓
 - The five required tests (§10): (1) partial-nonzero-exit → `test_partial_collection_nonzero_exit_rejects` + `test_broken_import_nonzero_exit_with_partial_collection`; (2) protected-mod → `test_protected_modified_rejects` + `test_restore_reverts_...`; (3) unstable → `test_unstable_nodeids_rejects`; (4) deselected → `test_...records_skips_and_deselects` + `test_accepts_despite_author_skips_and_deselects`; (5) importorskip → `test_importorskip_hidden_module_recorded_not_collected` + completeness recording. ✓
 - Ground-truth pilots (§10) → Task 9. ✓
 - Corpus batch over pinned dataset (§13) → Task 8 `_cmd_corpus`. ✓
 - Package layout (§13) → Tasks 1–8 create every listed file. ✓
 
-**Placeholder scan:** none. grok's flags are grounded to the real CLI (`DEFAULT_GROK_ARGV`, targeting grok-4.5 / effort medium) and overridable via `$MANIFEST_AGENT_CMD`; every step has complete code. No `TODO`/"handle edge cases"/bare prose steps.
+**Placeholder scan:** none. The agent is Claude Code headless (`DEFAULT_CLAUDE_ARGV` = `claude -p … --dangerously-skip-permissions --model opus --output-format stream-json --verbose`), overridable via `$MANIFEST_AGENT_CMD`; every step has complete code. No `TODO`/"handle edge cases"/bare prose steps.
 
 **Type consistency:** `CollectionResult`/`Verdict` fields match across gate/certificate/collect/__main__. `Docker` method names (`build/image_id/run_detached/exec/cp_in/cp_out/rm`) consistent between Task 5 and the FakeDocker in Task 8. `certify` return tuple `(verdict, cert, build_log, r1, r2)` consumed identically in `build_one` and `_cmd_verify`. `Workspace` fields consistent across Tasks 6/8.

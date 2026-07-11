@@ -11,7 +11,7 @@ environment so nothing is hidden behind a missing dependency), the tighter the l
 golden set is the fixed denominator a downstream benchmark can score against instead of
 `passed / candidate_collected` (which a broken env silently shrinks).
 
-A **SOTA coding agent** (grok build + Grok 4.5, behind a swappable seam) configures the environment
+A **SOTA coding agent** (Claude Code, behind a swappable seam) configures the environment
 to **maximize clean collection**; the **harness independently certifies** the result and emits a
 signed manifest + certificate. This is a **silver-standard reference set** (a reproducible *lower
 bound* on collectible tests — as large as full provisioning makes it), **not** an absolute count of
@@ -240,7 +240,7 @@ cannot win by touching what it measures.
     "collect_command_sha256": "...",
     "manifest_sha256": "..."            // hash of collected-nodeids.json
   },
-  "agent": {"runner": "grok build", "model": "grok-4.5", "transcript": "agent-transcript.jsonl"},
+  "agent": {"runner": "claude code", "model": "opus", "transcript": "agent-transcript.jsonl"},
   "tool_version": "manifest_builder/0.1"
 }
 ```
@@ -262,7 +262,7 @@ Written under `artifacts/<repo>/<sha>/`:
 - `collect-run1.json`, `collect-run2.json` — raw plugin output for both runs.
 - `agent-transcript.jsonl` — the external agent's session log.
 
-## 9. AgentRunner seam & grok binding
+## 9. AgentRunner seam & Claude Code binding
 
 ```python
 class AgentRunner(Protocol):
@@ -270,11 +270,14 @@ class AgentRunner(Protocol):
     # AgentResult = (transcript_path, claimed_done: bool, raw_stdout)
 ```
 
-Default binding: **`GrokRunner`** — shells out to grok build headlessly:
-`grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
---output-format streaming-json -p "<prompt>"` (docs.x.ai/build/cli; `-p` = single-prompt headless,
-`--always-approve` = autonomous writes, `streaming-json` = JSONL transcript). Model/effort/argv
-overridable via constructor or `$MANIFEST_AGENT_CMD`. Swappable for `codex` / `claude` unchanged.
+Default binding: **`ClaudeRunner`** — shells out to Claude Code headlessly:
+`claude -p "<prompt>" --dangerously-skip-permissions --model opus --output-format stream-json
+--verbose`, run with the subprocess CWD set to the workspace (Claude Code has no `--cwd` flag, so
+the agent edits the Dockerfile and runs `./verify` in place). `-p` = single-prompt headless;
+`--dangerously-skip-permissions` = fully autonomous (bypasses all permission prompts, may run
+docker/pip); `stream-json` + `--verbose` = JSONL transcript. Model/argv overridable via constructor
+or `$MANIFEST_AGENT_CMD`. Swappable for `codex` / `grok` unchanged. The VM already has Claude Code
+credentials, so no extra auth setup.
 
 **Task prompt (given to the agent)** — intention stated correctly so anti-gaming rests on
 description + the gate, not rigid rules:
@@ -355,7 +358,7 @@ src/manifest_builder/
   protected.py        # host + in-image hashing, comparison
   gate.py             # accept(r1, r2, protected_ok) -> Verdict + keep-best-by-count (pure heart)
   certificate.py      # build_certificate, collected-nodeids.json  (pure)
-  runner.py           # AgentRunner protocol + GrokRunner adapter (swappable)
+  runner.py           # AgentRunner protocol + ClaudeRunner adapter (swappable)
 tests/manifest_builder/
   test_gate.py            # the 5 required cases + boundaries + keep-best
   test_protected.py       # restore + hashing
@@ -363,7 +366,7 @@ tests/manifest_builder/
   test_collect_parse.py   # plugin-JSON → CollectionResult
 ```
 
-Entry: `python -m src.manifest_builder --repo-url <url> --sha <commit> [--runner grok] [--attempts N]`.
+Entry: `python -m src.manifest_builder --repo-url <url> --sha <commit> [--runner claude] [--attempts N]`.
 Batch over the pinned corpus: `--corpus datasets/rat_python_hard_subset.pinned.json` (reads
 `clone_url` + `commit` per repo), writing one artifacts dir per repo.
 
@@ -378,9 +381,11 @@ Batch over the pinned corpus: `--corpus datasets/rat_python_hard_subset.pinned.j
 
 ## 15. Open items
 
-- ~~Exact grok build binary/flags for `GrokRunner`~~ **DONE (2026-07-11)** — grounded to the real
-  grok CLI: `grok --no-auto-update -m grok-4.5 --effort medium --always-approve --cwd <ws>
-  --output-format streaming-json -p "<prompt>"` (docs.x.ai/build/cli). Model/effort overridable.
+- ~~Exact agent binary/flags for the runner~~ **DONE (2026-07-11)** — agent switched from grok to
+  **Claude Code** (VM already has Claude Code credentials): `claude -p "<prompt>"
+  --dangerously-skip-permissions --model opus --output-format stream-json --verbose`, run with the
+  subprocess CWD set to the workspace. Model/argv overridable via `$MANIFEST_AGENT_CMD` /
+  `ClaudeRunner(model=...)`.
 - Whether to hand the agent a live container/venv scratch space explicitly, or let it drive Docker
   itself for its inner loop (both work; `verify` is authoritative either way).
 - Multi-arch: pilots are amd64; ARM parity is out of scope for this slice.
