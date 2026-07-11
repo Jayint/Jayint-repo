@@ -11,12 +11,23 @@ def _git(worktree: str, *args: str) -> str:
 
 
 def compute_protected(worktree: str) -> tuple[str, ...]:
-    # -z: NUL-separated with NO path quoting. Plain `git ls-files` octal-escapes and wraps
-    # non-ASCII / special-char filenames in quotes (e.g. `"tests/ma\303\261ana.txt"`), which
-    # then fails to open/hash. -z gives the real byte-exact paths.
-    out = _git(worktree, "ls-files", "-z")
-    files = [f for f in out.split("\0") if f]
-    return tuple(sorted(f for f in files if f != "Dockerfile"))
+    # -s: stage format `<mode> <oid> <stage>\t<path>`. -z: NUL-separated with NO path quoting
+    # (plain `git ls-files` octal-escapes/quotes non-ASCII names, which then fail to open/hash).
+    # Keep ONLY regular files (modes 100644/100755). Symlinks (120000) and submodule gitlinks
+    # (160000) are excluded: a symlink-to-directory or a submodule dir cannot be opened/hashed
+    # as a file (IsADirectoryError — hit on NewFuture/DDNS's `docs/public/schema`), and they are
+    # not source files the agent edits. restore_pristine still reverts them, and the injection
+    # guard still catches untracked additions, so the integrity gate is unweakened for sources.
+    out = _git(worktree, "ls-files", "-s", "-z")
+    protected = []
+    for rec in out.split("\0"):
+        if not rec:
+            continue
+        meta, _, path = rec.partition("\t")
+        mode = meta.split(" ", 1)[0]
+        if mode in ("100644", "100755") and path != "Dockerfile":
+            protected.append(path)
+    return tuple(sorted(protected))
 
 
 def restore_pristine(worktree: str) -> None:
