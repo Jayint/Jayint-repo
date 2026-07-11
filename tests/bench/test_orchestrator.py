@@ -1,5 +1,6 @@
 # tests/bench/test_orchestrator.py
 import json
+import os
 from dataclasses import asdict
 from bench.schema import HarvestedEnv, RepoSpec, MeasureRow
 from bench import unified_bench as ub
@@ -29,3 +30,18 @@ def test_aggregate_globs_rows(tmp_path, monkeypatch):
     ub.run_one(_env(agent="v3", repo="o/r"), str(tmp_path), docker=object())
     out = ub.aggregate(str(tmp_path))
     assert out["v3"]["n"] == 1 and out["v3"]["EBSR"] == 1.0 and out["v3"]["ESSR_all"] == 1.0
+
+
+def test_run_one_write_is_atomic_no_tmp_left(tmp_path, monkeypatch):
+    monkeypatch.setattr(ub, "measure", _fake_measure)
+    p = ub.run_one(_env(), str(tmp_path), docker=object())
+    assert os.path.exists(p) and json.load(open(p))["ebsr"] is True
+    # atomic publish leaves no .tmp sibling
+    assert not os.path.exists(p + ".tmp")
+
+
+def test_main_errors_without_harvest_unless_aggregate_only(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        ub.main(["--out", str(tmp_path)])
+    assert exc.value.code == 2

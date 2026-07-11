@@ -25,8 +25,10 @@ def run_one(env, out_root: str, *, docker) -> str:
         return out                                     # resume
     os.makedirs(os.path.dirname(out), exist_ok=True)
     row = measure(env, docker=docker)
-    with open(out, "w") as f:
+    tmp = out + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(asdict(row), f, indent=2, default=list)
+    os.replace(tmp, out)
     return out
 
 
@@ -58,6 +60,9 @@ def main(argv=None) -> int:
     ap.add_argument("--aggregate-only", action="store_true")
     ap.add_argument("--gold")
     a = ap.parse_args(argv)
+
+    if not a.aggregate_only and not a.harvest:
+        ap.error("--harvest is required unless --aggregate-only")
 
     if not a.aggregate_only:
         envs = discover(_parse_harvest(a.harvest))
