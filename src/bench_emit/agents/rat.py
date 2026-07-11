@@ -44,6 +44,10 @@ def adapt(repo_output_dir: str) -> EmittedEnv:
     base = env.get("base_image") or "python:3.10-slim"
     recipe = env.get("recipe_commands", []) or []
 
+    if not recipe:
+        return EmittedEnv(dockerfile=None, scripts={},
+                          meta=bench_meta("rat", base_image=base, dockerfile_source="rat_reconstructed"))
+
     owner, name = os.path.normpath(repo_output_dir).split(os.sep)[-2:]
     repo_url = f"https://github.com/{owner}/{name}"
     dockerfile = _render(base, repo_url, recipe)
