@@ -156,3 +156,13 @@ def test_find_injected_empty_when_all_tracked():
         return 0, "/src/a/conftest.py\n/src/a/test_x.py\n/src/a/__pycache__/x.pyc\n"
 
     assert find_injected_collection_files(fake_exec, "/src", protected) == []
+
+
+def test_find_injected_fails_closed_when_find_errors():
+    from src.manifest_builder.collect import find_injected_collection_files
+
+    def fake_exec_find_fails(argv):
+        return 127, "find: not found"   # e.g. findutils missing / find removed
+
+    got = find_injected_collection_files(fake_exec_find_fails, "/src", ("a/test_x.py",))
+    assert got and got[0].startswith("<injection-scan-failed")   # non-empty → forces REJECT

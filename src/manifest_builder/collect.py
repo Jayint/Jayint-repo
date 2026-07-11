@@ -21,7 +21,11 @@ def find_injected_collection_files(exec_fn, src_root, protected):
     protected set. The tracked-only in-image hash gate can't see these, so any hit is an
     injection. `exec_fn(argv) -> (rc, out)`; returns a sorted list of repo-relative paths."""
     root = src_root.rstrip("/")
-    _rc, out = exec_fn(["find", root, "-not", "-path", "*/.git/*", "-type", "f"])
+    rc, out = exec_fn(["find", root, "-not", "-path", "*/.git/*", "-type", "f"])
+    if rc != 0:
+        # Fail CLOSED: if the scan itself can't run (missing findutils, permission error, or an
+        # adversarial removal of `find`), integrity is unverifiable, so treat it as injected.
+        return [f"<injection-scan-failed rc={rc}>"]
     prot = set(protected)
     injected = []
     for line in out.splitlines():
