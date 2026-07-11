@@ -1,7 +1,10 @@
 # bench/measure.py
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
+
+_COLLECT_ERR = re.compile(r"((?:[A-Za-z_][\w.]*)?(?:Error|Exception|Warning)):")
 
 
 def _node_id(tc: ET.Element) -> str:
@@ -33,3 +36,15 @@ def parse_junit(xml_text: str) -> dict:
         "passed_node_ids": tuple(passed), "failed_node_ids": tuple(failed),
         "error_node_ids": tuple(errors),
     }
+
+
+def parse_collected_node_ids(stdout: str) -> tuple:
+    return tuple(ln.strip() for ln in (stdout or "").splitlines() if "::" in ln)
+
+
+def parse_collect(rc: int, stdout: str) -> dict:
+    errs = []
+    for ln in (stdout or "").splitlines():
+        if _COLLECT_ERR.search(ln) and "::" not in ln:
+            errs.append(ln.strip()[:200])
+    return {"collect_clean": rc in (0, 5), "collect_errors": tuple(errs)}
