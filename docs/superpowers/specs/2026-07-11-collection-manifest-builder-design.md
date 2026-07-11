@@ -4,15 +4,23 @@
 
 ## Goal
 
-Produce, for a repository at a pinned commit, a **fixed external manifest of collectible
-pytest node IDs** — a reproducible, execution-independent reference set to use as the ESSR
-denominator instead of `passed / candidate_collected` (which a broken env can silently shrink).
+Produce, for a repository at a pinned commit, the **maximum cleanly-collectable set of pytest node
+IDs** — a fixed, reproducible, execution-independent reference set ("golden set"). The point is
+*maximum*: the more legitimate tests we can make collect cleanly (by fully provisioning the
+environment so nothing is hidden behind a missing dependency), the tighter the lower bound. This
+golden set is the fixed denominator a downstream benchmark can score against instead of
+`passed / candidate_collected` (which a broken env silently shrinks).
 
-A **SOTA coding agent** (grok build + Grok 4.5, behind a swappable seam) configures the
-environment until pytest collection is clean; the **harness independently certifies** the result
-and emits a signed manifest + certificate. This is a **silver-standard reference set** (a
-reproducible lower bound on collectible tests), **not** an absolute count of every test that
-theoretically exists — see §12.
+A **SOTA coding agent** (grok build + Grok 4.5, behind a swappable seam) configures the environment
+to **maximize clean collection**; the **harness independently certifies** the result and emits a
+signed manifest + certificate. This is a **silver-standard reference set** (a reproducible *lower
+bound* on collectible tests — as large as full provisioning makes it), **not** an absolute count of
+every test that theoretically exists — see §12.
+
+**Standalone by design.** This is a self-contained module (`src/manifest_builder/`) with its own
+collection plugin, docker adapter, and evals. It deliberately does **not** depend on the `bench/`
+runner or any other arm. Its output (`collected-nodeids.json` per repo, canonical pytest nodeids)
+is a plain, consumer-agnostic artifact; wiring it into any benchmark is that benchmark's concern.
 
 ## Architecture (three sentences)
 
@@ -24,10 +32,11 @@ trust the agent's self-report, the harness runs that **same** `verify` itself as
 certification, and emits `collected-nodeids.json` + `collection-certificate.json` only if it
 independently passes.
 
-**Tech stack:** Python; Docker on the x86_64 VM; the existing `choose_base_image`
-(`src/envstate/base_image_selection.py`); the `docker` CLI subprocess pattern from
-`repo2run_repair_port.py` / `scripts/audit_swesmith_images.py`; the harness-owned collection
-plugin `scripts/swesmith_audit_plugin.py`; an external agent CLI via a swappable `AgentRunner`.
+**Tech stack:** Python; Docker on the x86_64 VM; a self-contained module owning its collection
+plugin (`collect_plugin.py`), its docker adapter, and a simple `python:{minor}-slim` seed base
+(docker-CLI subprocess and hardened-flag idioms copied as *pattern* from `repo2run_repair_port.py`
+/ `scripts/audit_swesmith_images.py`, not imported); an external agent CLI via a swappable
+`AgentRunner`.
 
 ---
 
@@ -66,9 +75,11 @@ install + test in a throwaway venv or live container, then freeze what worked in
 The **certificate always comes from an independent fresh `docker build` + clean-room collect** —
 never from the scratch env.
 
-**Base image:** `python:{requires-python minor}-slim` via the existing `choose_base_image`,
-digest-pinned at certification; the agent adds `apt`/`pip` layers on top. BuildKit **layer caching**
-keeps per-cycle builds cheap (base + apt cached; only the changed tail rebuilds).
+**Base image:** a simple `python:{minor}-slim` seed (minor from `requires-python` if trivially
+present, else a default) — no dependency on the shared `ImageSelector`; the agent adjusts the base
+and adds `apt`/`pip` layers on top, and the certified base is digest-pinned at certification.
+BuildKit **layer caching** keeps per-cycle builds cheap (base + apt cached; only the changed tail
+rebuilds).
 
 ## 3. Core flow
 
@@ -116,12 +127,12 @@ raw-`rc==0` loophole: the agent optimizes against the real four-clause gate, not
 --cap-drop ALL`, from `audit_swesmith_images.py`):
 
 ```
-pytest --collect-only -q -p no:cacheprovider -p swesmith_audit_plugin
+pytest --collect-only -q -p no:cacheprovider -p manifest_collect_plugin
 ```
 
 Crucially **without** `--continue-on-collection-errors`, so pytest's own exit semantics hold:
 `0` = clean collection, `2` = collection error, `5` = no tests. The plugin
-(`swesmith_audit_plugin.py`, extended per §11) captures node IDs from `pytest_collection_finish`,
+(`collect_plugin.py`, §11) captures node IDs from `pytest_collection_finish`,
 plus collect-time skipped/failed collectreports and deselections, into structured JSON.
 
 ## 5. Accept predicate (the pure, tested heart — `gate.py`)
@@ -149,6 +160,14 @@ Four clauses:
    sets, so ordering noise is tolerated; content drift, e.g. from `pytest-randomly` or nondeterministic
    parametrization, is rejected).
 4. **`protected_ok`** — every protected file in the built image byte-matches the pristine host tree.
+
+**The objective is maximization, not just a pass.** The gate above is a *floor* (is this a valid,
+clean, honest collection?); the *goal* is the **largest** such collection. Every clean candidate is
+scored by `collected_count`, and the builder **keeps the best** — the certified manifest is the
+highest-count clean-and-stable-and-pristine collection seen across all agent attempts (never a
+smaller one, mirroring the react arm's keep-best-on-`executed`). A candidate that collects 42
+cleanly beats one that collects 40 cleanly, because the extra 2 are real tests a fuller environment
+un-hid.
 
 **Deliberately *not* gated (per project decision), only *recorded* (§7):** author skips
 (`@pytest.mark.skip`, `importorskip`) and deselections. Author-level skips are part of the suite's
@@ -204,7 +223,7 @@ cannot win by touching what it measures.
   "status": "CERTIFIED" | "REJECTED",
   "repo_url": "...", "commit_sha": "<pinned>",
   "base_image": "python:3.10-slim", "base_image_digest": "sha256:...",
-  "collect_command": "pytest --collect-only -q -p no:cacheprovider -p swesmith_audit_plugin",
+  "collect_command": "pytest --collect-only -q -p no:cacheprovider -p manifest_collect_plugin",
   "accepted": true, "reject_reasons": [],
   "runs": [{"exit_code": 0, "collected_count": 42}, {"exit_code": 0, "collected_count": 42}],
   "manifest_size": 42,
@@ -226,10 +245,12 @@ cannot win by touching what it measures.
 }
 ```
 
-The `completeness` block is the residual-signal channel: an under-provisioned env where
-`importorskip` hides a module still exits 0 with a smaller `collected_count` — recorded here
-(with the skipped module list) so completeness stays visible and comparable across runs/agents,
-even though it is not a reject reason.
+The `completeness` block is the residual-signal channel. Because the objective is **maximum**
+collection (§5), the agent actively tries to eliminate `importorskip`-hiding by installing the
+missing dependency so the hidden module collects. `skipped_modules` therefore records what remains
+import-skipped **after the agent's best effort** — genuinely-optional or unresolvable deps — and a
+larger residual means a less-maximal (lower-`collected_count`) manifest. It is a quality signal on
+how complete the golden set is, not a reject reason.
 
 ## 8. Artifacts
 
@@ -288,19 +309,25 @@ determinism + hash fields; `CollectionResult` parsing from plugin JSON.
 from `python-slim` and assert the certified manifest equals the known pristine collection. The
 swesmith reference images additionally validate the `collect`/plugin path against a known answer.
 
-## 11. What's reused vs new
+## 11. Self-contained; what's referenced vs owned
 
-**Reused (not rebuilt):**
-- `scripts/swesmith_audit_plugin.py` — collection hooks. **Small extension:** surface skipped
-  collectreports as `skipped_modules` and always include `deselected` (for §7 completeness).
-- Docker CLI subprocess pattern + `evaluate_built_image`/`run_command` shape from
-  `repo2run_repair_port.py`; hardened run flags + `docker cp` from `audit_swesmith_images.py`.
-- `choose_base_image` (`src/envstate/base_image_selection.py`) for the starter base.
-- Registry digest resolution (`audit_swesmith_images.py:resolve_digest`) for base-image pinning.
+This module is deliberately standalone — **no imports from `bench/`, `src/react_repair/`, or the
+run harness.** Everything it needs, it owns, so it can be read, tested, and moved on its own.
 
-**New (this subsystem, `src/manifest_builder/`):**
-- `workspace.py`, `collect.py`, `protected.py`, `gate.py`, `certificate.py`, `runner.py`,
-  `__main__.py` (§13).
+**Owned (written fresh in `src/manifest_builder/`):**
+- `collect_plugin.py` — its own pytest collection plugin (structured node-IDs + collect-time
+  skipped/deselected via hooks). Modeled on the shape of `scripts/swesmith_audit_plugin.py` but
+  collection-only and owned here (no cross-module dependency).
+- `collect.py` — its own docker adapter (thin `docker` CLI subprocess: build / run / exec / cp /
+  rm / image-digest), using the hardened flags (`--network none --cap-drop ALL`, …) as the pattern.
+- `workspace.py`, `protected.py`, `gate.py`, `certificate.py`, `runner.py`, `__main__.py` (§13).
+- Seed base image = a simple `python:{minor}-slim` (minor from `requires-python` if trivially
+  present, else a default). The agent adjusts the base as needed, so no dependency on the shared
+  `ImageSelector` / `choose_base_image`.
+
+**Referenced only as pattern (copied idioms, not imported):** the docker-CLI subprocess shape from
+`repo2run_repair_port.py`; the hardened run flags + `docker cp` + registry-digest resolution from
+`scripts/audit_swesmith_images.py`.
 
 **NOT built:** a ReAct loop / planner / actions / history (the external agent supplies these).
 
@@ -318,22 +345,25 @@ swesmith reference images additionally validate the `collect`/plugin path agains
 
 ```
 src/manifest_builder/
-  __init__.py       # module docstring
-  __main__.py       # argparse entry: python -m src.manifest_builder --repo-url … --sha …
-  workspace.py      # prepare_workspace, PROTECTED computation, restore_pristine, starter Dockerfile
-  collect.py        # docker_build + locked-down collect ×2 → CollectionResult (Docker-touching)
-  protected.py      # host + in-image hashing, comparison
-  gate.py           # accept(r1, r2, protected_ok) -> Verdict   (pure, tested heart)
-  certificate.py    # build_certificate, collected-nodeids.json  (pure)
-  runner.py         # AgentRunner protocol + GrokRunner adapter
+  __init__.py         # module docstring
+  __main__.py         # argparse entry: python -m src.manifest_builder --repo-url … --sha …
+  workspace.py        # prepare_workspace, PROTECTED computation, restore_pristine, seed Dockerfile
+  collect_plugin.py   # OWN pytest collection plugin (structured node-IDs + skipped/deselected)
+  collect.py          # OWN docker adapter (build/run/exec/cp/rm/digest) + locked-down collect ×2
+  protected.py        # host + in-image hashing, comparison
+  gate.py             # accept(r1, r2, protected_ok) -> Verdict + keep-best-by-count (pure heart)
+  certificate.py      # build_certificate, collected-nodeids.json  (pure)
+  runner.py           # AgentRunner protocol + GrokRunner adapter (swappable)
 tests/manifest_builder/
-  test_gate.py            # the 5 required cases + boundaries
+  test_gate.py            # the 5 required cases + boundaries + keep-best
   test_protected.py       # restore + hashing
   test_certificate.py     # determinism + hash fields
   test_collect_parse.py   # plugin-JSON → CollectionResult
 ```
 
 Entry: `python -m src.manifest_builder --repo-url <url> --sha <commit> [--runner grok] [--attempts N]`.
+Batch over the pinned corpus: `--corpus datasets/rat_python_hard_subset.pinned.json` (reads
+`clone_url` + `commit` per repo), writing one artifacts dir per repo.
 
 ## 14. Global constraints
 
