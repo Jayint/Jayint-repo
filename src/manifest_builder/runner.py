@@ -79,8 +79,16 @@ class AgentRunner(Protocol):
 
 
 def _default_run(argv, timeout=None, cwd=None):
-    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, cwd=cwd)
-    return p.returncode, (p.stdout or "") + (p.stderr or "")
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        return p.returncode, (p.stdout or "") + (p.stderr or "")
+    except subprocess.TimeoutExpired as e:
+        # Soft failure: a timed-out agent run becomes a failed attempt (rc 124 → claimed_done
+        # False) rather than crashing build_one; keep-best over the other attempts still works.
+        out = (e.stdout or "") + (e.stderr or "")
+        if isinstance(out, bytes):
+            out = out.decode(errors="replace")
+        return 124, out + f"\n[agent timed out after {timeout}s]"
 
 
 class ClaudeRunner:
@@ -92,13 +100,13 @@ class ClaudeRunner:
 
     def run(self, *, cwd, prompt, autonomous):
         # Record the prompt for provenance; pass it inline via -p.
-        with open(os.path.join(cwd, ".manifest_prompt.txt"), "w") as f:
+        with open(os.path.join(cwd, ".manifest_prompt.txt"), "w", encoding="utf-8") as f:
             f.write(prompt)
         argv = [a.format(cwd=cwd, prompt=prompt, model=self.model) for a in self.argv_template]
         # Run IN the workspace so the agent edits the Dockerfile / runs ./verify in place.
         rc, out = self._run(argv, timeout=3600, cwd=cwd)
         transcript = os.path.join(cwd, ".manifest_agent_transcript.jsonl")
-        with open(transcript, "w") as f:
+        with open(transcript, "w", encoding="utf-8") as f:
             f.write(out)   # --output-format stream-json => JSONL event stream
         return AgentResult(transcript_path=transcript, claimed_done=(rc == 0), raw_stdout=out)
 

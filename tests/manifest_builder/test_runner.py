@@ -44,3 +44,17 @@ def test_task_prompt_states_dockerfile_only_and_maximize():
     assert "maxim" in TASK_PROMPT.lower()
     assert "service" in TASK_PROMPT.lower() and "client library" in TASK_PROMPT.lower()
     assert "import_skipped" in TASK_PROMPT
+
+
+def test_default_run_soft_fails_on_timeout(monkeypatch):
+    import subprocess
+    from src.manifest_builder import runner as R
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=1,
+                                        output="partial stdout", stderr="partial stderr")
+
+    monkeypatch.setattr(subprocess, "run", boom)
+    rc, out = R._default_run(["claude", "-p", "x"], timeout=1, cwd=None)
+    assert rc == 124
+    assert "partial stdout" in out and "timed out" in out
