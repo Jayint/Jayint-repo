@@ -89,3 +89,21 @@ def test_build_one_emits_artifacts(tmp_path):
     assert (art_dir / "collected-nodeids.json").exists()
     assert json.load(open(art_dir / "collected-nodeids.json")) == \
         ["test_a.py::test_a", "test_a.py::test_b"]
+
+
+def test_certify_rejects_on_build_failure(tmp_path):
+    repo_url, sha = _origin(tmp_path)
+    ws = W.prepare_workspace(repo_url, sha, str(tmp_path / "wt"))
+    plugin = str(_ROOT / "src" / "manifest_builder" / "collect_plugin.py")
+
+    class DockerBuildFails:
+        def build(self, tag, ctx):
+            return 1, "build failed: boom"
+
+    verdict, cert, log, r1, r2 = certify(DockerBuildFails(), ws, plugin, str(tmp_path / "tmp"))
+    assert not verdict.accepted
+    assert cert["status"] == "REJECTED"
+    assert cert["manifest_size"] == 0
+    assert cert["reject_reasons"]                              # non-empty
+    assert cert["completeness"]["skipped_modules"] == []      # well-formed (no KeyError in _cmd_verify)
+    assert cert["agent"]["runner"] == "claude code"           # provenance populated on reject path
