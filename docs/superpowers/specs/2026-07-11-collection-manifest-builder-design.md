@@ -106,13 +106,18 @@ certify(workspace):                    # host-owned; identical code to `verify` 
     return build_certificate(verdict, r1, r2, hashes, digest, ...)             # §7
 
 main:
-    prepare → run_agent → certify
-    if not certified and attempts_left: re-run_agent with reject_reasons appended (bounded)
-    emit artifacts (§8)
+    prepare
+    for _ in range(attempts):                    # each attempt = one independent agent run
+        reset Dockerfile to seed (fresh start)   # §6 — independent maximization samples
+        run_agent → certify                      # §4
+    keep the highest-collected_count CERTIFIED attempt (pick_best; else best-effort reject)  # §5
+    emit the WINNING attempt's artifacts (§8)
 ```
 
-There is no ReAct loop in our code. The agent's loop is its own; ours is `prepare → agent →
-certify`, with a bounded re-invoke if independent certification disagrees with the agent.
+There is no ReAct loop in our code. The agent's loop is its own; ours is `prepare → (agent →
+certify) × attempts → keep-best`. We run **all** `attempts` (default 3), each an independent
+fresh-seed sample, and certify the largest clean-and-stable-and-pristine collection — guarding
+against a single agent run under-collecting.
 
 ## 4. The `verify` path (one code path, two roles)
 
@@ -167,7 +172,11 @@ scored by `collected_count`, and the builder **keeps the best** — the certifie
 highest-count clean-and-stable-and-pristine collection seen across all agent attempts (never a
 smaller one, mirroring the react arm's keep-best-on-`executed`). A candidate that collects 42
 cleanly beats one that collects 40 cleanly, because the extra 2 are real tests a fuller environment
-un-hid.
+un-hid. Concretely, `build_one` runs **all** `attempts` agent invocations (default 3), each an
+**independent** sample starting from the seed Dockerfile (fresh start, no cross-attempt carry-over),
+certifies each, and selects the highest-`collected_count` accepted result via `pick_best`. The
+winning attempt's Dockerfile is what the certificate and artifacts record (not merely the last
+attempt executed).
 
 **Deliberately *not* gated (per project decision), only *recorded* (§7):** author skips
 (`@pytest.mark.skip`, `importorskip`) and deselections. Author-level skips are part of the suite's

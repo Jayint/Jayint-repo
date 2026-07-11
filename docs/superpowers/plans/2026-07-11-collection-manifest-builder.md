@@ -1353,6 +1353,24 @@ def test_build_one_emits_artifacts(tmp_path):
     assert (art_dir / "collected-nodeids.json").exists()
     assert json.load(open(art_dir / "collected-nodeids.json")) == \
         ["test_a.py::test_a", "test_a.py::test_b"]
+
+
+def test_certify_rejects_on_build_failure(tmp_path):
+    repo_url, sha = _origin(tmp_path)
+    ws = W.prepare_workspace(repo_url, sha, str(tmp_path / "wt"))
+    plugin = str(_ROOT / "src" / "manifest_builder" / "collect_plugin.py")
+
+    class DockerBuildFails:
+        def build(self, tag, ctx):
+            return 1, "build failed: boom"
+
+    verdict, cert, log, r1, r2 = certify(DockerBuildFails(), ws, plugin, str(tmp_path / "tmp"))
+    assert not verdict.accepted
+    assert cert["status"] == "REJECTED"
+    assert cert["manifest_size"] == 0
+    assert cert["reject_reasons"]                              # non-empty
+    assert cert["completeness"]["skipped_modules"] == []      # well-formed (no KeyError in _cmd_verify)
+    assert cert["agent"]["runner"] == "claude code"           # provenance populated on reject path
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1399,11 +1417,15 @@ def certify(docker, ws, plugin_path, tmp_dir):
         from src.manifest_builder.types import CollectionResult, Verdict
         empty = CollectionResult(exit_code=1)
         v = Verdict(False, ("docker build failed",), None, 0)
+        # Record the agent's actual (failing) Dockerfile — restore_pristine preserves it, so
+        # it's on disk — not the seed, and keep provenance symmetric with the success path.
+        _df = Path(ws.path) / "Dockerfile"
+        dockerfile_text = _df.read_text() if _df.exists() else ws.dockerfile_text
         cert = C.build_certificate(v, empty, empty, repo_url=ws.repo_url, commit_sha=ws.commit_sha,
             base_image=ws.base_image, base_image_digest="", collect_command="",
             source_tree_sha256=source_tree_sha256(ws.pristine_hashes),
-            protected_file_hashes=ws.pristine_hashes, dockerfile_text=ws.dockerfile_text,
-            image_id="", agent_meta={})
+            protected_file_hashes=ws.pristine_hashes, dockerfile_text=dockerfile_text,
+            image_id="", agent_meta={"runner": "claude code", "model": "opus"})
         return v, cert, str(e), empty, empty
     protected_ok = (in_img == ws.pristine_hashes)
     verdict = accept(r1, r2, protected_ok)
@@ -1423,31 +1445,37 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     workdir = workdir or tempfile.mkdtemp(prefix="manifest-wt-")
     ws = W.prepare_workspace(repo_url, sha, workdir, base_image=base_image)
     dk = docker or (docker_factory(ws) if docker_factory else Docker())
-    best = None
-    last_transcript = None
-    for _ in range(attempts):
+    df_path = os.path.join(ws.path, "Dockerfile")
+    # Run EVERY attempt as an independent maximization sample: reset the Dockerfile to the
+    # seed each time (fresh start), let the agent maximize, then certify. After all attempts
+    # we keep the highest-collected_count ACCEPTED result (pick_best) — running N and picking
+    # the best guards against a single agent run under-collecting. Each attempt's Dockerfile is
+    # captured so the artifact + certificate reflect the WINNING attempt, not the last one run.
+    records = []   # (verdict, cert, build_log, r1, r2, transcript_path, dockerfile_text)
+    for _ in range(max(1, attempts)):
+        with open(df_path, "w") as f:
+            f.write(ws.dockerfile_text)
         agent_res = runner.run(cwd=ws.path, prompt=TASK_PROMPT, autonomous=True)
-        last_transcript = agent_res.transcript_path
+        with open(df_path) as f:
+            dockerfile_text = f.read()
         with tempfile.TemporaryDirectory() as td:
             verdict, cert, build_log, r1, r2 = certify(dk, ws, _PLUGIN, td)
-        if best is None or (verdict.accepted and (not best[0].accepted or
-                            verdict.collected_count > best[0].collected_count)):
-            best = (verdict, cert, build_log, r1, r2)
-        if verdict.accepted:
-            break
-    verdict, cert, build_log, r1, r2 = best
+        records.append((verdict, cert, build_log, r1, r2, agent_res.transcript_path,
+                        dockerfile_text))
+    best_verdict = pick_best([rec[0] for rec in records])
+    if best_verdict is not None:
+        chosen = next(rec for rec in records if rec[0] is best_verdict)
+    else:
+        chosen = max(records, key=lambda rec: rec[0].collected_count)   # best-effort reject
+    verdict, cert, build_log, r1, r2, transcript, dockerfile_text = chosen
     art_dir = os.path.join(out_dir, ws.slug, sha)
-    W.save_state(ws)
-    _copy_dockerfile(ws, art_dir)
-    C.write_artifacts(art_dir, verdict, cert, r1, r2, build_log, transcript_src=last_transcript)
-    return {"repo_url": repo_url, "sha": sha, "status": cert["status"],
-            "manifest_size": cert["manifest_size"], "artifacts_dir": art_dir}
-
-
-def _copy_dockerfile(ws, art_dir):
     os.makedirs(art_dir, exist_ok=True)
     with open(os.path.join(art_dir, "Dockerfile"), "w") as f:
-        f.write((Path(ws.path) / "Dockerfile").read_text())
+        f.write(dockerfile_text)   # the WINNING attempt's Dockerfile, not the last executed
+    C.write_artifacts(art_dir, verdict, cert, r1, r2, build_log, transcript_src=transcript)
+    return {"repo_url": repo_url, "sha": sha, "status": cert["status"],
+            "manifest_size": cert["manifest_size"], "artifacts_dir": art_dir,
+            "attempts": len(records)}
 
 
 def _cmd_verify(args):
@@ -1469,15 +1497,24 @@ def _cmd_build(args):
 
 
 def _cmd_corpus(args):
-    data = json.load(open(args.corpus))
+    with open(args.corpus) as f:
+        data = json.load(f)
     repos = data.get("repos", data)
     rc = 0
     for r in repos:
-        url = r.get("clone_url") or ("https://github.com/%s" % r["full_name"])
+        full = r.get("full_name")
+        url = r.get("clone_url") or (f"https://github.com/{full}" if full else None)
         sha = r.get("commit")
-        if not sha:
-            print(f"SKIP {url}: no commit", file=sys.stderr); rc = 1; continue
-        summary = build_one(url, sha, args.out, ClaudeRunner(), attempts=args.attempts)
+        if not url or not sha:
+            print(f"SKIP {url or r}: missing clone_url/full_name or commit", file=sys.stderr)
+            rc = 1
+            continue
+        try:
+            summary = build_one(url, sha, args.out, ClaudeRunner(), attempts=args.attempts)
+        except Exception as e:   # one repo's failure must not abort the whole batch
+            print(f"FAIL {url}@{sha}: {type(e).__name__}: {e}", file=sys.stderr)
+            rc = 1
+            continue
         print(json.dumps(summary))
         rc = rc or (0 if summary["status"] == "CERTIFIED" else 1)
     return rc
@@ -1506,7 +1543,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m pytest tests/manifest_builder/test_orchestrate.py -v`
-Expected: PASS (2 passed).
+Expected: PASS (3 passed — clean certify, artifact emission, and the BuildError reject path).
 
 - [ ] **Step 5: Run the whole module suite + commit**
 
