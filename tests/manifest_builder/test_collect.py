@@ -66,3 +66,58 @@ def test_collect_once_reads_plugin_json(tmp_path):
     r = collect_once(FakeDocker(), "c1", "/src", "/plugin.py", str(tmp_path / "r.json"))
     assert r.exit_code == 0 and r.collected == ("t.py::a",)
     assert "manifest_collect_plugin" in COLLECT_CMD
+
+
+def test_build_and_collect_raises_builderror_on_nonzero_build(tmp_path):
+    import pytest
+    from src.manifest_builder.collect import build_and_collect, BuildError
+
+    class WS:
+        slug = "x"; path = "/ctx"; src_root = "/src"
+
+    class DockerBuildFails:
+        def build(self, tag, ctx):
+            return 1, "build failed: boom"
+
+    with pytest.raises(BuildError):
+        build_and_collect(DockerBuildFails(), WS(), "/plugin.py", str(tmp_path), ("pkg.py",))
+
+
+def test_build_and_collect_removes_container_even_if_collect_raises(tmp_path):
+    import pytest
+    from src.manifest_builder.collect import build_and_collect
+
+    removed = []
+
+    class WS:
+        slug = "x"; path = "/ctx"; src_root = "/src"
+
+    class DockerCollectExplodes:
+        def build(self, tag, ctx):
+            return 0, "ok"
+
+        def image_id(self, tag):
+            return "sha256:img"
+
+        def run_detached(self, tag, name, workdir):
+            pass
+
+        def rm(self, name):
+            removed.append(name)
+
+        def exec(self, name, argv, env=None, timeout=None):
+            # hash_in_image issues sha256sum first — answer it so hashing succeeds,
+            # then blow up on the collect step (collect_once's first exec is `mkdir`).
+            if argv and argv[0] == "sha256sum":
+                return 0, "\n".join(f"{'a' * 64}  {p}" for p in argv[1:])
+            raise RuntimeError("collect exploded")
+
+        def cp_in(self, name, src, dst):
+            pass
+
+        def cp_out(self, name, src, dst):
+            pass
+
+    with pytest.raises(RuntimeError):
+        build_and_collect(DockerCollectExplodes(), WS(), "/plugin.py", str(tmp_path), ("pkg.py",))
+    assert removed, "container must be rm'd in finally even when a collect raises"
