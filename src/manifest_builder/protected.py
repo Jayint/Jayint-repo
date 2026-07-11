@@ -11,7 +11,11 @@ def _git(worktree: str, *args: str) -> str:
 
 
 def compute_protected(worktree: str) -> tuple[str, ...]:
-    files = [ln for ln in _git(worktree, "ls-files").splitlines() if ln.strip()]
+    # -z: NUL-separated with NO path quoting. Plain `git ls-files` octal-escapes and wraps
+    # non-ASCII / special-char filenames in quotes (e.g. `"tests/ma\303\261ana.txt"`), which
+    # then fails to open/hash. -z gives the real byte-exact paths.
+    out = _git(worktree, "ls-files", "-z")
+    files = [f for f in out.split("\0") if f]
     return tuple(sorted(f for f in files if f != "Dockerfile"))
 
 

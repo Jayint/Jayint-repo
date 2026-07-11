@@ -89,3 +89,15 @@ def test_restore_preserves_verify_shim(tmp_path):
     (wt / "verify").write_text("#!/bin/sh\necho hi\n")   # untracked harness oracle shim
     P.restore_pristine(str(wt))
     assert (wt / "verify").exists()                      # preserved via -e verify
+
+
+def test_compute_protected_handles_non_ascii_filenames(tmp_path):
+    wt = _repo(tmp_path)
+    (wt / "mañana.txt").write_text("hola\n", encoding="utf-8")  # non-ASCII filename (copier has one)
+    _git(wt, "add", "-A")
+    _git(wt, "commit", "-qm", "add non-ascii file")
+    prot = P.compute_protected(str(wt))
+    assert "mañana.txt" in prot                 # real byte-exact path, not the git-quoted form
+    assert not any('"' in p or "\\3" in p for p in prot)   # no quoting/octal-escapes leaked
+    h = P.hash_host(str(wt), prot)                    # must not FileNotFoundError
+    assert h["mañana.txt"].startswith("sha256:")
