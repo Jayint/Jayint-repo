@@ -24,8 +24,8 @@ def restore_pristine(worktree: str) -> None:
     if os.path.exists(df_path):
         with open(df_path) as f:
             df = f.read()
-    _git(worktree, "checkout", "--", ".")
-    _git(worktree, "clean", "-fdq", "-e", "Dockerfile", "-e", ".manifest_*")
+    _git(worktree, "checkout", "HEAD", "--", ".")
+    _git(worktree, "clean", "-fdxq", "-e", "Dockerfile", "-e", ".manifest_*")
     if df is not None:
         with open(df_path, "w") as f:
             f.write(df)

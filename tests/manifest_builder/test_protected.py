@@ -67,3 +67,18 @@ def test_hash_in_image_parses_sha256sum(tmp_path):
 
     got = P.hash_in_image(fake_exec, "/src", prot)
     assert got == {"pkg.py": "sha256:" + "a" * 64, "test_a.py": "sha256:" + "a" * 64}
+
+
+def test_restore_removes_gitignored_untracked_cheat(tmp_path):
+    wt = _repo(tmp_path)
+    # repo ignores a path; agent drops an untracked, gitignored cheat file there
+    (wt / ".gitignore").write_text("ignored_cheat.py\n")
+    _git(wt, "add", ".gitignore")
+    _git(wt, "commit", "-qm", "add gitignore")
+    (wt / "ignored_cheat.py").write_text("collect_ignore = ['test_a.py']\n")  # untracked + gitignored
+    (wt / ".manifest_ws.json").write_text('{"state": 1}\n')                    # untracked manifest state
+    (wt / "Dockerfile").write_text("FROM python:3.11-slim\nRUN pip install foo\n")  # agent's work
+    P.restore_pristine(str(wt))
+    assert not (wt / "ignored_cheat.py").exists()          # gitignored cheat removed (needs -x)
+    assert (wt / ".manifest_ws.json").exists()             # manifest state still preserved under -x
+    assert "RUN pip install foo" in (wt / "Dockerfile").read_text()  # agent Dockerfile still kept
