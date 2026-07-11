@@ -349,5 +349,11 @@ Entry: `python -m src.manifest_builder --repo-url <url> --sha <commit> [--runner
 - Exact grok build binary/flags for `GrokRunner` (pin at implementation).
 - Whether to hand the agent a live container/venv scratch space explicitly, or let it drive Docker
   itself for its inner loop (both work; `verify` is authoritative either way).
-- Corpus beyond the two ground-truth pilots (which stable repos to certify first).
 - Multi-arch: pilots are amd64; ARM parity is out of scope for this slice.
+
+**Corpus SHA-pinning — DONE (2026-07-11).** The python-50 corpus
+(`datasets/rat_python_hard_subset.json`) shipped with `default_branch` only (no commit). Frozen to
+full 40-char SHAs via `git ls-remote` (default_branch → HEAD fallback) into
+`datasets/rat_python_hard_subset.pinned.json` (`commit` per repo + `_pinned_at` stamp; 50/50
+resolved, 1 HEAD-fallback, 0 errors). This is the builder's `--sha` corpus input. `medlarge15` was
+already SHA-pinned; the `iniconfig`/`tomli` pilots are pinned by SHA **and** image digest.
