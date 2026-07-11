@@ -92,6 +92,9 @@ class Docker:
     def rm(self, name):
         self._run(["docker", "rm", "-f", name])
 
+    def rmi(self, tag):
+        return self._run(["docker", "rmi", "-f", tag])
+
 
 def collect_once(docker, name, src_root, plugin_host_path, tmp_out) -> CollectionResult:
     docker.exec(name, ["mkdir", "-p", "/manifest"])

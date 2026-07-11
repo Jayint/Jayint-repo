@@ -123,6 +123,28 @@ def _cmd_build(args):
     return 0 if summary["status"] == "CERTIFIED" else 1
 
 
+def _parse_shard(spec: str) -> tuple[int, int]:
+    """Parse an 'i/N' shard spec into (i, N) with 1 <= i <= N and N >= 1."""
+    parts = spec.split("/")
+    if len(parts) != 2:
+        raise ValueError(f"invalid --shard {spec!r}: expected 'i/N'")
+    try:
+        i, n = int(parts[0]), int(parts[1])
+    except ValueError:
+        raise ValueError(f"invalid --shard {spec!r}: i and N must be integers") from None
+    if n < 1 or i < 1 or i > n:
+        raise ValueError(f"invalid --shard {spec!r}: need 1 <= i <= N and N >= 1")
+    return i, n
+
+
+def _select_shard(repos: list, spec: str) -> list:
+    """Round-robin shard: shard i (1-based) of N takes indices i-1, i-1+N, i-1+2N, ...
+    Across all N shards this partitions `repos` with no overlap and no gaps, and keeps
+    shard sizes balanced (differ by at most 1) regardless of per-repo cost ordering."""
+    i, n = _parse_shard(spec)
+    return repos[i - 1::n]
+
+
 def _corpus_summary(results_path) -> dict:
     """Aggregate a corpus_results.jsonl (one summary dict per line) into counts."""
     rows = []
@@ -150,6 +172,8 @@ def _cmd_corpus(args):
     with open(args.corpus) as f:
         data = json.load(f)
     repos = [r for r in (data.get("repos", data)) if isinstance(r, dict)]
+    if getattr(args, "shard", None):
+        repos = _select_shard(repos, args.shard)   # disjoint subset for a concurrent worker
     if args.limit:
         repos = repos[:args.limit]
     os.makedirs(args.out, exist_ok=True)
@@ -168,6 +192,8 @@ def _cmd_corpus(args):
         if not args.force and os.path.exists(cert_path):
             try:
                 if json.load(open(cert_path)).get("status") == "CERTIFIED":
+                    # Skipped => no image is built this run, so there is nothing to clean up
+                    # for it here; --cleanup-images only removes images this invocation built.
                     print(f"SKIP {url}@{sha}: already CERTIFIED", file=sys.stderr)
                     continue
             except (json.JSONDecodeError, OSError):
@@ -183,6 +209,15 @@ def _cmd_corpus(args):
         print(json.dumps(summary))
         with open(results_path, "a") as rf:   # aggregate: append per-repo as it completes
             rf.write(json.dumps(summary) + "\n")
+        if getattr(args, "cleanup_images", False):
+            # Reclaim disk over a long run: drop this repo's built image now. Best-effort —
+            # a failed removal (image absent after a build failure, etc.) must not abort the
+            # batch nor change the repo's outcome. Slugs are disjoint across shards, so a
+            # worker only ever removes its own images.
+            try:
+                Docker().rmi(f"manifest-{W.repo_slug(url)}")
+            except Exception as e:
+                print(f"[corpus] rmi failed for {url}: {type(e).__name__}: {e}", file=sys.stderr)
         rc = rc or (0 if summary.get("status") == "CERTIFIED" else 1)
     with open(os.path.join(args.out, "corpus_summary.json"), "w") as f:
         json.dump(_corpus_summary(results_path), f, indent=1)
@@ -204,6 +239,9 @@ def main(argv=None) -> int:
     c.add_argument("--corpus", required=True); c.add_argument("--out", default="artifacts")
     c.add_argument("--attempts", type=int, default=3); c.add_argument("--model", default="opus")
     c.add_argument("--limit", type=int, default=0); c.add_argument("--force", action="store_true")
+    c.add_argument("--shard", default=None, help="'i/N' round-robin shard for one concurrent worker")
+    c.add_argument("--cleanup-images", action="store_true",
+                   help="docker rmi each repo's image after it completes (reclaim disk on long runs)")
     c.set_defaults(fn=_cmd_corpus)
     args = ap.parse_args(argv)
     return args.fn(args)
