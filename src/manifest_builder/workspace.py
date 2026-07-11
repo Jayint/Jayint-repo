@@ -14,6 +14,14 @@ COPY . /src
 RUN pip install --no-cache-dir -e . || pip install --no-cache-dir . || true
 """
 
+VERIFY_SHIM = """\
+#!/bin/sh
+# Harness-generated agent oracle. Runs the SAME `certify` the harness uses, so the agent
+# optimizes against the real gate. The harness re-certifies independently, so edits here only
+# mislead the agent's own loop, never the certificate.
+cd "{harness_root}" && exec python3 -m src.manifest_builder verify --workspace "{workspace}"
+"""
+
 _STATE_FILE = ".manifest_ws.json"
 
 
@@ -45,6 +53,12 @@ def prepare_workspace(repo_url, commit_sha, dest, base_image="python:3.11-slim")
     df = SEED_DOCKERFILE.format(base=base_image)
     with open(os.path.join(dest, "Dockerfile"), "w") as f:
         f.write(df)
+    abs_dest = os.path.abspath(dest)
+    harness_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    verify_path = os.path.join(dest, "verify")
+    with open(verify_path, "w") as f:
+        f.write(VERIFY_SHIM.format(harness_root=harness_root, workspace=abs_dest))
+    os.chmod(verify_path, 0o755)
     ws = Workspace(path=dest, slug=repo_slug(repo_url), repo_url=repo_url, commit_sha=commit_sha,
                    src_root="/src", protected=protected, pristine_hashes=hashes,
                    base_image=base_image, dockerfile_text=df)

@@ -16,16 +16,17 @@ def compute_protected(worktree: str) -> tuple[str, ...]:
 
 
 def restore_pristine(worktree: str) -> None:
-    # Preserve the agent's Dockerfile whether the repo tracks one or not, and keep
-    # manifest-internal state (.manifest_*). `git checkout -- .` would otherwise revert a
-    # *tracked* Dockerfile to its committed version; `git clean` would drop untracked state.
+    # Preserve the agent's Dockerfile whether the repo tracks one or not, keep
+    # manifest-internal state (.manifest_*), and keep the harness-written `verify` oracle shim.
+    # `git checkout -- .` would otherwise revert a *tracked* Dockerfile to its committed version;
+    # `git clean` would drop untracked state and the untracked shim.
     df_path = os.path.join(worktree, "Dockerfile")
     df = None
     if os.path.exists(df_path):
         with open(df_path) as f:
             df = f.read()
     _git(worktree, "checkout", "HEAD", "--", ".")
-    _git(worktree, "clean", "-fdxq", "-e", "Dockerfile", "-e", ".manifest_*")
+    _git(worktree, "clean", "-fdxq", "-e", "Dockerfile", "-e", ".manifest_*", "-e", "verify")
     if df is not None:
         with open(df_path, "w") as f:
             f.write(df)

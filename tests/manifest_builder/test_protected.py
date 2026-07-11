@@ -82,3 +82,10 @@ def test_restore_removes_gitignored_untracked_cheat(tmp_path):
     assert not (wt / "ignored_cheat.py").exists()          # gitignored cheat removed (needs -x)
     assert (wt / ".manifest_ws.json").exists()             # manifest state still preserved under -x
     assert "RUN pip install foo" in (wt / "Dockerfile").read_text()  # agent Dockerfile still kept
+
+
+def test_restore_preserves_verify_shim(tmp_path):
+    wt = _repo(tmp_path)
+    (wt / "verify").write_text("#!/bin/sh\necho hi\n")   # untracked harness oracle shim
+    P.restore_pristine(str(wt))
+    assert (wt / "verify").exists()                      # preserved via -e verify

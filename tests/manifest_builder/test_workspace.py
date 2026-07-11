@@ -1,4 +1,4 @@
-import sys, pathlib, subprocess
+import os, sys, pathlib, subprocess
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
 for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
@@ -41,3 +41,15 @@ def test_save_and_load_state_roundtrip(tmp_path):
     ws2 = W.load_state(dest)
     assert ws2.protected == ws.protected and ws2.pristine_hashes == ws.pristine_hashes
     assert ws2.commit_sha == sha
+
+
+def test_prepare_writes_executable_verify_shim(tmp_path):
+    origin, sha = _origin(tmp_path)
+    dest = str(tmp_path / "wt")
+    ws = W.prepare_workspace(f"file://{origin}", sha, dest)
+    shim = pathlib.Path(dest) / "verify"
+    assert shim.exists() and os.access(str(shim), os.X_OK)
+    body = shim.read_text()
+    assert "src.manifest_builder verify" in body and "--workspace" in body
+    assert os.path.abspath(dest) in body            # points at THIS workspace
+    assert "verify" not in ws.protected             # untracked harness shim, not hashed
