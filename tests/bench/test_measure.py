@@ -1,4 +1,6 @@
 # tests/bench/test_measure.py
+import os
+
 from bench.schema import HarvestedEnv, RepoSpec
 from bench.measure import measure
 
@@ -18,8 +20,10 @@ def _env(**kw):
 class FakeDocker:
     def __init__(self, build_rc=0, size_mb=250.0, script=None, junit=_JUNIT_OK):
         self.build_rc, self.size_mb, self.script, self.junit = build_rc, size_mb, script or {}, junit
+        self.last_ctx = None
 
     def build(self, tag, ctx):
+        self.last_ctx = ctx
         return self.build_rc, "build log"
 
     def image_size_mb(self, tag):
@@ -70,3 +74,15 @@ def test_image_delta_uses_base_size():
     d.image_size_mb = lambda tag: sizes.get(tag, 250.0)
     row = measure(_env(), docker=d)
     assert row.image_size_mb == 250.0 and row.image_delta_mb == 50.0
+
+
+def test_build_context_is_cleaned_up():
+    d = FakeDocker()
+    measure(_env(), docker=d)
+    assert d.last_ctx is not None and not os.path.exists(d.last_ctx)
+
+
+def test_build_context_cleaned_up_on_build_failure():
+    d = FakeDocker(build_rc=1)
+    measure(_env(), docker=d)
+    assert d.last_ctx is not None and not os.path.exists(d.last_ctx)

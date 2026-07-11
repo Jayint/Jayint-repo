@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import tempfile
 import time
 import xml.etree.ElementTree as ET
@@ -88,6 +89,7 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
     t0 = time.time()
     build_rc, build_log = docker.build(tag, ctx)
     build_s = round(time.time() - t0, 2)
+    shutil.rmtree(ctx, ignore_errors=True)   # ctx is only needed during docker.build
     if build_rc != 0:
         return MeasureRow(build_ok=False, build_log_tail=build_log[-2000:], build_s=build_s,
                           executed=False, ebsr=False, **base_row)
