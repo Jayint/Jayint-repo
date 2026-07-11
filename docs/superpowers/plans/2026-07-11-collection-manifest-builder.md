@@ -1101,6 +1101,8 @@ def test_fake_runner_applies_edit(tmp_path):
 def test_task_prompt_states_dockerfile_only_and_maximize():
     assert "Dockerfile" in TASK_PROMPT and "verify" in TASK_PROMPT.lower()
     assert "maxim" in TASK_PROMPT.lower()
+    assert "service" in TASK_PROMPT.lower() and "client library" in TASK_PROMPT.lower()
+    assert "import_skipped" in TASK_PROMPT
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1125,14 +1127,55 @@ from typing import Protocol
 DEFAULT_AGENT_ARGV = ["grok", "--cwd", "{cwd}", "--dangerously-bypass-permissions",
                       "--prompt-file", "{prompt_file}"]
 
-TASK_PROMPT = (
-    "Configure the environment by editing ONLY the `Dockerfile` so that running `./verify` "
-    "exits 0. `verify` builds your Dockerfile and runs `pytest --collect-only`. Goal: make "
-    "collection succeed AND MAXIMIZE the number of collected tests — install every optional and "
-    "test-time dependency so that no module is skipped at import (importorskip). Do NOT edit "
-    "tests, conftest.py, or pytest configuration; they are restored before verification and any "
-    "change is rejected."
-)
+TASK_PROMPT = """\
+You are configuring a reproducible test-COLLECTION environment for a Python repository. Your ONLY \
+editable file is `Dockerfile` in this directory. Your goal: make the repository's full pytest suite \
+collect cleanly and maximally.
+
+SUCCESS CRITERION. Run `./verify`. It builds your Dockerfile from scratch, runs `pytest \
+--collect-only` inside the image twice, and reports:
+- `accepted: true` when collection is clean (no collection errors) and stable across both runs. REQUIRED.
+- `collected=N` — number of tests collected. MAXIMIZE this.
+- `import_skipped=[modules]` — modules pytest skipped at import time, usually a missing optional \
+dependency hiding real tests.
+You are done when `./verify` reports accepted AND `collected` is as high as it will go — i.e. \
+`import_skipped` contains only modules that are genuinely optional or whose dependency truly cannot \
+be installed. A clean collection that hides half the suite behind missing deps is a FAILURE, not a pass.
+
+THE ONLY LEVER IS THE ENVIRONMENT. `pytest --collect-only` works by IMPORTING every test module, so \
+collection fails or shrinks only because the environment is missing something: a collection error \
+(ImportError/ModuleNotFoundError) means a dependency isn't installed; an import-skipped module means \
+an optional dep behind importorskip(...) isn't installed. The fix is always to install the missing \
+dependency in the Dockerfile — read the failing import in the traceback, find the PyPI or apt package \
+that provides it, and add it.
+
+SERVICES (databases, brokers, etc.). `pytest --collect-only` only imports modules — it never runs \
+tests or fixtures — so tests needing a live service (Redis, Postgres, RabbitMQ, ...) to PASS still \
+collect fine without that service running. Install the service's Python CLIENT LIBRARY (e.g. redis, \
+psycopg2-binary, pika) when a module fails to import it, but do NOT try to start the actual \
+database/broker: it isn't needed for collection, and collection runs with NO network access. The one \
+exception is a module that opens a connection at import time (top-level code, not inside a test or \
+fixture) — live services can't be provided during collection, so leave those in import_skipped, \
+install the client library, and move on.
+
+RULES.
+- Edit ONLY the `Dockerfile`. Do NOT touch tests, conftest.py, pyproject.toml, pytest.ini, setup.cfg, \
+tox.ini, or any source file. The harness restores all of these to their pinned originals and \
+hash-checks them before certifying — any edit you make is reverted and rejected, so it cannot help you.
+- Do NOT fake a clean collection by hiding tests: no --ignore/-k/-m/--deselect, no \
+collect_ignore/norecursedirs, no deleting or emptying test files or narrowing paths. All rejected. \
+The only path that works is installing dependencies.
+- Do NOT install anything that randomizes collection (e.g. pytest-randomly); the node-ID set must be \
+identical across both runs.
+- Do NOT run test bodies — only collection matters; tests never need to pass, only to be importable.
+- The Dockerfile must build cleanly from scratch; no reliance on host state.
+
+SUGGESTED WORKFLOW. Run `./verify` -> read the first traceback -> install the missing import in the \
+Dockerfile, preferring the repo's DECLARED test/dev groups first (`pip install -e .[test]`/`[dev]`/\
+`[all]`, requirements-dev.txt, test-requirements.txt) and `apt-get install` for C-library imports -> \
+re-run. Repeat until accepted and `import_skipped` is minimal. Declared dependency groups usually \
+close most collection gaps at once.
+"""
 
 
 @dataclass(frozen=True)
@@ -1395,8 +1438,11 @@ def _cmd_verify(args):
     ws = W.load_state(args.workspace)
     with tempfile.TemporaryDirectory() as td:
         verdict, cert, _, _, _ = certify(Docker(), ws, _PLUGIN, td)
+    # Surface the maximization signal to the agent: not just accepted/reasons, but the collected
+    # count and which modules were skipped at import (the list to keep driving down).
     print(json.dumps({"accepted": verdict.accepted, "reasons": list(verdict.reasons),
-                      "collected_count": verdict.collected_count}))
+                      "collected": verdict.collected_count,
+                      "import_skipped": cert["completeness"]["skipped_modules"]}))
     return 0 if verdict.accepted else 1
 
 
