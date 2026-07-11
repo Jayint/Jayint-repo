@@ -223,6 +223,22 @@ config) as human-readable evidence.
 Together: every collection-fixing change must live in the environment, not the tree — the agent
 cannot win by touching what it measures.
 
+**Injection guard (third enforcement layer).** The hash check above covers *tracked* files
+(modified → mismatch; deleted → missing key → reject). It does not, by itself, catch a *new
+untracked* file the Dockerfile writes into the source tree after `COPY . /src` — an injected
+`conftest.py` with `collect_ignore` (silently suppresses a would-be collection error), a
+`.pth`/`sitecustomize.py` (import-time hooks), or an injected `test_*.py` (inflates the manifest
+with fake node-ids). So certification also scans the built image (`find <src_root>`, `.git` pruned)
+and **rejects if any untracked collection-affecting file** — the pytest config/hook names
+(`conftest.py`, `pytest.ini`, `tox.ini`, `setup.cfg`, `pyproject.toml`, `sitecustomize.py`,
+`usercustomize.py`), any `*.pth`, or a default-named test module (`test_*.py`/`*_test.py`) — is
+present that is **not** in the pristine tracked set. This **fails closed**: if the scan itself
+cannot run (missing `findutils`, permission error, or an adversarial removal of `find`), integrity
+is unverifiable → reject. Offending paths are recorded in the certificate's `completeness`. Known
+residual (recorded, not yet gated): an injected test under a repo-*customized* `python_files`
+pattern, and symlinked hooks (`-type f` skips them) — both require a cooperative-agent assumption
+or a follow-up node-id-path cross-check; deferred pending validation against real repos.
+
 ## 7. Certificate & completeness recording
 
 `collection-certificate.json` (pure `certificate.py`, deterministic):
