@@ -19,10 +19,22 @@ def _fake_measure(env, *, docker, **kw):
 def test_run_one_writes_row_and_resumes(tmp_path, monkeypatch):
     monkeypatch.setattr(ub, "measure", _fake_measure)
     p1 = ub.run_one(_env(), str(tmp_path), docker=object())
-    assert json.load(open(p1))["ebsr"] is True
+    with open(p1) as f:
+        assert json.load(f)["ebsr"] is True
     monkeypatch.setattr(ub, "measure", lambda *a, **k: (_ for _ in ()).throw(AssertionError("re-ran")))
     p2 = ub.run_one(_env(), str(tmp_path), docker=object())
     assert p2 == p1
+
+
+def test_run_one_writes_antivanish_row_on_measure_crash(tmp_path, monkeypatch):
+    def _boom(env, *, docker, **kw):
+        raise RuntimeError("docker daemon died")
+    monkeypatch.setattr(ub, "measure", _boom)
+    p = ub.run_one(_env(), str(tmp_path), docker=object())
+    with open(p) as f:
+        d = json.load(f)
+    assert d["executed"] is False and d["ebsr"] is False and d["build_ok"] is False
+    assert "docker daemon died" in d["meta"]["error"]
 
 
 def test_aggregate_globs_rows(tmp_path, monkeypatch):
@@ -35,7 +47,8 @@ def test_aggregate_globs_rows(tmp_path, monkeypatch):
 def test_run_one_write_is_atomic_no_tmp_left(tmp_path, monkeypatch):
     monkeypatch.setattr(ub, "measure", _fake_measure)
     p = ub.run_one(_env(), str(tmp_path), docker=object())
-    assert os.path.exists(p) and json.load(open(p))["ebsr"] is True
+    with open(p) as f:
+        assert os.path.exists(p) and json.load(f)["ebsr"] is True
     # atomic publish leaves no .tmp sibling
     assert not os.path.exists(p + ".tmp")
 

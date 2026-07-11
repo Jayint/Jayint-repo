@@ -24,7 +24,11 @@ def run_one(env, out_root: str, *, docker) -> str:
     if os.path.exists(out):
         return out                                     # resume
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    row = measure(env, docker=docker)
+    try:
+        row = measure(env, docker=docker)
+    except Exception as e:                             # anti-vanish: infra crash still yields a row
+        row = MeasureRow(agent=env.agent, repo=env.repo.full_name, env_status=env.status,
+                         build_ok=False, executed=False, ebsr=False, meta={"error": repr(e)})
     tmp = out + ".tmp"
     with open(tmp, "w") as f:
         json.dump(asdict(row), f, indent=2, default=list)
@@ -35,7 +39,8 @@ def run_one(env, out_root: str, *, docker) -> str:
 def aggregate(out_root: str, gold: dict | None = None) -> dict:
     by_agent: dict = {}
     for p in glob(os.path.join(out_root, "*", "**", "row.json"), recursive=True):
-        d = json.load(open(p))
+        with open(p) as f:
+            d = json.load(f)
         agent = os.path.relpath(p, out_root).split(os.sep)[0]
         d.pop("agent", None)
         row = MeasureRow(agent=agent, **{k: (tuple(v) if isinstance(v, list) else v)
@@ -67,10 +72,13 @@ def main(argv=None) -> int:
     if not a.aggregate_only:
         envs = discover(_parse_harvest(a.harvest))
         docker = SubprocessDocker()
-        with ThreadPoolExecutor(max_workers=a.concurrency) as ex:
+        with ThreadPoolExecutor(max_workers=max(1, a.concurrency)) as ex:
             list(ex.map(lambda e: run_one(e, a.out, docker=docker), envs))
 
-    gold = json.load(open(a.gold)) if a.gold else None
+    gold = None
+    if a.gold:
+        with open(a.gold) as f:
+            gold = json.load(f)
     out = aggregate(a.out, gold=gold)
     with open(os.path.join(a.out, "metrics.json"), "w") as f:
         json.dump(out, f, indent=2)

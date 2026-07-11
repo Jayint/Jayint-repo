@@ -49,3 +49,21 @@ def test_no_meta_gives_empty_meta(tmp_path):
     _write(root, "o/r4", dockerfile="FROM z", meta=None)
     envs = discover({"v3": str(root)})
     assert envs[0].meta == {} and envs[0].status == "ok"
+
+
+def test_copy_with_chown_and_multisource(tmp_path):
+    root = tmp_path / "v3run"
+    _write(root, "o/r5",
+           dockerfile='FROM x\nCOPY --chown=1000:1000 setup.sh /tmp/s\nCOPY a.sh b.sh /tmp/',
+           scripts={"setup.sh": "echo hi", "a.sh": "echo a", "b.sh": "echo b"})
+    e = discover({"v3": str(root)})[0]
+    assert e.setup_scripts["setup.sh"] == "echo hi"
+    assert e.setup_scripts["a.sh"] == "echo a" and e.setup_scripts["b.sh"] == "echo b"
+
+
+def test_copy_json_array_form(tmp_path):
+    root = tmp_path / "v3run"
+    _write(root, "o/r6", dockerfile='FROM x\nCOPY ["run.sh", "/tmp/run.sh"]',
+           scripts={"run.sh": "echo run"})
+    e = discover({"v3": str(root)})[0]
+    assert e.setup_scripts["run.sh"] == "echo run"

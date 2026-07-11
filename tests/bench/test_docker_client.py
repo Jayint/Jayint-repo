@@ -21,3 +21,11 @@ def test_exec_timeout_returns_124(monkeypatch):
     monkeypatch.setattr(subprocess, "run", boom)
     rc, out, timed = dc.SubprocessDocker().exec("c", ["echo", "hi"], timeout=1)
     assert rc == 124 and timed is True
+
+
+def test_build_timeout_returns_124(monkeypatch):
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="docker build", timeout=1)
+    monkeypatch.setattr(subprocess, "run", boom)
+    rc, log = dc.SubprocessDocker().build("t", "/ctx", timeout=1)
+    assert rc == 124 and "timed out" in log

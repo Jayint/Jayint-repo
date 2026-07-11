@@ -7,9 +7,13 @@ import subprocess
 class SubprocessDocker:
     """DockerClient over the docker CLI (the shape measure() expects)."""
 
-    def build(self, tag: str, ctx: str) -> tuple[int, str]:
-        p = subprocess.run(["docker", "build", "-t", tag, ctx], capture_output=True, text=True)
-        return p.returncode, (p.stdout + p.stderr)
+    def build(self, tag: str, ctx: str, timeout: int | None = None) -> tuple[int, str]:
+        try:
+            p = subprocess.run(["docker", "build", "-t", tag, ctx],
+                               capture_output=True, text=True, timeout=timeout)
+            return p.returncode, (p.stdout + p.stderr)
+        except subprocess.TimeoutExpired:
+            return 124, f"docker build timed out after {timeout}s"
 
     def image_size_mb(self, tag: str) -> float | None:
         p = subprocess.run(["docker", "image", "inspect", tag, "--format", "{{.Size}}"],

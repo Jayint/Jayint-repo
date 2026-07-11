@@ -87,7 +87,7 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
             f.write(content)
 
     t0 = time.time()
-    build_rc, build_log = docker.build(tag, ctx)
+    build_rc, build_log = docker.build(tag, ctx, timeout=build_timeout)
     build_s = round(time.time() - t0, 2)
     shutil.rmtree(ctx, ignore_errors=True)   # ctx is only needed during docker.build
     if build_rc != 0:
@@ -129,6 +129,9 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
     return MeasureRow(
         build_ok=True, build_log_tail=build_log[-2000:], build_s=build_s, test_s=test_s,
         collect_rc=crc, collect_clean=collect["collect_clean"], collect_errors=collect["collect_errors"],
+        # NOTE: collected_node_ids use pytest --co file-path form (tests/x.py::a); passed/failed/error
+        # node-ids use JUnit classname form (tests.x::a). A future gold set (compute_metrics gold=) is
+        # scored against passed_node_ids, so it must be keyed to the JUnit form, not these collected ids.
         collected_node_ids=collected, executed=executed,
         total=j["total"], passed=j["passed"], failed=j["failed"], errors=j["errors"], skipped=j["skipped"],
         passed_node_ids=j["passed_node_ids"], failed_node_ids=j["failed_node_ids"],

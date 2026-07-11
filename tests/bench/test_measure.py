@@ -22,7 +22,7 @@ class FakeDocker:
         self.build_rc, self.size_mb, self.script, self.junit = build_rc, size_mb, script or {}, junit
         self.last_ctx = None
 
-    def build(self, tag, ctx):
+    def build(self, tag, ctx, timeout=None):
         self.last_ctx = ctx
         return self.build_rc, "build log"
 

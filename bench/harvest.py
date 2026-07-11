@@ -8,7 +8,7 @@ from glob import glob
 
 from bench.schema import HarvestedEnv, RepoSpec
 
-_COPY = re.compile(r"^\s*COPY\s+(\S+)", re.MULTILINE)
+_COPY_LINE = re.compile(r"^\s*COPY\s+(.*)$", re.MULTILINE)
 # v3 legacy _meta.json uses the same key names we need; only base_image differs in nesting.
 _META_NAMES = ("bench_meta.json", "_meta.json")
 
@@ -25,18 +25,38 @@ def _load_meta(repo_dir: str) -> dict:
         p = os.path.join(repo_dir, name)
         if os.path.isfile(p):
             try:
-                return json.load(open(p))
+                with open(p) as f:
+                    return json.load(f)
             except (json.JSONDecodeError, OSError):
                 return {}
     return {}
 
 
+def _copy_sources(dockerfile: str) -> list:
+    """All source operands across COPY lines (skips --flags and the destination)."""
+    sources = []
+    for args in _COPY_LINE.findall(dockerfile):
+        args = args.strip()
+        if args.startswith("["):                     # JSON-array form: ["src", ..., "dest"]
+            try:
+                parts = json.loads(args)
+            except (json.JSONDecodeError, ValueError):
+                continue
+        else:
+            parts = args.split()
+        parts = [p for p in parts if not p.startswith("--")]   # drop --chown=, --from=, etc.
+        if len(parts) >= 2:
+            sources.extend(parts[:-1])               # everything except the destination
+    return sources
+
+
 def _sibling_scripts(df_dir: str, dockerfile: str) -> dict:
     out = {}
-    for src in _COPY.findall(dockerfile):
+    for src in _copy_sources(dockerfile):
         p = os.path.join(df_dir, os.path.basename(src))
         if os.path.isfile(p):
-            out[os.path.basename(src)] = open(p).read()
+            with open(p) as f:
+                out[os.path.basename(src)] = f.read()
     return out
 
 
@@ -53,7 +73,8 @@ def discover(agent_roots: dict) -> list:
             if df_path is None:
                 envs.append(HarvestedEnv(agent, repo, None, {}, meta.get("base_image"), "missing", meta))
                 continue
-            df = open(df_path).read()
+            with open(df_path) as f:
+                df = f.read()
             scripts = _sibling_scripts(os.path.dirname(df_path), df)
             envs.append(HarvestedEnv(agent, repo, df, scripts, meta.get("base_image"), "ok", meta))
     return envs
