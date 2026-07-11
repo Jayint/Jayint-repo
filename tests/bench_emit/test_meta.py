@@ -20,7 +20,13 @@ def test_zero_is_a_real_value_not_dropped():
 def test_all_known_keys_map():
     m = bench_meta("v3", base_image="b", tokens_in=1, tokens_out=2, produce_s=3.0,
                    head_sha="abc", commit="def", llm_calls=4, turns_used=5,
-                   dockerfile_source="v3_eval_build")
+                   cost_usd=0.5, dockerfile_source="v3_eval_build")
     assert m == {"agent": "v3", "base_image": "b", "tokens_in": 1, "tokens_out": 2,
-                 "llm_calls": 4, "turns_used": 5, "produce_s": 3.0, "head_sha": "abc",
-                 "commit": "def", "dockerfile_source": "v3_eval_build"}
+                 "llm_calls": 4, "turns_used": 5, "cost_usd": 0.5, "produce_s": 3.0,
+                 "head_sha": "abc", "commit": "def", "dockerfile_source": "v3_eval_build"}
+
+
+def test_cost_usd_kept_when_real_dropped_when_none():
+    # A real USD cost (Claude Code economy) is captured; an absent one is omitted.
+    assert bench_meta("claude", cost_usd=0.42)["cost_usd"] == 0.42
+    assert "cost_usd" not in bench_meta("claude", cost_usd=None)

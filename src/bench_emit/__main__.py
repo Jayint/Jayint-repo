@@ -8,7 +8,7 @@ from src.bench_emit.emit import emit_run
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m src.bench_emit")
     ap.add_argument("--run", required=True, help="run_root containing output/<owner>/<repo>")
-    ap.add_argument("--agent", required=True, choices=["v3", "repo2run", "rat"])
+    ap.add_argument("--agent", required=True, choices=["v3", "repo2run", "rat", "claude"])
     ap.add_argument("--dest", required=True, help="destination harvest tree root")
     a = ap.parse_args(argv)
 

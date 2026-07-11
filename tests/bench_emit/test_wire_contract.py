@@ -31,3 +31,27 @@ def test_emit_output_is_harvestable_by_bench(tmp_path):
     assert e.status == "ok" and e.repo.full_name == "pallets/click"
     assert "/testbed" in e.dockerfile and e.setup_scripts.get("setup.sh") == "pip install -e .\n"
     assert e.base_image == "python:3.11-slim" and e.meta.get("produce_s") == 100.0
+
+
+def test_claude_emit_output_is_harvestable_by_bench(tmp_path):
+    # a minimal claudecode-dockerfile run: eval_build/Dockerfile that clones to /testbed
+    # (self-contained, no siblings) + _meta.json with duration + Claude Code cost/turns.
+    repo = str(tmp_path / "run" / "output" / "pallets" / "click")
+    _write(os.path.join(repo, "eval_build", "Dockerfile"),
+           "FROM python:3.11\nRUN git clone --depth=1 https://github.com/pallets/click /testbed\nWORKDIR /testbed\nRUN pip install -e .\n")
+    _write(os.path.join(repo, "_meta.json"),
+           json.dumps({"base_image": "python:3.11-slim", "duration_s": 100.0,
+                       "head_sha": "abc123", "turns": 4, "agent_cost_usd": 0.42}))
+
+    dest = str(tmp_path / "harvest")
+    emit_run(str(tmp_path / "run"), "claude", dest)
+
+    envs = discover({"claude": dest})
+    assert len(envs) == 1
+    e = envs[0]
+    assert e.status == "ok" and e.repo.full_name == "pallets/click"
+    assert "/testbed" in e.dockerfile and e.setup_scripts == {}
+    # FROM is authoritative for claude, so base_image is the Dockerfile FROM tag.
+    assert e.base_image == "python:3.11"
+    assert e.meta.get("produce_s") == 100.0
+    assert e.meta.get("cost_usd") == 0.42 and e.meta.get("turns_used") == 4

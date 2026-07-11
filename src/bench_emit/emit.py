@@ -6,11 +6,11 @@ import shutil
 import sys
 from glob import glob
 
-from src.bench_emit.agents import rat, repo2run, v3
+from src.bench_emit.agents import claude, rat, repo2run, v3
 from src.bench_emit.meta import bench_meta
 from src.bench_emit.types import EmittedEnv
 
-_ADAPTERS = {"v3": v3, "repo2run": repo2run, "rat": rat}
+_ADAPTERS = {"v3": v3, "repo2run": repo2run, "rat": rat, "claude": claude}
 
 
 def _write(path: str, content: str) -> None:

@@ -12,6 +12,7 @@ def bench_meta(
     commit: str | None = None,
     llm_calls: int | None = None,
     turns_used: int | None = None,
+    cost_usd: float | None = None,
     dockerfile_source: str | None = None,
 ) -> dict:
     """Build a bench_meta.json payload, dropping keys whose value is None."""
@@ -22,6 +23,7 @@ def bench_meta(
         "tokens_out": tokens_out,
         "llm_calls": llm_calls,
         "turns_used": turns_used,
+        "cost_usd": cost_usd,
         "produce_s": produce_s,
         "head_sha": head_sha,
         "commit": commit,
