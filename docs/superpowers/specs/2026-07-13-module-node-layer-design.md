@@ -1,7 +1,36 @@
 # Module Node Layer — Design
 
+> ## ⛔ WITHDRAWN — 2026-07-13
+>
+> **Superseded by [`2026-07-13-local-module-resolution-fixes.md`](./2026-07-13-local-module-resolution-fixes.md).**
+> Retained for the record; **do not implement.**
+>
+> Adversarial review refuted three load-bearing claims:
+>
+> 1. **The headline motivation (§1.2 item 3) is false.** "A declared package whose
+>    install fails routes to `REPO_INTERNAL_REF` and cannot be repaired" — a pip
+>    failure produces neither `module_not_found` nor `import_name_error`, so it routes
+>    to `AMBIGUOUS` and repair **runs** (executed, 3/3). It is also self-contradictory:
+>    `setup.sh` runs `set -Eeuo pipefail`, so a failed install aborts before tests run.
+>    §1.2 also mis-cites the frontier drop — `REPO_INTERNAL_REF` does not touch
+>    `_residual_ids`; only `RESIDUAL` does.
+> 2. **The rule in §2 is broken on PEP 420.** `src/flask/sansio/` has no `__init__.py`
+>    but is a real subpackage (`flask.sansio.app`). The walk stops there and mints
+>    top-level **`app`** — the exact generic-name pollution §1.2 indicts. 12 such dirs
+>    across 6 of 21 repos, so §9's "if zero, move on" precondition is false.
+> 3. **The safety property in §5 is broken.** With `MAX_PYTHON_FILES = 1000`, netbox
+>    (1,184 `.py`) loses `extras` from the module set → classified external → Phase-A
+>    `ACCEPT`s the **real PyPI package `extras`** → `setup.sh` gains a **wrong**
+>    package. Reintroduces the wrong-guess class driven 6→0 by
+>    `phase2-identity-fallback-deletion`.
+>
+> Also: recovered packages on this corpus are **zero** (all 12 are declared and already
+> installed); no consumer traverses `CONTAINS`/`IMPORTS` edges; and
+> `diagnose.is_local_import` **already** does the top-level projection §2.1 presents as
+> the design's unifying insight — only its populator was ever wrong.
+
 **Date:** 2026-07-13
-**Status:** Spec, pending approval
+**Status:** WITHDRAWN (see above)
 **Scope:** `src/python_deps/` (construction), `src/envstate/` (scheduler), Python provider only
 
 ---
