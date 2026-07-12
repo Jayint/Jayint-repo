@@ -85,9 +85,14 @@ def _default_run(argv, timeout=None, cwd=None):
     except subprocess.TimeoutExpired as e:
         # Soft failure: a timed-out agent run becomes a failed attempt (rc 124 → claimed_done
         # False) rather than crashing build_one; keep-best over the other attempts still works.
-        out = (e.stdout or "") + (e.stderr or "")
-        if isinstance(out, bytes):
-            out = out.decode(errors="replace")
+        # On timeout, subprocess may hand back partial output as BYTES on one stream while the
+        # other is None; decode each independently BEFORE concatenating, or `bytes + ""` raises
+        # `TypeError: can't concat str to bytes` (hit on heavy repos nexent/feast that time out).
+        def _text(x):
+            if x is None:
+                return ""
+            return x.decode(errors="replace") if isinstance(x, bytes) else x
+        out = _text(e.stdout) + _text(e.stderr)
         return 124, out + f"\n[agent timed out after {timeout}s]"
 
 
