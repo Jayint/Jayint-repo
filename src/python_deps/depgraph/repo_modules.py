@@ -165,30 +165,36 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
 
     Keys are EXACTLY::
 
-        {n for n in local_module_names(repo) - top_level_names(repo) if n.isidentifier()}
+        {n for n in local_module_names(repo) - top_level_names(repo) if "." not in n}
 
-    -- NOT the full set difference. The sole consumer
-    (``diagnose.is_local_import``, and the ``classify_locality`` that will
-    join it) looks a key up by ``import_name.split(".", 1)[0]``: an import's
-    top-level segment, which is always a valid Python identifier. A BROAD name
-    that is not a valid identifier can never be produced by that lookup and so
-    can never be matched -- e.g. a dotted-stem file ``pkg/foo.bar.py``
-    contributes the BROAD name ``foo.bar`` (``scan.local_module_names`` takes
-    the bare filename minus ``.py``), but its ``_module_for`` leaf is only
-    ``bar`` (the dotted module is ``pkg.foo.bar``, and ``rsplit(".", 1)[-1]``
-    of THAT is ``bar``, not ``foo.bar``). ``foo.bar`` has no leaf-derived home
-    and is not a directory basename either, so keeping it would require
-    inventing a key no import can ever reach -- unreachable dead data, and
-    worse, an invariant that can't be stated cleanly. Filtering by
-    ``str.isidentifier()`` is therefore not a narrowing of behavior but the
-    correct definition of the key space, applied identically in both loops
-    below so a non-identifier can never enter the dict by either path: the
-    leaf-derived loop covers every identifier name sourced from a ``.py`` file
-    and every non-root package directory's own basename (a directory's own
-    ``__init__.py`` always inserts that directory's name into its dotted
-    path, so its basename always surfaces as *some* module's leaf) -- so
-    whatever identifier BROAD name still isn't a key after that loop can only
-    be the repo-root name, and it is added directly from the ``__init__.py``
+    -- NOT the full set difference. The sole consumer (``classify_locality``,
+    and the ``is_local_import`` it replaces) looks a key up by
+    ``import_name.split(".", 1)[0]``. That expression can return a name
+    containing any character EXCEPT a dot, so the key space is exactly the
+    dotless BROAD names, and the ONLY safe filter is a dot filter.
+
+    A dotted BROAD name is genuinely unreachable: ``pkg/foo.bar.py`` contributes
+    the BROAD name ``foo.bar`` (``scan.local_module_names`` takes the filename
+    minus ``.py``), but no ``split(".", 1)[0]`` can ever produce ``foo.bar``, so
+    such a key could never be matched. Dropping it is correct.
+
+    **Do NOT tighten this to ``str.isidentifier()``.** That was tried and it
+    opened a hole. A non-identifier name is NOT unreachable: ``import foo-bar``
+    is a SyntaxError, but ``importlib.import_module("foo-bar")`` is legal and
+    raises ``ModuleNotFoundError: No module named 'foo-bar'`` -- whose top-level
+    segment is ``foo-bar``, a perfectly good lookup key. Under an identifier
+    filter, ``pkg/foo-bar.py`` would leave ``foo-bar`` out of the collision map,
+    the router would classify it ``EXTERNAL``, and the repair loop would install
+    a PyPI package named ``foo-bar``. The old over-broad guard suppressed that
+    name; the dot filter preserves the suppression, an identifier filter does not.
+
+    The filter is applied identically in both loops below, so no dotted name can
+    enter the dict by either path. The leaf-derived loop covers every dotless
+    name sourced from a ``.py`` file and every non-root package directory's own
+    basename (a directory's own ``__init__.py`` always inserts that directory's
+    name into its dotted path, so its basename always surfaces as *some*
+    module's leaf) -- so whatever dotless BROAD name still isn't a key after that
+    loop can only be the repo-root name, added directly from the ``__init__.py``
     path that produced it.
 
     Returns ``{bare_name: value}``. ``value`` is the real dotted module name
@@ -219,24 +225,25 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
         # (`azure` from `...backends.azure`) or a package dir basename (`backends`
         # from its own `__init__.py`, whose dotted name ends in `backends`).
         # A module's TOP-level segment is by definition in `tops`, so it can never
-        # be a collision — only the leaf can. `isidentifier()` excludes a leaf
-        # that could never BE the top-level segment of any import (the only
-        # thing a key is ever matched against) -- see the docstring's
-        # `foo.bar.py` example.
+        # be a collision — only the leaf can. The dot filter excludes a name that
+        # could never BE the top-level segment of any import (the only thing a key
+        # is matched against) -- see the docstring's `foo.bar.py` example. It is
+        # deliberately NOT `isidentifier()`: see the docstring's `foo-bar` hole.
         leaf = module.dotted.rsplit(".", 1)[-1]
-        if leaf in broad and leaf not in tops and leaf.isidentifier():
+        if leaf in broad and leaf not in tops and "." not in leaf:
             previous = evidence.get(leaf)
             if previous is None or module.dotted < previous:
                 evidence[leaf] = module.dotted
 
     # Residual: BROAD names the leaf loop above cannot reach. Provably just the
-    # repo-root case (see docstring) among identifier names -- but computed
-    # here rather than hardcoded, so the invariant holds even if that proof's
-    # premises ever shift. Non-identifier residues (e.g. a dotted-stem file's
-    # broad name) are dropped here too: they can never be looked up by
-    # `import_name.split(".", 1)[0]`, so keeping them would be unreachable
-    # dead data.
-    residual = {n for n in broad - tops - evidence.keys() if n.isidentifier()}
+    # repo-root case (see docstring) among dotless names -- but computed here
+    # rather than hardcoded, so the invariant holds even if that proof's premises
+    # ever shift. Dotted residues (e.g. a dotted-stem file's broad name) are
+    # dropped here too: they can never be looked up by
+    # `import_name.split(".", 1)[0]`, so keeping them would be unreachable dead
+    # data. Dotless non-identifiers (`foo-bar`) are KEPT -- they ARE reachable,
+    # via importlib.import_module.
+    residual = {n for n in broad - tops - evidence.keys() if "." not in n}
     if residual:
         init_paths = _init_dir_source_paths(repo_path)
         for name in sorted(residual):

@@ -166,15 +166,13 @@ def test_stem_collisions_is_exactly_broad_minus_precise(tmp_path):
     fixture includes a root `__init__.py` specifically to close that gap.
 
     It also includes a dotted-stem file (`pkg/foo.bar.py`) so the invariant is
-    exercised over its true, narrower form: `broad - precise` FILTERED to
-    valid identifiers, not the raw set difference. `"foo.bar"` (the BROAD
-    name `local_module_names` harvests from the bare filename) is in
-    `broad - precise` but is NOT a valid identifier -- it can never be
-    `import_name.split(".", 1)[0]` for any import, the only shape
-    `stem_collisions`'s sole consumer ever looks up -- so it must be absent
-    from the result. Without this fixture, a regression that let non-identifier
-    names leak back into the dict would pass every other assertion in this
-    file, since none of them contain a dotted stem."""
+    exercised over its true, narrower form: `broad - precise` FILTERED to DOTLESS
+    names, not the raw set difference. `"foo.bar"` (the BROAD name
+    `local_module_names` harvests from the bare filename) is in `broad - precise`
+    but can never be `import_name.split(".", 1)[0]` for any import -- the only
+    shape `stem_collisions`'s sole consumer ever looks up -- so it must be absent.
+    Without this fixture, a regression that let dotted names leak back into the
+    dict would pass every other assertion in this file."""
     _write(tmp_path, "__init__.py")
     _write(tmp_path, "wagtail/__init__.py")
     _write(tmp_path, "wagtail/contrib/__init__.py")
@@ -190,8 +188,37 @@ def test_stem_collisions_is_exactly_broad_minus_precise(tmp_path):
     assert "foo.bar" not in stem_collisions(str(tmp_path))  # but it's unreachable
 
     assert set(stem_collisions(str(tmp_path))) == {
-        n for n in broad - precise if n.isidentifier()
+        n for n in broad - precise if "." not in n
     }
+
+
+def test_non_identifier_stem_is_still_a_collision(tmp_path):
+    """`pkg/foo-bar.py` must be a COLLISION, never a plain external.
+
+    Regression guard. The filter here was briefly `str.isidentifier()`, on the
+    reasoning that a non-identifier could never be an import's top-level segment.
+    That reasoning was WRONG, and the hole it opened is a wrong-install:
+
+        `import foo-bar` is a SyntaxError, but
+        `importlib.import_module("foo-bar")` is legal and raises
+        `ModuleNotFoundError: No module named 'foo-bar'`
+
+    whose top-level segment is `foo-bar` -- a perfectly good lookup key. Under an
+    identifier filter, `foo-bar` fell out of the collision map, the router
+    classified it EXTERNAL, and the repair loop would install a PyPI package
+    named `foo-bar`. The old over-broad guard suppressed that name; only a DOT
+    filter preserves the suppression.
+    """
+    _write(tmp_path, "pkg/__init__.py")
+    _write(tmp_path, "pkg/foo-bar.py")
+
+    collisions = stem_collisions(str(tmp_path))
+    assert "foo-bar" in collisions, (
+        "a dotless non-identifier stem is reachable via importlib.import_module and "
+        "MUST stay in the collision zone; classifying it EXTERNAL installs a wrong "
+        "PyPI package"
+    )
+    assert "foo-bar" not in top_level_names(str(tmp_path))
 
 
 def test_repo_root_package_name_is_a_collision_not_external(tmp_path):
