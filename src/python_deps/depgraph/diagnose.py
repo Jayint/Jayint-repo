@@ -125,6 +125,38 @@ def _previously_disproven(disc, import_name: str, invalid_names: frozenset[str])
 _RESIDUAL_RE = re.compile(r"\bAssertionError\b")
 
 
+def _locality_diagnosis(import_name: str, ctx: RepoContext) -> Diagnosis | None:
+    """Route on locality alone, BEFORE consulting the package mapper.
+
+    Returns ``None`` when the name is EXTERNAL and normal classification should
+    proceed. Handles both terminal locality modes:
+
+    * ``REPO_MODULE``     -> REPO_INTERNAL_REF. Genuinely ours; the graph cannot
+      close it by adding a node.
+    * ``STEM_COLLISION``  -> INVALID_ATTEMPT if pip already disproved the name,
+      else AMBIGUOUS carrying the real dotted module path as evidence. NEVER a
+      silent give-up (that is the `azure` bug) and NEVER an ENVIRONMENT discovery
+      (that is the `items` bug -- a real PyPI package that must not be installed).
+    """
+    locality = classify_locality(import_name, ctx)
+    if locality is Locality.REPO_MODULE:
+        return Diagnosis(Mode.REPO_INTERNAL_REF, None,
+                         f"{import_name!r} resolves to a repo-local module")
+    if locality is Locality.STEM_COLLISION:
+        if _previously_disproven(None, import_name, ctx.invalid_names):
+            return Diagnosis(Mode.INVALID_ATTEMPT, None,
+                             f"import {import_name!r} was previously disproven")
+        top = import_name.split(".", 1)[0]
+        real = ctx.collisions[top]
+        return Diagnosis(
+            Mode.AMBIGUOUS, None,
+            f"import {import_name!r} collides with repo file {real!r} but is NOT an "
+            f"importable top-level of this repo — it is either a missing external "
+            f"package or a sys.path-dependent sibling import; probe before repair",
+        )
+    return None
+
+
 def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     """Classify one (command, output) failure into a routing Mode.
 
@@ -146,9 +178,9 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     # (invalid), or a genuine external package requirement.
     if dep.failure_type == "module_not_found":
         import_name = dep.import_name or ""
-        if is_local_import(import_name, ctx.local_names):
-            return Diagnosis(Mode.REPO_INTERNAL_REF, None,
-                             f"{import_name!r} resolves to a repo-local module")
+        by_locality = _locality_diagnosis(import_name, ctx)
+        if by_locality is not None:
+            return by_locality
         disc = classify_observation(command, text)
         if disc is None:
             return Diagnosis(Mode.AMBIGUOUS, None,
@@ -171,9 +203,9 @@ def diagnose(command: str, output: str, ctx: RepoContext) -> Diagnosis:
     # mint a bogus package node the traceback doesn't actually support.
     if dep.failure_type == "import_name_error":
         import_name = dep.import_name or ""
-        if is_local_import(import_name, ctx.local_names):
-            return Diagnosis(Mode.REPO_INTERNAL_REF, None,
-                             f"{import_name!r} resolves to a repo-local module")
+        by_locality = _locality_diagnosis(import_name, ctx)
+        if by_locality is not None:
+            return by_locality
         failed_from = dep.details.get("module_name", import_name)
         disc = classify_observation(command, text)
         if disc is None or disc.data.get("import_name") != failed_from:
