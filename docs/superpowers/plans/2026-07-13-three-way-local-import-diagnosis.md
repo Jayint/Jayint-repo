@@ -226,14 +226,17 @@ def _has_init(directory: Path) -> bool:
 def _module_for(file_path: Path, repo: Path) -> ModuleDef | None:
     parts: list[str] = []
     current = file_path.parent
-    while current != repo.parent:
-        if _has_init(current):
-            parts.insert(0, current.name)
-            current = current.parent
-            continue
-        # PEP 420: no __init__.py here, but the PARENT has one -> we are still
-        # inside a package, not at a sys.path root. Keep climbing.
-        if current != repo and _has_init(current.parent):
+    # The repo root is ALWAYS a terminal sys.path root: `while current != repo`
+    # is what makes "never climb above the repo root" structural rather than a
+    # check we could forget. A repo whose own root has __init__.py must NOT have
+    # its own directory name consumed as a package segment -- that would walk out
+    # of the tree and `relative_to(repo)` below would raise ValueError.
+    while current != repo:
+        # Climb through a package dir, and through a PEP 420 namespace dir (no
+        # __init__.py of its own, but its parent has one -> still inside a
+        # package, not a sys.path root). Without the second clause,
+        # `src/flask/sansio/` reads as a root and mints the top-level `app`.
+        if _has_init(current) or _has_init(current.parent):
             parts.insert(0, current.name)
             current = current.parent
             continue
@@ -409,7 +412,7 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `python3 -m pytest tests/depgraph/test_repo_modules.py -q`
-Expected: PASS, 12 passed
+Expected: PASS, 13 passed (9 from Task 1 + 4 here)
 
 - [ ] **Step 5: Commit**
 
@@ -658,6 +661,29 @@ def test_collision_precedes_invalid_attempt_check():
                  "ModuleNotFoundError: No module named 'azure'",
                  ctx)
     assert d.mode is Mode.INVALID_ATTEMPT
+
+
+def test_import_name_error_stem_collision_routes_ambiguous():
+    """Task 4 patches BOTH branches. The import_name_error branch needs its own
+    test or a regression there ships silently."""
+    d = diagnose(
+        "python -m pytest -q",
+        "ImportError: cannot import name 'Foo' from 'items' "
+        "(docs_src/subcommands/tutorial001/items.py)",
+        _TYPER_CTX,
+    )
+    assert d.mode is Mode.AMBIGUOUS
+    assert d.discovery is None
+    assert "tutorial001.items" in d.reason
+
+
+def test_import_name_error_repo_module_routes_repo_internal_ref():
+    d = diagnose(
+        "python -m pytest -q",
+        "ImportError: cannot import name 'Foo' from 'wagtail' (wagtail/__init__.py)",
+        _WAGTAIL_CTX,
+    )
+    assert d.mode is Mode.REPO_INTERNAL_REF
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -919,7 +945,175 @@ git commit -m "feat(orchestrator): diagnose on precise top-levels + collision ev
 
 ---
 
-### Task 6: Real-repo regression tests
+### Task 6: Plumb the collision evidence into the repair prompt (SAFETY-CRITICAL)
+
+**Files:**
+- Modify: `src/envstate/orchestrator.py` — `_repair_or_route` (the `run_structured_repair` call, ~line 787)
+- Test: `tests/envstate/test_repair_routing.py`
+
+**Interfaces:**
+- Consumes: `classify_locality`, `Locality`, `RepoContext.collisions` (Task 3); the existing `constraints` parameter of `run_structured_repair`.
+- Produces: no new symbols.
+
+**Without this task, Tasks 1-5 are unsafe and the design's safety argument is fiction.**
+
+`_repair_or_route` reads only `d.mode` — never `d.reason`. `run_structured_repair` passes `bundle` (raw command + stderr) to `build_repair_scope`, which builds a `RepairScope` with no knowledge of the diagnosis. `render_repair_scope` therefore shows the LLM a bare `ModuleNotFoundError: No module named 'items'` with **no signal that this is a stem collision**. And `patch_gate.validate_proposal` is purely *structural* — it checks id prefixes, layers, evidence refs, and that the check command is read-only. It has **no semantic check** that a proposed package is a real external distribution. A single `propose()` turn returning `pip install items` is admitted with zero errors.
+
+So routing collisions to `AMBIGUOUS` without plumbing the evidence just swaps a silent give-up for a silent **wrong install** — the exact failure that killed two prior designs, relocated from the deterministic ladder to the LLM path.
+
+The channel already exists and is unused: `run_structured_repair(..., constraints=None)` → `build_repair_scope(constraints=cons)` → `RepairScope.constraints` → `render_repair_scope` emits `"Constraints: k=v"`. `_repair_or_route` never passes it. That is exactly the right vehicle — a constraint *constrains what the LLM may propose*.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/envstate/test_repair_routing.py`:
+
+```python
+def test_collision_evidence_reaches_the_repair_prompt(tmp_path, monkeypatch):
+    """The LLM MUST be told the name collides with a repo file, or it will
+    happily `pip install items` — a real PyPI package that must never be
+    installed. patch_gate validates structure only; it will admit it."""
+    from src.envstate.repair_scope import render_repair_scope
+
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001").mkdir(parents=True)
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001" / "__init__.py").write_text("")
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001" / "items.py").write_text("")
+
+    seen_scopes = []
+
+    class _ScopeCapturingAgent(_RecordingBuildAgent):
+        def propose(self, scope, rejection_errors=None):
+            seen_scopes.append(scope)
+            return super().propose(scope, rejection_errors=rejection_errors)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="python -m pytest -q", lineno=None,
+            stderr="ModuleNotFoundError: No module named 'items'",
+        )
+
+    agent = _ScopeCapturingAgent()
+    inputs = _base_inputs(agent, run_install_script, repo_path=str(tmp_path))
+    orchestrator.run_v3(**inputs)
+
+    assert seen_scopes, "propose was never called — the collision was dropped"
+    rendered = render_repair_scope(seen_scopes[0])
+    assert "tutorial001.items" in rendered, (
+        "the repair prompt does not tell the agent that 'items' is a repo file; "
+        "it will install the PyPI package `items`, which is WRONG"
+    )
+    assert "do not install" in rendered.lower()
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python3 -m pytest tests/envstate/test_repair_routing.py::test_collision_evidence_reaches_the_repair_prompt -q`
+Expected: FAIL — `assert "tutorial001.items" in rendered`. The scope carries no collision signal.
+
+- [ ] **Step 3: Write the implementation**
+
+In `src/envstate/orchestrator.py`, inside `_repair_or_route`, immediately before the `run_structured_repair(...)` call, build the constraint and pass it:
+
+```python
+        # SAFETY: a stem collision is NOT decidable from the tree (see
+        # repo_modules.stem_collisions). `azure` is a genuinely missing package;
+        # `items` is a sys.path sibling AND a real PyPI distribution that must
+        # never be installed. patch_gate validates STRUCTURE only -- it will admit
+        # `pip install items` without complaint. The agent has the traceback (which
+        # shows HOW the importer was loaded); give it the one fact the traceback
+        # lacks -- that the repo defines a file by this name, and where.
+        _cons: dict[str, str] = {}
+        for _d in _diagnoses:
+            _imp = (_d.discovery.data or {}).get("import_name") if _d.discovery else None
+            _imp = _imp or _failed_import_name(bundle)
+            if _imp and classify_locality(_imp, _ctx) is Locality.STEM_COLLISION:
+                _real = _ctx.collisions[_imp.split(".", 1)[0]]
+                _cons["local_module_collision"] = (
+                    f"{_imp!r} is NOT an importable top-level module of this repo, but the "
+                    f"repo DOES define the file {_real!r}. This is either a genuinely missing "
+                    f"external package OR a sys.path/PYTHONPATH problem with a sibling import. "
+                    f"DO NOT install a PyPI package named {_imp!r} unless the traceback shows "
+                    f"the importer was loaded as an installed package (not run as a script)."
+                )
+
+        outcome = run_structured_repair(
+            graph, failed_id, bundle, cycle,
+            propose=..., emit=...,            # unchanged — keep the existing kwargs
+            constraints=_cons or None,        # NEW
+            target_hint=target_hint, cap_failed_id=cap_failed_id,
+        )
+```
+
+`_diagnoses` is the existing `diagnose_all(...)` result already computed in `_repair_or_route` (the local that feeds `modes`). Add the small helper near `_repo_ctx`:
+
+```python
+    def _failed_import_name(bundle) -> str | None:
+        """Top-level name from a ModuleNotFoundError in the bundle, if any."""
+        from python_deps.failure_classifier import classify_dependency_failure
+        for ev in (bundle.items if bundle is not None else ()):
+            if ev.rc == 0:
+                continue
+            dep = classify_dependency_failure(ev.command, ev.output_excerpt or "")
+            if dep.failure_type in ("module_not_found", "import_name_error"):
+                return dep.import_name or None
+        return None
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `python3 -m pytest tests/envstate/test_repair_routing.py -q`
+Expected: PASS
+
+- [ ] **Step 5: Verify a genuine external repair is UNAFFECTED**
+
+The constraint must appear only for collisions. Add:
+
+```python
+def test_plain_external_gets_no_collision_constraint(tmp_path, monkeypatch):
+    from src.envstate.repair_scope import render_repair_scope
+
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("")
+
+    seen = []
+
+    class _Cap(_RecordingBuildAgent):
+        def propose(self, scope, rejection_errors=None):
+            seen.append(scope)
+            return super().propose(scope, rejection_errors=rejection_errors)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="python -m pytest -q", lineno=None,
+            stderr="ModuleNotFoundError: No module named 'requests'",
+        )
+
+    inputs = _base_inputs(_Cap(), run_install_script, repo_path=str(tmp_path))
+    orchestrator.run_v3(**inputs)
+
+    assert seen
+    assert "local_module_collision" not in render_repair_scope(seen[0])
+```
+
+Run: `python3 -m pytest tests/envstate/test_repair_routing.py -q`
+Expected: PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/envstate/orchestrator.py tests/envstate/test_repair_routing.py
+git commit -m "fix(orchestrator): plumb stem-collision evidence into the repair prompt
+
+Without this, routing a collision to AMBIGUOUS swaps a silent give-up for a
+silent WRONG INSTALL: patch_gate validates structure only and will admit
+'pip install items' (a real PyPI dist that must never be installed for typer)."
+```
+
+---
+
+### Task 7: Real-repo regression tests
 
 **Files:**
 - Test: `tests/depgraph/test_repo_modules_real_repos.py`
@@ -1006,21 +1200,59 @@ def test_netbox_core_apps_stay_local():
 
 def test_precise_set_is_a_subset_of_the_broad_set():
     """The safety invariant: the new set is strictly NARROWER, so nothing that is
-    local today becomes external tomorrow by accident."""
+    local today becomes external tomorrow by accident.
+
+    NOTE the non-emptiness assertion. `frozenset() <= anything` is trivially True,
+    so a bug that made top_level_names() always return an empty set (e.g. broken
+    repo-path plumbing) would pass a bare subset check on every repo with zero
+    signal. Assert the set is populated AND that a known top-level is in it.
+    """
     from python_deps.depgraph.scan import local_module_names
 
+    expected = {"wagtail": "wagtail", "netbox": "dcim", "flask": "flask", "typer": "typer"}
     for base, name in ((_SERVICES, "wagtail"), (_SERVICES, "netbox"),
                        (_LIBS, "flask"), (_LIBS, "typer")):
         repo = _repo(base, name)
-        assert top_level_names(repo) <= local_module_names(repo), name
+        precise = top_level_names(repo)
+        assert precise, f"{name}: top_level_names is EMPTY — subset check would be vacuous"
+        assert expected[name] in precise, f"{name}: missing known top-level"
+        assert precise <= local_module_names(repo), name
 ```
 
-- [ ] **Step 2: Run the tests**
+- [ ] **Step 2: Make a fully-skipped run loud**
+
+These five are the highest-value regressions in the plan — they lock in the four cases every prior design got wrong. But the checkouts live under `outputs/`, which is **gitignored**, and this project has **no hosted CI**. So on a fresh clone, a new contributor's machine, or an agent in an isolated worktree, all five `pytest.skip` quietly among hundreds of other tests and nobody notices.
+
+Append to the same file:
+
+```python
+def test_at_least_one_real_repo_checkout_is_present():
+    """Fail loudly rather than skipping the entire real-repo regression suite.
+
+    If this fails, the checkouts are missing and the four regressions this file
+    exists for did NOT run. Populate outputs/ or accept the gap knowingly —
+    do not let it pass silently.
+    """
+    present = [
+        p.name
+        for base in (_SERVICES, _LIBS)
+        if base.is_dir()
+        for p in base.iterdir()
+        if p.is_dir()
+    ]
+    assert present, (
+        "no real repo checkouts under outputs/ — the wagtail/azure, typer/items, "
+        "jupyterhub/traitlets and netbox/extras regressions did NOT run. These are "
+        "the cases every prior design got wrong."
+    )
+```
+
+- [ ] **Step 3: Run the tests**
 
 Run: `python3 -m pytest tests/depgraph/test_repo_modules_real_repos.py -q -v`
-Expected: PASS (5 passed, or skipped if checkouts absent)
+Expected: PASS, 6 passed (**not** skipped — if you see skips, the checkouts are missing and the regressions did not run)
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add tests/depgraph/test_repo_modules_real_repos.py
@@ -1029,44 +1261,94 @@ git commit -m "test(depgraph): real-repo regressions — wagtail/azure, typer/it
 
 ---
 
-### Task 7: Prove construction did not move, and update the spec
+### Task 8: Lock the construction boundary as a TEST, and update the spec
 
 **Files:**
+- Create: `tests/depgraph/test_construction_boundary.py`
 - Modify: `docs/superpowers/specs/2026-07-13-local-module-resolution-fixes.md`
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Prove `setup.sh` is byte-identical**
+- [ ] **Step 1: Make the construction boundary a permanent test, not a one-time grep**
 
-Nothing in Tasks 1-6 touches `scan.scan_to_nodes`, `roots.select_roots`, or `build.py`. Confirm it:
+The invariant "the precise set must never reach construction" is the single most safety-critical fact in this plan — violating it installs a wrong PyPI package. A `grep` an implementer runs once cannot stop a future unrelated change from reintroducing it. This codebase already has precedent for source-assertion tests (`tests/envstate/test_repair_routing.py::test_single_repair_call_site_and_no_block_emit_in_source` uses `inspect.getsource`).
+
+Create `tests/depgraph/test_construction_boundary.py`:
+
+```python
+"""The precise (diagnosis-only) module set must NEVER reach construction.
+
+`repo_modules.top_level_names` is NARROWER than `scan.local_module_names`. That is
+correct for DIAGNOSIS (a false-local is a silent give-up) and CATASTROPHIC for
+CONSTRUCTION (a false-external reaches Phase-A's identity candidate ladder, which
+will ACCEPT and install an identically-named real PyPI distribution -- typer's
+`items` and netbox's `extras` are both real packages).
+
+This test is the guard rail. If it fails, do NOT relax it.
+"""
+from __future__ import annotations
+
+import inspect
+import sys
+from pathlib import Path
+
+_SRC = Path(__file__).resolve().parents[2] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from python_deps.depgraph import build, roots, scan
+
+_FORBIDDEN = ("top_level_names", "stem_collisions", "repo_modules")
+
+
+def test_construction_never_uses_the_diagnosis_only_precise_set():
+    for module in (scan, build, roots):
+        source = inspect.getsource(module)
+        for name in _FORBIDDEN:
+            assert name not in source, (
+                f"{module.__name__} references {name!r}. The precise module set is "
+                f"DIAGNOSIS-ONLY. Using it in construction makes Phase-A install a "
+                f"wrong PyPI package (typer `items`, netbox `extras`)."
+            )
+
+
+def test_scan_to_nodes_still_uses_the_broad_set():
+    """The conservative drop must stay conservative."""
+    source = inspect.getsource(scan.scan_to_nodes)
+    assert "_local_module_names(repo_path)" in source
+```
+
+- [ ] **Step 2: Run it**
+
+Run: `python3 -m pytest tests/depgraph/test_construction_boundary.py -q`
+Expected: PASS, 2 passed
+
+- [ ] **Step 3: Prove `setup.sh` is byte-identical**
 
 ```bash
 git diff main --stat -- src/python_deps/depgraph/scan.py
 ```
 Expected: only the `SKIP_WALK_DIRS` rename (Task 1, Step 3). No change to `_local_module_names`, `scan_to_nodes`, or `_in_scope_files`.
 
-```bash
-grep -rn "top_level_names\|stem_collisions\|repo_modules" src/python_deps/depgraph/scan.py src/python_deps/depgraph/build.py src/python_deps/depgraph/roots.py
-```
-Expected: **no matches.** The precise set must not have leaked into construction.
-
-- [ ] **Step 2: Run the full suite**
+- [ ] **Step 4: Run the full suite**
 
 Run: `python3 -m pytest tests/ -q`
 Expected: PASS
 
-- [ ] **Step 3: Rewrite the spec's design section**
+> **Note on the baseline:** the working tree currently has ~58 pre-existing failures from unrelated in-flight WIP (`emit.py`, `resolve_link.py`, `resolve_lock.py`, `wheel_oracle.py`, `react_repair/*` are all modified). Capture the baseline **before** starting (`git stash && pytest tests/ -q | tail -3 && git stash pop`) and compare, or you will chase failures this plan did not cause.
+
+- [ ] **Step 5: Rewrite the spec's design section**
 
 The spec currently describes a superseded two-fix design (replace `scan._local_module_names` wholesale; exclude `NodeType.IMPORT` from `schedule._is_actionable`). Both were refuted. Replace §1 and §2 with the three-way design, and add a "Superseded within this document" note recording why:
 
 - **Fix 1 (exclude `IMPORT` from `_is_actionable`) was dropped.** `orchestrator.py:1213-1251` routes tasks by `target_node_ids` into `run_structured_repair`, which hands the LLM a typed patch scope. It *can* propose `pip install azure-mgmt-cdn`. Excluding `IMPORT` would delete the strictly-more-capable repair channel for the exact case Fix 2 exists to serve. Also, the "documented live waste" cited from `orchestrator.py:1160` is the *rationale comment for the fast-termination fix* on the lines immediately below it — already mitigated.
 - **Fix 2 (replace the broad set wholesale) was narrowed.** typer's `items` proves a precise set is *unsafe* in `scan_to_nodes`: `items` is a real PyPI distribution, and a false-external there reaches Phase-A's identity candidate ladder and installs it. Over-breadth is the correct conservative bias in construction. Only `diagnose` gets the precise set.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-07-13-local-module-resolution-fixes.md
-git commit -m "docs(spec): three-way local-import diagnosis supersedes the two-fix design"
+git add tests/depgraph/test_construction_boundary.py docs/superpowers/specs/2026-07-13-local-module-resolution-fixes.md
+git commit -m "docs(spec)+test: three-way diagnosis supersedes the two-fix design; lock the construction boundary"
 ```
 
 ---
@@ -1074,16 +1356,29 @@ git commit -m "docs(spec): three-way local-import diagnosis supersedes the two-f
 ## Out of scope (deliberate)
 
 - **`scan.scan_to_nodes` / `scan._local_module_names`.** Unchanged. Its over-breadth is the correct conservative bias — see Global Constraints.
-- **`schedule._is_actionable`.** The `IMPORT` exclusion is dropped entirely (Task 7, Step 3).
+- **`schedule._is_actionable`.** The `IMPORT` exclusion is dropped entirely (Task 8, Step 5). `orchestrator.py:1213-1251` routes tasks by `target_node_ids` into `run_structured_repair`, so the LLM *can* repair an Import obligation — excluding it would delete the more capable channel for exactly the case this plan serves.
 - **`import_graph.collect_project_local_modules` / `SOURCE_ROOT_NAMES`.** Still used by `scan_imports` for its `project_local`/`stdlib`/`external` classification, which feeds `pkg_layer` and eval consumers. Deleting it is a separate change with its own blast radius.
 - **`scan._in_scope_files`.** A behavior-changing drop filter; separate change, separate eval.
 - **A `NodeType.MODULE` graph layer.** Withdrawn — see `docs/superpowers/specs/2026-07-13-module-node-layer-design.md`.
 
 ## Expected effect
 
+**Unchanged (verified by review against the code):**
 - `setup.sh`: **byte-identical.** Construction is untouched.
-- Import node set: **unchanged.** `scan_to_nodes` still drops the same names.
-- Eval metrics (`unresolved_imports`, root-selection A/B): **unchanged.** They read construction output.
-- The only behavior change: a runtime `ModuleNotFoundError` whose name is a stem collision now reaches the repair loop as `AMBIGUOUS` with evidence, instead of being silently dropped as `REPO_INTERNAL_REF`.
+- Import node set: **unchanged.** `scan_to_nodes` still reads the same broad set.
+- Eval metrics (`unresolved_imports`, root-selection A/B): **unchanged.** Both read construction output only; neither imports `diagnose`.
+- **The runtime-ingest path is also unchanged.** `make_diagnostic_classifier` returns a `Discovery` only for `ENVIRONMENT`; both `REPO_INTERNAL_REF` and `AMBIGUOUS` return `None`, so `ingest_runtime_failures` mints no node either way. The fix operates **solely** through `_repair_or_route`, which reads `d.mode` directly. This is narrower than "collisions now reach the loop" might suggest.
+
+**Changed — and it is more than one thing.** Where a collision previously hit `REPO_INTERNAL_REF` (`return graph`, a pure no-op), it now falls through to `run_structured_repair`. That differs in every one of these ways, all of which a reviewer should expect:
+1. **LLM turns**: 0 → up to `MAX_REPAIRS_PER_BLOCK` (5) attempts × up to 2 `propose()` calls, drawn from the run-global `_repair_turns` budget (seeded from `max_cycles`, default 12).
+2. **`_cycle_had_env_repair = True`** is set, which resets `_residual_stall` — the counter that would otherwise end the run via `GIVEUP_RESIDUAL`. A repeatedly-failing collision keeps the run alive longer than the old no-op did.
+3. `PatchGateRecord` tracing fires (it did not before).
+4. The graph, `manual_blocks`, and `known_invalid` can now be mutated on this path.
+5. `_budget_exhausted` can now flip on this path.
+6. The container can now be touched on this path.
+
+**Budget risk, stated plainly.** netbox has **547** collision names, wagtail **753**. Those are *static exposure*, not incidence — a collision costs nothing unless it actually raises `ModuleNotFoundError` at runtime, and the smoke corpus surfaced exactly **one** (wagtail's `azure`). But there is **no collision-specific cap**: they compete for the same global `_repair_turns` budget as any real repair. A repo with several simultaneously-failing collisions (e.g. multiple extras-gated deps) could burn the run's repair budget on them. If that shows up, cap collision-driven repairs separately — do not widen the budget.
+
+**Startup cost.** Task 5 runs three full `os.walk` traversals where there is one today (`top_level_names`, `stem_collisions`, and the broad walk `stem_collisions` calls). Measured: wagtail ~1.85s vs ~0.46s; netbox ~0.6s vs ~0.18s. One-time per run, not per cycle. If it matters, have `stem_collisions` return both sets from a single walk.
 
 Because construction does not move, this can land **before** the gold-set rebuild rather than after it.
