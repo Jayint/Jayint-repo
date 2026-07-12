@@ -725,8 +725,11 @@ def run_v3(
     # degrades to "no known local names", never REPO_INTERNAL_REF). invalid_names
     # accumulates as pip disproves package names across cycles; the context is
     # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
-    from python_deps.depgraph.diagnose import RepoContext, Mode, diagnose_all
+    from python_deps.depgraph.diagnose import (
+        Locality, Mode, RepoContext, classify_locality, diagnose_all,
+    )
     from python_deps.depgraph import repo_modules as _repo_modules
+    from python_deps.failure_classifier import classify_dependency_failure
     from python_deps.import_mapping import normalize_package_name
     # PRECISE top-levels for the give-up decision; the COLLISION zone (broad-walk
     # stems that are not importable top-levels) is routed to AMBIGUOUS with
@@ -786,7 +789,6 @@ def run_v3(
                     _residual_ids.add(failed_id)
             return graph
         if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
-            from python_deps.failure_classifier import classify_dependency_failure
             for (cmd, out), d in zip(observations, diags):
                 if d.mode is not Mode.INVALID_ATTEMPT:
                     continue
@@ -804,12 +806,10 @@ def run_v3(
         # `pip install items` without complaint. The agent has the traceback (which
         # shows HOW the importer was loaded); give it the one fact the traceback
         # lacks -- that the repo defines a file by this name, and where.
-        from python_deps.depgraph.diagnose import Locality, classify_locality
-        from python_deps.failure_classifier import classify_dependency_failure
         _cons: dict[str, str] = {}
         _ctx = _repo_ctx()
-        for _cmd, _out in observations:
-            _imp = classify_dependency_failure(_cmd, _out).import_name
+        for _cmd, _output in observations:
+            _imp = classify_dependency_failure(_cmd, _output).import_name
             if _imp and classify_locality(_imp, _ctx) is Locality.STEM_COLLISION:
                 _top = _imp.split(".", 1)[0]
                 _real = _ctx.collisions[_top]
