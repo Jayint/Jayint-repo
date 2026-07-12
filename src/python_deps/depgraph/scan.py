@@ -67,9 +67,13 @@ def _in_scope_files(source_files: tuple[str, ...]) -> tuple[str, ...]:
 
 
 # Dirs never worth walking for local-name detection (vcs/build/venv noise).
-_SKIP_WALK_DIRS: frozenset[str] = frozenset(
+# PUBLIC: `repo_modules` walks the SAME tree and MUST prune identically —
+# if the two walks diverge, the subset invariant in repo_modules breaks.
+SKIP_WALK_DIRS: frozenset[str] = frozenset(
     {".git", ".hg", ".svn", "__pycache__", ".mypy_cache", ".pytest_cache"}
 ) | _EXCLUDED_SEGMENTS
+
+_SKIP_WALK_DIRS: frozenset[str] = SKIP_WALK_DIRS  # back-compat alias
 
 
 def _local_module_names(repo_path: str) -> frozenset[str]:
