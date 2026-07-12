@@ -162,7 +162,18 @@ def test_stem_collisions_is_exactly_broad_minus_precise(tmp_path):
     """Set-equality, not spot-checks: `test_stem_collisions_are_broad_minus_precise`
     only asserted individual members, which is why a repo-root `__init__.py`
     could silently fall through the key set without failing any test. This
-    fixture includes a root `__init__.py` specifically to close that gap."""
+    fixture includes a root `__init__.py` specifically to close that gap.
+
+    It also includes a dotted-stem file (`pkg/foo.bar.py`) so the invariant is
+    exercised over its true, narrower form: `broad - precise` FILTERED to
+    valid identifiers, not the raw set difference. `"foo.bar"` (the BROAD
+    name `local_module_names` harvests from the bare filename) is in
+    `broad - precise` but is NOT a valid identifier -- it can never be
+    `import_name.split(".", 1)[0]` for any import, the only shape
+    `stem_collisions`'s sole consumer ever looks up -- so it must be absent
+    from the result. Without this fixture, a regression that let non-identifier
+    names leak back into the dict would pass every other assertion in this
+    file, since none of them contain a dotted stem."""
     _write(tmp_path, "__init__.py")
     _write(tmp_path, "wagtail/__init__.py")
     _write(tmp_path, "wagtail/contrib/__init__.py")
@@ -170,10 +181,16 @@ def test_stem_collisions_is_exactly_broad_minus_precise(tmp_path):
     _write(tmp_path, "wagtail/contrib/backends/azure.py")
     _write(tmp_path, "pkg/__init__.py")
     _write(tmp_path, "pkg/core.py")
+    _write(tmp_path, "pkg/foo.bar.py")
 
     broad = local_module_names(str(tmp_path))
     precise = top_level_names(str(tmp_path))
-    assert set(stem_collisions(str(tmp_path))) == broad - precise
+    assert "foo.bar" in broad - precise           # raw difference DOES contain it
+    assert "foo.bar" not in stem_collisions(str(tmp_path))  # but it's unreachable
+
+    assert set(stem_collisions(str(tmp_path))) == {
+        n for n in broad - precise if n.isidentifier()
+    }
 
 
 def test_repo_root_package_name_is_a_collision_not_external(tmp_path):
@@ -193,3 +210,27 @@ def test_repo_root_package_name_is_a_collision_not_external(tmp_path):
     assert "widget" in collisions
     assert collisions["widget"] == "__init__.py"
     assert set(collisions) == local_module_names(str(repo)) - top_level_names(str(repo))
+
+
+def test_leaf_derived_value_beats_repo_root_path_fallback(tmp_path):
+    """Pins the ACTUAL precedence (the docstring previously claimed a plain
+    global "lexicographically-first value wins", which is false).
+
+    Repo checked out into a directory named `widget` (root `__init__.py`,
+    same shape as the test above), but this time also containing
+    `sub/__init__.py` + `sub/widget.py`. The leaf-derived loop keys
+    `"widget"` -> `"sub.widget"` from the real nested module BEFORE the
+    residual loop ever runs, so the residual loop skips `"widget"` (already
+    keyed) -- even though the repo-root fallback's own evidence value
+    (`"__init__.py"`) sorts lexicographically FIRST against `"sub.widget"`.
+    This is intended: a real dotted module name is strictly better repair
+    evidence than a bare `__init__.py` path, so leaf-derived candidates must
+    always win over the repo-root fallback, never lose to it by sort order."""
+    repo = tmp_path / "widget"
+    _write(repo, "__init__.py")
+    _write(repo, "sub/__init__.py")
+    _write(repo, "sub/widget.py")
+
+    collisions = stem_collisions(str(repo))
+    assert "__init__.py" < "sub.widget"       # fallback value WOULD sort first
+    assert collisions["widget"] == "sub.widget"  # but the leaf-derived value wins

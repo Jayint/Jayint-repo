@@ -163,22 +163,49 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
     a runtime fact. The router therefore routes collisions to ``AMBIGUOUS`` and
     attaches this mapping as evidence, rather than deciding.
 
-    Keys are EXACTLY ``scan.local_module_names(repo) - top_level_names(repo)``,
-    true by construction: the leaf-derived loop below covers every name
-    sourced from a ``.py`` file and every non-root package directory's own
-    basename (a directory's own ``__init__.py`` always inserts that
-    directory's name into its dotted path, so its basename always surfaces as
-    *some* module's leaf) -- so whatever BROAD name still isn't a key after
-    that loop can only be the repo-root name, and it is added directly from
-    the ``__init__.py`` path that produced it.
+    Keys are EXACTLY::
+
+        {n for n in local_module_names(repo) - top_level_names(repo) if n.isidentifier()}
+
+    -- NOT the full set difference. The sole consumer
+    (``diagnose.is_local_import``, and the ``classify_locality`` that will
+    join it) looks a key up by ``import_name.split(".", 1)[0]``: an import's
+    top-level segment, which is always a valid Python identifier. A BROAD name
+    that is not a valid identifier can never be produced by that lookup and so
+    can never be matched -- e.g. a dotted-stem file ``pkg/foo.bar.py``
+    contributes the BROAD name ``foo.bar`` (``scan.local_module_names`` takes
+    the bare filename minus ``.py``), but its ``_module_for`` leaf is only
+    ``bar`` (the dotted module is ``pkg.foo.bar``, and ``rsplit(".", 1)[-1]``
+    of THAT is ``bar``, not ``foo.bar``). ``foo.bar`` has no leaf-derived home
+    and is not a directory basename either, so keeping it would require
+    inventing a key no import can ever reach -- unreachable dead data, and
+    worse, an invariant that can't be stated cleanly. Filtering by
+    ``str.isidentifier()`` is therefore not a narrowing of behavior but the
+    correct definition of the key space, applied identically in both loops
+    below so a non-identifier can never enter the dict by either path: the
+    leaf-derived loop covers every identifier name sourced from a ``.py`` file
+    and every non-root package directory's own basename (a directory's own
+    ``__init__.py`` always inserts that directory's name into its dotted
+    path, so its basename always surfaces as *some* module's leaf) -- so
+    whatever identifier BROAD name still isn't a key after that loop can only
+    be the repo-root name, and it is added directly from the ``__init__.py``
+    path that produced it.
 
     Returns ``{bare_name: value}``. ``value`` is the real dotted module name
     when one exists (e.g. ``"wagtail.contrib.backends.azure"``); for the
     repo-root residual -- which has no importable dotted name -- it is instead
     the repo-relative path of the file that produced the name (e.g.
     ``"__init__.py"``). Both read correctly when interpolated into the repair
-    prompt as ``the repo DOES define the file {value!r}``. On a name backed by
-    several files, the lexicographically-first value wins (deterministic).
+    prompt as ``the repo DOES define the file {value!r}``.
+
+    Precedence is deterministic but is NOT simple global lexicographic-first:
+    the leaf-derived loop runs first and always wins over the repo-root path
+    fallback, even when the fallback's own value would sort first -- a real
+    dotted module name is strictly better repair evidence than a bare
+    ``__init__.py`` path, so once a name is keyed by the leaf loop the
+    residual loop never revisits it. Only WITHIN the leaf loop, among several
+    leaf-derived candidates for the same bare name, does the
+    lexicographically-first dotted name win.
     """
     from python_deps.depgraph.scan import local_module_names
 
@@ -192,18 +219,24 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
         # (`azure` from `...backends.azure`) or a package dir basename (`backends`
         # from its own `__init__.py`, whose dotted name ends in `backends`).
         # A module's TOP-level segment is by definition in `tops`, so it can never
-        # be a collision — only the leaf can.
+        # be a collision — only the leaf can. `isidentifier()` excludes a leaf
+        # that could never BE the top-level segment of any import (the only
+        # thing a key is ever matched against) -- see the docstring's
+        # `foo.bar.py` example.
         leaf = module.dotted.rsplit(".", 1)[-1]
-        if leaf in broad and leaf not in tops:
+        if leaf in broad and leaf not in tops and leaf.isidentifier():
             previous = evidence.get(leaf)
             if previous is None or module.dotted < previous:
                 evidence[leaf] = module.dotted
 
     # Residual: BROAD names the leaf loop above cannot reach. Provably just the
-    # repo-root case (see docstring) -- but computed here rather than
-    # hardcoded, so the invariant holds even if that proof's premises ever
-    # shift.
-    residual = broad - tops - evidence.keys()
+    # repo-root case (see docstring) among identifier names -- but computed
+    # here rather than hardcoded, so the invariant holds even if that proof's
+    # premises ever shift. Non-identifier residues (e.g. a dotted-stem file's
+    # broad name) are dropped here too: they can never be looked up by
+    # `import_name.split(".", 1)[0]`, so keeping them would be unreachable
+    # dead data.
+    residual = {n for n in broad - tops - evidence.keys() if n.isidentifier()}
     if residual:
         init_paths = _init_dir_source_paths(repo_path)
         for name in sorted(residual):
