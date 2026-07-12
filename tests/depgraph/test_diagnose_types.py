@@ -9,7 +9,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from python_deps.depgraph.diagnose import (
-    Diagnosis, Mode, RepoContext, is_local_import,
+    Diagnosis, Locality, Mode, RepoContext, classify_locality, is_local_import,
 )
 from python_deps.depgraph.scan import local_module_names
 
@@ -44,3 +44,36 @@ def test_diagnosis_is_frozen():
     import pytest
     with pytest.raises(dataclasses.FrozenInstanceError):
         d.reason = "y"  # type: ignore[misc]
+
+
+def test_locality_repo_module():
+    ctx = RepoContext(local_names=frozenset({"wagtail"}))
+    assert classify_locality("wagtail", ctx) is Locality.REPO_MODULE
+    assert classify_locality("wagtail.admin", ctx) is Locality.REPO_MODULE
+
+
+def test_locality_stem_collision():
+    ctx = RepoContext(
+        local_names=frozenset({"wagtail"}),
+        collisions={"azure": "wagtail.contrib.frontend_cache.backends.azure"},
+    )
+    assert classify_locality("azure", ctx) is Locality.STEM_COLLISION
+    assert classify_locality("azure.mgmt.cdn", ctx) is Locality.STEM_COLLISION
+
+
+def test_locality_external():
+    ctx = RepoContext(local_names=frozenset({"wagtail"}))
+    assert classify_locality("requests", ctx) is Locality.EXTERNAL
+    assert classify_locality("", ctx) is Locality.EXTERNAL
+
+
+def test_repo_module_wins_over_collision():
+    """A name in BOTH sets is a real top-level — never a collision."""
+    ctx = RepoContext(local_names=frozenset({"pkg"}), collisions={"pkg": "other.pkg"})
+    assert classify_locality("pkg", ctx) is Locality.REPO_MODULE
+
+
+def test_default_context_has_no_collisions():
+    """Back-compat: every existing RepoContext(...) call site keeps working."""
+    assert RepoContext().collisions == {}
+    assert classify_locality("anything", RepoContext()) is Locality.EXTERNAL

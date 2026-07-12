@@ -27,8 +27,29 @@ class Mode(enum.Enum):
     AMBIGUOUS = "ambiguous"                        # unclear -> probe then reclassify
 
 
+class Locality(enum.Enum):
+    """Where a failing import's name comes from, as far as the TREE can tell.
+
+    The three-way split exists because the tree CANNOT decide the middle case.
+    ``wagtail...backends.azure`` and ``tutorial001.items`` are structurally
+    identical -- a .py file whose stem collides with a real PyPI name -- yet
+    ``azure`` needs installing and ``items`` must never be installed. What
+    separates them is whether the importer ran as a script (``sys.path[0]`` = its
+    own directory) or was imported as a package module. That is a runtime fact,
+    visible in the traceback and invisible to any walk.
+    """
+
+    REPO_MODULE = "repo_module"        # an importable top-level the repo defines
+    STEM_COLLISION = "stem_collision"  # matches a .py stem, but is NOT importable as a top-level
+    EXTERNAL = "external"              # the repo has nothing by this name
+
+
 @dataclass(frozen=True)
 class RepoContext:
+    # PRECISE, sys.path-accurate top-level module names (repo_modules.top_level_names).
+    # NOT scan.local_module_names -- that set is deliberately over-broad (it harvests
+    # every .py stem anywhere) and using it here is what makes the router give up
+    # silently on `azure`/`traitlets`/`jinja2`.
     local_names: frozenset[str] = field(default_factory=frozenset)
     # PEP-503-normalized (see ``_norm``) disproven package names — callers must
     # normalize before constructing (``diagnose`` compares both sides via
@@ -37,6 +58,11 @@ class RepoContext:
     # heterogeneous key space of raw failed commands + node/block ids —
     # mixing normalized package names into it would corrupt equality lookups.
     invalid_names: frozenset[str] = field(default_factory=frozenset)
+    # {bare_name: real_dotted_name} for names the broad walk harvests that are NOT
+    # importable top-levels (repo_modules.stem_collisions). Evidence, not a verdict:
+    # the router hands these to the repair loop rather than deciding. Excluded from
+    # eq/hash (dict is unhashable; RepoContext is otherwise a value object).
+    collisions: dict[str, str] = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True)
@@ -56,6 +82,22 @@ def is_local_import(import_name: str, local_names: frozenset[str]) -> bool:
     if not import_name:
         return False
     return import_name.split(".", 1)[0] in local_names
+
+
+def classify_locality(import_name: str, ctx: RepoContext) -> Locality:
+    """Three-way locality of a failing import, by its top-level segment.
+
+    ``REPO_MODULE`` wins over ``STEM_COLLISION``: a name that is a genuine
+    importable top-level is never merely a collision.
+    """
+    if not import_name:
+        return Locality.EXTERNAL
+    top = import_name.split(".", 1)[0]
+    if top in ctx.local_names:
+        return Locality.REPO_MODULE
+    if top in ctx.collisions:
+        return Locality.STEM_COLLISION
+    return Locality.EXTERNAL
 
 
 def _norm(name: str) -> str:
