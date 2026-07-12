@@ -108,14 +108,53 @@ def top_level_names(repo_path: str) -> frozenset[str]:
     return frozenset(m.dotted.split(".", 1)[0] for m in repo_modules(repo_path))
 
 
+def _init_dir_source_paths(repo_path: str) -> dict[str, str]:
+    """Repo-relative ``__init__.py`` path, keyed by the directory basename the
+    BROAD walk harvests for it (``scan.local_module_names`` adds
+    ``os.path.basename(dirpath)`` for every directory containing
+    ``__init__.py`` -- including the repo root itself).
+
+    Used only to give a value to the residual names :func:`stem_collisions`
+    cannot resolve to a dotted module name -- see there for why the repo root
+    is the one directory whose own basename never becomes a
+    :class:`ModuleDef` leaf. Deterministic tie-break: if two directories ever
+    shared a basename, the lexicographically-first path wins.
+    """
+    repo = Path(repo_path)
+    paths: dict[str, str] = {}
+    for dirpath, dirnames, filenames in os.walk(repo):
+        dirnames[:] = [d for d in dirnames if d.lower() not in SKIP_WALK_DIRS]
+        if "__init__.py" not in filenames:
+            continue
+        name = os.path.basename(dirpath)
+        rel = (Path(dirpath) / "__init__.py").relative_to(repo).as_posix()
+        previous = paths.get(name)
+        if previous is None or rel < previous:
+            paths[name] = rel
+    return paths
+
+
 def stem_collisions(repo_path: str) -> dict[str, str]:
     """Names the BROAD walk harvests that are NOT importable top-levels.
 
     ``scan.local_module_names`` collects every ``.py`` stem and ``__init__`` dir
-    basename anywhere in the tree. The difference between that set and
-    :func:`top_level_names` is the COLLISION ZONE: names like wagtail's ``azure``
-    (really ``wagtail...backends.azure``) and typer's ``items`` (really
-    ``tutorial001.items``).
+    basename anywhere in the tree -- INCLUDING the repo's own root directory
+    when the root itself has an ``__init__.py`` (a project checked out into a
+    directory that happens to look like a package). The difference between
+    that set and :func:`top_level_names` is the COLLISION ZONE: names like
+    wagtail's ``azure`` (really ``wagtail...backends.azure``), typer's
+    ``items`` (really ``tutorial001.items``) -- and that repo-root name.
+
+    The repo-root case is a collision, not a top-level, for the same reason as
+    the others: it is NOT importable by that name. Importing it would require
+    the repo's *parent* directory on ``sys.path``, which never happens --
+    pytest puts the repo ROOT on ``sys.path``, making its CHILDREN importable,
+    never the root itself (``_module_for`` returns ``None`` for the root's own
+    ``__init__.py`` precisely because its dotted name would be empty). If this
+    name fell through to EXTERNAL instead, the repair loop would ``pip
+    install`` a same-named PyPI package to fix what is really a
+    PYTHONPATH/rootdir problem -- the exact wrong-install failure this module
+    exists to prevent.
 
     A collision is NOT decidable statically. ``azure`` is a real missing PyPI
     package; ``items`` is a sibling script reachable only because its directory
@@ -124,8 +163,22 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
     a runtime fact. The router therefore routes collisions to ``AMBIGUOUS`` and
     attaches this mapping as evidence, rather than deciding.
 
-    Returns ``{bare_name: real_dotted_name}``. On a name backed by several files,
-    the lexicographically-first dotted name wins (deterministic).
+    Keys are EXACTLY ``scan.local_module_names(repo) - top_level_names(repo)``,
+    true by construction: the leaf-derived loop below covers every name
+    sourced from a ``.py`` file and every non-root package directory's own
+    basename (a directory's own ``__init__.py`` always inserts that
+    directory's name into its dotted path, so its basename always surfaces as
+    *some* module's leaf) -- so whatever BROAD name still isn't a key after
+    that loop can only be the repo-root name, and it is added directly from
+    the ``__init__.py`` path that produced it.
+
+    Returns ``{bare_name: value}``. ``value`` is the real dotted module name
+    when one exists (e.g. ``"wagtail.contrib.backends.azure"``); for the
+    repo-root residual -- which has no importable dotted name -- it is instead
+    the repo-relative path of the file that produced the name (e.g.
+    ``"__init__.py"``). Both read correctly when interpolated into the repair
+    prompt as ``the repo DOES define the file {value!r}``. On a name backed by
+    several files, the lexicographically-first value wins (deterministic).
     """
     from python_deps.depgraph.scan import local_module_names
 
@@ -145,4 +198,16 @@ def stem_collisions(repo_path: str) -> dict[str, str]:
             previous = evidence.get(leaf)
             if previous is None or module.dotted < previous:
                 evidence[leaf] = module.dotted
+
+    # Residual: BROAD names the leaf loop above cannot reach. Provably just the
+    # repo-root case (see docstring) -- but computed here rather than
+    # hardcoded, so the invariant holds even if that proof's premises ever
+    # shift.
+    residual = broad - tops - evidence.keys()
+    if residual:
+        init_paths = _init_dir_source_paths(repo_path)
+        for name in sorted(residual):
+            path = init_paths.get(name)
+            if path is not None:
+                evidence[name] = path
     return evidence

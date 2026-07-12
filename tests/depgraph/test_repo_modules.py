@@ -100,6 +100,7 @@ def test_typer_tutorial_leaf_package_under_non_package_parent(tmp_path):
 
 
 from python_deps.depgraph.repo_modules import stem_collisions
+from python_deps.depgraph.scan import local_module_names
 
 
 def test_stem_collisions_are_broad_minus_precise(tmp_path):
@@ -155,3 +156,40 @@ def test_sys_path_root_values(tmp_path):
     assert roots["src/flask/app.py"] == "src"
     assert roots["netbox/extras/models.py"] == "netbox"
     assert roots["mod.py"] == "."
+
+
+def test_stem_collisions_is_exactly_broad_minus_precise(tmp_path):
+    """Set-equality, not spot-checks: `test_stem_collisions_are_broad_minus_precise`
+    only asserted individual members, which is why a repo-root `__init__.py`
+    could silently fall through the key set without failing any test. This
+    fixture includes a root `__init__.py` specifically to close that gap."""
+    _write(tmp_path, "__init__.py")
+    _write(tmp_path, "wagtail/__init__.py")
+    _write(tmp_path, "wagtail/contrib/__init__.py")
+    _write(tmp_path, "wagtail/contrib/backends/__init__.py")
+    _write(tmp_path, "wagtail/contrib/backends/azure.py")
+    _write(tmp_path, "pkg/__init__.py")
+    _write(tmp_path, "pkg/core.py")
+
+    broad = local_module_names(str(tmp_path))
+    precise = top_level_names(str(tmp_path))
+    assert set(stem_collisions(str(tmp_path))) == broad - precise
+
+
+def test_repo_root_package_name_is_a_collision_not_external(tmp_path):
+    """A repo checked out into a directory named `widget`, with `widget/__init__.py`
+    and `widget/child.py`: BROAD = {"widget", "child"}, PRECISE = {"child"} (the
+    root's own __init__.py yields no ModuleDef -- its dotted name would be
+    empty), so the required collision key is {"widget"}. If `widget` fell
+    through to EXTERNAL, the repair loop would `pip install widget` to fix what
+    is really a PYTHONPATH problem -- the wrong-install failure this module
+    exists to prevent."""
+    repo = tmp_path / "widget"
+    _write(repo, "__init__.py")
+    _write(repo, "child.py")
+
+    assert top_level_names(str(repo)) == {"child"}
+    collisions = stem_collisions(str(repo))
+    assert "widget" in collisions
+    assert collisions["widget"] == "__init__.py"
+    assert set(collisions) == local_module_names(str(repo)) - top_level_names(str(repo))
