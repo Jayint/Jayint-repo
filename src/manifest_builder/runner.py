@@ -97,11 +97,15 @@ def _default_run(argv, timeout=None, cwd=None):
 
 
 class ClaudeRunner:
-    def __init__(self, *, model="opus", argv_template=None, run=None):
+    def __init__(self, *, model="opus", argv_template=None, run=None, timeout=None):
         env = os.environ.get("MANIFEST_AGENT_CMD")
         self.argv_template = argv_template or (env.split() if env else DEFAULT_CLAUDE_ARGV)
         self.model = model
         self._run = run or _default_run
+        # Per-agent-run wall-clock cap. Default 1h; raise via $MANIFEST_AGENT_TIMEOUT (seconds)
+        # for heavy repos whose dependency install/build can't finish in the default budget.
+        self.timeout = timeout if timeout is not None else int(
+            os.environ.get("MANIFEST_AGENT_TIMEOUT", "3600"))
 
     def run(self, *, cwd, prompt, autonomous):
         # Record the prompt for provenance; pass it inline via -p.
@@ -109,7 +113,7 @@ class ClaudeRunner:
             f.write(prompt)
         argv = [a.format(cwd=cwd, prompt=prompt, model=self.model) for a in self.argv_template]
         # Run IN the workspace so the agent edits the Dockerfile / runs ./verify in place.
-        rc, out = self._run(argv, timeout=3600, cwd=cwd)
+        rc, out = self._run(argv, timeout=self.timeout, cwd=cwd)
         transcript = os.path.join(cwd, ".manifest_agent_transcript.jsonl")
         with open(transcript, "w", encoding="utf-8") as f:
             f.write(out)   # --output-format stream-json => JSONL event stream
