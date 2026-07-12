@@ -1,6 +1,7 @@
 # bench/metrics.py
 from __future__ import annotations
 
+from bench.gold import gold_coverage
 from bench.schema import MeasureRow
 
 
@@ -40,15 +41,8 @@ def compute_metrics(rows: list[MeasureRow], gold: dict | None = None) -> dict:
         "coverage": _div(n_exec, n),
     }
     if gold:
-        gold_scores = []
-        for r in rows:
-            g = gold.get(r.repo)
-            if not g:
-                continue
-            gset = set(g)
-            gold_scores.append(len(set(r.passed_node_ids) & gset) / len(gset))
-        out["n_gold"] = len(gold_scores)
-        out["gold_ESSR"] = _div(sum(gold_scores), len(gold_scores))
+        # gold-anchored EBSR/ESSR over the FIXED, SHA-aligned, certified denominator
+        out.update(gold_coverage(rows, gold))
 
     tok_rows = [r for r in rows if r.tokens_in is not None and r.tokens_out is not None]
     tok_total = sum(r.tokens_in + r.tokens_out for r in tok_rows)

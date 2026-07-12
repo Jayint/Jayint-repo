@@ -8,6 +8,7 @@ import tempfile
 import time
 import xml.etree.ElementTree as ET
 
+from bench.gold import junit_ids_to_paths
 from bench.schema import HarvestedEnv, MeasureRow
 
 _COLLECT_ERR = re.compile(r"((?:[A-Za-z_][\w.]*)?(?:Error|Exception|Warning)):")
@@ -126,14 +127,18 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
     except (ValueError, IndexError):
         pkg_count = None
 
+    # NODE-ID FORM: `collected` is pytest --co PATH form (tests/x.py::a); JUnit outcome ids
+    # are classname form (tests.x::a). Translate passed/failed/error back to PATH form (via the
+    # collected list) so they share one unit with `collected` and the gold set (bench/gold.py).
+    passed_ids = junit_ids_to_paths(j["passed_node_ids"], collected)
+    failed_ids = junit_ids_to_paths(j["failed_node_ids"], collected)
+    error_ids = junit_ids_to_paths(j["error_node_ids"], collected)
+
     return MeasureRow(
         build_ok=True, build_log_tail=build_log[-2000:], build_s=build_s, test_s=test_s,
         collect_rc=crc, collect_clean=collect["collect_clean"], collect_errors=collect["collect_errors"],
-        # NOTE: collected_node_ids use pytest --co file-path form (tests/x.py::a); passed/failed/error
-        # node-ids use JUnit classname form (tests.x::a). A future gold set (compute_metrics gold=) is
-        # scored against passed_node_ids, so it must be keyed to the JUnit form, not these collected ids.
         collected_node_ids=collected, executed=executed,
         total=j["total"], passed=j["passed"], failed=j["failed"], errors=j["errors"], skipped=j["skipped"],
-        passed_node_ids=j["passed_node_ids"], failed_node_ids=j["failed_node_ids"],
-        error_node_ids=j["error_node_ids"], ebsr=executed, pass_rate=pass_rate, timed_out=timed_out,
+        passed_node_ids=passed_ids, failed_node_ids=failed_ids,
+        error_node_ids=error_ids, ebsr=executed, pass_rate=pass_rate, timed_out=timed_out,
         image_size_mb=img_mb, image_delta_mb=delta_mb, installed_pkg_count=pkg_count, **base_row)

@@ -86,3 +86,15 @@ def test_build_context_cleaned_up_on_build_failure():
     d = FakeDocker(build_rc=1)
     measure(_env(), docker=d)
     assert d.last_ctx is not None and not os.path.exists(d.last_ctx)
+
+
+def test_passed_node_ids_translated_to_path_form():
+    # JUnit reports classname form; the collected --co list is path form. measure() must
+    # translate outcomes to path form so they share one unit with gold (bench/gold.py).
+    junit = ('<testsuites><testsuite tests="1">'
+             '<testcase classname="tests.test_a" name="test_ok"/></testsuite></testsuites>')
+    script = {"continue-on-collection-errors":
+              (0, "tests/test_a.py::test_ok\ntests/test_a.py::test_skip", False)}
+    row = measure(_env(), docker=FakeDocker(script=script, junit=junit))
+    assert row.collected_node_ids == ("tests/test_a.py::test_ok", "tests/test_a.py::test_skip")
+    assert row.passed_node_ids == ("tests/test_a.py::test_ok",)

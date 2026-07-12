@@ -9,6 +9,7 @@ from dataclasses import asdict
 from glob import glob
 
 from bench.docker_client import SubprocessDocker
+from bench.gold import load_gold
 from bench.harvest import discover
 from bench.measure import measure
 from bench.metrics import compute_metrics
@@ -75,10 +76,7 @@ def main(argv=None) -> int:
         with ThreadPoolExecutor(max_workers=max(1, a.concurrency)) as ex:
             list(ex.map(lambda e: run_one(e, a.out, docker=docker), envs))
 
-    gold = None
-    if a.gold:
-        with open(a.gold) as f:
-            gold = json.load(f)
+    gold = load_gold(a.gold) if a.gold else None
     out = aggregate(a.out, gold=gold)
     with open(os.path.join(a.out, "metrics.json"), "w") as f:
         json.dump(out, f, indent=2)
