@@ -797,12 +797,37 @@ def run_v3(
         _loop_log(f"cycle {cycle}: LLM repair → propose "
                   f"(node={failed_id}, turns_left={_repair_turns})")
         _cycle_had_env_repair = True   # a real ENVIRONMENT/AMBIGUOUS repair this cycle
+        # SAFETY: a stem collision is NOT decidable from the tree (see
+        # repo_modules.stem_collisions). `azure` is a genuinely missing package;
+        # `items` is a sys.path sibling AND a real PyPI distribution that must
+        # never be installed. patch_gate validates STRUCTURE only -- it will admit
+        # `pip install items` without complaint. The agent has the traceback (which
+        # shows HOW the importer was loaded); give it the one fact the traceback
+        # lacks -- that the repo defines a file by this name, and where.
+        from python_deps.depgraph.diagnose import Locality, classify_locality
+        from python_deps.failure_classifier import classify_dependency_failure
+        _cons: dict[str, str] = {}
+        _ctx = _repo_ctx()
+        for _cmd, _out in observations:
+            _imp = classify_dependency_failure(_cmd, _out).import_name
+            if _imp and classify_locality(_imp, _ctx) is Locality.STEM_COLLISION:
+                _top = _imp.split(".", 1)[0]
+                _real = _ctx.collisions[_top]
+                _cons["local_module_collision"] = (
+                    f"{_imp!r} is NOT an importable top-level module of this repo, but "
+                    f"the repo DOES define {_real!r}. This is either a genuinely missing "
+                    f"external package OR a sys.path/PYTHONPATH problem with a sibling "
+                    f"import. DO NOT install a PyPI package named {_imp!r} unless the "
+                    f"traceback shows the importer was loaded as an installed package "
+                    f"(not run as a script)."
+                )
         _out = run_structured_repair(
             graph, failed_id, bundle, cycle,
             propose=lambda s, **k: build_agent.propose(s, exec_readonly, **k),
             emit=lambda g, mb: _binding_emit(g, mb, cycle),   # REPLAY emit (Model B)
             manual_blocks=_manual_blocks, known_invalid=_known_invalid,
             max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+            constraints=_cons or None,
             target_hint=target_hint, cap_failed_id=cap_failed_id)
         if tracer is not None:
             # Task 8: RepairOutcome (repair_loop.RepairOutcome) does NOT expose

@@ -326,6 +326,73 @@ def test_stem_collision_bundle_spends_a_repair_turn(tmp_path, monkeypatch):
     )
 
 
+def test_collision_evidence_reaches_the_repair_prompt(tmp_path, monkeypatch):
+    """The LLM MUST be told the name collides with a repo file, or it will
+    happily `pip install items` — a real PyPI package that must never be
+    installed. patch_gate validates structure only; it will admit it."""
+    from src.envstate.repair_scope import render_repair_scope
+
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001").mkdir(parents=True)
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001" / "__init__.py").write_text("")
+    (tmp_path / "docs_src" / "subcommands" / "tutorial001" / "items.py").write_text("")
+
+    seen_scopes = []
+
+    class _ScopeCapturingAgent(_RecordingBuildAgent):
+        def propose(self, scope, exec_readonly=None, **kwargs):
+            seen_scopes.append(scope)
+            return super().propose(scope, exec_readonly, **kwargs)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="python -m pytest -q", lineno=None,
+            stderr="ModuleNotFoundError: No module named 'items'",
+        )
+
+    agent = _ScopeCapturingAgent()
+    inputs = _base_inputs(agent, run_install_script, repo_path=str(tmp_path))
+    orchestrator.run_v3(**inputs)
+
+    assert seen_scopes, "propose was never called — the collision was dropped"
+    rendered = render_repair_scope(seen_scopes[0])
+    assert "tutorial001.items" in rendered, (
+        "the repair prompt does not tell the agent that 'items' is a repo file; "
+        "it will install the PyPI package `items`, which is WRONG"
+    )
+    assert "do not install" in rendered.lower()
+
+
+def test_plain_external_gets_no_collision_constraint(tmp_path, monkeypatch):
+    """A genuine external-package failure must get NO collision constraint —
+    the constraint is only for names that classify as Locality.STEM_COLLISION."""
+    from src.envstate.repair_scope import render_repair_scope
+
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("")
+
+    seen = []
+
+    class _Cap(_RecordingBuildAgent):
+        def propose(self, scope, exec_readonly=None, **kwargs):
+            seen.append(scope)
+            return super().propose(scope, exec_readonly, **kwargs)
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="python -m pytest -q", lineno=None,
+            stderr="ModuleNotFoundError: No module named 'requests'",
+        )
+
+    inputs = _base_inputs(_Cap(), run_install_script, repo_path=str(tmp_path))
+    orchestrator.run_v3(**inputs)
+
+    assert seen
+    assert "local_module_collision" not in render_repair_scope(seen[0])
+
+
 def test_single_repair_call_site_and_no_block_emit_in_source():
     """Source-level pin: exactly one literal run_structured_repair( call
     site remains in run_v3 (inside _repair_or_route), and block_emit is not
