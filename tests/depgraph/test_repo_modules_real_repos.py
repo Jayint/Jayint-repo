@@ -1,7 +1,13 @@
 """Regression tests against REAL repo checkouts.
 
-Each case is a bug a prior design shipped or nearly shipped. They skip when the
-checkout is absent so a bare clone still passes.
+Each case is a bug a prior design shipped or nearly shipped.
+
+Individual cases ``pytest.skip`` when their checkout is absent, but
+``test_required_real_repo_checkouts_are_present`` then FAILS LOUDLY. That
+sentinel is the whole point: the checkouts live under ``outputs/``, which is
+gitignored, and this project has no hosted CI — so without it these regressions
+would vanish quietly among hundreds of other tests and nobody would notice that
+the four cases every prior design got wrong had stopped being checked.
 """
 from __future__ import annotations
 
@@ -87,22 +93,27 @@ def test_precise_set_is_a_subset_of_the_broad_set():
         assert precise <= local_module_names(repo), name
 
 
-def test_at_least_one_real_repo_checkout_is_present():
-    """Fail loudly rather than skipping the entire real-repo regression suite.
+_REQUIRED: tuple[tuple[Path, str], ...] = (
+    (_SERVICES, "wagtail"),      # azure  — the silent give-up
+    (_SERVICES, "netbox"),       # extras — the 1000-file cap
+    (_SERVICES, "jupyterhub"),   # traitlets — the shadowing submodule
+    (_LIBS, "typer"),            # items  — the sys.path sibling that IS a PyPI dist
+    (_LIBS, "flask"),            # subset invariant
+)
 
-    If this fails, the checkouts are missing and the four regressions this file
-    exists for did NOT run. Populate outputs/ or accept the gap knowingly --
-    do not let it pass silently.
+
+def test_required_real_repo_checkouts_are_present():
+    """Fail loudly rather than skipping the real-repo regression suite.
+
+    Asserting the SPECIFIC repos each regression needs, not merely that *some*
+    directory exists under outputs/: with a weaker check, a tree holding only an
+    unrelated checkout would satisfy the sentinel while all four target cases
+    skipped — which is precisely the silent gap this test exists to prevent.
     """
-    present = [
-        p.name
-        for base in (_SERVICES, _LIBS)
-        if base.is_dir()
-        for p in base.iterdir()
-        if p.is_dir()
-    ]
-    assert present, (
-        "no real repo checkouts under outputs/ — the wagtail/azure, typer/items, "
-        "jupyterhub/traitlets and netbox/extras regressions did NOT run. These are "
-        "the cases every prior design got wrong."
+    missing = [f"{base}/{name}" for base, name in _REQUIRED if not (base / name).is_dir()]
+    assert not missing, (
+        f"missing real repo checkouts: {missing}. The wagtail/azure, typer/items, "
+        "jupyterhub/traitlets and netbox/extras regressions did NOT run — these are "
+        "the cases every prior design of this feature got wrong. Populate outputs/, "
+        "or accept the gap knowingly; do not let it pass silently."
     )
