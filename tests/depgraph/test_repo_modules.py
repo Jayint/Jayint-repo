@@ -8,7 +8,12 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.repo_modules import repo_modules, top_level_names
+from python_deps.depgraph.repo_modules import (
+    repo_modules,
+    stem_collisions,
+    top_level_names,
+)
+from python_deps.depgraph.scan import local_module_names
 
 
 def _write(root: Path, rel: str, body: str = "") -> None:
@@ -97,10 +102,6 @@ def test_typer_tutorial_leaf_package_under_non_package_parent(tmp_path):
     mods = _dotted(tmp_path)
     assert mods["docs_src/subcommands/tutorial001/items.py"] == "tutorial001.items"
     assert "items" not in top_level_names(str(tmp_path))
-
-
-from python_deps.depgraph.repo_modules import stem_collisions
-from python_deps.depgraph.scan import local_module_names
 
 
 def test_stem_collisions_are_broad_minus_precise(tmp_path):
