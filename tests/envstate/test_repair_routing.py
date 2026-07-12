@@ -29,8 +29,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import python_deps.depgraph.scan as scan_module
 import src.envstate.graph_scheduler as gs_module
+from python_deps.depgraph import repo_modules as repo_modules_module
 from src.envstate import orchestrator
 from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import (
@@ -150,8 +150,14 @@ def test_repo_internal_ref_bundle_skips_repair(monkeypatch):
     repair turn: _repair_or_route must diagnose it REPO_INTERNAL_REF and
     return the graph unchanged, WITHOUT ever calling build_agent.propose."""
     monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+    # The orchestrator now diagnoses against repo_modules (precise top-levels +
+    # collisions), NOT scan.local_module_names (the over-broad construction set).
     monkeypatch.setattr(
-        scan_module, "local_module_names", lambda repo_path: frozenset({"docs_src"})
+        repo_modules_module, "top_level_names",
+        lambda repo_path: frozenset({"docs_src"}),
+    )
+    monkeypatch.setattr(
+        repo_modules_module, "stem_collisions", lambda repo_path: {}
     )
 
     def run_install_script(script):
@@ -284,6 +290,39 @@ def test_ambiguous_bundle_invokes_typed_repair(monkeypatch):
     assert agent.propose_calls >= 1, (
         "propose was never called for an unclassifiable (AMBIGUOUS) failure; "
         "Mode.AMBIGUOUS must reach typed repair, same as Mode.ENVIRONMENT"
+    )
+
+
+def test_stem_collision_bundle_spends_a_repair_turn(tmp_path, monkeypatch):
+    """The `azure` bug, end-to-end through run_v3.
+
+    A REAL tree whose only `azure` is `wagtail/backends/azure.py` — i.e. the
+    module `wagtail.backends.azure`, NOT an importable top-level. The old broad
+    rule called it repo-local and returned REPO_INTERNAL_REF without ever calling
+    build_agent.propose — a silent give-up on a genuinely missing package.
+    It must now reach the repair loop.
+    """
+    monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
+
+    (tmp_path / "wagtail" / "backends").mkdir(parents=True)
+    (tmp_path / "wagtail" / "__init__.py").write_text("")
+    (tmp_path / "wagtail" / "backends" / "__init__.py").write_text("")
+    (tmp_path / "wagtail" / "backends" / "azure.py").write_text("")
+
+    def run_install_script(script):
+        return InstallResult(
+            rc=1, failing_command="python -m pytest -q", lineno=None,
+            stderr="ModuleNotFoundError: No module named 'azure'",
+        )
+
+    agent = _RecordingBuildAgent()
+    inputs = _base_inputs(agent, run_install_script, repo_path=str(tmp_path))
+
+    orchestrator.run_v3(**inputs)
+
+    assert agent.propose_calls > 0, (
+        "propose was never called for 'azure': the router still treats a stem "
+        "collision as a repo-internal reference and gives up silently"
     )
 
 

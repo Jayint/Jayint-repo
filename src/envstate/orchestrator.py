@@ -726,13 +726,26 @@ def run_v3(
     # accumulates as pip disproves package names across cycles; the context is
     # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
     from python_deps.depgraph.diagnose import RepoContext, Mode, diagnose_all
-    from python_deps.depgraph import scan
+    from python_deps.depgraph import repo_modules as _repo_modules
     from python_deps.import_mapping import normalize_package_name
-    _local_names = frozenset(scan.local_module_names(repo_path)) if repo_path else frozenset()
+    # PRECISE top-levels for the give-up decision; the COLLISION zone (broad-walk
+    # stems that are not importable top-levels) is routed to AMBIGUOUS with
+    # evidence instead of being silently dropped. Construction (scan_to_nodes)
+    # deliberately still uses the over-broad scan.local_module_names — a
+    # false-external THERE reaches Phase-A's identity ladder and installs a wrong
+    # PyPI package (typer `items`, netbox `extras` are both real dists).
+    _local_names = (
+        _repo_modules.top_level_names(repo_path) if repo_path else frozenset()
+    )
+    _collisions = _repo_modules.stem_collisions(repo_path) if repo_path else {}
     _invalid_names: set[str] = set()
 
     def _repo_ctx() -> RepoContext:
-        return RepoContext(local_names=_local_names, invalid_names=frozenset(_invalid_names))
+        return RepoContext(
+            local_names=_local_names,
+            invalid_names=frozenset(_invalid_names),
+            collisions=_collisions,
+        )
 
     def _repair_or_route(graph, failed_id, bundle, cycle, *, target_hint=None, cap_failed_id=False):
         """Diagnose the failure that produced ``bundle`` BEFORE typed repair.
@@ -913,7 +926,9 @@ def run_v3(
         try:
             from python_deps.depgraph.advise import render_depgraph_planner
             from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-            from python_deps.depgraph.diagnose import make_diagnostic_classifier, is_local_import
+            from python_deps.depgraph.diagnose import (
+                Locality, classify_locality, make_diagnostic_classifier,
+            )
             events = ledger.events()
             new_events = events[_rt_mark:]
             obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
@@ -973,7 +988,11 @@ def run_v3(
                     if disc is None:
                         return None
                     imp = (disc.data or {}).get("import_name") or disc.name
-                    if is_local_import(imp, _ctx.local_names):
+                    # Suppress for BOTH repo modules and stem collisions: this tier
+                    # auto-mints pkg: nodes, and a collision must never be auto-minted
+                    # (typer's `items` is a real PyPI dist that must not be installed).
+                    # Same suppression set as before — only its source of truth moved.
+                    if classify_locality(imp or "", _ctx) is not Locality.EXTERNAL:
                         return None
                     return disc
 
