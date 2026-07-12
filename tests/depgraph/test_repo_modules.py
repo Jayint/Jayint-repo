@@ -97,3 +97,61 @@ def test_typer_tutorial_leaf_package_under_non_package_parent(tmp_path):
     mods = _dotted(tmp_path)
     assert mods["docs_src/subcommands/tutorial001/items.py"] == "tutorial001.items"
     assert "items" not in top_level_names(str(tmp_path))
+
+
+from python_deps.depgraph.repo_modules import stem_collisions
+
+
+def test_stem_collisions_are_broad_minus_precise(tmp_path):
+    _write(tmp_path, "wagtail/__init__.py")
+    _write(tmp_path, "wagtail/contrib/__init__.py")
+    _write(tmp_path, "wagtail/contrib/backends/__init__.py")
+    _write(tmp_path, "wagtail/contrib/backends/azure.py")
+
+    collisions = stem_collisions(str(tmp_path))
+    assert "azure" in collisions
+    assert collisions["azure"] == "wagtail.contrib.backends.azure"
+    assert "wagtail" not in collisions        # a real top-level, not a collision
+
+
+def test_stem_collisions_include_leaf_package_siblings(tmp_path):
+    """typer's `items`: a collision, NOT a plain external."""
+    _write(tmp_path, "docs_src/subcommands/tutorial001/__init__.py")
+    _write(tmp_path, "docs_src/subcommands/tutorial001/items.py")
+
+    collisions = stem_collisions(str(tmp_path))
+    assert collisions["items"] == "tutorial001.items"
+
+
+def test_nested_module_is_a_collision(tmp_path):
+    _write(tmp_path, "pkg/__init__.py")
+    _write(tmp_path, "pkg/core.py")
+    # `core` IS a broad-walk stem but is NOT a top-level -> it IS a collision.
+    # Correct: `import core` cannot reach pkg/core.py (absolute imports).
+    assert stem_collisions(str(tmp_path)) == {"core": "pkg.core"}
+
+
+def test_package_dir_basename_is_also_a_collision(tmp_path):
+    """The broad walk harvests dir basenames too; the leaf of a package's own
+    __init__.py ModuleDef covers them."""
+    _write(tmp_path, "pkg/__init__.py")
+    _write(tmp_path, "pkg/backends/__init__.py")
+    assert stem_collisions(str(tmp_path))["backends"] == "pkg.backends"
+
+
+def test_sys_path_root_values(tmp_path):
+    """``sys_path_root`` is a public field of ``ModuleDef`` with no coverage
+    elsewhere in this file: every existing assertion only checks ``dotted``. A
+    regression that always emitted ``sys_path_root="."`` would pass all of them
+    while being wrong for a src-layout file (should be "src") and a
+    non-standard source root like netbox's (should be "netbox")."""
+    _write(tmp_path, "src/flask/__init__.py")
+    _write(tmp_path, "src/flask/app.py")
+    _write(tmp_path, "netbox/extras/__init__.py")
+    _write(tmp_path, "netbox/extras/models.py")
+    _write(tmp_path, "mod.py")
+
+    roots = {m.path: m.sys_path_root for m in repo_modules(str(tmp_path))}
+    assert roots["src/flask/app.py"] == "src"
+    assert roots["netbox/extras/models.py"] == "netbox"
+    assert roots["mod.py"] == "."

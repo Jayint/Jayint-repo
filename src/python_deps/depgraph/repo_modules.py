@@ -106,3 +106,43 @@ def top_level_names(repo_path: str) -> frozenset[str]:
     ``jupyterhub/traitlets.py`` contributes ``jupyterhub`` -- NOT ``traitlets``.
     """
     return frozenset(m.dotted.split(".", 1)[0] for m in repo_modules(repo_path))
+
+
+def stem_collisions(repo_path: str) -> dict[str, str]:
+    """Names the BROAD walk harvests that are NOT importable top-levels.
+
+    ``scan.local_module_names`` collects every ``.py`` stem and ``__init__`` dir
+    basename anywhere in the tree. The difference between that set and
+    :func:`top_level_names` is the COLLISION ZONE: names like wagtail's ``azure``
+    (really ``wagtail...backends.azure``) and typer's ``items`` (really
+    ``tutorial001.items``).
+
+    A collision is NOT decidable statically. ``azure`` is a real missing PyPI
+    package; ``items`` is a sibling script reachable only because its directory
+    lands on ``sys.path[0]`` when ``main.py`` is run directly. Both look
+    identical to any tree walk -- the difference is HOW the importer was loaded,
+    a runtime fact. The router therefore routes collisions to ``AMBIGUOUS`` and
+    attaches this mapping as evidence, rather than deciding.
+
+    Returns ``{bare_name: real_dotted_name}``. On a name backed by several files,
+    the lexicographically-first dotted name wins (deterministic).
+    """
+    from python_deps.depgraph.scan import local_module_names
+
+    modules = repo_modules(repo_path)
+    tops = frozenset(m.dotted.split(".", 1)[0] for m in modules)
+    broad = local_module_names(repo_path)
+
+    evidence: dict[str, str] = {}
+    for module in modules:
+        # The LEAF segment is what the broad walk harvests: a .py stem
+        # (`azure` from `...backends.azure`) or a package dir basename (`backends`
+        # from its own `__init__.py`, whose dotted name ends in `backends`).
+        # A module's TOP-level segment is by definition in `tops`, so it can never
+        # be a collision — only the leaf can.
+        leaf = module.dotted.rsplit(".", 1)[-1]
+        if leaf in broad and leaf not in tops:
+            previous = evidence.get(leaf)
+            if previous is None or module.dotted < previous:
+                evidence[leaf] = module.dotted
+    return evidence
