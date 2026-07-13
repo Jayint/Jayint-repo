@@ -115,7 +115,26 @@ def test_ignores_traceback_frame_lines_that_are_not_exceptions():
 
 def test_format_breakdown_top_line_shape():
     out = format_breakdown(summarize(_REAL))
-    assert "2 × ModuleNotFoundError" in out and "totally_missing_pkg" in out
+    assert "2 × [collect] ModuleNotFoundError" in out and "totally_missing_pkg" in out
+
+
+def test_format_breakdown_tags_collect_and_run():
+    # Each row is prefixed with a phase tag derived from Cause.outcome: "ERROR" (collection/import
+    # failure) → [collect]; anything else (execution failure) → [run]. Counts, exception, and detail
+    # are otherwise unchanged. This tells the agent whether a row is a build fix or a runtime fix.
+    causes = [
+        Cause(exc="ModuleNotFoundError", detail="No module named 'psycopg2'",
+              count=3, outcome="ERROR", module="tests/test_db.py"),
+        Cause(exc="AssertionError", detail="", count=5, outcome="FAILED",
+              module="tests/test_logic.py"),
+    ]
+    out = format_breakdown(causes)
+    assert "3 × [collect] ModuleNotFoundError: No module named 'psycopg2'" in out
+    assert "5 × [run] AssertionError" in out
+    # an unexpected outcome degrades to [run] (never mislabeled as a build fix)
+    weird = format_breakdown([Cause(exc="KeyError", detail="", count=1,
+                                    outcome="whatever", module="m.py")])
+    assert "1 × [run] KeyError" in weird
 
 def test_format_breakdown_omits_file_path_to_avoid_navigation():
     # The rendered row is pure triage (count + type + message) — no representative file. Naming a

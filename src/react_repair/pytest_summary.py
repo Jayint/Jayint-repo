@@ -126,14 +126,26 @@ def summarize(output: str) -> list[Cause]:
 
 def format_breakdown(causes: list[Cause], top: int = 5) -> str:
     """Render the ranked histogram (no header, no traceback tail): each row is pure triage —
-    count + exception type + message. Deliberately NO representative file path: for the dominant
-    import-error case the actionable identifier is already in the message (the missing module), and
-    naming a test file only lures the agent into `cat`-ing it (wasted navigation). The file stays on
-    the Cause as metadata. Top-N rows + a one-line remainder so a long tail stays compact."""
+    count + a `[collect]`/`[run]` phase tag + exception type + message. Deliberately NO
+    representative file path: for the dominant import-error case the actionable identifier is already
+    in the message (the missing module), and naming a test file only lures the agent into `cat`-ing
+    it (wasted navigation). The file stays on the Cause as metadata. Top-N rows + a one-line
+    remainder so a long tail stays compact.
+
+    The tag maps `Cause.outcome`: "ERROR" → `[collect]` (an import/collection failure — fix the
+    build by installing the missing thing), anything else → `[run]` (an execution failure — provide
+    a service/config, or it's a residual the env can't fix). It tells the agent whether a row is a
+    build problem or a runtime problem — the two need different repairs.
+
+    LIMITATION: a `[collect]` row's `count` is MODULES affected, NOT tests affected — an unimportable
+    module emits one collection-error block regardless of how many tests it hides, so `[collect]`
+    rows under-rank. Recovering "blocks N tests" needs the hidden gold set (final-only) or the graph
+    arm; do not attempt it here. The tag's diagnostic value is independent of the count."""
     rows = []
     for c in causes[:top]:
         detail = f": {c.detail}" if c.detail else ""
-        rows.append(f"  {c.count} × {c.exc}{detail}")
+        tag = "collect" if c.outcome == "ERROR" else "run"
+        rows.append(f"  {c.count} × [{tag}] {c.exc}{detail}")
     rest = causes[top:]
     if rest:
         rows.append(f"  …and {len(rest)} more cause(s) across {sum(c.count for c in rest)} tests")

@@ -34,6 +34,36 @@ def test_docker_build_argv():
     assert calls[0] == ["docker", "build", "-t", "mytag", "/ctx"]
 
 
+def test_docker_build_timeout_becomes_a_failed_build_not_a_raise():
+    # A TimeoutExpired that ESCAPES bypasses certify()'s BuildError handler and propagates out
+    # of build_one, abandoning the repo -- every remaining attempt is lost to one slow
+    # Dockerfile. mlflow lost all 3 attempts this way. It must degrade to a non-zero rc.
+    import subprocess
+
+    def fake_run(argv, timeout=None):
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=timeout)
+
+    rc, log = Docker(run=fake_run).build("mytag", "/ctx")
+    assert rc == 124
+    assert "MANIFEST_BUILD_TIMEOUT" in log
+
+
+def test_build_timeout_is_env_configurable(monkeypatch):
+    seen = {}
+
+    def fake_run(argv, timeout=None):
+        seen["timeout"] = timeout
+        return 0, ""
+
+    d = Docker(run=fake_run)
+    d.build("t", "/ctx")
+    assert seen["timeout"] == 3600                      # default
+
+    monkeypatch.setenv("MANIFEST_BUILD_TIMEOUT", "10800")
+    d.build("t", "/ctx")
+    assert seen["timeout"] == 10800                     # read per call, so no reload needed
+
+
 def test_docker_exec_hardened_run_and_env():
     calls = []
 

@@ -17,7 +17,7 @@ from src.manifest_builder import workspace as W
 from src.manifest_builder.collect import Docker, build_and_collect, BuildError
 from src.manifest_builder.gate import accept, pick_best
 from src.manifest_builder.protected import restore_pristine, source_tree_sha256
-from src.manifest_builder.runner import ClaudeRunner, TASK_PROMPT
+from src.manifest_builder.runner import ClaudeRunner, prompt_for
 
 _PLUGIN = str(_REPO_ROOT / "src" / "manifest_builder" / "collect_plugin.py")
 
@@ -71,7 +71,7 @@ def build_one(repo_url, sha, out_dir, runner, docker=None, *, docker_factory=Non
     for _ in range(max(1, attempts)):
         with open(df_path, "w") as f:
             f.write(ws.dockerfile_text)
-        agent_res = runner.run(cwd=ws.path, prompt=TASK_PROMPT, autonomous=True)
+        agent_res = runner.run(cwd=ws.path, prompt=prompt_for(repo_url), autonomous=True)
         with open(df_path) as f:
             dockerfile_text = f.read()
         with tempfile.TemporaryDirectory() as td:

@@ -81,3 +81,85 @@ def narrowing_reason(old_script: str, new_script: str) -> str | None:
     old_lines = set((old_script or "").splitlines())
     added = [ln for ln in (new_script or "").splitlines() if ln not in old_lines]
     return detect_test_narrowing("\n".join(added))
+
+
+# ── Self-install gate: the repo's OWN package pulled from an INDEX instead of the checkout ──────
+#
+# The second false-green vector, found in a LIVE run: instead of `pip install -e .`, the agent shipped
+# `pip install pytest itsdangerous freezegun` — installing the PUBLISHED itsdangerous from PyPI. The
+# suite then went 297/297 green and the host certified DONE... against code that is NOT in the repo.
+# The checkout at /app/src was never installed; `import itsdangerous` resolved to site-packages.
+#
+# The collection gate above cannot see this (collection GREW, 68 -> 297), and the pass-rate gate is
+# perfectly satisfied. But the environment was never reproduced — any repo whose package is on PyPI
+# can be "solved" this way. So the host, which KNOWS the repo's own distribution name, rejects it.
+_PIP_INSTALL = re.compile(
+    r"(?:\buv\s+pip|\bpython3?\s+-m\s+pip|\bpip3?)\s+install\b(.*)", re.IGNORECASE)
+# flags that consume the NEXT token as their value (so it is not a requirement name)
+_VALUE_FLAGS = frozenset({
+    "-r", "--requirement", "-c", "--constraint", "-i", "--index-url", "--extra-index-url",
+    "-f", "--find-links", "-t", "--target", "--prefix", "--root", "--python",
+})
+
+
+def _normalize_dist(name: str) -> str:
+    """PEP 503 normalization — `Its_Dangerous` and `its.dangerous` are the same distribution."""
+    return re.sub(r"[-_.]+", "-", (name or "").strip().lower())
+
+
+def _requirement_names(args: str) -> list[str]:
+    """The bare requirement NAMES in a `pip install` argument string. Flags (and their values), local
+    paths (`.`, `.[test]`, `/app`, `./pkg`), archives and VCS/URL installs are all skipped — those are
+    legitimate ways to install the checkout; only an INDEX requirement yields a name here."""
+    head = re.split(r"&&|\|\||;|\||>", args or "")[0]        # stop at a shell operator
+    names: list[str] = []
+    skip_next = False
+    for tok in head.split():
+        if skip_next:
+            skip_next = False
+            continue
+        if tok.startswith("-"):
+            if tok in _VALUE_FLAGS:
+                skip_next = True
+            continue                                          # flags carry no requirement name (incl. -e)
+        if tok.startswith((".", "/", "~", "$", "git+", "http://", "https://", "file:")) or "/" in tok:
+            continue                                          # a local path / archive / VCS install
+        if tok.endswith((".whl", ".tar.gz", ".zip")):
+            continue
+        names.append(re.split(r"[\[<>=!~;]", tok, maxsplit=1)[0])   # strip extras + version specifier
+    return names
+
+
+def self_install_reason(script: str, project_name: str | None) -> str | None:
+    """Return why *script* installs the project under test from a package index instead of the local
+    checkout, else None. `project_name` is the repo's own distribution name (pyproject/setup.cfg),
+    which the HOST knows and the agent cannot argue with. Installing the checkout — `pip install -e .`,
+    `pip install .`, `pip install -e .[test]`, a path, or a VCS/URL — never trips this."""
+    target = _normalize_dist(project_name or "")
+    if not target:
+        return None
+    for line in (script or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        m = _PIP_INSTALL.search(stripped)
+        if not m:
+            continue
+        for name in _requirement_names(m.group(1)):
+            if _normalize_dist(name) == target:
+                return (f"installs the project under test (`{project_name}`) from a package index "
+                        f"instead of the repo's own checkout")
+    return None
+
+
+def added_self_install_reason(old_script: str, new_script: str,
+                              project_name: str | None) -> str | None:
+    """Gate an EDIT: scan only the lines it ADDS — the same scoping rule as `narrowing_reason`, and
+    for the same reason. Whole-script scanning would mean that once a self-install exists anywhere in
+    setup.sh (e.g. it came in with the seed), EVERY later edit is rejected and the agent can never dig
+    out. Scoped to the added lines: the edit that INTRODUCES the shortcut is rejected, an unrelated
+    edit that merely coexists with a pre-existing one is not, and a delete that REMOVES it always
+    passes (a removal adds nothing)."""
+    old_lines = set((old_script or "").splitlines())
+    added = [ln for ln in (new_script or "").splitlines() if ln not in old_lines]
+    return self_install_reason("\n".join(added), project_name)

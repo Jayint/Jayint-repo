@@ -1504,7 +1504,14 @@ version = "1.0"
 source = { registry = "https://pypi.org/simple" }
 """
     risk = native_risk_from_lock(lock, LINUX_X86)["bare"]
-    assert risk == {"build_from_source": False, "artifact": None, "hash": None}
+    # No wheel and no sdist -> nothing to install (installable False), and nothing
+    # to build (build_from_source False). (Fix A adds the `installable` signal.)
+    assert risk == {
+        "build_from_source": False,
+        "artifact": None,
+        "hash": None,
+        "installable": False,
+    }
 
 
 def test_native_risk_uses_explicit_filename_field():

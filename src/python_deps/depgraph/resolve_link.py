@@ -43,6 +43,21 @@ def _stamp(
         changes["build_from_source"] = info.get("build_from_source")
         changes["artifact"] = info.get("artifact")
         changes["hash"] = info.get("hash")
+        # Fix A: the resolver pinned a version with NO installable artifact for
+        # this interpreter/platform (only wheels for other interpreters, no
+        # sdist). Emitting `pip install --no-deps name==version` can only fail
+        # (and, under `set -Eeuo pipefail`, aborts the whole setup.sh). Mark the
+        # node UNRESOLVED — drop the pip fix so the renderer never ships the
+        # doomed line, and leave honest evidence — so Phase-A's coverage audit
+        # flags the import instead of the build dying on it.
+        if info.get("installable") is False:
+            changes["chosen_fix"] = None
+            changes["fix_candidates"] = ()
+            changes["data"] = {**node.data, "uninstallable": True}
+            changes["evidence"] = (
+                f"no installable artifact for python {target_python} on "
+                f"{target_platform} (resolved {node.name}=={node.version})"
+            )
     return replace(node, **changes)
 
 

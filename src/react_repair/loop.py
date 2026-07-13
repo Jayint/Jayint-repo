@@ -8,11 +8,14 @@ from dataclasses import dataclass
 
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.patch_gate import is_read_only
+from src.envstate.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q`
 from src.react_repair.actions import apply_edit
-from src.react_repair.anti_cheat import narrowing_reason
-from src.react_repair.history import safety_truncate
+from src.react_repair.anti_cheat import added_self_install_reason, narrowing_reason
+from src.react_repair.observation import safety_compress_observation, strip_pip_progress
+from src.react_repair.pytest_blocks import compact_pytest_blocks
 from src.react_repair.pytest_summary import format_breakdown, summarize
 from src.react_repair.script_prep import strip_graph_framing
+from src.react_repair.style import agentic
 
 # Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
 # action). Tool-calling aware — the old text referenced the retired `Action:`/`Script:` free-text
@@ -32,6 +35,15 @@ def _gaming_hint(reason: str) -> str:
             "skips, no removing test files. Fix the real cause so the tests can RUN; if a dependency "
             "or service genuinely can't be provided, leave those tests failing.")
 
+
+def _self_install_hint(reason: str) -> str:
+    """Rejection message for installing the project under test from a package index. Names the real
+    fix (install the checkout) so the agent redirects instead of re-trying the same shortcut."""
+    return (f"that edit {reason} — rejected. The published package would SHADOW the source in this "
+            "repo, so the suite would pass against code that isn't here — a fake pass. Install the "
+            "local checkout instead: `pip install -e .` (add the repo's extras if it declares them, "
+            "e.g. `pip install -e .[test]`), and install the repo's OTHER dependencies normally.")
+
 # A tool misuse (non-read-only explore, out-of-range edit, unusable action) is a harness error, not a
 # repair step: re-prompt with the reason IN PLACE (no turn spent, nothing written to the agent-facing
 # history) up to this many times. Only if the agent still can't produce a valid call do we fall back
@@ -39,15 +51,44 @@ def _gaming_hint(reason: str) -> str:
 _INVALID_RETRIES = int(os.getenv("REACT_INVALID_RETRIES", "2"))
 
 # Cap the build/test log shown to the planner so a repo with a huge failure dump can't bloat
-# (or overflow) the prompt every turn. Keep the TAIL — pytest's summary + last failures live
-# there, which is what the model needs to diagnose.
+# (or overflow) the prompt every turn. safety_compress KEEPS error blocks + status lines and drops
+# download/apt noise within this budget — a signal-dense cut, not a blind head+tail truncation.
 _OBS_MAX_CHARS = int(os.getenv("REACT_OBS_MAX_CHARS", "8000"))
 
-# Observation presentation mode (ablation lever, orthogonal to the graph axis). `histogram` (default)
-# leads the test-phase observation with the ranked pytest error-type breakdown, then the raw tail;
-# `raw` is the pure-reactive floor — pass count + raw tail only, no aggregation. Lets the breakdown
-# be measured as its own rung (raw reactive vs reactive+presentation vs +graph) without a code change.
-_OBS_MODE = os.getenv("REACT_OBS_MODE", "histogram").lower()
+# Observation presentation mode (ablation lever, orthogonal to the graph axis). `compress` (DEFAULT):
+# the REAL pytest output, safety_compress'd — honest stdout/stderr with noise stripped, no synthesized
+# lines. `histogram` (opt-in): prepend the ranked pytest error-type breakdown (a synthesized cause
+# aggregate) before the compressed output — kept so the histogram can be A/B'd as its own rung.
+_OBS_MODE = os.getenv("REACT_OBS_MODE", "compress").lower()
+
+
+def _obs_body(text: str, cap: "int | None" = None) -> str:
+    """The real build/test output, safety_compress'd to *cap* chars (default _OBS_MAX_CHARS): drops
+    download/apt progress noise, keeps error blocks + status/summary lines + head/tail. This is the
+    single compaction — no synthesized histogram. message_view re-compresses this stored body per the
+    recency tier (immediate near-full, history leaner), all from the one raw.
+
+    Under the agentic bundle, pip chatter and duplicate pytest error blocks are removed BEFORE the
+    compress — see style.py: doing it after would let 12 copies of one cause crowd out a different
+    cause that then never reaches the prompt at all."""
+    body = text or ""
+    if agentic():
+        body = compact_pytest_blocks(strip_pip_progress(body))
+    body, _ = safety_compress_observation(
+        body, threshold_chars=(cap or _OBS_MAX_CHARS), target_chars=(cap or _OBS_MAX_CHARS))
+    return body
+
+
+def _test_header(test) -> str:
+    """`BUILD OK. TESTS p/e passed[, C collected].` — the build-phase signal (not in pytest output),
+    the gate denominator (executed = passed+failed+errors), and the collected population when it
+    differs (a collected≫executed gap = silently skipped tests). Also the signature anchor parsed by
+    history_view.extract_blocker, so the `BUILD OK. TESTS p/e` prefix is kept exact."""
+    base = f"BUILD OK. TESTS {test.passed}/{test.executed} passed"
+    collected = getattr(test, "collected", 0) or 0
+    # Show collected only when it DIFFERS from executed — a collected>executed gap means tests were
+    # skipped/deselected (the signal); when equal, the executed denominator already says it, so no clutter.
+    return f"{base} ({collected} collected)." if collected and collected != test.executed else f"{base}."
 
 @dataclass(frozen=True)
 class RunResult:
@@ -73,25 +114,40 @@ def _emit_tokens(usage) -> None:
 
 def _observation(result: RunResult, test) -> str:
     if not result.ok:
-        # Build failing → per-LINE localization (the halt marker rides in the numbered script).
-        body, _ = safety_truncate(result.output or "", max_chars=_OBS_MAX_CHARS)
+        # Build failing → per-LINE localization (the halt marker rides in the numbered script); the
+        # body is the real stderr, safety_compress'd (noise stripped, error blocks kept).
         loc = f" (line {result.lineno})" if result.lineno else ""
-        return f"BUILD FAILED at `{result.failing_command}`{loc}:\n{body}"
-    # Build green → the fault is no longer a line but a CAUSE: lead with the ranked failure histogram
-    # (what the tests fail on + how many each blocks) so the agent targets the DOMINANT blocker, not
-    # whichever traceback happens to land in the tail (anthropic-sdk: 430 aiohttp shown, 1448
-    # ConnectionError hidden). Keep the raw tail after it for traceback detail; fall back to the plain
-    # tail when there's nothing to aggregate (all passed / unparseable output).
-    header = f"BUILD OK. TESTS {test.passed}/{test.executed} passed"
-    causes = summarize(test.output or "") if _OBS_MODE != "raw" else []
-    if causes:
-        hist = format_breakdown(causes)
-        tail_budget = max(1000, _OBS_MAX_CHARS - len(hist) - 200)
-        tail, _ = safety_truncate(test.output or "", max_chars=tail_budget)
-        return (f"{header}.\nTop failure causes (by tests affected):\n{hist}\n"
-                f"--- pytest output (tail) ---\n{tail}")
-    body, _ = safety_truncate(test.output or "", max_chars=_OBS_MAX_CHARS)
-    return f"{header}:\n{body}"
+        return f"BUILD FAILED at `{result.failing_command}`{loc}:\n{_obs_body(result.output)}"
+    # Build green → the fault is in the tests. DEFAULT: the REAL pytest output, safety_compress'd —
+    # honest stdout/stderr, no synthesized lines. The ranked cause histogram is an OPT-IN lens
+    # (REACT_OBS_MODE=histogram): it dedups+ranks all causes (surfacing a buried cause a head/tail
+    # cut would drop) but is a derived aggregate, so it is not the default. Both keep the raw body.
+    header = _test_header(test)
+    if _OBS_MODE == "histogram":
+        causes = summarize(test.output or "")
+        if causes:
+            hist = format_breakdown(causes)
+            tail_budget = max(1000, _OBS_MAX_CHARS - len(hist) - 200)
+            return (f"{header}\nTop failure causes (by tests affected):\n{hist}\n"
+                    f"--- pytest output (tail) ---\n{_obs_body(test.output, tail_budget)}")
+    return f"{header}\n{_obs_body(test.output)}"
+
+
+def _outcome(result: RunResult, test) -> dict:
+    """The build/test result as STRUCTURED facts, stored on the Step beside the observation text.
+
+    The agentic view renders its `$ cmd → exit N` envelope from this rather than re-parsing the
+    observation — the stored body is already safety_compress'd, so pytest's summary line is not
+    guaranteed to have survived, and a render layer must never depend on that. Keeps the raw counts
+    apart (passed/failed/errors/skipped) instead of only the fused gate denominator."""
+    o: dict = {"build_ok": bool(result.ok), "failing_command": result.failing_command,
+               "lineno": result.lineno, "ran_tests": test is not None,
+               "test_command": VERIFY_TEST_CMD}
+    if test is not None:
+        o.update(passed=test.passed, executed=test.executed,
+                 failed=getattr(test, "failed", 0), errors=getattr(test, "errors", 0),
+                 skipped=getattr(test, "skipped", 0), collected=getattr(test, "collected", 0))
+    return o
 
 
 def _verdict(result: RunResult, test) -> str:
@@ -140,7 +196,37 @@ def _added_lines(old: str, new: str, cap: int = 3) -> str:
     return "; ".join("+" + ln for ln in added)
 
 
-def _classify_action(action, script: str) -> tuple[str, str | None]:
+def _cheat_reject(old: str, new: str, project_name: "str | None") -> "str | None":
+    """The two host anti-gaming gates, as ONE verdict on a candidate script: (a) it must not shrink
+    what pytest collects, and (b) it must not install the project under test from a package index
+    instead of the checkout. Returns the agent-facing rejection hint, or None if the edit is clean."""
+    reason = narrowing_reason(old, new)                 # gate A: collection narrowing (Repo2Run lever)
+    if reason:
+        return _gaming_hint(reason)
+    reason = added_self_install_reason(old, new, project_name)   # gate B: self-install (false green)
+    if reason:
+        return _self_install_hint(reason)
+    return None
+
+
+def _action_struct(action) -> "dict | None":
+    """A planned action as the structured dict the message view renders byte-exact — the same shape
+    the accepted path stores on Step.action. Used for a REJECTED call, so the agentic view can show
+    the refusal as that call's own tool result instead of a footer bolted to the bottom of the
+    workbench, three blocks away from the action it is about."""
+    if action is None:
+        return None
+    if action.kind == "explore":
+        return {"kind": "explore", "command": action.command or ""}
+    if action.kind == "edit" and action.edit is not None:
+        e = action.edit
+        return {"kind": "edit", "verb": e.verb, "start": e.start, "end": e.end, "content": e.content}
+    if action.kind == "patch":
+        return {"kind": "patch", "content": action.new_script or ""}
+    return None
+
+
+def _classify_action(action, script: str, project_name: "str | None" = None) -> tuple[str, str | None]:
     """Map a planned action to how the loop should dispatch it: ("explore", command) /
     ("edit", new_script) / ("patch", new_script) for a usable move, or ("invalid", hint) for a tool
     misuse. Edit validity requires computing the splice, so the new script rides back in the payload."""
@@ -152,16 +238,17 @@ def _classify_action(action, script: str) -> tuple[str, str | None]:
         new = apply_edit(script, action.edit)
         if new is None:
             return "invalid", _OUT_OF_RANGE_HINT
-        reason = narrowing_reason(script, new)          # host anti-gaming gate (Repo2Run lever)
-        return ("invalid", _gaming_hint(reason)) if reason else ("edit", new)
+        hint = _cheat_reject(script, new, project_name)
+        return ("invalid", hint) if hint else ("edit", new)
     if action.kind == "patch" and action.new_script:
-        reason = narrowing_reason(script, action.new_script)
-        return ("invalid", _gaming_hint(reason)) if reason else ("patch", action.new_script)
+        hint = _cheat_reject(script, action.new_script, project_name)
+        return ("invalid", hint) if hint else ("patch", action.new_script)
     return "invalid", _FORMAT_REMINDER                  # unusable / unparseable move
 
 
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
-              history, log, max_steps: int = 30, _initial_script: str | None = None):
+              history, log, max_steps: int = 30, _initial_script: str | None = None,
+              project_name: "str | None" = None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
     # script, so it must not carry "DO NOT EDIT / edit the graph and re-render" (spec §9/§14).
     script = (_initial_script if _initial_script is not None
@@ -208,7 +295,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
     register(result, test)                              # fold baseline into best-so-far
     # Seed history with the baseline outcome (v0) so later patches have something to compare
     # against; the verdict rides in the (never-truncated) bracket, the detail in the body.
-    history.record(0, "", f"baseline → {_verdict(result, test)}", _observation(result, test))
+    history.record(0, "", f"baseline → {_verdict(result, test)}", _observation(result, test),
+                   outcome=_outcome(result, test))
     version = 0
     for step in range(max_steps):
         if result.ok and test is not None and test.ok:
@@ -222,15 +310,18 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         # turn or writing to the agent-facing history — bounded by _INVALID_RETRIES. Only if the agent
         # can't produce a valid call do we fall back to recording one invalid step and moving on.
         rejection = None
+        rejected = None                                 # the refused call itself (agentic render)
         for attempt in range(_INVALID_RETRIES + 1):
             thought, action, usage = planner.plan(history, script, observation, graph,
                                                   fail_lineno=result.lineno, turn=step + 1,
-                                                  max_turns=max_steps, rejection=rejection)
+                                                  max_turns=max_steps, rejection=rejection,
+                                                  rejected=rejected)
             _emit_tokens(usage)
-            kind, payload = _classify_action(action, script)
+            kind, payload = _classify_action(action, script, project_name)
             if kind != "invalid":
                 break
             rejection = payload
+            rejected = {"thought": thought, "action": _action_struct(action), "reason": payload}
             log.d("PLAN", f"invalid move ({action.kind}) — retry {attempt + 1}/{_INVALID_RETRIES}")
             log.trace("invalid", attempt=attempt + 1, kind=action.kind, command=action.command,
                       reason=payload, thought=thought)
@@ -243,21 +334,28 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
         if kind == "explore":
             rc, out = exec_readonly(payload)
-            history.record(step + 1, thought, f"explore: {payload}", out)
+            history.record(step + 1, thought, f"explore: {payload}", out,
+                           action={"kind": "explore", "command": payload})
             log.d("EXPLORE", f"{payload} → rc{rc} (read-only)")
             continue                                    # free turn — no rebuild
         if kind == "edit":
             # A line-anchored edit (pure splice, validated in _classify_action). Same rebuild+register
             # +record path as a patch, so keep-best guards a bad edit exactly as it guards a bad patch.
             old_script, script = script, payload
-            change = _edit_summary(action.edit)   # op-based: verb@span + preview (captures deletes too)
+            e = action.edit
+            change = _edit_summary(e)             # op-based: verb@span + preview (captures deletes too)
             log.d("EDIT", f"{change}; re-running fresh")
             result, graph, test = build_and_test()
             register(result, test)
             version += 1
             verdict = _verdict(result, test)
+            # Store the FULL op (not the 60-char preview) so the message-list arm renders the edit
+            # byte-exact; the action_summary preview stays for the compact blob/history view.
             history.record(step + 1, thought, f"edit v{version} ({change}) → {verdict}",
-                           _observation(result, test))
+                           _observation(result, test),
+                           action={"kind": "edit", "verb": e.verb, "start": e.start,
+                                   "end": e.end, "content": e.content},
+                           outcome=_outcome(result, test))
             continue
         # kind == "patch"
         old_script, script = script, payload
@@ -270,7 +368,11 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         change = _added_lines(old_script, script)
         verdict = _verdict(result, test)
         summary = f"patch v{version} ({change}) → {verdict}" if change else f"patch v{version} → {verdict}"
-        history.record(step + 1, thought, summary, _observation(result, test))
+        # Whole-script fallback: the added-lines set-diff is the faithful change (the full new script
+        # would bloat the assistant turn), so that's what the message-list arm renders.
+        history.record(step + 1, thought, summary, _observation(result, test),
+                       action={"kind": "patch", "content": change},
+                       outcome=_outcome(result, test))
 
     log.d("GIVEUP", f"max_steps {max_steps} hit (best {best_key[1]}) — returning best script")
     log.trace("end", outcome="GIVEUP", steps=max_steps, best_passed=best_key[1]); log.summary()

@@ -21,6 +21,15 @@ def test_verify_test_cmd_is_single_object_across_modules():
     assert "--continue-on-collection-errors" in from_constants
 
 
+def test_verify_test_cmd_continues_on_collection_errors():
+    """A broken module must NOT abort the whole run (strict `pytest -q` exits rc=2 and zeroes a repo
+    that has real passing tests). The react per-cause histogram depends on collection ERRORs AND
+    execution FAILUREs appearing together in ONE run — dropping the flag would hide the collect tier
+    entirely. Regression lock so a future refactor can't silently remove it."""
+    from src.envstate.constants import VERIFY_TEST_CMD
+    assert "--continue-on-collection-errors" in VERIFY_TEST_CMD
+
+
 def test_graph_scheduler_does_not_import_orchestrator_at_module_load():
     # Importing the scheduler must not drag in the orchestrator (cycle broken).
     # Save + restore the popped modules: without this, a later test that imported `orchestrator`

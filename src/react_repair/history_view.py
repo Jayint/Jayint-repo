@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 import re
 
+from src.react_repair.history import safety_truncate
 from src.react_repair.observation import safety_compress_observation
 
 # Distinguishing failure tokens, most-specific first. Vocabulary widened from the radical
@@ -105,15 +106,19 @@ def _specific(sig: str | None) -> bool:
     return bool(sig) and not sig.startswith("build failed:") and not sig.startswith("tests failing (")
 
 
-def _short(sig: str) -> str:
-    """A compact reference to a blocker for an inline note."""
-    m = _MOD.search(sig)
-    if m:
-        return f"'{m.group(1)}'"
-    m = _FATAL.search(sig)
-    if m:
-        return m.group(1).split(":")[0].strip()
-    return sig.split(" → ")[-1][:40]
+def _header_label(sig: "str | None") -> "str | None":
+    """The BLOCKER header's descriptor. A SPECIFIC signature shows verbatim; the weak fallbacks are
+    NOT shown as prose (`build failed: …` / `tests failing (N/M)` / `build meets the gate …`): a weak
+    build failure shows just its real failing command, and the tokenless / gate cases get NO descriptor
+    (bare `### BLOCKER n` — the real error is in the cards, the context note carries the outcome).
+    extract_blocker's internal returns are unchanged, so control flow (splitting/ledger/STUCK) is intact."""
+    if sig is None:
+        return None
+    if _specific(sig):
+        return sig
+    if sig.startswith("build failed: "):
+        return sig[len("build failed: "):]              # weak build → the real failing command, no prose
+    return None                                         # weak test (tokenless) → bare header
 
 
 # A build-mutating move: the native-tool-calling arm records these as `edit v..`; the whole-script
@@ -124,95 +129,144 @@ _PAT_MUTATION = re.compile(r"^(?:patch|edit) v(\d+)(?: \((.*)\))? → (.+)$")
 _PAT_BASE = re.compile(r"^baseline → (.+)$")
 _PAT_EXPLORE = re.compile(r"^explore: (.+)$")
 
-# An explore OLDER than the recency window keeps only the FACT it surfaced, not its full body: a
-# compact, hard-capped digest (the knowledge ledger) so old probes don't bloat the prompt.
-_EXPLORE_FINDING_CAP = 200
+# Honest observe body — the REAL stdout/stderr, not a paraphrase (user directive). A build/test
+# observation is safety_compress'd (drops download/apt noise, keeps errors + install/test status);
+# an explore/cat probe shows its FULL stdout (reading the whole file IS the point of exploring),
+# only head+tail hard-capped so a pathological `find /` can't blow the prompt. The blocker SIGNATURE
+# still drives control flow (block splitting, do-not-retry, STUCK) — only the DISPLAY changed from a
+# synthesized verdict ("still blocked") to the actual output.
+_OBS_COMPRESS_CAP = int(os.getenv("REACT_OBS_BODY_CAP", "1500"))     # build/test → safety_compress'd
+_EXPLORE_FULL_CAP = int(os.getenv("REACT_EXPLORE_FULL_CAP", "6000"))  # explore/cat → full (head+tail cap)
 
-# The last few explores are different: the agent is acting on what it just read, and it needs the
-# real output — the flat 200-char digest blinded it into re-probing the same file (addons re-cat
-# pyproject.toml 16×; azure re-read tools/setup.py ~13×). Show the last _EXPLORE_BODY_STEPS explores'
-# output content-aware (radical's safety_compress_observation) at this char budget, in-block beside
-# the patch each informed; older ones fall back to the digest. Both tunable.
-_EXPLORE_BODY_STEPS = int(os.getenv("REACT_EXPLORE_BODY_STEPS", "3"))
-_EXPLORE_BODY_CAP = int(os.getenv("REACT_EXPLORE_OUTPUT_CAP", "4000"))
+# Anti-fixation stuck signal. The FACTUAL do-not-retry ledger ("already tried …") always shows; this
+# is the extra escalation once a blocker survives _STUCK_THRESHOLD same-shaped edits. Default is a
+# NEUTRAL fact — no prescriptive coaching. The old `directive` text ("CHANGE your APPROACH; is a
+# service the real gap?") is off by default: it can misfire (advising abandonment of a correct
+# incremental fix) AND it pre-bakes a crude graph-style diagnosis into the baseline, contaminating the
+# graph ablation. Kept as a lever (REACT_STUCK_MODE=directive|neutral|off) so it can be A/B'd, not assumed.
+_STUCK_THRESHOLD = int(os.getenv("REACT_STUCK_THRESHOLD", "3"))
+_STUCK_MODE = os.getenv("REACT_STUCK_MODE", "neutral").lower()      # neutral | off | directive
 
-
-def _explore_finding(obs: str | None) -> str:
-    """Whitespace-flattened, hard-capped head of an explore's output ("" when it produced none)."""
-    if not obs:
-        return ""
-    flat = " ".join(obs.split())
-    return flat if len(flat) <= _EXPLORE_FINDING_CAP else flat[:_EXPLORE_FINDING_CAP].rstrip() + " …"
-
-
-# Recency window for build/test BODIES. The grouped view is signature-only by default; but the last
-# few PRIOR attempts' actual error text can carry detail the signature collapses (WHICH egg-info
-# dirs, WHICH missing symbol). Show the compressed body of the last _RECENT_BODY_STEPS mutations that
-# CHANGED the error (a transition — a still-blocked prior just restates the signature, and the
-# current attempt is already shown in full under LAST RUN OBSERVATION). Signatures still do the bulk.
-_RECENT_BODY_STEPS = int(os.getenv("REACT_RECENT_BODY_STEPS", "2"))
-_RECENT_BODY_CAP = int(os.getenv("REACT_RECENT_BODY_CHARS", "1200"))
+# History layout lever (blob path only — the default arm is now the message list, see message_view).
+# `flat` (DEFAULT) is the SWE-agent shape: a plain chronological list of think→action→observe cards —
+# no headers/grouping/ledger/STUCK. `grouped` (opt-in) organizes cards under `### BLOCKER n` headers
+# keyed on the failure signature, with the do-not-retry ledger + STUCK. Because the arm re-runs the
+# WHOLE script from a clean base each turn, the cross-turn "blocker" narrative is partly synthetic (a
+# `set -e` script just reveals the next latent failure), so flat is the honest default. Observe bodies
+# stay real in both modes.
+_HISTORY_MODE = os.getenv("REACT_HISTORY", "flat").lower()         # flat | grouped
 
 
-def _recent_body(obs: str | None) -> str:
-    """Compressed body of a recent prior attempt, indented under its summary line ("" if empty)."""
-    if not obs:
-        return ""
+def _observe_body(obs: str | None) -> str:
+    """Real, safety-compressed stdout/stderr for a build/test step ("" if empty). The synthesized
+    `BUILD OK. TESTS p/e passed` header line is dropped for display (it duplicated the action verdict);
+    the `BUILD FAILED at cmd (line N)` header stays — its line number earns it. extract_blocker still
+    reads the untouched observation_raw for the signature."""
+    text = re.sub(r"^BUILD OK\. TESTS \d+/\d+ passed[^\n]*\n?", "", obs or "", count=1)
     body, _ = safety_compress_observation(
-        obs, threshold_chars=_RECENT_BODY_CAP, target_chars=_RECENT_BODY_CAP)
-    body = body.strip()
-    if not body:
-        return ""
-    return "      └ output (prior attempt):\n" + "\n".join("        " + ln for ln in body.splitlines())
+        text, threshold_chars=_OBS_COMPRESS_CAP, target_chars=_OBS_COMPRESS_CAP)
+    return body.strip()
+
+
+def _explore_full(obs: str | None) -> str:
+    """Full stdout for an explore/cat probe — verbatim, only head+tail hard-capped ("" if empty)."""
+    body, _ = safety_truncate(obs or "", max_chars=_EXPLORE_FULL_CAP)
+    return body.strip()
+
+
+def _indent(body: str, n: int) -> str:
+    pad = " " * n
+    return "\n".join(pad + ln for ln in body.splitlines())
+
+
+# The model's own reasoning for a step — the `think` half of the think→action→observe card. Kept
+# (capped, single-line) so the agent sees WHY it made a move and doesn't re-reason a path it already
+# rejected (SWE-agent/mini keep every thought; our old view dropped it, showing only the outcome).
+_THOUGHT_CAP = int(os.getenv("REACT_THOUGHT_CAP", "180"))
+
+
+def _thought_line(thought: str | None) -> str | None:
+    """A capped, single-line ``think:`` for a step's reasoning; None when there is no thought (all
+    existing render tests use thought="" → no line, so the card degrades to action+observe)."""
+    t = " ".join((thought or "").split())
+    if not t:
+        return None
+    if len(t) > _THOUGHT_CAP:
+        t = t[:_THOUGHT_CAP].rstrip() + " …"
+    return f"    think:   {t}"
 
 
 def render_history(steps) -> str:
+    """Render the flat Step list as markdown BLOCKER sections, each holding think→action→observe
+    cards. The `observe` half is the REAL output (user directive): a build/test step shows its
+    safety-compressed stdout/stderr, an explore/cat probe shows its FULL stdout. A `### BLOCKER n`
+    header opens where the failure SIGNATURE changes; the signature still drives control flow (block
+    splitting, do-not-retry, STUCK) even though the display is now the raw output, not a verdict.
+
+    Two bodies are deliberately withheld to avoid duplication/bloat: the CURRENT mutation's output
+    (already shown in full under LAST RUN OBSERVATION — after an explore the top still shows the last
+    build, so `mut_positions[-1]` is what's up there), and a still-blocked repeat whose output is
+    byte-identical to the prior attempt (collapsed to `(output unchanged from vN)`). Chronological
+    (oldest→newest); the still-open blocker sits last and is tagged `← current turn`."""
     if not steps:
         return "HISTORY — (no prior steps yet)"
-    lines = ["HISTORY — chronological; a BLOCKER header marks where the failure signature changed:"]
+    grouped = _HISTORY_MODE != "flat"               # flat = SWE-agent shape: no headers/ledger/STUCK
+    if grouped:
+        lines = ["HISTORY — chronological; grouped by BLOCKER (the failure signature being fought). "
+                 "Each attempt is a card: think → action → observe (observe = real stdout/stderr)."]
+    else:
+        lines = ["HISTORY — chronological; each attempt is a card: think → action → observe "
+                 "(observe = real stdout/stderr)."]
     prev_sig = "\x00"                                # sentinel: nothing seen yet
     block_no = 0
     failed_deltas: list[str] = []
-    last = steps[-1]                                 # the just-run step gets its full explore output
-    # The last _RECENT_BODY_STEPS PRIOR mutations (exclude the current one — it's already shown in
-    # full under LAST RUN OBSERVATION) may carry their compressed body on an error transition.
+    open_header_idx = -1                             # line index of the current block's header (← marker)
+    prev_body, prev_ver = None, None                # last rendered mutation body (for dedup)
+    # The CURRENT mutation's output is up top under LAST RUN OBSERVATION (explores don't rebuild, so
+    # it is the LAST mutation, not necessarily the last step) — withhold its body here to avoid a dup.
     mut_positions = [i for i, s in enumerate(steps) if _PAT_MUTATION.match(s.action_summary or "")]
-    body_window = (set(mut_positions[-(_RECENT_BODY_STEPS + 1):-1])
-                   if len(mut_positions) >= 2 else set())
-    # The last _EXPLORE_BODY_STEPS explores (by recency, across blocks) render their FULL output;
-    # recency lands them in the active block, beside the patch they informed. Older ones → digest.
-    explore_positions = [i for i, s in enumerate(steps) if _PAT_EXPLORE.match(s.action_summary or "")]
-    explore_body_window = set(explore_positions[-_EXPLORE_BODY_STEPS:])
+    current_mut = mut_positions[-1] if mut_positions else None
 
     def open_block(sig, context):
-        nonlocal block_no, failed_deltas
+        nonlocal block_no, failed_deltas, open_header_idx
         block_no += 1
-        shown = sig if sig is not None else "(build meets the gate — no blocker)"
-        lines.append(f"[{block_no}] BLOCKER: {shown}   ({context})")
         failed_deltas = []
+        if not grouped:                                  # flat: no BLOCKER header (control flow still runs)
+            return
+        label = _header_label(sig)                       # None for weak/gate → bare header (no prose)
+        open_header_idx = len(lines)
+        head = f"### BLOCKER {block_no} — {label}" if label else f"### BLOCKER {block_no}"
+        lines.append(f"{head}   ({context})")
+
+    def observe(body: str) -> None:
+        """Append the `observe:` half from a real, already-extracted output body (or a placeholder)."""
+        nonlocal prev_body, prev_ver
+        if not body:
+            lines.append("    observe: (no output)")
+        elif body == prev_body:                     # byte-identical repeat → don't re-print it
+            lines.append(f"    observe: (output unchanged from v{prev_ver})")
+        else:
+            lines.append("    observe:\n" + _indent(body, 6))
 
     for idx, st in enumerate(steps):
         summ = st.action_summary or ""
+        thought = _thought_line(st.thought)
 
         me = _PAT_EXPLORE.match(summ)
         if me:
-            if idx in explore_body_window:          # recent probe → real output, in-block by the patch
-                body, _ = safety_compress_observation(
-                    st.observation_raw or "",
-                    threshold_chars=_EXPLORE_BODY_CAP, target_chars=_EXPLORE_BODY_CAP)
-                body = body.strip()
-                if body:                            # indent the body under its `explored` line
-                    indented = "\n".join("        " + ln for ln in body.splitlines())
-                    lines.append(f"      explored `{me.group(1)}` →\n{indented}")
-                else:
-                    lines.append(f"      explored `{me.group(1)}`")
-            else:                                   # aged probe → compact digest (knowledge ledger)
-                finding = _explore_finding(st.observation_raw)
-                lines.append(f"      explored `{me.group(1)}`" + (f" → {finding}" if finding else ""))
+            if thought:                             # think → action → observe: reason first, then probe
+                lines.append(thought)
+            body = _explore_full(st.observation_raw)    # FULL stdout — reading the file IS the point
+            if body:
+                lines.append(f"- explored `{me.group(1)}` →\n{_indent(body, 8)}")
+            else:
+                lines.append(f"- explored `{me.group(1)}`")
             continue
 
         mb = _PAT_BASE.match(summ)
         if mb:
+            # The baseline's real output is summarized by the first BLOCKER header (its signature);
+            # its full body is the oldest/least-relevant content, so the header stands in for it.
             prev_sig = extract_blocker(st.observation_raw)
             open_block(prev_sig, f"baseline: {mb.group(1)}")
             continue
@@ -224,54 +278,58 @@ def render_history(steps) -> str:
             # Aged invalids stay terse so old reminders don't pile up. Without this the reminder was
             # dead: the agent only ever saw "(invalid move)" with no direction (azure).
             hint = (st.observation_raw or "").strip()
-            if st is last and hint:
-                lines.append("      (invalid move — re-prompted): " + hint)
+            if st is steps[-1] and hint:
+                lines.append("- (invalid move — re-prompted): " + hint)
             else:
-                lines.append("      (invalid move — re-prompted)")
+                lines.append("- (invalid move — re-prompted)")
             continue
 
-        ver, change, score = mp.group(1), mp.group(2), mp.group(3)
-        change_s = f"({change}) " if change else ""
+        ver, change = mp.group(1), mp.group(2)          # group(3) is the verdict — no longer displayed (it
+        action = f"- v{ver} · {change}" if change else f"- v{ver}"   # duplicated the observe header)
         sig = extract_blocker(st.observation_raw)
-        # A recent prior attempt's body — only attached on an error TRANSITION below (where the body
-        # carries detail the signature collapses); a still-blocked repeat just restates the signature.
-        body = _recent_body(st.observation_raw) if idx in body_window else ""
 
+        lines.append(action)                        # the ACTION half of the card
+        if thought:                                 # the THINK half (only when the model gave one)
+            lines.append(thought)
+        if idx == current_mut:                      # OBSERVE half — real output, or the top pointer
+            lines.append("    observe: (current run — full output above under LAST RUN OBSERVATION)")
+        else:
+            body = _observe_body(st.observation_raw)
+            observe(body)
+            prev_body, prev_ver = body, ver
+
+        # Control flow on the SIGNATURE (unchanged): block splitting + do-not-retry + STUCK.
         if sig is None:                             # reached a passing / gate-meeting state
-            lines.append(f"      v{ver} {change_s}→ {score}   previous error no longer present → gate reached")
             failed_deltas = []
             prev_sig = None
             continue
-        if sig == prev_sig:                         # same blocker persists
-            lines.append(f"      v{ver} {change_s}→ {score}   still blocked (same error)")
+        if sig == prev_sig:                         # same blocker persists → feed the anti-repeat ledger
             if change:
                 failed_deltas.append(change)
             prev_sig = sig
             continue
         if _specific(sig) and _specific(prev_sig):  # CONFIDENT change → close block, open the next
-            lines.append(f"      v{ver} {change_s}→ {score}   {_short(prev_sig)} no longer present")
-            if body:
-                lines.append(body)
             open_block(sig, f"surfaced after v{ver}")
             prev_sig = sig
             continue
-        # low-confidence change (weak signature on one side) → do NOT split; note inline
-        lines.append(f"      v{ver} {change_s}→ {score}   error changed (signature uncertain)")
-        if body:
-            lines.append(body)
-        prev_sig = sig
+        prev_sig = sig                              # low-confidence change → do NOT split
 
-    if failed_deltas:                               # still-open blocker: consolidate what didn't help
-        lines.append(f"      ↳ already tried for this blocker (didn't help): {', '.join(failed_deltas)}")
-        if len(failed_deltas) >= 2:
-            # Anti-fixation reframe (HerAgent "Historical Reflection"): >=2 edits against the SAME
-            # blocker with none clearing it is fixation, not progress — promote the passive ledger to
-            # an imperative to change strategy (the addons 3x setuptools re-pin). The factual line
-            # above stays so the agent still sees exactly what NOT to retry.
-            lines.append(
-                "      ⚠ STUCK — this blocker survived every edit above; none cleared it. STOP "
-                "repeating variations of the same fix and CHANGE your APPROACH. Re-read the error "
-                "and reconsider: is the install METHOD wrong (a system library is needed, not a pip "
-                "package; or `pip install -e .` is not right for this repo), or is a service / "
-                "config / env var the real gap?")
+    if grouped:                                     # flat mode has no blocker to mark / no ledger / no STUCK
+        if prev_sig is not None and open_header_idx >= 0:   # the last block is still OPEN → mark it current
+            lines[open_header_idx] += "   ← current turn"
+        if failed_deltas:                           # still-open blocker: the FACTUAL do-not-retry ledger
+            lines.append(f"    ↳ already tried for this blocker (didn't help): {', '.join(failed_deltas)}")
+            # Escalation only past the threshold, and neutral by default (a fact, not coaching). The
+            # prescriptive `directive` variant is opt-in — see the _STUCK_MODE note above.
+            if len(failed_deltas) >= _STUCK_THRESHOLD and _STUCK_MODE != "off":
+                if _STUCK_MODE == "directive":
+                    lines.append(
+                        "    ⚠ STUCK — this blocker survived every edit above; none cleared it. STOP "
+                        "repeating variations of the same fix and CHANGE your APPROACH. Re-read the error "
+                        "and reconsider: is the install METHOD wrong (a system library is needed, not a pip "
+                        "package; or `pip install -e .` is not right for this repo), or is a service / "
+                        "config / env var the real gap?")
+                else:                               # "neutral" (default): a fact, no prescription
+                    lines.append(f"    ⚠ {len(failed_deltas)} same-shaped edits against this blocker, "
+                                 "none cleared it.")
     return "\n".join(lines)

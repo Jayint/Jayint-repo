@@ -26,6 +26,22 @@ def _capture():
     return seen, fn
 
 
+def _capture_all():
+    """Patch complete_with_tools capturing the FULL message list (for the prompt-style lever)."""
+    seen = {}
+    def fn(client, model, messages, **k):
+        seen["messages"] = messages
+        return [("explore", '{"command":"ls"}')], "", dict(_USAGE), "resp"
+    return seen, fn
+
+
+def _one_step_history():
+    from src.react_repair.history import History
+    h = History()
+    h.record(0, "", "baseline → BUILD FAILED", "BUILD FAILED at `pip install x` (line 1):\nboom\n")
+    return h
+
+
 # --- tool-calling primary path --------------------------------------------
 def test_plan_returns_edit_from_tool_call(monkeypatch):
     monkeypatch.setattr(planner_mod, "complete_with_tools",
@@ -189,9 +205,49 @@ def test_plan_marks_failing_line_in_rendered_user_message(monkeypatch):
     assert len(marked) == 1 and "bb" in marked[0]
 
 
+# --- prompt-style lever (growing message list = default; blob = opt-in) ---
+def test_prompt_style_defaults_to_growing_message_list(monkeypatch):
+    # DEFAULT (env unset): the model's own moves become real assistant turns; the live obs is last.
+    from src.react_repair.history import History
+    monkeypatch.delenv("REACT_PROMPT_STYLE", raising=False)
+    h = History()                                              # needs an ACTION for an assistant turn
+    h.record(0, "", "baseline → BUILD FAILED", "BUILD FAILED at `x` (line 1):\nboom\n")
+    h.record(1, "add it", "edit v1 (insert@1 +pip install foo) → BUILD FAILED",
+             "BUILD FAILED at `x` (line 1):\nstill boom\n",
+             action={"kind": "edit", "verb": "insert", "start": 1, "end": 1, "content": "pip install foo"})
+    seen, fn = _capture_all(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(h, "line-one", "o", graph=None)
+    roles = [m["role"] for m in seen["messages"]]
+    assert roles[0] == "system" and "assistant" in roles       # growing list, not a 2-message blob
+    assert "1| line-one" in seen["messages"][-1]["content"]     # numbered script on the live user turn
+    assert "LAST RUN OBSERVATION" not in "\n".join(m["content"] for m in seen["messages"])
+
+def test_prompt_style_blob_opt_in_is_two_messages(monkeypatch):
+    # REACT_PROMPT_STYLE=blob → the legacy single re-rendered user blob (no assistant turns).
+    monkeypatch.setenv("REACT_PROMPT_STYLE", "blob")
+    seen, fn = _capture_all(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m").plan(_one_step_history(), "s", "o", graph=None)
+    assert [m["role"] for m in seen["messages"]] == ["system", "user"]
+
+def test_prompt_style_default_still_forces_tool_choice(monkeypatch):
+    monkeypatch.delenv("REACT_PROMPT_STYLE", raising=False)
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)   # _capture grabs kwargs
+    ReactPlanner(client=object(), model="m").plan(_one_step_history(), "s", "o", graph=None)
+    assert seen["kwargs"].get("tool_choice") == "required"
+
+
 # --- set -e halt semantics in the prompt ----------------------------------
 def test_system_prompt_explains_set_e_halt_semantics():
     sp = planner_mod.SYSTEM_PROMPT
     assert "halts at the first failing command" in sp        # fail-fast is stated
     assert "never ran" in sp                                 # lines below the halt are unexecuted
     assert "BUILD HALTED HERE" in sp                         # ties the prose to the inline script marker
+
+
+def test_integrity_forbids_installing_the_project_from_an_index():
+    # Live false green: the agent installed the repo's OWN package from PyPI (297/297 green) instead
+    # of the checkout, so the suite tested code that is not in the repo. The host enforces it now.
+    sp = planner_mod.SYSTEM_PROMPT
+    assert "pip install -e ." in sp                    # names the correct install
+    assert "package index" in sp                       # names what's forbidden
+    assert "shadow" in sp.lower()                      # says WHY (published copy shadows the source)

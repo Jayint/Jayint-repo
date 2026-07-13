@@ -133,6 +133,37 @@ def _repo_layout(repo_path, *, max_top=40, max_manifests=40) -> str:
     return "\n".join(lines)
 
 
+def project_name(repo_path) -> "str | None":
+    """The repo's OWN distribution name (pyproject `[project].name`, poetry, or setup.cfg). The HOST
+    reads it from the checkout so the anti-cheat gate can reject a setup.sh that installs the project
+    under test from a package index instead of the local source (a live false green: the agent shipped
+    `pip install itsdangerous`, went 297/297 green, and never installed the repo). Best-effort: an
+    unparseable/absent manifest returns None, which simply disables that gate."""
+    if not repo_path:
+        return None
+    root = pathlib.Path(repo_path)
+    try:
+        import tomllib
+        data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        name = (data.get("project") or {}).get("name")
+        if not name:
+            name = ((data.get("tool") or {}).get("poetry") or {}).get("name")
+        if name:
+            return str(name).strip()
+    except Exception:
+        pass
+    try:
+        import configparser
+        cp = configparser.ConfigParser()
+        cp.read(root / "setup.cfg")
+        name = cp.get("metadata", "name", fallback=None)
+        if name:
+            return str(name).strip()
+    except Exception:
+        pass
+    return None
+
+
 def _gather_env_info(sandbox, repo_path) -> str:
     """Render the ENVIRONMENT block: base image + OS, the in-container repo/working dir, and the
     repo layout. Best-effort — any part that can't be gathered is simply omitted."""
@@ -173,7 +204,8 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
     try:
         return run_react(graph, reset=reset, run_script=run_script, certify=certify,
                          exec_readonly=exec_readonly, run_tests=run_tests, planner=planner,
-                         history=history, log=log, max_steps=max_steps, _initial_script=seed)
+                         history=history, log=log, max_steps=max_steps, _initial_script=seed,
+                         project_name=project_name(repo_path))
     finally:
         if owns_log:
             log.close()

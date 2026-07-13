@@ -496,4 +496,4 @@ def native_risk_from_lock(
         p for p in raw_packages
         if p.get("name") and not _is_local_source(p.get("source", {}))
     ]
-    return risk_from_packages(raw_packages, target_platform)
+    return risk_from_packages(raw_packages, target_platform, target_python)

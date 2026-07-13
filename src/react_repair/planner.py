@@ -11,51 +11,53 @@ from src.envstate.llm_response import complete_with_tools
 from src.react_repair.actions import (
     TOOLS_SCHEMA, action_from_tool_call, extract_reasoning, extract_thought, parse_action)
 from src.react_repair.history_view import render_history
+from src.react_repair.message_view import build_messages
 
 # GOAL + APPROACH + INTEGRITY are STATIC and ablation-invariant (identical for the no-graph and
 # graph runs). The ENVIRONMENT section (injected per-run: base image / OS / repo dir / file tree)
 # is the only part that varies — the graph variant additionally feeds certified state per-turn.
 _GOAL_APPROACH_INTEGRITY = """\
 GOAL
-You are reproducing a Python repository's test environment by editing ONE build script (setup.sh),
-re-run from a clean base image each turn. Set up what the repo's tests need to run:
-  · the language runtime and the system libraries a build or link step needs
-  · the Python packages, including test/dev dependencies
-  · the services and configuration the tests require — prefer host-provided endpoints and the repo's
-    own test config when present; start a service inside setup.sh only if the repo shows the tests
-    expect a local one, and never spin up a heavyweight service on a guess
+You are reproducing a repository's test environment by editing ONE build script (setup.sh), re-run
+from a clean base image each turn. Set up what the repo's tests need to run: the language runtime and
+the system libraries a build or link step needs, the project's packages (including test/dev
+dependencies), and the services and configuration the tests require. For services and config, prefer
+host-provided endpoints and the repo's own test config when present; start a service inside setup.sh
+only if the repo shows the tests expect a local one, and never spin up a heavyweight service on a guess.
 You are DONE when setup.sh runs with no error AND the test suite passes — the host runs both and
 decides success; never claim it yourself.
 
 APPROACH
 The current setup.sh already installs the package closure resolved from the repo's own declarations —
 treat it as a near-complete starting point, not a blank slate. The remaining failure is usually a
-missing system library, a wrong install method, an unset config/env var, or a service — so read the
-last run's error and the ENVIRONMENT block first; they usually name it.
-Repair is an EDIT loop: keep editing setup.sh until the build is clean and the tests pass. The edit
-is the only thing that carries over — the script re-runs from a clean base each turn, so a package
-you install inside an explore is gone next turn; put the fix in setup.sh with edit(). Prefer an edit
-every turn and explore only when you genuinely can't yet name the change; once the error and the
-files show you the fix, stop exploring and make it. Exploring turn after turn with no edit is a
-failure, not diligence. You have a limited, counted number of turns (shown each turn) — treat
-exploring as spending them, and as the budget runs low commit your best edit rather than investigate.
+missing system library, a wrong install method, an unset config/env var, or a service; the last run's
+error and the ENVIRONMENT block usually name it, so read them first. Repair is an EDIT loop: keep
+editing setup.sh until the build is clean and the tests pass. The edit is the only thing that carries
+over — setup.sh re-runs from a clean base each turn, so a package you install inside an explore is
+gone next turn; put the fix in setup.sh with edit(). Explore only when you genuinely can't yet name
+the change; once the error and the files show you the fix, stop exploring and make it. Exploring turn
+after turn with no edit is a failure, not diligence — you have a limited, counted number of turns
+(shown each turn), so as the budget runs low commit your best edit rather than investigate.
 The build halts at the first failing command (set -e): the error names that command and its line,
 tagged ← BUILD HALTED HERE in the script below. Everything above that line already succeeded — don't
-re-install it; everything below never ran, so don't touch a line the failure hasn't reached yet.
-Make the smallest change the evidence supports — the last run's output and the repo's own declared
-setup (its manifests and test config). Preserve the existing script unless the evidence shows a line
-is wrong; don't strip a working setup.sh to a stub, and don't add packages or services you can't tie
-to evidence.
+re-install it; everything below never ran, so don't touch a line the failure hasn't reached yet. Make
+the smallest change the evidence supports — the last run's output and the repo's own declared setup
+(its manifests and test config) — and preserve the existing script unless the evidence shows a line is
+wrong; don't strip a working setup.sh to a stub, and don't add packages or services you can't tie to
+evidence.
 
 INTEGRITY
-Set the environment up for real. Don't fake a pass — no stub/placeholder modules, no error-
-suppressing flags, and never shrink what the test suite COLLECTS. Concretely: don't edit, skip,
-delete, or move test files, and don't add a pytest.ini / pyproject / setup.cfg / tox.ini / conftest
-that narrows collection (testpaths, --ignore, --ignore-glob, --deselect, -k, norecursedirs,
-collect_ignore). Excluding a test you can't get to run is still deselecting it — leave it failing.
-The host enforces this: an edit that reduces the collected test set is rejected, so it can't help you
-— fix the real cause instead. If a dependency or service genuinely cannot be provided, leave the
-test failing rather than fabricate a way to pass."""
+Set the environment up for real. Don't fake a pass — no stub/placeholder modules, no error-suppressing
+flags, and never shrink what the test suite COLLECTS. Concretely: don't edit, skip, delete, or move
+test files, and don't add a pytest.ini / pyproject / setup.cfg / tox.ini / conftest that narrows
+collection (testpaths, --ignore, --ignore-glob, --deselect, -k, norecursedirs, collect_ignore).
+Excluding a test you can't get to run is still deselecting it — leave it failing. The host enforces
+this: an edit that reduces the collected test set is rejected, so it can't help you — fix the real
+cause instead. Install THIS repo's own package from the local checkout (`pip install -e .`, plus its
+declared extras), never from a package index — a published copy shadows the source under test, so the
+suite would pass against code that isn't in this repo. That is a fake pass, and the host rejects it.
+If a dependency or service genuinely cannot be provided, leave the test failing rather
+than fabricate a way to pass."""
 
 _TOOLS = """\
 TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:
@@ -157,14 +159,42 @@ class ReactPlanner:
         parts.append(_closing_line(turn, max_turns))
         return "\n\n".join(parts)
 
-    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
-             turn: int | None = None, max_turns: int | None = None, rejection: str | None = None):
-        messages = [
+    def _graph_text(self, graph) -> "str | None":
+        """The certified-state block for the graph variant (None for the baseline / empty context)."""
+        if self.graph_context is None:
+            return None
+        ctx = self.graph_context(graph) or ""
+        return ctx if ctx.strip() else None
+
+    def _messages(self, history, script, observation, graph, fail_lineno, turn, max_turns, rejection,
+                  rejected=None):
+        """The LLM message list for the active prompt style (lever REACT_PROMPT_STYLE, read per-call
+        so a VM run can flip it via env). `messages` (DEFAULT): the growing assistant/user conversation
+        (message_view) — the model's own thought+action as real turns, the current observation as the
+        last user message, recency-tiered detail. `blob` (opt-in): stable system + ONE re-rendered user
+        blob (render_history). The graph axis stays a single field in both, so the ablation is clean.
+
+        `rejected` (the structured call the host refused + why) is used only by the agentic render,
+        which puts the refusal in the rejected call's own tool-result slot; the blob path keeps the
+        plain-string `rejection` footer."""
+        if os.getenv("REACT_PROMPT_STYLE", "messages").lower() != "blob":
+            return build_messages(
+                history.steps, system_prompt=self.system_prompt,
+                numbered_script=_numbered(script, fail_lineno),
+                closing_line=_closing_line(turn, max_turns),
+                graph_context_text=self._graph_text(graph), rejection=rejection, rejected=rejected)
+        return [
             {"role": "system", "content": self.system_prompt},
             {"role": "user",
              "content": self._render(history, script, observation, graph, fail_lineno,
                                      turn, max_turns, rejection)},
         ]
+
+    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
+             turn: int | None = None, max_turns: int | None = None, rejection: str | None = None,
+             rejected: "dict | None" = None):
+        messages = self._messages(history, script, observation, graph, fail_lineno,
+                                  turn, max_turns, rejection, rejected)
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text
         # path (parse_action on the message content) is a FALLBACK for a provider/turn that returns

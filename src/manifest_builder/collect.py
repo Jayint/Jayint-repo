@@ -61,12 +61,32 @@ def parse_collection_result(exit_code: int, plugin_json: dict) -> CollectionResu
     )
 
 
+def build_timeout() -> int:
+    """Wall-clock cap on `docker build`, in seconds. A repo whose test modules import heavyweight
+    frameworks (mlflow's ML "flavor" suites pull sklearn/torch/tensorflow/xgboost/...) legitimately
+    needs a multi-GB image, and 1h was not enough to build one. This is an INFRASTRUCTURE cap, not
+    a gate clause -- raising it cannot make the 5-clause gate easier to pass, only let an honest
+    build finish. Read per call (not at import) so it stays overridable without a module reload."""
+    return int(os.environ.get("MANIFEST_BUILD_TIMEOUT", "3600"))
+
+
 class Docker:
     def __init__(self, run=None):
         self._run = run or _default_run
 
     def build(self, tag, context_dir):
-        return self._run(["docker", "build", "-t", tag, context_dir], timeout=3600)
+        # A timeout is just another way for a build to fail, so return a non-zero rc instead of
+        # letting TimeoutExpired escape. Escaping bypasses certify()'s BuildError handler and
+        # propagates out of build_one, ABANDONING THE REPO -- every remaining attempt is lost to
+        # one slow Dockerfile (this is exactly how mlflow lost all 3 attempts). As a non-zero rc
+        # it becomes a rejected attempt, and the next attempt still gets its shot.
+        t = build_timeout()
+        try:
+            return self._run(["docker", "build", "-t", tag, context_dir], timeout=t)
+        except subprocess.TimeoutExpired:
+            return 124, (f"docker build exceeded MANIFEST_BUILD_TIMEOUT={t}s. The image is too "
+                         "slow to build: install fewer/lighter dependencies, use prebuilt wheels "
+                         "(avoid source builds), and merge RUN layers.")
 
     def image_id(self, tag):
         rc, out = self._run(["docker", "image", "inspect", "-f", "{{.Id}}", tag])

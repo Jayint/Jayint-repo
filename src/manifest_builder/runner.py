@@ -64,7 +64,84 @@ Dockerfile, preferring the repo's DECLARED test/dev groups first (`pip install -
 `[all]`, requirements-dev.txt, test-requirements.txt) and `apt-get install` for C-library imports -> \
 re-run. Repeat until accepted and `import_skipped` is minimal. Declared dependency groups usually \
 close most collection gaps at once.
+
+ZERO COLLECTION ERRORS — THERE IS NO PARTIAL CREDIT. The gate requires pytest to exit 0 on BOTH runs. \
+ONE un-importable test module rejects the ENTIRE repository, no matter how many thousands of tests \
+collected around it. So never stop at the first traceback: after each `./verify`, enumerate EVERY \
+distinct error and fix them all. A big repo routinely hides a dozen unrelated missing distributions \
+behind the first one, and a run that fixes nine of ten scores exactly the same as one that fixes none.
+
+HARD LIMITS OF THE COLLECTION SANDBOX. `./verify` collects inside a locked-down container: NO NETWORK \
+(`--network none`), 2 CPUs, 4 GB RAM, 512 processes, all capabilities dropped. Design the Dockerfile \
+around this:
+- Everything a module needs AT IMPORT must be baked in at BUILD time. Nothing can be fetched during \
+collection — no pip, no model weights, no fixture data, no NLTK/HuggingFace caches. Pre-fetch it in a \
+RUN layer.
+- Importing a heavyweight framework (torch, tensorflow, jax) can exhaust the 4 GB cap; the OOM \
+surfaces as a confusing collection error or a killed process, not an ImportError. Prefer CPU-only \
+wheels (`tensorflow-cpu`, torch's `+cpu` index) — they import in a fraction of the memory.
+- A module that opens a socket at import time cannot be satisfied (no network). Install its client \
+library anyway; that is often enough, because the connection is usually built lazily inside a fixture.
+
+STABILITY — THE NODE-ID SET MUST BE IDENTICAL ACROSS THE TWO RUNS. If `./verify` reports the set \
+unstable, something is nondeterministic: parametrize IDs derived from set/dict iteration, a timestamp, \
+a uuid, a tempfile name, or filesystem glob order — or an installed plugin that generates tests \
+dynamically. `ENV PYTHONHASHSEED=0` fixes the most common case (hash-order-dependent IDs). A repo can \
+collect tens of thousands of tests cleanly and STILL be rejected on this clause alone, so if you see \
+it, fix it — it is not cosmetic.
 """
+
+
+# Per-repo hints. These describe the EXACT clause a prior attempt failed on, so the agent spends its
+# budget on the real blocker instead of rediscovering it. They add information, never permission:
+# every repo still faces the identical 5-clause host gate (exit 0 x2, non-hollow, stable node-id set,
+# pristine protected files), so a hint cannot lower the bar — only aim the search.
+REPO_HINTS: dict[str, str] = {
+    "mlflow/mlflow": """\
+
+REPO-SPECIFIC (from your last attempt in this harness). You collected ~16,300 tests but were REJECTED \
+because pytest exited 2 on BOTH runs: collection ERRORS remained. Collecting a lot is worthless here \
+without exit 0. mlflow's suite spans many ML "flavor" modules (sklearn, pytorch, tensorflow, xgboost, \
+lightgbm, statsmodels, spark, ...) and each flavor test module imports its framework at module level, \
+so each missing one is a hard collection error. Work the FULL error list, install from the repo's own \
+`requirements/*.txt` (test/dev/skinny) plus the flavor frameworks, and use CPU-only wheels to stay \
+inside the 4 GB import budget.
+Your attempt before that died a different way: `docker build` itself ran past its wall-clock cap while \
+installing the ML stack. The build is capped, so an image that never finishes building scores ZERO — \
+worse than a lean one. Keep it economical: prebuilt wheels only (never a source build), CPU-only \
+variants, `--no-cache-dir`, and a small number of merged RUN layers. Install what the failing imports \
+actually name — not the whole ML ecosystem on spec.""",
+    "Checkmk/checkmk": """\
+
+REPO-SPECIFIC (from your last attempt in this harness). You were REJECTED for `protected files \
+modified` — you edited files in the repository to force collection. EVERY tracked file except \
+`Dockerfile` is hashed before and after; any edit is reverted and auto-rejects the repo, so that path \
+can never succeed no matter how good the result looks. It also exited 1 on both runs (collection \
+errors). Treat the Dockerfile as your only tool: install what the failing imports need. If a module \
+genuinely cannot be made importable through the environment alone, this repo cannot certify — that is \
+an acceptable outcome, and far better than an edit that guarantees rejection.""",
+    "PostHog/posthog": """\
+
+REPO-SPECIFIC. Your previous attempts died to harness infrastructure faults, not to your work — you \
+are NOT starting from a failed design. Known: this repo collects ~77,000 node-IDs with zero \
+import-skips, so the dependency side is essentially solvable. The blocker to expect is the STABILITY \
+clause (the two collection runs disagreeing on the node-ID set), not missing packages. Set \
+`ENV PYTHONHASHSEED=0` early, and if the set still differs, hunt the nondeterministic parametrize ID. \
+It is a large Django repo: expect to need `DJANGO_SETTINGS_MODULE` and the django/pytest plugin stack \
+installed for modules to import at all.""",
+}
+
+
+def prompt_for(repo_url: str) -> str:
+    """TASK_PROMPT plus the repo's hint, when one exists. Matched on `owner/repo` so a
+    `.git` suffix or trailing slash in the corpus URL cannot silently miss the hint."""
+    key = repo_url.rstrip("/")
+    if key.endswith(".git"):
+        key = key[:-4]
+    for full_name, hint in REPO_HINTS.items():
+        if key.lower().endswith("/" + full_name.lower()):
+            return TASK_PROMPT + hint
+    return TASK_PROMPT
 
 
 @dataclass(frozen=True)

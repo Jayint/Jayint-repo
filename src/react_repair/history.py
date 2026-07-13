@@ -14,6 +14,14 @@ class Step:
     action_summary: str
     observation_raw: str
     observation_prompt: str          # possibly truncated (Tier 1) then compressed (Tier 2)
+    action: "dict | None" = None     # structured tool call (verb/start/end/content or command) for
+                                     # BYTE-EXACT message-list rendering; None for baseline/invalid
+                                     # steps (message_view then falls back to parsing action_summary)
+    outcome: "dict | None" = None    # structured build/test result (build_ok, failing_command, lineno,
+                                     # passed/failed/errors/skipped/collected). The agentic view renders
+                                     # its `$ cmd → exit N` envelope from THIS, not by re-parsing the
+                                     # observation text — the stored body is already compressed, so its
+                                     # summary line may not survive. None for explore/invalid steps.
 
 
 def safety_truncate(text: str, *, max_chars: int, keep_tail: bool = True) -> tuple[str, bool]:
@@ -42,9 +50,11 @@ class History:
         self.log = log
 
     def record(self, step_id: int, thought: str, action_summary: str,
-               observation_raw: str) -> Step:
+               observation_raw: str, action: "dict | None" = None,
+               outcome: "dict | None" = None) -> Step:
         prompt_obs, _ = safety_truncate(observation_raw or "", max_chars=self.safety_max_chars)
-        step = Step(step_id, thought, action_summary, observation_raw or "", prompt_obs)
+        step = Step(step_id, thought, action_summary, observation_raw or "", prompt_obs,
+                    action, outcome)
         self.steps.append(step)
         self._maybe_compress()           # Tier 2 — reflective compression (no-op if no compressor injected)
         return step

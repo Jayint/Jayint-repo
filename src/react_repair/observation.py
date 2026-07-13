@@ -10,10 +10,14 @@ from __future__ import annotations
 
 import re
 
-SAFETY_COMPRESSION_NOTE = "... (repetitive output omitted by safety compression) ..."
-SAFETY_TRUNCATION_NOTE = (
-    "\n... (safety-compressed output truncated to stay within prompt budget) ..."
-)
+# The ONLY synthesized line we emit: an honest count wherever real content was dropped. No
+# "[Safety Compression Applied]" preamble, no trailing note — those were meta-chatter about the
+# compressor itself, which told the model nothing and ate prompt budget.
+def _elision(n: int) -> str:
+    return f"… ({n} line{'' if n == 1 else 's'} omitted) …"
+
+
+_ELISION_LEN = len("… (999 lines omitted) …")     # budget reservation for the marker
 
 # Lines that are pure progress/transport noise — dropped unless they also match a STATUS pattern.
 SAFETY_NOISE_PATTERNS = (
@@ -28,7 +32,52 @@ SAFETY_NOISE_PATTERNS = (
     r"^\s*Resolving deltas:",
     r"^\s*Receiving objects:",
     r"^\s*remote:",
+    # Harness plumbing, never model-facing: the ERR-trap sentinel the sandbox emits so the HOST can
+    # recover (failing_command, lineno) — see sandbox._parse_install_failure. The host parses it; the
+    # agent must never see it (it leaked verbatim into a live prompt).
+    r"^\s*__INSTALL_FAIL__",
 )
+
+# pip's transport chatter. Deliberately NOT in SAFETY_NOISE_PATTERNS: that list is always-on for
+# every caller, and the default (classic) observation path is the A/B's control arm — it must stay
+# byte-identical to what shipped. So this is a separate, opt-in strip used only by the agentic body
+# renderer, and it bundles with that lever.
+#
+# Everything here carries ZERO diagnostic information: which wheel was fetched, how fast, and the
+# root-user nag pip prints on literally every container run. What is NOT here is deliberate:
+# `Successfully installed X-2.1` (says which version actually landed) and `Requirement already
+# satisfied: X` (says the package IS present) both survive — they answer real questions.
+PIP_PROGRESS_PATTERNS = (
+    r"^\s*Collecting\s",
+    r"^\s*Downloading\s",
+    r"^\s*Using cached\s",
+    r"^\s*[━╸]+",                                    # the rich progress bar
+    r"^\s*Installing collected packages:",           # redundant with "Successfully installed"
+    r"^\s*Attempting uninstall:",
+    r"^\s*Found existing installation:",
+    r"^\s*Uninstalling\s",
+    r"^\s*Successfully uninstalled\s",               # pip internals; `Successfully installed` is the signal
+    r"^\s*Preparing metadata\s",
+    r"^\s*Building wheel\s",
+    r"^\s*Created wheel\s",
+    r"^\s*Stored in directory:",
+    r"^WARNING: Running pip as the 'root' user",     # printed on every single container run
+    r"^\s*\[notice\] A new release of pip",
+    r"^\s*\[notice\] To update, run:",
+)
+
+
+def strip_pip_progress(text: str) -> str:
+    """Drop pip's transport chatter (see PIP_PROGRESS_PATTERNS). Pure; returns *text* unchanged when
+    nothing matched, so a non-pip observation is byte-for-byte untouched."""
+    if not text:
+        return text
+    lines = text.splitlines()
+    kept = [ln for ln in lines if not _matches_any_pattern(ln, PIP_PROGRESS_PATTERNS)]
+    if len(kept) == len(lines):
+        return text
+    return "\n".join(kept)
+
 
 # Outcome/summary lines worth keeping verbatim (package installs, test tallies, build results).
 SAFETY_STATUS_PATTERNS = (
@@ -162,49 +211,73 @@ def _collect_safety_indices(
     return sorted(selected)
 
 
-def _render_safety_segments(
-    lines: list[str],
-    selected_indices: list[int],
-    original_chars: int,
-    threshold_chars: int,
-) -> str:
+def _strip_noise_lines(text: str) -> str:
+    """Pass 1 — ALWAYS ON. Drop pure progress/transport chatter and harness sentinels. This pass can
+    only ever remove junk, so (unlike the SELECTION pass below, which drops real content) there is no
+    reason to gate it on size. The old size-gate meant a small observation reached the model with every
+    noise line intact — which is exactly what a live run showed. A noise line that ALSO matches a
+    STATUS pattern is kept (status wins)."""
+    lines = text.splitlines()
+    kept = [ln for ln in lines
+            if not (_is_safety_noise_line(ln) and not _is_safety_status_line(ln))]
+    if len(kept) == len(lines):
+        return text                      # nothing dropped → preserve the original byte-for-byte
+    return "\n".join(kept)
+
+
+def _render_safety_segments(lines: list[str], selected_indices: list[int]) -> str:
+    """Stitch the selected lines back together, marking each gap with an honest elision count. No
+    preamble, no trailer — the model gets the real output plus `… (N lines omitted) …` where content
+    was dropped, and nothing about the compressor itself."""
     if not selected_indices:
         return "\n".join(lines)
 
-    rendered = [
-        "[Safety Compression Applied]",
-        f"Original observation length: {original_chars} chars (threshold: {threshold_chars}).",
-        "",
-    ]
-
-    segment_start = selected_indices[0]
-    segment_end = selected_indices[0]
+    rendered: list[str] = []
+    segment_start = segment_end = selected_indices[0]
     for index in selected_indices[1:]:
         if index == segment_end + 1:
             segment_end = index
             continue
         rendered.extend(lines[segment_start : segment_end + 1])
-        omitted_count = index - segment_end - 1
-        if omitted_count > 0:
-            rendered.append(f"... ({omitted_count} lines omitted by safety compression) ...")
-        segment_start = index
-        segment_end = index
+        omitted = index - segment_end - 1
+        if omitted > 0:
+            rendered.append(_elision(omitted))
+        segment_start = segment_end = index
 
     rendered.extend(lines[segment_start : segment_end + 1])
-    rendered.append("")
-    rendered.append(SAFETY_COMPRESSION_NOTE)
     return "\n".join(rendered).strip()
 
 
 def _truncate_safety_output(text: str, target_chars: int) -> str:
+    """Hard-cap to *target_chars*, cutting on LINE boundaries — never mid-token. (The old character
+    splice produced garbage like `…can result in brok` + `-26.2 pluggy-1.6.0`.) Keeps a head and a
+    tail with an honest elision count between them."""
     if len(text) <= target_chars:
         return text
-    if target_chars <= len(SAFETY_TRUNCATION_NOTE) + 20:
-        return text[:target_chars]
-    remaining = target_chars - len(SAFETY_TRUNCATION_NOTE)
-    head_chars = remaining // 2
-    tail_chars = remaining - head_chars
-    return text[:head_chars].rstrip() + SAFETY_TRUNCATION_NOTE + text[-tail_chars:].lstrip()
+    lines = text.splitlines()
+    budget = max(1, target_chars - _ELISION_LEN - 10)        # room for the elision marker
+    half = max(1, budget // 2)
+
+    head: list[str] = []
+    used_h = 0
+    for ln in lines:
+        if used_h + len(ln) + 1 > half:
+            break
+        head.append(ln)
+        used_h += len(ln) + 1
+
+    tail: list[str] = []
+    used_t = 0
+    for ln in reversed(lines[len(head):]):
+        if used_t + len(ln) + 1 > budget - used_h:
+            break
+        tail.insert(0, ln)
+        used_t += len(ln) + 1
+
+    omitted = len(lines) - len(head) - len(tail)
+    body = head + ([_elision(omitted)] if omitted > 0 else []) + tail
+    out = "\n".join(body)
+    return out if out.strip() else text[:target_chars]      # one pathologically long line → char cut
 
 
 def safety_compress_observation(
@@ -212,24 +285,31 @@ def safety_compress_observation(
     threshold_chars: int = 200_000,
     target_chars: int = 20_000,
 ) -> tuple[str, bool]:
-    """Return ``(text_for_prompt, applied)``. If the raw output is at/under *threshold_chars* it is
-    returned verbatim (``applied=False``) — small outputs reach the agent whole. Otherwise, keep the
-    meaningful head+tail + status lines + error-blocks (dropping progress noise), then hard-cap to
-    *target_chars* (head/tail split with a note). ``applied`` is True iff the result differs."""
-    text = observation_raw or ""
+    """Return ``(text_for_prompt, applied)``. TWO passes, deliberately gated differently:
+
+    1. **NOISE STRIP — always on.** Progress/transport chatter + harness sentinels are dropped
+       regardless of size: removing junk never costs signal, so size-gating it was a bug (a small
+       observation reached the model with every noise line intact).
+    2. **SELECTION — size-gated.** Only when the stripped text still exceeds *threshold_chars* do we
+       keep head+tail+status+error-blocks and drop the middle. That pass CAN drop real content, so it
+       runs only when the budget demands it. Then a LINE-BOUNDARY hard cap to *target_chars*.
+
+    ``applied`` is True iff the result differs from the raw input."""
+    raw = observation_raw or ""
+    text = _strip_noise_lines(raw)                           # pass 1 — unconditional
     if len(text) <= threshold_chars:
-        return text, False
+        return text, text != raw
 
     lines = text.splitlines()
     if not lines:
         return _truncate_safety_output(text, target_chars), True
 
     selected = _collect_safety_indices(lines, head_limit=24, tail_limit=80)
-    compressed = _render_safety_segments(lines, selected, len(text), threshold_chars)
+    compressed = _render_safety_segments(lines, selected)
 
-    if len(compressed) > target_chars:                      # tighten a second pass if still over
+    if len(compressed) > target_chars:                       # tighten a second pass if still over
         selected = _collect_safety_indices(lines, head_limit=12, tail_limit=40, max_error_blocks=8)
-        compressed = _render_safety_segments(lines, selected, len(text), threshold_chars)
+        compressed = _render_safety_segments(lines, selected)
 
     compressed = _truncate_safety_output(compressed, target_chars)
-    return compressed, compressed != text
+    return compressed, compressed != raw

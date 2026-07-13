@@ -30,22 +30,23 @@ def test_observation_bounds_huge_test_output_keeping_tail():
     big = "EARLY_FAILURE\n" + ("x" * 50000) + "\n3 failed, 100 passed in 9s"
     obs = _observation(RunResult(True), TestOutcome(False, 100, 103, output=big))
     assert len(obs) < 12000                       # not the full 50k+ dumped into the prompt
-    assert obs.rstrip().endswith("3 failed, 100 passed in 9s")   # diagnostic tail preserved
+    assert "3 failed, 100 passed in 9s" in obs    # diagnostic summary preserved (safety_compress keeps status)
 
 def test_observation_bounds_huge_build_failure_keeping_tail():
     big = ("y" * 40000) + "\nERROR: could not build wheel"
     obs = _observation(RunResult(False, failing_command="pip install foo", output=big), None)
     assert len(obs) < 12000
-    assert obs.rstrip().endswith("ERROR: could not build wheel")
+    assert "ERROR: could not build wheel" in obs   # error line kept by safety_compress
 
 def test_observation_small_output_untouched():
     obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
     assert "5 passed in 0.1s" in obs and "truncated" not in obs
 
-def test_observation_renders_error_breakdown_in_test_phase():
-    # Once the build is green the localization is per-CAUSE: a ranked histogram of what the tests
-    # fail on (parsed from the traceback blocks), so the agent targets the dominant blocker instead
-    # of the last-printed traceback.
+def test_observation_renders_error_breakdown_in_histogram_mode(monkeypatch):
+    # The ranked cause histogram is now OPT-IN (REACT_OBS_MODE=histogram): a ranked breakdown of what
+    # the tests fail on, so the agent can target the dominant blocker. Kept for the ablation.
+    import src.react_repair.loop as L
+    monkeypatch.setattr(L, "_OBS_MODE", "histogram")
     out = ("==================================== ERRORS ====================================\n"
            "___ ERROR collecting a/test_x.py ___\n"
            "E   ModuleNotFoundError: No module named 'pkg_resources'\n"
@@ -58,7 +59,7 @@ def test_observation_renders_error_breakdown_in_test_phase():
     obs = _observation(RunResult(True), TestOutcome(False, 3, 6, output=out))
     assert "3/6 passed" in obs                                          # headline kept
     assert "Top failure causes" in obs
-    assert "2 × ModuleNotFoundError" in obs and "pkg_resources" in obs  # dominant cause, counted
+    assert "2 × [collect] ModuleNotFoundError" in obs and "pkg_resources" in obs  # collection cause, tagged + counted
     assert "pytest output (tail)" in obs                                # raw tail still appended
 
 def test_observation_falls_back_to_tail_when_no_failure_summary():
@@ -66,24 +67,32 @@ def test_observation_falls_back_to_tail_when_no_failure_summary():
     obs = _observation(RunResult(True), TestOutcome(True, 5, 5, output="5 passed in 0.1s"))
     assert "Top failure causes" not in obs and "5 passed in 0.1s" in obs
 
-def test_obs_mode_default_is_histogram():
-    # The default (env unset) is the strong reactive baseline: breakdown + tail.
+def test_obs_mode_default_is_compress():
+    # The default (env unset) is the REAL pytest output, safety_compress'd — no synthesized histogram.
     import os, src.react_repair.loop as L
     if "REACT_OBS_MODE" not in os.environ:
-        assert L._OBS_MODE == "histogram"
+        assert L._OBS_MODE == "compress"
 
-def test_obs_mode_raw_suppresses_breakdown(monkeypatch):
-    # Ablation floor (REACT_OBS_MODE=raw): pure-reactive observation — pass count + the raw pytest
-    # tail, NO error-type histogram, even when the failures are parseable. Lets the breakdown be
-    # ablated as its own rung (raw reactive vs reactive+presentation vs +graph).
-    import src.react_repair.loop as L
-    monkeypatch.setattr(L, "_OBS_MODE", "raw")
-    out = ("=================================== FAILURES ===================================\n"
-           "___ test_t ___\nc/test_z.py:2: AssertionError\n"
-           "=== 3 passed, 1 failed in 1s ===\n")
-    obs = _observation(RunResult(True), TestOutcome(False, 3, 4, output=out))
-    assert "Top failure causes" not in obs                 # no breakdown in raw mode
-    assert "3/4 passed" in obs and "AssertionError" in obs  # raw tail still present
+def test_observation_default_compresses_raw_no_histogram():
+    # DEFAULT: no synthesized histogram; the real error line is kept, the gate header carries counts,
+    # and a collected>executed gap (skips) is surfaced.
+    out = ("collected 250 items\n=================================== FAILURES ===================================\n"
+           "___ test_x ___\nE   AssertionError: assert 1 == 2\ntests/test_x.py:2: AssertionError\n"
+           "=================== 1 failed, 199 passed, 50 skipped in 3s ===================\n")
+    obs = _observation(RunResult(True), TestOutcome(False, 199, 200, output=out, collected=250))
+    assert "Top failure causes" not in obs                  # no synthesized histogram by default
+    assert "AssertionError" in obs                          # real error line kept
+    assert "199/200 passed" in obs                          # gate header (executed denominator)
+    assert "250 collected" in obs                           # skip gap surfaced (250 collected vs 200 executed)
+
+def test_test_verdict_parses_collected():
+    from src.react_repair.gate import test_verdict
+    v = test_verdict("collected 200 items\n=================== 40 passed, 160 failed in 5s ===================")
+    assert v.collected == 200 and v.executed == 200 and v.passed == 40
+
+def test_test_header_hides_collected_when_equal_to_executed():
+    from src.react_repair.loop import _test_header
+    assert _test_header(TestOutcome(False, 40, 200, collected=200)) == "BUILD OK. TESTS 40/200 passed."
 
 def test_obs_mode_histogram_renders_breakdown(monkeypatch):
     import src.react_repair.loop as L
@@ -91,7 +100,7 @@ def test_obs_mode_histogram_renders_breakdown(monkeypatch):
     out = ("=================================== FAILURES ===================================\n"
            "___ test_t ___\nc/test_z.py:2: AssertionError\n=== 3 passed, 1 failed in 1s ===\n")
     obs = _observation(RunResult(True), TestOutcome(False, 3, 4, output=out))
-    assert "Top failure causes" in obs and "1 × AssertionError" in obs
+    assert "Top failure causes" in obs and "1 × [run] AssertionError" in obs
 
 def test_observation_includes_failing_line_number():
     obs = _observation(RunResult(False, failing_command="pip install psycopg2",
@@ -123,7 +132,7 @@ class _ScriptedPlanner:
     """Emits a fixed queue of moves; ignores the prompt."""
     def __init__(self, moves): self.moves = list(moves)
     def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
-             max_turns=None, rejection=None):
+             max_turns=None, rejection=None, **kw):
         return "t", (self.moves.pop(0) if self.moves else Action("invalid")), {}
 
 
@@ -195,7 +204,7 @@ def test_loop_passes_turn_budget_to_planner():
     seen = []
     class _P:
         def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
-                 max_turns=None, rejection=None):
+                 max_turns=None, rejection=None, **kw):
             seen.append((turn, max_turns)); return "t", Action("explore", command="ls"), {}
     box = ["pip install app\n"]
     reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
@@ -237,7 +246,7 @@ def test_retry_passes_rejection_hint_to_planner():
     class _P:
         def __init__(self): self.n = 0
         def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
-                 max_turns=None, rejection=None):
+                 max_turns=None, rejection=None, **kw):
             seen.append(rejection); self.n += 1
             if self.n == 1:
                 return "t", Action("explore", command="pip install x"), {}   # misuse
@@ -286,7 +295,7 @@ def test_gaming_edit_reprompts_with_narrowing_hint_then_legit_edit_reaches_done(
     class _P:
         def __init__(self): self.n = 0
         def plan(self, history, script, observation, graph, fail_lineno=None, turn=None,
-                 max_turns=None, rejection=None):
+                 max_turns=None, rejection=None, **kw):
             seen.append(rejection); self.n += 1
             if self.n == 1:
                 return "t", Action("edit", edit=EditOp("insert", 1, 1,
@@ -449,6 +458,40 @@ def test_giveup_at_max_steps_returns_best_script_seed():
                               tests_need=("never",), initial="pip install app\n")
     assert outcome == "GIVEUP" and script == "pip install app\n"
 
+def test_prompt_style_lever_flows_loop_to_message_list_byte_exact(monkeypatch):
+    # End-to-end propagation: with REACT_PROMPT_STYLE=messages set in the run process, the real
+    # planner builds a growing message list, and the edit made on turn 1 appears on turn 2 as a REAL
+    # assistant turn rendered BYTE-EXACT from the structured op threaded through the loop onto
+    # Step.action — content that the ~60-char action_summary preview would have truncated shows in full.
+    import src.react_repair.planner as planner_mod
+    from src.react_repair.planner import ReactPlanner
+    monkeypatch.setenv("REACT_PROMPT_STYLE", "messages")
+    long_content = "apt-get install -y libpq-dev build-essential pkg-config libssl-dev zlib1g-dev libffi-dev"
+    captured: list = []
+    queue = [
+        [("edit", '{"verb":"insert","start":1,"content":"%s"}' % long_content)],   # turn 1
+        [("explore", '{"command":"ls /app"}')],                                     # turn 2
+    ]
+    def fake(client, model, messages, **k):
+        captured.append([dict(m) for m in messages])
+        calls = queue.pop(0) if queue else [("explore", '{"command":"ls"}')]
+        return calls, "", {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}, "resp"
+    monkeypatch.setattr(planner_mod, "complete_with_tools", fake)
+
+    box = ["pip install app\n"]
+    # build needs libpq-dev (added by turn-1 edit); tests need pytest_mock (never added) → turn 2 fires.
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), ("pytest_mock",), box)
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=ReactPlanner(client=object(), model="m"),
+              history=History(), log=ReactLog(silent=True), max_steps=2, _initial_script=box[0])
+
+    turn2 = captured[1]
+    assert "assistant" in [m["role"] for m in turn2]                 # the model's turn-1 move is a real turn
+    asst = "\n".join(m["content"] for m in turn2 if m["role"] == "assistant")
+    assert long_content in asst                                      # byte-exact: full content, no preview cut
+    assert "libffi-dev" in asst                                      # the tail the 60-char preview dropped
+
+
 def test_no_gain_patch_then_later_patch_reaches_done():
     # initial 2/5 (fail) -> patch1 no gain (loop keeps going, no early stop) -> patch2 gains to 5/5 -> DONE.
     outcomes = iter([
@@ -464,3 +507,136 @@ def test_no_gain_patch_then_later_patch_reaches_done():
         run_tests=lambda: next(outcomes), planner=planner, history=History(),
         log=ReactLog(silent=True), max_steps=10, _initial_script="x\n")
     assert outcome == "DONE"
+
+
+# ── self-install false-green gate (found in a LIVE run) ────────────────────────────────────────
+def test_self_install_edit_is_rejected_and_keeps_seed():
+    # The agent's `pip install <the repo's own package>` shortcut: the PUBLISHED package shadows the
+    # source under test, so the suite goes green against code that isn't in the repo. Rejected in
+    # place (no rebuild), and keep-best floors at the seed — the shortcut can never ship.
+    cheat = Action("edit", edit=EditOp("insert", 1, 1, "python -m pip install itsdangerous"))
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters((), ("magic",), box)
+    outcome, script, _ = run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([cheat]), history=History(),
+        log=ReactLog(silent=True), max_steps=2, _initial_script=box[0],
+        project_name="itsdangerous")
+    assert outcome == "GIVEUP" and script == "pip install app\n"   # never shipped the shortcut
+
+def test_self_install_rejection_hint_names_the_real_fix():
+    from src.react_repair.loop import _classify_action
+    cheat = Action("edit", edit=EditOp("insert", 1, 1, "pip install itsdangerous"))
+    kind, hint = _classify_action(cheat, "pip install app\n", "itsdangerous")
+    assert kind == "invalid"
+    assert "pip install -e ." in hint and "shadow" in hint.lower()
+
+def test_editable_install_of_the_project_is_allowed():
+    from src.react_repair.loop import _classify_action
+    legit = Action("edit", edit=EditOp("insert", 1, 1, "pip install -e .[test]"))
+    assert _classify_action(legit, "pip install app\n", "itsdangerous")[0] == "edit"
+
+def test_self_install_gate_off_without_project_name():
+    # No parseable project name -> gate disabled (never blocks a legitimate dep of the same name).
+    from src.react_repair.loop import _classify_action
+    a = Action("edit", edit=EditOp("insert", 1, 1, "pip install itsdangerous"))
+    assert _classify_action(a, "pip install app\n", None)[0] == "edit"
+
+
+# ── the loop must actually POPULATE Step.outcome ──────────────────────────────────────────────
+# The agentic view renders its `$ cmd → exit N` envelope from Step.outcome, NOT by re-parsing the
+# observation text (which is already compressed, so pytest's summary line may not have survived).
+# Every view test hand-builds History, so without this the loop could record outcome=None and the
+# whole envelope would silently render as a build failure in production.
+def _history_of(moves, installed_needs=(), tests_need=(), initial="pip install app\n"):
+    box = [initial]
+    reset, run_script, certify, ro, run_tests = _adapters(installed_needs, tests_need, box)
+    h = History()
+    run_react(object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+              run_tests=run_tests, planner=_ScriptedPlanner(moves), history=h,
+              log=ReactLog(silent=True), max_steps=6, _initial_script=initial)
+    return h
+
+
+def test_loop_records_structured_outcome_for_a_build_failure():
+    h = _history_of([], installed_needs=("libpq-dev",))
+    o = h.steps[0].outcome
+    assert o["build_ok"] is False and o["failing_command"] == "install libpq-dev"
+    assert o["ran_tests"] is False
+
+def test_loop_records_structured_outcome_for_a_test_run():
+    # build green, suite red (the fake's suite only passes once "pytest_mock" is in the script)
+    h = _history_of([], tests_need=("pytest_mock",))
+    o = h.steps[0].outcome
+    assert o["build_ok"] is True and o["ran_tests"] is True
+    assert o["passed"] == 0 and o["executed"] == 1
+    assert o["test_command"].startswith("python -m pytest")
+
+def test_loop_records_outcome_on_an_edit_step():
+    fix = Action("edit", edit=EditOp(verb="insert", start=1, end=1, content="apt-get install -y libpq-dev"))
+    h = _history_of([fix], installed_needs=("libpq-dev",))
+    edit_step = [s for s in h.steps if s.action and s.action["kind"] == "edit"][0]
+    assert edit_step.outcome["build_ok"] is True     # the edit fixed the build
+    assert edit_step.action["content"] == "apt-get install -y libpq-dev"
+
+def test_explore_step_has_no_outcome():
+    h = _history_of([Action("explore", command="ls")], tests_need=("pytest_mock",))
+    explore_step = [s for s in h.steps if s.action and s.action["kind"] == "explore"][0]
+    assert explore_step.outcome is None              # nothing was built — nothing to report
+
+def test_loop_end_to_end_renders_a_valid_agentic_prompt(monkeypatch):
+    """The real chain: loop → Step.outcome → message_view(agentic). No hand-built History."""
+    monkeypatch.setenv("REACT_MSG_STYLE", "agentic")
+    from src.react_repair.message_view import build_messages
+    h = _history_of([], installed_needs=("libpq-dev",))
+    msgs = build_messages(h.steps, system_prompt="SYS", numbered_script="1| pip install app",
+                          closing_line="Turn 1/10.")
+    joined = "\n".join(m["content"] for m in msgs)
+    assert "$ bash setup.sh" in joined
+    assert "exit 1 — halted: `install libpq-dev`" in joined     # the real failing command, from outcome
+    assert "BUILD FAILED at" not in joined                      # legacy header stripped
+
+
+# ── dedup must run BEFORE the compress, not after (style.py) ──────────────────────────────────
+def _flood(n_dupes: int, buried_cause: str) -> str:
+    """A pytest dump with N identical collection errors and ONE different cause buried in the MIDDLE
+    of them — the exact shape that defeats safety_compress. Middle, not end: the compressor keeps a
+    head and a TAIL, so a distinct cause sitting last is rescued by the tail and nothing is proven.
+    Real floods bury the odd one out wherever pytest happened to collect it."""
+    def dupe(i):
+        return (f"__________ ERROR collecting tests/test_{i}.py __________\n"
+                f"tests/test_{i}.py:1: in <module>\n    import app\n"
+                f"E   ModuleNotFoundError: No module named 'app'\n")
+    half = n_dupes // 2
+    odd_one_out = ("__________ ERROR collecting tests/test_zzz.py __________\n"
+                   "tests/test_zzz.py:1: in <module>\n    import zzz\n"
+                   f"E   {buried_cause}\n")
+    blocks = [dupe(i) for i in range(half)] + [odd_one_out] + [dupe(i) for i in range(half, n_dupes)]
+    return "==== ERRORS ====\n" + "".join(blocks) + f"{n_dupes + 1} errors in 1s\n"
+
+
+# 120 dupes ≈ 16k chars — safety_compress's SELECTION pass only fires above its 8k threshold, so a
+# smaller flood is passed through whole. That size gate is itself the reason a 3.5k pytest failure
+# never gets compacted at all; here we are testing the OTHER end, where the 12-block cap does fire.
+def test_a_flood_of_identical_errors_buries_a_distinct_cause_without_the_bundle(monkeypatch):
+    monkeypatch.delenv("REACT_MSG_STYLE", raising=False)
+    flood = _flood(120, "ImportError: libpq.so.5")
+    assert len(flood) > 8000                       # big enough that the selection pass actually runs
+    obs = _observation(RunResult(True), TestOutcome(False, 0, 121, output=flood))
+    assert "libpq" not in obs                      # dropped — 12 copies of ONE cause ate the cap
+
+def test_the_bundle_dedups_first_so_the_buried_cause_survives(monkeypatch):
+    monkeypatch.setenv("REACT_MSG_STYLE", "agentic")
+    obs = _observation(RunResult(True), TestOutcome(False, 0, 121,
+                                                   output=_flood(120, "ImportError: libpq.so.5")))
+    assert "libpq.so.5" in obs                      # the distinct cause now survives the cap
+    assert "No module named 'app'" in obs           # …and so does the dominant one
+    assert "119 more blocks, same cause" in obs     # the 119 copies collapse to one roster line
+    assert len(obs) < 1500                          # 121 blocks → a handful of lines
+
+def test_classic_observation_is_unchanged_when_the_lever_is_off(monkeypatch):
+    # `classic` is the A/B's control arm: it must stay byte-identical to what shipped.
+    monkeypatch.delenv("REACT_MSG_STYLE", raising=False)
+    out = "Collecting pip\n  Downloading pip.whl (1.8 MB)\nERROR: boom\n"
+    obs = _observation(RunResult(False, failing_command="pip install x", output=out), None)
+    assert "Collecting pip" in obs and "Downloading pip.whl" in obs   # pip chatter still there

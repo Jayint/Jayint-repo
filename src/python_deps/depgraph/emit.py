@@ -121,9 +121,13 @@ def partition(graph: DepGraph) -> Partition:
 
 def _is_reciped(node: Node) -> bool:
     """A node the deterministic recipe layer can install (mirrors _is_emittable's
-    type/fix test, minus the attempt cap — a backed-off node is still 'reciped')."""
+    type/fix test, minus the attempt cap — a backed-off node is still 'reciped').
+
+    A Package flagged ``data['uninstallable']`` (Fix A: the resolved version has
+    no installable artifact for the target interpreter) is NOT reciped — the
+    renderer must not emit a ``pip install name==version`` that can only fail."""
     if node.type is NodeType.PACKAGE:
-        return bool(node.version)
+        return bool(node.version) and not node.data.get("uninstallable")
     if node.type in (NodeType.SYSTEM_LIB, NodeType.TOOL):
         return bool(node.chosen_fix) and node.chosen_fix.startswith("apt:")
     return False
