@@ -59,9 +59,15 @@ class Cause:
     exc: str          # exception type, e.g. "ModuleNotFoundError"
     detail: str       # representative RAW message (first seen), for display ("" if none)
     count: int        # blocks affected: MODULES for phase="collect", TESTS otherwise (see below)
-    outcome: str      # "ERROR" (collection/setup/teardown) | "FAILED" (execution)
+    outcome: str      # "ERROR" | "FAILED" — which pytest SECTION the block appeared under
     module: str       # a representative file (first seen)
     phase: str = "call"   # "collect" | "setup" | "call" | "teardown" — the pytest phase
+
+    # `outcome` and `phase` are INDEPENDENT and neither may be derived from the other.
+    # pytest builds the banner as f"ERROR at {rep.when} of ..." for anything its `error`
+    # category owns, and a plugin can put a CALL report in that category via
+    # pytest_report_teststatus — so `ERROR at call of test_x` is a real, valid banner with
+    # outcome="ERROR" AND phase="call". Deriving outcome from phase silently flips it.
 
 
 def _blocks(output: str):
@@ -137,7 +143,7 @@ def summarize(output: str) -> list[Cause]:
         g = groups.get(key)
         if g is None:
             groups[key] = {"exc": exc, "detail": detail, "count": 1,
-                           "outcome": "FAILED" if phase == "call" else "ERROR",
+                           "outcome": "ERROR" if title.startswith("ERROR") else "FAILED",
                            "module": _module_of(title, body), "phase": phase}
         else:
             g["count"] += 1

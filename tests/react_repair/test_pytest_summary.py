@@ -228,6 +228,24 @@ def test_outcome_is_unchanged_by_the_phase_split():
     assert _by_exc(causes, "AssertionError").outcome == "FAILED"
 
 
+def test_error_at_call_of_keeps_outcome_ERROR_with_phase_call():
+    # pytest builds the banner as f"ERROR at {rep.when} of ..." for ANY report its `error`
+    # category owns, and a plugin can put a CALL report in that category via the
+    # pytest_report_teststatus hook. So `ERROR at call of ...` is a real, valid banner:
+    # phase is "call" (it IS the call phase) but the section is ERRORS, so outcome is "ERROR".
+    # Deriving outcome from phase — "FAILED" iff phase == "call" — silently flips it to FAILED.
+    out = """\
+==================================== ERRORS ====================================
+_____________________ ERROR at call of test_plugin_case _______________________
+E       RuntimeError: boom
+
+tests/test_x.py:7: RuntimeError
+"""
+    (cause,) = summarize(out)
+    assert cause.phase == "call"
+    assert cause.outcome == "ERROR"
+
+
 def test_format_breakdown_tags_setup_as_setup_not_collect():
     # The old code tagged a setup error `[collect]` because its banner starts with "ERROR".
     out = format_breakdown(summarize(_PHASES))
