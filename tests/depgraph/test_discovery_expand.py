@@ -98,3 +98,34 @@ def test_expansion_never_raises(monkeypatch):
     g = DepGraph().with_node(_pkg("psycopg2", "2.9.12"))
     new, expanded = dx.expand_discovery(g, ["pkg:psycopg2==2.9.12"], _Exec())
     assert new is not None                            # the run must never break (spec §11)
+
+
+def test_a_FAILING_expansion_is_not_retried_every_turn(monkeypatch):
+    """The prior is best-effort; re-paying for it every turn is not.
+
+    The id was only marked expanded on SUCCESS, so a node whose expansion threw was retried on
+    every subsequent turn — and the react loop re-runs the script from base each turn, so the
+    same failure recurs forever. Each retry is fresh network/container work inside a loop where
+    one turn already costs a full container rebuild.
+    """
+    import python_deps.depgraph.discovery_expand as dx
+
+    calls = []
+
+    def boom(graph, pkg, executor):
+        calls.append(pkg.id)
+        raise RuntimeError("resolver down")
+
+    monkeypatch.setattr(dx, "seed_build_deps_for", boom)
+
+    pkg = Node(id=package_id("psycopg2", "2.9.12"), type=NodeType.PACKAGE, name="psycopg2",
+               layer=Layer.PIP, discovered_by=DiscoveredBy.RUNTIME, version="2.9.12",
+               state=State.MISSING)
+    graph = DepGraph().with_node(pkg)
+
+    _g1, done1 = dx.expand_discovery(graph, [pkg.id], None)
+    _g2, done2 = dx.expand_discovery(graph, [pkg.id], None, done1)
+
+    assert calls == [pkg.id]          # attempted exactly ONCE, not once per turn
+    assert pkg.id in done1
+    assert done2 == done1

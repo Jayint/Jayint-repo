@@ -43,12 +43,19 @@ def expand_discovery(graph: DepGraph, node_ids, executor, expanded: set[str] | N
         node = new.get(node_id)
         if node is None or node.type is not NodeType.PACKAGE or not node.version:
             continue
+        # Mark it ATTEMPTED, not merely succeeded — and do it BEFORE the call. Marking only on
+        # success means a node whose expansion throws is retried every single turn: the script
+        # re-runs from base each turn, so the same failure recurs forever, and each retry is
+        # fresh network/container work in a loop where a turn already costs a full container
+        # rebuild. The prior is a best-effort enrichment, never correctness-critical, so one
+        # attempt is the right budget: losing an expansion is cheap, re-paying for it every turn
+        # is not.
+        done.add(node_id)
         try:
             # seed_build_deps_for returns (graph, pkgs, cap_nodes, aptdep_nodes) — the
             # counters exist because seed_build_deps' log line is asserted on by an
             # existing test; expand_discovery only needs the graph.
             new, _pkgs, _cap_nodes, _aptdep_nodes = seed_build_deps_for(new, node, executor)
-            done.add(node_id)
         except Exception as exc:               # noqa: BLE001 — must never break the run
             logger.warning("expand_discovery: %s skipped: %s", node_id, exc)
     return new, done
