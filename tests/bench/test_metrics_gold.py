@@ -1,7 +1,14 @@
 # tests/bench/test_metrics_gold.py
+import pytest
+
 from bench.schema import MeasureRow
 from bench.metrics import compute_metrics
 from bench.gold import load_gold
+
+# NOTE: gold-anchored scoring is currently disabled in compute_metrics (no gold JSON). The
+# gold_coverage logic itself is still covered directly in test_gold.py; these two tests exercise
+# the compute_metrics INTEGRATION and are skipped until the golden-set calc is re-enabled.
+_GOLD_DISABLED = pytest.mark.skip(reason="golden-set calc disabled for now (no gold JSON)")
 
 
 def _row(repo, sha, collected, passed, **kw):
@@ -22,6 +29,7 @@ _GOLD = load_gold({
 })
 
 
+@_GOLD_DISABLED
 def test_gold_block_reports_C_and_P_over_fixed_denominator():
     rows = [
         # r1: collects all 4, passes 2 of 4  -> C=1.0, P=0.5
@@ -37,6 +45,7 @@ def test_gold_block_reports_C_and_P_over_fixed_denominator():
     assert m["ESSR_improved"] == round((0.5 + 1.0) / 2, 4)
 
 
+@_GOLD_DISABLED
 def test_gold_block_excludes_sha_misaligned_with_reason():
     rows = [_row("o/r1", "deadbeef" + "0" * 32, collected=["t/a.py::a"], passed=["t/a.py::a"])]
     m = compute_metrics(rows, gold=_GOLD)

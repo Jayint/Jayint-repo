@@ -17,10 +17,11 @@ def test_gates_over_full_denominator():
     ]
     m = compute_metrics(rows)
     assert m["n"] == 3
-    assert m["n_ebsr"] == 2 and m["EBSR"] == round(2 / 3, 4)
-    assert m["n_collect_clean"] == 1 and m["collect_clean_rate"] == round(1 / 3, 4)
+    # EBSR = collect-only exit 0 (Repo2Run-style): only r1 is collect_clean -> 1/3
+    assert m["n_collect_clean"] == 1 and m["EBSR"] == round(1 / 3, 4)
     assert m["ESSR_all"] == round((1.0 + 0.5 + 0.0) / 3, 4)
-    assert m["ESSR_exec"] == round((1.0 + 0.5) / 2, 4)
+    # ESSR (RAT-official headline) = mean pass_rate over the 2 executed repos
+    assert m["ESSR"] == round((1.0 + 0.5) / 2, 4)
     assert m["coverage"] == round(2 / 3, 4)
 
 

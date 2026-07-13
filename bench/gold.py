@@ -1,5 +1,13 @@
 # bench/gold.py
 #
+# ============================ DEPRECATED / DORMANT (2026-07-14) ============================
+# The gold-anchored metric is NO LONGER USED by the runner. compute_metrics() does not call
+# gold_coverage() (the import + call are commented out in metrics.py) and unified_bench forces
+# gold=None. The active headline metrics are EBSR (Repo2Run-exact collect-only gate) and ESSR
+# (RAT-exact passed/(total-skipped) ÷exec). This module is kept for reference only; do NOT
+# re-enable without reinstating a pinned gold JSON and resolving the node-id-form contract.
+# ==========================================================================================
+#
 # Gold-anchored EBSR/ESSR: re-anchor the denominator from each agent's own (floating)
 # pytest collection to a FIXED, independently-certified set of pytest node-ids, so a
 # broken environment that collects fewer tests can no longer inflate its score.

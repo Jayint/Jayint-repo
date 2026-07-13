@@ -21,27 +21,42 @@ def _node_id(tc: ET.Element) -> str:
 
 
 def parse_junit(xml_text: str) -> dict:
-    passed, failed, errors, skipped = [], [], [], []
+    # RAT PARITY (RunAnyThing libkit/tools/run_pytest.py:218-221): total/failed/errors/skipped are
+    # read from the <testsuite> ATTRIBUTES (pytest's internal report counters); `passed` is counted
+    # from <testcase> ELEMENTS (run_pytest.py:275) — the same mixed-unit RAT uses for pass_rate.
+    # Node-id lists always come from <testcase> ELEMENTS (needed for display + gold intersection).
+    passed_ids, failed_ids, error_ids = [], [], []
+    total = failed = errors = skipped = 0
     try:
         root = ET.fromstring(xml_text) if xml_text.strip() else None
     except ET.ParseError:
         root = None
     if root is not None:
+        for ts in root.iter("testsuite"):
+            total += int(ts.get("tests", 0) or 0)
+            failed += int(ts.get("failures", 0) or 0)
+            errors += int(ts.get("errors", 0) or 0)
+            skipped += int(ts.get("skipped", 0) or 0)
         for tc in root.iter("testcase"):
             nid = _node_id(tc)
             if tc.find("failure") is not None:
-                failed.append(nid)
+                failed_ids.append(nid)
             elif tc.find("error") is not None:
-                errors.append(nid)
+                error_ids.append(nid)
             elif tc.find("skipped") is not None:
-                skipped.append(nid)
+                pass
             else:
-                passed.append(nid)
+                passed_ids.append(nid)
+    # ELEMENT-CONSISTENT ALTERNATIVE (kept for reference — more correct on subtest suites, where the
+    # <testsuite tests> attribute counts subtest REPORTS, not nodes: e.g. Archipelago attr 236474 vs
+    # 4315 <testcase> elements -> pass_rate 0.017 attr vs 0.990 element). To switch back, count from
+    # elements instead: track a `skipped_ids` list above and return
+    #   total   = len(passed_ids) + len(failed_ids) + len(error_ids) + len(skipped_ids)
+    #   failed  = len(failed_ids); errors = len(error_ids); skipped = len(skipped_ids)
     return {
-        "total": len(passed) + len(failed) + len(errors) + len(skipped),
-        "passed": len(passed), "failed": len(failed), "errors": len(errors), "skipped": len(skipped),
-        "passed_node_ids": tuple(passed), "failed_node_ids": tuple(failed),
-        "error_node_ids": tuple(errors),
+        "total": total, "passed": len(passed_ids), "failed": failed, "errors": errors, "skipped": skipped,
+        "passed_node_ids": tuple(passed_ids), "failed_node_ids": tuple(failed_ids),
+        "error_node_ids": tuple(error_ids),
     }
 
 
@@ -54,6 +69,10 @@ def parse_collect(rc: int, stdout: str) -> dict:
     for ln in (stdout or "").splitlines():
         if _COLLECT_ERR.search(ln) and "::" not in ln:
             errs.append(ln.strip()[:200])
+    # EBSR gate — EXACTLY Repo2Run (build_agent/tools/runtest.py:64-72): `pytest --collect-only`
+    # succeeds on exit code 0 (collected) OR 5 (no tests collected -> runtest prints "successfully
+    # configured" and sys.exit(5)). Any other rc = fail.
+    # (STRICTER ALTERNATIVE, if you want rc 5 to fail because all our repos have tests: `rc == 0`.)
     return {"collect_clean": rc in (0, 5), "collect_errors": tuple(errs)}
 
 
@@ -103,7 +122,9 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
         docker.run_detached(tag, name, W)
         docker.exec(name, _sh(f"mkdir -p {W}/logs"))
         docker.exec(name, _sh(_ENSURE))
-        crc, cout, _ = docker.exec(name, _sh(f"python -m pytest --co -q {W}; exit ${{PIPESTATUS[0]:-$?}}"))
+        # EBSR gate command — EXACTLY Repo2Run (runtest.py:59): `pytest --collect-only -q --disable-warnings`.
+        crc, cout, _ = docker.exec(name, _sh(
+            f"python -m pytest --collect-only -q --disable-warnings {W}; exit ${{PIPESTATUS[0]:-$?}}"))
         collect = parse_collect(crc, cout)
         _, cout2, _ = docker.exec(name, _sh(
             f"python -m pytest --co -q --continue-on-collection-errors {W} 2>&1 || true"))

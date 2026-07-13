@@ -11,7 +11,8 @@ E   ModuleNotFoundError: No module named 'foo'
 
 
 @pytest.mark.parametrize("rc,clean", [(0, True), (5, True), (2, False), (4, False), (3, False)])
-def test_collect_clean_only_for_0_and_5(rc, clean):
+def test_collect_clean_matches_repo2run_exit_0_or_5(rc, clean):
+    # EBSR gate EXACTLY per Repo2Run (runtest.py:64/72): exit 0 or 5 = success, else fail.
     assert parse_collect(rc, "")["collect_clean"] is clean
 
 

@@ -52,7 +52,9 @@ def test_build_failure_non_ebsr_still_a_row():
 
 
 def test_collect_rc2_does_not_block_test_run():
-    script = {"--co -q /testbed": (2, "tests/x.py::a\n1 error", False)}
+    # "--disable-warnings" matches only the EBSR-gate collect (Repo2Run: --collect-only -q
+    # --disable-warnings), not the second --continue-on-collection-errors node-id collect.
+    script = {"--disable-warnings": (2, "tests/x.py::a\n1 error", False)}
     row = measure(_env(), docker=FakeDocker(script=script))
     assert row.collect_clean is False and row.executed is True and row.ebsr is True
     assert row.total == 2 and row.passed == 2 and row.pass_rate == 1.0
