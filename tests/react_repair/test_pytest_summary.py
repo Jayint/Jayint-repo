@@ -119,22 +119,23 @@ def test_format_breakdown_top_line_shape():
 
 
 def test_format_breakdown_tags_collect_and_run():
-    # Each row is prefixed with a phase tag derived from Cause.outcome: "ERROR" (collection/import
-    # failure) → [collect]; anything else (execution failure) → [run]. Counts, exception, and detail
-    # are otherwise unchanged. This tells the agent whether a row is a build fix or a runtime fix.
+    # Each row is prefixed with the real pytest PHASE (Cause.phase), not a guess derived from
+    # `outcome`: a collection error and a fixture-setup error BOTH have outcome="ERROR" but are
+    # different problems (per-file vs per-test), so the tag now names the phase directly.
     causes = [
         Cause(exc="ModuleNotFoundError", detail="No module named 'psycopg2'",
-              count=3, outcome="ERROR", module="tests/test_db.py"),
+              count=3, outcome="ERROR", module="tests/test_db.py", phase="collect"),
         Cause(exc="AssertionError", detail="", count=5, outcome="FAILED",
-              module="tests/test_logic.py"),
+              module="tests/test_logic.py", phase="call"),
+        Cause(exc="RuntimeError", detail="db down", count=2, outcome="ERROR",
+              module="tests/test_db.py", phase="setup"),
     ]
     out = format_breakdown(causes)
     assert "3 × [collect] ModuleNotFoundError: No module named 'psycopg2'" in out
-    assert "5 × [run] AssertionError" in out
-    # an unexpected outcome degrades to [run] (never mislabeled as a build fix)
-    weird = format_breakdown([Cause(exc="KeyError", detail="", count=1,
-                                    outcome="whatever", module="m.py")])
-    assert "1 × [run] KeyError" in weird
+    assert "5 × [call] AssertionError" in out
+    # A SETUP error is an ERROR outcome but a RUN-phase failure — the old `outcome`-derived tag
+    # called this [collect], which was wrong.
+    assert "2 × [setup] RuntimeError" in out
 
 def test_format_breakdown_omits_file_path_to_avoid_navigation():
     # The rendered row is pure triage (count + type + message) — no representative file. Naming a
@@ -151,3 +152,103 @@ def test_format_breakdown_caps_top_n_and_notes_remainder():
     out = format_breakdown(causes, top=3)
     assert out.count("×") == 3
     assert "and 5 more" in out
+
+
+# A REAL pytest run (python3 -m pytest -q --continue-on-collection-errors, captured verbatim from a
+# throwaway repo with an un-importable module, a fixture that raises in setup, one that raises in
+# teardown, and a failing assertion) with BOTH kinds of "ERROR": a collection error (per-FILE, the
+# tests inside never became items) and a setup error (per-TEST, the test WAS collected but its
+# fixture blew up). Both banners start with "ERROR", which is why the old
+# `title.startswith("ERROR")` bucketing conflated them. (The ImportError detail's absolute path is
+# genericized to `/app/...` per this file's convention for `_REAL` above — every banner, `E` line,
+# and traceback terminator is untouched.)
+_PHASES = """\
+E.EF                                                                     [100%]
+==================================== ERRORS ====================================
+____________________ ERROR collecting tests/test_missing.py ____________________
+ImportError while importing test module '/app/tests/test_missing.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.11/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_missing.py:1: in <module>
+    import totally_missing_pkg
+E   ModuleNotFoundError: No module named 'totally_missing_pkg'
+_________________________ ERROR at setup of test_query _________________________
+
+    @pytest.fixture
+    def conn():
+>       raise RuntimeError("db down")
+E       RuntimeError: db down
+
+tests/test_db.py:6: RuntimeError
+______________________ ERROR at teardown of test_cleanup _______________________
+
+    @pytest.fixture
+    def cleanup():
+        yield
+>       raise OSError("could not remove tmpdir")
+E       OSError: could not remove tmpdir
+
+tests/test_db.py:16: OSError
+=================================== FAILURES ===================================
+__________________________________ test_math ___________________________________
+
+    def test_math():
+>       assert 1 == 2
+E       assert 1 == 2
+
+tests/test_fail.py:2: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_fail.py::test_math - assert 1 == 2
+ERROR tests/test_missing.py
+ERROR tests/test_db.py::test_query - RuntimeError: db down
+ERROR tests/test_db.py::test_cleanup - OSError: could not remove tmpdir
+1 failed, 1 passed, 3 errors in 0.04s
+"""
+
+
+def _by_exc(causes, exc):
+    return next(c for c in causes if c.exc == exc)
+
+
+def test_phase_collect_vs_setup_vs_teardown_vs_call():
+    causes = summarize(_PHASES)
+    assert _by_exc(causes, "ModuleNotFoundError").phase == "collect"
+    assert _by_exc(causes, "RuntimeError").phase == "setup"
+    assert _by_exc(causes, "OSError").phase == "teardown"
+    assert _by_exc(causes, "AssertionError").phase == "call"
+
+
+def test_outcome_is_unchanged_by_the_phase_split():
+    # Backwards compatibility: `outcome` keeps its old values. Only `phase` is new.
+    causes = summarize(_PHASES)
+    assert _by_exc(causes, "ModuleNotFoundError").outcome == "ERROR"
+    assert _by_exc(causes, "RuntimeError").outcome == "ERROR"
+    assert _by_exc(causes, "AssertionError").outcome == "FAILED"
+
+
+def test_format_breakdown_tags_setup_as_setup_not_collect():
+    # The old code tagged a setup error `[collect]` because its banner starts with "ERROR".
+    out = format_breakdown(summarize(_PHASES))
+    assert "[setup] RuntimeError" in out
+    assert "[collect] ModuleNotFoundError" in out
+    assert "[collect] RuntimeError" not in out
+
+
+def test_same_exception_in_different_phases_does_not_group():
+    # A ModuleNotFoundError at collection and one raised inside a test body are different
+    # problems (one has an env fix, one does not), so they must not share a Cause.
+    out = """\
+==================================== ERRORS ====================================
+___________________ ERROR collecting tests/test_a.py ____________________
+E   ModuleNotFoundError: No module named 'zzz'
+=================================== FAILURES ===================================
+__________________________________ test_b ___________________________________
+E       ModuleNotFoundError: No module named 'zzz'
+
+tests/test_b.py:9: ModuleNotFoundError
+"""
+    causes = summarize(out)
+    phases = sorted(c.phase for c in causes if c.exc == "ModuleNotFoundError")
+    assert phases == ["call", "collect"]

@@ -100,7 +100,7 @@ def test_obs_mode_histogram_renders_breakdown(monkeypatch):
     out = ("=================================== FAILURES ===================================\n"
            "___ test_t ___\nc/test_z.py:2: AssertionError\n=== 3 passed, 1 failed in 1s ===\n")
     obs = _observation(RunResult(True), TestOutcome(False, 3, 4, output=out))
-    assert "Top failure causes" in obs and "1 × [run] AssertionError" in obs
+    assert "Top failure causes" in obs and "1 × [call] AssertionError" in obs
 
 def test_observation_includes_failing_line_number():
     obs = _observation(RunResult(False, failing_command="pip install psycopg2",
