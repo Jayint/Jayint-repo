@@ -73,3 +73,37 @@ def test_the_cli_writes_both_artifacts(tmp_path):
     results = json.loads((tmp_path / "results.json").read_text())
     assert results["enrich"]["by_kind"], "results.json must carry the per-slice breakdown"
     assert (tmp_path / "report.md").read_text().startswith("# Graph quality")
+
+
+def test_the_block_section_never_reports_a_bare_ZERO_without_its_coverage():
+    """A review caught the block section printing a proud '0 divergences' with no way to tell
+    whether the sweep examined anything that COULD diverge. '0 divergences' and 'the check is
+    vacuous' produce identical output. So the report must always publish which rules the corpus
+    exercised -- and name the ones it never touched -- right next to the zero."""
+    res = run_block()
+    if res.get("status") == "SKIPPED":
+        pytest.skip("graph cache not minted")
+    md = render_markdown({"block": res})
+
+    assert "divergences: 0" in md or "divergences:" in md
+    # the coverage census must be in the rendered report, not just the json
+    assert "never exercised" in md.lower()
+    assert "conflicts_with_edges" in md
+    # and the per-node-type slice, so a clean sweep can't hide WHICH types it swept
+    assert "Package" in md and "SystemLib" in md
+
+
+def test_the_coverage_census_actually_names_the_unexercised_rules():
+    res = run_block()
+    if res.get("status") == "SKIPPED":
+        pytest.skip("graph cache not minted")
+    cov = res["emit_parity"]["coverage"]
+    never = cov["rules_NEVER_exercised_by_this_corpus"]
+    # This corpus genuinely has no conflicts and no known-wheel-with-missing-tool shape.
+    # If a future corpus DOES, this test should be updated -- deliberately, not silently.
+    assert "conflicts_with_edges" in never
+    assert "missing_tool_dep_known_wheel" in never
+    assert cov["shapes_present"]["missing_tool_dep_source_build"] > 0, (
+        "the ONE rule this corpus does exercise must have real instances, or the entire "
+        "emit-parity sweep is vacuous rather than merely shallow"
+    )

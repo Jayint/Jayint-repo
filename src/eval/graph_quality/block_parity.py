@@ -177,10 +177,60 @@ def _emit_parity_for_graph(repo: str, graph: DepGraph) -> list[Divergence]:
     return out
 
 
+def _rule_coverage(graphs: dict[str, DepGraph]) -> dict:
+    """Which blocking RULES did this corpus actually exercise?
+
+    🔴 THIS IS THE MOST IMPORTANT NUMBER IN THE FILE, and it exists because a review caught the
+    sweep reporting a proud "0 divergences" that no possible bug could have made nonzero.
+
+    "0 divergences" and "the check examined nothing that could diverge" produce the identical
+    output. A parity sweep is only worth its pass bar over the node SHAPES that exercise the
+    rules; a corpus with no CONFLICTS_WITH edge cannot possibly catch a conflict bug, however
+    many thousands of clean nodes it sweeps. So we count the shapes, publish them next to the
+    zero, and name the rules the corpus NEVER TOUCHED -- so a green result can never be read as
+    stronger evidence than it is.
+    """
+    counts = {
+        "conflicts_with_edges": 0,
+        "missing_syslib_dep": 0,           # a missing Package requiring a missing SystemLib
+        "missing_tool_dep_source_build": 0,  # ...requiring a missing Tool, built from source
+        "missing_tool_dep_known_wheel": 0,   # ...requiring a missing Tool, but a KNOWN WHEEL
+    }
+    for g in graphs.values():
+        counts["conflicts_with_edges"] += sum(
+            1 for e in g.edges if e.relation is EdgeType.CONFLICTS_WITH)
+        for node in g.nodes:
+            if node.type is not NodeType.PACKAGE or node.state is not State.MISSING:
+                continue
+            for dep in g.requires_of(node.id):
+                if dep.state is not State.MISSING:
+                    continue
+                if dep.type is NodeType.SYSTEM_LIB:
+                    counts["missing_syslib_dep"] += 1
+                elif dep.type is NodeType.TOOL:
+                    if node.build_from_source is False:
+                        counts["missing_tool_dep_known_wheel"] += 1
+                    else:
+                        counts["missing_tool_dep_source_build"] += 1
+
+    never = sorted(rule for rule, n in counts.items() if n == 0)
+    return {
+        "shapes_present": counts,
+        "rules_NEVER_exercised_by_this_corpus": never,
+        "warning": (
+            "0 divergences is only as strong as the shapes above. The rules listed in "
+            "`rules_NEVER_exercised_by_this_corpus` have NO instance in these 16 graphs: a bug "
+            "in them could not have been caught here, no matter how many nodes were swept. "
+            "Those rules are covered ONLY by the (synthetic) metamorphic checks."
+        ) if never else "every blocking rule has at least one real instance in this corpus.",
+    }
+
+
 def emit_parity_report(graphs: dict[str, DepGraph]) -> dict:
     """Sweep every node of every cached graph. NEVER a bare aggregate: grouped by
     (node_type, rule) so a divergence hiding in one slice cannot be averaged away by
-    the other fifteen repos being clean."""
+    the other fifteen repos being clean -- AND reported next to `coverage`, which says which
+    rules this corpus could even have caught a bug in (see `_rule_coverage`)."""
     all_divs: list[Divergence] = []
     for repo in sorted(graphs):
         all_divs.extend(_emit_parity_for_graph(repo, graphs[repo]))
@@ -193,12 +243,18 @@ def emit_parity_report(graphs: dict[str, DepGraph]) -> dict:
         slot["nodes"].append({"repo": d.repo, "node_id": d.node_id, "verdict": d.verdict_value,
                                "detail": d.detail})
 
+    checked_by_type: dict[str, int] = {}
+    for g in graphs.values():
+        for n in g.nodes:
+            if n.type in _EMIT_SCOPED_TYPES:
+                checked_by_type[n.type.value] = checked_by_type.get(n.type.value, 0) + 1
+
     return {
-        "total_nodes_checked": sum(
-            1 for g in graphs.values() for n in g.nodes if n.type in _EMIT_SCOPED_TYPES
-        ),
+        "total_nodes_checked": sum(checked_by_type.values()),
+        "checked_by_node_type": checked_by_type,
         "total_divergences": len(all_divs),
         "by_slice": by_slice,
+        "coverage": _rule_coverage(graphs),
     }
 
 

@@ -146,9 +146,26 @@ def _fmt_block(res: dict) -> list[str]:
         out += [f"**SKIPPED** — {res['reason']}", "",
                 "This is not a pass. An un-minted cache means the check did not run.", ""]
         return out
+    parity = res["emit_parity"]
     out.append(f"- graphs checked: **{res['n_graphs']}** (real, minted under Docker), "
                f"{res['nodes_checked']} nodes in the emit-parity overlap")
+    out.append("- nodes checked by type: "
+               + ", ".join(f"{t} {n}" for t, n in sorted(parity["checked_by_node_type"].items())))
     out.append(f"- **emit-parity divergences: {res['divergences']}** (zero is the pass bar)")
+
+    cov = parity["coverage"]
+    out += ["", "**How much is that zero worth?** A parity sweep can only catch a bug in a rule "
+                "the corpus actually exercises. Shapes present in these 16 graphs:", ""]
+    for rule, n in cov["shapes_present"].items():
+        flag = "  ⚠️ **never exercised**" if n == 0 else ""
+        out.append(f"  - `{rule}`: {n}{flag}")
+    never = cov["rules_NEVER_exercised_by_this_corpus"]
+    if never:
+        out += ["", f"> 🔴 {cov['warning']}", "",
+                "> Note `missing_tool_dep_known_wheel` is among them — that is the exact rule a "
+                "real shipped bug (`0d3542c`) once broke. This corpus could not have caught it. "
+                "It is covered only by the synthetic metamorphic check below."]
+    out.append("")
     out.append(f"- metamorphic properties all hold: **{res['metamorphic_all_hold']}**")
     for m in res["metamorphic"]:
         out.append(f"  - `{m['property']}` → {m['holds']}")
