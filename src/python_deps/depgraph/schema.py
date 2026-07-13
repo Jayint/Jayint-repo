@@ -135,6 +135,15 @@ class Attempt:
             "cycle": self.cycle,
         }
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "Attempt":
+        return cls(
+            command=d["command"],
+            outcome=d["outcome"],
+            check=d.get("check", ""),
+            cycle=d.get("cycle", 0),
+        )
+
 
 @dataclass(frozen=True)
 class Node:
@@ -241,6 +250,49 @@ class Node:
             out["ecosystem"] = self.ecosystem
         return out
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "Node":
+        """Inverse of :meth:`to_dict`. Mirrors its key names exactly.
+
+        Enum fields are reconstructed via the enum (not left as strings); tuple
+        fields (``fix_candidates``, ``attempts``) are rebuilt as tuples (JSON
+        round-trips them as lists); ``data`` is handed back as a plain dict --
+        ``__post_init__`` wraps it in a ``MappingProxyType``.  ``build_from_source``
+        uses ``.get`` (not indexing) so a *present* ``False`` is returned as-is --
+        distinct from an *absent* key, which falls back to ``None`` -- since the
+        True/False/None three-way distinction is load-bearing for ``blocks()``.
+        ``ecosystem`` falls back to the "python" default ``to_dict`` omits it for.
+        """
+        return cls(
+            id=d["id"],
+            type=NodeType(d["type"]),
+            name=d["name"],
+            layer=Layer(d["layer"]),
+            discovered_by=DiscoveredBy(d["discovered_by"]),
+            tier=d.get("tier", 0),
+            state=State(d["state"]),
+            version=d.get("version"),
+            check_command=d.get("check_command"),
+            evidence=d.get("evidence"),
+            fix_candidates=tuple(d.get("fix_candidates", ())),
+            chosen_fix=d.get("chosen_fix"),
+            attempts=tuple(Attempt.from_dict(a) for a in d.get("attempts", ())),
+            provenance=d.get("provenance"),
+            discovered_cycle=d.get("discovered_cycle", 0),
+            certified_cycle=d.get("certified_cycle"),
+            build_from_source=d.get("build_from_source"),
+            artifact=d.get("artifact"),
+            hash=d.get("hash"),
+            resolved_python=d.get("resolved_python"),
+            resolved_platform=d.get("resolved_platform"),
+            exclude_newer=d.get("exclude_newer"),
+            ecosystem=d.get("ecosystem", "python"),
+            data=dict(d.get("data", {})),
+            setup_commands=tuple(d.get("setup_commands", ())),
+            strength=Strength(d.get("strength", Strength.SOFT.value)),
+            phase=Phase(d.get("phase", Phase.SETUP.value)),
+        )
+
 
 @dataclass(frozen=True)
 class Edge:
@@ -272,6 +324,17 @@ class Edge:
             "marker": self.marker,
             "data": dict(self.data),
         }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Edge":
+        return cls(
+            src=d["src"],
+            dst=d["dst"],
+            relation=EdgeType(d.get("relation", EdgeType.REQUIRES.value)),
+            origin=d.get("origin"),
+            marker=d.get("marker"),
+            data=dict(d.get("data", {})),
+        )
 
 
 @dataclass(frozen=True)
@@ -370,3 +433,13 @@ class DepGraph:
             "nodes": [n.to_dict() for n in self.nodes],
             "edges": [e.to_dict() for e in self.edges],
         }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "DepGraph":
+        """Inverse of :meth:`to_dict`. Constructs nodes/edges directly (not via
+        ``with_node``/``with_edge``) since the serialized graph was already
+        validated by ``_validate_edge`` at construction time; no need to redo it
+        on every cache load."""
+        nodes = tuple(Node.from_dict(n) for n in d.get("nodes", ()))
+        edges = tuple(Edge.from_dict(e) for e in d.get("edges", ()))
+        return cls(nodes=nodes, edges=edges)
