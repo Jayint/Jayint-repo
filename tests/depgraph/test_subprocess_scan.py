@@ -1,7 +1,14 @@
 """TDD for subprocess_scan: discover the external CLI tools a repo shells out to
 (finding C — ldd/apt-on-build never sees a program the code only subprocess-es).
 """
-from python_deps.depgraph.ids import TEST_NODE_ID, project_id, tool_id
+# A subprocess-scanned executable is probed with `command -v <tool>` — it is a binary
+# CAPABILITY, so it carries the `binary:` id that construction and runtime ingest also mint.
+# `capability_id` is the single reconciliation key; `tool:` is for apt install DIRECTIVES.
+from python_deps.depgraph.ids import TEST_NODE_ID, capability_id, project_id
+
+
+def tool_id(name):        # the scanned-executable id, spelled the canonical way
+    return capability_id("binary", name)
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )

@@ -23,7 +23,11 @@ import ast
 import os
 
 from python_deps.depgraph.config_scan import _const_str, _is_excluded
-from python_deps.depgraph.ids import TEST_NODE_ID, tool_id
+# `capability_id("binary", ...)`, not `tool_id`: a subprocess-scanned executable is probed with
+# `command -v <tool>` — it is a binary CAPABILITY, the same thing construction and runtime ingest
+# mint. Minting `tool:adb` here while ingest minted `binary:adb` put the same executable in the
+# graph twice, under two ids, with nothing to reconcile them.
+from python_deps.depgraph.ids import TEST_NODE_ID, capability_id
 from python_deps.depgraph.schema import (
     DepGraph,
     DiscoveredBy,
@@ -146,7 +150,7 @@ def add_subprocess_tool_nodes(graph: DepGraph, repo_path: str) -> DepGraph:
         fix = f"apt:{apt}"
         new = new.with_node(
             Node(
-                id=tool_id(tool),
+                id=capability_id("binary", tool),
                 type=NodeType.TOOL,
                 name=tool,
                 layer=Layer.TOOLCHAIN,
@@ -161,7 +165,7 @@ def add_subprocess_tool_nodes(graph: DepGraph, repo_path: str) -> DepGraph:
         )
         if anchor is not None:
             new = new.with_edge(
-                Edge(src=anchor, dst=tool_id(tool),
+                Edge(src=anchor, dst=capability_id("binary", tool),
                      relation=EdgeType.REQUIRES, origin="subprocess-scan")
             )
     return new

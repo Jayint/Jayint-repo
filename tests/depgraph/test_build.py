@@ -31,6 +31,7 @@ from python_deps.depgraph.ids import (
     package_id,
     syslib_id,
     tool_id,
+    capability_id,
 )
 from python_deps.depgraph.schema import DiscoveredBy, NodeType, State
 
@@ -151,14 +152,14 @@ def test_build_discovers_subprocess_cli_tools(tmp_path):
     ex.responses["command -v adb"] = _r(returncode=1)  # absent on the slim base
     graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)
 
-    adb = graph.get(tool_id("adb"))
+    adb = graph.get(capability_id("binary", "adb"))
     assert adb is not None and adb.type is NodeType.TOOL
     assert adb.chosen_fix == "apt:adb"
     assert adb.discovered_by is DiscoveredBy.STATIC_SCAN
     assert adb.state is State.MISSING           # command -v adb -> rc1
     # hung off the Project anchor (the repo's own code invokes it)
     from python_deps.depgraph.ids import project_id
-    assert any(e.dst == tool_id("adb") and e.src == project_id(tmp_path.name)
+    assert any(e.dst == capability_id("binary", "adb") and e.src == project_id(tmp_path.name)
                for e in graph.edges)
 
 

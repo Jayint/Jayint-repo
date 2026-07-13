@@ -21,11 +21,22 @@ from python_deps.depgraph.schema import (
 from python_deps.depgraph.service_recipes import render_probe_poll
 from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS
 
-# Node-type -> canonical id prefix (ids.py).  Types not listed accept any "<kind>:<rest>".
-_KIND_PREFIX: dict[NodeType, str] = {
-    NodeType.PACKAGE: "pkg:", NodeType.SYSTEM_LIB: "syslib:", NodeType.TOOL: "tool:",
-    NodeType.CONFIG: "config:", NodeType.SERVICE: "service:", NodeType.RUNTIME: "runtime:",
-    NodeType.IMPORT: "import:", NodeType.PROJECT: "project:",
+# Node-type -> ACCEPTED id prefixes (ids.py). Types not listed accept any "<kind>:<rest>".
+#
+# NodeType.TOOL spans two different things, and they legitimately have different id spaces:
+#   binary:  an executable CAPABILITY (`command -v pg_config`). This is the canonical one --
+#            `capability_id` is "the single reconciliation key", and it is what construction
+#            (build_deps.py:239) and runtime ingest both mint.
+#   tool:    an apt install DIRECTIVE, where the apt name IS the fix (seed.py's
+#            `tool:build-essential`). Nothing probes it for a binary.
+# Accepting only `tool:` here would reject an LLM-proposed executable node and fracture it away
+# from the very node construction and ingest agree on.
+_KIND_PREFIX: dict[NodeType, tuple[str, ...]] = {
+    NodeType.PACKAGE: ("pkg:",), NodeType.SYSTEM_LIB: ("syslib:",),
+    NodeType.TOOL: ("binary:", "tool:"),
+    NodeType.CONFIG: ("config:",), NodeType.SERVICE: ("service:",),
+    NodeType.RUNTIME: ("runtime:",),
+    NodeType.IMPORT: ("import:",), NodeType.PROJECT: ("project:",),
 }
 _ALLOWED_PROMOTION = frozenset({"hint", "candidate"})
 _BENIGN_REDIR = re.compile(r"\s*(?:\d?>>?\s*/dev/null|\d?>&\d)")
@@ -66,9 +77,10 @@ def _requirement_errors(graph: DepGraph, r: NodeSpec,
         Layer(r.layer)
     except ValueError:
         errs.append(f"unknown layer {r.layer!r} for {r.id}")
-    prefix = _KIND_PREFIX.get(nt)
-    if prefix is not None and not r.id.startswith(prefix):
-        errs.append(f"non-canonical id {r.id!r}: {nt.value} requires prefix {prefix!r}")
+    prefixes = _KIND_PREFIX.get(nt)
+    if prefixes is not None and not r.id.startswith(prefixes):
+        want = " or ".join(repr(p) for p in prefixes)
+        errs.append(f"non-canonical id {r.id!r}: {nt.value} requires prefix {want}")
     elif ":" not in r.id:
         errs.append(f"non-canonical id {r.id!r}: missing '<kind>:' prefix")
     if r.promotion is not None and (not isinstance(r.promotion, str)
