@@ -27,6 +27,14 @@ through the REAL production chain, byte for byte the same order
 
     (a) the SEED graph: declared PACKAGE node(s) + the TEST goal node. Nothing else.
         No capability nodes, no `chosen_fix`, no edge to a "root".
+        ONE DECLARED EXCEPTION, and it is worth naming here rather than burying it in
+        the scenario: `_scenario_conflict_requests` (VERSION_CONFLICT) also hand-builds
+        a CONFLICTS_WITH edge, because a real one is minted by a LIVE resolver
+        (uv/pip, fetching metadata over the network) and that is outside the OFFLINE
+        Global Constraint. It cannot flatter the headline -- that row is
+        `not_applicable` and is excluded from the root-hit denominator -- and what it
+        proves is a structural guarantee of `verdict()`, not a claim about any
+        resolver's opinion. Every OTHER cell is real-chain-derived end to end.
     (b) the ERROR TEXT: what a real container emits for this failure class (a raw
         pytest traceback block fed through the real `pytest_summary.summarize`, or a
         raw build-failure string used as `RunResult.output`).
@@ -87,13 +95,21 @@ hit at all):
      import-time failure (empirically reproduced: `pip install GitPython` into a
      scratch venv, hide `git` from `$PATH`, `import git`) raises
      `ImportError: Failed to initialize: Bad git executable.` --
-     `python_deps.failure_classifier.classify_tool_error` recognizes exactly two
-     shapes (`"<name>: command not found"` / `"<name>: not found"`, and `"<name>
-     executable not found"` -- modeled on setuptools/psycopg2's `pg_config`
-     message). GitPython's real wording matches NEITHER, so `classify_observation`
-     returns `None` and `enrich()` appends nothing. `git` also happens to be absent
-     from `PROVIDER_TABLE` (confirmed), but that is moot here: the failure never
-     reaches the resolver at all. Reported, not patched.
+     `python_deps.failure_classifier.classify_tool_error` recognizes THREE shapes:
+     `"<name>: command not found"` / `"<name>: not found"`
+     (`_TOOL_COMMAND_NOT_FOUND_RE`), `"<name> executable not found"`
+     (`_TOOL_EXECUTABLE_NOT_FOUND_RE`, modeled on setuptools/psycopg2's `pg_config`
+     message), and a `FileNotFoundError` naming the binary
+     (`_TOOL_FILENOTFOUNDERROR_RE`). GitPython's real wording matches NONE of the
+     three, so `classify_observation` returns `None` and `enrich()` appends nothing.
+     `git` also happens to be absent from `PROVIDER_TABLE` (confirmed), but that is
+     moot here: the failure never reaches the resolver at all. Reported, not patched.
+
+     The shape of this gap is worth stating precisely, because it is the actionable
+     part: the classifier keys on the SHELL's vocabulary for a missing executable,
+     and GitPython reports the same physical fact in a LIBRARY's vocabulary ("Bad git
+     executable"). Every tool whose absence is first noticed by a Python wrapper
+     rather than by the shell is invisible to this layer.
 
   4. STAR PRECISION IS NO LONGER DECORATIVE. The circular version's only
      `n_stars > 1` case (`test_star_precision_punishes_a_graph_that_stars_everything`)
