@@ -64,6 +64,31 @@ def test_tool_no_match_returns_none():
 def test_tool_empty_output_returns_none():
     assert classify_tool_error("ls /tmp", "") is None
 
+def test_tool_error_recognises_the_executable_not_found_shape():
+    # The REAL psycopg2 / setuptools wording. No colon, and the word "executable" in between —
+    # which is why _TOOL_COMMAND_NOT_FOUND_RE (which requires "<name>: not found") missed it.
+    assert classify_tool_error("pip install psycopg2==2.9.12",
+                               "Error: pg_config executable not found.") == "pg_config"
+
+def test_tool_error_executable_shape_is_case_insensitive():
+    assert classify_tool_error("", "error: PG_CONFIG executable not found") == "PG_CONFIG"
+
+def test_tool_error_still_recognises_the_colon_shape():
+    # Regression: the pre-existing shape must keep working.
+    assert classify_tool_error("", "sh: 1: pg_config: not found") == "pg_config"
+
+def test_tool_error_does_not_fire_on_unrelated_not_found_text():
+    assert classify_tool_error("", "404 Not Found") is None
+    assert classify_tool_error("", "No module named 'yaml'") is None
+
+def test_tool_error_does_not_capture_article_before_executable():
+    # Adversarial case for the new regex: a sentence where the word immediately before
+    # "executable" is an English article/determiner or "required", not a tool name. Without
+    # a guard, `\b([A-Za-z0-9_.-]+)\s+executable\s+not\s+found` would happily capture "No" or
+    # "required" as if they were the missing tool.
+    assert classify_tool_error("", "No executable not found") is None
+    assert classify_tool_error("", "The required executable not found") is None
+
 
 # ── classify_observation dispatch ────────────────────────────────────────────
 

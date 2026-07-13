@@ -251,11 +251,31 @@ _TOOL_FILENOTFOUNDERROR_RE = re.compile(
     r"FileNotFoundError:.*?['\"]([A-Za-z0-9_.-]+)['\"]"
 )
 
+# setuptools/autoconf-style: "Error: pg_config executable not found." — NO colon, and the word
+# "executable" between the name and "not found", so _TOOL_COMMAND_NOT_FOUND_RE (which requires
+# "<name>: not found") never matched it. This is the SHAPE THE psycopg2 BUILD ACTUALLY EMITS,
+# and without it the graph arm's headline case produces no node at all.
+#
+# Guard: a bare `\b([A-Za-z0-9_.-]+)\s+executable\s+not\s+found` would also capture ordinary
+# English prose that happens to precede "executable" with an article/determiner or "required" —
+# e.g. "No executable not found" or "The required executable not found" — misreporting the tool
+# as "No" or "required". The negative lookahead excludes exactly that leading word from being
+# captured as the tool name (re.search then keeps scanning right, so a genuine tool name later
+# in the same line, if any, would still be found).
+_TOOL_EXECUTABLE_NOT_FOUND_RE = re.compile(
+    r"\b(?!(?:no|an?|any|the|this|that|required|necessary)\s+executable\s+not\s+found\b)"
+    r"([A-Za-z0-9_.-]+)\s+executable\s+not\s+found",
+    re.IGNORECASE,
+)
+
 
 def classify_tool_error(command: str, output: str) -> str | None:
     """Return the tool name if ``output`` looks like a missing executable, else None."""
     text = output or ""
     m = _TOOL_COMMAND_NOT_FOUND_RE.search(text)
+    if m:
+        return m.group(1)
+    m = _TOOL_EXECUTABLE_NOT_FOUND_RE.search(text)
     if m:
         return m.group(1)
     m = _TOOL_FILENOTFOUNDERROR_RE.search(text)
