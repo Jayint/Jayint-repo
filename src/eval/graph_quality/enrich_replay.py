@@ -10,11 +10,19 @@ pre-empted discovery hop is a rebuild saved. Near-zero pre-emption means the
 enrichment tier does not pay for itself -- and that is a legitimate, reportable
 answer, not a bug in this harness.
 
-🔴 THE DENOMINATOR IS TINY. Of the 111 labelled pairs this corpus yields, only 14
-are in-scope (env-fixable): 3 os-package + 11 python-package. 97 are
-``not-an-env-fix`` and are excluded from the pre-emption denominator -- but run
-through anyway as this eval's NEGATIVE CONTROL (see ``aggregate``'s
-``negative_control`` key). Report raw counts (``k/n``), never a bare rate.
+🔴 THE DENOMINATOR IS TINY. Of the 111 labelled pairs this corpus yields, only a
+handful carry an apt/pip label the pre-emption matcher can even score (see
+``_PREEMPTABLE``). The rest are ENV-var repairs (their own slice) or source
+patches -- ``not-an-env-fix`` -- which are excluded from the denominator but run
+through anyway as this eval's NEGATIVE CONTROL (``aggregate``'s
+``negative_control`` key). Report raw counts (``k/n``), NEVER a bare rate: with an
+n this small, a percentage is a lie with a decimal point in it.
+
+🔴 THE STREAM MATTERS. `enrich` ingests a build failure and a pytest failure through
+two mutually exclusive paths. Routing a pytest failure down the build path silently
+skips the phase-gated cause ingestion entirely -- the graph is handed NOTHING and
+scores a false miss. Roughly half this corpus fails at test time, so getting this
+wrong does not add noise, it manufactures a damning result. See ``_replay_enrich``.
 """
 from __future__ import annotations
 
@@ -45,6 +53,7 @@ from src.eval.graph_quality.corpus import (  # noqa: E402
     _APT_RE, _PIP_RE, _shell_payloads, Pair, dockerfile_installs, load_pairs,
 )
 from src.react_repair.loop import RunResult  # noqa: E402
+from src.react_repair.pytest_summary import summarize  # noqa: E402
 
 _DEFAULT_RESULTS_DIR = "outputs/repo2run_benchmark/results"
 _DEFAULT_ARTIFACTS_DIR = "outputs/repo2run_benchmark/eval_artifacts"
@@ -187,12 +196,35 @@ def _final_dockerfile_text(pair: Pair, artifacts_dir: str) -> str:
     return pair.after
 
 
+def _replay_enrich(pair: Pair, graph: DepGraph, command: str) -> tuple[DepGraph, list[str]]:
+    """Drive `enrich` through the SAME stream production would have used for this failure.
+
+    `enrich` has two mutually exclusive inputs, and its own docstring is explicit that a turn is
+    "either build-stream (`causes` empty) or pytest-stream (`result.ok` true, `causes`
+    populated)":
+
+      * a BUILD failure  -> RunResult(ok=False, failing_command=...) and NO causes. The owner is
+        resolved exactly from the failing command; this is where DEPTH comes from.
+      * a TEST failure   -> RunResult(ok=True) and causes=summarize(pytest output). The owner is
+        TEST_NODE_ID, and the causes are PHASE-GATED (only collect/setup reach the graph).
+
+    Feeding a pytest failure down the build path -- which is what this grader did before review
+    -- means the phase-gated cause ingestion at `graph_enrich.py:120` never fires at all. The
+    graph is handed nothing and scores a false miss. That is not a small bias: roughly half this
+    corpus fails at test time, and it under-counted at least one real pre-emption (DTrOCR's
+    Pillow, which the production path discovers cleanly).
+    """
+    if pair.failed_at == "test":
+        return enrich(graph, RunResult(ok=True), summarize(pair.stderr), RepoContext())
+    result = RunResult(ok=False, failing_command=command, output=pair.stderr)
+    return enrich(graph, result, [], RepoContext())
+
+
 def score_pair(pair: Pair, *, artifacts_dir: str = _DEFAULT_ARTIFACTS_DIR) -> PairScore:
     """Replay `pair.stderr` through the REAL `enrich()` + `expand_discovery()` and
     grade what came out against the label (plan Task 3 Step 2)."""
     graph, command = _seed_graph_and_command(pair.before, pair.stderr)
-    result = RunResult(ok=False, failing_command=command, output=pair.stderr)
-    graph, new_ids = enrich(graph, result, [], RepoContext())
+    graph, new_ids = _replay_enrich(pair, graph, command)
 
     executor = _OfflineExecutor()
     graph, _expanded = expand_discovery(graph, new_ids, executor)
@@ -251,13 +283,21 @@ def score_pair(pair: Pair, *, artifacts_dir: str = _DEFAULT_ARTIFACTS_DIR) -> Pa
 # aggregate -- PER-SLICE only, never a bare aggregate (Global Constraints).
 # --------------------------------------------------------------------------- #
 
+# The only kinds whose LABEL is an apt/pip package name -- i.e. the only kinds the pre-emption
+# matcher can even score. `env-var` repairs ARE environment fixes (the graph models them as
+# Config nodes), but their label is an ENV name, not a package, so folding them into the
+# pre-emption denominator would count a structurally-unscorable pair as a miss. They get their
+# own slice instead. `not-an-env-fix` is the negative control.
+_PREEMPTABLE = frozenset({"os-package", "python-package"})
+
+
 def aggregate(scores: Sequence[PairScore]) -> dict:
     kinds = sorted({s.kind for s in scores})
     by_kind: dict[str, dict] = {}
     for kind in kinds:
         subset = [s for s in scores if s.kind == kind]
         n = len(subset)
-        in_scope = kind != "not-an-env-fix"
+        in_scope = kind in _PREEMPTABLE
         n_discovered = sum(1 for s in subset if s.discovered)
         n_preempted = sum(1 for s in subset if s.preempted)
         n_hallucinated = sum(1 for s in subset if s.hallucinated)
@@ -272,6 +312,14 @@ def aggregate(scores: Sequence[PairScore]) -> dict:
         }
         if in_scope:
             entry["preemption_rate"] = f"{n_preempted}/{n}"
+        elif kind == "env-var":
+            entry["preemption_rate"] = None
+            entry["note"] = (
+                "EXCLUDED from the pre-emption denominator, but NOT a miss: the repair here set "
+                "an ENV var, which the graph models as a Config node, not an apt/pip fix -- the "
+                "matcher is structurally unable to score it. `attribution_coverage` is the "
+                "meaningful number for this slice."
+            )
         else:
             entry["preemption_rate"] = None
             entry["note"] = (
@@ -280,7 +328,7 @@ def aggregate(scores: Sequence[PairScore]) -> dict:
             )
         by_kind[kind] = entry
 
-    in_scope_scores = [s for s in scores if s.kind != "not-an-env-fix"]
+    in_scope_scores = [s for s in scores if s.kind in _PREEMPTABLE]
     not_env_scores = [s for s in scores if s.kind == "not-an-env-fix"]
     n_in_scope = len(in_scope_scores)
     n_preempted_total = sum(1 for s in in_scope_scores if s.preempted)
@@ -289,8 +337,11 @@ def aggregate(scores: Sequence[PairScore]) -> dict:
         "n": len(not_env_scores),
         "produced_a_node": sum(1 for s in not_env_scores if s.discovered),
         "note": (
-            "any node here is a FALSE POSITIVE -- the phase gate is supposed to "
-            "make this structurally impossible."
+            "a node here is a FALSE POSITIVE: these repairs are source patches (a conftest.py "
+            "stub, a bespoke build recipe), so there was no environment fact to find. Note this "
+            "number was inflated before review, when ENV-var repairs were miscounted into this "
+            "bucket and the graph's CORRECT Config discoveries were scored as false positives; "
+            "they now have their own `env-var` slice."
         ),
     }
 

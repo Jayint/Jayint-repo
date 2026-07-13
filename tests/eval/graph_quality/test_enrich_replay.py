@@ -193,3 +193,80 @@ def test_replay_over_the_REAL_corpus_reports_a_tiny_honest_denominator():
     assert agg["negative_control"]["n"] > agg["n_in_scope"], (
         "not-an-env-fix should dwarf the in-scope population -- that IS §2.2's finding"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Regression: the STREAM must match production (gpt-5.6-terra review of e71cb21)
+#
+# The grader originally sent EVERY pair down enrich's build-stream --
+# RunResult(ok=False, causes=[]) -- including the ~half of this corpus that failed at TEST
+# time. enrich's pytest-stream is phase-gated on `causes`, so with causes=[] it never fired:
+# the graph was handed nothing and scored a false miss. The headline read 1/14 when the truth
+# was 2/14. A grader that slanders the thing it measures is worse than no grader.
+# --------------------------------------------------------------------------- #
+
+def _pair(stderr, *, failed_at, before="FROM python:3.10\n", after="", label=None):
+    from src.eval.graph_quality.corpus import Label
+    return Pair(repo="x", round_index=1, stderr=stderr, before=before, after=after or before,
+                label=label or Label(frozenset(), frozenset({"Pillow"}), "python-package"),
+                failed_at=failed_at)
+
+
+def test_a_TEST_stream_failure_reaches_the_graph_through_the_pytest_causes_path():
+    """THE regression. A pytest collection error must produce a node.
+
+    Real shape, from arvindrajan92__DTrOCR: a collection blob with TWO ModuleNotFoundErrors.
+    Down the build-stream path this discovers nothing at all.
+    """
+    stderr = (
+        "==================================== ERRORS ====================================\n"
+        "_____________ ERROR collecting tests/test_processor.py _____________\n"
+        "tests/test_processor.py:3: in <module>\n"
+        "    import torch\n"
+        "E   ModuleNotFoundError: No module named 'torch'\n"
+        "_____________ ERROR collecting tests/test_model.py _____________\n"
+        "tests/test_model.py:1: in <module>\n"
+        "    from PIL import Image\n"
+        "E   ModuleNotFoundError: No module named 'PIL'\n"
+    )
+    score = score_pair(_pair(stderr, failed_at="test"))
+    assert score.discovered, "the pytest-causes stream never fired -- the graph got nothing"
+    assert score.preempted is True, "PIL -> Pillow is in the curated import table; this is a real hit"
+
+
+def test_the_SAME_text_down_the_BUILD_stream_LOSES_the_second_of_two_collection_errors():
+    """A demonstration of the bug's exact MECHANISM, so nobody 'simplifies' the routing away.
+
+    It is narrower than it first looks. The build stream is NOT blind to a lone
+    ModuleNotFoundError -- its classifier reads raw output too. It is blind to the SECOND one:
+    `failure_classifier.MODULE_NOT_FOUND_RE` uses `.search()`, not `.finditer()`, so exactly one
+    match per blob is ever seen. In DTrOCR's real collection output that first match is `torch`
+    (deliberately unmapped -> no node), and `PIL` -- which IS in the curated import table and
+    would have pre-empted the label cleanly -- never gets looked at.
+
+    The pytest stream escapes this because `summarize()` splits the blob into ONE CAUSE PER
+    COLLECTION ERROR, so PIL arrives as its own observation.
+
+    (The `.search()` narrowing is a real latent bug in `src/python_deps/failure_classifier.py`,
+    reported, deliberately NOT fixed here: this eval must not edit the code it measures.)
+    """
+    two_errors = (
+        "==================================== ERRORS ====================================\n"
+        "_____________ ERROR collecting tests/test_processor.py _____________\n"
+        "tests/test_processor.py:3: in <module>\n"
+        "    import torch\n"
+        "E   ModuleNotFoundError: No module named 'torch'\n"
+        "_____________ ERROR collecting tests/test_model.py _____________\n"
+        "tests/test_model.py:1: in <module>\n"
+        "    from PIL import Image\n"
+        "E   ModuleNotFoundError: No module named 'PIL'\n"
+    )
+    routed_as_test = score_pair(_pair(two_errors, failed_at="test"))
+    routed_as_build = score_pair(_pair(two_errors, failed_at="build"))
+
+    assert routed_as_test.preempted is True, "the production path finds Pillow behind torch"
+    assert routed_as_build.preempted is False, (
+        "the build stream sees only the FIRST ModuleNotFoundError (torch, unmapped). If this "
+        "starts passing, .search() became .finditer() in failure_classifier -- which is a FIX, "
+        "and this eval's python-package number should be re-measured."
+    )

@@ -44,14 +44,15 @@ from pathlib import Path
 _DEFAULT_RESULTS_DIR = "outputs/repo2run_benchmark/results"
 _DEFAULT_ARTIFACTS_DIR = "outputs/repo2run_benchmark/eval_artifacts"
 
-_KINDS = ("os-package", "python-package", "not-an-env-fix")
+_KINDS = ("os-package", "python-package", "env-var", "not-an-env-fix")
 
 
 @dataclass(frozen=True)
 class Label:
     apt: frozenset[str]
     pip: frozenset[str]
-    kind: str  # one of _KINDS
+    kind: str            # one of _KINDS
+    env: frozenset[str] = frozenset()   # ENV names the repair ADDED (see label_for)
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,13 @@ class Pair:
     before: str
     after: str
     label: Label
+    # Which stream produced `stderr`: the docker BUILD failed, or the build was green and the
+    # TEST run after it failed. Load-bearing for the replay, not bookkeeping: `enrich()` has two
+    # mutually exclusive streams (its own docstring: "a turn is either build-stream (causes
+    # empty) or pytest-stream (result.ok true, causes populated)"), and feeding a pytest failure
+    # through the build stream means the phase-gated cause ingestion NEVER FIRES -- the graph is
+    # handed nothing and scores a false miss. Roughly half this corpus is test-stream.
+    failed_at: str = "build"    # "build" | "test"
 
 
 # --------------------------------------------------------------------------- #
@@ -167,21 +175,41 @@ def dockerfile_installs(text: str) -> tuple[frozenset[str], frozenset[str]]:
     return frozenset(apt), frozenset(pip)
 
 
+_ENV_RE = re.compile(r"^\s*ENV\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
+
+
+def dockerfile_envs(text: str) -> frozenset[str]:
+    """ENV variable NAMES set by this Dockerfile (`ENV DATASET=webarena` -> {"DATASET"})."""
+    return frozenset(_ENV_RE.findall(_CONTINUATION_RE.sub(" ", text)))
+
+
 def label_for(before: str, after: str) -> Label:
-    """The label IS the agent's own repair: whatever apt/pip package names `after`
-    installs that `before` did not. A round that added neither is `not-an-env-fix`
-    (spec §2.2) -- a source patch or bespoke build recipe, not an environment fact."""
+    """The label IS the agent's own repair: whatever the `after` Dockerfile provides that
+    `before` did not.
+
+    Four kinds, in priority order. The `env-var` kind is NOT in the original spec §2.2 taxonomy
+    and was added after review: a repair whose whole content is `ENV DATASET=webarena` (a real,
+    recurring shape in this corpus -- fructose, search-agents, visualwebarena) IS an environment
+    fact, and the graph models exactly that as a Config node. Filing it under `not-an-env-fix`
+    did real damage in both directions: it hid those pairs from the eval's denominator, AND it
+    turned the graph's CORRECT Config discovery into a counted "false positive" on the negative
+    control. A `not-an-env-fix` pair must genuinely be a source patch -- a conftest.py stub, a
+    bespoke build recipe -- something the graph is RIGHT to model none of.
+    """
     before_apt, before_pip = dockerfile_installs(before)
     after_apt, after_pip = dockerfile_installs(after)
     added_apt = after_apt - before_apt
     added_pip = after_pip - before_pip
+    added_env = dockerfile_envs(after) - dockerfile_envs(before)
     if added_apt:
         kind = "os-package"
     elif added_pip:
         kind = "python-package"
+    elif added_env:
+        kind = "env-var"
     else:
         kind = "not-an-env-fix"
-    return Label(apt=added_apt, pip=added_pip, kind=kind)
+    return Label(apt=added_apt, pip=added_pip, kind=kind, env=added_env)
 
 
 # --------------------------------------------------------------------------- #
@@ -215,18 +243,25 @@ def _read_llm_input(artifacts_dir: Path, repo: str, round_num: int) -> dict | No
     return payload if isinstance(payload, dict) else None
 
 
-def _failure_text(payload: dict) -> str:
-    """The raw failure text behind this round: `docker_build.stderr` when the build
-    itself failed; otherwise (roughly half this corpus -- the build succeeded but the
-    pytest run after it did not) the captured pytest output, since a clean build log
-    carries no error signal at all. Never `observation_summary` (trap 1).
+def _failure(payload: dict) -> tuple[str, str]:
+    """`(failure_text, failed_at)` for this round.
+
+    The raw failure text is `docker_build.stderr` when the build itself failed; otherwise
+    (roughly half this corpus -- the build succeeded but the pytest run after it did not) the
+    captured pytest output, since a clean build log carries no error signal at all. Never
+    `observation_summary` (trap 1).
+
+    `failed_at` ("build" | "test") is returned ALONGSIDE the text rather than re-derived
+    downstream, because only here do we still know which branch the text came from -- and the
+    replay MUST know: `enrich()` ingests a build failure and a pytest failure through two
+    different, mutually exclusive streams.
 
     Harness sentinels are stripped: what comes back is what a CONTAINER emitted, not what
     repo2run wrote about it."""
     docker_build = payload.get("docker_build") or {}
     returncode = docker_build.get("returncode")
     if returncode not in (0, None):
-        return _strip_harness_prose(docker_build.get("stderr") or "")
+        return _strip_harness_prose(docker_build.get("stderr") or ""), "build"
     chunks: list[str] = []
     for result in payload.get("test_execution") or []:
         classification = result.get("classification") or {}
@@ -241,8 +276,10 @@ def _failure_text(payload: dict) -> str:
             reason = classification.get("reason", "test_failed")
             piece = f"[{reason}] {result.get('test_command', '')}"
         chunks.append(piece)
-    joined = "\n".join(chunks) or (docker_build.get("stderr") or "")
-    return _strip_harness_prose(joined)
+    if chunks:
+        return _strip_harness_prose("\n".join(chunks)), "test"
+    # No failing test result either: fall back to whatever the (green) build logged.
+    return _strip_harness_prose(docker_build.get("stderr") or ""), "build"
 
 
 def load_pairs(results_dir: str, artifacts_dir: str) -> list[Pair]:
@@ -274,13 +311,15 @@ def load_pairs(results_dir: str, artifacts_dir: str) -> list[Pair]:
             before = payload.get("dockerfile")
             if not before:
                 continue
+            stderr, failed_at = _failure(payload)
             pairs.append(Pair(
                 repo=repo,
                 round_index=round_num,
-                stderr=_failure_text(payload),
+                stderr=stderr,
                 before=before,
                 after=after,
                 label=label_for(before, after),
+                failed_at=failed_at,
             ))
     return pairs
 
@@ -293,21 +332,26 @@ def _smoke(results_dir: str, artifacts_dir: str) -> None:
     pairs = load_pairs(results_dir, artifacts_dir)
     by_kind = Counter(p.label.kind for p in pairs)
 
+    by_stream = Counter(p.failed_at for p in pairs)
+
     print(f"total pairs: {len(pairs)}")
     for kind in _KINDS:
         print(f"  {kind}: {by_kind.get(kind, 0)}")
+    print(f"failure stream: build={by_stream.get('build', 0)}  test={by_stream.get('test', 0)}")
     unexpected = set(by_kind) - set(_KINDS)
     for kind in sorted(unexpected):
         print(f"  {kind} (UNEXPECTED kind!): {by_kind[kind]}")
 
-    # By construction, kind != "not-an-env-fix" implies label.apt or label.pip is
-    # non-empty (that is literally label_for's branch condition) -- so this count
-    # is expected to be 0. Reported anyway per the eval's own honesty check.
+    # A PACKAGE-kind pair must carry a package name -- that is literally label_for's branch
+    # condition, so this is expected to be 0 and is reported as an honesty check. (`env-var`
+    # pairs are excluded: their apt+pip is empty BY DEFINITION, and counting them here just
+    # made the check cry wolf 25 times.)
     empty_but_labelled = sum(
         1 for p in pairs
-        if p.label.kind != "not-an-env-fix" and not p.label.apt and not p.label.pip
+        if p.label.kind in ("os-package", "python-package")
+        and not p.label.apt and not p.label.pip
     )
-    print(f"labelled env-fix with EMPTY apt+pip (parser/label inconsistency): {empty_but_labelled}")
+    print(f"package-kind pair with EMPTY apt+pip (parser/label inconsistency): {empty_but_labelled}")
 
     # A more useful diagnostic in the same spirit: of the not-an-env-fix pairs, how
     # many nonetheless show a NEW apt/pip "install" keyword appearing in `after`

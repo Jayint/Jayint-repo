@@ -12,8 +12,12 @@ from pathlib import Path
 import pytest
 
 from src.eval.graph_quality.corpus import (
-    Label, _failure_text, dockerfile_installs, label_for, load_pairs,
+    Label, _failure, dockerfile_installs, label_for, load_pairs,
 )
+
+
+def _failure_text(payload):
+    return _failure(payload)[0]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _RESULTS = _REPO_ROOT / "outputs" / "repo2run_benchmark" / "results"
@@ -189,6 +193,46 @@ def test_load_pairs_builds_a_labelled_pair_end_to_end(tmp_path):
     assert p.label.kind == "os-package" and p.label.apt == {"libpq-dev"}
 
 
+def test_failure_reports_WHICH_STREAM_the_error_came_from():
+    """`enrich` ingests a build failure and a pytest failure through two mutually exclusive
+    streams. The replay has to know which one it is holding -- routing a pytest failure down the
+    build path skips the phase-gated cause ingestion entirely and manufactures a false miss. Only
+    the corpus still knows, so it must say."""
+    build = {"docker_build": {"returncode": 1, "stderr": "E: no such package\n"}}
+    test = {"docker_build": {"returncode": 0, "stderr": ""},
+            "test_execution": [{"returncode": 2, "stdout": "ModuleNotFoundError\n", "stderr": ""}]}
+    assert _failure(build)[1] == "build"
+    assert _failure(test)[1] == "test"
+
+
+def test_an_ENV_VAR_repair_is_its_own_kind_not_a_source_patch():
+    """`ENV DATASET=webarena` IS an environment fact -- the graph models it as a Config node.
+
+    Filing it under not-an-env-fix did damage in BOTH directions: it hid the pair from the
+    eval's denominator, and it turned the graph's CORRECT Config discovery into a counted
+    "false positive" on the negative control. (Real shape: fructose, search-agents,
+    visualwebarena. 25 pairs in this corpus -- not a rounding error.)"""
+    before = "FROM python:3.10\nRUN pip install torch\n"
+    after = before + "ENV DATASET=webarena\n"
+    lab = label_for(before, after)
+    assert lab.kind == "env-var"
+    assert lab.env == {"DATASET"}
+
+
+def test_a_package_install_still_OUTRANKS_an_env_var_in_the_same_repair():
+    # A repair that adds BOTH is labelled by the package: that is the part the graph can pre-empt.
+    before = "FROM python:3.10\n"
+    after = "FROM python:3.10\nENV FOO=bar\nRUN apt-get install -y libpq-dev\n"
+    assert label_for(before, after).kind == "os-package"
+
+
+def test_a_real_source_patch_is_STILL_not_an_env_fix():
+    # The negative control must stay a real negative control.
+    before = "FROM python:3.10\nRUN pip install torch\n"
+    after = before + "RUN printf '%s' 'import sys' > tests/conftest.py\n"
+    assert label_for(before, after).kind == "not-an-env-fix"
+
+
 @pytest.mark.skipif(not _RESULTS.is_dir(), reason="repo2run_benchmark corpus not on disk")
 def test_load_pairs_against_the_REAL_corpus_is_nonempty_and_prose_free():
     """Guards the instrument against the corpus itself moving underneath it: if a refactor or a
@@ -199,4 +243,10 @@ def test_load_pairs_against_the_REAL_corpus_is_nonempty_and_prose_free():
     assert all(p.stderr.strip() for p in pairs), "a pair with no error text scores a false zero"
     assert not [p for p in pairs if "[SYSTEM]" in p.stderr], "observation_summary prose leaked in"
     assert not [p for p in pairs if "__REPO2RUN" in p.stderr], "harness sentinel leaked in"
-    assert {p.label.kind for p in pairs} <= {"os-package", "python-package", "not-an-env-fix"}
+    assert {p.label.kind for p in pairs} <= {"os-package", "python-package", "env-var",
+                                             "not-an-env-fix"}
+    assert {p.failed_at for p in pairs} <= {"build", "test"}
+    assert any(p.failed_at == "test" for p in pairs), (
+        "half this corpus fails at TEST time; if none are tagged so, the replay routes them all "
+        "down the build stream and silently scores false misses"
+    )
