@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import re
 
+from python_deps.depgraph.certify import certify
+from python_deps.depgraph.diagnose import RepoContext, make_diagnostic_classifier
 from python_deps.depgraph.naming import normalize_package_name
 from python_deps.depgraph.req_slice import _provider_from_command
+from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
 from python_deps.depgraph.schema import DepGraph, NodeType
 
 # `_provider_from_command` deliberately DROPS the version (`req_slice.py:52` does
@@ -72,3 +75,77 @@ def owner_node_for_command(graph: DepGraph, command: str | None) -> str | None:
         return None
 
     return candidates[0].id if len(candidates) == 1 else None
+
+
+# Only these pytest phases may touch the graph (spec §4.3, §7.1). "The test's own code
+# decided it was wrong" IS the line between "no env fix exists" and "an env fix exists": a
+# fixture raising ConnectionRefused is a Service node; an AssertionError in a test BODY is
+# NEVER a node, however its message reads. This is structural, not an LLM judgement call —
+# `call`/`teardown` causes never reach `ingest_runtime_failures`, full stop.
+_ENV_PHASES = frozenset({"collect", "setup"})
+
+
+def enrich(
+    graph: DepGraph, result, causes, ctx: RepoContext
+) -> tuple[DepGraph, list[str]]:
+    """Append/annotate nodes from this turn's observations. Returns ``(graph, new_node_ids)``.
+
+    Two streams, and they NEVER overlap in the same turn: `loop.py` only runs pytest once the
+    build is green, so a turn is either build-stream (`causes` empty) or pytest-stream
+    (`result.ok` true, `causes` populated).
+
+      * build stdout  -> owner is EXACT (`owner_node_for_command`) -> this is where DEPTH
+        comes from.
+      * pytest output -> owner is TEST_NODE_ID (the `ingest_runtime_failures` default when no
+        `owner_node_id` is supplied) which is CORRECT: a test-file import genuinely IS a
+        direct dependency of the test goal. This is where BREADTH comes from.
+
+    The heavy lifting is `ingest_runtime_failures` — already idempotent, already
+    never-raises, already shipping in the v3 arm. We only supply the observations and the
+    owner, and gate the pytest stream on phase.
+    """
+    before = {n.id for n in graph.nodes}
+    new = graph
+    classifier = make_diagnostic_classifier(ctx)
+
+    if result is not None and not result.ok and result.failing_command:
+        owner = owner_node_for_command(new, result.failing_command)
+        new, _ = ingest_runtime_failures(
+            new,
+            [(result.failing_command, result.output or "")],
+            classifiers=[classifier],
+            owner_node_id=owner,
+        )
+
+    obs = [
+        (f"pytest: {c.module}", f"{c.exc}: {c.detail}")
+        for c in (causes or [])
+        if getattr(c, "phase", "call") in _ENV_PHASES
+    ]
+    if obs:
+        new, _ = ingest_runtime_failures(new, obs, classifiers=[classifier])
+
+    return new, [n.id for n in new.nodes if n.id not in before]
+
+
+def certify_only(
+    graph: DepGraph, node_ids, executor, cycle: int = 0
+) -> DepGraph:
+    """Certify JUST the named nodes against the live container.
+
+    The react loop certifies the install-tier BEFORE it runs tests / processes
+    observations (`run_react.build_and_test`, `loop.py` — `g = certify(graph)` ahead of
+    `run_tests()`), so anything `enrich` appends *after* that point has never been checked
+    and would render `UNKNOWN` — an untested `check_command` and an unverified fix. This is
+    the narrow second pass that keeps "the agent is never shown a claim we have not
+    verified" honest. Cost is ``O(len(node_ids))``, which is normally zero and occasionally
+    a handful. Returns ``graph`` unchanged (same object) when ``node_ids`` is empty — a
+    no-op must not even construct a new `DepGraph`.
+    """
+    if not node_ids:
+        return graph
+    new = graph
+    for node_id in node_ids:
+        if new.get(node_id) is not None:
+            new = certify(new, node_id, executor, cycle=cycle)
+    return new
