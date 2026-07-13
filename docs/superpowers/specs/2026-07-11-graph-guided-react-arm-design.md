@@ -11,6 +11,13 @@
 - **Rev 2** — fixed the premise; replaced the verdict with a *failure-anchored graph patch*
   (edges + certified states, both directions, root marked); added the per-turn state delta
   and the no-explanation flag.
+- **Rev 3.2** — the render is a **directed subgraph edge-list per error node** (`REQUIRES` /
+  `REQUIRED BY`), not a tree: a DAG serializes natively as edges, so a shared root appears as two
+  lines converging on one node and **the collapse becomes a visible fact of the structure**.
+  Per-node field records sit below, once each. Also fixes a **real bug**: the walk traversed every
+  `REQUIRES` edge as a hard prerequisite, ignoring `CONFLICTS_WITH`, soft edges, and env markers —
+  so a **conflicted (un-installable) node would be marked `★ fix here`**, which `emit._is_emittable`
+  already knows is impossible. All edge semantics now live in one `verdict()`/`blocks()` pair (§6.3).
 - **Rev 3 (this)** — the graph stops being read-only. Adds the pytest **phase model** (§4)
   as the structural gate on what may touch the graph, corrects a **unit-mixing bug** in the
   cause parser that inverts our ranking (§4.2), and specifies **observation-driven graph
@@ -214,103 +221,175 @@ full run — a residual seen under `--collect-only` merely means the body never 
 
 ---
 
-## 6. The renderer — chain edges *and* node fields
+## 6. The renderer — a directed subgraph per error node, then per-node records
 
-`Node` carries ~20 fields (`schema.py:139-165`): `state`, `check_command`, `evidence`,
-`fix_candidates`, `chosen_fix`, `attempts`, `provenance`, `discovered_by`, `version`,
-`build_from_source`, plus a free-form `data{}`. The tension the renderer must resolve:
+Two sections, in this order:
 
-- Dump every field on every node → a 6-node chain × 20 fields buries the topology.
-- Dump none → the agent gets structure it cannot act on (no `fix`, no `check`, no `tried`).
+1. **SUBGRAPH** — a flat **edge list** around each error node, split by direction, with `[state]`
+   inline on every node.
+2. **RECORDS** — the full field record for the handful of nodes the agent will actually act on.
 
-### 6.1 The rule — allocate fields by the node's ROLE in the chain, not by the node
+An **edge list, not a tree.** A tree forces a choice nothing good comes of: `binary:pg_config`
+is required by *both* `pkg:psycopg2` and `pkg:asyncpg`, so a tree must either print its record
+twice or invent a back-reference. An edge list renders it as two lines pointing at the same
+node — and **the collapse becomes a visible fact of the structure** instead of an annotation we
+have to add. A DAG serializes natively as edges; it does not serialize natively as a tree.
 
-| role | what the agent does with it | fields rendered |
-|---|---|---|
-| **anchor** (what pytest named) | nothing — pytest just told it | `id`, `version`, `state`. One line. |
-| **waypoint** (MISSING, not a root) | passes through | `id`, `state`, `blocked by →`. One line. |
-| **rule-out ring** (SATISFIED siblings of a MISSING node) | **excludes** it | `name` + `check passed: <cmd>`. One line. Nothing more — its entire job is to be dismissed. |
-| **root** (MISSING, nothing missing beneath) | **acts here** | the full record. This is the *only* place fields go. |
+### 6.1 Split each error node by direction — they answer different questions
 
-The chain is drawn by indentation; the field content lands almost entirely on the **root**.
-That is what stops the two from competing for the same space.
+The **error node** is the graph node the failure maps to (from pytest, or from the failing build
+command via `owner_node_for_command`, §7.0.1). Around it, the two edge directions mean entirely
+different things and must not be mixed:
+
+| direction | graph call | question it answers | what the agent does with it |
+|---|---|---|---|
+| **REQUIRES** (down) | `requires_of` | *why is this broken?* | **the fix is in here** — the root is the deepest MISSING node with nothing missing beneath it |
+| **REQUIRED BY** (up) | `required_by` | *what breaks because of this?* | **the impact** — blast radius, test counts, fix ordering |
+
+Mixing them into one list destroys the distinction between *cause* and *consequence*, which is
+the only thing the graph is contributing.
 
 ### 6.2 Rendered shape
 
 ```
-FAILURE  ModuleNotFoundError: No module named 'psycopg2'  [collect]  (~200 tests hidden, est.)
-  ↓ pkg:psycopg2==2.9.12                    MISSING
-      ├─ binary:pkg-config                  check passed: command -v pkg-config
-      ├─ tool:build-essential               check passed: dpkg -s build-essential
-      ├─ + 37 transitive pip deps           37 satisfied
-      └─ binary:pg_config                   MISSING   ← ROOT
+GRAPH CONTEXT — certified against the container your script just built
 
-FAILURE  ModuleNotFoundError: No module named 'asyncpg'  [collect]  (~12 tests hidden, est.)
-  ↓ pkg:asyncpg==0.30.0                     MISSING
-      └─ → same root: binary:pg_config
+ERROR NODE  pkg:psycopg2==2.9.12   [MISSING]
+  ← ModuleNotFoundError: No module named 'psycopg2'   [collect]  (~200 tests hidden, est.)
 
-ROOT  binary:pg_config                      MISSING        blocks ~212 tests
-  check    command -v pg_config                            → exit 127
-  fix      apt-get install -y libpq-dev
-           alt: apt-get install -y postgresql-server-dev-all
-  why      pip install psycopg2==2.9.12 failed —
-           "Error: pg_config executable not found"          [turn 2, build log]
-  source   runtime discovery (turn 2), resolved via os_resolver
-  tried    turn 3: apt-get install postgresql-dev → FAILED: no such package
-  blocks   pkg:psycopg2 (~200 tests) · pkg:asyncpg (~12 tests)
+  REQUIRES — what it needs (the fix is in here)
+    pkg:psycopg2  --requires-->  binary:pkg-config        [SATISFIED]
+    pkg:psycopg2  --requires-->  tool:build-essential     [SATISFIED]
+    pkg:psycopg2  --requires-->  binary:pg_config         [MISSING]      ★
+    pkg:psycopg2  --requires-->  (37 transitive pip deps) [37 SATISFIED]
 
-FAILURE  AssertionError in test_totals  [call]  (23 tests)
-  ↓ NOT AN ENVIRONMENT FAILURE (test body). No env fix exists. Graph not consulted.
+  REQUIRED BY — what breaks because of it (the impact)
+    import:psycopg2       --requires-->  pkg:psycopg2
+    test:repo_tests_pass  --requires-->  import:psycopg2      (~200 tests hidden)
+    pkg:sqlalchemy        --requires-->  pkg:psycopg2         [MISSING]
 
-FAILURE  ModuleNotFoundError: No module named 'patchright'  [collect]  (~8 tests hidden, est.)
-  ↓ THE GRAPH HAS NO EXPLANATION. Requirement is outside the model — explore.
+ERROR NODE  pkg:asyncpg==0.30.0   [MISSING]
+  ← ModuleNotFoundError: No module named 'asyncpg'    [collect]  (~12 tests hidden, est.)
+
+  REQUIRES
+    pkg:asyncpg   --requires-->  binary:pg_config         [MISSING]      ★   (same root)
+
+  REQUIRED BY
+    import:asyncpg        --requires-->  pkg:asyncpg
+    test:repo_tests_pass  --requires-->  import:asyncpg       (~12 tests hidden)
+
+ERROR NODE  pkg:pydantic==2.11   [MISSING]
+  ← pip install pydantic==2.11 failed (resolver)      [turn 3, build log]
+
+  REQUIRES
+    pkg:pydantic  --conflicts-->  pkg:fastapi==0.115    [BLOCKED]        ✖
+
+  ★ actionable — nothing missing beneath it
+  ✖ blocked — no install will work
+
+───────────────────────────────────────────────────────────────────────────
+
+★ binary:pg_config                        MISSING       blocks ~212 tests
+    check    command -v pg_config                       → exit 127
+    fix      apt-get install -y libpq-dev
+             alt: apt-get install -y postgresql-server-dev-all
+    why      pip install psycopg2==2.9.12 failed —
+             "Error: pg_config executable not found"     [turn 2, build log]
+    source   runtime discovery (turn 2), resolved via os_resolver
+    tried    turn 3: apt-get install postgresql-dev → FAILED: no such package
+    blocks   pkg:psycopg2 (~200 tests) · pkg:asyncpg (~12 tests)
+
+✖ pkg:pydantic==2.11                      MISSING — CANNOT INSTALL
+    conflict pydantic>=2.11 needs typing-ext>=4.12; fastapi==0.115 pins <4.10
+    note     no `pip install` fixes this — one of the two must change version
+    tried    turn 3: pip install pydantic==2.11 → FAILED (resolver)
+
+NOT AN ENVIRONMENT FAILURE
+    AssertionError: assert 3 == 4   [call]  (23 tests) — test body. No env fix exists.
+
+NO GRAPH EXPLANATION
+    ModuleNotFoundError: 'patchright'  [collect] — not in the model. Explore.
 
 SINCE YOUR LAST EDIT
-  pkg:lxml   SATISFIED → MISSING   (your patch dropped it)
-  3 nodes    MISSING → SATISFIED
-  + discovered this turn: binary:pg_config (from your failing pip install)
+    binary:pg_config   MISSING → SATISFIED   (your libpq-dev patch worked)
+    + discovered this turn: pkg:patchright
 ```
 
-### 6.3 Why it renders that way
+### 6.3 🔴 The traversal predicate — ALL edge semantics live in ONE function
 
-**The root is printed ONCE, at top level — never nested under each failure.** `pg_config` is
-reached from both `psycopg2` and `asyncpg`. Nesting it under both would duplicate the record
-and — worse — would visually *hide the collapse*, when the entire point is that it is **one**
-root. So the chain carries a `← ROOT` pointer and a second failure reaching it says
-`→ same root: …`. **Chain edges show reachability; the root record shows content.**
+The graph has **more than one edge type**, and REQUIRES edges carry attributes that change
+whether they are causal at all. Rev 3.1 walked every REQUIRES edge as if it were a hard
+prerequisite. **That is a bug**, in three distinct ways:
 
-**`why` and `tried` are the fields that earn their space.**
-- `evidence` (`why`) — the literal log line that produced this node. It proves the node is not
-  a guess, and lets the agent overrule it if the inference was bad.
-- `attempts` (`tried`) — **the anti-thrash field.** *You already tried `postgresql-dev` on
-  turn 3 and it does not exist.* Agents re-try disproven fixes because their memory is lossy
-  prose; a structured attempts ledger is the cure, and it is the single highest-value use of a
-  node field. (`Node.attempts` is already a tuple — see §7.5.)
+| edge property | where it lives | rule |
+|---|---|---|
+| `relation is REQUIRES` | `schema.py:51` | traverse |
+| `relation is CONFLICTS_WITH` | `schema.py:53`; emitted from uv's unsat core (`resolve_errors.py:303,340`) | **never traverse — but it DISQUALIFIES the node from being a root** |
+| `data["hard"] is False` | `emit.py:69-70` — *"soft requires edges never block (invariant #10)"*; LLM Config/Service edges are SOFT | traverse, mark advisory; **never confers root status alone** |
+| `marker` false for target env | `resolve_lock.py:446-451` — a universal lock lists deps for the **whole** requires-python range | **skip — not causal on this target** |
+| Package → Package | `resolve_lock.py:425-451`, `resolve.py:415-437` | traverse; **never render individually** — one summary line, recurse only into MISSING (§3.2) |
 
-**`source` is a trust signal.** A node from the Debian build-deps table is a different
-epistemic object from one inferred from a log line. `via resolver` / `via runtime discovery
-(turn 2)` / `via ldd probe` lets the agent weight it. Derived from `discovered_by`+`provenance`.
+**The conflict bug, concretely.** `emit._is_emittable` (`emit.py:84-96`) returns `False` for any
+node touched by a `CONFLICTS_WITH` edge — **the build-script renderer already refuses to emit a
+conflicted node, because it cannot be installed at any version.** But the Rev-3 root definition
+("MISSING with no MISSING prerequisite") marks it `★ fix here` and hands the agent
+`pip install X`. The agent tries, fails, retries, thrashes. Our own renderer knew better and we
+did not ask it.
 
-**Why `← ROOT` is not "a verdict instead of structure."** Everything above it *is* the
-reasoning material — the edges, the states, the rule-out ring. The marker only answers a
-question the agent would otherwise recompute by hand across every block: *which of these
-missing nodes has nothing missing beneath it*. That is a deterministic BFS over states
-certified against the live container this turn — correct given the graph, twenty
-unit-testable lines, and far cheaper than making the model re-derive topological reachability
-in token space. Nothing is hidden; the agent can audit the chain and disagree.
+All of the above collapses into two pure functions — **the only place in the arm that thinks
+about edges**:
 
-### 6.4 Budget and honesty rules
+```python
+def blocks(graph, edge) -> bool:
+    """Is this edge a HARD, CAUSAL prerequisite on THIS target?"""
+    if edge.relation is not EdgeType.REQUIRES:      return False   # conflicts aren't prereqs
+    if not edge.data.get("hard", True):             return False   # soft = advisory
+    if marker_false_for_target(edge):               return False   # not required here
+    return True
 
-- **Full record for the top 3 roots** by tests-blocked; one line each for the rest. Otherwise a
-  repo with 15 missing nodes emits ~105 lines of records.
-- **`data{}` is whitelisted, never dumped.** Internal bookkeeping (`runtime_confidence`,
-  `exclude_newer`, `resolved_platform`) must not leak into the prompt. Only `installable` (the
-  Project node) is rendered today.
-- **UNKNOWN never masquerades as MISSING.** A node we appended but could not certify (no
-  `check_command`) renders as `UNKNOWN — no check command; state unverified`. It may still be a
-  root candidate, but it is never presented as a confirmed one.
+def verdict(graph, node) -> str:
+    if in_conflict(graph, node):                    return "BLOCKED"   # ✖ no install works
+    if any(blocks(graph, e) and graph.get(e.dst).state is not State.SATISFIED
+           for e in edges_from(node)):              return "WAITING"   #   fix something else
+    return "ACTIONABLE"                                                # ★ act here
+```
 
-### 6.5 Signature
+Everything downstream reads `verdict()` and never touches an edge attribute again. Today this
+logic is smeared across `emit._toolchain_ready`, `emit._conflicted`, and `resolve_lock`'s marker
+pruning, each with its own copy of the rules; `graph_context.py` gets **one** copy, unit-tested
+against hand-built graphs.
+
+### 6.4 Rules that keep the render from exploding
+
+- **`[state]` goes inline on every edge line.** Otherwise the agent must jump to the records
+  section to learn whether `binary:pkg-config` matters — twenty lookups to find the two nodes it
+  cares about. Inline state means it dismisses SATISFIED nodes at a glance and only descends for
+  the starred ones.
+- **Only `★` and `✖` nodes get a record.** Every other node is fully described by its edge line.
+  This is what keeps the bottom section to two or three records instead of twenty.
+- **Edges are ordered by tier, top-down** (`test → import → package → tool/syslib/apt`), so the
+  list reads as a descent down the ladder rather than a jumble.
+- **The pip closure is one line, never enumerated.** `(37 transitive pip deps) [37 SATISFIED]`.
+  If one *is* MISSING it is promoted to its own line.
+- **Full record for the top 3 `★` roots** by tests-blocked; one line each for the rest.
+- **`data{}` is whitelisted, never dumped** — `runtime_confidence`, `exclude_newer`,
+  `resolved_platform` must not leak into the prompt. Only `installable` (Project node) renders.
+- **UNKNOWN never masquerades as MISSING.** A node appended but not certifiable (no
+  `check_command`) renders `UNKNOWN — no check command; state unverified`. It may be a root
+  *candidate*; it is never presented as a confirmed one.
+
+### 6.5 Which fields go in a record, and why
+
+| field | source | why it earns the space |
+|---|---|---|
+| `check` + its exit code | `node.check_command` | the agent can re-run it and see for itself |
+| `fix` / `alt` | `chosen_fix`, `fix_candidates` | the actionable command |
+| `why` | `node.evidence` | **the literal log line that produced this node.** Proves it is not a guess, and lets the agent overrule a bad inference. This is what makes a verdict auditable. |
+| `tried` | `node.attempts` | **the anti-thrash field.** *You already tried `postgresql-dev` on turn 3 and it does not exist.* Agents re-retry disproven fixes because their memory is lossy prose; a structured ledger is the cure. (§7.5) |
+| `source` | `discovered_by` + `provenance` | trust signal — a node from the Debian build-deps table is a different epistemic object from one inferred from a log line |
+| `blocks` | `required_by` up-walk | impact / fix ordering |
+
+### 6.6 Signature
 
 ```python
 def render_graph_context(graph, result, causes, prev_states, ctx, phase) -> str:
@@ -321,37 +400,27 @@ def render_graph_context(graph, result, causes, prev_states, ctx, phase) -> str:
 ```
 
 **`result` is required, not optional.** Per §7.1, `loop.py:202` only runs pytest when the build
-is green — so on a build-fail turn `causes` is **empty** and the *only* failure to anchor at is
-the failing build command. A renderer keyed solely on `causes` would emit nothing on exactly the
-turns where the install tier is broken. The anchor is `owner_node_for_command(graph,
-result.failing_command)` (§7.0.1).
+is green — so on a build-fail turn `causes` is **empty** and the only failure to anchor at is the
+failing build command. A renderer keyed solely on `causes` emits nothing on exactly the turns
+where the install tier is broken.
 
 `ctx` is per-run constant, so `entry.py` binds it by closure and the **planner seam carries five
 args** — `graph_context(graph, result, causes, prev_states, phase)`. Pure, no I/O: every state it
 reads was certified by `loop.py:196`; every node it reads was added by §7 *before* the render.
 
-- **Anchor** the top 3 causes by weighted tests-blocked (§4.2); the rest render as one-line
-  tallies. Match a Discovery to an existing node by normalized name (`runtime_ingest.py:86-90`
-  — reuse, do not reimplement).
-- **Down-walk** `requires_of`, expanding only non-SATISFIED nodes, unbounded depth (real
-  MISSING chains are short). Around each MISSING node list its immediate SATISFIED siblings as
-  a compressed rule-out ring (name + `check passed: <cmd>`, no fix detail). **Never expand a
-  SATISFIED node's children.** Collapse `pkg→pkg` per §3.2.
-- **Roots** = MISSING/UNKNOWN nodes with no MISSING/UNKNOWN prerequisite.
-- **Up-walk** `required_by`, one hop, aggregated; list individually only if ≤3.
-- **Regime guard.** If MISSING exceeds ~15 (e.g. the venv never materialized and the whole
-  closure flipped MISSING), enumeration is useless — collapse hard to roots:
+- **Error nodes:** the top 3 causes by weighted tests-blocked (§4.2), plus the build-command owner
+  when the build failed. The rest render as one-line tallies.
+- **Regime guard.** If MISSING exceeds ~15 (the venv never materialized and the whole closure
+  flipped MISSING), the edge list is useless — collapse to roots only:
   *"212 packages MISSING, all downstream of: python venv creation failed."*
 
-### 6.6 The state delta
+### 6.7 The state delta
 
-`build_and_test` (`loop.py:190`) closes over `graph`, and `loop.py:227,277,291` rebind it — so
-the previous turn's certified graph is simply the value of `graph` before the call. Capture
+`build_and_test` (`loop.py:190`) closes over `graph`, and `loop.py:227,277,291` rebind it — so the
+previous turn's certified graph is simply the value of `graph` before the call. Capture
 `{n.id: n.state for n in graph.nodes}` before, diff after. Three lines. It makes the graph a
-**regression attributor** for the agent's own edits, a signal the pytest histogram carries only
-noisily through shifting counts — and it is also the **trigger for §7 Mechanism 2**.
-
----
+**regression attributor** for the agent's own edits — a signal the pytest histogram carries only
+noisily, through shifting counts — and it is the **trigger for §7 Mechanism 2**.
 
 ## 7. Enrich — observation-driven graph update (the core of Rev 3)
 
@@ -595,7 +664,8 @@ do the walk.
 | `phase` on `Cause`; parse it from the banner; derive `outcome` from `phase` | `pytest_summary.py:41,118` | small — **fixes §4.2** |
 | tests-hidden weight for collect-phase causes (static `def test_` count; gold-manifest override) | `pytest_summary.py` + new helper | small |
 | 🔴 **`owner_node_for_command(graph, cmd)`** — `pip install psycopg2==2.9.12` → `pkg:psycopg2==2.9.12` | **new**, next to `req_slice._provider_from_command:38` | **~10 lines — the highest-leverage gap (§7.0.1). Also fixes the v3 arm.** |
-| `render_graph_context` + `_anchor`/`_down_walk`/`_roots`/`_delta`/`_format` | **new** `depgraph/graph_context.py` | the render logic |
+| 🔴 **`blocks(graph, edge)` + `verdict(graph, node)`** — the ONLY place edge semantics live (relation, `hard`, `marker`, conflicts) | **new** `depgraph/graph_context.py` | **~20 lines — fixes the conflicted-node-marked-actionable bug (§6.3)** |
+| `render_graph_context` — subgraph edge-list (REQUIRES / REQUIRED BY per error node) + per-node records | **new** `depgraph/graph_context.py` | the render logic |
 | `expand_discovery` sequencing Mechanisms 1–3 | **new** `depgraph/discovery_expand.py` | the update logic |
 | **reuse** `ingest_runtime_failures` (`runtime_ingest.py:165`) — enrich already exists, is idempotent, has ~15 tests, and ships in the v3 arm | *no change* | **0 lines — wiring only** |
 | extract per-node bodies: `seed_build_deps_for`, `ldd_probe_for` | `build_deps.py:286`, `ldd_probe.py` | pure refactor, **no behavior change** |
@@ -646,6 +716,13 @@ syslib/tool-chain half, plus blast-radius, the delta, and §7's growth — which
    both `psycopg2` and `asyncpg`, with correct states.
 5. `pkg→pkg` edges are traversed but never enumerated: the one-line closure summary appears, and
    a transitive pip dep is expanded only when MISSING.
+5a. 🔴 **A node in a `CONFLICTS_WITH` edge is NEVER marked `★` actionable** — it renders `✖ CANNOT
+   INSTALL` with the unsat-core reason. (Regression test: a graph where the conflicted node has
+   zero MISSING prerequisites — the exact shape that fooled the Rev-3 root definition.)
+5b. A **soft** requires edge (`data["hard"] is False`) does not, on its own, make its owner
+   `WAITING`; a **marker-false** edge is skipped entirely on the target env.
+5c. The subgraph renders `REQUIRES` and `REQUIRED BY` as **separate** lists per error node, and a
+   root reached from two error nodes appears as two edge lines but **one** record.
 6. A failure with no graph node renders the **no-explanation** flag, not a fabricated cause.
 7. A patch dropping an installed package produces a `SATISFIED → MISSING` line in
    `SINCE YOUR LAST EDIT` next turn.
