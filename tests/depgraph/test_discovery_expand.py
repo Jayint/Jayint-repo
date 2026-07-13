@@ -66,7 +66,10 @@ def test_a_versionless_discovery_is_NOT_expanded(monkeypatch):
     assert expanded == set()
 
 
-def test_a_non_package_node_is_not_expanded(monkeypatch):
+def test_a_capability_node_does_NOT_go_through_the_PACKAGE_oracle(monkeypatch):
+    # Two shapes, two oracles. A CAPABILITY is expanded by asking the resolver which OS package
+    # PROVIDES it — never by asking the Debian build-deps prior what it NEEDS (it needs nothing;
+    # it IS the need). seed_build_deps_for must not be called for it.
     called = []
     monkeypatch.setattr(dx, "seed_build_deps_for",
                         lambda g, p, e: (called.append(p.name), (g, 1, 0, 0))[1])
@@ -75,7 +78,7 @@ def test_a_non_package_node_is_not_expanded(monkeypatch):
                                   state=State.MISSING))
     _new, expanded = dx.expand_discovery(g, ["binary:pg_config"], _Exec())
     assert called == []
-    assert expanded == set()
+    assert expanded == {"binary:pg_config"}    # handled — by the resolver, not the package prior
 
 
 def test_a_node_is_expanded_at_most_ONCE_across_turns(monkeypatch):
@@ -129,3 +132,35 @@ def test_a_FAILING_expansion_is_not_retried_every_turn(monkeypatch):
     assert calls == [pkg.id]          # attempted exactly ONCE, not once per turn
     assert pkg.id in done1
     assert done2 == done1
+
+
+def test_a_discovered_CAPABILITY_gets_its_OS_PACKAGE_resolved():
+    """Ingest can only report what the log said: "pg_config is missing". It cannot know that
+    `libpq-dev` is the Debian package that ships it — that is os_resolver.resolve's job, and
+    construction already does exactly this (build_deps._capability_node resolves chosen_fix
+    before it ever emits the node).
+
+    Without this, the renderer hands the agent a root with a `check` and a `why` but NO `fix`:
+    it says WHERE the build is broken and stays silent on HOW to repair it, which is most of the
+    value. Expansion used to gate on NodeType.PACKAGE and skip capability nodes entirely.
+    """
+    tool = Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                layer=Layer.TOOLCHAIN, discovered_by=DiscoveredBy.RUNTIME,
+                state=State.UNKNOWN, check_command="command -v pg_config")
+    graph = DepGraph().with_node(tool)
+
+    new, done = dx.expand_discovery(graph, [tool.id], None)
+
+    assert tool.id in done
+    node = new.get(tool.id)
+    assert node.chosen_fix == "apt:libpq-dev"       # stored as a provider id; rendered as a command
+    assert node.fix_candidates                      # and the alternates survive for the record
+
+
+def test_expansion_never_overwrites_a_fix_construction_already_resolved():
+    # Construction's resolution wins over ours — enrichment is append-only in spirit.
+    tool = Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                layer=Layer.TOOLCHAIN, discovered_by=DiscoveredBy.RESOLVER,
+                state=State.MISSING, chosen_fix="apt:libpq-dev-CUSTOM")
+    new, _ = dx.expand_discovery(DepGraph().with_node(tool), [tool.id], None)
+    assert new.get(tool.id).chosen_fix == "apt:libpq-dev-CUSTOM"

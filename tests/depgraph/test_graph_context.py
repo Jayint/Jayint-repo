@@ -480,7 +480,7 @@ def _pg_graph() -> DepGraph:
                          layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RUNTIME,
                          state=State.MISSING,
                          check_command="command -v pg_config",
-                         chosen_fix="apt-get install -y libpq-dev",
+                         chosen_fix="apt:libpq-dev",
                          evidence='pip install psycopg2: "pg_config executable not found"'))
          .with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="binary:pg_config",
                          relation=EdgeType.REQUIRES, origin="resolver"))
@@ -606,7 +606,7 @@ def test_fields_self_select_resolver_node_omits_why_and_source():
          .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
                          layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
                          state=State.MISSING, check_command="command -v pg_config",
-                         chosen_fix="apt-get install -y libpq-dev"))
+                         chosen_fix="apt:libpq-dev"))
          .with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="binary:pg_config",
                          relation=EdgeType.REQUIRES, origin="resolver")))
     out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states={})
@@ -759,3 +759,30 @@ def test_output_is_not_written_in_broken_english():
     )
     assert "1 tests" not in out
     assert "class(es)" not in out
+
+
+def test_the_fix_field_is_a_RUNNABLE_COMMAND_not_a_provider_id():
+    """`chosen_fix` is stored as a PROVIDER ID — `build_deps._capability_node` writes
+    `f"apt:{top.package}"`, and `emit._apt_name` strips that prefix when it renders setup.sh.
+
+    The record has to do the same. A `fix` the agent cannot paste into setup.sh is not a fix, it
+    is a riddle — and the agent falls back to guessing an apt name out of the error text, which is
+    precisely the behaviour the graph exists to replace. Every unit test here used to hand-build
+    its nodes with a pre-cooked command string, so the renderer was never asked to convert; the
+    FakeSandbox demo is what caught it.
+    """
+    g = (DepGraph()
+         .with_node(_pkg("psycopg2", "2.9.12"))
+         .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                         layer=Layer.TOOLCHAIN, discovered_by=DiscoveredBy.RUNTIME,
+                         state=State.MISSING, check_command="command -v pg_config",
+                         chosen_fix="apt:libpq-dev",              # <- as the real system stores it
+                         fix_candidates=("apt:libpq-dev", "apt:postgresql-server-dev-all")))
+         .with_edge(_requires("pkg:psycopg2==2.9.12", "binary:pg_config")))
+    out = render_graph_context(
+        g, _Result(ok=False, failing_command="pip install psycopg2==2.9.12"),
+        causes=[], prev_states={},
+    )
+    assert "fix      apt-get install -y libpq-dev" in out
+    assert "alt: apt-get install -y postgresql-server-dev-all" in out
+    assert "apt:libpq-dev" not in out          # the internal id must never reach the agent

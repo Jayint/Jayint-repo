@@ -210,19 +210,17 @@ def rung_flags(graph_context: bool = False) -> tuple[bool, bool]:
     return want_ctx, want_update
 
 
-def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
-                  graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
-                  test_threshold: float = 0.9, initial_script: str | None = None):
-    owns_log = log is None
-    log = log or ReactLog(trace_path=trace_out)
-    reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
+def build_graph_hooks(want_ctx: bool, want_update: bool, exec_readonly, repo_path=None) -> dict:
+    """The four callables that ARE the graph arm. Everything else is identical across rungs.
 
-    # G2 = render only (frozen topology). G3 = render + observation-driven growth (§7). Two
-    # flags, not one, so a G3 lift is never misattributed to the renderer — the ablation
-    # invariant (spec §2). `graph_context` is the pre-existing bool param; REACT_GRAPH_CONTEXT
-    # lets a VM run flip it without touching call sites.
-    want_ctx, want_update = rung_flags(graph_context)
+    Returned as a dict so a caller can splat it straight into `run_react(...)`:
+    `graph_context` (the planner seam) plus `enrich_fn`/`expand_fn`/`certify_new_fn` (the loop's
+    growth hooks). On G0/G1 every one of them is None, which is what makes the prompt bytes
+    byte-identical to every baseline already run.
 
+    Factored out of `run_react_arm` so a test or a demo builds the SAME hooks the real arm does,
+    rather than a plausible-looking replica that can drift away from it.
+    """
     ctx = None
     if want_ctx:
         def ctx(g, result, causes, prev_states):
@@ -240,7 +238,7 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
             invalid_names=frozenset(),
             collisions=repo_modules.stem_collisions(repo_path) if repo_path else {},
         )
-        _ex = _ExecAdapter(sandbox.exec_readonly)
+        _ex = _ExecAdapter(exec_readonly)
 
         def enrich_fn(g, r, causes):
             return enrich(g, r, causes, repo_ctx)
@@ -250,6 +248,27 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
 
         def certify_new_fn(g, new_ids):
             return certify_only(g, new_ids, _ex)
+
+    return {"graph_context": ctx, "enrich_fn": enrich_fn,
+            "expand_fn": expand_fn, "certify_new_fn": certify_new_fn}
+
+
+def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
+                  graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
+                  test_threshold: float = 0.9, initial_script: str | None = None):
+    owns_log = log is None
+    log = log or ReactLog(trace_path=trace_out)
+    reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
+
+    # G2 = render only (frozen topology). G3 = render + observation-driven growth (§7). Two
+    # flags, not one, so a G3 lift is never misattributed to the renderer — the ablation
+    # invariant (spec §2). `graph_context` is the pre-existing bool param; REACT_GRAPH_CONTEXT
+    # lets a VM run flip it without touching call sites.
+    want_ctx, want_update = rung_flags(graph_context)
+    hooks = build_graph_hooks(want_ctx, want_update, sandbox.exec_readonly, repo_path)
+    ctx = hooks["graph_context"]
+    enrich_fn, expand_fn = hooks["enrich_fn"], hooks["expand_fn"]
+    certify_new_fn = hooks["certify_new_fn"]
 
     env_info = _gather_env_info(sandbox, repo_path)
     planner = ReactPlanner(client, model, graph_context=(ctx if want_ctx else None),

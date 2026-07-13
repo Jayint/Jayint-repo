@@ -328,6 +328,18 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}" if n == 1 else f"{n} {word}s"
 
 
+def _as_command(fix: str) -> str:
+    """`apt:libpq-dev` -> `apt-get install -y libpq-dev`.
+
+    `chosen_fix` is stored as a PROVIDER ID, not a shell command — `build_deps._capability_node`
+    writes `f"apt:{top.package}"`, and `emit._apt_name` strips that prefix when it renders the
+    build script. The record must do the same. A `fix` field the agent cannot paste into setup.sh
+    is not a fix; it is a riddle, and the agent falls back to guessing an apt name out of the
+    error text — exactly the behaviour the graph exists to replace.
+    """
+    return f"apt-get install -y {fix[4:]}" if fix.startswith("apt:") else fix
+
+
 def _up_edges(graph: DepGraph, node: Node, weight: int, est: bool) -> list[str]:
     out = []
     for src in graph.required_by(node.id):
@@ -358,9 +370,9 @@ def _record(graph: DepGraph, node: Node, target_env,
             out.append(f"    check    {node.check_command}")
         fix = node.chosen_fix or (node.fix_candidates[0] if node.fix_candidates else None)
         if fix:
-            out.append(f"    fix      {fix}")
+            out.append(f"    fix      {_as_command(fix)}")
         for alt in node.fix_candidates[1:]:
-            out.append(f"             alt: {alt}")
+            out.append(f"             alt: {_as_command(alt)}")
         # `why`/`source` only when RUNTIME-discovered: a Debian build-deps-table node need not
         # justify itself; one we appended from a log line MUST (it is how the agent audits us).
         if node.discovered_by is DiscoveredBy.RUNTIME:
