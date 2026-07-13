@@ -90,6 +90,44 @@ def test_tool_error_does_not_capture_article_before_executable():
     assert classify_tool_error("", "The required executable not found") is None
 
 
+def test_tool_error_rejects_every_bare_prose_word_in_the_name_slot():
+    # A stopword BLOCKLIST cannot win this: the first attempt enumerated
+    # {no, an, any, the, this, that, required, necessary} and still captured "Optional",
+    # "Your" and "Some". The rule is now SHAPE-first — a token carrying `_ - . +` or a digit
+    # is a program name because no English word has one — and the vocabulary check applies
+    # only to the bare-alphabetic remainder.
+    for prose in ("Optional", "Your", "Some", "Any", "This", "Such", "A", "Compatible"):
+        assert classify_tool_error("", f"{prose} executable not found") is None, prose
+
+
+def test_tool_error_requires_a_whole_word_found():
+    # The consuming pattern had no trailing \b, so "not founders" matched "not found".
+    assert classify_tool_error("", "Error: pg_config executable not founders") is None
+    assert classify_tool_error("", "No executable not founds") is None
+
+
+def test_tool_error_accepts_bare_alphabetic_commands():
+    # The shape rule must not cost us the real bare-word tools. `Rscript` is capitalised and
+    # `cmake`/`swig` carry no program-name character — none may be mistaken for prose.
+    assert classify_tool_error("", "error: cmake executable not found") == "cmake"
+    assert classify_tool_error("", "swig executable not found") == "swig"
+    assert classify_tool_error("", "Rscript executable not found") == "Rscript"
+
+
+def test_tool_error_scans_past_prose_to_a_real_tool_name():
+    # finditer, not search: a prose candidate must not consume the match and hide a real tool
+    # further right in the same output.
+    out = "The required executable not found\nError: pg_config executable not found."
+    assert classify_tool_error("", out) == "pg_config"
+
+
+def test_tool_error_recognises_the_real_config_probe_binaries():
+    # The actual population of this message: `*-config` / `*_config` probe binaries. Each
+    # carries a program-name character, so the shape rule alone settles them.
+    for tool in ("pg_config", "mysql_config", "xml2-config", "curl-config", "llvm-config"):
+        assert classify_tool_error("", f"Error: {tool} executable not found.") == tool
+
+
 # ── classify_observation dispatch ────────────────────────────────────────────
 
 from python_deps.depgraph.runtime_classify import classify_observation, Discovery

@@ -255,18 +255,38 @@ _TOOL_FILENOTFOUNDERROR_RE = re.compile(
 # "executable" between the name and "not found", so _TOOL_COMMAND_NOT_FOUND_RE (which requires
 # "<name>: not found") never matched it. This is the SHAPE THE psycopg2 BUILD ACTUALLY EMITS,
 # and without it the graph arm's headline case produces no node at all.
-#
-# Guard: a bare `\b([A-Za-z0-9_.-]+)\s+executable\s+not\s+found` would also capture ordinary
-# English prose that happens to precede "executable" with an article/determiner or "required" —
-# e.g. "No executable not found" or "The required executable not found" — misreporting the tool
-# as "No" or "required". The negative lookahead excludes exactly that leading word from being
-# captured as the tool name (re.search then keeps scanning right, so a genuine tool name later
-# in the same line, if any, would still be found).
 _TOOL_EXECUTABLE_NOT_FOUND_RE = re.compile(
-    r"\b(?!(?:no|an?|any|the|this|that|required|necessary)\s+executable\s+not\s+found\b)"
-    r"([A-Za-z0-9_.-]+)\s+executable\s+not\s+found",
+    r"\b([A-Za-z0-9][A-Za-z0-9_.+-]*)\s+executable\s+not\s+found\b",
     re.IGNORECASE,
 )
+
+# English prose occupies the same slot as the tool name ("No executable not found", "The
+# required executable not found"), so the regex alone would report the tool as "No" or
+# "required". What separates the two is SHAPE, not vocabulary:
+#
+#   * A real probe binary almost always carries a program-name character. The emitters of this
+#     message are overwhelmingly `*-config`/`*_config` binaries — pg_config (psycopg2),
+#     mysql_config (mysqlclient), xml2-config (lxml), curl-config (pycurl), llvm-config — and
+#     NO English word contains `_`, `-`, `.`, `+`, or a digit. Such a token is unambiguous.
+#   * That leaves bare alphabetic commands (cmake, swig, gcc, Rscript), which CAN collide with
+#     prose. Only there do we need a vocabulary check, and the colliding words are a small
+#     closed set: the determiners and adjectives that can precede "executable".
+#
+# Enumerating English would be a losing game; enumerating the determiners that precede one noun
+# is not.
+_NOT_A_TOOL_NAME = frozenset({
+    "a", "an", "any", "no", "the", "this", "that", "these", "those", "some", "such",
+    "your", "our", "its", "my", "one",
+    "required", "necessary", "optional", "valid", "suitable", "matching", "expected",
+    "appropriate", "default", "native", "host", "target", "correct", "compatible",
+})
+
+
+def _looks_like_a_program_name(name: str) -> bool:
+    """Distinguish `pg_config` from the `required` in 'The required executable not found'."""
+    if any(ch in name for ch in "_-.+") or any(ch.isdigit() for ch in name):
+        return True
+    return name.lower() not in _NOT_A_TOOL_NAME
 
 
 def classify_tool_error(command: str, output: str) -> str | None:
@@ -275,9 +295,11 @@ def classify_tool_error(command: str, output: str) -> str | None:
     m = _TOOL_COMMAND_NOT_FOUND_RE.search(text)
     if m:
         return m.group(1)
-    m = _TOOL_EXECUTABLE_NOT_FOUND_RE.search(text)
-    if m:
-        return m.group(1)
+    # finditer, not search: when the first candidate is prose we keep scanning rightward, so a
+    # genuine tool name later in the same output is still found.
+    for m in _TOOL_EXECUTABLE_NOT_FOUND_RE.finditer(text):
+        if _looks_like_a_program_name(m.group(1)):
+            return m.group(1)
     m = _TOOL_FILENOTFOUNDERROR_RE.search(text)
     if m:
         return m.group(1)
