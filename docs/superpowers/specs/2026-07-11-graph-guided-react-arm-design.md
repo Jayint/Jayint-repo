@@ -11,6 +11,12 @@
 - **Rev 2** — fixed the premise; replaced the verdict with a *failure-anchored graph patch*
   (edges + certified states, both directions, root marked); added the per-turn state delta
   and the no-explanation flag.
+- **Rev 3.3 (current)** — `verdict()` now drives **both** the symbol *and* the record set: a record
+  goes where a **decision** is possible (`★` ACTIONABLE / `✖` BLOCKED), never on WAITING. Reverses
+  the "top 3 records" cap — **actionable roots are independent, so the agent should batch all of
+  them in one patch**, and each hidden root costs a container rebuild. Fields self-select by whether
+  they carry information (typical record: 3 lines, not 7). A huge frontier is reframed as a
+  **model-health signal**, not a truncation trigger.
 - **Rev 3.2** — the render is a **directed subgraph edge-list per error node** (`REQUIRES` /
   `REQUIRED BY`), not a tree: a DAG serializes natively as edges, so a shared root appears as two
   lines converging on one node and **the collapse becomes a visible fact of the structure**.
@@ -359,37 +365,97 @@ logic is smeared across `emit._toolchain_ready`, `emit._conflicted`, and `resolv
 pruning, each with its own copy of the rules; `graph_context.py` gets **one** copy, unit-tested
 against hand-built graphs.
 
-### 6.4 Rules that keep the render from exploding
+### 6.4 WHICH nodes get a record — the record set IS the action frontier
 
-- **`[state]` goes inline on every edge line.** Otherwise the agent must jump to the records
-  section to learn whether `binary:pkg-config` matters — twenty lookups to find the two nodes it
-  cares about. Inline state means it dismisses SATISFIED nodes at a glance and only descends for
-  the starred ones.
-- **Only `★` and `✖` nodes get a record.** Every other node is fully described by its edge line.
-  This is what keeps the bottom section to two or three records instead of twenty.
-- **Edges are ordered by tier, top-down** (`test → import → package → tool/syslib/apt`), so the
-  list reads as a descent down the ladder rather than a jumble.
-- **The pip closure is one line, never enumerated.** `(37 transitive pip deps) [37 SATISFIED]`.
-  If one *is* MISSING it is promoted to its own line.
-- **Full record for the top 3 `★` roots** by tests-blocked; one line each for the rest.
+Driven entirely by `verdict()` (§6.3). Same function, second job:
+
+```
+verdict(node) is ACTIONABLE  (★)  →  record
+verdict(node) is BLOCKED     (✖)  →  record
+verdict(node) is WAITING          →  NO record
+state is SATISFIED                →  NO record
+```
+
+**The principle: a record goes where a DECISION is possible.**
+
+- **★ ACTIONABLE** — the agent can run the fix right now. It needs the command.
+- **✖ BLOCKED** — the agent must **not** run a fix. Equally a decision, and an expensive one to
+  get wrong: without the record it runs `pip install pydantic` and thrashes forever.
+- **WAITING** — no action available *this turn*. Its edge line already said
+  `needs binary:pg_config`; a record adds nothing usable now. It becomes ACTIONABLE on its own
+  once the blocker clears — and gets a record then.
+
+So the record set **moves each turn as the graph certifies**. It is the frontier, not a ranking.
+
+**🔴 No top-N truncation of `★` nodes.** (Reverses Rev 3.2, which capped records at "top 3 roots
+by tests-blocked" — that was the same class of mistake as the conflict bug.) **Actionable roots
+are independent by definition** — nothing blocks them, so nothing blocks them from *each other*.
+The agent can and should fix **all of them in one patch**. Truncating to three hides work it could
+have done this turn, and **every hidden root costs a full container rebuild to rediscover**. The
+cap optimizes the cheap resource (tokens) at the expense of the expensive one (turns). Render them
+all.
+
+### 6.4.1 The frontier size is a MODEL-HEALTH signal, not a truncation trigger
+
+A huge actionable frontier does not mean "212 independent fixes." It means **the model is missing a
+shared prerequisite** — e.g. the venv never materialized, so every package flipped MISSING with no
+modeled common cause, and each one *looks* independently actionable. Do not dump 212 records; say
+what is actually true:
+
+```
+⚠ 212 nodes are ACTIONABLE. That is implausible — independent roots do not arrive in
+  bulk. A shared prerequisite is almost certainly MISSING FROM THE MODEL (check the
+  runtime/venv tier). Showing the 5 largest; treat the graph as unreliable this turn.
+```
+
+That is an honest diagnostic about *our* blind spot, not a silent cut of the agent's options. (When
+the shared prerequisite **is** modeled, `verdict()` collapses the cascade for free — all 212 become
+WAITING on one ACTIONABLE node, and the frontier is naturally 1.)
+
+### 6.5 WHICH fields go in a record — conditional on having something to say
+
+Not a fixed template. A field appears **only when it carries information the edge list did not**:
+
+| field | source | included when |
+|---|---|---|
+| `check` + exit code | `node.check_command` | **always** — the agent can re-run it and see for itself |
+| `fix` / `alt` | `chosen_fix`, `fix_candidates` | **always** — this is the action |
+| `why` | `node.evidence` | **only if runtime-discovered.** A node from the Debian build-deps table need not justify itself; a node we appended from a log line **must**. This is what makes the verdict auditable and lets the agent overrule a bad inference. |
+| `tried` | `node.attempts` | only if `attempts` is non-empty. **The anti-thrash field** — *you already tried `postgresql-dev` on turn 3 and it does not exist.* Agents re-retry disproven fixes because their memory is lossy prose; a structured ledger is the cure. (§7.5) |
+| `source` | `discovered_by` + `provenance` | only if **not** resolver-sourced — i.e. only when trust is in question |
+| `blocks` | `required_by` up-walk | only if it blocks **more than one** thing (else the edge list already showed it) |
+| `conflict` | `advise._conflict_note:220` | `✖` nodes only — the uv unsat-core reason |
+
+**Consequence: the typical record is three lines, not seven.**
+
+```
+★ binary:pg_config                        MISSING       blocks ~212 tests
+    check    command -v pg_config                       → exit 127
+    fix      apt-get install -y libpq-dev
+```
+
+It grows to the seven-line form **only when the node is contested** — runtime-discovered, with a
+failed attempt behind it, blocking several things. Which is exactly the node the agent should spend
+attention on. **The fields self-select by whether they carry information**, instead of by a rank
+cutoff that hides fixes.
+
+### 6.6 Rules that keep the render honest
+
+- **`[state]` goes inline on every edge line.** Otherwise the agent must jump to the records section
+  to learn whether `binary:pkg-config` matters — twenty lookups to find the two nodes it cares
+  about. Inline state means SATISFIED nodes are dismissed at a glance.
+- **Edges ordered by tier, top-down** (`test → import → package → tool/syslib/apt`), so the list
+  reads as a descent down the ladder rather than a jumble.
+- **The pip closure is one line, never enumerated.** `(37 transitive pip deps) [37 SATISFIED]`. If
+  one *is* MISSING it is promoted to its own line.
 - **`data{}` is whitelisted, never dumped** — `runtime_confidence`, `exclude_newer`,
   `resolved_platform` must not leak into the prompt. Only `installable` (Project node) renders.
-- **UNKNOWN never masquerades as MISSING.** A node appended but not certifiable (no
-  `check_command`) renders `UNKNOWN — no check command; state unverified`. It may be a root
-  *candidate*; it is never presented as a confirmed one.
+- **UNKNOWN never masquerades as MISSING.** A node appended but not certifiable (no `check_command`)
+  renders `UNKNOWN — no check command; state unverified`. It may be an ACTIONABLE *candidate*; it is
+  never presented as a confirmed one.
+- **Never silently drop.** Any cap that does fire (error nodes, §6.7) states what it dropped.
 
-### 6.5 Which fields go in a record, and why
-
-| field | source | why it earns the space |
-|---|---|---|
-| `check` + its exit code | `node.check_command` | the agent can re-run it and see for itself |
-| `fix` / `alt` | `chosen_fix`, `fix_candidates` | the actionable command |
-| `why` | `node.evidence` | **the literal log line that produced this node.** Proves it is not a guess, and lets the agent overrule a bad inference. This is what makes a verdict auditable. |
-| `tried` | `node.attempts` | **the anti-thrash field.** *You already tried `postgresql-dev` on turn 3 and it does not exist.* Agents re-retry disproven fixes because their memory is lossy prose; a structured ledger is the cure. (§7.5) |
-| `source` | `discovered_by` + `provenance` | trust signal — a node from the Debian build-deps table is a different epistemic object from one inferred from a log line |
-| `blocks` | `required_by` up-walk | impact / fix ordering |
-
-### 6.6 Signature
+### 6.7 Signature
 
 ```python
 def render_graph_context(graph, result, causes, prev_states, ctx, phase) -> str:
@@ -408,13 +474,18 @@ where the install tier is broken.
 args** — `graph_context(graph, result, causes, prev_states, phase)`. Pure, no I/O: every state it
 reads was certified by `loop.py:196`; every node it reads was added by §7 *before* the render.
 
-- **Error nodes:** the top 3 causes by weighted tests-blocked (§4.2), plus the build-command owner
-  when the build failed. The rest render as one-line tallies.
-- **Regime guard.** If MISSING exceeds ~15 (the venv never materialized and the whole closure
-  flipped MISSING), the edge list is useless — collapse to roots only:
-  *"212 packages MISSING, all downstream of: python venv creation failed."*
+**Error nodes** (which subgraphs render) — this is where a cap IS defensible, unlike records:
 
-### 6.7 The state delta
+- **Dedup first.** N causes may map to K distinct graph nodes (five `ModuleNotFoundError`s over
+  three packages → three subgraphs, not five).
+- Then take the **top 3 by weighted tests-blocked** (§4.2), plus the build-command owner when the
+  build failed. A subgraph is expensive (two edge lists); a record is cheap. That asymmetry is why
+  error nodes are capped and `★` records are not.
+- **State the remainder explicitly** — never silently drop:
+  `+ 4 more failure classes; all map to nodes already shown above.`
+  `+ 2 more; no graph explanation — explore.`
+
+### 6.8 The state delta
 
 `build_and_test` (`loop.py:190`) closes over `graph`, and `loop.py:227,277,291` rebind it — so the
 previous turn's certified graph is simply the value of `graph` before the call. Capture
@@ -689,9 +760,16 @@ ablation rung, so we can attribute any lift to the right half.
 - **anchor hit rate** — fraction of failure classes that mapped to a node. Upper-bounds
   everything else; if low, the graph is being ignored, not consulted.
 - **collapse ratio** `N causes / K roots` — structure recovered.
-- **first-patch-targets-root** — did the agent act on a marked root, or on a symptom?
+- **first-patch-targets-★** — did the agent act on an ACTIONABLE node, or on a symptom?
+- **frontier batching** — `★` nodes fixed per patch. **This is the payoff of dropping the top-3
+  record cap (§6.4)**: actionable roots are independent, so an agent that fixes 4 in one patch saves
+  3 container rebuilds. If this stays at 1.0, the render is not communicating independence.
+- **blocked-node retries** — how often the agent runs an install against a `✖` node. Should be **0**;
+  any nonzero value means the conflict render is not landing.
 - **no-explanation rate** — how often the graph honestly had nothing (§8). A *feature*: it
   should correlate with the agent choosing `explore`.
+- **implausible-frontier rate** — how often §6.4.1 fires. This measures **our own model's** blind
+  spots, not the agent's.
 - **delta-attributed regressions** — how often `SINCE YOUR LAST EDIT` caught the agent breaking
   something, and whether it then reverted.
 - **discoveries per run**, by stream and mechanism (§7.6) — the construction-coverage oracle.
@@ -723,6 +801,13 @@ syslib/tool-chain half, plus blast-radius, the delta, and §7's growth — which
    `WAITING`; a **marker-false** edge is skipped entirely on the target env.
 5c. The subgraph renders `REQUIRES` and `REQUIRED BY` as **separate** lists per error node, and a
    root reached from two error nodes appears as two edge lines but **one** record.
+5d. **Every `★` node gets a record — no top-N truncation** (§6.4). A graph with 6 independent
+   actionable roots renders 6 records, so the agent can batch all 6 into one patch.
+5e. **Fields self-select** (§6.5): a resolver-sourced node with no attempts renders exactly
+   `check` + `fix` (3 lines) and **omits** `why`/`source`/`tried`; a runtime-discovered node with a
+   failed attempt renders all of them.
+5f. **§6.4.1:** a graph with 212 ACTIONABLE nodes renders the *implausible-frontier* warning and
+   the 5 largest — **not** 212 records, and **not** a silent truncation.
 6. A failure with no graph node renders the **no-explanation** flag, not a fabricated cause.
 7. A patch dropping an installed package produces a `SATISFIED → MISSING` line in
    `SINCE YOUR LAST EDIT` next turn.
