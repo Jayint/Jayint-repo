@@ -8,24 +8,38 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from python_deps.depgraph.emit import _conflicted_ids, _is_emittable
 from python_deps.depgraph.graph_context import (
-    ACTIONABLE, BLOCKED, SATISFIED_OK, WAITING, blocks, in_conflict, verdict,
+    ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict, verdict,
 )
-from python_deps.depgraph.ids import capability_id, package_id
+from python_deps.depgraph.ids import package_id
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 
 
-def _pkg(name, version="1.0", state=State.MISSING) -> Node:
+def _pkg(name, version="1.0", state=State.MISSING, build_from_source=None) -> Node:
     return Node(id=package_id(name, version), type=NodeType.PACKAGE, name=name,
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
-                version=version, state=state)
+                version=version, state=state, build_from_source=build_from_source)
 
 
 def _tool(name, state=State.MISSING) -> Node:
     return Node(id=f"binary:{name}", type=NodeType.TOOL, name=name,
                 layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=state)
+
+
+def _syslib(name, state=State.MISSING) -> Node:
+    return Node(id=f"syslib:{name}", type=NodeType.SYSTEM_LIB, name=name,
+                layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER, state=state)
+
+
+def _requires(src: str, dst: str, **kw) -> Edge:
+    return Edge(src=src, dst=dst, relation=EdgeType.REQUIRES, origin="resolver", **kw)
+
+
+def _edge_of(graph: DepGraph, src: str, dst: str) -> Edge:
+    return next(e for e in graph.edges if e.src == src and e.dst == dst)
 
 
 def test_actionable_when_nothing_beneath_is_missing():
@@ -37,8 +51,7 @@ def test_waiting_when_a_hard_prerequisite_is_missing():
     g = (DepGraph()
          .with_node(_pkg("psycopg2"))
          .with_node(_tool("pg_config"))
-         .with_edge(Edge(src="pkg:psycopg2==1.0", dst="binary:pg_config",
-                         relation=EdgeType.REQUIRES, origin="resolver")))
+         .with_edge(_requires("pkg:psycopg2==1.0", "binary:pg_config")))
     assert verdict(g, g.get("pkg:psycopg2==1.0")) == WAITING
     assert verdict(g, g.get("binary:pg_config")) == ACTIONABLE
 
@@ -47,8 +60,7 @@ def test_satisfied_prerequisite_does_not_make_the_owner_wait():
     g = (DepGraph()
          .with_node(_pkg("psycopg2"))
          .with_node(_tool("pg_config", state=State.SATISFIED))
-         .with_edge(Edge(src="pkg:psycopg2==1.0", dst="binary:pg_config",
-                         relation=EdgeType.REQUIRES, origin="resolver")))
+         .with_edge(_requires("pkg:psycopg2==1.0", "binary:pg_config")))
     assert verdict(g, g.get("pkg:psycopg2==1.0")) == ACTIONABLE
 
 
@@ -84,18 +96,90 @@ def test_conflict_blocks_BOTH_endpoints():
 
 def test_a_conflicts_edge_is_not_a_prerequisite():
     # CONFLICTS_WITH must never be traversed as a requires edge.
-    e = Edge(src="pkg:a==1.0", dst="pkg:b==1.0", relation=EdgeType.CONFLICTS_WITH,
-             origin="resolver")
-    assert blocks(e) is False
+    g = (DepGraph()
+         .with_node(_pkg("a"))
+         .with_node(_pkg("b"))
+         .with_edge(Edge(src="pkg:a==1.0", dst="pkg:b==1.0",
+                         relation=EdgeType.CONFLICTS_WITH, origin="resolver")))
+    assert blocks(g, _edge_of(g, "pkg:a==1.0", "pkg:b==1.0")) is False
+
+
+def test_a_satisfied_but_conflicted_node_is_SATISFIED_OK():
+    # Order check: SATISFIED wins over BLOCKED. The node is installed — whatever the resolver
+    # said about it, there is nothing for the agent to do, so it must not get a "cannot
+    # install" record.
+    g = (DepGraph()
+         .with_node(_pkg("pydantic", "2.11", state=State.SATISFIED))
+         .with_node(_pkg("fastapi", "0.115"))
+         .with_edge(Edge(src="pkg:pydantic==2.11", dst="pkg:fastapi==0.115",
+                         relation=EdgeType.CONFLICTS_WITH, origin="resolver")))
+    assert verdict(g, g.get("pkg:pydantic==2.11")) == SATISFIED_OK
+
+
+# ── agreement with emit, the incumbent authority ─────────────────────────────
+#
+# emit._toolchain_ready is what the BUILD SCRIPT RENDERER already uses to decide what may be
+# installed. If the arm disagrees with it, we send the agent to fix something the renderer
+# would have installed anyway — and every wasted turn is a full container rebuild.
+
+def test_a_missing_build_TOOL_does_not_block_a_KNOWN_WHEEL():
+    """emit._toolchain_ready:78 — `dep.type is TOOL and pkg.build_from_source is not False`.
+
+    A wheel needs no compiler, so a missing build tool is irrelevant to installing it. The
+    renderer emits the package regardless; the arm must not tell the agent to apt-get a tool
+    it will never invoke.
+    """
+    g = (DepGraph()
+         .with_node(_pkg("Pillow", "10.3", build_from_source=False))   # a KNOWN wheel
+         .with_node(_tool("gcc"))
+         .with_edge(_requires("pkg:Pillow==10.3", "binary:gcc")))
+    pkg = g.get("pkg:Pillow==10.3")
+    assert blocks(g, _edge_of(g, "pkg:Pillow==10.3", "binary:gcc")) is False
+    assert verdict(g, pkg) == ACTIONABLE
+    # ...and that is exactly what the incumbent says:
+    assert _is_emittable(g, pkg, _conflicted_ids(g)) is True
+
+
+def test_a_missing_build_TOOL_blocks_a_SOURCE_build_and_an_UNKNOWN_build_mode():
+    for build_from_source in (True, None):     # None = build mode not yet known
+        g = (DepGraph()
+             .with_node(_pkg("psycopg2", "2.9.12", build_from_source=build_from_source))
+             .with_node(_tool("pg_config"))
+             .with_edge(_requires("pkg:psycopg2==2.9.12", "binary:pg_config")))
+        assert verdict(g, g.get("pkg:psycopg2==2.9.12")) == WAITING, build_from_source
+
+
+def test_a_missing_SYSTEM_LIB_blocks_even_a_KNOWN_WHEEL():
+    # emit._toolchain_ready:76-77 — "runtime lib: wheel & sdist". A wheel dlopens the .so at
+    # import time, so a missing SystemLib defeats it just as it defeats a source build. This is
+    # the case a build-mode-only rule would wrongly wave through.
+    g = (DepGraph()
+         .with_node(_pkg("Pillow", "10.3", build_from_source=False))
+         .with_node(_syslib("libjpeg.so.8"))
+         .with_edge(_requires("pkg:Pillow==10.3", "syslib:libjpeg.so.8")))
+    assert verdict(g, g.get("pkg:Pillow==10.3")) == WAITING
+
+
+def test_a_missing_PACKAGE_dependency_does_not_block():
+    # `pip install psycopg2` resolves and installs psycopg2's own dependencies, so a missing
+    # pip dep is not something the agent must fix first. emit does not gate on these either —
+    # it topologically orders them instead.
+    g = (DepGraph()
+         .with_node(_pkg("psycopg2", "2.9.12"))
+         .with_node(_pkg("typing-extensions", "4.12"))
+         .with_edge(_requires("pkg:psycopg2==2.9.12", "pkg:typing-extensions==4.12")))
+    assert verdict(g, g.get("pkg:psycopg2==2.9.12")) == ACTIONABLE
 
 
 # ── soft edges ───────────────────────────────────────────────────────────────
 
 def test_soft_edge_does_not_block():
     # emit.py:69-70 — "soft requires edges never block (invariant #10)".
-    e = Edge(src="pkg:a==1.0", dst="config:DATABASE_URL", relation=EdgeType.REQUIRES,
-             origin="llm", data={"hard": False})
-    assert blocks(e) is False
+    g = (DepGraph()
+         .with_node(_pkg("a"))
+         .with_node(_syslib("libfoo.so.1"))
+         .with_edge(_requires("pkg:a==1.0", "syslib:libfoo.so.1", data={"hard": False})))
+    assert blocks(g, _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")) is False
 
 
 def test_soft_missing_prerequisite_leaves_the_owner_actionable():
@@ -107,12 +191,19 @@ def test_soft_missing_prerequisite_leaves_the_owner_actionable():
                          name="DATABASE_URL", layer=Layer.CONFIG,
                          discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING))
          .with_edge(Edge(src="pkg:app==1.0", dst="config:DATABASE_URL",
-                         relation=EdgeType.REQUIRES, origin="llm",
-                         data={"hard": False})))
+                         relation=EdgeType.REQUIRES, origin="llm", data={"hard": False})))
     assert verdict(g, g.get("pkg:app==1.0")) == ACTIONABLE
 
 
-# ── a SATISFIED node is not "actionable" ─────────────────────────────────────
+def test_hard_edge_is_the_default_when_the_key_is_absent():
+    g = (DepGraph()
+         .with_node(_pkg("a"))
+         .with_node(_syslib("libfoo.so.1"))
+         .with_edge(_requires("pkg:a==1.0", "syslib:libfoo.so.1")))
+    assert blocks(g, _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")) is True
+
+
+# ── a SATISFIED node is not "actionable"; an UNKNOWN one is not either ───────
 
 def test_a_satisfied_node_is_never_actionable():
     """A SATISFIED leaf has no missing prerequisites, so a verdict() that only looked at
@@ -123,33 +214,53 @@ def test_a_satisfied_node_is_never_actionable():
     assert verdict(g, g.get("binary:pkg-config")) != ACTIONABLE
 
 
-def test_hard_edge_is_the_default_when_the_key_is_absent():
-    e = Edge(src="pkg:a==1.0", dst="binary:x", relation=EdgeType.REQUIRES, origin="resolver")
-    assert blocks(e) is True
+def test_an_UNKNOWN_node_is_never_actionable():
+    """Spec §6.4: "UNKNOWN never masquerades as MISSING."
+
+    An UNKNOWN node was never certified against the container — typically it has no
+    check_command. It has no missing prerequisites either, so a MISSING-blind verdict calls it
+    ACTIONABLE and hands the agent an uncertified guess dressed up as a measurement.
+    emit._is_emittable refuses every non-MISSING node for exactly this reason.
+    """
+    g = DepGraph().with_node(_tool("mystery", state=State.UNKNOWN))
+    node = g.get("binary:mystery")
+    assert verdict(g, node) == UNCERTIFIED
+    assert verdict(g, node) != ACTIONABLE
+    assert _is_emittable(g, node, _conflicted_ids(g)) is False   # the incumbent agrees
 
 
 # ── markers ──────────────────────────────────────────────────────────────────
+#
+# The dst is a SystemLib in each case: it is the only dep type that blocks unconditionally, so
+# the marker is the sole remaining variable and these tests cannot pass for the wrong reason.
+
+def _marker_graph(marker: str) -> DepGraph:
+    return (DepGraph()
+            .with_node(_pkg("a"))
+            .with_node(_syslib("libfoo.so.1"))
+            .with_edge(_requires("pkg:a==1.0", "syslib:libfoo.so.1", marker=marker)))
+
 
 def test_marker_that_does_not_hold_is_skipped():
-    e = Edge(src="pkg:a==1.0", dst="pkg:b==1.0", relation=EdgeType.REQUIRES,
-             origin="resolver", marker='python_version < "3.9"')
-    assert blocks(e, target_env={"python_version": "3.12"}) is False
+    g = _marker_graph('python_version < "3.9"')
+    e = _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")
+    assert blocks(g, e, target_env={"python_version": "3.12"}) is False
 
 
 def test_marker_that_holds_is_traversed():
-    e = Edge(src="pkg:a==1.0", dst="pkg:b==1.0", relation=EdgeType.REQUIRES,
-             origin="resolver", marker='python_version >= "3.9"')
-    assert blocks(e, target_env={"python_version": "3.12"}) is True
+    g = _marker_graph('python_version >= "3.9"')
+    e = _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")
+    assert blocks(g, e, target_env={"python_version": "3.12"}) is True
 
 
 def test_marker_is_conservatively_traversed_when_no_target_env_is_known():
     # Without a target we cannot evaluate — do NOT silently drop a real prerequisite.
-    e = Edge(src="pkg:a==1.0", dst="pkg:b==1.0", relation=EdgeType.REQUIRES,
-             origin="resolver", marker='python_version < "3.9"')
-    assert blocks(e, target_env=None) is True
+    g = _marker_graph('python_version < "3.9"')
+    e = _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")
+    assert blocks(g, e, target_env=None) is True
 
 
 def test_unparseable_marker_is_conservatively_traversed():
-    e = Edge(src="pkg:a==1.0", dst="pkg:b==1.0", relation=EdgeType.REQUIRES,
-             origin="resolver", marker="this is not a marker")
-    assert blocks(e, target_env={"python_version": "3.12"}) is True
+    g = _marker_graph("this is not a marker")
+    e = _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")
+    assert blocks(g, e, target_env={"python_version": "3.12"}) is True
