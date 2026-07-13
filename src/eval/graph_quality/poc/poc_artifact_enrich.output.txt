@@ -1,0 +1,83 @@
+
+==============================================================================
+STEP 1 — install the package. Is the build GREEN?
+==============================================================================
+  $ pip install opencv-python
+  rc = 0   <-- 0 means the BUILD SUCCEEDED
+  installed opencv-python==5.0.0.93
+
+==============================================================================
+STEP 2 — but is the ENVIRONMENT actually working?
+==============================================================================
+  $ python -c 'import cv2'
+  rc = 1
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     ImportError: libxcb.so.1: cannot open shared object file: No such file or directory
+
+  => build GREEN (rc 0) but environment BROKEN: True
+
+  seed graph: ['test:repo_tests_pass', 'pkg:opencv-python==5.0.0.93']   (nothing about libGL)
+
+==============================================================================
+ARM A — TODAY: enrich() from the build output (which is a SUCCESS log)
+==============================================================================
+  enrich() discovered: []  <-- NOTHING
+  Why: the build SUCCEEDED. There is no failing command and no error text.
+       The classifier has nothing to classify. The graph learns NOTHING,
+       and the agent gets no help — even though the env is demonstrably broken.
+
+==============================================================================
+ARM B — DESIGN: the REAL ldd_probe() against the INSTALLED ARTIFACT
+==============================================================================
+  ldd_probe() discovered: ['syslib:libxcb.so.1', 'syslib:libGL.so.1', 'syslib:libgthread-2.0.so.0', 'syslib:libglib-2.0.so.0']
+
+     node   syslib:libxcb.so.1
+     type   SystemLib   state=missing
+     found  discovered_by=probe
+     fix    apt:libxcb1   candidates=['apt:libxcb1']
+
+     node   syslib:libGL.so.1
+     type   SystemLib   state=missing
+     found  discovered_by=probe
+     fix    apt:libgl1   candidates=['apt:libgl1']
+
+     node   syslib:libgthread-2.0.so.0
+     type   SystemLib   state=missing
+     found  discovered_by=probe
+     fix    apt:libglib2.0-0   candidates=['apt:libglib2.0-0']
+
+     node   syslib:libglib-2.0.so.0
+     type   SystemLib   state=missing
+     found  discovered_by=probe
+     fix    apt:libglib2.0-0   candidates=['apt:libglib2.0-0']
+
+     edges (the OWNER, attached with no parsing and no guessing):
+     pkg:opencv-python==5.0.0.93  --requires-->  syslib:libxcb.so.1
+     pkg:opencv-python==5.0.0.93  --requires-->  syslib:libGL.so.1
+     pkg:opencv-python==5.0.0.93  --requires-->  syslib:libgthread-2.0.so.0
+     pkg:opencv-python==5.0.0.93  --requires-->  syslib:libglib-2.0.so.0
+
+==============================================================================
+STEP 3 — is the fix the graph proposes actually CORRECT?
+==============================================================================
+  4 missing syslib nodes  ->  3 distinct apt actions
+     apt:libxcb1          satisfies syslib:libxcb.so.1
+     apt:libgl1           satisfies syslib:libGL.so.1
+     apt:libglib2.0-0     satisfies syslib:libgthread-2.0.so.0, syslib:libglib-2.0.so.0
+
+  proposed fix (ALL of them, one shot): apt-get install -y libgl1 libglib2.0-0 libxcb1
+  rc = 0
+
+  $ python -c 'import cv2'   (after applying the graph's fix)
+  rc = 0   output: 5.0.0
+
+==============================================================================
+VERDICT
+==============================================================================
+  build was GREEN, env was BROKEN ............. True
+  ARM A (error text) discovered nothing ....... True
+  ARM B (artifact)   discovered the syslib .... True
+  ARM B attached the OWNER package ............ True
+  the fix ARM B proposed actually WORKS ....... True
+
+  DESIGN CLAIM CONFIRMED
