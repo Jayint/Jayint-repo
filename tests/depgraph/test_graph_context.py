@@ -1,6 +1,7 @@
 """Tests for graph_context edge semantics (pure; no Docker, no network)."""
 from __future__ import annotations
 
+import pytest
 import sys
 from pathlib import Path
 
@@ -275,6 +276,20 @@ def test_unparseable_marker_is_conservatively_traversed():
 
 # ── tests_hidden — the weight a collection error cannot report ──────────────
 
+@pytest.fixture
+def outside_module(tmp_path):
+    """A real Python file OUTSIDE the repo root, holding a test pytest would count.
+
+    The containment tests need a target that would return a NUMBER if the guard leaked.
+    Pointing them at /etc/passwd proves nothing: it holds no `def test_`, so it returns None
+    whether the guard is there or not, and the test would keep passing after someone deleted
+    the check.
+    """
+    path = tmp_path.parent / f"{tmp_path.name}_outside.py"
+    path.write_text("def test_secret():\n    pass\n")
+    yield path
+    path.unlink(missing_ok=True)
+
 def test_tests_hidden_counts_sync_and_async_test_defs(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_db.py").write_text(
@@ -319,17 +334,21 @@ def test_tests_hidden_returns_None_without_a_repo_path(tmp_path):
     assert _tests_hidden(None, "tests/test_db.py") is None
 
 
-def test_tests_hidden_never_escapes_the_repo(tmp_path):
+def test_tests_hidden_never_escapes_the_repo(tmp_path, outside_module):
     # `module` comes from parsed pytest output — treat it as untrusted input.
-    assert _tests_hidden(str(tmp_path), "../../../etc/passwd") is None
+    # NOTE the target: pointing these at /etc/passwd would pass even with the guard REMOVED,
+    # because /etc/passwd contains no `def test_` and the count would be 0 -> None anyway. The
+    # target has to be a file that WOULD return a number if it were read.
+    escape = "../" * 12 + outside_module.name
+    assert _tests_hidden(str(tmp_path), escape) is None
 
 
-def test_tests_hidden_never_escapes_via_an_absolute_module_path(tmp_path):
-    # pathlib quirk: `Path("/repo") / "/etc/passwd" == Path("/etc/passwd")` -- the right
-    # operand being absolute discards the left one entirely. Confirm the containment check
+def test_tests_hidden_never_escapes_via_an_absolute_module_path(tmp_path, outside_module):
+    # pathlib quirk: `Path("/repo") / "/abs/path" == Path("/abs/path")` -- the right operand
+    # being absolute discards the left one entirely. Confirm the containment check
     # (`relative_to`, which raises on a path with no common root) catches this rather than
     # silently reading whatever absolute path pytest's output happened to mention.
-    assert _tests_hidden(str(tmp_path), "/etc/passwd") is None
+    assert _tests_hidden(str(tmp_path), str(outside_module)) is None
 
 
 def test_tests_hidden_never_escapes_via_a_symlink(tmp_path):
@@ -349,3 +368,82 @@ def test_tests_hidden_is_rendered_as_an_estimate_via_its_docstring():
     # This is not a numeric assertion -- it locks in the contract that callers MUST render
     # the value as an estimate (spec: "~200 tests hidden, est."), never as a measured count.
     assert "ESTIMATE" in _tests_hidden.__doc__
+
+
+# ── what pytest would ACTUALLY collect ───────────────────────────────────────
+#
+# This number's only job is RANKING, so a systematic over-count is the failure mode that
+# matters: it can hand a module a big weight it does not deserve and bury the real root cause.
+
+def test_tests_hidden_ignores_test_methods_in_a_NON_Test_class(tmp_path):
+    # pytest only descends into classes matching `python_classes = ["Test"]`. A shared helper
+    # class full of `def test_*` methods is never collected -- but a line regex counts every
+    # one of them, which is enough to manufacture the large estimate we then rank on.
+    (tmp_path / "t.py").write_text(
+        "class Helper:\n"
+        "    def test_a(self):\n"
+        "        pass\n"
+        "    def test_b(self):\n"
+        "        pass\n"
+        "\n"
+        "def test_real():\n"
+        "    pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 1
+
+
+def test_tests_hidden_ignores_a_test_def_nested_inside_another_function(tmp_path):
+    # Never collected: it is a local, not a module attribute.
+    (tmp_path / "t.py").write_text(
+        "def make_fixture():\n"
+        "    def test_inner():\n"
+        "        pass\n"
+        "    return test_inner\n"
+        "\n"
+        "def test_real():\n"
+        "    pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 1
+
+
+def test_tests_hidden_ignores_a_test_def_inside_a_string(tmp_path):
+    # Not code. The regex cannot tell; an AST walk can.
+    (tmp_path / "t.py").write_text(
+        'EXAMPLE = """\n'
+        "def test_documented():\n"
+        "    pass\n"
+        '"""\n'
+        "\n"
+        "def test_real():\n"
+        "    pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 1
+
+
+def test_tests_hidden_counts_decorated_and_async_methods_in_a_Test_class(tmp_path):
+    (tmp_path / "t.py").write_text(
+        "import pytest\n"
+        "\n"
+        "class TestThing:\n"
+        "    @pytest.mark.slow\n"
+        "    def test_a(self):\n"
+        "        pass\n"
+        "    async def test_b(self):\n"
+        "        pass\n"
+        "    def helper(self):\n"          # not a test
+        "        pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 2
+
+
+def test_tests_hidden_falls_back_to_the_regex_when_the_module_does_not_parse(tmp_path):
+    # A collection error can absolutely BE a SyntaxError, and that is precisely the file we
+    # still want a weight for. AST parsing raises; the line regex still yields a rough count.
+    (tmp_path / "t.py").write_text(
+        "def test_one():\n"
+        "    pass\n"
+        "\n"
+        "def test_two(:\n"                 # <- syntax error
+        "    pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 2

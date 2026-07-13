@@ -8,6 +8,7 @@ copy, unit-tested against hand-built graphs.
 """
 from __future__ import annotations
 
+import ast
 import logging
 import re
 from pathlib import Path
@@ -134,13 +135,49 @@ def verdict(graph: DepGraph, node: Node, target_env: dict | None = None) -> str:
     return ACTIONABLE
 
 
-# `def test_x(` / `async def test_x(` at any indent — so class-based test methods count too.
-# The prefix match (`test\w*`, not `test_\w*`) is deliberate, not sloppy: pytest's own
-# collection rule is `name.startswith("test")` (`python_functions` default ini value is
-# `["test"]`; see `_pytest.python.PyCollector._matches_prefix_or_glob_option`), so a function
-# named `testing_helper` really is collected by pytest today. Narrowing the regex to require an
-# underscore would make the estimate diverge from what pytest would actually do.
+# FALLBACK ONLY -- see `_count_tests`. `def test_x(` / `async def test_x(` at any indent.
+# The prefix match (`test\w*`, not `test_\w*`) is deliberate: pytest's own collection rule is
+# `name.startswith("test")` (`python_functions` default ini value is `["test"]`; see
+# `_pytest.python.PyCollector._matches_prefix_or_glob_option`), so a function named
+# `testing_helper` really is collected by pytest today.
 _TEST_DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+test\w*[ \t]*\(", re.MULTILINE)
+
+_FUNC = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _is_test_name(name: str) -> bool:
+    # pytest matches on PREFIX, not on `test_`: `python_functions = ["test"]`, compared with
+    # `name.startswith(...)`. So `testing_helper` really is a test as far as pytest is concerned.
+    return name.startswith("test")
+
+
+def _count_tests(text: str) -> int:
+    """Count what pytest WOULD collect from this source, at module scope and in Test* classes.
+
+    An AST walk rather than a line regex, because the regex systematically OVER-counts in a way
+    that skews the very ranking this number exists to fix:
+
+      * a `def test_x` in a `class Helper:` -- pytest only descends into classes matching
+        `python_classes = ["Test"]`, so those methods are never collected. A shared helper class
+        full of `def test_*` methods could single-handedly manufacture the large estimate we
+        then rank on.
+      * a `def test_x` nested inside a fixture or another function -- never collected.
+      * a `def test_x` inside a triple-quoted string -- not code at all.
+
+    It remains an ESTIMATE. It still under-counts `@pytest.mark.parametrize` expansion (which
+    pytest resolves at collection time -- exactly the thing that did not happen) and test methods
+    inherited from a base class in another module (which needs imports to resolve, and importing
+    is what failed).
+    """
+    count = 0
+    for node in ast.parse(text).body:
+        if isinstance(node, _FUNC) and _is_test_name(node.name):
+            count += 1
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            count += sum(
+                isinstance(m, _FUNC) and _is_test_name(m.name) for m in node.body
+            )
+    return count
 
 
 def tests_hidden(repo_path: str | None, module: str) -> int | None:
@@ -151,13 +188,11 @@ def tests_hidden(repo_path: str | None, module: str) -> int | None:
     tests -- rank by it and a 23-test AssertionError outranks an import error hiding 200
     tests. This is the weight that fixes the ranking.
 
-    It is an ESTIMATE and MUST be rendered as one ("~200 tests hidden, est."). It
-    under-counts `@pytest.mark.parametrize` expansion, which pytest resolves at collection
-    time -- exactly the thing that did not happen -- and it can over-count a `def test_`
-    that only appears inside a string or a comment, because this is a text regex, not an
-    AST parse. An AST walk would fix that over-count, but it would also raise SyntaxError
-    on a file that fails to parse -- which is exactly the kind of file a collection error
-    points at in the first place. The regex degrades gracefully where an AST would not.
+    It is an ESTIMATE and MUST be rendered as one ("~200 tests hidden, est.").
+
+    THE ONLY I/O IN THIS MODULE: one read-only read of a file in the repo checkout. No Docker,
+    no network, no subprocess, and nothing is mutated. When the file cannot be read the estimate
+    is simply absent (None) and the render carries on without a weight.
 
     `module` is parsed out of pytest's own stdout/stderr, so it is UNTRUSTED input: never
     let it read a path outside `repo_path`.
@@ -179,4 +214,10 @@ def tests_hidden(repo_path: str | None, module: str) -> int | None:
         text = path.read_text(errors="replace")
     except OSError:
         return None
-    return len(_TEST_DEF.findall(text)) or None
+    try:
+        count = _count_tests(text)
+    except (SyntaxError, ValueError, RecursionError):
+        # The module does not even parse -- which a collection error can absolutely mean. A
+        # rough over-count beats no weight at all, so fall back to the line regex here.
+        count = len(_TEST_DEF.findall(text))
+    return count or None
