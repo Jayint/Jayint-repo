@@ -14,6 +14,11 @@ from typing import Any, Dict, List, Optional
 from src.constants import DEFAULT_LLM_MODEL, DEFAULT_MEMORY_EMBEDDING_MODEL
 
 
+def absolute_path_preserving_symlinks(path: Path) -> Path:
+    """Make a path absolute without resolving venv launcher symlinks."""
+    return Path(os.path.abspath(path))
+
+
 def load_json(path: Path) -> Optional[Dict[str, Any]]:
     if not path.exists():
         return None
@@ -101,6 +106,27 @@ def run_command(
     }
 
 
+def is_infrastructure_failure_text(text: str) -> bool:
+    lowered = (text or "").lower()
+    indicators = [
+        "connection reset",
+        "recv failure",
+        "could not resolve",
+        "temporary failure resolving",
+        "failed to fetch",
+        "502 bad gateway",
+        "503 service unavailable",
+        "tls handshake",
+        "operation timed out",
+        "network is unreachable",
+        "early eof",
+        "the remote end hung up unexpectedly",
+    ]
+    if any(indicator in lowered for indicator in indicators):
+        return True
+    return "returned a non-zero code: 100" in lowered and "apt-get update" in lowered
+
+
 def build_eval_command(
     python_executable: Path,
     dataset_path: Path,
@@ -131,17 +157,28 @@ def compute_status(
     evaluation_run: Optional[Dict[str, Any]],
     combined_report: Optional[Dict[str, Any]],
 ) -> str:
+    adapter_logs = (adapter_instance_result or {}).get("logs", {})
+    if adapter_logs.get("infrastructure_failure"):
+        return "infrastructure_failure"
     if adapter_run["returncode"] != 0:
+        if is_infrastructure_failure_text(
+            f"{adapter_run.get('stdout') or ''}\n{adapter_run.get('stderr') or ''}"
+        ):
+            return "infrastructure_failure"
         return "adapter_command_failed"
     if not adapter_instance_result:
         return "adapter_result_missing"
-    if adapter_instance_result.get("logs", {}).get("skip_evaluation"):
+    if adapter_logs.get("skip_evaluation"):
         return "adapter_skipped"
     if evaluation_run is None:
         return "evaluation_not_run"
     if evaluation_run.get("skipped"):
         return "adapter_not_evaluable"
     if evaluation_run["returncode"] != 0:
+        if is_infrastructure_failure_text(
+            f"{evaluation_run.get('stdout') or ''}\n{evaluation_run.get('stderr') or ''}"
+        ):
+            return "evaluation_infrastructure_failure"
         return "evaluation_command_failed"
     if not combined_report:
         return "evaluation_report_missing"
@@ -218,12 +255,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stability-runs",
         type=int,
-        help="Optional override for Multi-Docker-Eval test.stability_runs.",
+        default=1,
+        help="Multi-Docker-Eval test.stability_runs. Defaults to 1.",
     )
     parser.add_argument(
         "--run-id-prefix",
         default="VerifiedRegression",
         help="Prefix used to generate per-instance evaluation run_id values.",
+    )
+    parser.add_argument(
+        "--disable-artifact-preflight",
+        action="store_true",
+        help="Forwarded to adapter: disable adapter-side artifact preflight and recipe repair.",
+    )
+    parser.add_argument(
+        "--artifact-repair-rounds",
+        type=int,
+        default=1,
+        help="Forwarded to adapter: maximum LLM recipe repair rounds after preflight failure.",
     )
     return parser.parse_args()
 
@@ -233,7 +282,10 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parent
     dataset_path = (repo_root / args.dataset).resolve()
     output_root = (repo_root / args.output_root).resolve()
-    python_executable = (repo_root / args.python).resolve()
+    python_arg = Path(args.python)
+    if not python_arg.is_absolute():
+        python_arg = repo_root / python_arg
+    python_executable = absolute_path_preserving_symlinks(python_arg)
 
     if not dataset_path.exists():
         print(f"Dataset not found: {dataset_path}", file=sys.stderr)
@@ -265,6 +317,8 @@ def main() -> int:
         "enable_long_term_memory": args.enable_long_term_memory,
         "memory_path": args.memory_path,
         "memory_embedding_model": args.memory_embedding_model,
+        "artifact_preflight_enabled": not args.disable_artifact_preflight,
+        "artifact_repair_rounds": args.artifact_repair_rounds,
         "run_root": str(run_root),
         "instance_count": len(instances),
         "instances": [],
@@ -317,6 +371,9 @@ def main() -> int:
             adapter_command.extend(["--memory-path", args.memory_path])
         if args.memory_embedding_model:
             adapter_command.extend(["--memory-embedding-model", args.memory_embedding_model])
+        if args.disable_artifact_preflight:
+            adapter_command.append("--disable-artifact-preflight")
+        adapter_command.extend(["--artifact-repair-rounds", str(args.artifact_repair_rounds)])
 
         adapter_run = run_command(adapter_command, cwd=repo_root)
         adapter_instance_result = load_json(adapter_output_dir / f"{instance_id}.json")

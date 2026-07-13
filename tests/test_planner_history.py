@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+from pathlib import Path
 
 from src.planner import Planner
 
@@ -95,6 +97,40 @@ class PlannerManagedHistoryTests(unittest.TestCase):
 
         self.assertEqual(planner._extract_tag(content, "Action"), "pytest tests -q")
 
+    def test_log_output_marks_raw_overgeneration_and_executable_message(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            planner = Planner(client=None, log_dir=tmpdir)
+            raw_output = (
+                "Thought: inspect config\n"
+                "Action: cat pyproject.toml\n"
+                "Observation: fake file content\n"
+                "Action: pytest"
+            )
+            sanitized = planner.sanitize_assistant_content(raw_output)
+
+            planner._log_llm_call(
+                "output",
+                {
+                    "content": raw_output,
+                    "sanitized_content": sanitized,
+                    "overgenerated": planner._assistant_output_was_sanitized(
+                        raw_output,
+                        sanitized,
+                    ),
+                    "usage": {
+                        "prompt_tokens": 1,
+                        "completion_tokens": 2,
+                        "total_tokens": 3,
+                    },
+                },
+            )
+
+            log_text = (Path(tmpdir) / "0.md").read_text(encoding="utf-8")
+            self.assertIn("Raw AI Message", log_text)
+            self.assertIn("Executable Message Used By Agent", log_text)
+            self.assertIn("Thought: inspect config\nAction: cat pyproject.toml", log_text)
+            self.assertIn("raw model output contained generated Observation", log_text)
+
 
 class PlannerFinalAnswerParsingTests(unittest.TestCase):
     def test_extract_final_answer_ignores_quoted_phrase(self):
@@ -142,6 +178,8 @@ class PlannerPromptTests(unittest.TestCase):
         self.assertNotIn("__RETRIEVE_MEMORY__", default_planner.system_prompt)
         self.assertIn("__RETRIEVE_MEMORY__", memory_planner.system_prompt)
         self.assertIn("LONG-TERM MEMORY TOOL", memory_planner.system_prompt)
+        self.assertIn("[Long-Term Memory Hint]", memory_planner.system_prompt)
+        self.assertIn("Prefer this before trying more speculative fixes", memory_planner.system_prompt)
         self.assertIn(
             "Action: <bash command to execute, __ROLLBACK__, or __RETRIEVE_MEMORY__>",
             memory_planner.system_prompt,
@@ -150,8 +188,10 @@ class PlannerPromptTests(unittest.TestCase):
     def test_system_prompt_forbids_generated_observations_and_future_steps(self):
         planner = Planner(client=None)
 
-        self.assertIn("Do NOT write `Observation:`", planner.system_prompt)
-        self.assertIn("Never generate `Observation:`", planner.system_prompt)
+        self.assertIn("The Observation is produced ONLY by the host system", planner.system_prompt)
+        self.assertIn("You are the planner, not the executor", planner.system_prompt)
+        self.assertIn("Your response must end immediately after the Action line", planner.system_prompt)
+        self.assertIn("Never generate command results, `Observation:`", planner.system_prompt)
         self.assertIn("a second `Action:`", planner.system_prompt)
         self.assertIn("Do not simulate command execution results", planner.system_prompt)
 
@@ -159,33 +199,33 @@ class PlannerPromptTests(unittest.TestCase):
         planner = Planner(client=None)
 
         self.assertIn("Do NOT replace it with a different backend", planner.system_prompt)
-        self.assertIn("client package such as `postgresql-client`", planner.system_prompt)
-        self.assertIn("The actual server/daemon must be installed, started, and reachable", planner.system_prompt)
-        self.assertIn("Running PostgreSQL on 5432 does NOT satisfy tests that explicitly expect 5433", planner.system_prompt)
-        self.assertIn("If a service refuses to start as root", planner.system_prompt)
-        self.assertIn("Prefer `service <name> start`", planner.system_prompt)
-        self.assertIn("verify that its log/data directories are writable by that service user", planner.system_prompt)
+        self.assertIn("A Client Is Not A Service", planner.system_prompt)
+        self.assertIn("The actual server/daemon must be running and reachable", planner.system_prompt)
+        self.assertIn("host/port expected by the tests", planner.system_prompt)
 
-    def test_system_prompt_requires_small_batched_installs_on_flaky_networks(self):
-        planner = Planner(client=None)
+    def test_system_prompt_moves_detailed_recovery_strategy_to_memory_trigger(self):
+        default_planner = Planner(client=None)
+        memory_planner = Planner(client=None, enable_long_term_memory=True)
 
-        self.assertIn("Prefer Small Package Batches On Flaky Networks", planner.system_prompt)
-        self.assertIn("Do NOT start with one huge `apt-get install`", planner.system_prompt)
-        self.assertIn("do not install `nodejs`/`npm` early unless they are immediately required", planner.system_prompt)
-        self.assertIn("Fix Broken Package State Before Expanding Scope", planner.system_prompt)
-
-    def test_system_prompt_warns_against_global_maven_mirror_override(self):
-        planner = Planner(client=None)
-
-        self.assertIn("Protect Existing Maven Repositories", planner.system_prompt)
-        self.assertIn("`<mirrorOf>*</mirrorOf>`", planner.system_prompt)
-        self.assertIn("temporary per-command settings file", planner.system_prompt)
+        self.assertNotIn("Prefer Small Package Batches On Flaky Networks", default_planner.system_prompt)
+        self.assertNotIn("Protect Existing Maven Repositories", default_planner.system_prompt)
+        self.assertNotIn("`<mirrorOf>*</mirrorOf>`", default_planner.system_prompt)
+        self.assertIn("apt broken state", memory_planner.system_prompt)
+        self.assertIn("Maven mirrors", memory_planner.system_prompt)
+        self.assertIn("local services/daemons", memory_planner.system_prompt)
 
     def test_system_prompt_requires_representative_tests_for_service_dependent_projects(self):
         planner = Planner(client=None)
 
         self.assertIn("Service-Dependent Projects Need Representative Final Tests", planner.system_prompt)
         self.assertIn("do NOT end with only narrow single-test or unit-test commands", planner.system_prompt)
+
+    def test_system_prompt_forbids_truncated_final_test_output(self):
+        planner = Planner(client=None)
+
+        self.assertIn("Do Not Truncate Verification Output", planner.system_prompt)
+        self.assertIn("Do NOT pipe project test commands through `head`, `tail`", planner.system_prompt)
+        self.assertIn("long output will be handled by observation compression", planner.system_prompt)
 
     def test_system_prompt_includes_project_maven_repository_hints(self):
         planner = Planner(
@@ -195,6 +235,24 @@ class PlannerPromptTests(unittest.TestCase):
 
         self.assertIn("Project Maven Repository Hints:", planner.system_prompt)
         self.assertIn("shibboleth_repository", planner.system_prompt)
+
+    def test_benchmark_evaluation_target_is_seed_context_not_system_prompt(self):
+        planner = Planner(
+            client=None,
+            benchmark_evaluation_target={
+                "changed_test_files": ["test/resize.t", "test/summary.t"],
+                "test_framework_clues": ["TAP/simpletap", "python unittest"],
+            },
+        )
+
+        planner.init_managed_history("https://github.com/example/repo.git")
+        seed_content = planner.managed_history[0]["content"]
+
+        self.assertIn("Benchmark Evaluation Target:", seed_content)
+        self.assertIn("test/resize.t", seed_content)
+        self.assertIn("TAP/simpletap", seed_content)
+        self.assertIn("Do NOT apply the benchmark test patch", seed_content)
+        self.assertNotIn("test/resize.t", planner.system_prompt)
 
 
 if __name__ == "__main__":

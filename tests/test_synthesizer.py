@@ -1,7 +1,22 @@
+import base64
+import re
 import unittest
 import tempfile
+from types import SimpleNamespace
 
 from src.synthesizer import Synthesizer, build_dockerfile_apt_bootstrap_run_instructions
+
+
+class FakeRecipeClient:
+    def __init__(self, content):
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(
+                create=lambda **_kwargs: SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+                    usage=SimpleNamespace(prompt_tokens=13, completion_tokens=5, total_tokens=18),
+                )
+            )
+        )
 
 
 class SynthesizerTests(unittest.TestCase):
@@ -155,6 +170,23 @@ class SynthesizerTests(unittest.TestCase):
         self.assertTrue(analysis["is_effective_test_run"])
         self.assertEqual(analysis["reason"], "observed_test_execution_signal")
 
+    def test_pytest_nonzero_error_summary_is_not_effective_success(self):
+        synthesizer = Synthesizer()
+        observation = "\n".join(
+            [
+                "collected 32 items",
+                "tests/test_database.py::test_dc_option ERROR",
+                "==================== 32 passed, 1 error in 0.31 seconds ====================",
+            ]
+        )
+
+        analysis = synthesizer.analyze_test_run("python -m pytest tests", observation)
+
+        self.assertTrue(analysis["is_test_command"])
+        self.assertFalse(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "test_failure_signal")
+        self.assertTrue(synthesizer.observation_has_test_failure_signal(observation))
+
     def test_public_observation_signal_wrapper_detects_real_test_output(self):
         synthesizer = Synthesizer()
 
@@ -239,6 +271,300 @@ class SynthesizerTests(unittest.TestCase):
             dockerfile.index("RUN apt-get update && apt-get install -y git"),
         )
 
+    def test_build_recipe_normalization_preserves_llm_build_commands(self):
+        synthesizer = Synthesizer()
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": [
+                    "RUN pip install -e .",
+                    "pytest tests",
+                    "ls -la",
+                    "redis-server --daemonize yes",
+                    "pip install pytest",
+                ],
+                "post_test_patch_commands": ["RUN npm install"],
+                "runtime_preparation_commands": ["redis-server --daemonize yes"],
+                "test_commands": ["pytest tests"],
+                "excluded_commands": [],
+                "rationale": "Use editable install.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "final_verification_bundle": {
+                    "runtime_preparation_commands": ["redis-server --daemonize yes"],
+                    "test_commands": ["pytest tests"],
+                },
+                "successful_actions": [
+                    {"command": "pip install -e ."},
+                    {"command": "pytest tests"},
+                ],
+                "failed_actions": [
+                    {"command": "pip install pytest"},
+                ],
+            },
+        )
+
+        self.assertEqual(
+            recipe["build_commands"],
+            [
+                "pip install -e .",
+                "pytest tests",
+                "ls -la",
+                "redis-server --daemonize yes",
+                "pip install pytest",
+            ],
+        )
+        self.assertEqual(recipe["post_test_patch_commands"], ["npm install"])
+        self.assertEqual(recipe["runtime_preparation_commands"], ["redis-server --daemonize yes"])
+        self.assertEqual(recipe["test_commands"], ["pytest tests"])
+        self.assertEqual(recipe["confidence"], "high")
+
+    def test_build_recipe_preserves_failed_command_if_llm_outputs_it(self):
+        synthesizer = Synthesizer()
+        pip_install = 'pip install -e ".[testing]" Django django-configurations pytest-xdist pytest'
+        safe_directory = "git config --global --add safe.directory /app"
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": [
+                    safe_directory,
+                    pip_install,
+                    "sed -i 's/foo/bar/' tests/test_manage_py_scan.py",
+                ],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["PYTHONPATH=/app pytest tests/"],
+                "excluded_commands": [],
+                "rationale": "Install dependencies after marking /app as safe.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "final_verification_bundle": {
+                    "runtime_preparation_commands": [],
+                    "test_commands": ["PYTHONPATH=/app pytest tests/"],
+                },
+                "successful_actions": [
+                    {"command": f"{safe_directory} && {pip_install}"},
+                    {"command": "PYTHONPATH=/app pytest tests/"},
+                ],
+                "failed_actions": [
+                    {"command": pip_install},
+                ],
+            },
+        )
+
+        self.assertIn(safe_directory, recipe["build_commands"])
+        self.assertIn(pip_install, recipe["build_commands"])
+
+    def test_build_recipe_can_override_final_bundle_runtime_and_test_commands(self):
+        synthesizer = Synthesizer()
+
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": ["pip install -e ."],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["cd /app && python -m pytest tests/test_django_settings_module.py"],
+                "excluded_commands": [],
+                "rationale": "Avoid global Django settings export for tests that unset the variable.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "final_verification_bundle": {
+                    "runtime_preparation_commands": [
+                        "export DJANGO_SETTINGS_MODULE=pytest_django_test.settings_sqlite_file",
+                    ],
+                    "test_commands": ["python -m pytest tests"],
+                },
+            },
+        )
+
+        self.assertEqual(recipe["runtime_preparation_commands"], [])
+        self.assertEqual(
+            recipe["test_commands"],
+            ["cd /app && python -m pytest tests/test_django_settings_module.py"],
+        )
+
+    def test_moves_patch_sensitive_test_file_rewrites_to_post_patch_commands(self):
+        synthesizer = Synthesizer()
+        rewrite_command = "sed -i 's/assertRegexpMatches/assertRegex/g' test/summary.t"
+        helper_rewrite_command = "sed -i 's/isAlive/is_alive/g' test/basetest/utils.py"
+
+        recipe = synthesizer.normalize_build_recipe(
+            {
+                "build_commands": [
+                    "cmake --build build --parallel",
+                    rewrite_command,
+                    helper_rewrite_command,
+                ],
+                "post_test_patch_commands": ["python -m compileall test"],
+                "runtime_preparation_commands": [],
+                "test_commands": ["cd test && python summary.t"],
+                "excluded_commands": [],
+                "rationale": "Python compatibility fixes are required.",
+                "confidence": "high",
+            },
+            recipe_input={
+                "test_patch": (
+                    "diff --git a/test/summary.t b/test/summary.t\n"
+                    "--- a/test/summary.t\n"
+                    "+++ b/test/summary.t\n"
+                    "@@ -1,2 +1,3 @@\n"
+                    "+self.assertRegexpMatches(out, pattern)\n"
+                ),
+                "final_verification_bundle": {
+                    "runtime_preparation_commands": [],
+                    "test_commands": ["cd test && python summary.t"],
+                },
+            },
+        )
+
+        self.assertNotIn(rewrite_command, recipe["build_commands"])
+        self.assertIn(helper_rewrite_command, recipe["build_commands"])
+        self.assertEqual(
+            recipe["post_test_patch_commands"],
+            [rewrite_command, "python -m compileall test"],
+        )
+
+    def test_apply_build_recipe_drives_generated_dockerfile(self):
+        synthesizer = Synthesizer(base_image="python:3.11", workdir="/app")
+        synthesizer.record_success("pip install pytest")
+        synthesizer.apply_build_recipe(
+            {
+                "build_commands": ["pip install -e ."],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["python -m pytest tests"],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dockerfile = synthesizer.generate_dockerfile(file_path=f"{tmpdir}/Dockerfile")
+
+        self.assertIn("RUN pip install -e .", dockerfile)
+        self.assertNotIn("RUN pip install pytest", dockerfile)
+
+    def test_recorded_pip_requirement_specs_are_shell_quoted(self):
+        synthesizer = Synthesizer(base_image="python:3.11", workdir="/app")
+        synthesizer.record_success(
+            "pip install packaging>=24 setuptools>=65.6.3 filelock>=3.12.3"
+        )
+
+        self.assertEqual(
+            synthesizer.instructions,
+            ["RUN pip install 'packaging>=24' 'setuptools>=65.6.3' 'filelock>=3.12.3'"],
+        )
+
+    def test_recipe_synthesis_logs_input_and_output(self):
+        synthesizer = Synthesizer()
+        response = (
+            '{"build_commands": ["pip install -e ."], '
+            '"post_test_patch_commands": [], '
+            '"runtime_preparation_commands": [], '
+            '"test_commands": ["python -m pytest tests"], '
+            '"excluded_commands": [], '
+            '"rationale": "editable install was verified", '
+            '"confidence": "high"}'
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = synthesizer.synthesize_build_recipe(
+                FakeRecipeClient(response),
+                "fake-model",
+                {
+                    "final_verification_bundle": {
+                        "runtime_preparation_commands": [],
+                        "test_commands": ["python -m pytest tests"],
+                    }
+                },
+                log_dir=tmpdir,
+            )
+            log_path = f"{tmpdir}/recipe_synthesis.md"
+            with open(log_path, encoding="utf-8") as file_obj:
+                log_text = file_obj.read()
+
+        self.assertEqual(result.recipe["build_commands"], ["pip install -e ."])
+        self.assertIn("LLM INPUT (build recipe synthesis)", log_text)
+        self.assertIn("Parsed Build Recipe", log_text)
+        self.assertIn("fake-model", log_text)
+
+    def test_recipe_extraction_ignores_non_recipe_json_in_reasoning(self):
+        synthesizer = Synthesizer()
+        response = """
+<think>
+The code contains self.global_names = {}, but that is not the recipe.
+</think>
+{"build_commands": ["pip install -e ."],
+ "post_test_patch_commands": [],
+ "runtime_preparation_commands": [],
+ "test_commands": ["python -m pytest tests"],
+ "excluded_commands": [],
+ "rationale": "editable install was verified",
+ "confidence": "high"}
+"""
+
+        recipe = synthesizer.extract_build_recipe_json(response)
+
+        self.assertEqual(recipe["build_commands"], ["pip install -e ."])
+
+    def test_recipe_synthesis_error_does_not_apply_empty_fallback_recipe(self):
+        synthesizer = Synthesizer()
+        synthesizer.record_success("pip install pytest")
+
+        result = synthesizer.synthesize_build_recipe(
+            FakeRecipeClient("<think>self.global_names = {}</think>"),
+            "fake-model",
+            {"final_verification_bundle": {"test_commands": ["pytest tests"]}},
+        )
+
+        self.assertEqual(result.recipe, {})
+        self.assertEqual(result.source, "llm_error")
+        self.assertIsNotNone(result.error)
+        self.assertIn("RUN pip install pytest", synthesizer.instructions)
+
+    def test_multiline_build_command_is_written_as_encoded_script(self):
+        synthesizer = Synthesizer(base_image="python:3.11", workdir="/app")
+        synthesizer.apply_build_recipe(
+            {
+                "build_commands": [
+                    'cd /app && python -c "\nimport pathlib\npathlib.Path(\"x\").write_text(\"ok\")\n"'
+                ],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["pytest tests"],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dockerfile = synthesizer.generate_dockerfile(file_path=f"{tmpdir}/Dockerfile")
+
+        self.assertIn("base64 -d > /tmp/jayint_run_1.sh", dockerfile)
+        self.assertNotIn("\nimport pathlib\n", dockerfile)
+        encoded = re.search(r"printf '%s' '([^']+)'", dockerfile).group(1)
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        self.assertIn('python -c "\nimport pathlib\n', decoded)
+
+    def test_heredoc_build_command_is_written_as_encoded_script(self):
+        synthesizer = Synthesizer(base_image="python:3.11", workdir="/app")
+        synthesizer.apply_build_recipe(
+            {
+                "build_commands": [
+                    "cat > /tmp/example.py << 'PY'\nprint('ok')\nPY\npython /tmp/example.py"
+                ],
+                "post_test_patch_commands": [],
+                "runtime_preparation_commands": [],
+                "test_commands": ["pytest tests"],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dockerfile = synthesizer.generate_dockerfile(file_path=f"{tmpdir}/Dockerfile")
+
+        self.assertIn("base64 -d > /tmp/jayint_run_1.sh", dockerfile)
+        self.assertNotIn("RUN cat > /tmp/example.py", dockerfile)
+        encoded = re.search(r"printf '%s' '([^']+)'", dockerfile).group(1)
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        self.assertEqual(decoded, "cat > /tmp/example.py << 'PY'\nprint('ok')\nPY\npython /tmp/example.py")
+
     def test_dockerfile_apt_bootstrap_helper_can_emit_mirror_rewrite(self):
         instructions = build_dockerfile_apt_bootstrap_run_instructions(
             apt_mirror_url="https://mirror.example.com/ubuntu"
@@ -288,6 +614,41 @@ class SynthesizerTests(unittest.TestCase):
         self.assertTrue(synthesizer.is_runtime_service_command("redis-server --daemonize yes"))
         self.assertTrue(synthesizer.is_runtime_healthcheck_command("redis-cli ping"))
         self.assertFalse(synthesizer.is_runtime_healthcheck_command("redis-server --daemonize yes"))
+
+    def test_truncated_test_output_command_is_not_effective_test_signal(self):
+        synthesizer = Synthesizer()
+        command = "cd /app && python -m pytest tests -v 2>&1 | head -100"
+        observation = "collected 207 items\n======================== 207 passed in 47.25s ========================"
+
+        analysis = synthesizer.analyze_test_run(command, observation)
+
+        self.assertTrue(synthesizer.is_truncated_test_output_command(command))
+        self.assertTrue(analysis["is_test_command"])
+        self.assertFalse(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "truncated_test_output")
+
+    def test_grep_filtered_test_output_command_is_not_effective_test_signal(self):
+        synthesizer = Synthesizer()
+        command = 'python -m pytest tests -v 2>&1 | grep -E "(passed|failed|error)"'
+
+        analysis = synthesizer.analyze_test_run(
+            command,
+            "======================== 207 passed in 47.25s ========================",
+        )
+
+        self.assertTrue(synthesizer.is_truncated_test_output_command(command))
+        self.assertTrue(analysis["is_test_command"])
+        self.assertFalse(analysis["is_effective_test_run"])
+        self.assertEqual(analysis["reason"], "truncated_test_output")
+
+    def test_non_test_head_pipeline_is_not_truncated_test_output_command(self):
+        synthesizer = Synthesizer()
+
+        self.assertFalse(
+            synthesizer.is_truncated_test_output_command(
+                'find src/test -name "*.java" | head -10'
+            )
+        )
 
 
 if __name__ == "__main__":

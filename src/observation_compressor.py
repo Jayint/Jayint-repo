@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 from xml.sax.saxutils import escape, unescape
 
 SAFETY_COMPRESSION_NOTE = "... (repetitive output omitted by safety compression) ..."
@@ -64,95 +65,79 @@ SAFETY_BLOCK_PATTERNS = (
 )
 
 
-UNIFIED_COMPRESSION_SYSTEM_PROMPT = """You are a trajectory compression module for an environment-setup coding agent.
+UNIFIED_COMPRESSION_SYSTEM_PROMPT = """You compress exactly one command observation for a Docker environment setup agent.
 
-Your job is to compress a single old step in the agent trajectory by rewriting ONLY the text inside the <result>...</result> block of the target step.
+Only compress ORIGINAL_TARGET_RESULT. READ_ONLY_CONTEXT is only a relevance signal.
+Never copy facts from READ_ONLY_CONTEXT into the compressed result.
+The compressed result must look like output produced by TARGET_ACTION.
+If compression is unsafe, return ORIGINAL_TARGET_RESULT unchanged.
 
-The agent is trying to set up a runnable/testable software environment inside Docker.
-The compressed result will be shown to the agent in later turns, so you must preserve any information that could affect later decisions.
-
-You must follow these rules strictly:
-1. You may only rewrite the content inside the <result> block of the TARGET step.
-2. You must NOT change:
-- <think> ... </think>
-- <call ...> ... </call>
-- XML tags
-- step ids
-- command text
-3. Keep the overall structure unchanged.
-4. Do not invent facts that do not appear in the original result.
-5. If compression is unsafe, return the original target step unchanged.
-6. Prefer replacing low-value repetitive text with short placeholders rather than deleting content silently.
-7. Preserve exact package names, test names, file paths, versions, and error messages whenever they may matter later.
-
-The trajectory may contain three common kinds of waste:
-- Useless information: very long repetitive output that does not change later decisions.
-- Redundant information: information repeated many times in the same result.
-- Expired information: local details that are no longer useful except for their takeaway.
+Preserve exact package names/versions, installed/already-satisfied package lists,
+test counts/summaries, failing tests, paths, key warnings, and real errors.
 
 Important preservation rules:
 
-A. If the result is a TEST LOG:
-You should preserve:
-- the test session header if present
+A. If ORIGINAL_TARGET_RESULT is a TEST LOG, preserve:
+- test session header if present
 - platform/runtime/version info if present
 - collected test counts
 - short test summary info
 - failing/error/xfail test cases
 - traceback or assertion message that explains failure
-- the final summary line such as "73 passed, 1 failed in 4.48s"
-You may compress:
-- long runs of individual PASSED lines
-Use placeholders like:
+- final summary line such as "73 passed, 1 failed in 4.48s"
+You may compress long runs of individual PASSED lines with placeholders such as:
 - ... (individual test lines omitted; mostly PASSED)
 
-B. If the result is an INSTALL LOG:
-You must preserve:
+B. If ORIGINAL_TARGET_RESULT is an INSTALL LOG, preserve:
 - package manager identity if clear from the output
+- Collecting/Downloading/Using cached/package-resolution lines identifying packages or versions
+- Installing collected packages lines, preferably verbatim
+- Successfully built lines when package names are listed
+- Successfully installed lines, preferably verbatim
 - successfully installed package names and versions
-- already satisfied / already installed package names and versions
+- already satisfied/already installed package names and versions
 - key warnings
-- the first real error and its nearby context
-You may compress:
-- download progress bars
-- repeated fetch/build lines
-- verbose wheel/build noise
+- first real error and nearby context
+You may compress download progress bars, repeated fetch/build lines, and verbose wheel/build noise.
 Do NOT remove successful or already-present package lists, because the agent may otherwise reinstall them later.
+Do NOT replace an install log with a high-level takeaway if doing so hides which packages were installed, skipped, or failed.
 
-C. If the result is a BUILD / GENERAL COMMAND LOG:
-You should preserve:
+C. If ORIGINAL_TARGET_RESULT is a BUILD / GENERAL COMMAND LOG, preserve:
 - whether the command succeeded or failed
 - key discovered files/paths if relevant
 - key build artifacts if relevant
 - first real error and the most informative nearby lines
-You may compress:
-- repetitive build progress
-- repeated informational lines
-- large irrelevant blocks that can be replaced by a short takeaway
+You may compress repetitive build progress, repeated informational lines, and large irrelevant blocks.
 
-Compression style:
-- Be conservative.
-- Preserve important lines verbatim when needed.
-- Replace long repetitive spans with one short bracketed or parenthetical note.
-- Keep the compressed result readable by the next agent step.
-- Do not turn everything into a vague summary.
-- The result should still look like a command output, just shorter.
-
-Output format:
-Return ONLY the full rewritten TARGET step, with the same <step>, <think>, <call>, and <result> tags.
-Do not return explanations outside the XML.
+Compress repetitive progress, passed-test runs, and verbose build noise with short placeholders.
+Return only the requested <compression> XML block. Do not include analysis, markdown,
+<step>, <think>, or <call>.
 """
 
 
-UNIFIED_COMPRESSION_USER_PROMPT = """You are given a sliding window of agent steps in XML.
-Compress ONLY the TARGET step by rewriting ONLY its <result> block.
+UNIFIED_COMPRESSION_USER_PROMPT = """READ_ONLY_CONTEXT:
+The following steps are not compression targets. Use them only to decide which
+details in ORIGINAL_TARGET_RESULT matter later.
 
+{serialized_context}
+
+TARGET STEP TO COMPRESS:
 TARGET_STEP_ID: {target_step_id}
+TARGET_ACTION:
+{target_action}
 
-Window context:
-{serialized_window}
+TARGET_THOUGHT:
+{target_thought}
 
-Return only the rewritten TARGET step.
+ORIGINAL_TARGET_RESULT:
+{target_result}
+
+Return only:
+<compression target_step_id="{target_step_id}">
+<compressed_result>
+compressed ORIGINAL_TARGET_RESULT only
+</compressed_result>
+</compression>
 """
 
 
@@ -447,6 +432,7 @@ class RunTokenLedger:
     planner: TokenBucket = field(default_factory=TokenBucket)
     reflection: TokenBucket = field(default_factory=TokenBucket)
     memory: TokenBucket = field(default_factory=TokenBucket)
+    recipe: TokenBucket = field(default_factory=TokenBucket)
     total: TokenBucket = field(default_factory=TokenBucket)
 
     def add(self, bucket_name: str, input_tokens: int, output_tokens: int):
@@ -485,17 +471,156 @@ def serialize_window_for_reflection(steps: list[AgentStep], target_step_id: int)
     return "\n".join(parts)
 
 
-def extract_result_block_from_rewritten_step(content: str) -> Optional[str]:
-    match = re.search(r"<result>\s*(.*?)\s*</result>", content, re.DOTALL)
+def serialize_context_for_compression(
+    steps: list[AgentStep],
+    target_step_id: int,
+) -> str:
+    parts = []
+    for step in steps:
+        if step.step_id == target_step_id:
+            continue
+        result_text = step.observation_prompt if step.observation_prompt else step.observation_raw
+        parts.append(
+            "\n".join(
+                [
+                    f"CONTEXT STEP {step.step_id}",
+                    "ACTION:",
+                    step.action or "",
+                    "RESULT:",
+                    result_text or "",
+                ]
+            )
+        )
+    return "\n\n".join(parts) if parts else "(no read-only context)"
+
+
+def _extract_tag_content(content: str, tag_name: str) -> Optional[str]:
+    match = re.search(
+        rf"<{tag_name}\b[^>]*>\s*(.*?)\s*</{tag_name}>",
+        content,
+        re.DOTALL,
+    )
     if not match:
         return None
     return unescape(match.group(1).strip())
 
 
+def _extract_int_attr(attrs: str, attr_name: str) -> Optional[int]:
+    match = re.search(rf'\b{attr_name}\s*=\s*(?:"|\')?(\d+)(?:"|\')?', attrs)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def extract_compressed_result_from_response(
+    content: str,
+    target_step_id: int,
+) -> Optional[str]:
+    for match in re.finditer(
+        r"<compression\b(?P<attrs>[^>]*)>(?P<body>.*?)</compression>",
+        content,
+        re.DOTALL,
+    ):
+        response_step_id = _extract_int_attr(match.group("attrs"), "target_step_id")
+        if response_step_id != target_step_id:
+            continue
+        return _extract_tag_content(match.group("body"), "compressed_result")
+    return None
+
+
+def _find_step_body_by_id(content: str, step_id: int) -> Optional[str]:
+    for match in re.finditer(
+        r"<step\b(?P<attrs>[^>]*)>(?P<body>.*?)</step>",
+        content,
+        re.DOTALL,
+    ):
+        attrs = match.group("attrs")
+        step_id_attr = _extract_int_attr(attrs, "id")
+        if step_id_attr == step_id:
+            return match.group("body")
+    return None
+
+
+def extract_result_block_from_rewritten_step(
+    content: str,
+    target_step: Optional[AgentStep] = None,
+) -> Optional[str]:
+    if target_step is None:
+        return _extract_tag_content(content, "result")
+
+    compressed_result = extract_compressed_result_from_response(
+        content,
+        target_step.step_id,
+    )
+    if compressed_result is not None:
+        return compressed_result
+
+    step_body = _find_step_body_by_id(content, target_step.step_id)
+    if step_body is None:
+        return None
+
+    rewritten_thought = _extract_tag_content(step_body, "think")
+    rewritten_action = _extract_tag_content(step_body, "call")
+    if rewritten_thought is None or rewritten_action is None:
+        return None
+
+    if rewritten_thought != (target_step.thought or "").strip():
+        return None
+    if rewritten_action != (target_step.action or "").strip():
+        return None
+
+    return _extract_tag_content(step_body, "result")
+
+
 class ObservationCompressor:
-    def __init__(self, client, model: str):
+    def __init__(self, client, model: str, log_dir: Optional[Union[str, Path]] = None):
         self.client = client
         self.model = model
+        self.log_dir = Path(log_dir) if log_dir else None
+        self.log_counter = 0
+
+    def _log_llm_input(self, messages) -> Optional[int]:
+        if not self.log_dir:
+            return None
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        log_index = self.log_counter
+        log_file = self.log_dir / f"{log_index}.md"
+
+        with log_file.open("w", encoding="utf-8") as f:
+            f.write(f"##### LLM INPUT (compression call #{log_index}) #####\n")
+            f.write("================================ Human Message =================================\n\n")
+            for msg in messages:
+                role = msg.get("role", "unknown")
+                msg_content = msg.get("content", "")
+                if role == "system":
+                    f.write(f"[{role.upper()}]\n{msg_content}\n\n")
+                elif role == "user":
+                    f.write(f"{msg_content}\n\n")
+                else:
+                    f.write(f"[{role.upper()}]\n{msg_content}\n\n")
+
+        self.log_counter += 1
+        return log_index
+
+    def _log_llm_output(self, log_index, content, usage=None, metadata=None):
+        if self.log_dir is None or log_index is None:
+            return
+
+        log_file = self.log_dir / f"{log_index}.md"
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write("================================ AI Message =================================\n\n")
+            f.write(f"{content}\n\n")
+            f.write("================================ Metadata =================================\n\n")
+            f.write(f"- Model: {self.model}\n")
+            if usage is not None:
+                f.write(f"- Prompt Tokens: {usage.prompt_tokens}\n")
+                f.write(f"- Completion Tokens: {usage.completion_tokens}\n")
+                f.write(f"- Total Tokens: {usage.total_tokens}\n")
+            for key, value in (metadata or {}).items():
+                f.write(f"- {key}: {value}\n")
+
+        self.log_counter = max(self.log_counter, log_index + 1)
 
     def compress(
         self,
@@ -509,30 +634,53 @@ class ObservationCompressor:
             original_tokens_est=estimate_tokens(target_step.observation_raw or ""),
         )
 
-        serialized_window = serialize_window_for_reflection(
+        serialized_context = serialize_context_for_compression(
             context_steps,
             target_step_id=target_step.step_id,
         )
+        target_result = target_step.observation_prompt or target_step.observation_raw or ""
+
+        messages = [
+            {"role": "system", "content": UNIFIED_COMPRESSION_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": UNIFIED_COMPRESSION_USER_PROMPT.format(
+                    target_step_id=target_step.step_id,
+                    serialized_context=serialized_context,
+                    target_action=target_step.action or "",
+                    target_thought=target_step.thought or "",
+                    target_result=target_result,
+                ),
+            },
+        ]
+
+        log_index = self._log_llm_input(messages)
 
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": UNIFIED_COMPRESSION_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": UNIFIED_COMPRESSION_USER_PROMPT.format(
-                        target_step_id=target_step.step_id,
-                        serialized_window=serialized_window,
-                    ),
-                },
-            ],
+            messages=messages,
             temperature=0,
         )
 
         content = response.choices[0].message.content or ""
-        reduced_result = extract_result_block_from_rewritten_step(content)
+        self._log_llm_output(
+            log_index,
+            content=content,
+            usage=response.usage,
+            metadata={
+                "Target Step ID": target_step.step_id,
+                "Context Step IDs": [
+                    step.step_id for step in context_steps
+                ],
+                "Original Observation Chars": len(target_step.observation_raw or ""),
+            },
+        )
+        reduced_result = extract_result_block_from_rewritten_step(
+            content,
+            target_step=target_step,
+        )
         if reduced_result is None:
-            record.reason = "failed_to_parse_rewritten_result"
+            record.reason = "invalid_rewritten_target_step"
             return target_step.observation_raw, record
 
         record.reflect_input_tokens = response.usage.prompt_tokens

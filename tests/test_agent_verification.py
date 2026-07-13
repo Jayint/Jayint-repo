@@ -111,6 +111,102 @@ class AgentVerificationAggregationTests(unittest.TestCase):
         self.assertEqual(agent.verified_test_commands, ["make all"])
         self.assertEqual(agent.verification_source, "agent_report")
 
+    def test_accepts_reported_command_when_successful_action_wrapped_it_with_echoes(self):
+        agent = self._make_agent()
+
+        agent._record_successful_action(
+            1,
+            (
+                'cd /app/build && make test 2>&1 && echo "---" && '
+                'echo "Verification Bundle:" && echo "{}"'
+            ),
+            "\n".join(
+                [
+                    "Passed:                           660",
+                    "Failed:                             0",
+                    "Unexpected successes:               0",
+                    "[100%] Built target test",
+                ]
+            ),
+        )
+
+        accepted = agent._finalize_verification_from_agent_report(
+            "\n".join(
+                [
+                    "Thought: Final verification passed.",
+                    "Verification Bundle:",
+                    '{"runtime_preparation_commands": [], "test_commands": ["cd /app/build && make test"]}',
+                    "Final Answer: Success",
+                ]
+            )
+        )
+
+        self.assertTrue(accepted)
+        self.assertEqual(agent.verified_test_commands, ["cd /app/build && make test"])
+
+    def test_accepts_agent_reported_bundle_when_test_command_was_not_observed(self):
+        agent = self._make_agent()
+
+        agent._record_successful_action(1, "python -m pytest tests/test_ok.py", "collected 1 item\n1 passed")
+
+        accepted = agent._finalize_verification_from_agent_report(
+            "\n".join(
+                [
+                    "Thought: Setup seems done.",
+                    "Verification Bundle:",
+                    '{"runtime_preparation_commands": [], "test_commands": ["python -m pytest tests/test_broken.py"]}',
+                    "Final Answer: Success",
+                ]
+            )
+        )
+
+        self.assertTrue(accepted)
+        self.assertEqual(agent.verified_test_commands, ["python -m pytest tests/test_broken.py"])
+        self.assertEqual(agent.verification_source, "agent_report")
+
+    def test_accepts_agent_reported_bundle_without_inspecting_prior_test_output(self):
+        agent = self._make_agent()
+
+        agent._record_successful_action(
+            1,
+            "python -m pytest tests",
+            "collected 32 items\n==================== 32 passed, 1 error in 0.31s ====================",
+        )
+
+        accepted = agent._finalize_verification_from_agent_report(
+            "\n".join(
+                [
+                    "Thought: Setup seems done.",
+                    "Verification Bundle:",
+                    '{"runtime_preparation_commands": [], "test_commands": ["python -m pytest tests"]}',
+                    "Final Answer: Success",
+                ]
+            )
+        )
+
+        self.assertTrue(accepted)
+        self.assertEqual(agent.verified_test_commands, ["python -m pytest tests"])
+        self.assertEqual(agent.verification_source, "agent_report")
+
+    def test_accepts_agent_reported_truncated_test_output_command(self):
+        agent = self._make_agent()
+
+        accepted = agent._finalize_verification_from_agent_report(
+            "\n".join(
+                [
+                    "Thought: Setup seems done.",
+                    "Verification Bundle:",
+                    '{"runtime_preparation_commands": [], '
+                    '"test_commands": ["python -m pytest tests -v 2>&1 | head -100"]}',
+                    "Final Answer: Success",
+                ]
+            )
+        )
+
+        self.assertTrue(accepted)
+        self.assertEqual(agent.verified_test_commands, ["python -m pytest tests -v 2>&1 | head -100"])
+        self.assertEqual(agent.verification_source, "agent_report")
+
     def test_allows_healthcheck_between_runtime_prep_and_test_bundle(self):
         agent = self._make_agent()
 
@@ -388,6 +484,47 @@ class AgentRollbackActionTests(unittest.TestCase):
             "[SYSTEM] Restored the container to the last successful snapshot.",
         )
         self.assertEqual(agent.sandbox.close_calls, [False])
+
+
+class AgentSetupLogSelectionTests(unittest.TestCase):
+    def test_latest_setup_log_ignores_non_numeric_auxiliary_logs(self):
+        agent = DockerAgent.__new__(DockerAgent)
+        agent.memory_stats = {"errors": []}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent.setup_log_dir = tmpdir
+            with open(os.path.join(tmpdir, "1.md"), "w", encoding="utf-8") as file_obj:
+                file_obj.write("planner setup log")
+            with open(os.path.join(tmpdir, "recipe_synthesis.md"), "w", encoding="utf-8") as file_obj:
+                file_obj.write("auxiliary recipe log")
+
+            self.assertEqual(agent._read_latest_setup_log(), "planner setup log")
+
+
+class AgentLongTermMemoryHintTests(unittest.TestCase):
+    def test_memory_hint_is_not_added_when_disabled(self):
+        agent = DockerAgent.__new__(DockerAgent)
+        agent.enable_long_term_memory = False
+        agent.failed_actions = [{"command": "pip install deps"}]
+
+        self.assertEqual(
+            agent._append_long_term_memory_hint("pip failed"),
+            "pip failed",
+        )
+
+    def test_memory_hint_points_agent_to_retrieve_after_failures(self):
+        agent = DockerAgent.__new__(DockerAgent)
+        agent.enable_long_term_memory = True
+        agent.failed_actions = [
+            {"command": "pip install deps"},
+            {"command": "pip install deps --no-cache-dir"},
+        ]
+
+        observation = agent._append_long_term_memory_hint("pip failed again")
+
+        self.assertIn("[Long-Term Memory Hint]", observation)
+        self.assertIn("2 commands have failed during this setup run", observation)
+        self.assertIn("__RETRIEVE_MEMORY__", observation)
 
 
 if __name__ == "__main__":

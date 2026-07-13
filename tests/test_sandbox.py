@@ -62,6 +62,7 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         sandbox.container = FakeContainer(results=replay_results)
         sandbox.client = FakeDockerClient()
         sandbox.last_success_image = "snapshot123"
+        sandbox.snapshot_image_ids = set()
         sandbox.base_image = "ubuntu:22.04"
         sandbox.volumes = None
         sandbox.platform = None
@@ -209,6 +210,44 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertIn("Action: __ROLLBACK__", output)
         self.assertEqual(sandbox.package_manager_broken_failure_streak, 1)
 
+    def test_test_error_count_adds_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "collected 32 items\n==================== 32 passed, 1 error in 0.31s ====================",
+        )
+
+        self.assertIn("TEST FAILURE DETECTED", prefix)
+        self.assertIn("zero errors", prefix)
+
+    def test_zero_failed_summary_does_not_add_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "Tests run: 10, Failures: 0, Errors: 0, Skipped: 0",
+        )
+
+        self.assertEqual(prefix, "")
+
+    def test_zero_failed_ctest_summary_does_not_add_no_excuses_failure_prefix(self):
+        sandbox = self._make_sandbox()
+
+        prefix = sandbox._get_test_failure_prefix(
+            1,
+            "\n".join(
+                [
+                    "Passed:                           660",
+                    "Failed:                             0",
+                    "Unexpected successes:               0",
+                    "[100%] Built target test",
+                ]
+            ),
+        )
+
+        self.assertEqual(prefix, "")
+
     def test_repeated_package_manager_recovery_failures_upgrade_hint_strength(self):
         sandbox = self._make_sandbox()
         sandbox.container = FakeContainer(
@@ -240,6 +279,27 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertFalse(second_success)
         self.assertIn("STRONG ROLLBACK CANDIDATE", second_output)
         self.assertEqual(sandbox.package_manager_broken_failure_streak, 2)
+
+    def test_truncated_test_output_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=0,
+                    output=b"collected 207 items\n207 passed in 47.25s\n",
+                )
+            ],
+            status="running",
+        )
+
+        success, output = sandbox.execute(
+            "cd /app && python -m pytest tests -v 2>&1 | head -100"
+        )
+
+        self.assertFalse(success)
+        self.assertIn("INVALID TEST COMMAND", output)
+        self.assertIn("was NOT executed", output)
+        self.assertEqual(sandbox.container.calls, [])
 
 
 class SandboxAptBootstrapTests(unittest.TestCase):

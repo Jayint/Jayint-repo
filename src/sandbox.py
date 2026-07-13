@@ -166,6 +166,11 @@ class Sandbox:
         print(f"[Container ID: {self.container.short_id}]")
         print(f"Executing: {command}")
 
+        invalid_test_filter_prefix = self._get_invalid_test_output_filter_prefix(command)
+        if invalid_test_filter_prefix:
+            print("Command rejected before execution: output-filtered test command.")
+            return False, invalid_test_filter_prefix
+
         try:
             exec_result = self.container.exec_run(
                 ["/bin/bash", "-c", self._wrap_command_with_timeout(command)],
@@ -195,6 +200,7 @@ class Sandbox:
         
         # 检测输出中是否有测试失败信号（用于 Observation 前缀注入）
         test_fail_prefix = self._get_test_failure_prefix(exit_code, output)
+        truncated_test_prefix = self._get_truncated_test_output_prefix(command)
         
         if exit_code == 0 or is_informational_exit:
             # Success: 保存当前成功状态
@@ -202,6 +208,9 @@ class Sandbox:
                 print(f"Command exited with code {exit_code} (informational, not an error).")
             else:
                 print("Command succeeded.")
+
+            if truncated_test_prefix:
+                output = truncated_test_prefix + output
 
             self.package_manager_broken_failure_streak = 0
             self._track_runtime_command(command)
@@ -226,6 +235,8 @@ class Sandbox:
             rollback_candidate_prefix = self._get_package_manager_rollback_prefix(
                 command, exit_code, output
             )
+            if truncated_test_prefix:
+                output = truncated_test_prefix + output
             if test_fail_prefix:
                 output = test_fail_prefix + output
             if rollback_candidate_prefix:
@@ -509,7 +520,7 @@ class Sandbox:
             )
 
         # pytest / unittest 格式失败
-        pytest_fail = re.search(r'(\d+) failed', output, re.IGNORECASE)
+        pytest_fail = re.search(r'([1-9]\d*) failed', output, re.IGNORECASE)
         if pytest_fail:
             failed_count = pytest_fail.group(1)
             return (
@@ -518,8 +529,27 @@ class Sandbox:
                 f"until ALL tests pass.\n\n"
             )
 
-        # 通用 FAILED 关键词
-        if 'FAILED' in output or 'not ok' in output.lower():
+        pytest_error = re.search(r'([1-9]\d*) errors?', output, re.IGNORECASE)
+        if pytest_error:
+            error_count = pytest_error.group(1)
+            return (
+                f"[SYSTEM] ⚠️  TEST FAILURE DETECTED: {error_count} test error(s) reported.\n"
+                f"[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                f"until ALL tests pass with zero errors.\n\n"
+            )
+
+        if self._command_classifier.observation_has_test_failure_signal(output):
+            return (
+                "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
+                "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
+                "until ALL tests pass with zero failures and zero errors.\n\n"
+            )
+
+        # 通用失败关键词。只匹配测试用例行，避免把 "Failed: 0" 当成失败。
+        if (
+            re.search(r'^\s*(?:FAILED|ERROR)\s+\S+', output, re.MULTILINE)
+            or re.search(r'^\s*not ok\b', output, re.IGNORECASE | re.MULTILINE)
+        ):
             return (
                 "[SYSTEM] ⚠️  TEST FAILURE DETECTED in command output.\n"
                 "[SYSTEM] Per the No Excuses Rule, you CANNOT output 'Final Answer: Success' "
@@ -527,6 +557,34 @@ class Sandbox:
             )
 
         return ""
+
+    def _get_truncated_test_output_prefix(self, command):
+        """Warn when a test command is piped through a lossy output filter."""
+        if not self._command_classifier.is_truncated_test_output_command(command or ""):
+            return ""
+
+        return (
+            "[SYSTEM] ⚠️  TRUNCATED TEST OUTPUT: this command pipes a test run through "
+            "`head`, `tail`, or `grep`, so the Observation may omit failures, passes, or the final "
+            "test summary.\n"
+            "[SYSTEM] Do NOT treat this as complete verification. For final verification, "
+            "run the full project test command without output-limiting pipes; long output "
+            "will be handled by observation compression.\n\n"
+        )
+
+    def _get_invalid_test_output_filter_prefix(self, command):
+        """Reject test commands whose pipeline hides the real test result."""
+        if not self._command_classifier.is_truncated_test_output_command(command or ""):
+            return ""
+
+        return (
+            "[SYSTEM] INVALID TEST COMMAND: this test command pipes output through "
+            "`head`, `tail`, or `grep`, which can hide failures and mask the test "
+            "runner exit code.\n"
+            "[SYSTEM] The command was NOT executed. Rerun the same test command "
+            "without output-filtering pipes. Long output will be handled by "
+            "observation compression.\n\n"
+        )
 
     def _get_package_manager_rollback_prefix(self, command, exit_code, output):
         """Warn the agent when package-manager failures strongly suggest a dirty dependency state."""
