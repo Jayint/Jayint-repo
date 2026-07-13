@@ -214,28 +214,52 @@ full run — a residual seen under `--collect-only` merely means the body never 
 
 ---
 
-## 6. The renderer — what the agent sees
+## 6. The renderer — chain edges *and* node fields
 
-One block per failure class, anchored at the graph node the failure names. Edges in **both**
-directions, certified state on every one, the actionable node marked.
+`Node` carries ~20 fields (`schema.py:139-165`): `state`, `check_command`, `evidence`,
+`fix_candidates`, `chosen_fix`, `attempts`, `provenance`, `discovered_by`, `version`,
+`build_from_source`, plus a free-form `data{}`. The tension the renderer must resolve:
+
+- Dump every field on every node → a 6-node chain × 20 fields buries the topology.
+- Dump none → the agent gets structure it cannot act on (no `fix`, no `check`, no `tried`).
+
+### 6.1 The rule — allocate fields by the node's ROLE in the chain, not by the node
+
+| role | what the agent does with it | fields rendered |
+|---|---|---|
+| **anchor** (what pytest named) | nothing — pytest just told it | `id`, `version`, `state`. One line. |
+| **waypoint** (MISSING, not a root) | passes through | `id`, `state`, `blocked by →`. One line. |
+| **rule-out ring** (SATISFIED siblings of a MISSING node) | **excludes** it | `name` + `check passed: <cmd>`. One line. Nothing more — its entire job is to be dismissed. |
+| **root** (MISSING, nothing missing beneath) | **acts here** | the full record. This is the *only* place fields go. |
+
+The chain is drawn by indentation; the field content lands almost entirely on the **root**.
+That is what stops the two from competing for the same space.
+
+### 6.2 Rendered shape
 
 ```
-FAILURE  ModuleNotFoundError: No module named 'psycopg2'   [collect]  (~200 tests hidden, est.)
-  ↓ maps to   pkg:psycopg2==2.9.12          MISSING
+FAILURE  ModuleNotFoundError: No module named 'psycopg2'  [collect]  (~200 tests hidden, est.)
+  ↓ pkg:psycopg2==2.9.12                    MISSING
+      ├─ binary:pkg-config                  check passed: command -v pkg-config
+      ├─ tool:build-essential               check passed: dpkg -s build-essential
+      ├─ + 37 transitive pip deps           37 satisfied
+      └─ binary:pg_config                   MISSING   ← ROOT
 
-  what it requires:
-    binary:pg_config        MISSING     ← nothing below this is missing. fix here.
-        fix    apt-get install -y libpq-dev
-        check  command -v pg_config
-    binary:pkg-config       check passed: command -v pkg-config
-    tool:build-essential    check passed: dpkg -s build-essential
-    + 37 transitive pip deps: 37 satisfied
+FAILURE  ModuleNotFoundError: No module named 'asyncpg'  [collect]  (~12 tests hidden, est.)
+  ↓ pkg:asyncpg==0.30.0                     MISSING
+      └─ → same root: binary:pg_config
 
-  what requires it:
-    import:psycopg2 → tests/test_db.py (est. 200 hidden)
-    also blocks pkg:asyncpg — same root
+ROOT  binary:pg_config                      MISSING        blocks ~212 tests
+  check    command -v pg_config                            → exit 127
+  fix      apt-get install -y libpq-dev
+           alt: apt-get install -y postgresql-server-dev-all
+  why      pip install psycopg2==2.9.12 failed —
+           "Error: pg_config executable not found"          [turn 2, build log]
+  source   runtime discovery (turn 2), resolved via os_resolver
+  tried    turn 3: apt-get install postgresql-dev → FAILED: no such package
+  blocks   pkg:psycopg2 (~200 tests) · pkg:asyncpg (~12 tests)
 
-FAILURE  AssertionError in test_totals   [call]  (23 tests)
+FAILURE  AssertionError in test_totals  [call]  (23 tests)
   ↓ NOT AN ENVIRONMENT FAILURE (test body). No env fix exists. Graph not consulted.
 
 FAILURE  ModuleNotFoundError: No module named 'patchright'  [collect]  (~8 tests hidden, est.)
@@ -247,24 +271,63 @@ SINCE YOUR LAST EDIT
   + discovered this turn: binary:pg_config (from your failing pip install)
 ```
 
-**Why `← fix here` is not "a verdict instead of structure."** The edges and states above it
-*are* the reasoning material. The marker only answers a question the agent would otherwise
-recompute by hand across every block — *which of these missing nodes has nothing missing
-beneath it*. That is a deterministic BFS over states certified against the live container
-this turn: correct given the graph, twenty unit-testable lines, and far cheaper than making
-the model re-derive topological reachability in token space. Nothing is hidden; the agent can
-audit the chain and disagree.
+### 6.3 Why it renders that way
 
-### 6.1 Signature
+**The root is printed ONCE, at top level — never nested under each failure.** `pg_config` is
+reached from both `psycopg2` and `asyncpg`. Nesting it under both would duplicate the record
+and — worse — would visually *hide the collapse*, when the entire point is that it is **one**
+root. So the chain carries a `← ROOT` pointer and a second failure reaching it says
+`→ same root: …`. **Chain edges show reachability; the root record shows content.**
+
+**`why` and `tried` are the fields that earn their space.**
+- `evidence` (`why`) — the literal log line that produced this node. It proves the node is not
+  a guess, and lets the agent overrule it if the inference was bad.
+- `attempts` (`tried`) — **the anti-thrash field.** *You already tried `postgresql-dev` on
+  turn 3 and it does not exist.* Agents re-try disproven fixes because their memory is lossy
+  prose; a structured attempts ledger is the cure, and it is the single highest-value use of a
+  node field. (`Node.attempts` is already a tuple — see §7.5.)
+
+**`source` is a trust signal.** A node from the Debian build-deps table is a different
+epistemic object from one inferred from a log line. `via resolver` / `via runtime discovery
+(turn 2)` / `via ldd probe` lets the agent weight it. Derived from `discovered_by`+`provenance`.
+
+**Why `← ROOT` is not "a verdict instead of structure."** Everything above it *is* the
+reasoning material — the edges, the states, the rule-out ring. The marker only answers a
+question the agent would otherwise recompute by hand across every block: *which of these
+missing nodes has nothing missing beneath it*. That is a deterministic BFS over states
+certified against the live container this turn — correct given the graph, twenty
+unit-testable lines, and far cheaper than making the model re-derive topological reachability
+in token space. Nothing is hidden; the agent can audit the chain and disagree.
+
+### 6.4 Budget and honesty rules
+
+- **Full record for the top 3 roots** by tests-blocked; one line each for the rest. Otherwise a
+  repo with 15 missing nodes emits ~105 lines of records.
+- **`data{}` is whitelisted, never dumped.** Internal bookkeeping (`runtime_confidence`,
+  `exclude_newer`, `resolved_platform`) must not leak into the prompt. Only `installable` (the
+  Project node) is rendered today.
+- **UNKNOWN never masquerades as MISSING.** A node we appended but could not certify (no
+  `check_command`) renders as `UNKNOWN — no check command; state unverified`. It may still be a
+  root candidate, but it is never presented as a confirmed one.
+
+### 6.5 Signature
 
 ```python
-def render_graph_context(graph, causes, prev_states, ctx, phase) -> str:
-    """Pure. causes = summarize(output); prev_states = {node_id: State} from last turn;
+def render_graph_context(graph, result, causes, prev_states, ctx, phase) -> str:
+    """Pure. result = the build CommandResult (ok / failing_command / output);
+    causes = summarize(test.output) — EMPTY when the build failed (§7.1);
+    prev_states = {node_id: State} from last turn;
     ctx = RepoContext(local_names, invalid_names); phase in {"collect", "run"}."""
 ```
 
-`ctx` is per-run constant, so `entry.py` binds it by closure and the **planner seam carries
-four args** — `graph_context(graph, causes, prev_states, phase)`. Pure, no I/O: every state it
+**`result` is required, not optional.** Per §7.1, `loop.py:202` only runs pytest when the build
+is green — so on a build-fail turn `causes` is **empty** and the *only* failure to anchor at is
+the failing build command. A renderer keyed solely on `causes` would emit nothing on exactly the
+turns where the install tier is broken. The anchor is `owner_node_for_command(graph,
+result.failing_command)` (§7.0.1).
+
+`ctx` is per-run constant, so `entry.py` binds it by closure and the **planner seam carries five
+args** — `graph_context(graph, result, causes, prev_states, phase)`. Pure, no I/O: every state it
 reads was certified by `loop.py:196`; every node it reads was added by §7 *before* the render.
 
 - **Anchor** the top 3 causes by weighted tests-blocked (§4.2); the rest render as one-line
@@ -280,7 +343,7 @@ reads was certified by `loop.py:196`; every node it reads was added by §7 *befo
   closure flipped MISSING), enumeration is useless — collapse hard to roots:
   *"212 packages MISSING, all downstream of: python venv creation failed."*
 
-### 6.2 The state delta
+### 6.6 The state delta
 
 `build_and_test` (`loop.py:190`) closes over `graph`, and `loop.py:227,277,291` rebind it — so
 the previous turn's certified graph is simply the value of `graph` before the call. Capture
@@ -290,23 +353,106 @@ noisily through shifting counts — and it is also the **trigger for §7 Mechani
 
 ---
 
-## 7. Observation-driven graph update (the core of Rev 3)
+## 7. Enrich — observation-driven graph update (the core of Rev 3)
 
 `certify` refreshes **states**; it can never add **topology**. A requirement construction
 never modeled has no node and no check and stays invisible forever. §7 fixes that.
 
-**The governing principle — and the line this project has already paid to learn.** The
-deleted import→dist identity fallback took wrong-guesses from 6 → 0 by replacing *inference*
+### 7.0 What enrich IS, in one sentence
+
+> **Read the error log → deterministically name the requirement it mentions → if the graph has
+> no node for it, append one → draw one edge from the thing that was failing to it.**
+
+```
+log:      "Error: pg_config executable not found"   (from `pip install psycopg2==2.9.12`)
+classify: Discovery(kind=TOOL, name="pg_config")     ← deterministic, regex, no LLM
+owner:    the failing command names exactly one package → pkg:psycopg2
+
+before:   pkg:psycopg2  MISSING          (no outgoing edges — the graph cannot say why)
+after:    pkg:psycopg2  MISSING
+             └── requires ──> binary:pg_config  MISSING   (fix: apt-get install -y libpq-dev)
+```
+
+**Enrich puts the edge there; the walk (§6) follows it.** Without enrich the down-walk from
+`pkg:psycopg2` finds nothing and the render degenerates to what pytest already said. Without
+the walk, enrich is just a log line. They are one algorithm.
+
+Most turns enrich does **nothing** — construction already had `pkg:psycopg2 → binary:pg_config`
+from the resolver tables. Enrich is the patch for construction's blind spots, not the main event.
+
+### 7.0.1 🟢 It already exists — the build surface is far smaller than it looks
+
+`ingest_runtime_failures(graph, observations, classifiers, owner_node_id)`
+(**`runtime_ingest.py:165`**) *is* enrich:
+
+```python
+for cmd, out in observations:
+    d = classifier(cmd, out)                          # log text → Discovery (deterministic)
+    if d is None: continue                            # matched nothing → do nothing
+    new = _annotate_or_append(new, d, owner_node_id)  # append if new, annotate if known; draw edge
+```
+
+- Appends if new; **annotates** if the node exists (`_find_existing_node`, normalized-name match,
+  `:71-90`).
+- **Idempotent** — `tests/depgraph/test_runtime_ingest.py:121-122` calls it twice and asserts the
+  graph is unchanged.
+- **Never raises** — a bad observation logs a warning and is skipped (`:195-196`).
+- ~15 existing tests.
+- **Already in production**: `src/envstate/orchestrator.py:197-209, 928-1001` — the **v3 arm
+  already enriches its graph this way.**
+
+**Two gaps, and only two:**
+
+1. **Never called from `react_repair/`** — zero references. Wiring, not new logic.
+2. 🔴 **`owner_node_id` is never passed.** Both live call sites invoke
+   `ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)` with **no owner** — so every
+   discovery falls through to the `TEST_NODE_ID` fallback (`:148-153`) and hangs off the goal node
+   as a **flat star**:
+
+   ```
+   test:repo_tests_pass ──> binary:pg_config        ← what we build TODAY (no depth)
+   pkg:psycopg2         ──> binary:pg_config        ← what makes the walk find a root
+   ```
+
+   A star tells the agent nothing the log didn't. The owner edge is what lets `pkg:psycopg2` and
+   `pkg:asyncpg` **converge on one root**. Nothing in the codebase computes it:
+   `_provider_from_command` (`req_slice.py:38`) gets as far as `"pip:psycopg2"` — a *provider* id —
+   and nodes are keyed `pkg:psycopg2==2.9.12`. **The last mile does not exist.**
+
+   ```python
+   def owner_node_for_command(graph, command) -> str | None:
+       """`pip install psycopg2==2.9.12` → the pkg: node id, by canonical name.
+       None for batch/-r/-e installs (not cleanly attributable)."""
+   ```
+
+   ~10 lines. **This is the highest-leverage missing piece in the whole spec**, and it improves the
+   **v3 arm too**, which is anchoring everything at the Test node today.
+
+### 7.0.2 The governing principle for everything *beyond* ingest
+
+The deleted import→dist identity fallback took wrong-guesses from 6 → 0 by replacing *inference*
 with a typed `unresolved` ([[phase2-identity-fallback-deletion-landed]]). Rev 3 does **not**
-reintroduce guessing. The reframe:
+reintroduce guessing:
 
 > **A runtime discovery is a new declared root. Feed it back through construction.**
 
 We never *guess* what a discovered node needs. We **resolve** it, with the same oracles that
-built the graph — `build_dep_prior`, the wheel/ldd soname probes, `os_resolver`. Those are
-resolvers, not guessers.
+built the graph — `build_dep_prior`, the wheel/ldd soname probes, `os_resolver`. Resolvers, not
+guessers.
 
-### 7.1 Two ingest streams, two anchors
+### 7.1 Two ingest streams, two anchors — and they never overlap
+
+**`loop.py:202`: `if r.ok: t = run_tests()` — pytest only runs when the build is green.** So the
+two streams are **mutually exclusive per turn**, which makes enrich two small handlers, not one
+merged pipeline:
+
+- **Build broke** → `result.failing_command` + build stdout; `causes` is **empty**. The *install*
+  tier: `pg_config not found`, `no such apt package`.
+- **Build green, tests broke** → `causes`; the build stream has nothing to say. The *everything
+  installed and it is still missing something* tier: an undeclared dep, a missing `.so`, a dead
+  service.
+
+This maps exactly onto the two-tier triage (§5) — the build stream **is** tier zero.
 
 Splitting the streams dissolves the "anchor quality bounds everything" worry from Rev 1:
 
@@ -448,11 +594,13 @@ do the walk.
 |---|---|---|
 | `phase` on `Cause`; parse it from the banner; derive `outcome` from `phase` | `pytest_summary.py:41,118` | small — **fixes §4.2** |
 | tests-hidden weight for collect-phase causes (static `def test_` count; gold-manifest override) | `pytest_summary.py` + new helper | small |
+| 🔴 **`owner_node_for_command(graph, cmd)`** — `pip install psycopg2==2.9.12` → `pkg:psycopg2==2.9.12` | **new**, next to `req_slice._provider_from_command:38` | **~10 lines — the highest-leverage gap (§7.0.1). Also fixes the v3 arm.** |
 | `render_graph_context` + `_anchor`/`_down_walk`/`_roots`/`_delta`/`_format` | **new** `depgraph/graph_context.py` | the render logic |
 | `expand_discovery` sequencing Mechanisms 1–3 | **new** `depgraph/discovery_expand.py` | the update logic |
+| **reuse** `ingest_runtime_failures` (`runtime_ingest.py:165`) — enrich already exists, is idempotent, has ~15 tests, and ships in the v3 arm | *no change* | **0 lines — wiring only** |
 | extract per-node bodies: `seed_build_deps_for`, `ldd_probe_for` | `build_deps.py:286`, `ldd_probe.py` | pure refactor, **no behavior change** |
-| widen seam `graph_context(graph)` → `(graph, causes, prev_states, phase)` | `planner.py:129,150-152`, `plan()` sig | ~5 lines |
-| hoist `causes` out of `_observation`; capture `prev_states` before `certify`; call `expand_discovery`; thread to `plan()` | `loop.py:86,190-207,246` | ~12 lines |
+| widen seam `graph_context(graph)` → `(graph, result, causes, prev_states, phase)` | `planner.py:129,150-152`, `plan()` sig | ~5 lines |
+| hoist `causes` out of `_observation`; capture `prev_states` before `certify`; call `enrich` + `expand`; `certify_only(new_ids)`; thread to `plan()` | `loop.py:86,190-207,246` | ~15 lines |
 | Tier-1 collect-only pass before the full run | `loop.py` (`build_and_test`) | small |
 | build `RepoContext` from `repo_path`; wire renderer; env flags `REACT_GRAPH_CONTEXT`, `REACT_GRAPH_UPDATE` | `entry.py:156-164` | ~10 lines |
 
