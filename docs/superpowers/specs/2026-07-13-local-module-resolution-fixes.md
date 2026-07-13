@@ -11,6 +11,65 @@ by this rewrite)
 
 ---
 
+## ⚠ POST-LANDING CORRECTION (2026-07-13, after the whole-branch review)
+
+**The motivating case in this document is a phantom. Wagtail's `azure` failure never
+fires, and no stem collision fires anywhere on the smoke corpus.** Everything below
+about *how the walk classifies names* is correct and tested; everything that claims a
+live failure is **repaired** by this work is not. Read the rest of this spec with that
+correction in force.
+
+Three findings, each verified by execution rather than code-reading:
+
+1. **`azure` is never imported by the test gate.** The unguarded `from azure.mgmt.cdn
+   import ...` lives in `wagtail/contrib/frontend_cache/tests.py` — *Django's* test
+   convention. pytest's default globs are `test_*.py` / `*_test.py`; `tests.py` matches
+   neither, and wagtail ships no pytest config to widen them. Running the real gate
+   command (`VERIFY_TEST_CMD = python -m pytest -q --continue-on-collection-errors`)
+   against the checkout collects **zero** references to `azure` or `frontend_cache`.
+   (The backend module `backends/azure.py` imports `azure.*` only inside method bodies,
+   two of them behind `try/except ImportError` — so it is import-safe as well.)
+
+2. **No stem collision fires on ANY corpus repo.** Measured against the real gate output
+   for wagtail, typer, jupyterhub, and netbox: every import that actually fails
+   (`django`, `responses`, `asgiref`, …) classifies as `EXTERNAL` — the path that
+   already worked. The `STEM_COLLISION` branch this spec exists to serve is, at present,
+   **unreachable in practice**.
+
+3. **The real root cause is elsewhere: test extras are never selected as roots.**
+   `azure-mgmt-cdn` sits in wagtail's `[project.optional-dependencies].testing` group.
+   `needed_extras` is `frozenset()` in production (no entry point ever populates it —
+   `advise.py` and `run_v3_e2e.py` both omit it), and `evidence.used_extras` only reads
+   `-e .[extras]` from `requirements*.txt`, which wagtail has none of (its signal lives
+   in `tox.ini` / CI config, which the evidence scanner does not read). So **all 16**
+   packages in that group are missing from `setup.sh` by construction — and they are
+   load-bearing: `freezegun` (19 top-level imports), `factory-boy` (5), `Jinja2` (4, and
+   wired into the Django test settings module itself), `responses` (1), `azure-mgmt-*`
+   (1 — the only one that does not even collect). `azure` is the *least* consequential
+   member of that class, and the one that never fires.
+
+**What this work is, honestly.** A correctness fix to the diagnosis router with no
+measured behavior change on the corpus: the module sets are now accurate, the
+construction boundary is guarded structurally and behaviorally, and the safety property
+(never auto-install typer's `items`) is preserved — though it already held, via the old
+set's over-breadth. It is a **safety net** for a class that does not currently occur:
+an under-declared dependency whose name collides with a repo `.py` stem. It is **not**
+a fix for any live failure, and it must not be cited as one.
+
+**Known architectural gap, deliberately NOT fixed here** (it would be building for a
+case that never occurs): the discover-gate/ingest path is structurally *mint-or-nothing*.
+`make_diagnostic_classifier` returns `diagnose(...).discovery`, and only `ENVIRONMENT`
+ever carries one — so `AMBIGUOUS`, `REPO_INTERNAL_REF`, `RESIDUAL` and `INVALID_ATTEMPT`
+are indistinguishable no-ops there. `ENVIRONMENT` is served only because minting a node
+gives it a second shot through the ordinary install-failure repair channel one cycle
+later; `AMBIGUOUS` mints nothing, so it has no such route. If a stem collision ever does
+fire at the gate, it will still be dropped — the evidence/constraint plumbing built in
+Task 6 is wired to `_repair_or_route`, which that path never calls.
+
+**The actual next step is the extras fix, not more collision machinery.**
+
+---
+
 ## Superseded within this document
 
 This spec originally proposed **two fixes**: (1) exclude `NodeType.IMPORT` from
@@ -173,12 +232,13 @@ now falls through to `run_structured_repair`:**
 
 **Budget risk, stated plainly.** netbox has **547** collision names, wagtail
 **753**. Those are *static exposure*, not incidence — a collision costs nothing
-unless it actually raises `ModuleNotFoundError` at runtime, and the smoke corpus
-surfaced exactly **one** (wagtail's `azure`). But there is **no collision-specific
-cap**: they compete for the same global `_repair_turns` budget as any real repair. A
-repo with several simultaneously-failing collisions (e.g. multiple extras-gated
-deps) could burn the run's repair budget on them. If that shows up, cap
-collision-driven repairs separately — do not widen the budget.
+unless it actually raises `ModuleNotFoundError` at runtime. **Measured incidence on the
+smoke corpus is ZERO** (see the post-landing correction above; an earlier draft of this
+spec claimed "exactly one, wagtail's `azure`" — that claim was wrong, as `azure` is never
+collected). There is no collision-specific cap: collisions compete for the same global
+`_repair_turns` budget as any real repair. Since none currently fire, the exposure is
+theoretical — but if one ever does, cap collision-driven repairs separately rather than
+widening the budget.
 
 **Startup cost.** The router now runs three full `os.walk` traversals where there
 was one before (`top_level_names`, `stem_collisions`, and the broad walk
@@ -215,8 +275,11 @@ return both sets from a single walk.
   `__init__.py`, etc.) and of `stem_collisions`'s set-difference and precedence
   rules.
 - **`tests/depgraph/test_repo_modules_real_repos.py`** — regression tests against
-  real checkouts, one per bug a prior design shipped or nearly shipped: wagtail's
-  `azure` (silent give-up), typer's `items` (would-be wrong install),
+  real checkouts. These assert how the walk **classifies** each name, which is correct
+  and worth pinning; they do **not** assert that any of these failures occurs at
+  runtime (per the post-landing correction, `azure` never fires). Cases: wagtail's
+  `azure` (a collision, not a repo module — would have been a silent give-up *if* it
+  ever fired), typer's `items` (would-be wrong install),
   jupyterhub's `traitlets` (shadowing submodule), netbox's `extras`/`dcim`/etc. (the
   1000-file-cap landmine), plus a subset-invariant check
   (`top_level_names(repo) <= local_module_names(repo)`). Cases `pytest.skip` when
