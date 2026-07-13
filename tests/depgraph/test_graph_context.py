@@ -11,7 +11,8 @@ if str(_SRC) not in sys.path:
 
 from python_deps.depgraph.emit import _conflicted_ids, _is_emittable
 from python_deps.depgraph.graph_context import (
-    ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict, verdict,
+    ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict,
+    render_graph_context, verdict,
 )
 # Aliased on import: the real name `tests_hidden` starts with "test", which is pytest's own
 # `python_functions` collection prefix (default `["test"]`, matched via `name.startswith`,
@@ -22,7 +23,7 @@ from python_deps.depgraph.graph_context import (
 from python_deps.depgraph.graph_context import tests_hidden as _tests_hidden
 from python_deps.depgraph.ids import package_id
 from python_deps.depgraph.schema import (
-    DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
+    Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 
 
@@ -447,3 +448,230 @@ def test_tests_hidden_falls_back_to_the_regex_when_the_module_does_not_parse(tmp
         "    pass\n"
     )
     assert _tests_hidden(str(tmp_path), "t.py") == 2
+
+
+# ── render_graph_context — the subgraph edge-list + per-node records (Task 5) ───────────────
+#
+# `Cause` lives in `src/react_repair/pytest_summary.py`. `tests/depgraph/conftest.py` puts only
+# `src/` on sys.path (for the bare `python_deps....` imports above), not the repo ROOT, so
+# `from src.react_repair...` needs the two-parent form used by tests/react_repair/*.py.
+
+try:
+    from src.react_repair.pytest_summary import Cause
+except ImportError:                       # tests/depgraph/ does not add the repo root
+    _ROOT = Path(__file__).resolve().parents[2]
+    if str(_ROOT) not in sys.path:
+        sys.path.insert(0, str(_ROOT))
+    from src.react_repair.pytest_summary import Cause
+
+
+class _Result:
+    def __init__(self, ok=True, failing_command=None, output=""):
+        self.ok, self.failing_command, self.output = ok, failing_command, output
+
+
+def _pg_graph() -> DepGraph:
+    """psycopg2 and asyncpg both need pg_config. pkg-config is fine. THE collapse case."""
+    g = (DepGraph()
+         .with_node(_pkg("psycopg2", "2.9.12"))
+         .with_node(_pkg("asyncpg", "0.30.0"))
+         .with_node(_tool("pkg-config", state=State.SATISFIED))
+         .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RUNTIME,
+                         state=State.MISSING,
+                         check_command="command -v pg_config",
+                         chosen_fix="apt-get install -y libpq-dev",
+                         evidence='pip install psycopg2: "pg_config executable not found"'))
+         .with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="binary:pg_config",
+                         relation=EdgeType.REQUIRES, origin="resolver"))
+         .with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="binary:pkg-config",
+                         relation=EdgeType.REQUIRES, origin="resolver"))
+         .with_edge(Edge(src="pkg:asyncpg==0.30.0", dst="binary:pg_config",
+                         relation=EdgeType.REQUIRES, origin="resolver")))
+    return g
+
+
+def _collect_cause(name, count=1, module="tests/test_db.py"):
+    return Cause(exc="ModuleNotFoundError", detail=f"No module named '{name}'",
+                 count=count, outcome="ERROR", module=module, phase="collect")
+
+
+def test_shared_root_appears_as_two_edges_but_ONE_record():
+    out = render_graph_context(
+        _pg_graph(), _Result(ok=True),
+        [_collect_cause("psycopg2"), _collect_cause("asyncpg", module="tests/test_a.py")],
+        prev_states={},
+    )
+    # Two edge lines converge on the same node -- that IS the collapse.
+    assert out.count("--requires-->  binary:pg_config") == 2
+    # ...but the record is printed exactly once.
+    assert out.count("★ binary:pg_config") == 1
+
+
+def test_requires_and_required_by_are_separate_sections():
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [_collect_cause("psycopg2")],
+                               prev_states={})
+    assert "REQUIRES" in out
+    assert "REQUIRED BY" in out
+    assert out.index("REQUIRES") < out.index("REQUIRED BY")
+
+
+def test_satisfied_prerequisite_is_shown_inline_and_gets_no_record():
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [_collect_cause("psycopg2")],
+                               prev_states={})
+    assert "binary:pkg-config" in out          # in the edge list...
+    assert "★ binary:pkg-config" not in out    # ...but never as a record
+
+
+def test_waiting_node_gets_no_record():
+    # psycopg2 is MISSING but WAITING on pg_config -- no action available, so no record.
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [_collect_cause("psycopg2")],
+                               prev_states={})
+    assert "★ pkg:psycopg2" not in out
+
+
+def test_every_actionable_root_gets_a_record_no_top_n_cap():
+    """Actionable roots are INDEPENDENT -- the agent should batch all of them in one patch."""
+    g = DepGraph()
+    causes = []
+    for i in range(6):
+        g = g.with_node(Node(id=f"binary:t{i}", type=NodeType.TOOL, name=f"t{i}",
+                             layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
+                             state=State.MISSING, check_command=f"command -v t{i}",
+                             chosen_fix=f"apt-get install -y t{i}"))
+        g = g.with_node(_pkg(f"p{i}"))
+        g = g.with_edge(Edge(src=f"pkg:p{i}==1.0", dst=f"binary:t{i}",
+                             relation=EdgeType.REQUIRES, origin="resolver"))
+        causes.append(_collect_cause(f"p{i}"))
+    out = render_graph_context(g, _Result(ok=True), causes, prev_states={})
+    for i in range(6):
+        assert f"★ binary:t{i}" in out, f"root t{i} was truncated away"
+
+
+def test_conflicted_node_renders_as_BLOCKED_never_as_actionable():
+    g = (DepGraph()
+         .with_node(_pkg("pydantic", "2.11"))
+         .with_node(_pkg("fastapi", "0.115"))
+         .with_edge(Edge(src="pkg:pydantic==2.11", dst="pkg:fastapi==0.115",
+                         relation=EdgeType.CONFLICTS_WITH, origin="resolver",
+                         data={"summary": "pydantic>=2.11 needs typing-ext>=4.12"})))
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("pydantic")], prev_states={})
+    assert "✖ pkg:pydantic==2.11" in out
+    assert "CANNOT INSTALL" in out
+    assert "★ pkg:pydantic==2.11" not in out
+
+
+def test_call_phase_failure_never_consults_the_graph():
+    cause = Cause(exc="AssertionError", detail="assert 3 == 4", count=23,
+                  outcome="FAILED", module="tests/test_math.py", phase="call")
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [cause], prev_states={})
+    assert "NOT AN ENVIRONMENT FAILURE" in out
+    assert "AssertionError" in out
+    assert "REQUIRES" not in out          # no subgraph was walked for it
+
+
+def test_cause_with_no_graph_node_says_so_instead_of_inventing_one():
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [_collect_cause("patchright")],
+                               prev_states={})
+    assert "NO GRAPH EXPLANATION" in out
+    assert "patchright" in out
+
+
+def test_build_failure_anchors_at_the_command_owner_when_causes_is_empty():
+    """loop.py:202 only runs pytest when the build is GREEN. On a build-fail turn `causes`
+    is empty and the ONLY failure to anchor at is the failing command."""
+    out = render_graph_context(
+        _pg_graph(),
+        _Result(ok=False, failing_command="pip install psycopg2==2.9.12",
+                output="Error: pg_config executable not found"),
+        causes=[], prev_states={},
+    )
+    assert "BUILD FAILED" in out
+    assert "pkg:psycopg2==2.9.12" in out
+    assert "★ binary:pg_config" in out
+    assert "TESTS DID NOT RUN" in out
+
+
+def test_state_delta_reports_a_regression_the_agent_caused():
+    g = _pg_graph()
+    prev = {"binary:pg_config": State.SATISFIED}
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states=prev)
+    assert "SINCE YOUR LAST EDIT" in out
+    assert "SATISFIED → MISSING" in out
+
+
+def test_fields_self_select_resolver_node_omits_why_and_source():
+    g = (DepGraph()
+         .with_node(_pkg("psycopg2", "2.9.12"))
+         .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                         layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
+                         state=State.MISSING, check_command="command -v pg_config",
+                         chosen_fix="apt-get install -y libpq-dev"))
+         .with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="binary:pg_config",
+                         relation=EdgeType.REQUIRES, origin="resolver")))
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states={})
+    assert "check " in out and "fix " in out
+    assert "why " not in out          # resolver-sourced -> nothing to justify
+    assert "tried " not in out        # no attempts
+
+
+def test_fields_self_select_contested_node_shows_why_and_tried():
+    g = _pg_graph()
+    node = g.get("binary:pg_config")
+    from dataclasses import replace
+    g = g.with_node(replace(node, attempts=(
+        Attempt(command="apt-get install postgresql-dev", outcome="failed", cycle=3),)))
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states={})
+    assert "why " in out                              # runtime-discovered -> must justify itself
+    assert "tried " in out
+    assert "postgresql-dev" in out                    # the ANTI-THRASH field
+
+
+def test_collect_weight_is_an_estimate_from_the_file(tmp_path):
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_db.py").write_text(
+        "".join(f"def test_{i}():\n    pass\n" for i in range(200)))
+    out = render_graph_context(_pg_graph(), _Result(ok=True), [_collect_cause("psycopg2")],
+                               prev_states={}, repo_path=str(tmp_path))
+    assert "~200 tests hidden, est." in out
+
+
+def test_pip_closure_is_summarized_not_enumerated():
+    g = _pg_graph()
+    for i in range(37):
+        g = g.with_node(_pkg(f"dep{i}", state=State.SATISFIED))
+        g = g.with_edge(Edge(src="pkg:psycopg2==2.9.12", dst=f"pkg:dep{i}==1.0",
+                             relation=EdgeType.REQUIRES, origin="resolver"))
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states={})
+    assert "37 transitive pip deps" in out
+    assert "pkg:dep0==1.0" not in out                 # never enumerated
+
+
+def test_a_MISSING_pip_dep_is_promoted_out_of_the_closure_summary():
+    g = _pg_graph()
+    g = g.with_node(_pkg("zipp", state=State.MISSING))
+    g = g.with_edge(Edge(src="pkg:psycopg2==2.9.12", dst="pkg:zipp==1.0",
+                         relation=EdgeType.REQUIRES, origin="resolver"))
+    out = render_graph_context(g, _Result(ok=True), [_collect_cause("psycopg2")], prev_states={})
+    assert "pkg:zipp==1.0" in out                     # promoted -- it is actionable
+    assert "★ pkg:zipp==1.0" in out
+
+
+def test_implausible_frontier_warns_instead_of_dumping_records():
+    g = DepGraph()
+    causes = []
+    for i in range(30):
+        g = g.with_node(Node(id=f"pkg:p{i}==1.0", type=NodeType.PACKAGE, name=f"p{i}",
+                             layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+                             version="1.0", state=State.MISSING,
+                             check_command=f"python -c 'import p{i}'",
+                             chosen_fix=f"pip install p{i}"))
+        causes.append(_collect_cause(f"p{i}"))
+    out = render_graph_context(g, _Result(ok=True), causes, prev_states={})
+    assert "ACTIONABLE" in out and "implausible" in out.lower()
+    assert out.count("★ pkg:p") <= 5                 # 5 largest, NOT 30 records
+    assert "treat the graph as unreliable" in out.lower()
+
+
+def test_empty_graph_and_no_causes_renders_nothing():
+    assert render_graph_context(DepGraph(), _Result(ok=True), [], prev_states={}) == ""

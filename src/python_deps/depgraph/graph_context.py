@@ -13,7 +13,9 @@ import logging
 import re
 from pathlib import Path
 
-from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, Node, NodeType, State
+from python_deps.depgraph.schema import (
+    DepGraph, DiscoveredBy, Edge, EdgeType, Node, NodeType, State,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,3 +223,260 @@ def tests_hidden(repo_path: str | None, module: str) -> int | None:
         # rough over-count beats no weight at all, so fall back to the line regex here.
         count = len(_TEST_DEF.findall(text))
     return count or None
+
+
+# ── render_graph_context (Task 5) ────────────────────────────────────────────
+#
+# 🔴 Deviation from the plan's Task-5 snippet, found while implementing against the CURRENT
+# `blocks()`/`verdict()` (Tasks 3/4 were revised after a second-model review; the plan's Task 5
+# code was written against the OLDER, narrower `blocks(edge, target_env)`). The plan's
+# `_down_edges` used `blocks(e, target_env)` -- both the wrong arity (missing `graph`) AND the
+# wrong PREDICATE for this job: today's `blocks()` mirrors `emit._toolchain_ready` and answers
+# "does this edge stop the OWNER from installing" -- it returns False for a SATISFIED dst and
+# for ANY Package dst (pip resolves its own deps). Using it to decide which edges get RENDERED
+# would silently drop every SATISFIED prerequisite line (breaking "[state] inline on every edge
+# line", §6.6) and every Package->Package edge, satisfied or missing (breaking the closure
+# summary AND the MISSING-member promotion, §3.2). `verdict()` already calls the real `blocks()`
+# internally to decide WAITING vs ACTIONABLE; the renderer does not need to call it again -- it
+# only needs to decide what to SHOW, which is a different, wider question.
+
+_MAX_ERROR_NODES = 3          # a SUBGRAPH is expensive (two edge lists); a record is cheap
+_IMPLAUSIBLE_FRONTIER = 15    # more ACTIONABLE nodes than this means OUR model is wrong
+_FRONTIER_SAMPLE = 5
+
+
+def _fmt_state(node: Node) -> str:
+    if node.state is State.SATISFIED:
+        return f"check passed: {node.check_command}" if node.check_command else "[SATISFIED]"
+    if node.state is State.UNKNOWN:
+        return "[UNKNOWN — no check command; state unverified]"
+    return "[MISSING]"
+
+
+def _anchor_for_cause(graph: DepGraph, cause) -> Node | None:
+    """The graph node a pytest cause names. Matches a quoted module name against Package
+    nodes by canonical name (the same normalized-name match runtime_ingest._find_existing_node
+    uses -- do not reinvent it)."""
+    from python_deps.depgraph.naming import normalize_package_name
+
+    m = re.search(r"['\"]([\w.\-]+)['\"]", cause.detail or "")
+    if not m:
+        return None
+    wanted = normalize_package_name(m.group(1).split(".", 1)[0])
+    for n in graph.nodes:
+        if n.type is NodeType.PACKAGE and normalize_package_name(n.name) == wanted:
+            return n
+    return None
+
+
+def _weight(cause, repo_path: str | None) -> tuple[int, bool]:
+    """(tests blocked, is_estimate). A collect-phase count is MODULES, not tests (§4.2)."""
+    if cause.phase == "collect":
+        est = tests_hidden(repo_path, cause.module)
+        if est is not None:
+            return est, True
+    return cause.count, False
+
+
+def _down_edges(graph: DepGraph, node: Node, target_env: dict | None):
+    """Prerequisite edges, with the SATISFIED pip closure collapsed. Returns (lines, followed).
+
+    Renders every REQUIRES edge whose marker holds for the target -- regardless of the dst's
+    own state or the edge's hard/soft flag (§6.3/§6.6: "[state] goes inline on every edge line";
+    a soft edge still "traverses, marked advisory"). `blocks()`/`verdict()` decide WAITING vs
+    ACTIONABLE elsewhere; this function decides only what the agent gets to SEE. The one
+    collapse is Package->Package when the dst is SATISFIED (the lockfile closure, §3.2) -- a
+    MISSING package dependency is exactly the "promoted" case and falls through to its own line.
+    """
+    closure_sat, lines, follow = 0, [], []
+    for e in graph.edges:
+        if e.src != node.id:
+            continue
+        dst = graph.get(e.dst)
+        if dst is None:
+            continue
+        if e.relation is EdgeType.CONFLICTS_WITH:
+            lines.append(f"    {node.id}  --conflicts-->  {dst.id}  [BLOCKED]      ✖")
+            continue
+        if e.relation is not EdgeType.REQUIRES:
+            continue
+        if not _marker_holds(e, target_env):
+            continue                          # not causal on this target -- not even shown
+        if node.type is NodeType.PACKAGE and dst.type is NodeType.PACKAGE:
+            if dst.state is State.SATISFIED:
+                closure_sat += 1
+                continue                      # a MISSING member falls through and is PROMOTED
+        mark = "  ★" if verdict(graph, dst, target_env) == ACTIONABLE else ""
+        lines.append(f"    {node.id}  --requires-->  {dst.id}  {_fmt_state(dst)}{mark}")
+        follow.append(dst)
+    if closure_sat:
+        lines.append(f"    {node.id}  --requires-->  ({closure_sat} transitive pip deps)"
+                     f"  [{closure_sat} SATISFIED]")
+    return lines, follow
+
+
+def _up_edges(graph: DepGraph, node: Node, weight: int, est: bool) -> list[str]:
+    out = []
+    for src in graph.required_by(node.id):
+        state = "" if src.type is NodeType.TEST else f"  {_fmt_state(src)}"
+        out.append(f"    {src.id}  --requires-->  {node.id}{state}")
+    tag = f"(~{weight} tests hidden, est.)" if est else f"({weight} tests)"
+    out.append(f"    → blocks {tag}")
+    return out
+
+
+def _record(graph: DepGraph, node: Node, target_env,
+            blocked_by_us: list[tuple[str, int, bool]]) -> list[str]:
+    """A record goes ONLY where a DECISION is possible. Fields self-select on content."""
+    from python_deps.depgraph.advise import _conflict_note
+
+    v = verdict(graph, node, target_env)
+    if v == BLOCKED:
+        out = [f"✖ {node.id}    MISSING — CANNOT INSTALL"]
+        note = _conflict_note(graph, node)
+        if note:
+            out.append(f"    conflict {note}")
+        out.append("    note     no `pip install` fixes this — one of the two must change version")
+    else:
+        out = [f"★ {node.id}    {node.state.value.upper()}"]
+        if node.check_command:
+            out.append(f"    check    {node.check_command}")
+        fix = node.chosen_fix or (node.fix_candidates[0] if node.fix_candidates else None)
+        if fix:
+            out.append(f"    fix      {fix}")
+        for alt in node.fix_candidates[1:]:
+            out.append(f"             alt: {alt}")
+        # `why`/`source` only when RUNTIME-discovered: a Debian build-deps-table node need not
+        # justify itself; one we appended from a log line MUST (it is how the agent audits us).
+        if node.discovered_by is DiscoveredBy.RUNTIME:
+            if node.evidence:
+                out.append(f"    why      {node.evidence}")
+            src = node.provenance or "runtime discovery"
+            out.append(f"    source   {src}")
+    # The ANTI-THRASH field: agents re-retry disproven fixes because their memory is lossy prose.
+    for a in node.attempts:
+        out.append(f"    tried    turn {a.cycle}: {a.command} → {a.outcome.upper()}")
+    if len(blocked_by_us) > 1:
+        parts = []
+        for anchor_id, w, est in blocked_by_us:
+            tag = f"~{w} tests" if est else f"{w} tests"
+            parts.append(f"{anchor_id} ({tag})")
+        out.append(f"    blocks   {' · '.join(parts)}")
+    return out
+
+
+def render_graph_context(graph: DepGraph, result, causes, prev_states,
+                         repo_path: str | None = None, target_env: dict | None = None) -> str:
+    """The GRAPH CONTEXT block (spec §6). Pure — every state was certified by loop.py:196.
+
+    `result` is a `RunResult`-shaped object (`.ok`, `.failing_command`, `.output`) or `None`.
+    `result` is REQUIRED, not optional (§6.7): `loop.py` only runs pytest once the build is
+    GREEN, so on a build-fail turn `causes` is EMPTY and the only failure to anchor at is the
+    failing build command. `prev_states` is `dict[str, State]` from the turn before this one.
+    Returns `""` when there is nothing worth saying.
+    """
+    sub, records, notes = [], {}, []
+    blocked_by: dict[str, list[tuple[str, int, bool]]] = {}
+
+    # --- error nodes ---------------------------------------------------------
+    # 🔴 TWO SEPARATE PASSES, and they must NOT share a cap.
+    #   * SUBGRAPHS are expensive (two edge lists each) -> capped at _MAX_ERROR_NODES.
+    #   * RECORDS are cheap, and ACTIONABLE roots are INDEPENDENT -> the agent should batch
+    #     ALL of them in one patch, and every hidden root costs a full container rebuild (§6.4).
+    # Collecting records only from the CAPPED anchors would transitively cap records too,
+    # silently reintroducing the very top-N truncation §6.4 exists to forbid.
+    anchors: list[tuple[Node, int, bool, str]] = []          # -> SUBGRAPH (capped)
+    all_anchors: list[tuple[Node, int, bool]] = []            # -> RECORDS (uncapped)
+
+    if result is not None and not result.ok and result.failing_command:
+        from python_deps.depgraph.graph_enrich import owner_node_for_command
+        owner = owner_node_for_command(graph, result.failing_command)
+        n = graph.get(owner) if owner else None
+        if n is not None:
+            anchors.append((n, 0, False, f"BUILD FAILED  {result.failing_command}"))
+            all_anchors.append((n, 0, False))
+
+    ranked = sorted(causes, key=lambda c: _weight(c, repo_path)[0], reverse=True)
+    seen: set[str] = set()
+    for c in ranked:
+        if c.phase in ("call", "teardown"):        # §4.3 — structurally NOT an env failure
+            notes.append(f"NOT AN ENVIRONMENT FAILURE\n    {c.exc}: {c.detail}  "
+                         f"[{c.phase}]  ({c.count} tests) — test body. No env fix exists.")
+            continue
+        node = _anchor_for_cause(graph, c)
+        if node is None:
+            notes.append(f"NO GRAPH EXPLANATION\n    {c.exc}: {c.detail}  [{c.phase}] — "
+                         f"not in the model. Explore.")
+            continue
+        if node.id in seen:
+            continue
+        seen.add(node.id)
+        w, est = _weight(c, repo_path)
+        all_anchors.append((node, w, est))          # EVERY anchor feeds records — no cap here
+        if len(anchors) < _MAX_ERROR_NODES:         # only the top-N get a rendered SUBGRAPH
+            anchors.append((node, w, est, f"ERROR NODE  {node.id}   {_fmt_state(node)}\n"
+                                          f"  ← {c.exc}: {c.detail}   [{c.phase}]"))
+
+    # --- records: from ALL anchors, uncapped (§6.4) --------------------------
+    for anchor_node, w, est in all_anchors:
+        _down, follow = _down_edges(graph, anchor_node, target_env)
+        for cand in [anchor_node, *follow]:
+            if verdict(graph, cand, target_env) in (ACTIONABLE, BLOCKED):
+                records.setdefault(cand.id, cand)
+                blocked_by.setdefault(cand.id, []).append((anchor_node.id, w, est))
+
+    # --- subgraph: only the top-N anchors ------------------------------------
+    for node, w, est, header in anchors:
+        sub.append(header)
+        down, _follow = _down_edges(graph, node, target_env)
+        if down:
+            sub.append("\n  REQUIRES — what it needs (the fix is in here)")
+            sub.extend(down)
+        sub.append("\n  REQUIRED BY — what breaks because of it (the impact)")
+        sub.extend(_up_edges(graph, node, w, est))
+        sub.append("")
+    dropped = len(all_anchors) - len(anchors)
+    if dropped > 0:                                # NEVER silently drop (§6.6)
+        sub.append(f"  + {dropped} more failure class(es); their roots appear in the records below.")
+
+    if not sub and not notes:
+        return ""
+
+    # --- frontier health (§6.4.1) -------------------------------------------
+    actionable = [n for n in graph.nodes
+                  if n.state is not State.SATISFIED
+                  and verdict(graph, n, target_env) == ACTIONABLE]
+    head = ["GRAPH CONTEXT — certified against the container your script just built", ""]
+    if len(actionable) > _IMPLAUSIBLE_FRONTIER:
+        # ONE line per sentence — the test asserts on substrings, and wrapping a phrase across
+        # two list entries puts a "\n" in the middle of it.
+        head += [
+            f"⚠ {len(actionable)} nodes are ACTIONABLE. That is implausible — independent roots"
+            " do not arrive in bulk.",
+            "  A shared prerequisite is almost certainly MISSING FROM THE MODEL"
+            " (check the runtime/venv tier).",
+            f"  Showing the {_FRONTIER_SAMPLE} largest; treat the graph as unreliable this turn.",
+            "",
+        ]
+        keep = {n.id for n in actionable[:_FRONTIER_SAMPLE]}
+        records = {k: v for k, v in records.items() if k in keep}
+
+    body = ["SUBGRAPH  (edges around this turn's failures; [state] inline)", ""] + sub
+    body += ["  ★ actionable — nothing missing beneath it",
+             "  ✖ blocked — no install will work", "", "─" * 74, ""]
+    for nid, node in records.items():
+        body += _record(graph, node, target_env, blocked_by.get(nid, [])) + [""]
+    body += notes
+
+    if result is not None and not result.ok:
+        body += ["", "TESTS DID NOT RUN — the build failed. No pytest signal this turn."]
+
+    delta = []
+    for nid, was in (prev_states or {}).items():
+        now = graph.get(nid)
+        if now is not None and now.state is not was:
+            delta.append(f"    {nid}   {was.value.upper()} → {now.state.value.upper()}")
+    if delta:
+        body += ["", "SINCE YOUR LAST EDIT"] + delta
+
+    return "\n".join(head + body).rstrip() + "\n"
