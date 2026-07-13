@@ -72,7 +72,13 @@ _SH_LC_RE = re.compile(r"/bin/sh\s+-lc\s+'([^']*)'")
 _CONTINUATION_RE = re.compile(r"\\\n[ \t]*")   # Dockerfile/shell line-continuation
 _STOP_RE = re.compile(r"&&|\|\||;|\n")          # where a shell command clause ends
 
-_APT_RE = re.compile(r"\bapt(?:-get)?\s+install\b")
+# Flags may precede the verb: `apt-get -y --no-install-recommends install libgomp1` is real
+# (nlmatics__nlm-ingestor). Anchoring on `apt-get install` alone silently drops it -- and a
+# silently-dropped apt name does not show up as an error, it demotes the pair to
+# `not-an-env-fix` and deletes it from the eval's denominator. The optional-flag group cannot
+# itself swallow the verb: each alternative must start with `-`, so the `install` inside
+# `--no-install-recommends` can never satisfy the `install` the pattern is looking for.
+_APT_RE = re.compile(r"\bapt(?:-get)?\s+(?:-{1,2}[\w-]+\s+)*install\b")
 _PIP_RE = re.compile(r"\bpip3?\s+install\b")
 
 # pip options that consume the FOLLOWING token as a value (a file path, URL, etc.)
@@ -87,6 +93,18 @@ _PIP_CONSUMES_NEXT = frozenset({
 })
 
 _VERSION_SPLIT_RE = re.compile(r"[=<>!~\[]")
+
+# apt options that consume the FOLLOWING token as a value rather than a package name.
+_APT_CONSUMES_NEXT = frozenset({
+    "-t", "--target-release", "-o", "--option", "-c", "--config-file",
+})
+
+# repo2run's harness echoes this sentinel at the end of every captured test run. It is
+# HARNESS-AUTHORED, not build output -- the same category of thing as `observation_summary`,
+# just smaller. It must not reach the replay: the eval exists to measure what the graph makes
+# of REAL failure text, and every byte of harness prose we leave in is a byte the graph is
+# being asked to interpret that a real container would never have emitted.
+_SENTINEL_RE = re.compile(r"^.*__REPO2RUN_[A-Z_]+__.*$\n?", re.M)
 
 
 def _shell_payloads(text: str) -> list[str]:
@@ -144,7 +162,7 @@ def dockerfile_installs(text: str) -> tuple[frozenset[str], frozenset[str]]:
     apt: set[str] = set()
     pip: set[str] = set()
     for block in _shell_payloads(text):
-        apt |= _extract_names(block, _APT_RE, frozenset())
+        apt |= _extract_names(block, _APT_RE, _APT_CONSUMES_NEXT)
         pip |= _extract_names(block, _PIP_RE, _PIP_CONSUMES_NEXT)
     return frozenset(apt), frozenset(pip)
 
@@ -169,6 +187,11 @@ def label_for(before: str, after: str) -> Label:
 # --------------------------------------------------------------------------- #
 # load_pairs -- walk the real corpus on disk
 # --------------------------------------------------------------------------- #
+
+def _strip_harness_prose(text: str) -> str:
+    """Drop repo2run's own sentinel lines from captured output (see `_SENTINEL_RE`)."""
+    return _SENTINEL_RE.sub("", text)
+
 
 def _read_llm_input(artifacts_dir: Path, repo: str, round_num: int) -> dict | None:
     """Parse the `Input JSON:` block embedded in a repair-round prompt log -- this
@@ -196,11 +219,14 @@ def _failure_text(payload: dict) -> str:
     """The raw failure text behind this round: `docker_build.stderr` when the build
     itself failed; otherwise (roughly half this corpus -- the build succeeded but the
     pytest run after it did not) the captured pytest output, since a clean build log
-    carries no error signal at all. Never `observation_summary` (trap 1)."""
+    carries no error signal at all. Never `observation_summary` (trap 1).
+
+    Harness sentinels are stripped: what comes back is what a CONTAINER emitted, not what
+    repo2run wrote about it."""
     docker_build = payload.get("docker_build") or {}
     returncode = docker_build.get("returncode")
     if returncode not in (0, None):
-        return docker_build.get("stderr") or ""
+        return _strip_harness_prose(docker_build.get("stderr") or "")
     chunks: list[str] = []
     for result in payload.get("test_execution") or []:
         classification = result.get("classification") or {}
@@ -215,7 +241,8 @@ def _failure_text(payload: dict) -> str:
             reason = classification.get("reason", "test_failed")
             piece = f"[{reason}] {result.get('test_command', '')}"
         chunks.append(piece)
-    return "\n".join(chunks) or (docker_build.get("stderr") or "")
+    joined = "\n".join(chunks) or (docker_build.get("stderr") or "")
+    return _strip_harness_prose(joined)
 
 
 def load_pairs(results_dir: str, artifacts_dir: str) -> list[Pair]:
