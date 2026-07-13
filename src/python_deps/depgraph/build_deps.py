@@ -283,6 +283,77 @@ def _apt_build_node(name: str) -> Node:
     )
 
 
+def _eligible_for_build_deps(graph: DepGraph) -> list[Node]:
+    """Source-built packages with a version — the exact filter the loop used inline."""
+    return [
+        n for n in graph.nodes
+        if n.type is NodeType.PACKAGE and n.version and n.build_from_source is not False
+    ]
+
+
+def seed_build_deps_for(
+    graph: DepGraph, pkg: Node, executor: Executor
+) -> tuple[DepGraph, int, int, int]:
+    """Seed ONE package's build-time prior. The verbatim body of ``seed_build_deps``'s loop.
+
+    Returns ``(graph, pkgs_delta, cap_nodes_delta, aptdep_nodes_delta)``.
+
+    THE COUNTERS ARE NOT DECORATION. ``tests/depgraph/test_build_deps.py``
+    (``test_seed_build_deps_logs_aggregate``) asserts the log line contains ``pkgs=``,
+    ``cap_nodes=`` AND ``aptdep_nodes=``. Drop them and that test fails. Note ``pkgs`` counts
+    only packages with a NON-EMPTY plan (the original increments it AFTER the early-continue),
+    while cap/aptdep count nodes actually INSERTED.
+
+    Extracted so the react arm can expand a single runtime-discovered node (``discovery_expand``)
+    without re-running the whole graph-level pass, which would re-hit the network for every
+    source-built package already seeded.
+    """
+    new = graph
+    cap_nodes = aptdep_nodes = 0
+    pc_id = capability_id(_PKG_CONFIG_NEED)
+
+    # B3: baseline pkg-config for EVERY source-built package (Debian omits it; slim images
+    # lack it). Reuses the binary:pkg-config capability node (os_resolver -> apt:pkgconf),
+    # deduped once, plan-independent.
+    if new.get(pc_id) is None:
+        new = new.with_node(_capability_node(_PKG_CONFIG_NEED, executor))
+        cap_nodes += 1
+    new = new.with_edge(
+        Edge(src=pkg.id, dst=pc_id, relation=EdgeType.REQUIRES, origin="resolver")
+    )
+
+    plan = build_dep_prior(pkg.name, pkg.version, executor)
+    if not (plan.capability_needs or plan.apt_directives):
+        return new, 0, cap_nodes, 0          # pkgs is NOT incremented — matches the original
+
+    # Stamp flavor build_env on the owner package node.
+    env = build_env_for(pkg.name)
+    if env:
+        current = new.get(pkg.id)
+        new = new.with_node(replace(current, data={**current.data, "build_env": env}))
+
+    # Capability needs -> capability node + edge.
+    for need in plan.capability_needs:
+        node_id = capability_id(need)
+        if new.get(node_id) is None:
+            new = new.with_node(_capability_node(need, executor))
+            cap_nodes += 1
+        new = new.with_edge(
+            Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
+        )
+
+    # Debian apt directives -> apt-keyed aptdep: node + edge.
+    for name in plan.apt_directives:
+        node_id = apt_build_id(name)
+        if new.get(node_id) is None:
+            new = new.with_node(_apt_build_node(name))
+            aptdep_nodes += 1
+        new = new.with_edge(
+            Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
+        )
+    return new, 1, cap_nodes, aptdep_nodes
+
+
 def seed_build_deps(graph: DepGraph, executor: Executor) -> DepGraph:
     """Seed the multi-source build-time prior for source-built packages.
 
@@ -299,59 +370,17 @@ def seed_build_deps(graph: DepGraph, executor: Executor) -> DepGraph:
     the baseline pkg-config seed is unconditional for every source-built
     package). ``executor`` lets Debian lookups and off-table capability
     resolution use the target container.
+
+    Graph-level pass — now just the loop over ``seed_build_deps_for``. Behaviour is
+    UNCHANGED, including the three-counter log line the existing test asserts on.
     """
     new = graph
     pkgs = cap_nodes = aptdep_nodes = 0
-    pc_id = capability_id(_PKG_CONFIG_NEED)
-    for pkg in graph.nodes:
-        if pkg.type is not NodeType.PACKAGE or not pkg.version:
-            continue
-        if pkg.build_from_source is False:
-            continue
-
-        # B3: baseline pkg-config for EVERY source-built package. Debian omits it
-        # (buildd-assumed); slim images lack it. Reuses the binary:pkg-config
-        # capability node (os_resolver -> apt:pkgconf), deduped once, plan-independent.
-        if new.get(pc_id) is None:
-            new = new.with_node(_capability_node(_PKG_CONFIG_NEED, executor))
-            cap_nodes += 1
-        new = new.with_edge(
-            Edge(src=pkg.id, dst=pc_id, relation=EdgeType.REQUIRES, origin="resolver")
-        )
-
-        plan = build_dep_prior(pkg.name, pkg.version, executor)
-        if not (plan.capability_needs or plan.apt_directives):
-            continue
-        pkgs += 1
-
-        # Stamp flavor build_env on the owner package node.
-        updates: dict = {}
-        env = build_env_for(pkg.name)
-        if env:
-            updates["build_env"] = env
-        if updates:
-            current = new.get(pkg.id)
-            new = new.with_node(replace(current, data={**current.data, **updates}))
-
-        # Capability needs -> capability node + edge.
-        for need in plan.capability_needs:
-            node_id = capability_id(need)
-            if new.get(node_id) is None:
-                new = new.with_node(_capability_node(need, executor))
-                cap_nodes += 1
-            new = new.with_edge(
-                Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
-            )
-
-        # Debian apt directives -> apt-keyed aptdep: node + edge.
-        for name in plan.apt_directives:
-            node_id = apt_build_id(name)
-            if new.get(node_id) is None:
-                new = new.with_node(_apt_build_node(name))
-                aptdep_nodes += 1
-            new = new.with_edge(
-                Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
-            )
+    for pkg in _eligible_for_build_deps(graph):
+        new, dp, dc, da = seed_build_deps_for(new, pkg, executor)
+        pkgs += dp
+        cap_nodes += dc
+        aptdep_nodes += da
     logger.info(
         "seed_build_deps: pkgs=%d cap_nodes=%d aptdep_nodes=%d",
         pkgs, cap_nodes, aptdep_nodes,
