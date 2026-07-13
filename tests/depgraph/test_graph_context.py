@@ -675,3 +675,87 @@ def test_implausible_frontier_warns_instead_of_dumping_records():
 
 def test_empty_graph_and_no_causes_renders_nothing():
     assert render_graph_context(DepGraph(), _Result(ok=True), [], prev_states={}) == ""
+
+
+# ── review fixes: the four defects gpt-5.6-terra found in the first cut ──────
+
+def test_a_build_failure_with_NO_graph_owner_still_says_something():
+    """§6.7 in person. `loop.py` runs pytest only on a GREEN build, so on a build-fail turn
+    `causes` is EMPTY. If the failing command also has no owner node — an apt command, a batch
+    install, a package we never modelled — the renderer used to return "" and go completely
+    silent on exactly the turns where the install tier is broken.
+    """
+    out = render_graph_context(
+        _pg_graph(),
+        _Result(ok=False, failing_command="apt-get install -y libpq-dev"),
+        causes=[], prev_states={},
+    )
+    assert out != ""
+    assert "apt-get install -y libpq-dev" in out
+    assert "BUILD FAILED" in out
+    assert "TESTS DID NOT RUN" in out
+
+
+def test_a_soft_edge_is_shown_as_advisory_and_never_stars_a_root():
+    """§6.3: a soft edge "traverses, marked advisory" but "never confers root status alone".
+
+    Starring it would tell the agent to install something on the strength of a guess — the LLM's
+    Config/Service edges are all SOFT.
+    """
+    g = (DepGraph()
+         .with_node(_pkg("app", "1.0"))
+         .with_node(_tool("optional-thing"))
+         .with_edge(_requires("pkg:app==1.0", "binary:optional-thing", data={"hard": False})))
+    out = render_graph_context(
+        g, _Result(ok=True),
+        [Cause(exc="ModuleNotFoundError", detail="No module named 'app'", count=1,
+               outcome="ERROR", module="tests/test_app.py", phase="collect")],
+        prev_states={},
+    )
+    assert "binary:optional-thing" in out          # shown...
+    assert "(advisory)" in out                     # ...marked advisory...
+    assert "★ binary:optional-thing" not in out    # ...and never a "fix this" record.
+
+
+def test_the_frontier_guard_keeps_the_LARGEST_roots_not_the_first_five():
+    """The header says "Showing the N largest". It had better be true.
+
+    Slicing in insertion order while claiming "the largest" is a lie in the output, and it
+    buries the root that matters: a 100-test root at index 15 was dropped in favour of five
+    1-test roots.
+    """
+    g = DepGraph()
+    causes = []
+    for i in range(16):
+        g = g.with_node(_pkg(f"p{i}", "1.0"))
+        g = g.with_node(Node(id=f"import:p{i}", type=NodeType.IMPORT, name=f"p{i}",
+                             layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                             state=State.MISSING))
+        causes.append(Cause(exc="ModuleNotFoundError", detail=f"No module named 'p{i}'",
+                            count=100 if i == 15 else 1, outcome="ERROR",
+                            module=f"tests/test_p{i}.py", phase="call"))
+    # phase="call" would be routed to NOT-AN-ENV-FAILURE, so re-key them as run-phase setup
+    # errors, which DO anchor on the graph.
+    causes = [Cause(exc=c.exc, detail=c.detail, count=c.count, outcome=c.outcome,
+                    module=c.module, phase="setup") for c in causes]
+    out = render_graph_context(g, _Result(ok=True), causes, prev_states={})
+    assert "implausible" in out
+    # p15 blocks 100 tests; every other root blocks 1. It must survive the cut.
+    assert "★ pkg:p15==1.0" in out
+
+
+def test_output_is_not_written_in_broken_english():
+    # The prompt is read by an LLM; "1 tests" is noise that costs it a beat.
+    g = (DepGraph()
+         .with_node(_pkg("solo", "1.0"))
+         .with_node(Node(id="import:solo", type=NodeType.IMPORT, name="solo", layer=Layer.PIP,
+                         discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING))
+         .with_edge(_requires("import:solo", "pkg:solo==1.0")))
+    out = render_graph_context(
+        g, _Result(ok=True),
+        [Cause(exc="ModuleNotFoundError", detail="No module named 'solo'", count=1,
+               outcome="ERROR", module="tests/test_solo.py", phase="setup")],
+        prev_states={},
+    )
+    assert "1 tests" not in out
+    assert "class(es)" not in out

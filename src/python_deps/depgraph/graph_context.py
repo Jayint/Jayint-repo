@@ -306,6 +306,14 @@ def _down_edges(graph: DepGraph, node: Node, target_env: dict | None):
             if dst.state is State.SATISFIED:
                 closure_sat += 1
                 continue                      # a MISSING member falls through and is PROMOTED
+        # A SOFT edge is advisory: §6.3 says it "traverses, marked advisory" but "never confers
+        # root status alone". So it is SHOWN -- the agent should know the dependency was posited
+        # -- but it earns no ★ and it does not feed `follow`, so it gets no "fix this" record.
+        # Starring it would tell the agent to install something on the strength of a guess.
+        if not (e.data or {}).get("hard", True):
+            lines.append(f"    {node.id}  --requires-->  {dst.id}  {_fmt_state(dst)}"
+                         f"  (advisory)")
+            continue
         mark = "  ★" if verdict(graph, dst, target_env) == ACTIONABLE else ""
         lines.append(f"    {node.id}  --requires-->  {dst.id}  {_fmt_state(dst)}{mark}")
         follow.append(dst)
@@ -315,13 +323,20 @@ def _down_edges(graph: DepGraph, node: Node, target_env: dict | None):
     return lines, follow
 
 
+def _plural(n: int, word: str) -> str:
+    # The output is read by an LLM. "1 tests" is noise that costs it a beat.
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
 def _up_edges(graph: DepGraph, node: Node, weight: int, est: bool) -> list[str]:
     out = []
     for src in graph.required_by(node.id):
         state = "" if src.type is NodeType.TEST else f"  {_fmt_state(src)}"
         out.append(f"    {src.id}  --requires-->  {node.id}{state}")
-    tag = f"(~{weight} tests hidden, est.)" if est else f"({weight} tests)"
-    out.append(f"    → blocks {tag}")
+    if weight:                     # a build-fail anchor has no test weight -- say nothing
+        tag = (f"(~{_plural(weight, 'test')} hidden, est.)" if est
+               else f"({_plural(weight, 'test')})")
+        out.append(f"    → blocks {tag}")
     return out
 
 
@@ -359,7 +374,7 @@ def _record(graph: DepGraph, node: Node, target_env,
     if len(blocked_by_us) > 1:
         parts = []
         for anchor_id, w, est in blocked_by_us:
-            tag = f"~{w} tests" if est else f"{w} tests"
+            tag = f"~{_plural(w, 'test')}" if est else _plural(w, "test")
             parts.append(f"{anchor_id} ({tag})")
         out.append(f"    blocks   {' · '.join(parts)}")
     return out
@@ -395,6 +410,17 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
         if n is not None:
             anchors.append((n, 0, False, f"BUILD FAILED  {result.failing_command}"))
             all_anchors.append((n, 0, False))
+        else:
+            # No node owns this command — an apt command, a batch install, or a package we never
+            # modelled. We must STILL speak: this is a build-fail turn, so `causes` is empty
+            # (pytest never ran), and a renderer that returns "" here goes silent on exactly the
+            # turns where the install tier is broken — the §6.7 failure mode in person.
+            notes.append(
+                "BUILD FAILED — NO GRAPH EXPLANATION\n"
+                f"    {result.failing_command}\n"
+                "    No node in the model owns this command. The graph cannot localise it — "
+                "read the build log."
+            )
 
     ranked = sorted(causes, key=lambda c: _weight(c, repo_path)[0], reverse=True)
     seen: set[str] = set()
@@ -437,9 +463,11 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
         sub.append("")
     dropped = len(all_anchors) - len(anchors)
     if dropped > 0:                                # NEVER silently drop (§6.6)
-        sub.append(f"  + {dropped} more failure class(es); their roots appear in the records below.")
+        sub.append(f"  + {_plural(dropped, 'more failure class')}; "
+                   "their roots appear in the records below.")
 
-    if not sub and not notes:
+    build_failed = result is not None and not result.ok
+    if not sub and not notes and not build_failed:
         return ""
 
     # --- frontier health (§6.4.1) -------------------------------------------
@@ -458,12 +486,20 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
             f"  Showing the {_FRONTIER_SAMPLE} largest; treat the graph as unreliable this turn.",
             "",
         ]
-        keep = {n.id for n in actionable[:_FRONTIER_SAMPLE]}
-        records = {k: v for k, v in records.items() if k in keep}
+        # ...so they had better actually BE the largest. Slicing in insertion order while the
+        # header claims "the largest" is a lie in the output, and it buries the one root that
+        # matters: a 100-test root sitting at index 15 would be dropped for five 1-test roots.
+        def _blocked_weight(nid: str) -> int:
+            return sum(w for _anchor, w, _est in blocked_by.get(nid, []))
 
-    body = ["SUBGRAPH  (edges around this turn's failures; [state] inline)", ""] + sub
-    body += ["  ★ actionable — nothing missing beneath it",
-             "  ✖ blocked — no install will work", "", "─" * 74, ""]
+        keep = sorted(records, key=_blocked_weight, reverse=True)[:_FRONTIER_SAMPLE]
+        records = {k: records[k] for k in keep}
+
+    body: list[str] = []
+    if sub:                       # no subgraph -> no legend, no separator rule (§6.6)
+        body += ["SUBGRAPH  (edges around this turn's failures; [state] inline)", ""] + sub
+        body += ["  ★ actionable — nothing missing beneath it",
+                 "  ✖ blocked — no install will work", "", "─" * 74, ""]
     for nid, node in records.items():
         body += _record(graph, node, target_env, blocked_by.get(nid, [])) + [""]
     body += notes
