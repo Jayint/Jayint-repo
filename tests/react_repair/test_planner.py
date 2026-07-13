@@ -91,9 +91,25 @@ def test_render_numbers_the_current_script(monkeypatch):
 
 def test_graph_context_injected_when_provided(monkeypatch):
     seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
-    p = ReactPlanner(client=object(), model="m", graph_context=lambda g: "libpq: MISSING")
-    p.plan(History(), "script", "obs", graph=object())
+    got = {}
+
+    def _ctx(graph, result, causes, prev_states):
+        got.update(result=result, causes=causes, prev_states=prev_states)
+        return "libpq: MISSING"
+
+    p = ReactPlanner(client=object(), model="m", graph_context=_ctx)
+    p.plan(History(), "script", "obs", graph=object(),
+          result=None, causes=[], prev_states={})
     assert "GRAPH CONTEXT" in seen["user"] and "libpq: MISSING" in seen["user"]
+    assert got == {"result": None, "causes": [], "prev_states": {}}
+
+
+def test_graph_context_is_absent_for_the_baseline(monkeypatch):
+    """G0/G1 ablation invariant: graph_context=None -> no GRAPH CONTEXT block at all."""
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m", graph_context=None).plan(
+        History(), "script", "obs", graph=object())
+    assert "GRAPH CONTEXT" not in seen["user"]
 
 
 # --- trace -----------------------------------------------------------------

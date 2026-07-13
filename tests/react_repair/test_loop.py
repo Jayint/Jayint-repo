@@ -167,6 +167,47 @@ def _run(moves, installed_needs=(), tests_need=(), initial="pip install app\n"):
     return outcome, script, log
 
 
+# ── the graph_context seam (Task 8): result/causes/prev_states reach the planner ──────────────
+class _RecordingPlanner(_ScriptedPlanner):
+    """_ScriptedPlanner + it records what the graph_context seam was called with."""
+    def __init__(self, moves, graph_context=None):
+        super().__init__(moves)
+        self.graph_context = graph_context
+        self.calls = []
+
+    def plan(self, history, script, observation, graph, **kw):
+        if self.graph_context is not None:
+            self.calls.append(self.graph_context(graph, kw.get("result"),
+                                                 kw.get("causes"), kw.get("prev_states")))
+        return super().plan(history, script, observation, graph, **kw)
+
+
+def test_graph_context_gets_result_causes_and_prev_states_on_a_failed_build():
+    """`result` is REQUIRED: loop.py only runs pytest on a GREEN build, so a build-fail turn has
+    EMPTY causes and the only anchor is the failing command. A renderer keyed on `causes` alone
+    emits nothing on exactly the turns where the install tier is broken."""
+    got = {}
+
+    def _ctx(graph, result, causes, prev_states):
+        got.update(result=result, causes=causes, prev_states=prev_states)
+        return "GRAPH!"
+
+    box = ["pip install app\n"]
+    # An unsatisfied `installed_needs` token makes run_script return ok=False on the very first
+    # (baseline) build — exactly the build-fail turn the seam must not go silent on.
+    reset, run_script, certify, ro, run_tests = _adapters(("libpq-dev",), (), box)
+    run_react(
+        object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests,
+        planner=_RecordingPlanner([Action("explore", command="ls")], graph_context=_ctx),
+        history=History(), log=ReactLog(silent=True), max_steps=1,
+        _initial_script="pip install app\n")
+
+    assert got["result"].ok is False
+    assert got["causes"] == []                     # pytest never ran
+    assert isinstance(got["prev_states"], dict)
+
+
 def test_green_first_pass_is_done():
     outcome, _, log = _run([], tests_need=())
     assert outcome == "DONE" and log.count("TEST_GATE") >= 1

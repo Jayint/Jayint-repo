@@ -7,8 +7,13 @@ from __future__ import annotations
 import os
 import pathlib
 
+from python_deps.depgraph import repo_modules
 from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER, certify_all
+from python_deps.depgraph.diagnose import RepoContext
+from python_deps.depgraph.discovery_expand import expand_discovery
 from python_deps.depgraph.executor import CommandResult
+from python_deps.depgraph.graph_context import render_graph_context
+from python_deps.depgraph.graph_enrich import certify_only, enrich
 from python_deps.depgraph.schema import Layer
 from src.envstate.constants import VERIFY_TEST_CMD           # shared canonical "python -m pytest -q"
 from src.react_repair.gate import test_verdict
@@ -190,9 +195,44 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
     owns_log = log is None
     log = log or ReactLog(trace_path=trace_out)
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
-    ctx = None                     # graph-guided variant (Task-future): build a graph_context fn
+
+    # G2 = render only (frozen topology). G3 = render + observation-driven growth (§7). Two
+    # flags, not one, so a G3 lift is never misattributed to the renderer — the ablation
+    # invariant (spec §2). `graph_context` is the pre-existing bool param; REACT_GRAPH_CONTEXT
+    # lets a VM run flip it without touching call sites.
+    want_ctx = bool(graph_context) or os.getenv("REACT_GRAPH_CONTEXT") == "1"
+    want_update = os.getenv("REACT_GRAPH_UPDATE") == "1"
+
+    ctx = None
+    if want_ctx:
+        def ctx(g, result, causes, prev_states):
+            return render_graph_context(g, result, causes, prev_states, repo_path=repo_path)
+
+    enrich_fn = expand_fn = certify_new_fn = None
+    if want_update:
+        # RepoContext MUST come from repo_modules.top_level_names — the sys.path-accurate set.
+        # diagnose.py:48-52 explicitly warns NOT to use scan.local_module_names, which is
+        # deliberately over-broad (it harvests every .py stem) and makes the router give up
+        # silently on azure/traitlets/jinja2. Mirrors orchestrator.py:740-751. Built only under
+        # REACT_GRAPH_UPDATE — it is the sole consumer, and a repo walk is wasted work on G0/G1/G2.
+        repo_ctx = RepoContext(
+            local_names=repo_modules.top_level_names(repo_path) if repo_path else frozenset(),
+            invalid_names=frozenset(),
+            collisions=repo_modules.stem_collisions(repo_path) if repo_path else {},
+        )
+        _ex = _ExecAdapter(sandbox.exec_readonly)
+
+        def enrich_fn(g, r, causes):
+            return enrich(g, r, causes, repo_ctx)
+
+        def expand_fn(g, new_ids, already):
+            return expand_discovery(g, new_ids, _ex, already)
+
+        def certify_new_fn(g, new_ids):
+            return certify_only(g, new_ids, _ex)
+
     env_info = _gather_env_info(sandbox, repo_path)
-    planner = ReactPlanner(client, model, graph_context=(ctx if graph_context else None),
+    planner = ReactPlanner(client, model, graph_context=(ctx if want_ctx else None),
                            log=log, env_info=env_info)
     # No LLM observation compressor: the grouped blocker history view (render_history) is the
     # compaction now — it distills each step to a blocker signature + score, and never renders the
@@ -205,7 +245,8 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
         return run_react(graph, reset=reset, run_script=run_script, certify=certify,
                          exec_readonly=exec_readonly, run_tests=run_tests, planner=planner,
                          history=history, log=log, max_steps=max_steps, _initial_script=seed,
-                         project_name=project_name(repo_path))
+                         project_name=project_name(repo_path),
+                         enrich_fn=enrich_fn, expand_fn=expand_fn, certify_new_fn=certify_new_fn)
     finally:
         if owns_log:
             log.close()

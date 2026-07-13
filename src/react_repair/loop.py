@@ -248,16 +248,29 @@ def _classify_action(action, script: str, project_name: "str | None" = None) -> 
 
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None,
-              project_name: "str | None" = None):
+              project_name: "str | None" = None,
+              enrich_fn=None, expand_fn=None, certify_new_fn=None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
     # script, so it must not carry "DO NOT EDIT / edit the graph and re-render" (spec §9/§14).
     script = (_initial_script if _initial_script is not None
               else strip_graph_framing(render_build_script(graph)))
 
+    expanded: set[str] = set()   # discoveries already expanded (§7.2) — persists ACROSS turns so a
+                                 # re-run of the same failure doesn't re-hit the network every turn
+
     def build_and_test():
         """Reset → run the WHOLE current script fresh from base → certify (install-tier) → and,
-        if the build is green, run the suite once. Returns (result, graph, test|None)."""
+        if the build is green, run the suite once. Then (G3 only) enrich the graph from this
+        turn's observations and certify what enrich appended. Returns
+        (result, graph, test|None, causes, prev_states)."""
+        nonlocal expanded
         reset()
+        # The PREVIOUS turn's certified graph is simply `graph` as closed-over here, before this
+        # call's `certify()` rebinds the local `g` — capture its states now for the "SINCE YOUR
+        # LAST EDIT" delta the renderer computes next turn. `getattr(..., ())` degrades to an
+        # empty delta for the G0/G1 test harness, which stands in a bare `object()` for `graph`
+        # since the script-only arms never read it — the baseline must stay byte-identical.
+        prev_states = {n.id: n.state for n in getattr(graph, "nodes", ())}
         log.d("RUN", f"running {len(script.splitlines())}-line build script from base")
         r = run_script(script)
         g = certify(graph)
@@ -271,7 +284,19 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             log.d("TEST_GATE", f"{t.passed}/{t.executed} passed → {'ok' if t.ok else 'below threshold'}")
             log.trace("test", passed=t.passed, executed=t.executed, ok=t.ok,
                       output_tail=(t.output or "")[-500:])
-        return r, g, t
+        # `causes` is empty on a build-fail turn — pytest never ran (spec §7.1). Computed here
+        # (not just inside the histogram observation path) so it can anchor the graph render too.
+        causes = summarize(t.output) if (t is not None and t.output) else []
+        if enrich_fn is not None:                     # G3 only — read-only graphs never enter here
+            # ORDER: enrich AFTER certify/run_tests, on what this turn just observed. Anything
+            # enrich appends here was never checked by the certify() call above, so it renders
+            # UNKNOWN until certify_new_fn verifies it — hence the narrow second pass below.
+            g, new_ids = enrich_fn(g, r, causes)
+            g, expanded = expand_fn(g, new_ids, expanded)
+            g = certify_new_fn(g, new_ids)
+            if new_ids:
+                log.d("ENRICH", f"discovered {len(new_ids)}: {', '.join(new_ids[:3])}")
+        return r, g, t, causes, prev_states
 
     best_key: tuple[bool, int, int] = (False, -1, -1)   # (built_ok, passed, executed): green > failed;
     best_script = script                                 # among passed-ties, MORE tests collected wins
@@ -291,7 +316,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         if key > best_key:
             best_key, best_script = key, script         # `script` = the one just built
 
-    result, graph, test = build_and_test()
+    result, graph, test, causes, prev_states = build_and_test()
     register(result, test)                              # fold baseline into best-so-far
     # Seed history with the baseline outcome (v0) so later patches have something to compare
     # against; the verdict rides in the (never-truncated) bracket, the detail in the body.
@@ -315,7 +340,8 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             thought, action, usage = planner.plan(history, script, observation, graph,
                                                   fail_lineno=result.lineno, turn=step + 1,
                                                   max_turns=max_steps, rejection=rejection,
-                                                  rejected=rejected)
+                                                  rejected=rejected, result=result, causes=causes,
+                                                  prev_states=prev_states)
             _emit_tokens(usage)
             kind, payload = _classify_action(action, script, project_name)
             if kind != "invalid":
@@ -345,7 +371,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             e = action.edit
             change = _edit_summary(e)             # op-based: verb@span + preview (captures deletes too)
             log.d("EDIT", f"{change}; re-running fresh")
-            result, graph, test = build_and_test()
+            result, graph, test, causes, prev_states = build_and_test()
             register(result, test)
             version += 1
             verdict = _verdict(result, test)
@@ -360,7 +386,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         # kind == "patch"
         old_script, script = script, payload
         log.d("PATCH", "agent replaced setup.sh; re-running fresh")
-        result, graph, test = build_and_test()
+        result, graph, test, causes, prev_states = build_and_test()
         register(result, test)
         version += 1
         # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed

@@ -129,7 +129,7 @@ def _numbered(script: str, fail_lineno: int | None = None) -> str:
 
 class ReactPlanner:
     def __init__(self, client: Any, model: str,
-                 graph_context: "Callable[[Any], str] | None" = None,
+                 graph_context: "Callable[[Any, Any, Any, Any], str] | None" = None,
                  log=None, env_info: str = ""):
         self.client = client
         self.model = model
@@ -142,7 +142,8 @@ class ReactPlanner:
     def _render(self, history, script: str, observation: str, graph,
                 fail_lineno: int | None = None,
                 turn: int | None = None, max_turns: int | None = None,
-                rejection: str | None = None) -> str:
+                rejection: str | None = None,
+                result=None, causes=None, prev_states=None) -> str:
         parts = [
             ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
              "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
@@ -150,24 +151,26 @@ class ReactPlanner:
             "LAST RUN OBSERVATION:\n" + (observation or ""),
             render_history(history.steps),
         ]
-        if self.graph_context is not None:
-            ctx = self.graph_context(graph) or ""
-            if ctx.strip():
-                parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
+        # Reuse _graph_text — do NOT re-implement the call here. Before this change `_render`
+        # called self.graph_context(graph) directly, which is why widening _graph_text alone
+        # would have silently left the blob prompt style on the old 1-arg seam.
+        ctx = self._graph_text(graph, result, causes, prev_states)
+        if ctx:
+            parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
         if rejection:                          # same-turn retry after a tool misuse (high salience)
             parts.append("YOUR LAST TOOL CALL WAS REJECTED — fix it and try again: " + rejection)
         parts.append(_closing_line(turn, max_turns))
         return "\n\n".join(parts)
 
-    def _graph_text(self, graph) -> "str | None":
+    def _graph_text(self, graph, result=None, causes=None, prev_states=None) -> "str | None":
         """The certified-state block for the graph variant (None for the baseline / empty context)."""
         if self.graph_context is None:
             return None
-        ctx = self.graph_context(graph) or ""
+        ctx = self.graph_context(graph, result, causes or [], prev_states or {}) or ""
         return ctx if ctx.strip() else None
 
     def _messages(self, history, script, observation, graph, fail_lineno, turn, max_turns, rejection,
-                  rejected=None):
+                  rejected=None, result=None, causes=None, prev_states=None):
         """The LLM message list for the active prompt style (lever REACT_PROMPT_STYLE, read per-call
         so a VM run can flip it via env). `messages` (DEFAULT): the growing assistant/user conversation
         (message_view) — the model's own thought+action as real turns, the current observation as the
@@ -182,19 +185,22 @@ class ReactPlanner:
                 history.steps, system_prompt=self.system_prompt,
                 numbered_script=_numbered(script, fail_lineno),
                 closing_line=_closing_line(turn, max_turns),
-                graph_context_text=self._graph_text(graph), rejection=rejection, rejected=rejected)
+                graph_context_text=self._graph_text(graph, result, causes, prev_states),
+                rejection=rejection, rejected=rejected)
         return [
             {"role": "system", "content": self.system_prompt},
             {"role": "user",
              "content": self._render(history, script, observation, graph, fail_lineno,
-                                     turn, max_turns, rejection)},
+                                     turn, max_turns, rejection, result, causes, prev_states)},
         ]
 
     def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
              turn: int | None = None, max_turns: int | None = None, rejection: str | None = None,
-             rejected: "dict | None" = None):
+             rejected: "dict | None" = None,
+             result=None, causes=None, prev_states=None):
         messages = self._messages(history, script, observation, graph, fail_lineno,
-                                  turn, max_turns, rejection, rejected)
+                                  turn, max_turns, rejection, rejected,
+                                  result, causes, prev_states)
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text
         # path (parse_action on the message content) is a FALLBACK for a provider/turn that returns
