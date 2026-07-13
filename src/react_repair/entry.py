@@ -189,6 +189,27 @@ def _gather_env_info(sandbox, repo_path) -> str:
     return "\n".join(lines)
 
 
+def rung_flags(graph_context: bool = False) -> tuple[bool, bool]:
+    """(render the graph?, grow the graph?) — the ablation rungs. Pure; reads only the env.
+
+    G2 = render only (frozen topology). G3 = render + observation-driven growth (§7). Two flags
+    and not one, so a G3 lift is never misattributed to the renderer — the ablation invariant
+    (spec §2). `graph_context` is the pre-existing bool param; REACT_GRAPH_CONTEXT lets a VM run
+    flip it without touching call sites.
+
+    G3 IMPLIES G2. Growing the graph without rendering it is not a rung — it is a silent no-op
+    arm: the loop pays for enrich + expand + certify on every turn and the agent never sees a
+    byte of it, so the run LOOKS like a valid G3 datapoint while measuring nothing at all. The
+    rungs stay separable in the only direction that matters: G2 renders WITHOUT growing, which
+    is precisely what isolates structure from growth.
+    """
+    want_update = os.getenv("REACT_GRAPH_UPDATE") == "1"
+    want_ctx = (bool(graph_context)
+                or os.getenv("REACT_GRAPH_CONTEXT") == "1"
+                or want_update)
+    return want_ctx, want_update
+
+
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
                   test_threshold: float = 0.9, initial_script: str | None = None):
@@ -200,8 +221,7 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
     # flags, not one, so a G3 lift is never misattributed to the renderer — the ablation
     # invariant (spec §2). `graph_context` is the pre-existing bool param; REACT_GRAPH_CONTEXT
     # lets a VM run flip it without touching call sites.
-    want_ctx = bool(graph_context) or os.getenv("REACT_GRAPH_CONTEXT") == "1"
-    want_update = os.getenv("REACT_GRAPH_UPDATE") == "1"
+    want_ctx, want_update = rung_flags(graph_context)
 
     ctx = None
     if want_ctx:

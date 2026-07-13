@@ -212,3 +212,43 @@ def test_run_react_arm_without_seed_forwards_none(monkeypatch):
     entry_mod.run_react_arm(object(), sandbox=_FakeSandbox(0, ""), client=object(),
                             model="m", log=ReactLog(silent=True))
     assert captured["_initial_script"] is None       # unchanged default behavior
+
+
+# ── the ablation rungs (spec §2) ─────────────────────────────────────────────
+
+from src.react_repair.entry import rung_flags
+
+
+def test_G0_and_G1_do_not_touch_the_graph(monkeypatch):
+    # G0/G1 differ only in REACT_OBS_MODE, which lives in loop.py and is no concern of the
+    # graph seam. Neither renders nor grows the graph — graph_context stays None, and the
+    # prompt bytes stay identical to every baseline we have already run.
+    monkeypatch.delenv("REACT_GRAPH_CONTEXT", raising=False)
+    monkeypatch.delenv("REACT_GRAPH_UPDATE", raising=False)
+    assert rung_flags() == (False, False)
+
+
+def test_G2_renders_the_graph_but_does_not_grow_it(monkeypatch):
+    # This is the direction that has to stay separable: it is what isolates STRUCTURE from
+    # GROWTH. G1→G2 measures what the structure adds; G2→G3 measures what growth adds.
+    monkeypatch.setenv("REACT_GRAPH_CONTEXT", "1")
+    monkeypatch.delenv("REACT_GRAPH_UPDATE", raising=False)
+    assert rung_flags() == (True, False)
+
+
+def test_G3_IMPLIES_G2(monkeypatch):
+    """REACT_GRAPH_UPDATE=1 alone must still render.
+
+    Growing the graph without rendering it is not a rung — it is a silent no-op arm. The loop
+    would pay for enrich + expand + certify on every turn and the agent would never see a byte
+    of it, so the run LOOKS like a valid G3 datapoint while measuring nothing at all.
+    """
+    monkeypatch.delenv("REACT_GRAPH_CONTEXT", raising=False)
+    monkeypatch.setenv("REACT_GRAPH_UPDATE", "1")
+    assert rung_flags() == (True, True)
+
+
+def test_the_legacy_bool_param_still_turns_on_G2(monkeypatch):
+    monkeypatch.delenv("REACT_GRAPH_CONTEXT", raising=False)
+    monkeypatch.delenv("REACT_GRAPH_UPDATE", raising=False)
+    assert rung_flags(graph_context=True) == (True, False)

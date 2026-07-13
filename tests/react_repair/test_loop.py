@@ -681,3 +681,54 @@ def test_classic_observation_is_unchanged_when_the_lever_is_off(monkeypatch):
     out = "Collecting pip\n  Downloading pip.whl (1.8 MB)\nERROR: boom\n"
     obs = _observation(RunResult(False, failing_command="pip install x", output=out), None)
     assert "Collecting pip" in obs and "Downloading pip.whl" in obs   # pip chatter still there
+
+
+# ── G3: certify what EXPANSION appended, not just what enrich appended ────────
+
+def test_g3_certifies_nodes_added_by_EXPANSION_not_just_by_enrich():
+    """`expand_discovery` runs the Debian build-deps prior over each newly discovered package
+    and appends its OWN capability/apt nodes (binary:pg_config and friends) — and it does so
+    AFTER the loop's certify() pass, exactly like enrich does.
+
+    Certifying only enrich's ids left precisely those nodes UNCERTIFIED, so the renderer would
+    hand the agent a `★ binary:pg_config` root whose state we never actually checked. The whole
+    premise of the arm is that the agent is never shown a claim we have not verified.
+    """
+    from python_deps.depgraph.ids import package_id
+    from python_deps.depgraph.schema import (
+        DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
+    )
+
+    pkg = Node(id=package_id("psycopg2", "2.9.12"), type=NodeType.PACKAGE, name="psycopg2",
+               layer=Layer.PIP, discovered_by=DiscoveredBy.RUNTIME, version="2.9.12",
+               state=State.MISSING)
+    tool = Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                layer=Layer.TOOLCHAIN, discovered_by=DiscoveredBy.RESOLVER,
+                state=State.UNKNOWN, check_command="command -v pg_config")
+
+    certified = []
+    box = ["pip install app\n"]
+    reset, run_script, certify, ro, run_tests = _adapters((), (), box)
+
+    def enrich_fn(g, r, causes):
+        return g.with_node(pkg), [pkg.id]          # enrich appends ONLY the package...
+
+    def expand_fn(g, new_ids, expanded):
+        # ...and expansion appends the capability node the Debian prior resolved for it.
+        return g.with_node(tool), set(expanded or ()) | set(new_ids)
+
+    def certify_new_fn(g, node_ids):
+        certified.append(sorted(node_ids))
+        return g
+
+    run_react(
+        DepGraph(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([Action("done")]), history=History(),
+        log=ReactLog(silent=True), max_steps=1, _initial_script=box[0],
+        enrich_fn=enrich_fn, expand_fn=expand_fn, certify_new_fn=certify_new_fn,
+    )
+
+    assert certified, "certify_new_fn was never called"
+    assert certified[0] == ["binary:pg_config", "pkg:psycopg2==2.9.12"], (
+        "expansion's binary:pg_config must be certified too, not just enrich's package"
+    )

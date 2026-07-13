@@ -289,13 +289,22 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         causes = summarize(t.output) if (t is not None and t.output) else []
         if enrich_fn is not None:                     # G3 only — read-only graphs never enter here
             # ORDER: enrich AFTER certify/run_tests, on what this turn just observed. Anything
-            # enrich appends here was never checked by the certify() call above, so it renders
-            # UNKNOWN until certify_new_fn verifies it — hence the narrow second pass below.
+            # appended here was never checked by the certify() call above, so it renders UNKNOWN
+            # until certify_new_fn verifies it — hence the narrow second pass below.
+            #
+            # Certify everything BOTH steps added, not just enrich's. `expand_discovery` runs the
+            # Debian build-deps prior over each new package and appends its own capability/apt
+            # nodes (`binary:pg_config` and friends) — also after the certify pass. Certifying only
+            # enrich's ids left exactly those nodes UNCERTIFIED, so the renderer would show the
+            # agent a `★ binary:pg_config` root whose state we never actually checked. The whole
+            # premise is that the agent is never shown a claim we have not verified.
+            before_ids = {n.id for n in g.nodes}
             g, new_ids = enrich_fn(g, r, causes)
             g, expanded = expand_fn(g, new_ids, expanded)
-            g = certify_new_fn(g, new_ids)
-            if new_ids:
-                log.d("ENRICH", f"discovered {len(new_ids)}: {', '.join(new_ids[:3])}")
+            appended = [n.id for n in g.nodes if n.id not in before_ids]
+            g = certify_new_fn(g, appended)
+            if appended:
+                log.d("ENRICH", f"discovered {len(appended)}: {', '.join(appended[:3])}")
         return r, g, t, causes, prev_states
 
     best_key: tuple[bool, int, int] = (False, -1, -1)   # (built_ok, passed, executed): green > failed;
