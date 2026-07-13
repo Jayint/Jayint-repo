@@ -15,8 +15,9 @@
 - **Immutability.** `DepGraph`, `Node`, `Edge` are frozen dataclasses. Never mutate — use `graph.with_node(...)` / `graph.with_edge(...)` / `dataclasses.replace(...)`, which return new objects.
 - **Purity.** `graph_context.py` performs **no I/O** — no Docker, no network, no subprocess. `graph_enrich.py` is pure except for the narrow `certify_only` executor call. Only `discovery_expand.py` may hit the network/container.
 - **No new deps.** Everything needed is already imported somewhere in `src/python_deps/`.
-- **Test import boilerplate.** Every test file under `tests/depgraph/` starts with the `sys.path` insert used by `tests/depgraph/test_runtime_ingest.py:1-10`. Tests under `tests/react_repair/` use the two-parent form in `tests/react_repair/test_pytest_summary.py:1-6`. Copy the form from the neighbouring file exactly.
-- **Run tests with:** `python -m pytest <path> -v` from the repo root.
+- **Test import boilerplate.** `tests/depgraph/conftest.py:17-20` **already** puts `src/` on `sys.path`, so the per-file shim in `tests/depgraph/*.py` is redundant (harmless — the `if not in sys.path` guard is idempotent — and every existing file has it, so keep it for consistency). Tests under `tests/react_repair/` need the **repo root too** (they import `from src.react_repair...`) — use the two-parent form from `tests/react_repair/test_pytest_summary.py:1-6`. Copy the form from the neighbouring file exactly.
+- **Run tests with:** `python -m pytest <path> -v` from the repo root. There is no `pytest.ini`/`pyproject` pytest config; `sys.path` is assembled by `tests/conftest.py` plus per-package conftests. Verified: `python -m pytest tests/depgraph/ -q` collects 1325 tests.
+- 🔴 **Line numbers in this plan were re-anchored 2026-07-13, but `loop.py`/`entry.py`/`planner.py` are under active parallel development.** `grep` for the symbol before editing; never trust a line number blindly.
 - **`Cause.count` semantics are FIXED and deliberate.** `format_breakdown`'s docstring states: *"a `[collect]` row's `count` is MODULES affected, NOT tests affected … Recovering 'blocks N tests' needs the hidden gold set (final-only) or the graph arm; **do not attempt it here**."* Task 1 therefore does **not** change `count`. The tests-hidden estimate lives in the **graph arm** (Task 4), exactly as that docstring directs.
 - **Do NOT call `_phase_a_fixpoint` (`build.py:336`)** from any new code. It is the full resolve→install→probe→repair fixpoint with network and container installs; it would blow the per-turn budget.
 - **Append-only.** Enrichment never deletes a node or an edge.
@@ -27,17 +28,25 @@
 
 | file | responsibility |
 |---|---|
-| `src/react_repair/pytest_summary.py` *(modify)* | add `Cause.phase` — the pytest phase (`collect`/`setup`/`call`/`teardown`) parsed from the block banner |
-| `src/python_deps/depgraph/graph_context.py` *(new)* | **edge semantics** (`blocks`, `in_conflict`, `verdict`), the **tests-hidden estimate**, and the **render** |
-| `src/python_deps/depgraph/graph_enrich.py` *(new)* | `owner_node_for_command`, `enrich`, `certify_only` — the graph-update path |
-| `src/python_deps/depgraph/discovery_expand.py` *(new)* | `expand_discovery` — resolve a discovered node's system-tier prerequisites |
-| `src/python_deps/depgraph/build_deps.py` *(modify)* | extract per-node `seed_build_deps_for` out of `seed_build_deps`'s loop |
-| `src/python_deps/depgraph/ldd_probe.py` *(modify)* | extract per-node `ldd_probe_for` out of its loop |
-| `src/react_repair/planner.py` *(modify)* | widen the `graph_context` seam to 5 args |
-| `src/react_repair/loop.py` *(modify)* | capture `prev_states`, hoist `causes`, call enrich/expand, thread to `plan()` |
-| `src/react_repair/entry.py` *(modify)* | build the context fn; flags `REACT_GRAPH_CONTEXT` (G2) / `REACT_GRAPH_UPDATE` (G3) |
+| `src/react_repair/pytest_summary.py` *(modify)* | **T1** — add `Cause.phase` (`collect`/`setup`/`call`/`teardown`), parsed from the block banner |
+| `src/python_deps/failure_classifier.py` *(modify)* | **T1B** 🔴 — recognise `<tool> executable not found`. Without this the arm's headline case (`pg_config`) classifies as AMBIGUOUS and enrich appends nothing |
+| `src/python_deps/depgraph/graph_enrich.py` *(new)* | **T2, T6** — `owner_node_for_command`, `enrich`, `certify_only` |
+| `src/python_deps/depgraph/graph_context.py` *(new)* | **T3, T4, T5** — edge semantics (`blocks`, `in_conflict`, `verdict`), `tests_hidden`, and the render |
+| `src/python_deps/depgraph/build_deps.py` *(modify)* | **T7** — extract per-node `seed_build_deps_for` out of `seed_build_deps`'s loop (**counters preserved**) |
+| `src/python_deps/depgraph/discovery_expand.py` *(new)* | **T7** — `expand_discovery` |
+| `src/react_repair/planner.py` *(modify)* | **T8** — widen the `graph_context` seam to 4 args, at **both** call sites |
+| `src/react_repair/loop.py` *(modify)* | **T8** — capture `prev_states`, hoist `causes`, call enrich/expand/certify_only |
+| `src/react_repair/entry.py` *(modify)* | **T8** — build the context fn; `REACT_GRAPH_CONTEXT` (G2) / `REACT_GRAPH_UPDATE` (G3) |
+| `tests/react_repair/test_planner.py` *(modify)* | **T8** 🔴 — its 1-arg `graph_context` lambda (`:93`) `TypeError`s once the seam widens |
 
-**Dependency order:** Tasks 1–4 are independent leaves. Task 5 consumes 1, 3, 4. Task 6 consumes 2. Task 7 consumes 6. Task 8 consumes 5, 6, 7.
+**NOT in this plan:** `ldd_probe.py` / `ldd_probe_for` (§7.2 Mechanism 2). It needs a container with
+the package actually installed, so it cannot be unit-tested with a fake executor — and its loop is
+two-level (one *batched* `ldd` per package fanned out over several sonames), so it is not the same
+shape as `seed_build_deps`'s. Follow-up VM slice. See Self-Review Notes.
+
+**Dependency order:** T1, T1B, T3, T4 are independent leaves. **T2 → T6** (owner), **T1B → T6**
+(without it enrich appends nothing for the flagship case). T5 consumes T1, T3, T4. T7 consumes T6.
+T8 consumes T5, T6, T7.
 
 ---
 
@@ -205,16 +214,57 @@ In `format_breakdown`, tag from `phase` instead of `outcome`:
         rows.append(f"  {c.count} × [{c.phase}] {c.exc}{detail}")
 ```
 
-- [ ] **Step 4: Run the whole file to verify nothing regressed**
+- [ ] **Step 4: Migrate the one pre-existing test that hand-builds a `Cause`**
+
+`format_breakdown` now reads `c.phase` instead of deriving the tag from `c.outcome`. Every test
+that goes through `summarize()` is fine — `summarize` computes `phase` correctly. But
+`test_format_breakdown_tags_collect_and_run` (`tests/react_repair/test_pytest_summary.py:121-137`)
+constructs `Cause(...)` **by hand with no `phase=`**, so those Causes silently default to
+`phase="call"` and its `[collect]` assertion flips to `[call]`. Update it:
+
+```python
+def test_format_breakdown_tags_collect_and_run():
+    # Each row is prefixed with the real pytest PHASE (Cause.phase), not a guess derived from
+    # `outcome`: a collection error and a fixture-setup error BOTH have outcome="ERROR" but are
+    # different problems (per-file vs per-test), so the tag now names the phase directly.
+    causes = [
+        Cause(exc="ModuleNotFoundError", detail="No module named 'psycopg2'",
+              count=3, outcome="ERROR", module="tests/test_db.py", phase="collect"),
+        Cause(exc="AssertionError", detail="", count=5, outcome="FAILED",
+              module="tests/test_logic.py", phase="call"),
+        Cause(exc="RuntimeError", detail="db down", count=2, outcome="ERROR",
+              module="tests/test_db.py", phase="setup"),
+    ]
+    out = format_breakdown(causes)
+    assert "3 × [collect] ModuleNotFoundError: No module named 'psycopg2'" in out
+    assert "5 × [call] AssertionError" in out
+    # A SETUP error is an ERROR outcome but a RUN-phase failure — the old `outcome`-derived tag
+    # called this [collect], which was wrong.
+    assert "2 × [setup] RuntimeError" in out
+```
+
+Delete the old test's trailing `weird` / `outcome="whatever"` block — `phase` is now the tag's sole
+source and it has a safe default, so the "unexpected outcome degrades to [run]" case is gone.
+
+- [ ] **Step 5: Run the whole file to verify nothing regressed**
 
 Run: `python -m pytest tests/react_repair/test_pytest_summary.py -v`
 Expected: PASS, including every pre-existing test.
 
-> If a pre-existing test asserts the literal string `[run]`, update it to `[call]` — that is the
-> intended behaviour change (the tag now names the real pytest phase). Do not change any
-> assertion about `count`.
+> Do **not** change any assertion about `count`. Its semantics are deliberately unchanged (see
+> Global Constraints).
 
-- [ ] **Step 5: Commit**
+> **Fixture honesty:** the `_PHASES` string in Step 1 is **hand-typed**, whereas every other fixture
+> in this file is captured verbatim from a real `pytest` run — that is the file's stated convention
+> and the reason its parser is trustworthy. Before committing, generate the real thing: create a
+> throwaway repo with one un-importable module, one fixture that raises in setup, one that raises in
+> teardown, and one failing assertion; run
+> `python -m pytest -q --continue-on-collection-errors`; and paste the **actual** output in place of
+> `_PHASES`. The banner wording is confirmed correct at the pytest-source level
+> (`_pytest/terminal.py:1201-1213` builds `"ERROR collecting "` and `f"ERROR at {rep.when} of "`),
+> but a captured fixture is what protects the parser from a future pytest reformat.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/react_repair/pytest_summary.py tests/react_repair/test_pytest_summary.py
@@ -223,6 +273,130 @@ git commit -m "fix(pytest_summary): parse the pytest PHASE; stop tagging setup e
 `startswith(\"ERROR\")` lumped `ERROR collecting <file>` (per-FILE, tests never existed) with
 `ERROR at setup of <test>` (per-TEST, fixture broke). Adds Cause.phase and keys grouping on it,
 so a ModuleNotFoundError at collection never collapses into one with a body-raised one."
+```
+
+---
+
+### Task 1B: 🔴 `classify_tool_error` — the flagship error shape does not classify
+
+**Why — this is a design-level hole, found by verification, not a test typo.** The entire arm is
+motivated by `pip install psycopg2` → `pg_config` → `apt-get install libpq-dev`. **That error does
+not classify today**, so `enrich` would produce **no node and no edge** for it and Mechanism 1
+would be a no-op on its own headline case. Verified live against the current tree:
+
+| log text | `diagnose()` result |
+|---|---|
+| `pg_config: not found` | ✅ `environment`, discovery=`pg_config` |
+| `sh: 1: pg_config: not found` | ✅ `environment`, discovery=`pg_config` |
+| **`Error: pg_config executable not found`** ← *what psycopg2 actually prints* | ❌ **`ambiguous`, discovery=`None`** |
+
+The cause: `_TOOL_COMMAND_NOT_FOUND_RE` (`src/python_deps/failure_classifier.py:246-249`) requires a
+**colon** — `<name>:\s+(command not found|not found)`. setuptools/psycopg2 emit
+`<name> executable not found`, with no colon and the word "executable" in between.
+
+**Files:**
+- Modify: `src/python_deps/failure_classifier.py:246-266`
+- Test: `tests/test_failure_classifier.py` (find the existing file with
+  `grep -rln classify_tool_error tests/`)
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `classify_tool_error(command, output)` now also recognises the
+  `<name> executable not found` shape. Signature unchanged.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_tool_error_recognises_the_executable_not_found_shape():
+    # The REAL psycopg2 / setuptools wording. No colon, and the word "executable" in between —
+    # which is why _TOOL_COMMAND_NOT_FOUND_RE (which requires "<name>: not found") missed it.
+    assert classify_tool_error("pip install psycopg2==2.9.12",
+                               "Error: pg_config executable not found.") == "pg_config"
+
+
+def test_tool_error_executable_shape_is_case_insensitive():
+    assert classify_tool_error("", "error: PG_CONFIG executable not found") == "PG_CONFIG"
+
+
+def test_tool_error_still_recognises_the_colon_shape():
+    # Regression: the pre-existing shape must keep working.
+    assert classify_tool_error("", "sh: 1: pg_config: not found") == "pg_config"
+
+
+def test_tool_error_does_not_fire_on_unrelated_not_found_text():
+    assert classify_tool_error("", "404 Not Found") is None
+    assert classify_tool_error("", "No module named 'yaml'") is None
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `python -m pytest tests/test_failure_classifier.py -v -k executable`
+Expected: FAIL — returns `None`, not `"pg_config"`.
+
+- [ ] **Step 3: Add the third regex**
+
+In `src/python_deps/failure_classifier.py`, beside the two existing tool regexes:
+
+```python
+# setuptools/autoconf-style: "Error: pg_config executable not found." — NO colon, and the word
+# "executable" between the name and "not found", so _TOOL_COMMAND_NOT_FOUND_RE (which requires
+# "<name>: not found") never matched it. This is the SHAPE THE psycopg2 BUILD ACTUALLY EMITS,
+# and without it the graph arm's headline case produces no node at all.
+_TOOL_EXECUTABLE_NOT_FOUND_RE = re.compile(
+    r"\b([A-Za-z0-9_.-]+)\s+executable\s+not\s+found",
+    re.IGNORECASE,
+)
+```
+
+and add it to `classify_tool_error`, **after** the colon shape (which is more specific) and before
+the `FileNotFoundError` fallback:
+
+```python
+def classify_tool_error(command: str, output: str) -> str | None:
+    """Return the tool name if ``output`` looks like a missing executable, else None."""
+    text = output or ""
+    m = _TOOL_COMMAND_NOT_FOUND_RE.search(text)
+    if m:
+        return m.group(1)
+    m = _TOOL_EXECUTABLE_NOT_FOUND_RE.search(text)      # ADD
+    if m:                                               # ADD
+        return m.group(1)                               # ADD
+    m = _TOOL_FILENOTFOUNDERROR_RE.search(text)
+    if m:
+        return m.group(1)
+    return None
+```
+
+- [ ] **Step 4: Verify the flagship case now classifies end-to-end**
+
+Run:
+```bash
+python -c "
+import sys; sys.path.insert(0, 'src')
+from python_deps.depgraph.diagnose import diagnose, RepoContext
+d = diagnose('pip install psycopg2==2.9.12', 'Error: pg_config executable not found', RepoContext())
+print(d.mode.value, d.discovery.name if d.discovery else None)
+"
+```
+Expected: `environment pg_config` (it prints `ambiguous None` today).
+
+- [ ] **Step 5: Run the full classifier + depgraph suites**
+
+Run: `python -m pytest tests/test_failure_classifier.py tests/depgraph/ -q`
+Expected: PASS. A **widened** classifier can only turn `AMBIGUOUS` into `ENVIRONMENT`, never the
+reverse — but run the whole suite anyway, because `diagnose`'s router and `runtime_ingest` both sit
+downstream of it.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/python_deps/failure_classifier.py tests/test_failure_classifier.py
+git commit -m "fix(failure_classifier): recognise '<tool> executable not found'
+
+_TOOL_COMMAND_NOT_FOUND_RE required a colon ('<name>: not found'), but setuptools/psycopg2 emit
+'Error: pg_config executable not found' — no colon. So the single most common native-build failure
+in the corpus classified as AMBIGUOUS with no Discovery, meaning runtime ingest produced NO node
+and NO edge for it. Found by verifying the graph-arm plan against the tree."
 ```
 
 ---
@@ -236,7 +410,7 @@ so a ModuleNotFoundError at collection never collapses into one with a body-rais
 - Test: `tests/depgraph/test_graph_enrich.py`
 
 **Interfaces:**
-- Consumes: `req_slice._provider_from_command(command) -> str | None` (`req_slice.py:38`), `naming.normalize_package_name`.
+- Consumes: `req_slice._provider_from_command(command) -> str | None` (`req_slice.py:38`); `normalize_package_name` — **defined** in `src/python_deps/import_mapping.py:62-64` as the literal PEP 503 formula `re.sub(r"[-_.]+", "-", name).lower()`, and **re-exported** by `depgraph/naming.py:22-26`, so `from python_deps.depgraph.naming import normalize_package_name` works.
 - Produces: `owner_node_for_command(graph: DepGraph, command: str) -> str | None` — a `pkg:` node id, or `None` when the command names no single package (batch, `-r`, `-e`, apt, unparseable).
 
 - [ ] **Step 1: Write the failing test**
@@ -426,7 +600,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from python_deps.depgraph.graph_context import (
-    ACTIONABLE, BLOCKED, WAITING, blocks, in_conflict, verdict,
+    ACTIONABLE, BLOCKED, SATISFIED_OK, WAITING, blocks, in_conflict, verdict,
 )
 from python_deps.depgraph.ids import capability_id, package_id
 from python_deps.depgraph.schema import (
@@ -516,15 +690,28 @@ def test_soft_edge_does_not_block():
 
 
 def test_soft_missing_prerequisite_leaves_the_owner_actionable():
+    # NOTE: DiscoveredBy has NO `LLM` member. The codebase's name for an LLM-admitted node is
+    # CLASSIFIER (schema.py:64-74; see patch_gate.py:250).
     g = (DepGraph()
          .with_node(_pkg("app"))
          .with_node(Node(id="config:DATABASE_URL", type=NodeType.CONFIG,
                          name="DATABASE_URL", layer=Layer.CONFIG,
-                         discovered_by=DiscoveredBy.LLM, state=State.MISSING))
+                         discovered_by=DiscoveredBy.CLASSIFIER, state=State.MISSING))
          .with_edge(Edge(src="pkg:app==1.0", dst="config:DATABASE_URL",
                          relation=EdgeType.REQUIRES, origin="llm",
                          data={"hard": False})))
     assert verdict(g, g.get("pkg:app==1.0")) == ACTIONABLE
+
+
+# ── a SATISFIED node is not "actionable" ─────────────────────────────────────
+
+def test_a_satisfied_node_is_never_actionable():
+    """A SATISFIED leaf has no missing prerequisites, so a verdict() that only looked at
+    PREREQUISITES would call it ACTIONABLE and hand it a record — telling the agent to
+    'fix' something that is already fine. verdict() must check the node's OWN state first."""
+    g = DepGraph().with_node(_tool("pkg-config", state=State.SATISFIED))
+    assert verdict(g, g.get("binary:pkg-config")) == SATISFIED_OK
+    assert verdict(g, g.get("binary:pkg-config")) != ACTIONABLE
 
 
 def test_hard_edge_is_the_default_when_the_key_is_absent():
@@ -587,9 +774,10 @@ from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, Node, State
 
 logger = logging.getLogger(__name__)
 
-ACTIONABLE = "ACTIONABLE"   # nothing missing beneath it -> the agent acts HERE
-WAITING = "WAITING"         # a hard prerequisite is missing -> fix that first
-BLOCKED = "BLOCKED"         # in a version conflict -> NO install will ever work
+ACTIONABLE = "ACTIONABLE"      # MISSING, nothing missing beneath it -> the agent acts HERE
+WAITING = "WAITING"            # a hard prerequisite is missing -> fix that first
+BLOCKED = "BLOCKED"            # in a version conflict -> NO install will ever work
+SATISFIED_OK = "SATISFIED_OK"  # already fine -> nothing to do, and NO record
 
 
 def _marker_holds(edge: Edge, target_env: dict | None) -> bool:
@@ -642,11 +830,21 @@ def in_conflict(graph: DepGraph, node: Node) -> bool:
 
 
 def verdict(graph: DepGraph, node: Node, target_env: dict | None = None) -> str:
-    """ACTIONABLE (fix here) | WAITING (fix something else first) | BLOCKED (no fix exists).
+    """SATISFIED_OK | BLOCKED | WAITING | ACTIONABLE — the node's decision state.
 
-    Conflict is checked FIRST and unconditionally, so a conflicted node can never be
-    presented as actionable no matter what its prerequisites look like.
+    Order matters, and both early returns are load-bearing:
+
+      1. A SATISFIED node is DONE. Checking prerequisites first would call a satisfied leaf
+         ACTIONABLE (it has no MISSING prerequisites, after all) and hand it a "fix this"
+         record — telling the agent to install something that is already installed.
+      2. A CONFLICTED node cannot be installed at ANY version (emit._is_emittable already
+         refuses to emit it), yet it too has no missing prerequisites and would otherwise
+         look like a perfectly good root. The agent would `pip install` it forever.
+
+    Only after both of those do prerequisites decide WAITING vs ACTIONABLE.
     """
+    if node.state is State.SATISFIED:
+        return SATISFIED_OK
     if in_conflict(graph, node):
         return BLOCKED
     for edge in graph.edges:
@@ -1191,13 +1389,22 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
     blocked_by: dict[str, list[str]] = {}
 
     # --- error nodes ---------------------------------------------------------
-    anchors: list[tuple[Node, int, bool, str]] = []
+    # 🔴 TWO SEPARATE PASSES, and they must NOT share a cap.
+    #   * SUBGRAPHS are expensive (two edge lists each) -> capped at _MAX_ERROR_NODES.
+    #   * RECORDS are cheap, and ACTIONABLE roots are INDEPENDENT -> the agent should batch
+    #     ALL of them in one patch, and every hidden root costs a full container rebuild (§6.4).
+    # Collecting records only from the CAPPED anchors would transitively cap records too,
+    # silently reintroducing the very top-N truncation §6.4 exists to forbid.
+    anchors: list[tuple[Node, int, bool, str]] = []      # -> SUBGRAPH (capped)
+    all_anchors: list[Node] = []                          # -> RECORDS (uncapped)
+
     if result is not None and not result.ok and result.failing_command:
         from python_deps.depgraph.graph_enrich import owner_node_for_command
         owner = owner_node_for_command(graph, result.failing_command)
         n = graph.get(owner) if owner else None
         if n is not None:
             anchors.append((n, 0, False, f"BUILD FAILED  {result.failing_command}"))
+            all_anchors.append(n)
 
     ranked = sorted(causes, key=lambda c: _weight(c, repo_path)[0], reverse=True)
     seen: set[str] = set()
@@ -1211,27 +1418,36 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
             notes.append(f"NO GRAPH EXPLANATION\n    {c.exc}: {c.detail}  [{c.phase}] — "
                          f"not in the model. Explore.")
             continue
-        if node.id in seen or len(anchors) >= _MAX_ERROR_NODES + 1:
+        if node.id in seen:
             continue
         seen.add(node.id)
+        all_anchors.append(node)                   # EVERY anchor feeds records — no cap here
         w, est = _weight(c, repo_path)
-        anchors.append((node, w, est, f"ERROR NODE  {node.id}   {_fmt_state(node)}\n"
-                                      f"  ← {c.exc}: {c.detail}   [{c.phase}]"))
+        if len(anchors) < _MAX_ERROR_NODES:        # only the top-N get a rendered SUBGRAPH
+            anchors.append((node, w, est, f"ERROR NODE  {node.id}   {_fmt_state(node)}\n"
+                                          f"  ← {c.exc}: {c.detail}   [{c.phase}]"))
 
-    # --- subgraph ------------------------------------------------------------
+    # --- records: from ALL anchors, uncapped (§6.4) --------------------------
+    for node in all_anchors:
+        _down, follow = _down_edges(graph, node, target_env)
+        for cand in [node, *follow]:
+            if verdict(graph, cand, target_env) in (ACTIONABLE, BLOCKED):
+                records.setdefault(cand.id, cand)
+                blocked_by.setdefault(cand.id, []).append(node.id)
+
+    # --- subgraph: only the top-N anchors ------------------------------------
     for node, w, est, header in anchors:
         sub.append(header)
-        down, follow = _down_edges(graph, node, target_env)
+        down, _follow = _down_edges(graph, node, target_env)
         if down:
             sub.append("\n  REQUIRES — what it needs (the fix is in here)")
             sub.extend(down)
         sub.append("\n  REQUIRED BY — what breaks because of it (the impact)")
         sub.extend(_up_edges(graph, node, w, est))
         sub.append("")
-        for cand in [node, *follow]:
-            if verdict(graph, cand, target_env) in (ACTIONABLE, BLOCKED):
-                records.setdefault(cand.id, cand)
-                blocked_by.setdefault(cand.id, []).append(node.id)
+    dropped = len(all_anchors) - len(anchors)
+    if dropped > 0:                                # NEVER silently drop (§6.6)
+        sub.append(f"  + {dropped} more failure class(es); their roots appear in the records below.")
 
     if not sub and not notes:
         return ""
@@ -1242,11 +1458,15 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
                   and verdict(graph, n, target_env) == ACTIONABLE]
     head = ["GRAPH CONTEXT — certified against the container your script just built", ""]
     if len(actionable) > _IMPLAUSIBLE_FRONTIER:
+        # ONE line per sentence — the test asserts on substrings, and wrapping a phrase across
+        # two list entries puts a "\n" in the middle of it.
         head += [
-            f"⚠ {len(actionable)} nodes are ACTIONABLE. That is implausible — independent roots",
-            "  do not arrive in bulk. A shared prerequisite is almost certainly MISSING FROM THE",
-            "  MODEL (check the runtime/venv tier). Showing the largest few; treat the graph as",
-            "  unreliable this turn.", "",
+            f"⚠ {len(actionable)} nodes are ACTIONABLE. That is implausible — independent roots"
+            " do not arrive in bulk.",
+            "  A shared prerequisite is almost certainly MISSING FROM THE MODEL"
+            " (check the runtime/venv tier).",
+            f"  Showing the {_FRONTIER_SAMPLE} largest; treat the graph as unreliable this turn.",
+            "",
         ]
         keep = {n.id for n in actionable[:_FRONTIER_SAMPLE]}
         records = {k: v for k, v in records.items() if k in keep}
@@ -1300,10 +1520,16 @@ possible; no top-N cap (actionable roots are independent -> batch them). Fields 
 - Test: `tests/depgraph/test_graph_enrich.py`
 
 **Interfaces:**
-- Consumes: `owner_node_for_command` (Task 2); `runtime_ingest.ingest_runtime_failures`; `diagnose.{RepoContext, make_diagnostic_classifier}`; `certify.certify`.
+- Consumes: `owner_node_for_command` (Task 2); `runtime_ingest.ingest_runtime_failures` (`runtime_ingest.py:165`); `diagnose.RepoContext` (`diagnose.py:47-65`, all fields defaulted → `RepoContext()` works); `diagnose.make_diagnostic_classifier` (**`diagnose.py:257`**); `certify.certify` (`certify.py:47`).
 - Produces:
   - `enrich(graph, result, causes, ctx) -> tuple[DepGraph, list[str]]` — returns `(new_graph, new_node_ids)`.
   - `certify_only(graph, node_ids, executor, cycle=0) -> DepGraph`.
+
+> 🔴 **Task 1B IS A HARD PREREQUISITE.** Until `classify_tool_error` recognises
+> `<tool> executable not found`, the `pg_config` fixture below classifies as `AMBIGUOUS` with
+> `discovery=None`, `enrich` appends **nothing**, and
+> `test_build_failure_anchors_the_discovery_at_the_OWNER_not_the_test_node` fails. Do not start this
+> task until Task 1B is green.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1321,14 +1547,16 @@ class _Result:
 
 
 class _FakeExec:
-    """Minimal Executor: every check_command returns rc 0."""
-    def __init__(self, rc=0):
-        self.rc, self.seen = rc, []
+    """Minimal Executor. NOTE the real CommandResult fields (executor.py:21-30) are
+    `command, returncode, stdout, stderr` — there is NO `rc` field. `certify()` reads
+    `.ok` (a property: returncode == 0) and `.stderr`."""
+    def __init__(self, returncode=0):
+        self.returncode, self.seen = returncode, []
 
     def run(self, command, **_kw):
         self.seen.append(command)
         from python_deps.depgraph.executor import CommandResult
-        return CommandResult(rc=self.rc, stdout="", stderr="")
+        return CommandResult(command, self.returncode, "", "" if self.returncode == 0 else "boom")
 
 
 def test_build_failure_anchors_the_discovery_at_the_OWNER_not_the_test_node():
@@ -1389,7 +1617,7 @@ def test_certify_only_touches_just_the_named_nodes():
     g = _graph().with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
                                 layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RUNTIME,
                                 state=State.UNKNOWN, check_command="command -v pg_config"))
-    ex = _FakeExec(rc=0)
+    ex = _FakeExec(returncode=0)
     new = certify_only(g, ["binary:pg_config"], ex)
     assert new.get("binary:pg_config").state is State.SATISFIED
     assert ex.seen == ["command -v pg_config"]          # NOT every node in the graph
@@ -1534,26 +1762,35 @@ def _eligible_for_build_deps(graph: DepGraph):
             if n.type is NodeType.PACKAGE and n.version and n.build_from_source is not False]
 
 
-def seed_build_deps_for(graph: DepGraph, pkg: Node, executor: Executor) -> DepGraph:
+def seed_build_deps_for(graph: DepGraph, pkg: Node, executor: Executor) -> tuple[DepGraph, int, int, int]:
     """Seed ONE package's build-time prior. The verbatim body of seed_build_deps' loop.
 
-    Extracted so the react arm can expand a single runtime-discovered node without
-    re-running the whole graph-level pass (which would re-hit the network for every one of
-    the ~200 packages already seeded).
+    Returns (graph, pkgs_delta, cap_nodes_delta, aptdep_nodes_delta).
+
+    🔴 THE COUNTERS ARE NOT DECORATION. `tests/depgraph/test_build_deps.py:307-316`
+    (`test_seed_build_deps_logs_aggregate`) asserts the log line contains `pkgs=1`,
+    `cap_nodes=1` AND `aptdep_nodes=2`. Drop them and that test fails. Note `pkgs` counts only
+    packages with a NON-EMPTY plan (the original increments it AFTER the early-continue), while
+    cap/aptdep count nodes actually INSERTED.
+
+    Extracted so the react arm can expand a single runtime-discovered node without re-running
+    the whole graph-level pass (which would re-hit the network for all ~200 seeded packages).
     """
     new = graph
+    cap_nodes = aptdep_nodes = 0
     pc_id = capability_id(_PKG_CONFIG_NEED)
 
     # B3: baseline pkg-config for EVERY source-built package (Debian omits it; slim images lack it).
     if new.get(pc_id) is None:
         new = new.with_node(_capability_node(_PKG_CONFIG_NEED, executor))
+        cap_nodes += 1
     new = new.with_edge(
         Edge(src=pkg.id, dst=pc_id, relation=EdgeType.REQUIRES, origin="resolver")
     )
 
     plan = build_dep_prior(pkg.name, pkg.version, executor)
     if not (plan.capability_needs or plan.apt_directives):
-        return new
+        return new, 0, cap_nodes, 0          # pkgs is NOT incremented — matches the original
 
     env = build_env_for(pkg.name)
     if env:
@@ -1564,6 +1801,7 @@ def seed_build_deps_for(graph: DepGraph, pkg: Node, executor: Executor) -> DepGr
         node_id = capability_id(need)
         if new.get(node_id) is None:
             new = new.with_node(_capability_node(need, executor))
+            cap_nodes += 1
         new = new.with_edge(
             Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
         )
@@ -1572,26 +1810,41 @@ def seed_build_deps_for(graph: DepGraph, pkg: Node, executor: Executor) -> DepGr
         node_id = apt_build_id(name)
         if new.get(node_id) is None:
             new = new.with_node(_apt_build_node(name))
+            aptdep_nodes += 1
         new = new.with_edge(
             Edge(src=pkg.id, dst=node_id, relation=EdgeType.REQUIRES, origin="resolver")
         )
-    return new
+    return new, 1, cap_nodes, aptdep_nodes
 
 
 def seed_build_deps(graph: DepGraph, executor: Executor) -> DepGraph:
-    """Graph-level pass — now just the loop over seed_build_deps_for. Behaviour unchanged."""
+    """Graph-level pass — now just the loop over seed_build_deps_for. Behaviour UNCHANGED,
+    including the three-counter log line the existing test asserts on."""
     new = graph
-    pkgs = _eligible_for_build_deps(graph)
-    for pkg in pkgs:
-        new = seed_build_deps_for(new, pkg, executor)
-    logger.info("seed_build_deps: pkgs=%d", len(pkgs))
+    pkgs = cap_nodes = aptdep_nodes = 0
+    for pkg in _eligible_for_build_deps(graph):
+        new, dp, dc, da = seed_build_deps_for(new, pkg, executor)
+        pkgs += dp
+        cap_nodes += dc
+        aptdep_nodes += da
+    logger.info(
+        "seed_build_deps: pkgs=%d cap_nodes=%d aptdep_nodes=%d",
+        pkgs, cap_nodes, aptdep_nodes,
+    )
     return new
 ```
 
+> **`discovery_expand` must unpack the 4-tuple:**
+> `new, _dp, _dc, _da = seed_build_deps_for(new, node, executor)` (Task 7 Step 5 shows this).
+> If you would rather keep `seed_build_deps_for` returning a bare `DepGraph`, you must instead
+> recompute the three counters inside `seed_build_deps` — but do **not** simply drop them.
+
 - [ ] **Step 2: Prove the refactor is behaviour-preserving**
 
-Run: `python -m pytest tests/depgraph/ -v -k "build_dep or seed_build"`
-Expected: PASS — every pre-existing `seed_build_deps` test, unchanged.
+Run: `python -m pytest tests/depgraph/test_build_deps.py -v`
+Expected: PASS — **every** pre-existing test, unchanged. Pay particular attention to
+`test_seed_build_deps_logs_aggregate` (`:307-316`), which asserts the log line still contains
+`pkgs=`, `cap_nodes=` **and** `aptdep_nodes=`. If it fails, you dropped a counter.
 
 Then the full construction suite:
 
@@ -1624,9 +1877,10 @@ from python_deps.depgraph.schema import (
 
 
 class _Exec:
+    """CommandResult fields are (command, returncode, stdout, stderr) — there is NO `rc`."""
     def run(self, command, **_kw):
         from python_deps.depgraph.executor import CommandResult
-        return CommandResult(rc=0, stdout="", stderr="")
+        return CommandResult(command, 0, "", "")
 
 
 def _pkg(name, version, discovered_by=DiscoveredBy.RUNTIME) -> Node:
@@ -1643,12 +1897,13 @@ def test_expands_a_versioned_discovery_through_the_real_oracle(monkeypatch):
 
     def _fake_seed_for(graph, pkg, executor):
         calls.append(pkg.name)
-        return (graph
-                .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
-                                layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
-                                state=State.MISSING))
-                .with_edge(Edge(src=pkg.id, dst="binary:pg_config",
-                                relation=EdgeType.REQUIRES, origin="resolver")))
+        g = (graph
+             .with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
+                             layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RESOLVER,
+                             state=State.MISSING))
+             .with_edge(Edge(src=pkg.id, dst="binary:pg_config",
+                             relation=EdgeType.REQUIRES, origin="resolver")))
+        return g, 1, 1, 0                       # (graph, pkgs, cap_nodes, aptdep_nodes)
 
     monkeypatch.setattr(dx, "seed_build_deps_for", _fake_seed_for)
     g = DepGraph().with_node(_pkg("psycopg2", "2.9.12"))
@@ -1666,7 +1921,7 @@ def test_a_versionless_discovery_is_NOT_expanded(monkeypatch):
     anchor's wrongness through a whole fabricated subtree (the 6->0 property)."""
     called = []
     monkeypatch.setattr(dx, "seed_build_deps_for",
-                        lambda g, p, e: called.append(p.name) or g)
+                        lambda g, p, e: (called.append(p.name), (g, 1, 0, 0))[1])
     g = DepGraph().with_node(_pkg("patchright", None))
     new, expanded = dx.expand_discovery(g, ["pkg:patchright"], _Exec())
     assert called == []
@@ -1676,7 +1931,7 @@ def test_a_versionless_discovery_is_NOT_expanded(monkeypatch):
 def test_a_non_package_node_is_not_expanded(monkeypatch):
     called = []
     monkeypatch.setattr(dx, "seed_build_deps_for",
-                        lambda g, p, e: called.append(p.name) or g)
+                        lambda g, p, e: (called.append(p.name), (g, 1, 0, 0))[1])
     g = DepGraph().with_node(Node(id="binary:pg_config", type=NodeType.TOOL, name="pg_config",
                                   layer=Layer.SYSTEM, discovered_by=DiscoveredBy.RUNTIME,
                                   state=State.MISSING))
@@ -1690,7 +1945,7 @@ def test_a_node_is_expanded_at_most_ONCE_across_turns(monkeypatch):
     `expanded` set we would re-hit the network with build_dep_prior every single turn."""
     called = []
     monkeypatch.setattr(dx, "seed_build_deps_for",
-                        lambda g, p, e: called.append(p.name) or g)
+                        lambda g, p, e: (called.append(p.name), (g, 1, 0, 0))[1])
     g = DepGraph().with_node(_pkg("psycopg2", "2.9.12"))
     _g1, exp1 = dx.expand_discovery(g, ["pkg:psycopg2==2.9.12"], _Exec())
     _g2, exp2 = dx.expand_discovery(g, ["pkg:psycopg2==2.9.12"], _Exec(), expanded=exp1)
@@ -1762,7 +2017,9 @@ def expand_discovery(graph: DepGraph, node_ids, executor, expanded: set[str] | N
         if node is None or node.type is not NodeType.PACKAGE or not node.version:
             continue
         try:
-            new = seed_build_deps_for(new, node, executor)
+            # seed_build_deps_for returns (graph, pkgs, cap_nodes, aptdep_nodes) — the counters
+            # exist because seed_build_deps' log line is asserted on by an existing test.
+            new, _dp, _dc, _da = seed_build_deps_for(new, node, executor)
             done.add(node_id)
         except Exception as exc:               # noqa: BLE001 — must never break the run
             logger.warning("expand_discovery: %s skipped: %s", node_id, exc)
@@ -1791,77 +2048,89 @@ every turn. seed_build_deps is now just the loop over the extracted body — beh
 
 ### Task 8: Wire the arm — planner seam, loop, and the G2/G3 flags
 
-**Why:** The seam already exists (`planner.py:129`, rendered `:150-152`) and `run_react_arm` already takes a `graph_context: bool` (`entry.py:157`) — `entry.py:162` just hardcodes `ctx = None`. Two flags, not one, so **read-only graph (G2)** and **growing graph (G3)** are separate ablation rungs and a G3 lift is never misattributed to the renderer.
+**Why:** The seam already exists and `run_react_arm` already takes a `graph_context: bool` — `entry.py` just hardcodes `ctx = None`. Two flags, not one, so **read-only graph (G2)** and **growing graph (G3)** are separate ablation rungs and a G3 lift is never misattributed to the renderer.
+
+> 🔴 **Line numbers in this task were re-anchored on 2026-07-13 against the current tree.** `loop.py`, `entry.py`, and `planner.py` all grew from a parallel session (error histogram, per-test timeout, the self-install anti-cheat gate). **Re-verify with `grep` before editing** — do not trust any line number here blindly.
 
 **Files:**
-- Modify: `src/react_repair/planner.py:139-152` (`_render`), `:159-163` (`_graph_text`), `:194` (`plan`)
-- Modify: `src/react_repair/loop.py:183-207` (`build_and_test`), `:227,246,277,291`
-- Modify: `src/react_repair/entry.py:156-175` (`run_react_arm`)
-- Test: `tests/react_repair/test_loop.py`
+- Modify: `src/react_repair/planner.py` — `_render` (`:142`, direct call at `:153-156`), `_graph_text` (`:162-167`), `_messages` (`:169+`), `plan` (`:193-195`)
+- Modify: `src/react_repair/loop.py` — `build_and_test` (`:257-274`), rebind sites (`:294`, `:348`, `:363`), `run_react` signature (`:249-251`)
+- Modify: `src/react_repair/entry.py` — `ctx = None` (**`:193`**, not 162), `run_react_arm` (`:187-189`)
+- Test: `tests/react_repair/test_loop.py`, **`tests/react_repair/test_planner.py`** ← *the plan originally missed this file; it contains the one existing test that exercises the seam*
 
 **Interfaces:**
 - Consumes: `render_graph_context` (Task 5), `enrich`/`certify_only` (Task 6), `expand_discovery` (Task 7).
-- Produces: the `graph_context` callable now takes `(graph, result, causes, prev_states)`.
+- Produces: the `graph_context` callable now takes **4 args** — `(graph, result, causes, prev_states)`.
 
-- [ ] **Step 1: Read the existing harness, then write the failing test**
+#### 🔴 Four traps, all confirmed against the current tree
 
-`tests/react_repair/test_loop.py` already builds fake `reset` / `run_script` / `certify` /
-`exec_readonly` / `run_tests` / `planner` callables and drives `run_react` with them. **Open it
-first and reuse those fixtures verbatim** — do not invent a second harness. The two tests below use
-that harness; adapt the fixture names to whatever the file already calls them.
+1. **`_render` calls `self.graph_context(graph)` DIRECTLY** (`planner.py:153-156`) — it does **not** go through `_graph_text`. There are **TWO** call sites to widen, not one.
+2. **`tests/react_repair/test_planner.py:93`** does `graph_context=lambda g: "libpq: MISSING"` — a **1-arg** lambda. The moment the seam takes 4 args this raises `TypeError: <lambda>() takes 1 positional argument but 4 were given`. **It must be migrated in this task.**
+3. **`run_react` already has a `project_name` kwarg** (`loop.py:251`, feeding the self-install anti-cheat gate at `:320`). **Preserve it** when widening the signature.
+4. **`build_and_test` is full of `log.d`/`log.trace` calls.** Step 4 below is a **surgical insert**, NOT a replace-paste. Dropping the logs breaks `test_green_first_pass_is_done` (`test_loop.py:170-172` asserts `log.count("TEST_GATE") >= 1`) and destroys the JSONL trace records other tooling reads.
+
+- [ ] **Step 1: Migrate the existing planner test to the 4-arg seam**
+
+In `tests/react_repair/test_planner.py:92-96`, widen the lambda and prove the extra args arrive:
 
 ```python
-def test_baseline_planner_never_receives_a_graph_context():
-    """G0/G1 ablation invariant: with graph_context=None the planner's rendered prompt must
-    contain no GRAPH CONTEXT block at all."""
-    planner = _FakePlanner(graph_context=None)          # existing fixture
-    run_react(_graph(), reset=_reset, run_script=_ok_script, certify=lambda g: g,
-              exec_readonly=_ro, run_tests=_passing_tests, planner=planner,
-              history=History(), log=_log(), max_steps=1)
-    assert all("GRAPH CONTEXT" not in p for p in planner.prompts)
-
-
-def test_graph_context_receives_result_causes_and_prev_states_on_a_FAILED_build():
-    """The seam is 4 args now, and `result` is REQUIRED: loop.py:202 runs pytest only when the
-    build is GREEN, so on a build-fail turn `causes` is EMPTY and the only failure to anchor at
-    is the failing command. A renderer keyed on `causes` alone emits nothing on exactly the
-    turns where the install tier is broken."""
+def test_graph_context_injected_when_provided(monkeypatch):
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
     got = {}
 
     def _ctx(graph, result, causes, prev_states):
         got.update(result=result, causes=causes, prev_states=prev_states)
-        return "GRAPH!"
+        return "libpq: MISSING"
 
-    failing = RunResult(ok=False, failing_command="pip install psycopg2==2.9.12",
-                        output="Error: pg_config executable not found", lineno=14)
-    planner = _FakePlanner(graph_context=_ctx)
-    run_react(_graph(), reset=_reset, run_script=lambda s: failing, certify=lambda g: g,
-              exec_readonly=_ro, run_tests=_never_called, planner=planner,
-              history=History(), log=_log(), max_steps=1)
+    p = ReactPlanner(client=object(), model="m", graph_context=_ctx)
+    p.plan(History(), "script", "obs", graph=object(),
+           result=None, causes=[], prev_states={})
+    assert "GRAPH CONTEXT" in seen["user"] and "libpq: MISSING" in seen["user"]
+    assert got == {"result": None, "causes": [], "prev_states": {}}
 
-    assert got["result"].ok is False
-    assert got["result"].failing_command == "pip install psycopg2==2.9.12"
-    assert got["causes"] == []                       # pytest never ran
-    assert isinstance(got["prev_states"], dict)
-    assert any("GRAPH!" in p for p in planner.prompts)
+
+def test_graph_context_is_absent_for_the_baseline(monkeypatch):
+    """G0/G1 ablation invariant: graph_context=None -> no GRAPH CONTEXT block at all."""
+    seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
+    ReactPlanner(client=object(), model="m", graph_context=None).plan(
+        History(), "script", "obs", graph=object())
+    assert "GRAPH CONTEXT" not in seen["user"]
 ```
-
-If `test_loop.py` has no `_FakePlanner` that records its rendered prompts, add one — a class with a
-`graph_context` attribute, a `prompts: list[str]`, and a `plan(...)` that appends
-`self.graph_context(graph, result, causes, prev_states)` (when not `None`) to `prompts` and returns
-a fixed `("thought", Action(kind="patch", content="echo hi"), None)`.
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `python -m pytest tests/react_repair/test_loop.py -v -k graph_context`
-Expected: FAIL — the context fn is called with 1 arg, not 4.
+Run: `python -m pytest tests/react_repair/test_planner.py -v -k graph_context`
+Expected: FAIL — `TypeError: plan() got an unexpected keyword argument 'result'`.
 
-- [ ] **Step 3: Widen the planner seam**
+- [ ] **Step 3: Widen BOTH planner call sites**
 
-In `src/react_repair/planner.py`, change `_graph_text` and `_render` to accept and pass the extra
-args, and add them to `plan`'s signature:
+In `src/react_repair/planner.py`, thread the three new args through `plan` → `_messages` → both
+`_render` **and** `_graph_text`. All default to `None`, so the baseline arm is untouched.
 
 ```python
+    def _render(self, history, script: str, observation: str, graph,
+                fail_lineno: int | None = None,
+                turn: int | None = None, max_turns: int | None = None,
+                rejection: str | None = None,
+                result=None, causes=None, prev_states=None) -> str:
+        parts = [
+            ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
+             "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
+             + _numbered(script, fail_lineno)),
+            "LAST RUN OBSERVATION:\n" + (observation or ""),
+            render_history(history.steps),
+        ]
+        # Reuse _graph_text — do NOT re-implement the call here. Before this change `_render`
+        # called self.graph_context(graph) directly, which is why widening _graph_text alone
+        # would have silently left the blob prompt style on the old 1-arg seam.
+        ctx = self._graph_text(graph, result, causes, prev_states)
+        if ctx:
+            parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
+        if rejection:
+            parts.append("YOUR LAST TOOL CALL WAS REJECTED — fix it and try again: " + rejection)
+        parts.append(_closing_line(turn, max_turns))
+        return "\n\n".join(parts)
+
     def _graph_text(self, graph, result=None, causes=None, prev_states=None) -> "str | None":
         """The certified-state block for the graph variant (None for the baseline)."""
         if self.graph_context is None:
@@ -1870,76 +2139,114 @@ args, and add them to `plan`'s signature:
         return ctx if ctx.strip() else None
 ```
 
-Thread `result`, `causes`, `prev_states` through `_render`, `_messages`, and `plan` as keyword
-arguments defaulting to `None`, so the baseline call sites are unchanged.
-
-- [ ] **Step 4: Wire the loop**
-
-In `src/react_repair/loop.py`, inside `build_and_test`, capture the previous states and run
-enrich → expand → certify_only **after** certify:
+Then `_messages` — note the **default (`messages`) path** feeds `build_messages`, whose
+`graph_context_text=` kwarg already exists (`message_view.py:392-395`) and takes a **rendered
+string**, so `message_view` itself needs no change:
 
 ```python
-    expanded: set[str] = set()
+    def _messages(self, history, script, observation, graph, fail_lineno, turn, max_turns,
+                  rejection, rejected=None, result=None, causes=None, prev_states=None):
+        if os.getenv("REACT_PROMPT_STYLE", "messages").lower() != "blob":
+            return build_messages(
+                history.steps, system_prompt=self.system_prompt,
+                numbered_script=_numbered(script, fail_lineno),
+                closing_line=_closing_line(turn, max_turns),
+                graph_context_text=self._graph_text(graph, result, causes, prev_states),
+                rejection=rejection, rejected=rejected)
+        return [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user",
+             "content": self._render(history, script, observation, graph, fail_lineno,
+                                     turn, max_turns, rejection, result, causes, prev_states)},
+        ]
+```
+
+And `plan` — **keep every existing param**, append the three:
+
+```python
+    def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
+             turn: int | None = None, max_turns: int | None = None, rejection: str | None = None,
+             rejected: "dict | None" = None,
+             result=None, causes=None, prev_states=None):
+        messages = self._messages(history, script, observation, graph, fail_lineno,
+                                  turn, max_turns, rejection, rejected,
+                                  result, causes, prev_states)
+        # ...rest of plan() UNCHANGED...
+```
+
+- [ ] **Step 4: Run the planner tests**
+
+Run: `python -m pytest tests/react_repair/test_planner.py tests/react_repair/test_message_view.py -v`
+Expected: PASS — including every pre-existing test.
+
+- [ ] **Step 5: Wire the loop — a SURGICAL INSERT into `build_and_test`**
+
+🔴 **Do not replace `build_and_test`.** Keep every `log.d` and `log.trace` call exactly as it is
+(`test_green_first_pass_is_done` asserts `log.count("TEST_GATE") >= 1`, and the `"run"`/`"test"`
+trace records are consumed by downstream tooling). Add only the marked lines:
+
+```python
+    expanded: set[str] = set()                              # ADD (above build_and_test)
 
     def build_and_test():
-        nonlocal expanded
+        """Reset → run the WHOLE current script fresh from base → certify (install-tier) → and,
+        if the build is green, run the suite once. Returns (result, graph, test|None, causes, prev)."""
+        nonlocal expanded                                   # ADD
         reset()
-        prev_states = {n.id: n.state for n in graph.nodes}   # for the SINCE-YOUR-LAST-EDIT delta
+        prev_states = {n.id: n.state for n in graph.nodes}  # ADD — for the SINCE-YOUR-LAST-EDIT delta
+        log.d("RUN", f"running {len(script.splitlines())}-line build script from base")
         r = run_script(script)
         g = certify(graph)
+        log.d("CERTIFY", "install-tier node states refreshed" if r.ok else f"build failed: {r.failing_command}")
+        log.trace("run", script_len=len(script.splitlines()), ok=r.ok,
+                  failing_command=r.failing_command, lineno=r.lineno,
+                  output_tail=(r.output or "")[-500:])
         t = None
         if r.ok:
             t = run_tests()
-        causes = summarize(t.output) if (t is not None and t.output) else []
-        if enrich_fn is not None:                            # G3 only (REACT_GRAPH_UPDATE)
-            g, new_ids = enrich_fn(g, r, causes)
-            g, expanded = expand_fn(g, new_ids, expanded)
-            g = certify_new_fn(g, new_ids)
-        return r, g, t, causes, prev_states
+            log.d("TEST_GATE", f"{t.passed}/{t.executed} passed → {'ok' if t.ok else 'below threshold'}")
+            log.trace("test", passed=t.passed, executed=t.executed, ok=t.ok,
+                      output_tail=(t.output or "")[-500:])
+        causes = summarize(t.output) if (t is not None and t.output) else []   # ADD
+        if enrich_fn is not None:                                              # ADD — G3 only
+            g, new_ids = enrich_fn(g, r, causes)                               # ADD
+            g, expanded = expand_fn(g, new_ids, expanded)                      # ADD
+            g = certify_new_fn(g, new_ids)                                     # ADD
+            if new_ids:                                                        # ADD
+                log.d("ENRICH", f"discovered {len(new_ids)}: {', '.join(new_ids[:3])}")
+        return r, g, t, causes, prev_states                                    # CHANGED (was 3-tuple)
 ```
 
-Update the three call sites (`:227`, `:277`, `:291`) to unpack five values, and pass the new args
-to `planner.plan(...)`.
+`summarize` is **already imported** at `loop.py:16` — no new import needed.
 
-- [ ] **Step 5: Wire `entry.py`**
-
-Replace `entry.py:162` (`ctx = None`) with:
+Widen `run_react`'s signature, **keeping `project_name`**:
 
 ```python
-    # G2 = render only (frozen topology). G3 = render + observation-driven growth (§7).
-    # Two flags, not one, so a G3 lift is never misattributed to the renderer.
-    want_ctx = bool(graph_context) or os.getenv("REACT_GRAPH_CONTEXT") == "1"
-    want_update = os.getenv("REACT_GRAPH_UPDATE") == "1"
-
-    # RepoContext must come from repo_modules.top_level_names — the sys.path-accurate set.
-    # diagnose.py:48-52 explicitly warns NOT to use scan.local_module_names, which is
-    # deliberately over-broad (it harvests every .py stem) and makes the router give up
-    # silently on azure/traitlets/jinja2. This mirrors orchestrator.py:740-751 exactly.
-    repo_ctx = RepoContext(
-        local_names=repo_modules.top_level_names(repo_path) if repo_path else frozenset(),
-        invalid_names=frozenset(),
-        collisions=repo_modules.stem_collisions(repo_path) if repo_path else {},
-    )
-
-    ctx = None
-    if want_ctx:
-        def ctx(graph, result, causes, prev_states):
-            return render_graph_context(graph, result, causes, prev_states,
-                                        repo_path=repo_path)
-
-    enrich_fn = expand_fn = certify_new_fn = None
-    if want_update:
-        def enrich_fn(g, r, causes):
-            return enrich(g, r, causes, repo_ctx)
-
-        def expand_fn(g, new_ids, already):
-            return expand_discovery(g, new_ids, _ExecAdapter(sandbox.exec_readonly), already)
-
-        def certify_new_fn(g, new_ids):
-            return certify_only(g, new_ids, _ExecAdapter(sandbox.exec_readonly))
+def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
+              history, log, max_steps: int = 30, _initial_script: str | None = None,
+              project_name: "str | None" = None,
+              enrich_fn=None, expand_fn=None, certify_new_fn=None):
 ```
 
-Add the imports at the top of `entry.py`:
+Update the **three** rebind sites (`:294`, `:348`, `:363`) to unpack five values:
+
+```python
+    result, graph, test, causes, prev_states = build_and_test()
+```
+
+and pass the new args to the planner:
+
+```python
+            thought, action, usage = planner.plan(history, script, observation, graph,
+                                                  fail_lineno=result.lineno, turn=step + 1,
+                                                  max_turns=max_steps, rejection=rejection,
+                                                  result=result, causes=causes,
+                                                  prev_states=prev_states)
+```
+
+- [ ] **Step 6: Wire `entry.py`**
+
+Replace `entry.py:193` (`ctx = None`). Add these imports at the top:
 
 ```python
 from python_deps.depgraph import repo_modules
@@ -1949,36 +2256,182 @@ from python_deps.depgraph.graph_context import render_graph_context
 from python_deps.depgraph.graph_enrich import certify_only, enrich
 ```
 
-and pass `enrich_fn` / `expand_fn` / `certify_new_fn` through `run_react(...)` to `build_and_test`.
+(`import os` is already there at `:7`.) Then:
 
-> **`_ExecAdapter` already exists** in `entry.py` (used at `:76` to wrap `sandbox.exec_readonly`
-> for `certify_all`). Reuse it — do not write a second adapter.
+```python
+    # G2 = render only (frozen topology). G3 = render + observation-driven growth (§7).
+    # Two flags, not one, so a G3 lift is never misattributed to the renderer.
+    want_ctx = bool(graph_context) or os.getenv("REACT_GRAPH_CONTEXT") == "1"
+    want_update = os.getenv("REACT_GRAPH_UPDATE") == "1"
 
-- [ ] **Step 6: Run the full react + depgraph suites**
+    # RepoContext MUST come from repo_modules.top_level_names — the sys.path-accurate set.
+    # diagnose.py:48-52 explicitly warns NOT to use scan.local_module_names, which is
+    # deliberately over-broad (it harvests every .py stem) and makes the router give up
+    # silently on azure/traitlets/jinja2. Mirrors orchestrator.py:740-751.
+    repo_ctx = RepoContext(
+        local_names=repo_modules.top_level_names(repo_path) if repo_path else frozenset(),
+        invalid_names=frozenset(),
+        collisions=repo_modules.stem_collisions(repo_path) if repo_path else {},
+    )
 
-Run: `python -m pytest tests/react_repair/ tests/depgraph/ -q`
-Expected: PASS. The baseline (G0/G1) tests must be **untouched** — if any changed behaviour, the
-ablation invariant is broken.
+    ctx = None
+    if want_ctx:
+        def ctx(graph, result, causes, prev_states):
+            return render_graph_context(graph, result, causes, prev_states, repo_path=repo_path)
 
-- [ ] **Step 7: Commit**
+    enrich_fn = expand_fn = certify_new_fn = None
+    if want_update:
+        _ex = _ExecAdapter(sandbox.exec_readonly)      # already defined at entry.py:56-63
 
-```bash
-git add src/react_repair/planner.py src/react_repair/loop.py src/react_repair/entry.py tests/react_repair/test_loop.py
-git commit -m "feat(react): wire the graph arm — REACT_GRAPH_CONTEXT (G2) / REACT_GRAPH_UPDATE (G3)
+        def enrich_fn(g, r, causes):
+            return enrich(g, r, causes, repo_ctx)
 
-Fills the graph_context seam that entry.py:162 has hardcoded to None. Two flags, not one, so
-read-only graph (G2) and growing graph (G3) are separate ablation rungs and a G3 lift is never
-credited to the renderer. The seam takes (graph, result, causes, prev_states): `result` is
-REQUIRED because loop.py:202 runs pytest only on a green build, so a build-fail turn has EMPTY
-causes and the only anchor is the failing command."
+        def expand_fn(g, new_ids, already):
+            return expand_discovery(g, new_ids, _ex, already)
+
+        def certify_new_fn(g, new_ids):
+            return certify_only(g, new_ids, _ex)
 ```
 
----
+Pass `graph_context=(ctx if want_ctx else None)` to `ReactPlanner`, and thread
+`enrich_fn`/`expand_fn`/`certify_new_fn` into the existing `run_react(...)` call.
 
-## Self-Review Notes
+- [ ] **Step 7: Write the loop-level test**
 
-**Spec coverage.** §4.1/§4.2 → Task 1 (phase) + Task 4 (weight). §4.3 → Task 6 (`_ENV_PHASES`). §6.1–6.2 → Task 5. §6.3 → Task 3. §6.4/§6.4.1/§6.5 → Task 5. §6.7 → Task 8. §6.8 (delta) → Task 5 + Task 8. §7.0.1 → Task 2 + Task 6. §7.1 → Task 6. §7.2/§7.4 → Task 7. §2 (rungs) → Task 8.
+`tests/react_repair/test_loop.py` has a real fake harness — **read it first and reuse it**:
+`_adapters(installed_needs, tests_need, script_box)` (`:139-156`) builds the five callables;
+`_run(moves, ...)` (`:159-167`) drives `run_react`; `_ScriptedPlanner` (`:131-136`) pops a queue of
+`Action`s. **There is no `_FakePlanner` and nothing records rendered prompts today** — add a minimal
+recorder rather than inventing a second harness:
 
-**Deferred, deliberately.** §7.2 *Mechanism 2* (`ldd_probe_for` on newly-satisfied packages) is **not** in this plan — it needs a container with the package actually installed, so it cannot be unit-tested with a fake executor and belongs in a follow-up VM slice. §8's REPO_INTERNAL_REF → Project-node routing (the antidote to the self-install false-green vector) is also deferred: it is a real win but it is orthogonal to the graph arm and deserves its own plan. Both are noted here so they are not silently lost.
+```python
+class _RecordingPlanner(_ScriptedPlanner):
+    """_ScriptedPlanner + it records what the graph_context seam was called with."""
+    def __init__(self, moves, graph_context=None):
+        super().__init__(moves)
+        self.graph_context = graph_context
+        self.calls = []
 
-**Known spec drift.** §2's rung table says `_OBS_MODE` values are `raw`/`histogram`; the code (`loop.py:46`) says `compress` (default) / `histogram`. Use the code's values when running the ablation; the spec table should be corrected.
+    def plan(self, history, script, observation, graph, **kw):
+        if self.graph_context is not None:
+            self.calls.append(self.graph_context(graph, kw.get("result"),
+                                                 kw.get("causes"), kw.get("prev_states")))
+        return super().plan(history, script, observation, graph, **kw)
+
+
+def test_graph_context_gets_result_causes_and_prev_states_on_a_FAILED_build():
+    """`result` is REQUIRED: loop.py only runs pytest on a GREEN build, so a build-fail turn has
+    EMPTY causes and the only anchor is the failing command. A renderer keyed on `causes` alone
+    emits nothing on exactly the turns where the install tier is broken."""
+    got = {}
+
+    def _ctx(graph, result, causes, prev_states):
+        got.update(result=result, causes=causes, prev_states=prev_states)
+        return "GRAPH!"
+
+    # Drive one turn with a script that FAILS to build (use _adapters' existing failure path —
+    # an unsatisfied `installed_needs` token makes run_script return ok=False).
+    # Assert:
+    assert got["result"].ok is False
+    assert got["causes"] == []                     # pytest never ran
+    assert isinstance(got["prev_states"], dict)
+```
+
+> **Implementer:** adapt the body to `_adapters`/`_run`'s actual failure path — read `:139-167`
+> and drive a failing build through it. Do not hand-roll a second set of fakes.
+
+- [ ] **Step 8: Run the full react + depgraph suites**
+
+Run: `python -m pytest tests/react_repair/ tests/depgraph/ -q`
+Expected: PASS. The baseline (G0/G1) behaviour must be **unchanged** — if any pre-existing test
+changed behaviour, the ablation invariant is broken.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/react_repair/planner.py src/react_repair/loop.py src/react_repair/entry.py \
+        tests/react_repair/test_loop.py tests/react_repair/test_planner.py
+git commit -m "feat(react): wire the graph arm — REACT_GRAPH_CONTEXT (G2) / REACT_GRAPH_UPDATE (G3)
+
+Fills the graph_context seam that entry.py has hardcoded to None. Two flags, not one, so
+read-only graph (G2) and growing graph (G3) are separate ablation rungs and a G3 lift is never
+credited to the renderer. The seam takes (graph, result, causes, prev_states): \`result\` is
+REQUIRED because pytest only runs on a green build, so a build-fail turn has EMPTY causes and the
+only anchor is the failing command.
+
+BOTH planner call sites widened — _render called self.graph_context(graph) directly, bypassing
+_graph_text, so widening _graph_text alone would have left the blob prompt style on the old seam.
+test_planner.py's 1-arg lambda migrated. build_and_test's log.d/log.trace calls preserved."
+```
+
+## Self-Review + Verification Notes
+
+**Verified 2026-07-13 by four parallel subagents against the live tree.** Every `file:line` and
+signature below was checked, not assumed. Nine real defects were found and fixed in-place; they are
+listed here because each one would have cost the implementer a confusing failure.
+
+### 🔴 Defects verification found (all now fixed in the plan)
+
+1. **The flagship case did not classify.** `Error: pg_config executable not found` → `diagnose()`
+   returns `AMBIGUOUS`/`discovery=None`, because `_TOOL_COMMAND_NOT_FOUND_RE`
+   (`failure_classifier.py:246`) requires a **colon** (`<name>: not found`). Enrich would have
+   appended **nothing** for the exact case the whole arm is motivated by. → **new Task 1B**.
+2. **`verdict()` never checked the node's OWN state**, so a SATISFIED leaf (no missing
+   prerequisites) came back `ACTIONABLE` and got a "fix this" record for something already
+   installed. → `SATISFIED_OK` early return (Task 3).
+3. **`_MAX_ERROR_NODES` transitively capped RECORDS**, because records were collected only from the
+   capped anchor list — silently reintroducing the top-N truncation §6.4 exists to forbid. → records
+   now collected from **all** anchors, subgraphs from the top-N (Task 5).
+4. **`_render` calls `self.graph_context(graph)` DIRECTLY** (`planner.py:153-156`), bypassing
+   `_graph_text`. Widening `_graph_text` alone would have left the `blob` prompt style on the old
+   1-arg seam. → **both** call sites widened (Task 8).
+5. **`tests/react_repair/test_planner.py:93`** passes a **1-arg** `graph_context` lambda — it
+   `TypeError`s the moment the seam widens, and the file was not in the original task's file list.
+   → migrated in Task 8 Step 1.
+6. **`build_and_test`'s `log.d`/`log.trace` calls** were dropped by the original replace-paste
+   snippet, which would have failed `test_green_first_pass_is_done` (asserts
+   `log.count("TEST_GATE") >= 1`) and destroyed the JSONL trace. → Task 8 Step 5 is now a **surgical
+   insert**.
+7. **`CommandResult` has no `rc` field** — it is `(command, returncode, stdout, stderr)` with an
+   `.ok` property. The `_FakeExec` would have raised `TypeError`. → fixed (Task 6).
+8. **Dropping `cap_nodes`/`aptdep_nodes` from `seed_build_deps`'s log line** breaks the existing
+   `test_seed_build_deps_logs_aggregate` (`test_build_deps.py:307-316`), contradicting the plan's own
+   "PASS, unchanged" claim. → `seed_build_deps_for` now returns the counter deltas (Task 7).
+9. **`DiscoveredBy` has no `LLM` member** (it is `CLASSIFIER`); `run_react` already carries a
+   `project_name` kwarg the plan never mentioned; `make_diagnostic_classifier` is at `diagnose.py:257`;
+   the second orchestrator ingest call is at `:1026`. → all corrected.
+
+### Confirmed sound (spot-checked, no change needed)
+
+`packaging` **is** a dependency (`requirements.txt:6`), so `blocks()`'s marker evaluation is real, not
+a silent no-op. `EDGE_RULES` validates by **node type**, and every edge the plan's tests build
+(Package→Tool, Package→Config, Package→Package for conflicts) is legal — none raise. `with_edge`
+dedupes on `(src, dst, relation)` and `with_node` replaces by id, so `ingest_runtime_failures` is
+genuinely idempotent. `normalize_package_name` is the literal PEP 503 formula, so `charset_normalizer`
+really does match a `charset-normalizer` node. `graph_enrich` creates no import cycle. The pytest
+banner wording is confirmed at the **pytest-source** level (`_pytest/terminal.py:1201-1213` builds
+`"ERROR collecting "` and `f"ERROR at {rep.when} of "`).
+
+### Spec coverage
+
+§4.1/§4.2 → T1 (phase) + T4 (weight). §4.3 → T6 (`_ENV_PHASES`). §6.1–6.2 → T5. §6.3 → T3.
+§6.4/§6.4.1/§6.5 → T5. §6.7 → T8. §6.8 (delta) → T5 + T8. §7.0.1 → T2 + T6. §7.1 → T6.
+§7.2/§7.4 → T7. §2 (rungs) → T8. **§7.2 Mechanism 1 additionally required T1B**, which the spec did
+not anticipate — the spec assumed the classifier already recognised the tool-not-found shape it uses
+as its running example.
+
+### Deferred, deliberately — recorded so they are not silently lost
+
+- **§7.2 Mechanism 2** (`ldd_probe_for` on newly-satisfied packages). Needs a container with the
+  package actually installed, so it cannot be unit-tested with a fake executor. Its loop is also
+  **two-level** — one *batched* `ldd` per package, fanned out over several sonames — so it is **not**
+  the same shape as `seed_build_deps`'s and the extraction is not mechanical. Follow-up VM slice.
+- **§8 REPO_INTERNAL_REF → Project-node routing** — the antidote to the self-install false-green
+  vector (agent runs `pip install <reponame>` from PyPI instead of `pip install -e .`). Real win,
+  orthogonal to the graph arm, deserves its own plan.
+
+### Known spec drift to fix in the spec itself
+
+The spec's §2 rung table says `_OBS_MODE` takes `raw`/`histogram`. **`raw` does not exist.** The real
+lever is `REACT_OBS_MODE` (`loop.py:62`), values `compress` (**default**) / `histogram`. So the G0
+rung is `compress`, not `raw`. Correct the spec before running the ablation.

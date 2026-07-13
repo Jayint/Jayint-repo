@@ -5,6 +5,12 @@
 [[react-script-repair-arm-design]]). Ablation partner of the script-only react agent.
 **Every claim below is grounded in current code (file:line inline).**
 
+> ⚠ **Line numbers drifted after Rev 3.3.** `loop.py`, `entry.py`, and `planner.py` grew from a
+> parallel session (error histogram, per-test timeout, self-install anti-cheat). The *structural*
+> claims below were re-verified 2026-07-13 and hold; the *line numbers* have not been re-anchored.
+> The implementation plan (`docs/superpowers/plans/2026-07-13-graph-guided-react-arm.md`) carries the
+> corrected ones. `grep` for the symbol, don't trust a number here.
+
 **Revision history.**
 - **Rev 1** — collapsed-roots verdict. Rested on a false premise (`pkg→pkg` edges don't
   exist — they do, in bulk) and handed the agent a bare answer with no structure.
@@ -52,9 +58,9 @@ slot on the planner (`planner.py:129,150-152`). Seed script, loop, gate, history
 byte-identical. Today `entry.py:162` hardcodes `ctx = None`; the arm populates it.
 `run_react_arm` already takes the `graph_context: bool` flag (`entry.py:157`).
 
-| rung | `_OBS_MODE` (`loop.py:46`) | `graph_context` | graph update (§7) | status |
+| rung | `REACT_OBS_MODE` (`loop.py:62`) | `graph_context` | graph update (§7) | status |
 |---|---|---|---|---|
-| **G0** raw reactive floor | `raw` (pass-count + tail) | `None` | — | ships |
+| **G0** raw reactive floor | `compress` (**default**) | `None` | — | ships |
 | **G1** presentation control | `histogram` (ranked causes) | `None` | — | ships |
 | **G2** graph, read-only | `histogram` | `render_graph_context` | frozen topology | **this spec** |
 | **G3** graph, growing | `histogram` | `render_graph_context` | **§7 on** | **this spec** |
@@ -608,6 +614,14 @@ merely tidy.
 ### 7.2 Three mechanisms, ordered by evidence strength
 
 Take the strongest available; fall back to speculation last.
+
+> 🔴 **Verification found a hole in Mechanism 1 (2026-07-13).** This spec's own running example —
+> `pip install psycopg2` → `Error: pg_config executable not found` — **does not classify today**.
+> `_TOOL_COMMAND_NOT_FOUND_RE` (`failure_classifier.py:246`) requires a **colon**
+> (`<name>: not found`), and setuptools emits `<name> executable not found` with no colon. So
+> `diagnose()` returns `AMBIGUOUS`/`discovery=None`, and Mechanism 1 appends **nothing** for the case
+> the whole arm is built around. The spec assumed the classifier already handled the shape it uses as
+> its headline. **Fix is one regex** — plan Task 1B, a hard prerequisite for §7.
 
 **Mechanism 1 — Ingest (pure evidence, no speculation).** The error *names* the requirement.
 `pip install psycopg2==2.9.12` failing with `pg_config: not found` is a fact, and the command
