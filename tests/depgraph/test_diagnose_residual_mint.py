@@ -57,7 +57,9 @@ def test_filenotfound_less_without_assertionerror_mints_tool():
 
     classifier = make_diagnostic_classifier(ctx)
     new_graph, found = ingest_runtime_failures(_base_graph(), [(_CMD, out)], classifiers=(classifier,))
-    assert _minted_ids(new_graph) == ["tool:less"]
+    # `binary:less`, not `tool:less` — a missing executable is a `binary:` CAPABILITY, which is
+    # the id construction already mints (build_deps.py:239) and the "single reconciliation key".
+    assert _minted_ids(new_graph) == ["binary:less"]
     assert len(found) == 1
 
 

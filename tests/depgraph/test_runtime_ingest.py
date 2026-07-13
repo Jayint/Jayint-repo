@@ -9,6 +9,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from python_deps.depgraph.ids import (
+    capability_id,
     TEST_NODE_ID, config_id, package_id, service_id, syslib_id, tool_id,
 )
 from python_deps.depgraph.runtime_classify import Discovery
@@ -61,14 +62,46 @@ def test_append_new_syslib_node():
 
 
 def test_append_new_tool_node():
+    # The id is the `binary:` CAPABILITY id, NOT `tool:make`. capability_id is "the single
+    # reconciliation key" (ids.py) and construction already mints TOOL nodes that way
+    # (build_deps.py:239 -> `binary:pg_config` for psycopg2). Minting `tool:make` here fractured
+    # the node: the same capability under two ids, with nothing to reconcile them.
     graph = _base_graph()
     obs = [("make all", "make: command not found")]
     new_graph, discoveries = ingest_runtime_failures(graph, obs)
 
-    node = new_graph.get(tool_id("make"))
+    node = new_graph.get(capability_id("binary", "make"))
     assert node is not None
     assert node.type is NodeType.TOOL
     assert node.check_command == "command -v make"
+    assert new_graph.get(tool_id("make")) is None      # the fractured twin must NOT exist
+
+
+def test_a_runtime_tool_discovery_ANNOTATES_the_node_construction_already_made():
+    """The reconciliation this id change buys, and the arm's whole value proposition.
+
+    Construction seeds `binary:pg_config` from the Debian build-deps prior for psycopg2. The
+    build then fails with "pg_config executable not found". Ingest must ANNOTATE that node, not
+    append a second one — otherwise two failures with ONE shared root never converge, and the
+    "collapse" the graph arm exists to show is a coin flip on whether each package happened to
+    be in the curated table.
+    """
+    existing = Node(id=capability_id("binary", "pg_config"), type=NodeType.TOOL,
+                    name="pg_config", layer=Layer.TOOLCHAIN,
+                    discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING,
+                    chosen_fix="apt:libpq-dev")
+    graph = _base_graph().with_node(existing)
+    before = len(graph.nodes)
+
+    new_graph, _ = ingest_runtime_failures(
+        graph, [("pip install psycopg2==2.9.12", "Error: pg_config executable not found")]
+    )
+
+    assert len(new_graph.nodes) == before          # annotated, not appended
+    assert new_graph.get("tool:pg_config") is None  # no fractured twin
+    node = new_graph.get("binary:pg_config")
+    assert node is not None
+    assert node.chosen_fix == "apt:libpq-dev"      # construction's fix survives
 
 
 def test_append_new_config_node():

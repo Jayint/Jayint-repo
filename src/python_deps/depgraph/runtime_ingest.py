@@ -17,7 +17,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import replace
 
 from python_deps.depgraph.ids import (
-    TEST_NODE_ID, config_id, package_id, service_id, syslib_id, tool_id,
+    TEST_NODE_ID, capability_id, config_id, package_id, service_id, syslib_id,
 )
 from python_deps.depgraph.runtime_classify import Discovery, classify_observation
 from python_deps.depgraph.schema import (
@@ -55,7 +55,19 @@ def _id_for_discovery(d: Discovery) -> str:
     if d.node_type is NodeType.SYSTEM_LIB:
         return syslib_id(d.name)
     if d.node_type is NodeType.TOOL:
-        return tool_id(d.name)
+        # A missing EXECUTABLE is a `binary:` CAPABILITY, and `capability_id` is — in its own
+        # docstring — "the single reconciliation key". Construction already mints it that way:
+        # `build_deps.py:239` creates `Node(id=capability_id(need), type=TOOL)`, so the Debian
+        # prior for psycopg2 gives `binary:pg_config` (see test_build_deps.py:213).
+        #
+        # Minting `tool:pg_config` here instead FRACTURED the node: the same capability existed
+        # twice, under two ids, and nothing reconciled them (the react arm never runs
+        # `_phase_a_fixpoint`). Worse, it made the collapse a coin flip -- a package in the
+        # curated table pointed at `binary:pg_config` while one that is not pointed at
+        # `tool:pg_config`, so two failures with ONE shared root never converged on one node.
+        # Using the capability id means `_find_existing_node`'s direct lookup ANNOTATES
+        # construction's node instead of appending a twin.
+        return capability_id("binary", d.name)
     if d.node_type is NodeType.CONFIG:
         return config_id(d.name)
     if d.node_type is NodeType.SERVICE:
