@@ -9,6 +9,8 @@ copy, unit-tested against hand-built graphs.
 from __future__ import annotations
 
 import logging
+import re
+from pathlib import Path
 
 from python_deps.depgraph.schema import DepGraph, Edge, EdgeType, Node, NodeType, State
 
@@ -130,3 +132,51 @@ def verdict(graph: DepGraph, node: Node, target_env: dict | None = None) -> str:
         if edge.src == node.id and blocks(graph, edge, target_env):
             return WAITING
     return ACTIONABLE
+
+
+# `def test_x(` / `async def test_x(` at any indent — so class-based test methods count too.
+# The prefix match (`test\w*`, not `test_\w*`) is deliberate, not sloppy: pytest's own
+# collection rule is `name.startswith("test")` (`python_functions` default ini value is
+# `["test"]`; see `_pytest.python.PyCollector._matches_prefix_or_glob_option`), so a function
+# named `testing_helper` really is collected by pytest today. Narrowing the regex to require an
+# underscore would make the estimate diverge from what pytest would actually do.
+_TEST_DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+test\w*[ \t]*\(", re.MULTILINE)
+
+
+def tests_hidden(repo_path: str | None, module: str) -> int | None:
+    """Static estimate of how many tests a module holds. None when undeterminable.
+
+    A COLLECTION error is per-FILE: the tests inside were never created as items, so
+    pytest cannot tell us how many it hid. `Cause.count` for such a row is MODULES, not
+    tests -- rank by it and a 23-test AssertionError outranks an import error hiding 200
+    tests. This is the weight that fixes the ranking.
+
+    It is an ESTIMATE and MUST be rendered as one ("~200 tests hidden, est."). It
+    under-counts `@pytest.mark.parametrize` expansion, which pytest resolves at collection
+    time -- exactly the thing that did not happen -- and it can over-count a `def test_`
+    that only appears inside a string or a comment, because this is a text regex, not an
+    AST parse. An AST walk would fix that over-count, but it would also raise SyntaxError
+    on a file that fails to parse -- which is exactly the kind of file a collection error
+    points at in the first place. The regex degrades gracefully where an AST would not.
+
+    `module` is parsed out of pytest's own stdout/stderr, so it is UNTRUSTED input: never
+    let it read a path outside `repo_path`.
+    """
+    if not repo_path or not module:
+        return None
+    root = Path(repo_path).resolve()
+    try:
+        # Resolve *before* the containment check so a symlink that points outside the repo
+        # is caught too -- checking containment on the un-resolved path would approve the
+        # link itself (it lives under `root`) and only dereference it afterwards.
+        path = (root / module).resolve()
+        path.relative_to(root)
+    except (ValueError, OSError):
+        return None
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return None
+    return len(_TEST_DEF.findall(text)) or None

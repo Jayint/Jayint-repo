@@ -12,6 +12,13 @@ from python_deps.depgraph.emit import _conflicted_ids, _is_emittable
 from python_deps.depgraph.graph_context import (
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict, verdict,
 )
+# Aliased on import: the real name `tests_hidden` starts with "test", which is pytest's own
+# `python_functions` collection prefix (default `["test"]`, matched via `name.startswith`,
+# per `_pytest.python.PyCollector._matches_prefix_or_glob_option`). A bare
+# `from ... import tests_hidden` would land a 2-argument callable directly in this module's
+# namespace and pytest would try to collect IT as a test item too -- the exact false-positive
+# this module's own regex is built to mirror. Import it under a name that does not match.
+from python_deps.depgraph.graph_context import tests_hidden as _tests_hidden
 from python_deps.depgraph.ids import package_id
 from python_deps.depgraph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
@@ -264,3 +271,81 @@ def test_unparseable_marker_is_conservatively_traversed():
     g = _marker_graph("this is not a marker")
     e = _edge_of(g, "pkg:a==1.0", "syslib:libfoo.so.1")
     assert blocks(g, e, target_env={"python_version": "3.12"}) is True
+
+
+# ── tests_hidden — the weight a collection error cannot report ──────────────
+
+def test_tests_hidden_counts_sync_and_async_test_defs(tmp_path):
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_db.py").write_text(
+        "import psycopg2\n"
+        "\n"
+        "def test_one():\n"
+        "    pass\n"
+        "\n"
+        "async def test_two():\n"
+        "    pass\n"
+        "\n"
+        "def helper():\n"           # not a test
+        "    pass\n"
+        "\n"
+        "def test_three(conn):\n"
+        "    pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "tests/test_db.py") == 3
+
+
+def test_tests_hidden_counts_indented_methods_in_test_classes(tmp_path):
+    (tmp_path / "t.py").write_text(
+        "class TestThing:\n"
+        "    def test_a(self):\n"
+        "        pass\n"
+        "    def test_b(self):\n"
+        "        pass\n"
+    )
+    assert _tests_hidden(str(tmp_path), "t.py") == 2
+
+
+def test_tests_hidden_returns_None_for_a_missing_file(tmp_path):
+    assert _tests_hidden(str(tmp_path), "nope.py") is None
+
+
+def test_tests_hidden_returns_None_when_the_file_has_no_tests(tmp_path):
+    (tmp_path / "t.py").write_text("def helper():\n    pass\n")
+    assert _tests_hidden(str(tmp_path), "t.py") is None
+
+
+def test_tests_hidden_returns_None_without_a_repo_path(tmp_path):
+    assert _tests_hidden(None, "tests/test_db.py") is None
+
+
+def test_tests_hidden_never_escapes_the_repo(tmp_path):
+    # `module` comes from parsed pytest output — treat it as untrusted input.
+    assert _tests_hidden(str(tmp_path), "../../../etc/passwd") is None
+
+
+def test_tests_hidden_never_escapes_via_an_absolute_module_path(tmp_path):
+    # pathlib quirk: `Path("/repo") / "/etc/passwd" == Path("/etc/passwd")` -- the right
+    # operand being absolute discards the left one entirely. Confirm the containment check
+    # (`relative_to`, which raises on a path with no common root) catches this rather than
+    # silently reading whatever absolute path pytest's output happened to mention.
+    assert _tests_hidden(str(tmp_path), "/etc/passwd") is None
+
+
+def test_tests_hidden_never_escapes_via_a_symlink(tmp_path):
+    # A module path that is legitimately *inside* the repo but symlinks out must not leak
+    # the target's contents either -- `path.resolve()` follows the link before the
+    # containment check runs, so the escape is caught the same way a `..` escape is.
+    outside = tmp_path.parent / f"{tmp_path.name}_symlink_target.py"
+    outside.write_text("def test_secret():\n    pass\n")
+    try:
+        (tmp_path / "link.py").symlink_to(outside)
+        assert _tests_hidden(str(tmp_path), "link.py") is None
+    finally:
+        outside.unlink()
+
+
+def test_tests_hidden_is_rendered_as_an_estimate_via_its_docstring():
+    # This is not a numeric assertion -- it locks in the contract that callers MUST render
+    # the value as an estimate (spec: "~200 tests hidden, est."), never as a measured count.
+    assert "ESTIMATE" in _tests_hidden.__doc__
