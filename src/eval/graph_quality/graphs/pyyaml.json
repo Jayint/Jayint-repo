@@ -1,0 +1,797 @@
+{
+  "edges": [
+    {
+      "data": {},
+      "dst": "import:Cython",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "import:distutils",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "import:pytest",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "import:setuptools",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "import:test_load",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "import:wheel",
+      "marker": null,
+      "origin": "scan",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "pkg:iniconfig==2.3.0",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "pkg:pytest==9.1.1"
+    },
+    {
+      "data": {},
+      "dst": "pkg:packaging==26.2",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "pkg:pytest==9.1.1"
+    },
+    {
+      "data": {},
+      "dst": "pkg:pluggy==1.6.0",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "pkg:pytest==9.1.1"
+    },
+    {
+      "data": {},
+      "dst": "pkg:pygments==2.20.0",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "pkg:pytest==9.1.1"
+    },
+    {
+      "data": {},
+      "dst": "project:pyyaml",
+      "marker": null,
+      "origin": "project",
+      "relation": "requires",
+      "src": "test:repo_tests_pass"
+    },
+    {
+      "data": {},
+      "dst": "linker:yaml",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "project:pyyaml"
+    },
+    {
+      "data": {},
+      "dst": "aptdep:pybuild-plugin-pyproject",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "project:pyyaml"
+    },
+    {
+      "data": {},
+      "dst": "aptdep:libyaml-dev",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "project:pyyaml"
+    },
+    {
+      "data": {},
+      "dst": "tool:build-essential",
+      "marker": null,
+      "origin": "resolver",
+      "relation": "requires",
+      "src": "project:pyyaml"
+    },
+    {
+      "data": {},
+      "dst": "pkg:pytest==9.1.1",
+      "marker": null,
+      "origin": "certified",
+      "relation": "requires",
+      "src": "import:pytest"
+    },
+    {
+      "data": {},
+      "dst": "pkg:setuptools==83.0.0",
+      "marker": null,
+      "origin": "certified",
+      "relation": "requires",
+      "src": "import:setuptools"
+    }
+  ],
+  "nodes": [
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": null,
+      "check_command": null,
+      "chosen_fix": null,
+      "data": {
+        "installable": true
+      },
+      "discovered_by": "static_scan",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "project:pyyaml",
+      "layer": "pip",
+      "name": "pyyaml",
+      "phase": "setup",
+      "provenance": "/Users/john/john-v3-multi-lang/outputs/build_script_eval/_smoke/pyyaml/pyproject.toml",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "unknown",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Project",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python3 -c \"import sys; sys.exit(0 if sys.version_info[:2]==(3,11) else 1)\"",
+      "chosen_fix": null,
+      "data": {},
+      "discovered_by": "static_scan",
+      "discovered_cycle": 0,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "runtime:python-3.11",
+      "layer": "runtime",
+      "name": "python 3.11",
+      "phase": "setup",
+      "provenance": null,
+      "resolved_platform": null,
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 3,
+      "type": "Runtime",
+      "version": "3.11"
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "dpkg-query -W -f='${Status}' pybuild-plugin-pyproject 2>/dev/null | grep -q 'install ok installed'",
+      "chosen_fix": "apt:pybuild-plugin-pyproject",
+      "data": {
+        "source": "debian"
+      },
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "apt:pybuild-plugin-pyproject"
+      ],
+      "hash": null,
+      "id": "aptdep:pybuild-plugin-pyproject",
+      "layer": "toolchain",
+      "name": "pybuild-plugin-pyproject",
+      "phase": "setup",
+      "provenance": "debian build-dep",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 2,
+      "type": "Tool",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "dpkg-query -W -f='${Status}' libyaml-dev 2>/dev/null | grep -q 'install ok installed'",
+      "chosen_fix": "apt:libyaml-dev",
+      "data": {
+        "source": "debian"
+      },
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "apt:libyaml-dev"
+      ],
+      "hash": null,
+      "id": "aptdep:libyaml-dev",
+      "layer": "toolchain",
+      "name": "libyaml-dev",
+      "phase": "setup",
+      "provenance": "debian build-dep",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 2,
+      "type": "Tool",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "find /usr/lib /lib -name libyaml.so 2>/dev/null | grep -q .",
+      "chosen_fix": "apt:libyaml-dev",
+      "data": {
+        "context": "build",
+        "kind": "linker_lib",
+        "observation_strength": "curated",
+        "resolution_status": "resolved"
+      },
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "apt:libyaml-dev"
+      ],
+      "hash": null,
+      "id": "linker:yaml",
+      "layer": "toolchain",
+      "name": "yaml",
+      "phase": "setup",
+      "provenance": "curated build-dep prediction",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 2,
+      "type": "Tool",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "dpkg -s build-essential",
+      "chosen_fix": "apt:build-essential",
+      "data": {},
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": "dpkg-query: package 'build-essential' is not installed and no information is available\nUse dpkg --info (= dpkg-deb --info) to examine archive files.\n",
+      "exclude_newer": null,
+      "fix_candidates": [
+        "apt:build-essential"
+      ],
+      "hash": null,
+      "id": "tool:build-essential",
+      "layer": "toolchain",
+      "name": "build-essential",
+      "phase": "setup",
+      "provenance": "wheel-oracle (build_from_source)",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 2,
+      "type": "Tool",
+      "version": null
+    },
+    {
+      "artifact": "setuptools-83.0.0-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show setuptools",
+      "chosen_fix": "pip:setuptools",
+      "data": {},
+      "discovered_by": "audit",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:setuptools"
+      ],
+      "hash": "sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3",
+      "id": "pkg:setuptools==83.0.0",
+      "layer": "pip",
+      "name": "setuptools",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "83.0.0"
+    },
+    {
+      "artifact": "pygments-2.20.0-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show pygments",
+      "chosen_fix": "pip:pygments",
+      "data": {},
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:pygments"
+      ],
+      "hash": "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176",
+      "id": "pkg:pygments==2.20.0",
+      "layer": "pip",
+      "name": "pygments",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "2.20.0"
+    },
+    {
+      "artifact": "pytest-9.1.1-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show pytest",
+      "chosen_fix": "pip:pytest",
+      "data": {},
+      "discovered_by": "audit",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:pytest"
+      ],
+      "hash": "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c",
+      "id": "pkg:pytest==9.1.1",
+      "layer": "pip",
+      "name": "pytest",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "9.1.1"
+    },
+    {
+      "artifact": "iniconfig-2.3.0-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show iniconfig",
+      "chosen_fix": "pip:iniconfig",
+      "data": {},
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:iniconfig"
+      ],
+      "hash": "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12",
+      "id": "pkg:iniconfig==2.3.0",
+      "layer": "pip",
+      "name": "iniconfig",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "2.3.0"
+    },
+    {
+      "artifact": "pluggy-1.6.0-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show pluggy",
+      "chosen_fix": "pip:pluggy",
+      "data": {},
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:pluggy"
+      ],
+      "hash": "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746",
+      "id": "pkg:pluggy==1.6.0",
+      "layer": "pip",
+      "name": "pluggy",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "1.6.0"
+    },
+    {
+      "artifact": "packaging-26.2-py3-none-any.whl",
+      "attempts": [
+        {
+          "check": "",
+          "command": "uv pip install --system iniconfig==2.3.0 packaging==26.2 pluggy==1.6.0 pygments==2.20.0 pytest==9.1.1 setuptools==83.0.0",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": false,
+      "certified_cycle": 4,
+      "check_command": "python -m pip show packaging",
+      "chosen_fix": "pip:packaging",
+      "data": {},
+      "discovered_by": "resolver",
+      "discovered_cycle": 2,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [
+        "pip:packaging"
+      ],
+      "hash": "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e",
+      "id": "pkg:packaging==26.2",
+      "layer": "pip",
+      "name": "packaging",
+      "phase": "setup",
+      "provenance": "uv.lock",
+      "resolved_platform": "aarch64-manylinux_2_28",
+      "resolved_python": "3.11",
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 4,
+      "type": "Package",
+      "version": "26.2"
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import test_load\"",
+          "cycle": 0,
+          "outcome": "failed"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import test_load\"",
+      "chosen_fix": null,
+      "data": {
+        "optional": true
+      },
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nModuleNotFoundError: No module named 'test_load'\n",
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:test_load",
+      "layer": "naming",
+      "name": "test_load",
+      "phase": "setup",
+      "provenance": "tests/legacy_tests/test_dump_load.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import pytest\"",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import pytest\"",
+      "chosen_fix": null,
+      "data": {},
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:pytest",
+      "layer": "naming",
+      "name": "pytest",
+      "phase": "setup",
+      "provenance": "tests/legacy_tests/conftest.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import Cython\"",
+          "cycle": 0,
+          "outcome": "failed"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import Cython\"",
+      "chosen_fix": null,
+      "data": {
+        "optional": true
+      },
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nModuleNotFoundError: No module named 'Cython'\n",
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:Cython",
+      "layer": "naming",
+      "name": "Cython",
+      "phase": "setup",
+      "provenance": "setup.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import setuptools\"",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import setuptools\"",
+      "chosen_fix": null,
+      "data": {},
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:setuptools",
+      "layer": "naming",
+      "name": "setuptools",
+      "phase": "setup",
+      "provenance": "packaging/_pyyaml_pep517.py, setup.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import wheel\"",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import wheel\"",
+      "chosen_fix": null,
+      "data": {
+        "optional": true
+      },
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": null,
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:wheel",
+      "layer": "naming",
+      "name": "wheel",
+      "phase": "setup",
+      "provenance": "setup.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [
+        {
+          "check": "",
+          "command": "python -c \"import distutils\"",
+          "cycle": 0,
+          "outcome": "succeeded"
+        }
+      ],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -c \"import distutils\"",
+      "chosen_fix": null,
+      "data": {
+        "unresolved": true
+      },
+      "discovered_by": "static_scan",
+      "discovered_cycle": 1,
+      "evidence": "unresolved: no distribution provides import distutils",
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "import:distutils",
+      "layer": "naming",
+      "name": "distutils",
+      "phase": "setup",
+      "provenance": "setup.py, tests/legacy_tests/test_build.py, tests/legacy_tests/test_build_ext.py",
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "satisfied",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Import",
+      "version": null
+    },
+    {
+      "artifact": null,
+      "attempts": [],
+      "build_from_source": null,
+      "certified_cycle": 4,
+      "check_command": "python -m pytest -q",
+      "chosen_fix": null,
+      "data": {},
+      "discovered_by": "goal",
+      "discovered_cycle": 1,
+      "evidence": "construction-only: pytest run skipped",
+      "exclude_newer": null,
+      "fix_candidates": [],
+      "hash": null,
+      "id": "test:repo_tests_pass",
+      "layer": "tests",
+      "name": "repo_tests_pass",
+      "phase": "setup",
+      "provenance": null,
+      "resolved_platform": null,
+      "resolved_python": null,
+      "setup_commands": [],
+      "state": "missing",
+      "strength": "soft",
+      "tier": 0,
+      "type": "Test",
+      "version": null
+    }
+  ]
+}
