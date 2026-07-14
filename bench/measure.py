@@ -129,6 +129,8 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
         _, cout2, _ = docker.exec(name, _sh(
             f"python -m pytest --co -q --continue-on-collection-errors {W} 2>&1 || true"))
         collected = parse_collected_node_ids(cout2)
+        # number of modules that errored during collection (pytest prints one header each)
+        n_collect_errors = cout2.count("ERROR collecting")
         run = (f"{_TIMEOUT_GUARD}; python -m pytest -q --continue-on-collection-errors "
                f"--junit-xml={W}/logs/junit.xml $F || true")
         t1 = time.time()
@@ -158,7 +160,7 @@ def measure(env: HarvestedEnv, *, docker, build_timeout: int = 3600, test_timeou
     return MeasureRow(
         build_ok=True, build_log_tail=build_log[-2000:], build_s=build_s, test_s=test_s,
         collect_rc=crc, collect_clean=collect["collect_clean"], collect_errors=collect["collect_errors"],
-        collected_node_ids=collected, executed=executed,
+        collect_error_count=n_collect_errors, collected_node_ids=collected, executed=executed,
         total=j["total"], passed=j["passed"], failed=j["failed"], errors=j["errors"], skipped=j["skipped"],
         passed_node_ids=passed_ids, failed_node_ids=failed_ids,
         error_node_ids=error_ids, ebsr=executed, pass_rate=pass_rate, timed_out=timed_out,

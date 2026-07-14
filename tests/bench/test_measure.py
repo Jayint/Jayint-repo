@@ -90,6 +90,17 @@ def test_build_context_cleaned_up_on_build_failure():
     assert d.last_ctx is not None and not os.path.exists(d.last_ctx)
 
 
+def test_collect_error_count_and_collected_from_continue_collect():
+    out = ("tests/test_a.py::test_ok\n"
+           "____ ERROR collecting tests/test_b.py ____\n"
+           "____ ERROR collecting tests/test_c.py ____\n"
+           "1 tests collected, 2 errors")
+    script = {"continue-on-collection-errors": (0, out, False)}
+    row = measure(_env(), docker=FakeDocker(script=script))
+    assert row.collect_error_count == 2                              # two "ERROR collecting" headers
+    assert row.collected_node_ids == ("tests/test_a.py::test_ok",)  # one test collected
+
+
 def test_passed_node_ids_translated_to_path_form():
     # JUnit reports classname form; the collected --co list is path form. measure() must
     # translate outcomes to path form so they share one unit with gold (bench/gold.py).

@@ -25,6 +25,17 @@ def test_gates_over_full_denominator():
     assert m["coverage"] == round(2 / 3, 4)
 
 
+def test_ebsr_collection_diagnostics():
+    rows = [
+        _row(repo="r1", collect_clean=True, collect_error_count=0,
+             collected_node_ids=("a.py::t1", "a.py::t2", "a.py::t3")),
+        _row(repo="r2", collect_clean=False, collect_error_count=2, collected_node_ids=("b.py::t1",)),
+    ]
+    m = compute_metrics(rows)
+    assert m["total_collected"] == 4 and m["mean_collected"] == round(4 / 2, 4)
+    assert m["total_collect_errors"] == 2 and m["mean_collect_errors"] == round(2 / 2, 4)
+
+
 def test_real_success_requires_ebsr_and_pass_ge_080():
     rows = [_row(repo="r1", ebsr=True, pass_rate=0.80), _row(repo="r2", ebsr=True, pass_rate=0.79),
             _row(repo="r3", ebsr=False, pass_rate=1.0)]

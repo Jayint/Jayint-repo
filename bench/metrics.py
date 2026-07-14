@@ -32,6 +32,11 @@ def compute_metrics(rows: list[MeasureRow], gold: dict | None = None) -> dict:
         "n_real_success": n_real,
         # EBSR (Repo2Run-style): fraction of repos where `pytest --collect-only` exits 0.
         "EBSR": _div(n_collect_clean, n),
+        # EBSR collection diagnostics: tests collected + collection errors (over all repos).
+        "total_collected": sum(len(r.collected_node_ids) for r in rows),
+        "mean_collected": _div(sum(len(r.collected_node_ids) for r in rows), n),
+        "total_collect_errors": sum(r.collect_error_count for r in rows),
+        "mean_collect_errors": _div(sum(r.collect_error_count for r in rows), n),
         # ESSR (RAT-official headline): mean pass_rate over EXECUTED repos, where
         # pass_rate = passed / (total - skipped) — errors kept IN the denominator (RAT parity).
         "ESSR": _div(sum(r.pass_rate for r in ex), n_exec),

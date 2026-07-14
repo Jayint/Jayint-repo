@@ -32,7 +32,8 @@ class MeasureRow:
     collect_rc: int | None = None
     collect_clean: bool = False
     collect_errors: tuple = ()
-    collected_node_ids: tuple = ()
+    collect_error_count: int = 0        # # of "ERROR collecting <module>" in the collect output
+    collected_node_ids: tuple = ()      # tests collected (len = number of tests collected)
     executed: bool = False
     total: int = 0
     passed: int = 0
