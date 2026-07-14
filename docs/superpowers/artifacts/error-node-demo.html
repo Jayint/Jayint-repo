@@ -1,0 +1,365 @@
+<title>Error-Node Grounding — a walkthrough on real graph data</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --panel:#fff; --ink:#1a1a19; --dim:#6b6b68; --line:#e4e4e1;
+    --grn:#1a7f4b; --grn-bg:#e8f5ee; --red:#c0392b; --red-bg:#fdecea;
+    --amb:#9a6700; --amb-bg:#fff6e0; --vio:#6b3fa0; --vio-bg:#f1ebf9;
+    --acc:#0b6bcb; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#161615; --panel:#1e1e1d; --ink:#e8e8e6; --dim:#9a9a96; --line:#33332f;
+      --grn:#5ec98a; --grn-bg:#12301f; --red:#ef6f61; --red-bg:#331612; --amb:#e0b24a;
+      --amb-bg:#33270d; --vio:#b794e8; --vio-bg:#251b33; --acc:#5aa9f0; }
+  }
+  :root[data-theme=dark]{ --bg:#161615; --panel:#1e1e1d; --ink:#e8e8e6; --dim:#9a9a96; --line:#33332f;
+    --grn:#5ec98a; --grn-bg:#12301f; --red:#ef6f61; --red-bg:#331612; --amb:#e0b24a;
+    --amb-bg:#33270d; --vio:#b794e8; --vio-bg:#251b33; --acc:#5aa9f0; }
+  :root[data-theme=light]{ --bg:#fbfbfa; --panel:#fff; --ink:#1a1a19; --dim:#6b6b68; --line:#e4e4e1;
+    --grn:#1a7f4b; --grn-bg:#e8f5ee; --red:#c0392b; --red-bg:#fdecea; --amb:#9a6700;
+    --amb-bg:#fff6e0; --vio:#6b3fa0; --vio-bg:#f1ebf9; --acc:#0b6bcb; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:19px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--dim);margin:0 0 28px}
+  code,.m{font-family:var(--mono);font-size:.88em}
+  .banner{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);
+    border-radius:6px;padding:14px 16px;margin:0 0 32px;font-size:13.5px;color:var(--dim)}
+  .banner b{color:var(--ink)}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:24px;margin:0 0 26px}
+  .tag{display:inline-block;font:600 10.5px/1 var(--mono);letter-spacing:.06em;
+    padding:5px 8px;border-radius:4px;text-transform:uppercase;vertical-align:2px}
+  .t-real{background:var(--grn-bg);color:var(--grn)}
+  .t-prop{background:var(--vio-bg);color:var(--vio)}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+  .steps button{font:500 13px/1 inherit;padding:9px 13px;border-radius:6px;cursor:pointer;
+    border:1px solid var(--line);background:transparent;color:var(--dim);transition:.12s}
+  .steps button:hover{border-color:var(--acc);color:var(--ink)}
+  .steps button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+  .stage{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start}
+  @media(max-width:840px){.stage{grid-template-columns:1fr}}
+  .gfx{border:1px solid var(--line);border-radius:8px;overflow-x:auto;background:var(--bg)}
+  svg{display:block;min-width:640px;width:100%;height:auto}
+  .side h3{font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+    color:var(--dim);margin:0 0 10px}
+  .narr{font-size:14px;margin:0 0 16px;min-height:76px}
+  .metrics{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px}
+  .mrow{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;
+    border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px}
+  .mrow:last-child{border-bottom:0}
+  .mrow span:first-child{color:var(--dim)}
+  .v-bad{color:var(--red);font-weight:600}
+  .v-good{color:var(--grn);font-weight:600}
+  .v-neut{color:var(--dim)}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;
+    overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;margin:0}
+  pre .hl{background:var(--amb-bg);color:var(--amb);font-weight:600;border-radius:2px}
+  pre .kill{background:var(--red-bg);color:var(--red);font-weight:600;border-radius:2px}
+  pre .keep{background:var(--grn-bg);color:var(--grn);font-weight:600;border-radius:2px}
+  pre .gone{color:var(--dim);text-decoration:line-through}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);border-radius:8px;padding:16px}
+  .card.bad{border-left:3px solid var(--red)}
+  .card.good{border-left:3px solid var(--grn)}
+  .card h4{margin:0 0 8px;font-size:13.5px;letter-spacing:-.01em}
+  .card p{margin:0;font-size:13px;color:var(--dim)}
+  .card .m{display:block;margin-top:10px;padding:8px 10px;border-radius:5px;
+    background:var(--bg);border:1px solid var(--line);font-size:12px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:8px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+  th{font:600 11px/1 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  td.n{font-family:var(--mono);text-align:right}
+  .foot{color:var(--dim);font-size:13px;margin-top:32px;padding-top:20px;
+    border-top:1px solid var(--line)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--dim);
+    padding:10px 14px;border-top:1px solid var(--line)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;
+    vertical-align:0px}
+</style>
+
+<div class="wrap">
+<h1>Error-node grounding, walked through on a real graph</h1>
+<p class="sub">How a failed check stops being a command the agent must obey.</p>
+
+<div class="banner">
+<b>What is real here.</b> The graph is <code>src/eval/graph_quality/graphs/pillow.json</code> — a real
+Docker-minted graph (112 nodes, 145 edges). The ten <code>syslib:libarrow*</code> nodes, their states,
+their <code>chosen_fix=None</code>, and the <code>SATISFIED</code> states of <code>pkg:pyarrow</code> and
+<code>import:pyarrow</code> are read from that file. Every <code>_toolchain_ready</code> /
+<code>_is_emittable</code> / <code>partition</code> number below was produced by executing the real
+<code>src/python_deps/depgraph/emit.py</code> against it. The traceback in §2 is verbatim corpus stderr
+from <code>AnswerDotAI__rerankers</code>. <b>What is not real:</b> the Error nodes themselves — that code
+does not exist yet. This shows what the spec <i>would</i> do on inputs that are real, not a measured result.
+</div>
+
+<!-- ══════════════ SECTION 1 ══════════════ -->
+<section>
+  <h2>1. The phantom <span class="tag t-real">real data</span></h2>
+  <p class="sub" style="margin:6px 0 0">
+    <code>wheel_preflight</code> reads a wheel's <code>DT_NEEDED</code> <i>before</i> install and mints a
+    SystemLib node for every shared object it links. pyarrow then ships those libraries <i>inside its own
+    wheel</i>, resolved by RPATH — so they never enter <code>ldconfig</code>, and the check
+    <code>ldconfig -p | grep libarrow.so.2400</code> fails forever.
+  </p>
+
+  <div class="steps" id="steps"></div>
+
+  <div class="stage">
+    <div>
+      <div class="gfx">
+        <svg id="g" viewBox="0 0 720 470" role="img" aria-label="dependency graph"></svg>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--grn)"></i>satisfied</span>
+          <span><i class="dot" style="background:var(--red)"></i>missing — a demand</span>
+          <span><i class="dot" style="background:var(--amb)"></i>unknown — parked</span>
+          <span><i class="dot" style="background:var(--vio)"></i>error node — an observation</span>
+          <span>── hard requires &nbsp; ┄┄ soft / refuted</span>
+        </div>
+      </div>
+    </div>
+    <div class="side">
+      <h3 id="stitle">Step</h3>
+      <p class="narr" id="narr"></p>
+      <div class="metrics" id="metrics"></div>
+      <pre id="code" style="font-size:11.5px"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SECTION 2 ══════════════ -->
+<section>
+  <h2>2. The 27% case — when the log is actively misleading <span class="tag t-real">real stderr</span></h2>
+  <p class="sub" style="margin:6px 0 16px">
+    Of 104 <code>No module named</code> blocks in the corpus, <b>28 (27%) name the project's own package.</b>
+    Here is one, verbatim. Green is what we keep today. Struck-through is what we throw away
+    <b>before grounding ever runs</b>.
+  </p>
+
+<pre>ERROR collecting tests/test_crossenc.py
+<span class="gone">ImportError while importing test module '/app/tests/test_crossenc.py'.</span>
+<span class="gone">Traceback:</span>
+<span class="gone">/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module</span>
+<span class="gone">    return _bootstrap._gcd_import(name[level:], package, level)</span>
+<span class="hl">tests/test_crossenc.py:3: in &lt;module&gt;</span>
+<span class="hl">    from rerankers import Reranker</span>          <span class="hl">← the anchor. 100% of import blocks have this.</span>
+E   <span class="keep">ModuleNotFoundError: No module named 'rerankers'</span>
+
+what enrich() actually passes to the ingester (graph_enrich.py:120):
+    ("pytest: tests/test_crossenc.py", "<span class="keep">ModuleNotFoundError: No module named 'rerankers'</span>")
+                                        <span class="kill">traceback: gone.  blast_radius (count=2): gone.</span></pre>
+
+  <div class="cols">
+    <div class="card bad">
+      <h4>From the log alone</h4>
+      <p><code>rerankers</code> is an unknown module. The obvious repair is to install it — and
+      <b><code>rerankers</code> is a real package on PyPI.</b> The install succeeds, the build goes green,
+      and the tests now run against code that <i>is not the repo under test</i>.</p>
+      <span class="m" style="color:var(--red)">pip install rerankers → FALSE GREEN</span>
+    </div>
+    <div class="card good">
+      <h4>With the trace anchored to the graph</h4>
+      <p>The <code>PROJECT</code> node knows the repo's own top-level package is <code>rerankers</code>.
+      The frame says a <i>first-party</i> file did the import. So this is not a missing dependency —
+      it is the editable-install capstone having failed.</p>
+      <span class="m" style="color:var(--grn)">error:import:rerankers → anchored_to: project:rerankers<br>fix: pip install --no-deps -e .</span>
+    </div>
+  </div>
+  <p class="sub" style="margin:16px 0 0;font-size:13px">
+    From the log these two are <b>indistinguishable</b>. Only the traceback plus a graph that knows the
+    project's own name separates them — and we currently discard the traceback.
+  </p>
+</section>
+
+<!-- ══════════════ SECTION 3 ══════════════ -->
+<section>
+  <h2>3. Never discard <span class="tag t-real">real code path</span></h2>
+  <p class="sub" style="margin:6px 0 16px">
+    <code>runtime_ingest.py:124</code>. When the curated table cannot resolve an import to a distribution,
+    the observation is deleted — not parked, not flagged. <b>Deleted.</b>
+  </p>
+<pre>def _annotate_or_append(graph, d, owner_node_id=None):
+    if d.name is None:
+        <span class="kill"># Unresolved import: no distribution to graph. Never fabricate a `pkg:None`</span>
+        <span class="kill">return graph          ← the observation is gone. The graph now renders CLEAN.</span>
+
+<span class="keep">    # proposed: there is always something to create, because the node is keyed on the</span>
+<span class="keep">    # OBSERVATION, not on the RESOLUTION.</span>
+<span class="keep">    return graph.with_node(error_node(kind="unbound", key=sig(d.evidence), ...))</span></pre>
+  <p class="sub" style="margin:16px 0 0;font-size:13px">
+    This is the line that makes a negative verdict impossible. You cannot tell the agent
+    <i>"the environment is certified — this is not an environment failure"</i> while you are silently
+    deleting the evidence against you. It is also the honest home for the <b>25 env-var</b> repairs and the
+    <b>19%</b> of test failures where <code>summarize()</code> returns nothing at all.
+  </p>
+</section>
+
+<!-- ══════════════ SECTION 4 ══════════════ -->
+<section>
+  <h2>4. The numbers <span class="tag t-real">measured</span></h2>
+  <table>
+    <tr><th>what</th><th>value</th><th>source</th></tr>
+    <tr><td>Corpus: source-patch / env-var / pip / apt</td><td class="n">72 / 25 / 11 / 3</td><td><code>corpus.py</code>, 111 pairs</td></tr>
+    <tr><td>Phantom SystemLib nodes</td><td class="n"><b style="color:var(--red)">10 / 10</b></td><td><code>pillow.json</code></td></tr>
+    <tr><td><code>_is_emittable(pkg:pyarrow)</code> — fresh build, today</td><td class="n"><b style="color:var(--red)">False</b></td><td><code>emit.py</code> executed</td></tr>
+    <tr><td>Emittable / frontier — today</td><td class="n">11 / 11</td><td><code>emit.py</code> executed</td></tr>
+    <tr><td>Emittable / frontier — with the refutation rule</td><td class="n"><b style="color:var(--grn)">12 / 0</b></td><td><code>emit.py</code> executed</td></tr>
+    <tr><td>Import blocks with a multi-frame traceback</td><td class="n"><b>107 / 107 (100%)</b></td><td>52 test-stream pairs</td></tr>
+    <tr><td>Groundable from <code>exc + detail</code> alone</td><td class="n">32 / 58 (55%)</td><td>52 test-stream pairs</td></tr>
+    <tr><td><code>No module named</code> = the project's OWN package</td><td class="n"><b style="color:var(--amb)">28 / 104 (27%)</b></td><td>52 test-stream pairs</td></tr>
+    <tr><td>Test failures where <code>summarize()</code> finds nothing</td><td class="n">10 / 52 (19%)</td><td>52 test-stream pairs</td></tr>
+  </table>
+</section>
+
+<p class="foot">
+<b>The one-line thesis.</b> A failed check is an <i>observation</i>, not a <i>demand</i>. Today they are
+fused — <code>rc != 0</code> → <code>MISSING</code> → <code>_is_emittable</code> → an install command — and
+that fusion is what turns a wrong check into a wrong command. Insert a gap, and the graph gains the one
+thing a log structurally cannot do: <b>it can prove a negative.</b>
+<br><br>
+Spec: <code>docs/superpowers/specs/2026-07-14-error-node-grounding-design.md</code>
+</p>
+</div>
+
+<script>
+const N = {
+  test:{x:360,y:34,r:'test',lab:'test:repo_tests_pass',t:'TEST'},
+  imp: {x:150,y:132,lab:'import:pyarrow',t:'IMPORT'},
+  pkg: {x:360,y:150,lab:'pkg:pyarrow==24.0.0',t:'PACKAGE'},
+};
+const LIBS = ['libarrow','+acero','+compute','+dataset','+flight','+python','+py_flight','+py_pq_enc','+substrait','libparquet'];
+const FULL = ['libarrow.so.2400','libarrow_acero.so.2400','libarrow_compute.so.2400','libarrow_dataset.so.2400',
+  'libarrow_flight.so.2400','libarrow_python.so.2400','libarrow_python_flight.so.2400',
+  'libarrow_python_parquet_encryption.so.2400','libarrow_substrait.so.2400','libparquet.so.2400'];
+LIBS.forEach((l,i)=>{ N['s'+i]={x:36+i*72,y:330,lab:l,t:'SYSLIB',full:FULL[i]}; });
+
+const STEPS = [
+  { name:'0 · as constructed',
+    title:'The graph after construction',
+    narr:`<code>wheel_preflight</code> read pyarrow's wheel headers before installing it and minted a SystemLib node per <code>DT_NEEDED</code> entry — ten of them, every one <code>state=missing</code>, <code>chosen_fix=None</code>. Each is a <b>hard</b> requirement of <code>pkg:pyarrow</code>.`,
+    pkg:'missing', imp:'unknown', libs:'missing', edges:'hard', err:[],
+    m:[['_toolchain_ready','False','bad'],['_is_emittable(pyarrow)','False','bad'],['emittable','11','neut'],['frontier → LLM','11','bad']],
+    code:`# emit.py:63
+for edge in graph.edges:
+    dep = graph.get(edge.dst)
+    if dep.state is State.SATISFIED: continue
+    if dep.type is NodeType.SYSTEM_LIB:
+        return False   # ← 10× here. forever.`},
+
+  { name:'1 · certify runs',
+    title:'certify runs the checks',
+    narr:`Each phantom's check is <code>ldconfig -p | grep libarrow.so.2400</code>. It exits 1 and prints <b>nothing</b> — the failure carries no evidence at all. Today that empty non-answer is promoted straight to <code>MISSING</code>, which <i>is</i> a demand: it is the sole trigger for an install action.`,
+    pkg:'missing', imp:'satisfied', libs:'missing', edges:'hard', err:[],
+    m:[['check output','(empty)','neut'],['→ state','MISSING','bad'],['meaning','"INSTALL THIS"','bad'],['frontier → LLM','11','bad']],
+    code:`# certify.py:101 — today
+updated = node.with_state(
+    State.MISSING, evidence=evidence, cycle=cycle
+)
+# a failed check IS a requirement. no gap.`},
+
+  { name:'2 · append the error',
+    title:'The failed check becomes an observation',
+    narr:`The proposal: certify <b>also</b> appends an Error node carrying the check, its rc, its (empty) output, and the cycle. The node state does not move yet. This is additive and changes no behaviour — it just stops throwing the failure away.`,
+    pkg:'missing', imp:'satisfied', libs:'missing', edges:'hard', err:[0,1,2],
+    m:[['error:check:* nodes','+10','neut'],['state','unchanged','neut'],['behaviour change','none','good'],['frontier → LLM','11','bad']],
+    code:`error:check:syslib:libarrow.so.2400
+  observed_on -> syslib:libarrow.so.2400
+  check: ldconfig -p | grep libarrow.so.2400
+  rc: 1   output: ""   cycle: 3
+  kind: presence      ← NOT authoritative`},
+
+  { name:'3 · refute',
+    title:'The graph already holds the refutation',
+    narr:`<code>import:pyarrow</code> is <b>SATISFIED</b> — and that is a <i>functional</i> check: <code>python -c "import pyarrow"</code> returned 0. The import literally working is proof the library resolves. <b>Function beats presence.</b> So the defect is not the node's state — it is the <b>edge</b>. pyarrow does not require libarrow <i>from the system</i>; it ships it.`,
+    pkg:'missing', imp:'satisfied', libs:'unknown', edges:'soft', err:[0,1,2],
+    m:[['refuted_by','import:pyarrow','good'],['edge','hard → soft','good'],['syslib state','UNKNOWN (parked)','good'],['frontier → LLM','0','good']],
+    code:`# the rule — SystemLib ONLY
+if syslib.check is PRESENCE and failed
+   and ∃ n: n --requires--> syslib
+            and n.functional_check PASSED:
+       edge.hard = False
+       edge.refuted_by = n.id
+       syslib.state = UNKNOWN   # parked`},
+
+  { name:'4 · emit unblocked',
+    title:'pip install pyarrow emits again',
+    narr:`<code>_toolchain_ready</code> skips soft edges (invariant #10), so the package emits. Ten fabricated "missing system libraries" leave the escalation frontier. <b>Every number on this panel was produced by running the real <code>emit.py</code> against the real graph.</b>`,
+    pkg:'emit', imp:'satisfied', libs:'unknown', edges:'soft', err:[0,1,2],
+    m:[['_toolchain_ready','True','good'],['_is_emittable(pyarrow)','True','good'],['emittable','11 → 12','good'],['frontier → LLM','11 → 0','good']],
+    code:`RENDERED TO THE AGENT
+─────────────────────
+syslib:libarrow.so.2400  check failed, turns 1,2,3
+  REFUTED by import:pyarrow (SATISFIED)
+  pyarrow ships this lib inside its wheel.
+  NOT a requirement. Do not apt-install it.
+
+← a log structurally cannot say this.`},
+];
+
+const C = {satisfied:['var(--grn)','var(--grn-bg)'], missing:['var(--red)','var(--red-bg)'],
+  unknown:['var(--amb)','var(--amb-bg)'], emit:['var(--acc)','var(--vio-bg)'],
+  err:['var(--vio)','var(--vio-bg)']};
+
+function draw(si){
+  const S = STEPS[si], svg=document.getElementById('g');
+  let h='';
+  const soft = S.edges==='soft';
+  // edges pkg -> libs
+  for(let i=0;i<10;i++){
+    const a=N.pkg, b=N['s'+i];
+    h+=`<path d="M${a.x} ${a.y+20} C ${a.x} ${a.y+90}, ${b.x} ${b.y-70}, ${b.x} ${b.y-20}"
+      fill="none" stroke="${soft?'var(--line)':'var(--red)'}" stroke-width="${soft?1:1.6}"
+      ${soft?'stroke-dasharray="3 3"':''} opacity="${soft?.55:.8}"/>`;
+  }
+  h+=`<path d="M${N.imp.x+58} ${N.imp.y} L ${N.pkg.x-84} ${N.pkg.y-4}" stroke="var(--grn)"
+        stroke-width="1.6" fill="none" opacity=".8"/>`;
+  h+=`<path d="M${N.test.x} ${N.test.y+18} L ${N.pkg.x} ${N.pkg.y-22}" stroke="var(--line)" stroke-width="1.4"/>`;
+
+  const box=(n,st,lab,sub)=>{
+    const [c,bg]=C[st]||C.missing;
+    const w = lab.length*6.4+22, x=n.x-w/2;
+    return `<g><rect x="${x}" y="${n.y-17}" width="${w}" height="34" rx="6" fill="${bg}"
+      stroke="${c}" stroke-width="1.4"/>
+      <text x="${n.x}" y="${n.y+1}" text-anchor="middle" font-family="ui-monospace,monospace"
+        font-size="11" font-weight="600" fill="${c}">${lab}</text>
+      ${sub?`<text x="${n.x}" y="${n.y+13}" text-anchor="middle" font-size="8.5"
+        fill="${c}" opacity=".75" font-family="ui-monospace,monospace">${sub}</text>`:''}</g>`;
+  };
+  h+=box(N.test,'satisfied','test:repo_tests_pass','');
+  h+=box(N.imp, S.imp, 'import:pyarrow', S.imp==='satisfied'?'functional check ✓':'');
+  h+=box(N.pkg, S.pkg==='emit'?'emit':'missing', 'pkg:pyarrow==24.0.0',
+        S.pkg==='emit'?'▶ pip install pyarrow==24.0.0':'blocked — cannot emit');
+  for(let i=0;i<10;i++){
+    const n=N['s'+i];
+    h+=box(n,S.libs,n.lab, S.libs==='unknown'?'refuted':'chosen_fix=None');
+  }
+  // error nodes
+  if(S.err.length){
+    S.err.forEach((i,k)=>{
+      const n=N['s'+i];
+      h+=`<path d="M${n.x} ${n.y+18} L ${n.x} ${n.y+52}" stroke="var(--vio)" stroke-width="1.2"
+           stroke-dasharray="2 2"/>`;
+      h+=box({x:n.x,y:n.y+72},'err','error:check','rc 1 · no output');
+    });
+    h+=`<text x="${N.s3.x+40}" y="${N.s3.y+112}" font-size="10.5" fill="var(--dim)"
+         font-family="ui-monospace,monospace">…10 error nodes — one per failed check. Observations, not demands.</text>`;
+  }
+  svg.innerHTML=h;
+
+  document.getElementById('stitle').textContent=S.title;
+  document.getElementById('narr').innerHTML=S.narr;
+  document.getElementById('metrics').innerHTML=S.m.map(([k,v,c])=>
+    `<div class="mrow"><span>${k}</span><span class="v-${c}">${v}</span></div>`).join('');
+  document.getElementById('code').textContent=S.code;
+  [...document.querySelectorAll('#steps button')].forEach((b,i)=>
+    b.setAttribute('aria-pressed', i===si));
+}
+const sb=document.getElementById('steps');
+STEPS.forEach((s,i)=>{ const b=document.createElement('button');
+  b.textContent=s.name; b.onclick=()=>draw(i); sb.appendChild(b); });
+draw(0);
+</script>
