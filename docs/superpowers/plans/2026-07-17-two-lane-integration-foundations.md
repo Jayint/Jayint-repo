@@ -134,7 +134,8 @@ git commit -m "feat(depgraph): certify the Project node by import when dist name
 - Modify: `src/python_deps/depgraph/schedule.py` (`:67`, `:90`, `:96`)
 - Modify: `src/eval/graph_repair_ablation/context.py` (`:31`, `:36`)
 - Modify: `tests/depgraph/test_schema_roundtrip.py` (`:211` + `_maximal_graph` + `_UNDERIVABLE_TIER`)
-- Test: `tests/depgraph/test_schema_roundtrip.py`
+- Modify: `tests/depgraph/test_schema.py` (delete the `Node.tier` test block `:439-464`)
+- Test: `tests/depgraph/test_schema_roundtrip.py`, `tests/depgraph/test_schema.py`
 
 **Interfaces:**
 - Removes: `schema.TYPE_TO_TIER`, `schema.tier_for_type`, `Node.tier`. No replacement — `layer` already carries ordering.
@@ -165,7 +166,7 @@ Expected: FAIL — `n` still has `tier`, and `to_dict()` still emits `"tier"`.
 - In `to_dict`, delete the `"tier": self.tier,` line (`:224`).
 - In `from_dict`, delete the `tier=d.get("tier", 0),` line (`:272`).
 
-- [ ] **Step 4: Update the three consumers**
+- [ ] **Step 4: Update the four consumers**
 
 `src/python_deps/depgraph/schedule.py`:
 - Delete the `tier: int` field from `ObligationPacket` (`:67`).
@@ -181,6 +182,9 @@ Expected: FAIL — `n` still has `tier`, and `to_dict()` still emits `"tier"`.
 - Remove the `tier=_UNDERIVABLE_TIER` argument from the `Node(...)` constructed in `_maximal_graph()`.
 - Delete the now-unused `_UNDERIVABLE_TIER` module constant.
 
+`tests/depgraph/test_schema.py`:
+- Delete the `# --- Task 2: Node.tier auto-derived from type ---` block (`:439-464`): the header comment plus the four tests `test_tier_auto_derived_from_type`, `test_goal_nodes_have_tier_zero`, `test_explicit_tier_is_respected` (constructs `Node(..., tier=3)`), `test_to_dict_includes_tier`. They assert exactly the removed behavior. Leave the unrelated `# --- Task 3: requires edges ... ---` block at `:467` onward untouched.
+
 - [ ] **Step 5: Run the schema + schedule + eval tests**
 
 Run: `python -m pytest tests/depgraph/test_schema_roundtrip.py tests/depgraph/ -q`
@@ -194,8 +198,8 @@ Expected: no matches (every remaining `.tier` in the repo is `pkg_layer`'s unrel
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py
-git commit -m "refactor(depgraph): drop the redundant tier axis (layer carries ordering)" -- src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py
+git add src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py tests/depgraph/test_schema.py
+git commit -m "refactor(depgraph): drop the redundant tier axis (layer carries ordering)" -- src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py tests/depgraph/test_schema.py
 ```
 
 ---
