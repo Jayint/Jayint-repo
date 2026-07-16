@@ -120,12 +120,18 @@ def _build_test_node() -> Node:
 
 
 def _build_import_node(
-    name: str, source_files: tuple[str, ...], *, optional: bool = False
+    name: str, source_files: tuple[str, ...], *,
+    optional: bool = False, symbols: tuple[str, ...] = (),
 ) -> Node:
     provenance = ", ".join(source_files) if source_files else None
     # Tag only genuinely-guarded imports; leave data empty (falsy) otherwise to
     # preserve the "never needlessly rewrite node data" property elsewhere.
-    data = {"optional": True} if optional else {}
+    # symbols (the used attributes/from-names) ride alongside, only when present.
+    data: dict = {}
+    if optional:
+        data["optional"] = True
+    if symbols:
+        data["symbols"] = symbols
     return Node(
         id=import_id(name),
         type=NodeType.IMPORT,
@@ -170,7 +176,8 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
         provenance_files = in_scope or finding.source_files
         graph = graph.with_node(
             _build_import_node(
-                finding.import_name, provenance_files, optional=finding.optional
+                finding.import_name, provenance_files,
+                optional=finding.optional, symbols=finding.symbols,
             )
         )
         graph = graph.with_edge(

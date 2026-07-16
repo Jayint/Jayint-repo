@@ -53,6 +53,9 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
     project_local_modules = set(collect_project_local_modules(root))
     stdlib_modules = _stdlib_module_names()
     imports_by_name: dict[str, set[str]] = defaultdict(set)
+    # Per top-level import, the attributes/from-names the code uses on it, unioned
+    # across every file (feeds the install-lane LLM dist-guesser; unconsumed here).
+    symbols_by_top: dict[str, set[str]] = defaultdict(set)
     # Cross-file optionality tracking: a name is optional only if EVERY occurrence
     # is guarded (i.e. it never appears as a hard, unguarded import anywhere).
     hard_import_names: set[str] = set()
@@ -87,6 +90,14 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
         optional_import_names |= optional_names
         hard_import_names |= all_names - optional_names
 
+        # A syntax-error file has no reliable AST, so it contributes no symbols
+        # (the regex fallback above still recovers its import NAMES).
+        try:
+            for top, syms in _symbols_from_ast(content).items():
+                symbols_by_top[top] |= syms
+        except SyntaxError:
+            pass
+
     findings = []
     for import_name, source_files in sorted(imports_by_name.items()):
         top_level = import_name.split(".", 1)[0]
@@ -103,6 +114,7 @@ def scan_imports(repo_path: str | Path) -> tuple[list[ImportFinding], list[str],
                 classification=classification,
                 source_files=tuple(sorted(source_files)),
                 optional=optional,
+                symbols=tuple(sorted(symbols_by_top.get(top_level, ()))),
             )
         )
 
@@ -293,6 +305,42 @@ def _imports_from_ast(content: str) -> tuple[set[str], set[str]]:
     return all_names, guarded_names - hard_names
 
 
+def _symbols_from_ast(content: str) -> dict[str, set[str]]:
+    """Map each top-level imported module -> the symbols the code uses on it.
+
+    Feeds the install-lane LLM guesser (usage disambiguates look-alike names).
+    - ``from cv2 import imread``            -> {"cv2": {"imread"}}
+    - ``import cv2; cv2.VideoCapture()``    -> {"cv2": {"VideoCapture"}}
+    - ``import numpy as np; np.array()``    -> {"numpy": {"array"}}  (alias resolved)
+    A bare, unused import yields an entry with an empty set.
+    """
+    tree = ast.parse(content)
+    alias_to_top: dict[str, str] = {}
+    symbols: dict[str, set[str]] = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                top = a.name.split(".", 1)[0]
+                local = (a.asname or a.name).split(".", 1)[0]
+                alias_to_top[local] = top
+                symbols.setdefault(top, set())
+        elif isinstance(node, ast.ImportFrom) and node.module and (node.level or 0) == 0:
+            top = node.module.split(".", 1)[0]
+            entry = symbols.setdefault(top, set())
+            for a in node.names:
+                if a.name and a.name != "*":
+                    entry.add(a.name)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            top = alias_to_top.get(node.value.id)
+            if top is not None:
+                symbols[top].add(node.attr)
+
+    return symbols
+
+
 def _imports_from_regex(content: str) -> set[str]:
     imports: set[str] = set()
     for line in content.splitlines():
@@ -315,12 +363,15 @@ def _stdlib_module_names() -> set[str]:
 
 def _dedupe_findings(findings: list[ImportFinding]) -> list[ImportFinding]:
     grouped: dict[tuple[str, str], set[str]] = defaultdict(set)
+    # Used-symbols unioned across every finding for a name (parallel to source_files).
+    sym_acc: dict[tuple[str, str], set[str]] = defaultdict(set)
     # Dominance: a name is optional only if it is optional in ALL findings for it
     # (a hard runtime need dominates a guarded one).
     optional: dict[tuple[str, str], bool] = {}
     for finding in findings:
         key = (finding.import_name, finding.classification)
         grouped[key].update(finding.source_files)
+        sym_acc[key].update(finding.symbols)
         optional[key] = finding.optional if key not in optional else optional[key] and finding.optional
     return [
         ImportFinding(
@@ -328,6 +379,7 @@ def _dedupe_findings(findings: list[ImportFinding]) -> list[ImportFinding]:
             classification=classification,
             source_files=tuple(sorted(files)),
             optional=optional[(name, classification)],
+            symbols=tuple(sorted(sym_acc[(name, classification)])),
         )
         for (name, classification), files in sorted(grouped.items())
     ]

@@ -48,6 +48,12 @@ class ImportFinding:
     # runtime need for the same name anywhere dominates and makes this False (see
     # _dedupe_findings).
     optional: bool = False
+    # The attributes / from-import names the code actually uses on this top-level
+    # import (e.g. ``cv2.imread`` / ``from cv2 import imread`` -> ``("imread",)``),
+    # sorted and unioned across every source file and through dedupe. Usage
+    # disambiguates look-alike distribution names for the install-lane LLM
+    # guesser; unconsumed here (see Tasks 3-5). A bare/unused import -> ``()``.
+    symbols: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
