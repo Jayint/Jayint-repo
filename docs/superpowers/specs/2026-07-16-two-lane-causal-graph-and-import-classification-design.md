@@ -1,9 +1,10 @@
-# Two-Lane Causal Collection Graph + Deterministic Import Classification
+# Graph + Python-Package-Layer Redesign — Two-Lane Causal Collection Graph & Import Resolution
 
 **Date:** 2026-07-16
 **Status:** Proposed; ready for implementation planning
-**Scope:** The *collection-scope* environment graph (everything needed to reach clean `pytest --collect-only`), Python profile first. Covers (a) the node/edge model, (b) how first-party vs external imports are classified, and (c) how each is certified and cured.
-**Builds on:** `2026-07-16-collection-graph-simplification-design.md` (the five-node collapse + deterministic resolver + demotions). This doc refines that one: it adds the *causal* framing (two cure-typed lanes), makes the first-party module graph first-class, and specifies the import classifier concretely. It does not contradict it — `declares`-authoritative roots and the demotion table stand.
+**Scope:** A **clean replacement of the current graph + Python-package layer** for the *collection-scope* environment (reaching clean `pytest --collect-only`), Python profile first — the node/edge model, first-party-vs-external classification, import→dist resolution, and certification/cure. It replaces the live 10-node `schema.py`, the current classification, and the current `generate_candidates` import→dist pipeline. **This is a graph + Python-package-layer redesign, not a rewrite of the whole builder.**
+**Builds on:** `2026-07-16-collection-graph-simplification-design.md` (the five-node collapse + deterministic resolver + demotions) — the direction this doc makes concrete with the causal two-lane framing, a first-class first-party module graph, and a specified import classifier/resolver. `declares`-authoritative roots and the demotion table stand.
+**Preserved unchanged — explicitly NOT redesigned:** the **system-package / native (`syslib`) detection** subsystem — `os_resolver.py`, `wheel_preflight.py` / `wheel_oracle.py`, `ldd_probe.py`, `pep725.py`, `debian_builddeps.py`, `apt_verify.py`, `syslib.py`, `seed.py`, `project_native_*`, and the build.py native-obligation stages (3b′/3b″/3b‴, 4.5 ldd). The `syslib` node type and the `pkg → syslib` overlay edge remain; the new graph **consumes** native detection exactly as today. Nothing here changes how native/system dependencies are discovered or resolved.
 **Out of scope:** the execution plane (services, real test *pass*, `ConnectionError`), non-Python profiles, secrets/config values.
 
 ## Executive decision
@@ -95,7 +96,7 @@ Dropping `normalize`/`declared` is safe *because* grounding is the sole gate: an
 
 ## Kept / changed / net-new (code-grounded)
 
-**Kept** — `roots.select_roots` declared-only roots (`roots.py:393`, imports never generate roots); the certification axis (`schema.py` `Node` fields); **`relink.py`'s certified `Import→Package` edges from the post-install `packages_distributions()` map** — the *sole* build-path `satisfied-by` source (the static `resolve_link.link_imports_to_packages` is retired from the build path); `import_mapping.map_import_to_package` (15-entry curated table + declared-name equality) kept only as a *pre-install* best-effort guess for evidence/repair/classification; the native overlay.
+**Kept** — `roots.select_roots` declared-only roots (`roots.py:393`, imports never generate roots); the certification axis (`schema.py` `Node` fields); **`relink.py`'s certified `Import→Package` edges from the post-install `packages_distributions()` map** — the *sole* build-path `satisfied-by` source (the static `resolve_link.link_imports_to_packages` is retired from the build path); `import_mapping.map_import_to_package` (15-entry curated table + declared-name equality) kept only as a *pre-install* best-effort guess for evidence/classification; and — **wholesale, untouched** — the system-package / native (`syslib`) detection subsystem (`os_resolver`/`wheel_preflight`/`ldd_probe`/`pep725`/`debian_builddeps`/`apt_verify`/`seed`), which the new graph consumes via the `pkg → syslib` overlay exactly as today.
 
 **Changed** —
 - **Route, don't drop.** `scan.scan_to_nodes` stops discarding first-party imports (`scan.py:163`); instead it emits `file` nodes and routes each import's `satisfied-by?` to a `file` (internal) or `pkg` (external) via the ladder. This rewrites construction on every already-passing repo → **regression-sweep gated** (memory `regression-sweep-is-the-gate`).
@@ -112,7 +113,7 @@ Dropping `normalize`/`declared` is safe *because* grounding is the sole gate: an
 3. **Add `file` nodes + `scope`** additively; keep the old TEST-hub wiring until the sweep is green.
 4. **Flip route-not-drop** in `scan.py` and wire the classifier ladder; validate on the pass-repos before pruning the old drop path.
 5. **Drop `tier`/`layer`, collapse node types**; each removal gated by the pass-repo sweep.
-6. **Do not touch Services / the execution plane.**
+6. **Do not touch Services, the execution plane, or system-package/native (`syslib`) detection.** The `syslib` overlay is a fixed input the new graph consumes as-is, never a target of this work.
 
 ## Non-goals
 
@@ -121,6 +122,7 @@ Dropping `normalize`/`declared` is safe *because* grounding is the sole gate: an
 - A heuristic-union or LLM-first classifier (the EnvGraph failure mode).
 - Named edge relations for `declares`/`imports`/`satisfied-by` (re-bloats the edge axis).
 - Front-loading import-time runtime config; the execution plane (services, real test pass).
+- Re-engineering system-package / native (`syslib`) detection — preserved and consumed unchanged (see header); this redesign is graph + Python-package layer only.
 
 ## Open questions / to validate
 
