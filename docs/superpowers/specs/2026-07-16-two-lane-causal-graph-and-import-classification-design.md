@@ -77,6 +77,20 @@ The residue is `repo_modules.stem_collisions` — the difference between the bro
 
 The false-green flag must have an **owner**: a policy that treats config as the default cure and install as genuine last resort (or a human gate). A flag nothing consumes is just a log line.
 
+### Install-lane resolution: unresolved import → distribution (no identity fallback)
+
+When an external import has no provider after certified relink (`relink.flag_unresolved_imports`), the install lane must propose *which distribution* to install. Its safety rests on one invariant plus one mechanism.
+
+**Invariant — no identity fallback.** An import name is *never* guessed to be its own distribution name. A candidate that grounds to nothing leaves the import honestly `unresolved`. This is the deleted `map_import_to_package` identity rung — and, notably, pipreqs' own `data.get(pkg, pkg)` default (take its *table*, not its fallback). Reinstating it is the wrong-install / self-install-false-green vector (memories `self-install-false-green-vector`, `phase2-identity-fallback-deletion`).
+
+**Candidate generation — aggressive, every source untrusted:**
+1. **Vendored `pipreqs` mapping table** — ~1157 `import:dist` rows (Apache-2.0; vendor in-repo with a NOTICE crediting bndr/pipreqs). Drops into the existing untrusted-candidate slot (`repair.curated_candidates`), replacing the 15-entry table. Never an authority: generic/stale rows (`App:Zope2`, `ANSI:pexpect`) must still ground, and the first-party classifier already stops a repo-defined name (`App`) from reaching this rung.
+2. **LLM rung fed usage context** — the import name *plus the symbols the code uses on it* (`cv2.imread`, `cv2.VideoCapture` → OpenCV), harvested from the AST the scan already walks. Cached by `(import, symbols)`; only ever sees classifier-**external** imports, never a first-party name.
+
+**Strict grounding — the safety net (`repair.choose_provider` + `record_grounds` over the composite RECORD provider).** Every candidate from either source is RECORD-grounded: `pip download --no-deps --only-binary=:all:` the candidate wheel (`wheel_inspect.py`), read its `top_level.txt`/RECORD → **confirm** (ships the import) / **deny** (does not → prune shims & hallucinations) / **blind** (no compatible wheel → install backstop). Verdict: exactly one canonical confirm → ACCEPT (install as an audit root, re-relink); more than one → AMBIGUOUS (never pick a variant); none → `unresolved`.
+
+**Principle — aggressive generation, strict grounding.** Today's bottleneck is generation *coverage* (five mechanical variants + 15 rows), not grounding. Widen the *proposer* (pipreqs table + LLM-with-context) and let the wheel-RECORD check prune wrong guesses; never widen *acceptance*. The map keeps the common tail deterministic and reproducible; the LLM enters only on the residue, and nothing installs unless its real wheel provides the import.
+
 ## Kept / changed / net-new (code-grounded)
 
 **Kept** — `roots.select_roots` declared-only roots (`roots.py:393`, imports never generate roots); the certification axis (`schema.py` `Node` fields); **`relink.py`'s certified `Import→Package` edges from the post-install `packages_distributions()` map** — the *sole* build-path `satisfied-by` source (the static `resolve_link.link_imports_to_packages` is retired from the build path); `import_mapping.map_import_to_package` (15-entry curated table + declared-name equality) kept only as a *pre-install* best-effort guess for evidence/repair/classification; the native overlay.
@@ -85,6 +99,7 @@ The false-green flag must have an **owner**: a policy that treats config as the 
 - **Route, don't drop.** `scan.scan_to_nodes` stops discarding first-party imports (`scan.py:163`); instead it emits `file` nodes and routes each import's `satisfied-by?` to a `file` (internal) or `pkg` (external) via the ladder. This rewrites construction on every already-passing repo → **regression-sweep gated** (memory `regression-sweep-is-the-gate`).
 - **Classifier consumes `declares` first and the target interpreter** (rungs 1–2), which it does not today.
 - **Drop `tier`/`layer`** from `Node`; collapse `NodeType` 10 → 5 (per the prior spec's demotions).
+- **Unresolved-import candidate source** swaps the 15-entry curated table for the vendored ~1157-row `pipreqs` table (Apache-2.0) in the existing `repair.curated_candidates` slot, and adds the usage-context LLM rung — both feeding the *same* `repair.choose_provider` grounding. The no-identity-fallback invariant is unchanged.
 
 **Net-new** — `file` nodes carrying `scope`; the `import → file` (local-module / config) lane; per-`file` collection certificate; `project` certify-by-import certificate; the collision-zone certificate arbitration + false-green flag.
 
@@ -100,6 +115,7 @@ The false-green flag must have an **owner**: a policy that treats config as the 
 ## Non-goals
 
 - Turning imports into install roots (reintroduces the 30/0 imports-as-generator regression).
+- Any import-name-as-dist-name identity fallback (pipreqs' `data.get(pkg, pkg)` default included); an import whose candidates ground to nothing stays honestly `unresolved`.
 - A heuristic-union or LLM-first classifier (the EnvGraph failure mode).
 - Named edge relations for `declares`/`imports`/`satisfied-by` (re-bloats the edge axis).
 - Front-loading import-time runtime config; the execution plane (services, real test pass).
@@ -115,6 +131,7 @@ The false-green flag must have an **owner**: a policy that treats config as the 
 ## References
 
 - Memory: `envgraph-import-classification-approach`, `regression-sweep-is-the-gate`, `self-install-false-green-vector`, `package-layer-not-source-aware`, `front-load-complete-model-not-reactive`, `two-phase-declared-roots-construction-landed`.
-- Code today: `src/python_deps/depgraph/schema.py` (Node/Edge, NodeType, `tier`/`layer`), `scan.py` (import scan; drops first-party at :163), `repo_modules.py` (sys.path-accurate `top_level_names`, `stem_collisions`), `roots.py` (declared-only roots; `TODO(target-stdlib)`), `relink.py` (certified `satisfied-by` via post-install `packages_distributions()`; `flag_unresolved_imports`), `resolve_link.py` (retired static linker), `import_mapping.py` (curated table + `declared_metadata_match` name-equality), `import_graph.py` (per-name findings with `source_files`).
+- Code today: `src/python_deps/depgraph/schema.py` (Node/Edge, NodeType, `tier`/`layer`), `scan.py` (import scan; drops first-party at :163), `repo_modules.py` (sys.path-accurate `top_level_names`, `stem_collisions`), `roots.py` (declared-only roots; `TODO(target-stdlib)`), `relink.py` (certified `satisfied-by` via post-install `packages_distributions()`; `flag_unresolved_imports`), `resolve_link.py` (retired static linker), `import_mapping.py` (curated table + `declared_metadata_match` name-equality), `import_graph.py` (per-name findings with `source_files`), `repair.py` (candidate ladder + `choose_provider` grounding), `wheel_inspect.py` (`pip download` RECORD reader).
+- External: `bndr/pipreqs` (Apache-2.0) — `pipreqs/pipreqs/mapping` (1157 `import:dist` rows) vendored as the install-lane candidate table; its `get_pkg_names` identity fallback is deliberately NOT adopted.
 - EnvGraph baseline: `method/envgraph/{graph/builder.py, graph/repo_builder.py, reasoners/llm.py, extractors/python_files.py}`.
 - Prior specs: `2026-07-16-collection-graph-simplification-design.md`, `2026-07-14-runtime-test-environment-construction-graph-design.md`, `2026-07-16-build-plan-certification-and-execution-evidence-graph-design.md`.
