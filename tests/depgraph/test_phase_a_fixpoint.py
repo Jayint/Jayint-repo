@@ -61,6 +61,23 @@ def _provider(mapping):
     return provider
 
 
+def _recording_provider(mapping):
+    """Like :func:`_provider`, but records every dist the grounding layer queries.
+
+    Lets a test PROVE a candidate actually REACHED grounding (the provider was
+    consulted for it) rather than silently never being generated -- the teeth that
+    keep the source-aware acceptance-gate guards from regressing to vacuous passes.
+    """
+    base = _provider(mapping)
+    consulted: list[str] = []
+
+    def provider(dist):
+        consulted.append(dist)
+        return base(dist)
+
+    return provider, consulted
+
+
 def _null_provider(_dist):
     return None
 
@@ -265,18 +282,31 @@ def test_fixpoint_bound_and_honest_residue(tmp_path, caplog):
 
 
 def test_fixpoint_ambiguous_does_not_pick(tmp_path):
-    """Two canon-distinct confirming dists -> AMBIGUOUS -> no root added."""
+    """TWO canon-distinct confirming dists -> AMBIGUOUS -> no root added.
+
+    `attr` has no pipreqs entry, so an injected `llm_dist_guesser` supplies the two
+    rival dists; the fake provider grounds BOTH, so `choose_provider` sees >1
+    confirmed provider -> AMBIGUOUS -> the fixpoint picks NEITHER (never guesses a
+    variant). (The AMBIGUOUS decision itself is also unit-covered in
+    test_repair_grounding.py / test_repair_ladder.py; this drives it end-to-end
+    through the fixpoint.)"""
     repo = _repo(tmp_path, "import attr\n")
     ex = _fallback_executor([""])
-    # Both normalize variants confirm the module -> genuine ambiguity.
-    provider = _provider({"attr": {"attr"}, "python-attr": {"attr"}})
+    # Injected guesser proposes two rival dists for the missing import; the fake
+    # provider CONFIRMS both -> genuine ambiguity reached at the fixpoint level.
+    guesser = lambda name, symbols: ["attr", "python-attr"] if name == "attr" else []  # noqa: E731
+    provider, consulted = _recording_provider({"attr": {"attr"}, "python-attr": {"attr"}})
 
-    graph, _counter = _build_counting(repo, ex, provider)
+    graph, _counter = _build_counting(repo, ex, provider, llm_dist_guesser=guesser)
 
     assert _audit_packages(graph) == []
     assert graph.get(package_id("attr", "1.0")) is None
     assert graph.get(package_id("attrs", "1.0")) is None
     assert not any(n.type is NodeType.PACKAGE for n in graph.nodes)
+    # TEETH: both rival candidates reached grounding (AMBIGUOUS was genuinely hit,
+    # not skipped for lack of candidates).
+    assert any(normalize_package_name(d) == "attr" for d in consulted)
+    assert any(normalize_package_name(d) == "python-attr" for d in consulted)
 
 
 def test_fixpoint_optional_import_never_triggers_repair(tmp_path):
@@ -347,13 +377,12 @@ def test_fixpoint_never_repairs_uv_sourced_dependency_via_normalize_rung(tmp_pat
     it OUT of this resolve's roots (Task 7 scope rule). The repo's app code
     nonetheless imports it unconditionally, so Phase-A's coverage audit flags
     it as an under-declaration and the repair ladder tries to ground it.
-    `_declared_package_names_for_repair` excludes `hogli` from the
-    `declared_metadata` rung, but `generate_candidates`'s `normalize` rung
-    proposes it anyway (it only reads the import name) -- and here a fake
-    RECORD provider CONFIRMS it, so `choose_provider` returns ACCEPT. The
-    fixpoint's acceptance gate must still refuse it: `hogli` must never
-    become an AUDIT root, which would resolve the unrelated public PyPI
-    package of that name instead of the pinned git fork."""
+    `hogli` has NO pipreqs entry, so an injected `llm_dist_guesser` supplies the
+    PyPI NAMESAKE `hogli` as a candidate -- and the fake RECORD provider CONFIRMS
+    it, so `choose_provider` returns ACCEPT with the candidate fully grounded. The
+    fixpoint's acceptance gate (`_canon(dist) not in uv_sourced_names`) must STILL
+    refuse it: `hogli` must never become an AUDIT root, which would resolve the
+    unrelated public PyPI package of that name instead of the pinned git fork."""
     repo = _repo(
         tmp_path,
         "import requests\nimport hogli\n",
@@ -372,13 +401,17 @@ def test_fixpoint_never_repairs_uv_sourced_dependency_via_normalize_rung(tmp_pat
         ["requests==2.31.0\n    # via -r -\n"],
         packages_dist=[_r(0, stdout='{"requests": ["requests"]}')],
     )
-    # The fake RECORD provider CONFIRMS hogli provides top-level "hogli" --
-    # a real grounded confirm, proving the refusal is the acceptance gate,
-    # not a grounding failure.
-    provider = _provider({"requests": {"requests"}, "hogli": {"hogli"}})
+    # The fake RECORD provider CONFIRMS hogli provides top-level "hogli" -- a real
+    # grounded confirm, proving the refusal is the acceptance gate, not a grounding
+    # failure. `consulted` records every dist grounding queried (the teeth below).
+    provider, consulted = _recording_provider({"requests": {"requests"}, "hogli": {"hogli"}})
+    # Inject the PyPI namesake as the guessed candidate (pipreqs has no `hogli`),
+    # so a candidate IS generated and REACHES grounding -- the only thing that then
+    # stops it becoming a root is the uv-sources acceptance gate.
+    guesser = lambda name, symbols: ["hogli"] if name == "hogli" else []  # noqa: E731
 
     with caplog.at_level(logging.WARNING):
-        graph, counter = _build_counting(repo, ex, provider)
+        graph, counter = _build_counting(repo, ex, provider, llm_dist_guesser=guesser)
 
     assert graph.get(package_id("hogli", None)) is None
     assert not any(n.name == "hogli" for n in _audit_packages(graph))
@@ -387,6 +420,10 @@ def test_fixpoint_never_repairs_uv_sourced_dependency_via_normalize_rung(tmp_pat
     # the ladder never treated it as "a new pair" worth re-resolving for.
     assert counter["resolve"] == 1
     assert any("phase-A" in rec.message for rec in caplog.records)
+    # TEETH: the namesake candidate genuinely REACHED grounding (provider consulted
+    # for it) and ground-CONFIRMED -- so the refusal above is the uv-sources
+    # acceptance gate, NOT an absent candidate. Delete the gate and hogli repairs.
+    assert any(normalize_package_name(d) == "hogli" for d in consulted)
 
 
 # --------------------------------------------------------------------------- #
@@ -402,12 +439,13 @@ def test_fixpoint_never_repairs_direct_reference_dependency_via_normalize_rung(t
     as a PEP 508 direct reference (`kivymd @ git+...`) -- `select_roots`
     correctly keeps it OUT of this resolve's roots. The repo's app code
     nonetheless imports it unconditionally, so Phase-A's coverage audit flags
-    it as an under-declaration and the repair ladder tries to ground it via
-    the `normalize` rung (independent of the `declared_metadata` rung
-    `_declared_package_names_for_repair` already excludes it from). The
-    fixpoint's acceptance gate must still refuse it: `kivymd` must never
-    become an AUDIT root, which would resolve the unrelated public PyPI
-    package of that name instead of the git-pinned fork."""
+    it as an under-declaration and the repair ladder tries to ground it.
+    `kivymd` has NO pipreqs entry, so an injected `llm_dist_guesser` supplies the
+    PyPI NAMESAKE `kivymd` as a candidate -- and the fake RECORD provider CONFIRMS
+    it, so `choose_provider` returns ACCEPT with the candidate fully grounded. The
+    fixpoint's acceptance gate must STILL refuse it: `kivymd` must never become an
+    AUDIT root, which would resolve the unrelated public PyPI package of that name
+    instead of the git-pinned fork."""
     repo = _repo(
         tmp_path,
         "import requests\nimport kivymd\n",
@@ -423,19 +461,27 @@ def test_fixpoint_never_repairs_direct_reference_dependency_via_normalize_rung(t
         ["requests==2.31.0\n    # via -r -\n"],
         packages_dist=[_r(0, stdout='{"requests": ["requests"]}')],
     )
-    # The fake RECORD provider CONFIRMS kivymd provides top-level "kivymd" --
-    # a real grounded confirm, proving the refusal is the acceptance gate,
-    # not a grounding failure.
-    provider = _provider({"requests": {"requests"}, "kivymd": {"kivymd"}})
+    # The fake RECORD provider CONFIRMS kivymd provides top-level "kivymd" -- a real
+    # grounded confirm, proving the refusal is the acceptance gate, not a grounding
+    # failure. `consulted` records every dist grounding queried (the teeth below).
+    provider, consulted = _recording_provider({"requests": {"requests"}, "kivymd": {"kivymd"}})
+    # Inject the PyPI namesake as the guessed candidate (pipreqs has no `kivymd`),
+    # so a candidate IS generated and REACHES grounding -- the direct-reference
+    # acceptance gate is then the only thing that can stop it becoming a root.
+    guesser = lambda name, symbols: ["kivymd"] if name == "kivymd" else []  # noqa: E731
 
     with caplog.at_level(logging.WARNING):
-        graph, counter = _build_counting(repo, ex, provider)
+        graph, counter = _build_counting(repo, ex, provider, llm_dist_guesser=guesser)
 
     assert graph.get(package_id("kivymd", None)) is None
     assert not any(n.name == "kivymd" for n in _audit_packages(graph))
     assert not any(n.name == "kivymd" and n.type is NodeType.PACKAGE for n in graph.nodes)
     assert counter["resolve"] == 1
     assert any("phase-A" in rec.message for rec in caplog.records)
+    # TEETH: the namesake candidate genuinely REACHED grounding (provider consulted
+    # for it) and ground-CONFIRMED -- so the refusal above is the direct-reference
+    # acceptance gate, NOT an absent candidate. Delete the gate and kivymd repairs.
+    assert any(normalize_package_name(d) == "kivymd" for d in consulted)
 
 
 # --------------------------------------------------------------------------- #

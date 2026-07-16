@@ -636,19 +636,17 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     assert numpy is not None and numpy.discovered_by is DiscoveredBy.RESOLVER
 
 
-def test_fixpoint_uses_pipreqs_candidate_via_grounding(monkeypatch):
-    """An unresolved import whose pipreqs dist RECORD-confirms is accepted as a root."""
+def test_fixpoint_uses_pipreqs_candidate_via_grounding():
+    """The pipreqs->grounding ACCEPT path at the functions the fixpoint calls: an
+    unresolved import whose pipreqs dist RECORD-confirms is accepted. (End-to-end
+    coverage that build_dep_graph actually drives the guesser through the fixpoint
+    lives in test_python_provider.py::test_build_dep_graph_reaches_fixpoint_llm_end_to_end.)"""
     from python_deps.depgraph import build as build_mod
 
     # stub record provider: opencv-python's wheel provides top-level "cv2"
     def fake_provider(dist):
         return {"cv2"} if dist == "opencv-python" else set()
 
-    imp = build_mod.Node(  # a bare unresolved external import
-        id="import:cv2", type=build_mod.NodeType.IMPORT, name="cv2",
-        layer=build_mod.Layer.NAMING, discovered_by=build_mod.DiscoveredBy.STATIC_SCAN,
-    )
-    graph = build_mod.DepGraph(nodes=(imp,))
     candidates = build_mod.generate_candidates("cv2")
     decision = build_mod.choose_provider("cv2", candidates, fake_provider)
     assert decision.verdict is build_mod.Verdict.ACCEPT
