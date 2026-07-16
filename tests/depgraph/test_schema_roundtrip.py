@@ -210,3 +210,24 @@ def test_node_has_no_tier_field():
              discovered_by=DiscoveredBy.RESOLVER)
     assert not hasattr(n, "tier")
     assert "tier" not in n.to_dict()
+
+
+def test_file_node_is_legal_requires_src_and_dst():
+    from python_deps.depgraph.schema import (
+        DepGraph, Node, Edge, NodeType, EdgeType, Layer, DiscoveredBy,
+    )
+    imp = Node(id="import:foo", type=NodeType.IMPORT, name="foo",
+               layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN)
+    fil = Node(id="file:pkg/foo.py", type=NodeType.FILE, name="pkg/foo.py",
+               layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN)
+    ext = Node(id="import:numpy", type=NodeType.IMPORT, name="numpy",
+               layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN)
+    g = DepGraph().with_node(imp).with_node(fil).with_node(ext)
+    # import -> file : the config-lane satisfied-by (File as dst)
+    g = g.with_edge(Edge(src="import:foo", dst="file:pkg/foo.py",
+                         relation=EdgeType.REQUIRES, origin="scan"))
+    # file -> import : the bridge / container (File as src)
+    g = g.with_edge(Edge(src="file:pkg/foo.py", dst="import:numpy",
+                         relation=EdgeType.REQUIRES, origin="scan"))
+    assert any(e.dst == "file:pkg/foo.py" for e in g.edges)
+    assert any(e.src == "file:pkg/foo.py" for e in g.edges)
