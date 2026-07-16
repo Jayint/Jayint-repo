@@ -59,13 +59,17 @@ class EcosystemProvider(Protocol):
         exclude_newer: str | None = None,
         needed_extras: frozenset[str] = frozenset(),
         record_provider: object | None = None,
+        uv_sources_enabled: bool = False,
     ) -> tuple[DepGraph, list, object, str | None]:
         """PHASE 1 body. Returns ``(graph, roots, target_env, exclude_newer)``;
         only ``graph`` flows onward (the rest are provider-composition / test-
         visibility surface). ``record_provider`` is an opaque provider-specific
         grounding-oracle injection (test seam); Python uses it, other ecosystems
         accept-and-ignore ``None``. Surfaced for signature stability
-        (``research_zero_impact.md`` §3)."""
+        (``research_zero_impact.md`` §3). ``uv_sources_enabled`` (V3_UV_SOURCES,
+        default OFF) is a Python/uv-specific false-green gate — see
+        ``python_deps.depgraph.build._python_package_obligations``'s docstring;
+        other ecosystems accept-and-ignore it exactly like ``record_provider``."""
         ...
 
     def native_obligations(self, graph: DepGraph, container_executor: object) -> DepGraph:

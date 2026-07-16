@@ -71,6 +71,49 @@ _TOKENS_TOTAL_RE = re.compile(r"\[Tokens\].*Total:\s*(\d+)")
 _RUN_V3_TIMEOUT = int(os.environ.get("V3_ADAPTER_RUN_TIMEOUT", "5400"))   # 90 min
 _CLONE_TIMEOUT = int(os.environ.get("V3_ADAPTER_CLONE_TIMEOUT", "1200"))
 
+# FIX B1/B5(a) — build_script._need_block / populate._project_command leave
+# machine-parseable markers in setup.sh for two things a Docker RUN layer's
+# `export` cannot persist into the image (or the later `docker exec` the eval
+# harness runs pytest through): a Config-tier var with a KNOWN value
+# ("#@config-env VAR=value"), and "put the checkout on PYTHONPATH instead"
+# when populate.py's installability heuristic decided `pip install -e .`
+# would only fail ("#@pythonpath-env <analysis-time path>"). This adapter is
+# the ONE place that turns both into real Dockerfile `ENV` directives.
+_CONFIG_ENV_RE = re.compile(r"^#@config-env\s+([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.MULTILINE)
+_PYTHONPATH_ENV_RE = re.compile(r"^#@pythonpath-env\b", re.MULTILINE)
+
+
+def _dockerfile_env_value(value: str) -> str:
+    """Double-quote ``value`` for a Dockerfile ``ENV`` directive, escaping the
+    two characters that can break a quoted instruction (backslash first, so a
+    literal backslash is not re-escaped by the quote-escaping step)."""
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _config_env_directives(setup_sh: str) -> list[str]:
+    """``ENV VAR="value"`` for every ``#@config-env`` marker in ``setup_sh``.
+    Deduped by var (first occurrence wins) and sorted by var name so the
+    Dockerfile is deterministic regardless of marker order in setup.sh."""
+    values: dict[str, str] = {}
+    for var, value in _CONFIG_ENV_RE.findall(setup_sh):
+        values.setdefault(var, value)
+    return [f"ENV {var}={_dockerfile_env_value(value)}"
+            for var, value in sorted(values.items())]
+
+
+def _pythonpath_env_directive(setup_sh: str) -> str | None:
+    """``ENV PYTHONPATH=...`` when a ``#@pythonpath-env`` marker is present, or
+    ``None``. Deliberately ignores the marker's own path payload (an
+    analysis-time path — e.g. the Sandbox's ``/app`` or a local clone
+    directory — meaningless inside the eval image) and binds to ``/testbed``
+    instead: the ONE place this adapter's own Dockerfile ever clones the repo
+    (see ``_render_dockerfile``'s ``WORKDIR``/``git clone`` lines), so the
+    value baked here is always correct no matter what host path v3 analyzed."""
+    if not _PYTHONPATH_ENV_RE.search(setup_sh):
+        return None
+    return 'ENV PYTHONPATH="/testbed:${PYTHONPATH}"'
+
 
 class MultiDockerEvalAdapter:
     """Bridge run_v3 to the RAT harness by emitting a Dockerfile from the certified
@@ -124,7 +167,8 @@ class MultiDockerEvalAdapter:
             if services_sh:
                 result["setup_scripts"]["services_start.sh"] = services_sh
             result["dockerfile"] = self._render_dockerfile(
-                resolved_base, repo_url, include_services=bool(services_sh), pin_sha=pin_sha)
+                resolved_base, repo_url, include_services=bool(services_sh),
+                pin_sha=pin_sha, setup_sh=setup_sh)
             result["logs"] = {"head_sha": head_sha, "resolved_base": resolved_base}
         except subprocess.CalledProcessError as e:
             tail = (getattr(e, "stderr", "") or "")[-2000:]
@@ -336,7 +380,7 @@ class MultiDockerEvalAdapter:
 
     def _render_dockerfile(
         self, base_image: str, repo_url: str, include_services: bool = False,
-        pin_sha: str | None = None,
+        pin_sha: str | None = None, setup_sh: str = "",
     ) -> str:
         """Self-contained Dockerfile: clone the repo into /testbed (same default
         HEAD run_v3 analyzed) and run the certified install-only setup.sh with
@@ -354,7 +398,17 @@ class MultiDockerEvalAdapter:
         the LATER container the harness `docker run -d`s and `docker exec`s
         pytest into). ``docker run -d ... tail -f /dev/null`` does not pass
         ``--entrypoint``, so this ENTRYPOINT survives and runs first, blocking
-        until every probe passes, before ``exec "$@"`` hands off to ``tail``."""
+        until every probe passes, before ``exec "$@"`` hands off to ``tail``.
+
+        ``setup_sh`` (default "" — byte-identical to before, no ENV lines at
+        all): the certified setup.sh text, scanned for the ``#@config-env`` /
+        ``#@pythonpath-env`` markers ``render_build_script``/``populate.py``
+        leave for a KNOWN Config-tier value or a not-safely-installable
+        project (FIX B1 / FIX B5a). Baked here as Dockerfile ``ENV`` lines
+        BEFORE the setup.sh RUN step — the ONE mechanism that persists into
+        both later layers of this build AND the final image the harness later
+        ``docker exec``s pytest into; a plain ``export`` inside setup.sh dies
+        with that RUN layer and reaches neither."""
         if pin_sha:
             clone_step = (f"# Full clone (history + tags) pinned to construction's commit.\n"
                           f"RUN git clone {repo_url} /testbed \\\n"
@@ -362,9 +416,14 @@ class MultiDockerEvalAdapter:
         else:
             clone_step = (f"# Fresh clone of the repo run_v3 analyzed.\n"
                           f"RUN git clone --depth=1 {repo_url} /testbed")
+        env_lines = _config_env_directives(setup_sh)
+        pythonpath_line = _pythonpath_env_directive(setup_sh)
+        if pythonpath_line:
+            env_lines.append(pythonpath_line)
+        env_block = ("\n" + "\n".join(env_lines) + "\n") if env_lines else ""
         df = f"""FROM {base_image}
 WORKDIR /testbed
-
+{env_block}
 # git for cloning (slim bases omit it); keep the layer lean.
 RUN command -v git >/dev/null 2>&1 || (apt-get update \\
         && apt-get install -y --no-install-recommends git \\

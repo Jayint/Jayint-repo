@@ -29,7 +29,9 @@ import os
 from urllib.parse import urlsplit
 
 from python_deps.depgraph.config_scan import (
+    authoritative_ambiguous_vars,
     parse_env_example,
+    scan_authoritative_config,
     scan_env_defaults,
     scan_env_reads,
     scan_framework_config_reads,
@@ -139,15 +141,70 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
 
 
 def _config_nodes(repo_path, hits) -> list[NodeSpec]:
-    """One advisory Config hint NodeSpec per env var the tests read (never scheduled)."""
+    """One advisory Config hint NodeSpec per env var the tests read (never scheduled).
+
+    FIX B1 + MEASURED REGRESSION FIX (django-oauth-toolkit): when a value for
+    that var is statically known, it is attached as ``data["config_value"]`` so
+    ``build_script._config_env_marker`` can bake it into the image as a
+    Dockerfile ``ENV`` at render time. A var with no discoverable value is left
+    exactly as before: a nameless advisory hint with no value payload.
+
+    Value PROVENANCE precedence (highest first) -- this is the fix, not just
+    the category-safe allowlist that predates it:
+
+      1. ``scan_authoritative_config`` -- tox.ini ``[testenv] setenv``,
+         pytest.ini ``[pytest]``, setup.cfg ``[tool:pytest]``, pyproject.toml
+         ``[tool.pytest.ini_options]``. The project's OWN declared test config;
+         a var ambiguous ACROSS these (``authoritative_ambiguous_vars``) is
+         skipped outright -- never baked, never falls through to a lower rung.
+      2. ``.env.example`` -- a curated value hint, still first-party.
+      3. ``scan_env_defaults`` -- a LAST-RESORT ``.py`` code-scan fallback,
+         used only when neither of the above names the var. It already
+         excludes vendored/example/fixture paths (``tests/app/``,
+         ``examples/``, ...) -- see its docstring -- because a bundled example
+         app's own default is real code but never the project's configuration.
+         (The real-world failure this fixes: django-oauth-toolkit's
+         `tests/app/idp/manage.py` -- a vendored example Django app INSIDE the
+         test suite -- set `DJANGO_SETTINGS_MODULE=idp.settings`, which the old
+         code-scan-first order baked straight into the image, overriding the
+         repo's real `tox.ini` value (`tests.settings`) and breaking
+         `import idp` at test time; pytest-django reads the env var in
+         preference to its own ini config, so the wrong ENV shadowed a setting
+         the repo already had correct.)
+    """
     read_vars = {**scan_env_reads(repo_path), **scan_framework_config_reads(repo_path)}
-    return [
-        NodeSpec(
+    authoritative = scan_authoritative_config(repo_path)
+    ambiguous = authoritative_ambiguous_vars(repo_path)
+    example = parse_env_example(repo_path)
+    defaults = scan_env_defaults(repo_path)
+    specs: list[NodeSpec] = []
+    for var in sorted(read_vars):
+        value = None if var in ambiguous else (
+            authoritative.get(var) or example.get(var) or defaults.get(var)
+        )
+        data = None
+        if value is not None and not _looks_like_dsn(value):
+            # DSN-SHAPED VALUES ARE DELIBERATELY EXCLUDED HERE -- this is a
+            # false-green guard, not an optimisation. Config nodes are
+            # advisory by design (no probe, never certified -- see module
+            # docstring above). A stale `.env.example` DSN (e.g.
+            # DATABASE_URL=postgres://localhost/db) baked straight into the
+            # image as `ENV` would let the app import cleanly while silently
+            # pointing at the WRONG host, masking a real failure instead of
+            # surfacing it -- exactly the false-green class this codebase has
+            # been burned by before. A DSN-shaped value already has a
+            # CERTIFIED binding path (`_dsn_configs` -> `render_bind_steps` ->
+            # `setup["bind"]`); the uncertified bake here must not compete
+            # with it. Do NOT remove this exclusion to "support more vars" --
+            # scope this feature to non-DSN scalars (DJANGO_SETTINGS_MODULE,
+            # ENVIRONMENT, ...).
+            data = {"config_value": value}
+        specs.append(NodeSpec(
             id=f"config:{var}", type="Config", name=var, layer="config",
             promotion="hint", check_command=None, evidence_ref=_config_evidence(hits, var),
-        )
-        for var in sorted(read_vars)
-    ]
+            data=data,
+        ))
+    return specs
 
 
 def classify_services_clean(graph, repo_path: str, client=None, model: str = "",

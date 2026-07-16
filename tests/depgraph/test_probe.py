@@ -1016,6 +1016,40 @@ def test_install_closure_excludes_resolver_missing_packages(
     assert out.get(bad.id).state is State.MISSING
 
 
+def test_install_closure_excludes_git_sourced_package_even_with_a_version(
+    fake_executor, make_result_fixture
+):
+    """Gate 1/2 reachability: unlike the resolver-unresolvable placeholder
+    above (no version), a package whose real ``uv.lock`` source is git/url/
+    directory/editable/non-default-registry (Gate 1's
+    ``resolve_lock._missing_source_node``) DOES carry a real version -- it
+    still must never reach the bulk `pip install` command, or it would be
+    installed as the bare public-PyPI namesake instead of the pinned fork."""
+    from python_deps.depgraph.resolve_lock import _missing_source_node
+
+    good = _package("requests", "2.31.0")
+    git_sourced = _missing_source_node(
+        "infi-clickhouse-orm",
+        "2.1.0",
+        "'infi-clickhouse-orm' is sourced from git+https://github.com/PostHog/"
+        "infi.clickhouse_orm@abc123, not the default PyPI registry",
+    )
+    assert git_sourced.version == "2.1.0"  # a real version, unlike the placeholder above
+    graph = DepGraph().with_node(good).with_node(git_sourced)
+    fake_executor.responses = {
+        "pip install": make_result_fixture(returncode=0, stdout="Successfully installed")
+    }
+
+    out = install_closure(graph, fake_executor)
+
+    install_calls = [c for c in fake_executor.calls if "pip install" in c]
+    assert len(install_calls) == 1
+    assert "requests==2.31.0" in install_calls[0]
+    assert "infi-clickhouse-orm" not in install_calls[0]
+    assert out.get(git_sourced.id).attempts == ()
+    assert out.get(git_sourced.id).state is State.MISSING
+
+
 def test_install_closure_uses_generous_timeout(fake_executor, make_result_fixture):
     # A cold install of a large closure can exceed the 300s default and FALSE-fail,
     # which then certifies the whole graph MISSING (breaks honest certification).

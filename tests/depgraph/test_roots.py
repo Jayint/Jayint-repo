@@ -276,15 +276,21 @@ def test_only_needed_extra_group_becomes_a_root(tmp_path):
     assert not any(t.startswith("sphinx") for t in names)  # unneeded group excluded
 
 
-def test_no_needed_extras_default_excludes_all_optional_groups(tmp_path):
+def test_no_needed_extras_default_excludes_non_test_scope_optional_groups(tmp_path):
+    # FIX 1 (B2): with no needed_extras signal, the "test" group is now
+    # default-included (it is on `_TEST_SCOPE_EXTRA_ALLOWLIST` — see that
+    # constant's rationale), while "docs" -- a non-test-scope group -- stays
+    # excluded exactly as before. This test previously asserted "pytest" was
+    # ALSO excluded by default; that was the B2 bug (test extras silently
+    # dropped) this fix corrects.
     repo = _fixture_repo_with_optional_groups(tmp_path)
     graph = scan_to_nodes(str(repo))
     roots = select_roots(str(repo), graph)  # default needed_extras=frozenset()
 
     names = {tok for _imp, tok in roots}
     assert any(t.startswith("requests") for t in names)
-    assert not any(t.startswith("pytest") for t in names)
-    assert not any(t.startswith("sphinx") for t in names)
+    assert any(t.startswith("pytest") for t in names)      # test-scoped -> now default-in
+    assert not any(t.startswith("sphinx") for t in names)   # docs -> still excluded
 
 
 def test_per_dep_extra_specifier_is_preserved(tmp_path):
@@ -700,3 +706,89 @@ def test_dash_separator_extra_signal_matches_underscore_group(tmp_path):
     graph = scan_to_nodes(str(repo))
     dists = {dist for _imp, dist in select_roots(str(repo), graph)}
     assert "socksio" in dists  # dash-form signal must match underscore-form group
+
+
+# --------------------------------------------------------------------------- #
+# FIX 1 (B2) — `optional_dependency` test-scoped groups are now default-INCLUDED
+# (same name-based policy `dev_group` already gets), while genuinely-optional
+# feature extras (cpu/gpu/backend-selection) stay gated unless explicitly
+# signalled. See `_TEST_SCOPE_EXTRA_ALLOWLIST` for the exact set + rationale.
+# --------------------------------------------------------------------------- #
+from python_deps.depgraph.roots import _TEST_SCOPE_EXTRA_ALLOWLIST
+
+
+def test_test_scope_extra_allowlist_contents():
+    assert _TEST_SCOPE_EXTRA_ALLOWLIST == frozenset(
+        {
+            "test", "tests", "testing",
+            "dev", "develop", "development",
+            "ci",
+            "lint", "linting",
+            "typing", "type-check", "mypy",
+            "check", "checks",
+            "qa",
+            "pytest",
+        }
+    )
+
+
+def test_in_test_scope_optional_dependency_test_scoped_groups_default_in():
+    for group in ("test", "tests", "dev", "ci", "typing", "qa", "pytest", "lint"):
+        req = _req(
+            "optional_dependency",
+            f"pyproject.toml:project.optional-dependencies.{group}",
+        )
+        assert _in_test_scope(req, frozenset()), group
+
+
+def test_in_test_scope_optional_dependency_allowlist_is_case_insensitive():
+    req = _req(
+        "optional_dependency", "pyproject.toml:project.optional-dependencies.TEST"
+    )
+    assert _in_test_scope(req, frozenset())
+
+
+def test_in_test_scope_optional_dependency_feature_extra_still_gated():
+    # A non-test-scoped, non-signalled feature extra must stay OUT -- the new
+    # allowlist must not widen the gate beyond test-scoped names.
+    req = _req(
+        "optional_dependency", "pyproject.toml:project.optional-dependencies.http2"
+    )
+    assert not _in_test_scope(req, frozenset())
+
+
+def test_in_test_scope_gpu_extra_stays_gated_by_default_but_selectable():
+    # Mutual-exclusion protection (the reason optional_dependency stays an
+    # allowlist, not a denylist) MUST survive this fix: a cpu/gpu-style backend
+    # extra is never test-scoped, so it stays gated unless explicitly signalled.
+    req = _req("optional_dependency", "pyproject.toml:project.optional-dependencies.gpu")
+    assert not _in_test_scope(req, frozenset())
+    assert _in_test_scope(req, frozenset({"gpu"}))  # still selectable when signalled
+
+
+def test_optional_dependencies_test_extra_becomes_root_by_default(tmp_path):
+    # The motivating B2 case: `[project.optional-dependencies].test` declares
+    # the test deps (e.g. freezegun) and nothing signals it via needed_extras
+    # or `-e .[test]` -- it must still become a root, or the test suite can't
+    # even collect. A sibling `gpu` feature extra must stay excluded.
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    _write(
+        repo,
+        "pyproject.toml",
+        """
+        [project]
+        name = "proj"
+        version = "0.1.0"
+        dependencies = ["requests"]
+
+        [project.optional-dependencies]
+        test = ["freezegun"]
+        gpu = ["torch"]
+        """,
+    )
+    _write(repo, "proj/app.py", "import requests\n")
+    graph = scan_to_nodes(str(repo))
+    dists = {dist for _imp, dist in select_roots(str(repo), graph)}
+    assert "freezegun" in dists   # test-scoped extra -> default included
+    assert "torch" not in dists  # feature extra -> still gated

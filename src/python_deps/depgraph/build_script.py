@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import shlex
 from collections import Counter
 from typing import TYPE_CHECKING
 
@@ -95,6 +97,148 @@ def _service_reciped_in_layer(graph: DepGraph, layer: Layer) -> tuple[Node, ...]
     return topo_order(graph, nodes)
 
 
+# ---------------------------------------------------------------------------
+# SOFT requirements files (design 2026-07-13) — nested requirements files the
+# recursive discovery walk found OUTSIDE the hard-root allowlist (e.g.
+# Archipelago's ~84 `worlds/*/requirements.txt`). evidence.py deliberately does
+# NOT ingest these into `declared_dependencies` (one unified `uv lock` over 84
+# independent subprojects' pins is a harder constraint problem than the
+# reference solution actually solved, and a stray test-fixture requirements
+# file becoming a hard resolve root would silently poison the closure).
+# build.py._add_project_node carries their repo-relative paths on the PROJECT
+# node's `data["soft_requirements_files"]` (a tuple — Node.data is immutable);
+# this renders them as best-effort, non-blocking installs, constrained (`-c`)
+# so a stale pin in a nested file can add packages but never move one the
+# certified closure already pinned.
+# ---------------------------------------------------------------------------
+
+_SOFT_REQ_HEADER = (
+    "# ---- Soft requirements (best-effort; may ADD packages, never MOVE a "
+    "pinned one) ----"
+)
+_SOFT_REQ_CONSTRAINTS_PATH = "/tmp/v3_closure_constraints.txt"
+
+# FIX 2 (post-measurement, 2026-07-14) — the exclusion gate's back door.
+# `_pinned_constraint_lines` correctly OMITS `uninstallable` Package nodes
+# (git/url/direct-reference/non-default-index sources -- the graph
+# deliberately excluded them because installing by bare `name==version` would
+# fetch the PUBLIC PyPI namesake, not the real code) from the *pinned* lines.
+# But omission alone left the name completely UNCONSTRAINED: a nested SOFT
+# requirements file (e.g. Archipelago's `worlds/sc2/requirements.txt`) that
+# happens to list that same bare name by coincidence sailed straight through
+# `pip install -r ... -c constraints.txt`, silently installing the real public
+# PyPI package -- the exact dependency-confusion / false-green class Fix 1
+# closed through the front door, reopened here through the back one.
+#
+# The fix: every excluded name is ALSO emitted into the SAME constraints
+# file, pinned to a specifier that can never resolve on public PyPI. A local
+# version segment (`+v3.excluded`) does it -- PEP 440 / packaging policy
+# forbids local versions on public index uploads, so no genuine PyPI release
+# can ever carry one, while `packaging.version.Version` still parses it as an
+# ordinary, valid version (verified in test_unsatisfiable_specifier_is_valid_
+# pep440). That matters: pip must fail with "no matching distribution"
+# (a resolution failure) never "invalid requirement" (a parse failure) --
+# the latter could abort the whole `-c` file before it even protects the
+# OTHER, real packages pinned alongside it.
+#
+# Cost, stated plainly: pip resolves a requirements file as ONE unit, so once
+# an excluded name poisons a soft file's constraint set, that file's pip
+# invocation fails and NONE of its other (possibly perfectly installable)
+# packages install either -- `|| true` swallows the failure and the build
+# continues, so the outcome is simply "this soft file's packages are absent".
+# Do not try to salvage the rest by constraining only the offending line or
+# splitting the file: correctness beats completeness -- a wrong package
+# silently installed is worse than a missing one loudly absent.
+_EXCLUDED_CONSTRAINT_VERSION = "0.0.0+v3.excluded"
+_EXCLUDED_CONSTRAINT_HEADER = (
+    "# excluded (non-PyPI source): must never resolve from public PyPI"
+)
+
+
+def _excluded_constraint_lines(graph: DepGraph) -> tuple[str, ...]:
+    """``name==0.0.0+v3.excluded`` for every PACKAGE node the graph
+    deliberately excluded from the resolve closure (``data['uninstallable']``
+    -- see the module-level FIX 2 comment above and
+    ``_pinned_constraint_lines``'s docstring for the three producers of this
+    flag). Sorted by name for determinism, same discipline as
+    ``_pinned_constraint_lines``. The node's own version (real or None) is
+    irrelevant here -- the pin is always the same unsatisfiable specifier,
+    never the node's actual resolved/unresolved version."""
+    names = sorted({
+        n.name for n in graph.nodes
+        if n.type is NodeType.PACKAGE and n.data.get("uninstallable")
+    })
+    return tuple(f"{name}=={_EXCLUDED_CONSTRAINT_VERSION}" for name in names)
+
+
+def _soft_requirements_files(graph: DepGraph) -> tuple[str, ...]:
+    """Sorted, deduped union of every PROJECT node's soft requirements paths.
+    Sorted (not insertion order) so the rendered script stays deterministic
+    regardless of node/tuple ordering (render_fidelity's ``render(g) ==
+    render(g)`` and cross-order-invariance are load-bearing here)."""
+    files: set[str] = set()
+    for node in graph.nodes:
+        if node.type is NodeType.PROJECT:
+            files.update(node.data.get("soft_requirements_files") or ())
+    return tuple(sorted(files))
+
+
+def _pinned_constraint_lines(graph: DepGraph) -> tuple[str, ...]:
+    """``name==version`` for every PACKAGE node that has a pinned version —
+    sorted by name for determinism. A package with no version is omitted
+    entirely (never rendered as a bare ``name==``): the whole point of the
+    constraints file is to protect versions the closure actually pinned.
+
+    A node flagged ``data['uninstallable']`` (the Fix-A "no installable
+    artifact" gate, also reused by the Gate-1 false-green fix for a package
+    whose real source is git/url/directory/editable/a non-default registry —
+    see resolve_lock._missing_source_node) is excluded too: pinning it here
+    would let an UNRELATED soft-requirements.txt entry of the same name latch
+    onto that pin and get installed from public PyPI through this
+    constraints file, even though the closure never actually resolved it."""
+    pkgs = sorted(
+        (
+            n for n in graph.nodes
+            if n.type is NodeType.PACKAGE
+            and n.version
+            and not n.data.get("uninstallable")
+        ),
+        key=lambda n: n.name,
+    )
+    return tuple(f"{n.name}=={n.version}" for n in pkgs)
+
+
+def _soft_requirements_section(graph: DepGraph) -> list[str]:
+    """The soft-requirements block, or ``[]`` when there are no soft files at
+    all (no header, no heredoc — a strict no-op for the common case). When
+    there IS at least one soft file, the constraints heredoc is emitted even
+    if there is nothing to protect (no pinned packages) — there is simply
+    nothing to constrain, but the shape stays uniform."""
+    files = _soft_requirements_files(graph)
+    if not files:
+        return []
+    lines = [_SOFT_REQ_HEADER, f"cat > {_SOFT_REQ_CONSTRAINTS_PATH} <<'V3_EOF'"]
+    lines.extend(_pinned_constraint_lines(graph))
+    excluded = _excluded_constraint_lines(graph)
+    if excluded:
+        lines.append(_EXCLUDED_CONSTRAINT_HEADER)
+        lines.extend(excluded)
+    lines.append("V3_EOF")
+    for f in files:
+        # Matches the repo's existing pip invocation form
+        # (`python3 -m pip install --break-system-packages`, see populate.py) —
+        # no `--no-deps`: unlike a pinned Package node, a soft file may need
+        # transitive deps the closure never resolved. `-c` is load-bearing (see
+        # module docstring above); `|| true` mirrors the reference (gold)
+        # solution's own `pip install -r "$f" || true` — independent,
+        # best-effort, never fatal under `set -Eeuo pipefail`.
+        lines.append(
+            "python3 -m pip install --break-system-packages "
+            f"-r {shlex.quote(f)} -c {_SOFT_REQ_CONSTRAINTS_PATH} || true"
+        )
+    return lines
+
+
 _PROJECT_HEADER = "# ==================== PROJECT (editable) ===================="
 
 
@@ -110,6 +254,78 @@ def _installable_project(graph: DepGraph) -> Node | None:
 
 _NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE)
 
+# FIX B1 — CONFIG needs are MODELLED but were never RENDERED: a node whose
+# value IS known (classify_services_clean._config_nodes' `data["config_value"]`
+# convention, resolved from scan_env_defaults/.env.example) gets an additional
+# machine-parseable marker line so multi_docker_eval_adapter can bake it as a
+# Dockerfile ENV. setup.sh itself cannot do this: it runs inside one Docker RUN
+# layer, and `export` there dies with that layer — it neither survives into
+# the image nor into the later `docker exec` the eval harness runs pytest
+# through (see multi_docker_eval_adapter._render_dockerfile). The marker stays
+# a bare "#" comment for exactly that reason: it is a hand-off to a DIFFERENT
+# artifact, never a live command in this one (test_need_stubs_are_comment_only's
+# exhaustive comment-only invariant covers this line too).
+_CONFIG_ENV_UNKNOWN = "?"
+# Never bake a secret-shaped var name into an image layer (Dockerfile ENV
+# values are visible in `docker history`/inspect) — mirrors the same-purpose
+# denylist in src.envstate.synthesis.bakeable_config_env, kept as its own small
+# local copy so build_script.py stays decoupled from src.envstate.
+_CONFIG_ENV_SECRET_RE = re.compile(
+    r"(SECRET|PASSWORD|PASSWD|TOKEN|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY)",
+    re.IGNORECASE,
+)
+_CONFIG_ENV_DENYLIST = frozenset({
+    "PATH", "PYTHONPATH", "HOME", "PWD", "LD_LIBRARY_PATH", "SHELL", "USER",
+})
+
+# FIX 3 (post-B1) — a real construction run baked POSTGRES_HOST/POSTGRES_PORT/
+# MYSQL_HOST/MYSQL_PORT/SALT_KEY/... alongside the intended DJANGO_SETTINGS_MODULE.
+# The dangerous category is "anything naming a host, port, or credential", and no
+# denylist will ever enumerate that -- the secret regex above already proved it
+# (it missed generic `*_KEY`/`*_SALT`/`*_CREDENTIALS`; that is how SALT_KEY got
+# through). So this is inverted to an ALLOWLIST: bake ONLY framework
+# settings-module-shaped vars -- the entire evidenced payoff
+# (DJANGO_SETTINGS_MODULE unlocking a whole test suite). Everything else stays an
+# inert `#@need` hint, exactly as before this fix -- do not widen this set to
+# "support more vars". An unverified ENV that names a host/port/credential
+# silently points the app at the wrong place and turns a loud failure into a
+# wrong answer; CONFIG nodes are advisory and NEVER certified (see
+# classify_services_clean.py:8 — "Config nodes are advisory... never scheduled"),
+# so nothing downstream would catch the mistake.
+_CONFIG_ENV_ALLOWLIST = frozenset({
+    "DJANGO_SETTINGS_MODULE", "SETTINGS_MODULE", "FLASK_APP", "FLASK_ENV",
+    "APP_SETTINGS",
+})
+
+
+def _known_config_value(node: Node) -> str | None:
+    """The value carried in a CONFIG node's ``data["config_value"]`` (set by
+    ``classify_services_clean._config_nodes`` from a real static source --
+    ``scan_env_defaults``/``.env.example`` -- never invented here), or ``None``
+    when there is no real value known. Same refusals as before: a blank value,
+    the ``"?"`` unknown sentinel, or anything containing a newline."""
+    value = node.data.get("config_value")
+    if not isinstance(value, str) or not value or value == _CONFIG_ENV_UNKNOWN or "\n" in value:
+        return None
+    return value
+
+
+def _config_env_marker(node: Node) -> str | None:
+    """``#@config-env VAR=value`` for a CONFIG node with a known, safe-to-bake
+    value; ``None`` when no value is known, the var is not on the
+    settings-module allowlist (FIX 3), or -- belt-and-braces, since the
+    allowlist should already make these unreachable -- it looks secret/incidental."""
+    if node.type is not NodeType.CONFIG:
+        return None
+    if node.name not in _CONFIG_ENV_ALLOWLIST:
+        return None
+    value = _known_config_value(node)
+    if value is None:
+        return None
+    if node.name in _CONFIG_ENV_DENYLIST or _CONFIG_ENV_SECRET_RE.search(node.name):
+        return None
+    return f"#@config-env {node.name}={value}"
+
 
 def _need_block(graph: DepGraph, node: Node) -> list[str]:
     from python_deps.depgraph.advise import _best_evidence_line  # lazy: avoid load-order coupling
@@ -124,6 +340,9 @@ def _need_block(graph: DepGraph, node: Node) -> list[str]:
     if ev:
         out.append(f"#@evidence {ev}")
     out.append("#     (no command — propose a governed block to satisfy this)")
+    marker = _config_env_marker(node)
+    if marker:
+        out.append(marker)
     return out
 
 
@@ -272,6 +491,14 @@ def render_build_script(
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
+    # SOFT requirements files render after every layer section (every pinned
+    # dependency is installed above, so the constraints file has the full
+    # closure to protect) and before the PROJECT capstone (order matters — see
+    # _soft_requirements_section's module-level docstring).
+    soft_section = _soft_requirements_section(graph)
+    if soft_section:
+        parts.append("")
+        parts.extend(soft_section)
     # The repo-under-test installs LAST: its editable install is the capstone that
     # every dependency section above provisions. Emitted here (not via a layer)
     # so it is unconditionally after all deps and never double-emitted by a layer

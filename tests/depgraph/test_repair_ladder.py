@@ -9,6 +9,7 @@ from python_deps.depgraph.repair import (
     Verdict,
     curated_candidates,
     decide,
+    declared_candidates,
     generate_candidates,
     normalize_candidates,
 )
@@ -99,3 +100,76 @@ def test_decide_accept_on_exactly_one():
 def test_decide_ambiguous_on_more_than_one():
     verdict, _ = decide(["a", "b"])
     assert verdict == Verdict.AMBIGUOUS
+
+
+# --------------------------------------------------------------------------- #
+# FIX 2 (B3) — declared_candidates: an evidence rung (not a guess). Reuses
+# import_mapping.declared_metadata_match so a distribution the repo's OWN
+# manifest already declares (in ANY group, including one select_roots
+# filtered out of this resolve) is proposed instead of guessed.
+# --------------------------------------------------------------------------- #
+def test_declared_candidates_returns_match_when_declared():
+    assert declared_candidates("freezegun", frozenset({"freezegun"})) == ["freezegun"]
+
+
+def test_declared_candidates_empty_when_not_declared():
+    assert declared_candidates("freezegun", frozenset({"other"})) == []
+
+
+def test_declared_candidates_empty_by_default():
+    # Backward compatible: no declared_package_names given -> no candidate,
+    # not an error.
+    assert declared_candidates("freezegun") == []
+
+
+def test_declared_candidates_normalizes_separators():
+    assert declared_candidates("django_filters", frozenset({"django-filters"})) == [
+        "django-filters"
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# generate_candidates — declared rung wired in ABOVE the guessers
+# --------------------------------------------------------------------------- #
+def test_generate_candidates_declared_first_when_matched():
+    cands = generate_candidates(
+        "freezegun", declared_package_names=frozenset({"freezegun"})
+    )
+    assert cands[0].source == "declared_metadata"
+    assert cands[0].dist == "freezegun"
+
+
+def test_generate_candidates_declared_absent_by_default():
+    # Backward compatibility: existing callers that never pass
+    # declared_package_names must see EXACTLY the old candidate set/order.
+    cands = generate_candidates("freezegun")
+    assert all(c.source != "declared_metadata" for c in cands)
+
+
+def test_generate_candidates_declared_wins_dedup_over_normalize():
+    # Flask is both declared AND matched by normalize_candidates's identity
+    # guess -- the declared (evidence) rung must win the canon-dedup, so the
+    # surviving candidate is labeled declared_metadata, not normalize.
+    cands = generate_candidates("Flask", declared_package_names=frozenset({"Flask"}))
+    flask_cands = [c for c in cands if normalize_package_name(c.dist) == "flask"]
+    assert len(flask_cands) == 1
+    assert flask_cands[0].source == "declared_metadata"
+
+
+def test_generate_candidates_declared_before_curated():
+    # A declared match must sit strictly before the curated rung's hit.
+    cands = generate_candidates("yaml", declared_package_names=frozenset({"yaml"}))
+    sources = [c.source for c in cands]
+    assert sources[0] == "declared_metadata"
+    assert "curated" in sources
+    assert sources.index("declared_metadata") < sources.index("curated")
+
+
+def test_generate_candidates_declared_absent_when_no_manifest_match():
+    # A declared_package_names set that does not contain this import's name
+    # must not inject a spurious candidate; behavior degrades to the old
+    # normalize -> curated ladder.
+    cands = generate_candidates(
+        "yaml", declared_package_names=frozenset({"some-other-dist"})
+    )
+    assert all(c.source != "declared_metadata" for c in cands)

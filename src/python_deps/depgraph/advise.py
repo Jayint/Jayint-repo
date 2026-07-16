@@ -314,6 +314,7 @@ def build_advisory_for_repo(
     host_executor: Executor | None = None,
     target_python: str | None = None,
     classify: Callable | None = None,
+    uv_sources_enabled: bool = False,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
 
@@ -322,6 +323,14 @@ def build_advisory_for_repo(
     proceed exactly as if the feature were off (graceful degradation; the live
     agent container is never touched because probing uses its own throwaway
     ``DockerExecutor``).
+
+    ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) is passed straight
+    through to :func:`build_dep_graph` — see
+    ``python_deps.depgraph.build._python_package_obligations``'s docstring
+    for the false-green rationale. This module never reads the environment
+    itself; the flag is read once at ``scripts/run_v3_e2e.py``'s
+    ``_uv_sources_enabled`` (the impure orchestration boundary) and passed in
+    here.
     """
     try:
         host = host_executor or LocalSubprocessExecutor()
@@ -333,6 +342,7 @@ def build_advisory_for_repo(
         with DockerExecutor(base_image, bootstrap_uv=True) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
+                uv_sources_enabled=uv_sources_enabled,
             )
         if classify is not None:
             from ecosystems.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style

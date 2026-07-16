@@ -17,6 +17,7 @@ catch a uv-API drift (e.g. uv 0.10.4 rejecting ``uv lock --python-platform``).
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from types import SimpleNamespace
@@ -1006,6 +1007,36 @@ def test_resolve_closure_reads_lock_and_builds_graph(tmp_path):
     assert (by_name["opencv-python"].id, by_name["numpy"].id) in es
 
 
+def test_resolve_closure_success_path_threads_timeout_without_changing_output(tmp_path):
+    """FIX 4 (B6), item 1 -- threading `timeout=` into every `host_executor.run`
+    call must not perturb a normal, successful resolve: identical nodes/edges
+    to ``test_resolve_closure_reads_lock_and_builds_graph`` above, with the
+    ONLY observable difference being that a concrete timeout (derived from
+    the ladder's own budget -- no env override, so the 300s default) was
+    passed instead of silently falling back to the Executor Protocol's own
+    default."""
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+
+    nodes, edges = resolve_closure(
+        ROOTS, ex, target_env=_target_env(LINUX_X86), project_dir=str(tmp_path),
+    )
+
+    by_name = _node_by_name(nodes)
+    assert "opencv-python" in by_name
+    assert "numpy" in by_name
+    assert "pandas" in by_name
+    es = _edge_set(edges)
+    assert ("import:cv2", by_name["opencv-python"].id) in es
+    assert ("import:PIL", by_name["pillow"].id) in es
+    assert (by_name["opencv-python"].id, by_name["numpy"].id) in es
+
+    lock_call_idx = next(i for i, c in enumerate(ex.calls) if "uv lock" in c)
+    # ~300s remaining (negligible real time elapsed in-process) -- never the
+    # Executor Protocol's bare default reached by omitting `timeout=`.
+    assert ex.timeouts[lock_call_idx] == pytest.approx(300.0, abs=5.0)
+
+
 def test_resolve_closure_stamps_targeting_and_native_risk(tmp_path):
     (tmp_path / "uv.lock").write_text(CANNED_LOCK)
     ex = _lock_ok_executor()
@@ -1402,12 +1433,133 @@ wheels = [
 """
 
 
-def test_parse_uv_lock_skips_editable_and_directory_sources():
+def test_parse_uv_lock_virtual_root_is_skipped_but_editable_and_directory_become_missing():
+    """False-green fix (Gate 1): the synthetic ``virtual`` resolve root is still
+    skipped entirely (not a real distribution) -- but ``editable``/``directory``
+    sources are REAL workspace/path dependencies. Silently dropping them (the
+    old behavior this test used to pin) hides an unresolvable dependency from
+    the graph entirely; they must instead surface as ``State.MISSING`` Package
+    nodes carrying evidence of their real source, never installed by bare
+    ``name==version`` (see ``emit._is_reciped`` / the ``data['uninstallable']``
+    gate this reuses)."""
+    from python_deps.depgraph.emit import _is_reciped
+
     nodes, _edges = parse_uv_lock(LOCAL_SOURCES_LOCK)
     by_name = _node_by_name(nodes)
-    assert "editable-pkg" not in by_name
-    assert "directory-pkg" not in by_name
-    assert set(by_name) == {"real-dep"}
+
+    # The synthetic virtual root is never a node at all.
+    assert "depgraph-resolve-root" not in by_name
+    assert set(by_name) == {"editable-pkg", "directory-pkg", "real-dep"}
+
+    editable = by_name["editable-pkg"]
+    assert editable.state is State.MISSING
+    assert editable.chosen_fix is None
+    assert editable.fix_candidates == ()
+    assert editable.evidence and "editable" in editable.evidence
+    assert editable.data.get("uninstallable") is True
+    assert _is_reciped(editable) is False  # never a bare `pip install` line
+
+    directory = by_name["directory-pkg"]
+    assert directory.state is State.MISSING
+    assert directory.chosen_fix is None
+    assert directory.evidence and "directory" in directory.evidence
+    assert directory.data.get("uninstallable") is True
+    assert _is_reciped(directory) is False
+
+    # An ordinary default-registry package is completely unaffected.
+    real_dep = by_name["real-dep"]
+    assert real_dep.state is State.UNKNOWN
+    assert real_dep.chosen_fix == "pip:real-dep"
+    assert _is_reciped(real_dep) is True
+
+
+def test_parse_uv_lock_git_and_non_default_registry_sources_become_missing():
+    """Extends Gate 1 beyond editable/directory: a git-pinned fork and a
+    non-default (private mirror) registry entry must ALSO never be installed
+    by bare ``name==version`` -- that would silently grab the public PyPI
+    package of the same name instead of the pinned fork / mirrored artifact."""
+    lock = """\
+version = 1
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "acme-sdk" },
+    { name = "mirrored-pkg" },
+]
+
+[[package]]
+name = "acme-sdk"
+version = "2.0.0"
+source = { git = "https://github.com/example/acme-sdk", rev = "deadbeef" }
+
+[[package]]
+name = "mirrored-pkg"
+version = "1.0.0"
+source = { registry = "https://mirror.example.com/simple" }
+"""
+    nodes, _edges = parse_uv_lock(lock)
+    by_name = _node_by_name(nodes)
+
+    acme = by_name["acme-sdk"]
+    assert acme.state is State.MISSING
+    assert acme.chosen_fix is None
+    assert "git" in (acme.evidence or "")
+    assert "deadbeef" in (acme.evidence or "")
+
+    mirrored = by_name["mirrored-pkg"]
+    assert mirrored.state is State.MISSING
+    assert mirrored.chosen_fix is None
+    assert "mirror.example.com" in (mirrored.evidence or "")
+
+
+def test_parse_uv_lock_default_registry_trailing_slash_is_still_safe():
+    """``https://pypi.org/simple/`` (trailing slash) is the same default index
+    uv itself sometimes writes -- must not be misclassified as non-default."""
+    lock = """\
+version = 1
+
+[[package]]
+name = "real-dep"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple/" }
+"""
+    nodes, _edges = parse_uv_lock(lock)
+    node = _node_by_name(nodes)["real-dep"]
+    assert node.state is State.UNKNOWN
+    assert node.chosen_fix == "pip:real-dep"
+
+
+def test_native_risk_from_lock_excludes_non_default_source_packages():
+    """Gate 1's second consumer (resolve_lock.py:497-ish): computing
+    wheel-vs-sdist native-build risk for a package that will never be bare
+    pip-installed is meaningless (and its lock entry may carry no
+    wheels/sdist table at all, e.g. a path/editable member) -- it must be
+    excluded exactly like the virtual root."""
+    lock = """\
+version = 1
+
+[[package]]
+name = "depgraph-resolve-root"
+version = "0.0.0"
+source = { virtual = "." }
+
+[[package]]
+name = "editable-pkg"
+version = "0.1.0"
+source = { editable = "." }
+
+[[package]]
+name = "real-dep"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://x/real_dep-1.0.0.tar.gz", hash = "sha256:rd" }
+"""
+    risk = native_risk_from_lock(lock, DEFAULT_TARGET_PLATFORM, "3.11")
+    assert "editable-pkg" not in risk
+    assert "real-dep" in risk
 
 
 def test_parse_uv_lock_canonicalizes_dependency_name_on_edge():
@@ -1653,6 +1805,319 @@ def test_resolve_closure_drops_multiple_bad_roots_over_iterations(tmp_path):
     assert by_name["bada"].state is State.MISSING
     assert by_name["badb"].state is State.MISSING
     assert stub._lock_calls == 3  # full, drop-bada, drop-badb(success)
+
+
+# --------------------------------------------------------------------------- #
+# FIX 3 (C1) — resolve.py-side defense-in-depth: a workspace/git-sourced name
+# must never be written into the synthetic resolve-root pyproject, even if a
+# future caller passes it directly (independent of roots.py's kind-based
+# filtering upstream). Default empty set is a no-op for every existing caller.
+# --------------------------------------------------------------------------- #
+def test_resolve_closure_omits_excluded_dist_names_from_synthetic_pyproject(tmp_path):
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+    roots = [("import:cv2", "opencv-python"), (None, "hogli")]
+
+    resolve_closure(
+        roots,
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        excluded_dist_names=frozenset({"hogli"}),
+    )
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert "hogli" not in pyproject
+    assert "opencv-python" in pyproject
+
+
+def test_resolve_closure_excluded_dist_names_all_roots_returns_empty(tmp_path):
+    ex = _lock_ok_executor()
+    nodes, edges = resolve_closure(
+        [(None, "hogli")],
+        ex,
+        target_env=_target_env(),
+        project_dir=str(tmp_path),
+        excluded_dist_names=frozenset({"hogli"}),
+    )
+    assert (nodes, edges) == ([], [])
+
+
+# --------------------------------------------------------------------------- #
+# FIX 4 (B6) — the drop-retry ladder must be bounded by WALL CLOCK, not just
+# attempt count, and must fall back to a PARTIAL environment (never silently
+# to nothing) on exhaustion.
+# --------------------------------------------------------------------------- #
+def test_resolve_closure_wall_clock_budget_stops_before_any_attempt(tmp_path, monkeypatch):
+    """PostHog burned 2,224s of a 2,400s budget grinding through this ladder
+    and still emitted zero packages. The ladder must stop once its own
+    wall-clock budget elapses -- here forced to elapse before even the FIRST
+    `uv lock` attempt runs.
+
+    This does NOT exercise an in-flight timeout (see
+    ``test_resolve_closure_in_flight_timeout_uses_remaining_budget_and_surfaces_exhaustion``
+    below for that) -- it only pins that a pre-exhausted budget stops the
+    ladder before it ever spends a subprocess call, AND (FIX 4/B6 item 3)
+    that the exhaustion is visible on the graph even though nothing was ever
+    dropped."""
+    import itertools
+
+    import python_deps.depgraph.resolve as resolve_module
+
+    monkeypatch.setenv("DEPGRAPH_RESOLVE_LADDER_BUDGET_S", "10")
+    # deadline=10.0 computed from tick 1; every later tick (the loop's own
+    # check, and the fallback's own remaining-budget check) stays past it.
+    ticks = itertools.chain([0.0, 20.0], itertools.repeat(20.0))
+    monkeypatch.setattr(resolve_module.time, "monotonic", lambda: next(ticks))
+
+    class _CountingStub:
+        def __init__(self):
+            self.lock_calls = 0
+
+        def run(self, command, *, timeout=300):
+            if "uv lock" in command:
+                self.lock_calls += 1
+            return CommandResult(command, 127, "", "should never run")
+
+    stub = _CountingStub()
+    nodes, edges = resolve_closure(
+        [(None, "pkg-a")], stub, target_env=_target_env(), project_dir=str(tmp_path),
+    )
+    # The ladder itself never ran a single `uv lock` attempt (the wall-clock
+    # gate fired first); the code still tries ONE degraded fallback attempt
+    # afterward, which is expected -- it is cheap and independent of the
+    # ladder's own budget.
+    assert stub.lock_calls == 0
+    # FIX 4/B6 item 3: a budget-exhausted resolve must never look identical to
+    # a clean empty one -- a degraded, un-installable/un-certifiable node
+    # marks it on the graph even though nothing was ever dropped.
+    by_name = _node_by_name(nodes)
+    assert "resolve:budget_exhausted" in by_name
+    budget_node = by_name["resolve:budget_exhausted"]
+    assert budget_node.state is State.MISSING
+    assert budget_node.version is None
+    assert budget_node.check_command is None
+    assert list(edges) == []
+
+
+class _TimeoutRecordingStub:
+    """Records the ``timeout`` kwarg every call receives and always returns
+    exactly what a real ``subprocess.TimeoutExpired`` produces via
+    ``executor._run_subprocess`` (rc=124, stderr carries only the generic
+    ``[timeout after Ns]`` suffix -- unparseable by ``parse_resolver_error``,
+    so no root is ever attributable/droppable from it)."""
+
+    def __init__(self):
+        self.calls: list[tuple[str, float]] = []
+        self.lock_calls = 0
+
+    def run(self, command, *, timeout=300):
+        self.calls.append((command, timeout))
+        if "uv lock" in command:
+            self.lock_calls += 1
+        return CommandResult(command, 124, "", f"\n[timeout after {timeout}s]")
+
+
+def test_resolve_closure_in_flight_timeout_uses_remaining_budget_and_surfaces_exhaustion(
+    tmp_path, monkeypatch, caplog,
+):
+    """FIX 4 (B6), items 1 + 3 -- the REAL gap ``test_resolve_closure_wall_clock_budget_stops_before_any_attempt``
+    (above) never exercised: a `uv lock` attempt that actually RUNS and times
+    out in-flight. Before this fix, `host_executor.run` was never given
+    `timeout=`, so it silently used the Executor Protocol's fixed 300s default
+    regardless of how much of the ladder's own budget was left; and a bare
+    timeout's stderr matches none of `parse_resolver_error`'s regexes, so
+    nothing was ever dropped and `_log_ladder_exhaustion` returned silently --
+    a resolve that burned its whole budget and produced nothing, invisible to
+    both the log and the graph."""
+    import itertools
+
+    import python_deps.depgraph.resolve as resolve_module
+
+    # budget=300 (module default, no env override). tick 1 -> deadline=300.0.
+    # tick 2 (the loop's own top-of-round check) -> now=50.0, so 250s remain --
+    # the attempt's timeout must come from THAT (250), never the bare 300
+    # default. tick 3 (checked right after the attempt returns) -> now=400.0,
+    # past the deadline -- the attempt itself consumed the rest of the
+    # budget. Every later tick (fallback's own remaining-budget check, etc.)
+    # repeats 1000.0 so the mock never runs dry.
+    ticks = itertools.chain([0.0, 50.0, 400.0], itertools.repeat(1000.0))
+    monkeypatch.setattr(resolve_module.time, "monotonic", lambda: next(ticks))
+
+    stub = _TimeoutRecordingStub()
+    with caplog.at_level(logging.WARNING):
+        nodes, edges = resolve_closure(
+            [(None, "pkg-a")], stub, target_env=_target_env(), project_dir=str(tmp_path),
+        )
+
+    # (a) the recorded timeout is derived from the REMAINING BUDGET (250),
+    # never the bare Executor default (300).
+    lock_calls = [c for c in stub.calls if "uv lock" in c[0]]
+    assert len(lock_calls) == 1
+    assert lock_calls[0][1] == 250.0
+
+    # (b) the ladder does not loop forever on rc=124 -- exactly one `uv lock`
+    # attempt, ever (the unparseable timeout stderr can't identify anything
+    # to drop, so the ladder correctly gives up rather than spinning).
+    assert stub.lock_calls == 1
+
+    # (c) the exhaustion is visible: a log line AND the graph node -- never
+    # both silent, as it was before this fix.
+    assert any(
+        "budget" in r.getMessage() for r in caplog.records
+    ), "expected a wall-clock-budget warning to be logged"
+    by_name = _node_by_name(nodes)
+    assert "resolve:budget_exhausted" in by_name
+    budget_node = by_name["resolve:budget_exhausted"]
+    assert budget_node.state is State.MISSING
+    assert budget_node.version is None
+    assert budget_node.check_command is None
+    assert list(edges) == []
+
+
+def test_resolve_closure_budget_exhausted_node_is_never_emittable_or_certifiable(tmp_path):
+    """A budget-exhausted resolve cannot be certified clean: the degraded node
+    carries no version and no check_command (the two independent belts that
+    keep it out of ``emit.next_deterministic_wave()`` and out of reach of
+    ``certify()``'s "any rc-0 check flips MISSING -> SATISFIED" rule)."""
+    from python_deps.depgraph import emit
+    from python_deps.depgraph.schema import DepGraph
+    from python_deps.depgraph.resolve import _budget_exhausted_node
+
+    node = _budget_exhausted_node(
+        roots=[(None, "pkg-a")], current=[(None, "pkg-a")], budget_s=300.0,
+    )
+    assert node.version is None
+    assert node.check_command is None
+    assert node.state is State.MISSING
+
+    graph = DepGraph(nodes=(node,))
+    part = emit.partition(graph)
+    assert node not in part.emittable
+    assert node not in part.certified
+    assert emit.next_deterministic_wave(graph) == ()
+
+
+def test_resolve_closure_all_roots_dropped_fallback_never_sees_original_roots(tmp_path):
+    """FIX 4 (B6), item 2: `current or roots` silently substituted the FULL
+    original root list once every root was dropped -- re-attempting names the
+    ladder just proved unresolvable. Once `current` is empty the degraded
+    `uv pip compile` fallback must never be invoked with the original names
+    (it must not be invoked with ANY names at all -- `_pip_compile_fallback`
+    short-circuits on an empty root list before ever calling the executor)."""
+    from conftest import FakeExecutor  # type: ignore
+
+    stderr = (
+        "Because bada was not found in the package registry and you require bada, "
+        "and badb was not found in the package registry and you require badb, "
+        "we can conclude that your requirements are unsatisfiable."
+    )
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", stderr),
+            "uv pip compile": CommandResult("uv pip compile", 0, "sneaky==1.0\n", ""),
+        }
+    )
+    resolve_closure(
+        [(None, "bada"), (None, "badb")],
+        ex,
+        target_env=_target_env(),
+        project_dir=str(tmp_path),
+    )
+    # The fallback must never have run at all -- if it had (with the ORIGINAL
+    # roots, the pre-fix bug), the canned "uv pip compile" response above
+    # would have produced a phantom "sneaky" package out of two roots the
+    # ladder had already proven unresolvable.
+    assert not any("uv pip compile" in c for c in ex.calls)
+
+
+def test_resolve_closure_budget_env_var_invalid_falls_back_to_default(tmp_path, monkeypatch):
+    # A garbage env override must not crash the resolve -- it degrades to the
+    # built-in default budget (generous enough that this fast unit test never
+    # trips it).
+    monkeypatch.setenv("DEPGRAPH_RESOLVE_LADDER_BUDGET_S", "not-a-number")
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+    nodes, _edges = resolve_closure(
+        ROOTS, ex, target_env=_target_env(LINUX_X86), project_dir=str(tmp_path),
+    )
+    assert "opencv-python" in _node_by_name(nodes)
+
+
+def test_resolve_closure_fallback_uses_ladder_reduced_roots_and_recovers_partial_closure(
+    tmp_path,
+):
+    """Once the ladder has proven "bada" bad and dropped it, the final degraded
+    `uv pip compile` fallback must retry with the ladder's own SURVIVING root
+    set, not blindly repeat the FULL original set (which would fail for the
+    identical reason) -- a partial environment strictly beats an empty one."""
+    from conftest import FakeExecutor  # type: ignore
+
+    stderr_first = (
+        "Because bada was not found in the package registry and you require "
+        "bada, we conclude ..."
+    )
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", stderr_first),
+            "uv pip compile": CommandResult("uv pip compile", 0, "goodpkg==1.0\n", ""),
+        }
+    )
+    roots = [(None, "bada"), (None, "goodpkg")]
+
+    nodes, _edges = resolve_closure(
+        roots, ex, target_env=_target_env(), project_dir=str(tmp_path),
+    )
+
+    compile_calls = [c for c in ex.calls if "uv pip compile" in c]
+    assert len(compile_calls) == 1
+    assert "bada" not in compile_calls[0]
+    assert "goodpkg" in compile_calls[0]
+
+    by_name = _node_by_name(nodes)
+    assert "goodpkg" in by_name
+    assert by_name["goodpkg"].provenance == "uv pip compile"
+    # The dropped root is still visible as a diagnosed MISSING node -- never
+    # silently truncated.
+    assert by_name["bada"].state is State.MISSING
+
+
+def test_resolve_closure_logs_dropped_roots_when_ladder_cannot_converge(tmp_path, caplog):
+    from conftest import FakeExecutor  # type: ignore
+
+    stderr = (
+        "Because bada was not found in the package registry and you require bada, "
+        "and badb was not found in the package registry and you require badb, "
+        "we can conclude that your requirements are unsatisfiable."
+    )
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", stderr),
+            "uv pip compile": CommandResult("uv pip compile", 1, "", "fail"),
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        resolve_closure(
+            [(None, "bada"), (None, "badb")],
+            ex,
+            target_env=_target_env(),
+            project_dir=str(tmp_path),
+        )
+    assert any(
+        "bada" in r.getMessage() and "badb" in r.getMessage() for r in caplog.records
+    )
+
+
+def test_resolve_closure_no_log_when_ladder_converges_cleanly(tmp_path, caplog):
+    # No roots were ever dropped/untried on the successful first attempt -- no
+    # exhaustion warning should fire.
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+    with caplog.at_level(logging.WARNING):
+        resolve_closure(
+            ROOTS, ex, target_env=_target_env(LINUX_X86), project_dir=str(tmp_path),
+        )
+    assert caplog.records == []
 
 
 def test_resolve_closure_self_conflict_emits_no_conflict_edge(tmp_path):
@@ -1965,3 +2430,359 @@ def test_conflict_placeholder_has_no_confident_fix():
     n = _conflict_package_node("foo", "conflict evidence")
     assert n.chosen_fix is None
     assert n.fix_candidates == ()
+
+
+# --------------------------------------------------------------------------- #
+# Task 5/6 -- carry `[tool.uv.sources]` into the synthetic pyproject; degrade,
+# never silently drop. PostHog/posthog declares `hogli = { workspace = true }`
+# (an internal workspace package, no PyPI existence) plus a couple of
+# git-pinned forks; the OLD mitigation dropped these from the resolver roots
+# entirely, which means the packages they gate (a TEST dependency in
+# PostHog's case) never install -> zero tests collectable even though the
+# environment "looks" green. These tests exercise `resolve_closure`'s new
+# `uv_sources` / `uv_indexes` / `workspace_members` / `repo_path` parameters
+# directly, the same FakeExecutor/host-executor style as every other
+# resolve_closure test above -- no network, no real `uv`, no real git.
+# --------------------------------------------------------------------------- #
+def test_resolve_closure_workspace_source_emits_absolute_editable_path(tmp_path):
+    repo_dir = tmp_path / "repo"
+    synth_dir = tmp_path / "synth"
+    member_dir = repo_dir / "tools" / "hogli"
+    member_dir.mkdir(parents=True)
+    synth_dir.mkdir()
+    (synth_dir / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+
+    resolve_closure(
+        [("import:cv2", "opencv-python"), (None, "hogli")],
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(synth_dir),
+        repo_path=str(repo_dir),
+        uv_sources={"hogli": ({"workspace": True},)},
+        workspace_members=("tools/hogli",),
+    )
+
+    pyproject = (synth_dir / "pyproject.toml").read_text()
+    expected_path = os.path.abspath(str(member_dir))
+    assert f'path = "{expected_path}"' in pyproject
+    assert "editable = true" in pyproject
+    # the absolute path is under the REAL repo, never the synthetic temp dir.
+    assert expected_path.startswith(str(repo_dir))
+
+
+def test_resolve_closure_relative_path_source_absolutised_against_repo_root(tmp_path):
+    workspace_root = tmp_path / "workspace"
+    repo_dir = workspace_root / "repo"
+    foo_dir = workspace_root / "foo"
+    repo_dir.mkdir(parents=True)
+    foo_dir.mkdir()
+    synth_dir = tmp_path / "synth"
+    synth_dir.mkdir()
+    (synth_dir / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+
+    resolve_closure(
+        [("import:cv2", "opencv-python"), (None, "foo")],
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(synth_dir),
+        repo_path=str(repo_dir),
+        uv_sources={"foo": ({"path": "../foo"},)},
+    )
+
+    pyproject = (synth_dir / "pyproject.toml").read_text()
+    expected_path = os.path.normpath(os.path.join(str(repo_dir), "../foo"))
+    assert f'path = "{expected_path}"' in pyproject
+    assert expected_path == str(foo_dir)
+
+
+def test_resolve_closure_git_sources_emitted_verbatim_with_rev_and_tag(tmp_path):
+    ex = _lock_ok_executor()
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+
+    roots = [
+        ("import:cv2", "opencv-python"),
+        (None, "infi-clickhouse-orm"),
+        (None, "pytest-split"),
+    ]
+    resolve_closure(
+        roots,
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        repo_path=str(tmp_path),  # git sources need no filesystem lookup
+        uv_sources={
+            "infi-clickhouse-orm": (
+                {
+                    "git": "https://github.com/PostHog/infi.clickhouse_orm",
+                    "rev": "abc123",
+                },
+            ),
+            "pytest-split": (
+                {"git": "https://github.com/jerry-git/pytest-split", "tag": "v0.9.0"},
+            ),
+        },
+    )
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert 'rev = "abc123"' in pyproject
+    assert 'tag = "v0.9.0"' in pyproject
+    assert "https://github.com/PostHog/infi.clickhouse_orm" in pyproject
+    assert "https://github.com/jerry-git/pytest-split" in pyproject
+
+
+def test_resolve_closure_index_source_emits_source_and_index_block(tmp_path):
+    ex = _lock_ok_executor()
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+
+    roots = [("import:cv2", "opencv-python"), (None, "mirrored-pkg")]
+    resolve_closure(
+        roots,
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        repo_path=str(tmp_path),
+        uv_sources={"mirrored-pkg": ({"index": "internal"},)},
+        uv_indexes=({"name": "internal", "url": "https://example.com/simple"},),
+    )
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert 'index = "internal"' in pyproject
+    assert "[[tool.uv.index]]" in pyproject
+    assert 'name = "internal"' in pyproject
+    assert 'url = "https://example.com/simple"' in pyproject
+
+
+class _SourceLadderStub:
+    """Records the pyproject.toml content at the moment of EACH `uv lock`
+    call, and fails round 1 (bad root) so round 2 must be a real retry with a
+    SHRUNK root set -- proving a dropped root's source entry does not leak
+    into the next round's pyproject."""
+
+    def __init__(self, workdir: str, good_lock: str):
+        self.workdir = workdir
+        self.good_lock = good_lock
+        self.calls: list[str] = []
+        self.pyprojects: list[str] = []
+        self._lock_calls = 0
+
+    def run(self, command, *, timeout=300):
+        self.calls.append(command)
+        if "uv lock" in command:
+            with open(
+                os.path.join(self.workdir, "pyproject.toml"), encoding="utf-8"
+            ) as fh:
+                self.pyprojects.append(fh.read())
+            self._lock_calls += 1
+            if self._lock_calls == 1:
+                return CommandResult(
+                    command,
+                    1,
+                    "",
+                    "Because badpkg was not found in the package registry and you "
+                    "require badpkg, we conclude ...\n",
+                )
+            with open(
+                os.path.join(self.workdir, "uv.lock"), "w", encoding="utf-8"
+            ) as fh:
+                fh.write(self.good_lock)
+            return CommandResult(command, 0, "", "")
+        return CommandResult(command, 127, "", "no fake")
+
+
+def test_resolve_closure_ladder_shrink_drops_dependency_but_keeps_global_source(tmp_path):
+    """Gate 4: `[tool.uv.sources]` is a GLOBAL override table in uv's own
+    semantics -- it applies to ANY package name anywhere in the resolved
+    graph, not just the current round's root/dependency list. Round-filtering
+    it out once `badpkg` fell out of the drop-retry ladder's root set (the
+    OLD behavior this test used to pin) was wrong: a surviving root can still
+    depend on `badpkg` TRANSITIVELY, and the next round must keep honoring its
+    source or uv would silently resolve public PyPI `badpkg` in its place.
+    `badpkg` DOES correctly disappear from the plain dependency list once
+    dropped (it is no longer being resolved as a root) -- only its source
+    override persists."""
+    stub = _SourceLadderStub(str(tmp_path), GOOD_LOCK)
+    roots = [("import:cv2", "opencv-python"), (None, "badpkg")]
+
+    resolve_closure(
+        roots,
+        stub,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        repo_path=str(tmp_path),
+        uv_sources={"badpkg": ({"git": "https://example.com/badpkg.git"},)},
+    )
+
+    assert stub._lock_calls == 2
+    # Round 1 (full root set): badpkg is a dependency AND carries its source.
+    assert '"badpkg"' in stub.pyprojects[0]
+    assert "tool.uv.sources.badpkg" in stub.pyprojects[0]
+    # Round 2 (badpkg dropped by the drop-retry ladder as a DEPENDENCY): it is
+    # no longer resolved as a root/dependency...
+    assert '"badpkg"' not in stub.pyprojects[1]
+    # ...but its `[tool.uv.sources]` override is GLOBAL and must still be
+    # emitted, in case a surviving root still depends on it transitively.
+    assert "tool.uv.sources.badpkg" in stub.pyprojects[1]
+
+
+def test_resolve_closure_workspace_member_missing_on_disk_emits_missing_node(tmp_path):
+    """Part B -- degrade, never silently drop: a workspace member with no
+    matching directory on disk must never be handed to `uv` as a bare name
+    (which would silently resolve an unrelated same-named PyPI package); it
+    is surfaced as a MISSING Package node with evidence, while the REST of
+    the closure still resolves (degraded, never collapsed)."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    # Deliberately no "tools/hogli" directory -- the workspace member does
+    # not exist on disk.
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+
+    nodes, _edges = resolve_closure(
+        [("import:cv2", "opencv-python"), (None, "hogli")],
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        repo_path=str(repo_dir),
+        uv_sources={"hogli": ({"workspace": True},)},
+        workspace_members=("tools/hogli",),
+    )
+
+    by_name = _node_by_name(nodes)
+    assert by_name["hogli"].state is State.MISSING
+    assert by_name["hogli"].evidence
+    assert "workspace" in by_name["hogli"].evidence.lower()
+    # The rest of the closure still resolves -- degrade, never collapse.
+    assert "opencv-python" in by_name
+
+    pyproject = (tmp_path / "pyproject.toml").read_text()
+    assert "hogli" not in pyproject  # never handed to uv as a bare/false name
+
+
+def test_resolve_closure_all_roots_unhonorable_still_reports_missing(tmp_path):
+    """Same degrade-never-drop guarantee when the unhonorable source is the
+    ONLY root: the result must carry the MISSING node, never silently
+    ``([], [])`` (which would look identical to a clean, empty resolve)."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    ex = _lock_ok_executor()
+
+    nodes, edges = resolve_closure(
+        [(None, "hogli")],
+        ex,
+        target_env=_target_env(),
+        project_dir=str(tmp_path),
+        repo_path=str(repo_dir),
+        uv_sources={"hogli": ({"workspace": True},)},
+        workspace_members=("tools/hogli",),
+    )
+    assert nodes and nodes[0].name == "hogli"
+    assert nodes[0].state is State.MISSING
+    assert edges == []
+
+
+# --------------------------------------------------------------------------- #
+# "Also fix" bullet 1 -- _find_workspace_member_path must judge a member WITH
+# a readable declared name SOLELY by it (never fall back to basename on a
+# mismatch), and must never "pick the first" on an ambiguous multi-match.
+# --------------------------------------------------------------------------- #
+def test_find_workspace_member_path_mismatched_declared_name_never_falls_back_to_basename(tmp_path):
+    """A directory named 'hogli' whose OWN pyproject.toml declares a
+    DIFFERENT name must never match 'hogli' by basename -- a present-but-
+    mismatched declared name is authoritative and is never overridden by
+    directory basename."""
+    from python_deps.depgraph.resolve import _find_workspace_member_path
+
+    member = tmp_path / "packages" / "hogli"
+    member.mkdir(parents=True)
+    (member / "pyproject.toml").write_text(
+        '[project]\nname = "other-pkg"\nversion = "0.1.0"\n'
+    )
+
+    assert _find_workspace_member_path(str(tmp_path), ("packages/*",), "hogli") is None
+
+
+def test_find_workspace_member_path_ambiguous_multiple_matches_returns_none(tmp_path):
+    """Two glob-matched directories both resolving to `dist_name` is
+    ambiguous -- never "pick the first" (that would make the outcome
+    silently depend on filesystem/glob order); the caller must degrade to a
+    MISSING node instead."""
+    from python_deps.depgraph.resolve import _find_workspace_member_path
+
+    a = tmp_path / "packages" / "a"
+    b = tmp_path / "packages" / "b"
+    a.mkdir(parents=True)
+    b.mkdir(parents=True)
+    (a / "pyproject.toml").write_text('[project]\nname = "hogli"\nversion = "0.1.0"\n')
+    (b / "pyproject.toml").write_text('[project]\nname = "hogli"\nversion = "0.2.0"\n')
+
+    assert _find_workspace_member_path(str(tmp_path), ("packages/*",), "hogli") is None
+
+
+def test_find_workspace_member_path_basename_fallback_still_works_without_declared_name(tmp_path):
+    """A member with NO pyproject.toml (no readable declared name) still
+    matches by directory basename -- the fallback path stays intact for the
+    common case (an internal workspace member with no packaging metadata of
+    its own)."""
+    from python_deps.depgraph.resolve import _find_workspace_member_path
+
+    member = tmp_path / "tools" / "hogli"
+    member.mkdir(parents=True)
+
+    result = _find_workspace_member_path(str(tmp_path), ("tools/hogli",), "hogli")
+    assert result == os.path.abspath(str(member))
+
+
+def test_resolve_closure_ambiguous_workspace_member_emits_missing_not_first_pick(tmp_path):
+    """Production reachability: an ambiguous workspace-member match must
+    surface through `resolve_closure` as a MISSING node with evidence, never
+    silently resolve to whichever directory `sorted(glob.glob(...))` happens
+    to list first."""
+    repo_dir = tmp_path / "repo"
+    a = repo_dir / "packages" / "a"
+    b = repo_dir / "packages" / "b"
+    a.mkdir(parents=True)
+    b.mkdir(parents=True)
+    (a / "pyproject.toml").write_text('[project]\nname = "hogli"\nversion = "0.1.0"\n')
+    (b / "pyproject.toml").write_text('[project]\nname = "hogli"\nversion = "0.2.0"\n')
+    (tmp_path / "uv.lock").write_text(CANNED_LOCK)
+    ex = _lock_ok_executor()
+
+    nodes, _edges = resolve_closure(
+        [("import:cv2", "opencv-python"), (None, "hogli")],
+        ex,
+        target_env=_target_env(LINUX_X86),
+        project_dir=str(tmp_path),
+        repo_path=str(repo_dir),
+        uv_sources={"hogli": ({"workspace": True},)},
+        workspace_members=("packages/*",),
+    )
+
+    by_name = _node_by_name(nodes)
+    assert by_name["hogli"].state is State.MISSING
+    assert by_name["hogli"].evidence
+    assert "opencv-python" in by_name  # rest of the closure still resolves
+
+
+def test_write_pyproject_byte_identical_when_no_uv_sources(tmp_path):
+    """A repo with no `[tool.uv.sources]` must produce the exact same
+    synthetic pyproject as before this task -- every existing resolve test
+    passing unmodified already proves this at the suite level; this pins it
+    directly at the `_write_pyproject` call boundary."""
+    from python_deps.depgraph.resolve import _write_pyproject
+
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    _write_pyproject(str(dir_a), ["flask", "pytest"], "3.11", extras=frozenset({"test"}))
+    _write_pyproject(
+        str(dir_b),
+        ["flask", "pytest"],
+        "3.11",
+        extras=frozenset({"test"}),
+        uv_sources={},
+        uv_indexes=(),
+    )
+    assert (dir_a / "pyproject.toml").read_text() == (dir_b / "pyproject.toml").read_text()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from dataclasses import replace
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
     import tomllib
@@ -23,6 +24,7 @@ from python_deps.depgraph.schema import (
     Layer,
     Node,
     NodeType,
+    State,
 )
 from python_deps.depgraph.target_env import TargetEnv
 
@@ -53,9 +55,26 @@ _REQ_NAME_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)")
 # A simple ``X.Y`` / ``X.Y.Z`` python version, for the resolve target.
 _PY_VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)*$")
 
-# uv.lock source kinds that denote the *local* project (the synthetic resolve
-# root or a path/editable dependency) rather than an installable distribution.
-_LOCAL_SOURCE_KEYS = frozenset({"virtual", "editable", "directory"})
+# The uv.lock source kind that denotes the synthetic resolve-root project
+# ITSELF (this module's throwaway ``depgraph-resolve-root`` pyproject, or a
+# real repo's own workspace root) -- not a real distribution at all. A real
+# workspace/path member (``editable``/``directory`` source) IS a genuine
+# distribution some root depends on; it is handled by
+# :func:`_non_default_source_evidence` below (MISSING with evidence), never
+# silently skipped -- see the false-green fix in :func:`parse_uv_lock`.
+_LOCAL_SOURCE_KEYS = frozenset({"virtual"})
+
+# The default PyPI simple index uv resolves against absent an explicit
+# ``[tool.uv.sources]`` / ``[[tool.uv.index]]`` override. Any OTHER source
+# (git/url/directory/editable, or a registry URL that is not this one) cannot
+# be installed by a bare ``name==version`` through the system pip -- pip has
+# no notion of ``[tool.uv.sources]`` at all, so it would either fail outright
+# or (worse, when the name also happens to exist on public PyPI) silently
+# install an unrelated same-named package. See :func:`_non_default_source_evidence`.
+_DEFAULT_PYPI_REGISTRY_URLS = frozenset({
+    "https://pypi.org/simple",
+    "https://pypi.org/simple/",
+})
 
 
 def _safe_dist_names(dist_names: list[str]) -> list[str]:
@@ -361,8 +380,82 @@ def _package_node(
 # Pure parser 1: uv.lock -> Package nodes + Package->Package requires edges.
 # --------------------------------------------------------------------------- #
 def _is_local_source(source: dict) -> bool:
-    """True when a ``[[package]].source`` denotes the local project, not a dist."""
+    """True when a ``[[package]].source`` denotes the synthetic resolve-root
+    project itself (``source = { virtual = ... }``), not a real distribution
+    at all -- see :data:`_LOCAL_SOURCE_KEYS`."""
     return any(key in source for key in _LOCAL_SOURCE_KEYS)
+
+
+def _non_default_source_evidence(name: str, source: dict) -> str | None:
+    """Human-readable evidence when ``source`` is NOT the default PyPI
+    registry, else ``None`` (default/safe -- a bare ``name==version`` install
+    is honest).
+
+    ``uv.lock`` writes exactly one of ``git``/``url``/``directory``/
+    ``editable``/``registry`` per ``[[package]].source`` (the synthetic
+    ``virtual`` resolve-root is handled separately by :func:`_is_local_source`
+    and never reaches this function via :func:`parse_uv_lock`). A source dict
+    with none of these keys (an unrecognized/future uv shape, or a hand-written
+    test fixture that omits ``source`` entirely) is treated as default/safe --
+    conservative in the "never surprise-block a working resolve" direction,
+    since every real ``uv.lock`` this codebase has produced sets one of them
+    explicitly.
+    """
+    if "git" in source:
+        rev = source.get("rev") or source.get("tag") or source.get("branch")
+        loc = f"git+{source['git']}" + (f"@{rev}" if rev else "")
+        return f"'{name}' is sourced from {loc} (uv.lock), not the default PyPI registry"
+    if "url" in source:
+        return f"'{name}' is sourced from url={source['url']!r} (uv.lock), not the default PyPI registry"
+    if "directory" in source:
+        return (
+            f"'{name}' is sourced from directory={source['directory']!r} "
+            "(a local/workspace path, uv.lock), not the default PyPI registry"
+        )
+    if "editable" in source:
+        return (
+            f"'{name}' is sourced from editable={source['editable']!r} "
+            "(a local/workspace path, uv.lock), not the default PyPI registry"
+        )
+    if "registry" in source:
+        url = source["registry"]
+        if url not in _DEFAULT_PYPI_REGISTRY_URLS:
+            return (
+                f"'{name}' is sourced from a non-default registry {url!r} "
+                "(uv.lock), not the default PyPI registry"
+            )
+        return None
+    return None
+
+
+def _missing_source_node(name: str, version: str | None, evidence: str) -> Node:
+    """A ``State.MISSING`` Package node for a dependency whose real ``uv.lock``
+    source is NOT the default PyPI registry (git/url/directory/editable/
+    non-default index -- see :func:`_non_default_source_evidence`).
+
+    This is the false-green fix: previously such a dependency was either
+    silently dropped (never became a node at all) or -- worse -- became an
+    ordinary resolvable-looking node and was then installed by bare
+    ``name==version``, silently grabbing the unrelated public PyPI package of
+    the same name. Mirrors ``resolve_errors._missing_package_node``:
+    ``resolvable=False`` so it carries no ``pip:<name>`` fix candidate (that
+    name is exactly the public namesake that must never be installed in its
+    place). ``data['uninstallable']=True`` reuses the SAME renderer gate Fix A
+    already wired (``emit._is_reciped`` / ``resolve_link._stamp`` /
+    ``test_uninstallable_gate.py``), so populate.py/build_script.py exclude it
+    from every install-command path with no further wiring -- both the node's
+    certification (state) and its render eligibility (data flag) are
+    poisoned; nothing downstream can mistake it for an ordinary package.
+    """
+    node = _package_node(
+        name, version, provenance="uv.lock (unhonored source)", resolvable=False
+    )
+    return replace(
+        node,
+        state=State.MISSING,
+        evidence=evidence,
+        data={**node.data, "uninstallable": True, "unhonored_source": True},
+    )
 
 
 def parse_uv_lock(
@@ -373,9 +466,18 @@ def parse_uv_lock(
 ) -> tuple[list[Node], list[Edge]]:
     """Parse a ``uv.lock`` into Package nodes + Package->Package requires edges.
 
-    Each ``[[package]]`` with a registry/url/git source becomes a ``Package``
-    node; local sources (the synthetic resolve root, path/editable deps) are
-    skipped.  Each ``dependencies = [{name, marker?}]`` entry becomes a
+    Every ``[[package]]`` becomes a ``Package`` node, EXCEPT the synthetic
+    resolve-root project itself (``source = { virtual = ... }``), which is
+    skipped entirely (not a real distribution) -- its own direct deps still
+    seed marker-reachability. A package whose source is NOT the default PyPI
+    registry (git/url/directory/editable, or a non-default registry URL)
+    still becomes a node, but ``State.MISSING`` with evidence naming its real
+    source (see :func:`_non_default_source_evidence` /
+    :func:`_missing_source_node`) -- it must never be silently dropped (that
+    hides an unresolvable dependency) nor treated as an ordinary resolvable
+    package (that would let it be installed later by bare ``name==version``,
+    silently grabbing an unrelated public PyPI package of the same name).
+    Each ``dependencies = [{name, marker?}]`` entry becomes a
     parent->child ``requires`` edge carrying the optional dependency ``marker``.
 
     When ``target_python`` is given and the lock forks a package across
@@ -405,13 +507,19 @@ def parse_uv_lock(
         name = pkg.get("name")
         if not name:
             continue
-        if _is_local_source(pkg.get("source", {})):
+        source = pkg.get("source", {})
+        if _is_local_source(source):
             for dep in pkg.get("dependencies", []):
                 dep_name = dep.get("name")
                 if dep_name:
                     seed_specs.append((dep_name, dep.get("marker")))
             continue
-        node = _package_node(name, pkg.get("version"))
+        non_default_evidence = _non_default_source_evidence(name, source)
+        node = (
+            _missing_source_node(name, pkg.get("version"), non_default_evidence)
+            if non_default_evidence is not None
+            else _package_node(name, pkg.get("version"))
+        )
         nodes.append(node)
         entries.append((pkg, node))
         canon_to_id[_canon(name)] = node.id
@@ -485,8 +593,16 @@ def native_risk_from_lock(
     real target environment the same way :func:`parse_uv_lock` does (so a
     forked package's risk reflects the version actually applicable on the
     target — correctness Task 7), filters out local-source entries with this
-    module's OWN ``_is_local_source``, then delegates the per-package
-    wheel-vs-sdist decision to :func:`wheel_oracle.risk_from_packages`.
+    module's OWN ``_is_local_source`` PLUS any entry
+    :func:`_non_default_source_evidence` flags as not the default PyPI
+    registry (git/url/directory/editable/non-default index) — these coherently
+    mirror :func:`parse_uv_lock`'s own MISSING treatment: a dependency that
+    will never be bare-installed has no meaningful wheel-vs-sdist "native
+    build risk" to compute, and its lock entry may carry no ``wheels``/
+    ``sdist`` table at all (a local path/editable member has neither) — then
+    delegates the per-package wheel-vs-sdist decision to
+    :func:`wheel_oracle.risk_from_packages` for the remaining, genuinely
+    PyPI-sourced packages.
     """
     data = tomllib.loads(text)
     raw_packages = _select_applicable_packages(
@@ -494,6 +610,8 @@ def native_risk_from_lock(
     )
     raw_packages = [
         p for p in raw_packages
-        if p.get("name") and not _is_local_source(p.get("source", {}))
+        if p.get("name")
+        and not _is_local_source(p.get("source", {}))
+        and _non_default_source_evidence(p["name"], p.get("source", {})) is None
     ]
     return risk_from_packages(raw_packages, target_platform, target_python)

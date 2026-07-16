@@ -47,6 +47,7 @@ import logging
 import os
 import re
 from dataclasses import replace
+from types import MappingProxyType
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
     import tomllib
@@ -63,7 +64,7 @@ from python_deps.depgraph.coverage import (
     resolved_record_coverage,
 )
 from python_deps.depgraph.executor import Executor, LocalSubprocessExecutor
-from python_deps.depgraph.ids import TEST_NODE_ID, project_id
+from python_deps.depgraph.ids import TEST_NODE_ID, package_id, project_id
 from python_deps.depgraph.ldd_probe import ldd_probe
 from python_deps.depgraph.pins import compute_exclude_newer
 from python_deps.depgraph.probe import import_probe, install_closure
@@ -191,6 +192,9 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     name = _project_name(repo_path)
     proj_id = project_id(name)
     manifest = _project_build_manifest(repo_path)
+    # Collected BEFORE node construction (not after, as before) so
+    # soft_requirements_files is available for the node's data at creation time.
+    evidence = collect_python_dependency_evidence(repo_path)
     graph = graph.with_node(
         Node(
             id=proj_id,
@@ -200,9 +204,16 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
             discovered_by=DiscoveredBy.STATIC_SCAN,
             state=State.UNKNOWN,
             provenance=manifest or repo_path,
-            # installable => the renderer emits `pip install -e .` as the final,
-            # post-dependency step (populate/build_script read this flag).
-            data={"installable": manifest is not None},
+            data={
+                # installable => the renderer emits `pip install -e .` as the final,
+                # post-dependency step (populate/build_script read this flag).
+                "installable": manifest is not None,
+                # Nested (non-hard-root) requirements files the recursive walk found
+                # (see evidence.py / models.PythonDependencyEvidence). Rendered as
+                # best-effort, closure-constrained installs by build_script.py — a
+                # tuple because Node.data is immutable (MappingProxyType).
+                "soft_requirements_files": tuple(evidence.soft_requirements_files),
+            },
         )
     )
     graph = graph.with_edge(
@@ -212,7 +223,6 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     canon_to_pkg = {
         _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
     }
-    evidence = collect_python_dependency_evidence(repo_path)
     for req in evidence.declared_dependencies:
         if getattr(req, "kind", "dependency") == "constraint":
             continue
@@ -343,6 +353,12 @@ def _phase_a_fixpoint(
     target_env,
     exclude_newer: str | None,
     needed_extras: frozenset[str],
+    declared_package_names: frozenset[str] = frozenset(),
+    uv_sourced_names: frozenset[str] = frozenset(),
+    uv_sources=MappingProxyType({}),
+    uv_indexes: tuple[dict, ...] = (),
+    workspace_members: tuple[str, ...] = (),
+    repo_path: str | None = None,
 ) -> DepGraph:
     """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
 
@@ -377,6 +393,10 @@ def _phase_a_fixpoint(
             exclude_newer=exclude_newer,
             extras=needed_extras,
             audit_root_names=frozenset(repaired),
+            uv_sources=uv_sources,
+            uv_indexes=uv_indexes,
+            workspace_members=workspace_members,
+            repo_path=repo_path,
         )
         graph = reconcile_packages(graph, pkg_nodes, pkg_edges, prev_pkg_ids)
         graph = _stamp_audit(graph, repaired)
@@ -401,13 +421,31 @@ def _phase_a_fixpoint(
         new_pair = False
         for imp in missing:
             # LLM stays OUT of the deterministic core (never pass an llm here).
-            candidates = generate_candidates(imp.name, llm=None)
+            # ``declared_package_names`` is EVERY distribution the manifest names, in
+            # ANY group — including groups select_roots filtered out of this resolve.
+            # It lets the ladder SELECT a declared dist rather than GUESS a name, and
+            # (in choose_provider) lets that declaration break a variant tie that
+            # grounding alone can only call AMBIGUOUS.
+            candidates = generate_candidates(
+                imp.name, declared_package_names=declared_package_names, llm=None
+            )
             decision = choose_provider(imp.name, candidates, record_provider)
             if (
                 decision.verdict is Verdict.ACCEPT
                 and decision.dist is not None
                 and (imp.name, decision.dist) not in attempted
                 and _canon(decision.dist) not in root_dists
+                # Gate/Also-fix 2: `generate_candidates` proposes the
+                # normalized import spelling REGARDLESS of
+                # `declared_package_names` (the `normalize`/`curated` rungs
+                # read only the import name), so excluding a uv-sourced name
+                # from that one rung (`_declared_package_names_for_repair`)
+                # is not enough -- it must also be rejected HERE, at
+                # acceptance, or an unactivated optional uv-sourced dependency
+                # whose import normalizes to its own dist name could still be
+                # RECORD-confirmed and re-enter as a repaired root, silently
+                # resolving the unrelated public PyPI package in its place.
+                and _canon(decision.dist) not in uv_sourced_names
             ):
                 roots = roots + [(None, decision.dist)]
                 repaired.add(_canon(decision.dist))
@@ -433,6 +471,243 @@ def _phase_a_fixpoint(
     return graph
 
 
+def _uv_sourced_dist_names(evidence) -> frozenset[str]:
+    """Canonical distribution names that resolve to a non-PyPI source: either
+    an explicit ``evidence.uv_sources`` override (workspace/git/url/path/
+    index) OR a PEP 508 direct reference (``evidence.direct_reference_sources``
+    -- Fix 1, docs/superpowers/plans/2026-07-14-post-measurement-fixes.md).
+    The union is the ONE canonical "non-PyPI name" set every consumer below
+    reads; a direct reference gets the identical protection a
+    `[tool.uv.sources]` override already has, through the same function.
+
+    This is a real, previously-found HIGH bug's protection: a git-pinned
+    ``acme-sdk`` must never be "repaired" into the unrelated, same-named
+    PUBLIC PyPI package. Used to exclude such names from BOTH the
+    ``declared_metadata`` repair rung (:func:`_declared_package_names_for_repair`)
+    AND the repair ladder's final ACCEPTANCE gate (:func:`_phase_a_fixpoint`) --
+    excluding it from the declared rung alone is not enough, because
+    ``repair.generate_candidates`` independently proposes the normalized
+    import spelling regardless of ``declared_package_names`` (its
+    ``normalize``/``curated`` rungs read only the import name), so an
+    unactivated optional uv-sourced dependency whose import happens to
+    normalize to its own dist name could still be RECORD-confirmed and
+    accepted as a repaired root through that other rung. Excluding it at
+    acceptance time closes that regardless of which rung proposed it.
+    """
+    names = {normalize_package_name(name) for name in evidence.uv_sources}
+    names |= {
+        normalize_package_name(name)
+        for name in getattr(evidence, "direct_reference_sources", {})
+    }
+    return frozenset(names)
+
+
+# --------------------------------------------------------------------------- #
+# V3_UV_SOURCES default-OFF path (see build_dep_graph's ``uv_sources_enabled``
+# parameter docstring for the full false-green rationale). This is the ONLY
+# place in the pipeline that decides whether a `[tool.uv.sources]`-carrying
+# root ever reaches the resolver at all; every function below stays a plain
+# ``roots``/``graph`` transform, no env read (the flag itself is read once,
+# by the impure caller at scripts/run_v3_e2e.py's ``_uv_sources_enabled``, and
+# passed down as an explicit argument -- matching this codebase's
+# ``V3_INCLUDE_SERVICES`` convention, see emit.py's ``_is_service_reciped``).
+# --------------------------------------------------------------------------- #
+def _excluded_uv_source_node(name: str, entries: tuple[dict, ...]) -> Node:
+    """A ``State.MISSING`` Package node for a dependency EXCLUDED from resolve
+    roots because ``uv_sources_enabled`` is False (the default).
+
+    This is the "safe pre-C1 behaviour, plus honesty" default: the dependency
+    never becomes a root (so none of the six bare-``name==version`` egress
+    points documented on ``build_dep_graph`` can ever reach it), but it also
+    must never vanish silently -- so it is surfaced here as an explicit node
+    instead.
+
+    Three independent, deliberate belts (verified against the actual renderer/
+    certifier code, not assumed):
+
+    * ``version=None`` -- ``emit._is_emittable`` returns False on
+      ``if not node.version`` BEFORE it ever reaches its (separately known-
+      blind) ``uninstallable`` check, so this node can never be emitted as a
+      ``pip install`` line regardless of that blind spot.
+    * ``check_command=None`` -- unlike every OTHER Package node this codebase
+      builds (which always carry ``python -m pip show <name>``),
+      ``certify()`` short-circuits on ``if node is None or not
+      node.check_command: return graph`` -- so NO check ever runs for this
+      node. ``certify()`` flips MISSING -> SATISFIED off any check that
+      merely returns rc 0, blind to ``data['uninstallable']`` too -- if the
+      public namesake got installed by an unrelated route (any of the six
+      egress points, when the flag is forced on), a live ``pip show <name>``
+      would happily succeed. Never giving this node a check_command at all is
+      the only way to guarantee that success can never reach it.
+    * ``data['uninstallable']=True`` -- kept anyway, defense in depth, for the
+      renderer gate every OTHER "cannot install" node already uses
+      (``emit._is_reciped`` / ``populate.py`` / ``build_script.py``).
+    """
+    spec = entries[0] if entries else {}
+    kind = next(
+        (k for k in ("workspace", "git", "url", "path", "index") if k in spec),
+        "source",
+    )
+    evidence = (
+        f"'{name}' carries a [tool.uv.sources] {kind} override ({spec!r}); "
+        "excluded from resolve roots because V3_UV_SOURCES is OFF (the "
+        "default) -- see build_dep_graph's uv_sources_enabled docstring."
+    )
+    return Node(
+        id=package_id(name, None),
+        type=NodeType.PACKAGE,
+        name=name,
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version=None,
+        check_command=None,
+        fix_candidates=(),
+        chosen_fix=None,
+        provenance="[tool.uv.sources] (excluded -- V3_UV_SOURCES off)",
+        state=State.MISSING,
+        evidence=evidence,
+        data={"uninstallable": True},
+    )
+
+
+def _exclude_uv_sourced_roots(
+    graph: DepGraph,
+    roots: list[tuple[str | None, str]],
+    uv_sources: dict[str, tuple[dict, ...]],
+) -> tuple[DepGraph, list[tuple[str | None, str]]]:
+    """Drop every ``[tool.uv.sources]``-carrying root and surface an honest
+    MISSING node for each instead (see :func:`_excluded_uv_source_node`).
+
+    Matching by canonical name (``_canon``, the SAME normalization
+    ``_phase_a_fixpoint``'s acceptance gate already relies on against
+    ``evidence.uv_sources`` -- see :func:`_uv_sourced_dist_names`), so this
+    reuses the identical name-matching contract instead of inventing a new
+    one. A no-op (returns ``graph``/``roots`` unchanged) when ``uv_sources``
+    is empty -- the "no [tool.uv.sources] at all" byte-identical case.
+    """
+    if not uv_sources:
+        return graph, roots
+    sourced = {_canon(name): (name, entries) for name, entries in uv_sources.items()}
+    kept: list[tuple[str | None, str]] = []
+    for import_id, dist in roots:
+        hit = sourced.get(_canon(_req_name(dist)))
+        if hit is None:
+            kept.append((import_id, dist))
+            continue
+        raw_name, entries = hit
+        graph = graph.with_node(_excluded_uv_source_node(raw_name, entries))
+    return graph, kept
+
+
+# --------------------------------------------------------------------------- #
+# Fix 1 (docs/superpowers/plans/2026-07-14-post-measurement-fixes.md): a PEP
+# 508 direct reference (``name @ git+.../http(s)://.../file:...``) names a
+# non-PyPI source exactly like a `[tool.uv.sources]` override -- ArchipelagoMW/
+# Archipelago's root requirements.txt declares
+# `kivymd @ git+https://github.com/kivymd/KivyMD@5ff9d0d` and ``uv lock`` is
+# all-or-nothing, so that ONE unresolvable root previously killed the entire
+# ~20-package closure at once (the SAME class of bug PostHog's
+# `[tool.uv.sources] hogli = { workspace = true }` caused, arriving through a
+# third syntax door).
+#
+# UNCONDITIONAL exclusion, unlike ``_exclude_uv_sourced_roots`` above (which is
+# gated by ``uv_sources_enabled``/V3_UV_SOURCES): a direct reference is inline
+# PEP 508 syntax with no separate `[tool.uv.sources]` table representation --
+# there is no git/rev-aware rewrite in this codebase that could safely carry
+# it into the synthetic pyproject the way a workspace/path override sometimes
+# can (see resolve.py's ``_render_uv_sources``, which only knows how to emit a
+# `[tool.uv.sources]` table, not rewrite a direct-reference URL into one).
+# Threading it through unrewritten under V3_UV_SOURCES=1 would let
+# `select_roots`' bare-name root (e.g. `"kivymd"`, its specifier already empty
+# -- see evidence.py's ``_parse_requirement_line``) reach the resolver with NO
+# source information at all, resolving the UNRELATED PUBLIC PyPI package of
+# the same name instead -- exactly the false-green vector this whole
+# mechanism exists to prevent. So this exclusion runs regardless of the flag.
+# --------------------------------------------------------------------------- #
+def _excluded_direct_reference_node(name: str, url: str) -> Node:
+    """A ``State.MISSING`` Package node for a PEP 508 direct reference
+    excluded from resolve roots.
+
+    Identical three immunity belts to :func:`_excluded_uv_source_node`
+    (``version=None`` / ``check_command=None`` / ``data['uninstallable']=True``)
+    -- see that function's docstring for why each is load-bearing; copied
+    exactly, not reinvented.
+    """
+    evidence = (
+        f"'{name}' is a PEP 508 direct reference ({name} @ {url}); excluded "
+        "from resolve roots because its real source is a URL, not public "
+        "PyPI -- see docs/superpowers/plans/2026-07-14-post-measurement-"
+        "fixes.md Fix 1."
+    )
+    return Node(
+        id=package_id(name, None),
+        type=NodeType.PACKAGE,
+        name=name,
+        layer=Layer.PIP,
+        discovered_by=DiscoveredBy.RESOLVER,
+        version=None,
+        check_command=None,
+        fix_candidates=(),
+        chosen_fix=None,
+        provenance="PEP 508 direct reference (excluded)",
+        state=State.MISSING,
+        evidence=evidence,
+        data={"uninstallable": True},
+    )
+
+
+def _exclude_direct_reference_roots(
+    graph: DepGraph,
+    roots: list[tuple[str | None, str]],
+    direct_reference_sources: dict[str, str],
+) -> tuple[DepGraph, list[tuple[str | None, str]]]:
+    """Drop every PEP-508-direct-reference root and surface an honest MISSING
+    node for each instead (see :func:`_excluded_direct_reference_node`).
+
+    Matching by canonical name (``_canon``), the SAME contract
+    :func:`_exclude_uv_sourced_roots` uses. A no-op when
+    ``direct_reference_sources`` is empty -- the "no direct references at
+    all" byte-identical case. Unlike that sibling function, this ALWAYS runs
+    (see the module note above for why): it is called regardless of
+    ``uv_sources_enabled``.
+    """
+    if not direct_reference_sources:
+        return graph, roots
+    sourced = {_canon(name): (name, url) for name, url in direct_reference_sources.items()}
+    kept: list[tuple[str | None, str]] = []
+    for import_id, dist in roots:
+        hit = sourced.get(_canon(_req_name(dist)))
+        if hit is None:
+            kept.append((import_id, dist))
+            continue
+        raw_name, url = hit
+        graph = graph.with_node(_excluded_direct_reference_node(raw_name, url))
+    return graph, kept
+
+
+def _declared_package_names_for_repair(evidence) -> frozenset[str]:
+    """Declared distribution names eligible as Phase-A repair candidates.
+
+    EVERY declared distribution, regardless of kind/group -- deliberately NOT
+    the scope-filtered subset that reaches ``select_roots``. An unsatisfied
+    import may be provided by a dist the repo declared in a group the root
+    filter dropped (a feature extra it never signalled); the repair ladder may
+    then SELECT that declaration instead of guessing a distribution name.
+
+    EXCLUDES any name :func:`_uv_sourced_dist_names` returns (see its
+    docstring for why an uv-sourced dependency must never be "repaired" into
+    the unrelated same-named PUBLIC PyPI package) -- but this is only the
+    ``declared_metadata`` rung's half of that protection; see
+    :func:`_phase_a_fixpoint`'s acceptance gate for the other half.
+    """
+    excluded = _uv_sourced_dist_names(evidence)
+    return frozenset(
+        req.name
+        for req in evidence.declared_dependencies
+        if normalize_package_name(req.name) not in excluded
+    )
+
+
 def _python_package_obligations(
     repo_path: str,
     container_executor: Executor,
@@ -443,6 +718,7 @@ def _python_package_obligations(
     exclude_newer: str | None = None,
     needed_extras: frozenset[str] = frozenset(),
     record_provider: RecordProvider | None = None,
+    uv_sources_enabled: bool = False,
 ) -> tuple[DepGraph, list, object, str | None]:
     """Python PHASE 1 — VERBATIM move of build_dep_graph body lines 488-608.
 
@@ -452,6 +728,58 @@ def _python_package_obligations(
     seed) -> resolver restamp (INV-7). Returns (graph, roots, target_env,
     exclude_newer); only ``graph`` flows onward — the other three are provider-
     composition / test-visibility surface (never read again after the fixpoint).
+
+    ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) gates whether a
+    `[tool.uv.sources]`-carrying dependency (workspace/git/url/path/index) is
+    threaded into the resolver at all. An adversarial review proved the
+    PACKAGE layer cannot safely handle a non-PyPI package: it models a
+    package as ``(name, version)`` and installs it BY NAME from at least six
+    independent sites --
+
+    1. ``emit._is_emittable`` accepts any versioned MISSING Package and does
+       not consult ``data['uninstallable']``, so it would emit a bare
+       ``pip install forked-sdk==1.2.3`` (the PUBLIC package) for a resolved
+       sourced dependency.
+    2. ``probe.install_closure`` runs ``uv pip install --system ...`` with NO
+       ``--no-deps``, so an ordinary public package that happens to depend on
+       a git-sourced name drags in the PUBLIC namesake at install time,
+       independent of anything the graph says.
+    3. ``certify.certify`` flips a successful check straight to SATISFIED,
+       and a Package's check is only ``python -m pip show <name>`` -- once
+       the public namesake is installed by ANY of these routes, the node
+       flips SATISFIED. ``certify`` never consults ``uninstallable`` either.
+       MISSING does not stick.
+    4. ``resolve_closure`` (Gate 4) applies ``[tool.uv.sources]`` as a GLOBAL
+       override table over the whole resolved graph, so a name that is only
+       a TRANSITIVE dependency (never a declared root) can still lose its
+       override and resolve the public package silently.
+    5. ``build_script.py``'s soft-requirements renderer writes a nested
+       ``requirements.txt`` out as a bare ``pip install -r <file>``; a bare
+       name inside that file installs the public package.
+    6. ``build_script.py``'s pytest-bootstrap line and ``populate.py``'s
+       PEP-517 editable-install build isolation can each independently reach
+       public PyPI for a name this repo overrode.
+
+    Patching those six egress points individually failed three review rounds
+    running -- the safe move is to make the whole class UNREACHABLE by
+    default instead. When ``uv_sources_enabled`` is False (the default),
+    every `[tool.uv.sources]`-carrying dependency is excluded from resolve
+    roots before it ever reaches :func:`resolve_closure` (so none of the six
+    sites above can ever touch it) and an honest ``State.MISSING`` Package
+    node is emitted in its place -- see :func:`_exclude_uv_sourced_roots` /
+    :func:`_excluded_uv_source_node`. A repo with NO `[tool.uv.sources]` at
+    all is unaffected either way (byte-identical ON vs OFF).
+
+    When True, this function keeps the FULL source-aware behaviour built for
+    it (source table threaded into the synthetic pyproject, workspace ->
+    absolute-path rewrite, MISSING nodes for unhonourable sources, the
+    repair-ladder / workspace-match protections) -- but that path is NOT SAFE
+    for scored/benchmark runs for the six reasons above; it exists only for
+    development of the source-aware install layer. The flag is read ONLY at
+    the impure orchestration boundary (``scripts/run_v3_e2e.py``'s
+    ``_uv_sources_enabled``, mirroring this codebase's ``V3_INCLUDE_SERVICES``
+    convention -- see ``emit._is_service_reciped``) and passed down here as
+    an explicit argument; this module never reads the environment itself.
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
@@ -499,6 +827,13 @@ def _python_package_obligations(
     roots = select_roots(
         repo_path, graph, needed_extras=needed_extras, target_env=target_env
     )
+    # A `[tool.uv.sources]`-carrying dep (workspace/git/url/path/index) keeps
+    # its TRUE `kind` (evidence.py no longer retags it), so `select_roots`
+    # above already applied the SAME scope rules to it as to every other
+    # declared dependency -- no second pass is needed (or wanted: a prior
+    # post-selection reinstatement pass here bypassed scope filtering
+    # entirely and was removed). Its real source still reaches the resolver
+    # via `evidence.uv_sources`, threaded into `resolve_closure` below.
 
     # Stage 2a — anchor the resolve cutoff to the project's pinned era (HOST,
     # PyPI). A pinned old root (opencv-python==4.9.0.80) otherwise lets uv pull an
@@ -544,6 +879,44 @@ def _python_package_obligations(
     # Install stays inside the loop (re-install each round). The loop only rebinds
     # ``graph``; every round returns a new immutable graph.
     pre_resolve_ids = {n.id for n in graph.nodes}
+    # Single evidence read backs BOTH the repair-candidate name set and the
+    # `[tool.uv.sources]` config threaded into resolve_closure below -- see
+    # `_declared_package_names_for_repair` for the repair-ladder HIGH-bug
+    # protection (git-pinned `acme-sdk` must never be "repaired" into the
+    # unrelated public PyPI package of the same name).
+    evidence_for_resolve = collect_python_dependency_evidence(repo_path)
+    declared_package_names = _declared_package_names_for_repair(evidence_for_resolve)
+    uv_sourced_names = _uv_sourced_dist_names(evidence_for_resolve)
+
+    # V3_UV_SOURCES default-OFF path (see this function's docstring): drop
+    # every [tool.uv.sources]-carrying root up front and never thread its
+    # source config into the resolver at all -- so none of the six egress
+    # points documented above can ever reach it. A repo with no
+    # `[tool.uv.sources]` (``evidence_for_resolve.uv_sources`` empty) takes
+    # this branch as a hard no-op either way (see
+    # :func:`_exclude_uv_sourced_roots`), so this is byte-identical to the
+    # flag-ON path for that (the overwhelmingly common) case.
+    uv_sources = evidence_for_resolve.uv_sources
+    uv_indexes = evidence_for_resolve.uv_indexes
+    workspace_members = evidence_for_resolve.uv_workspace_members
+
+    # Fix 1 (docs/superpowers/plans/2026-07-14-post-measurement-fixes.md): a
+    # PEP 508 direct reference is excluded from resolve roots UNCONDITIONALLY
+    # -- regardless of ``uv_sources_enabled`` -- see
+    # :func:`_exclude_direct_reference_roots`'s module note for why. A repo
+    # with no direct references (``evidence_for_resolve.direct_reference_sources``
+    # empty) takes this as a hard no-op, so it is byte-identical either way
+    # for that (the overwhelmingly common) case.
+    graph, roots = _exclude_direct_reference_roots(
+        graph, roots, evidence_for_resolve.direct_reference_sources
+    )
+
+    if not uv_sources_enabled:
+        graph, roots = _exclude_uv_sourced_roots(graph, roots, uv_sources)
+        uv_sources = MappingProxyType({})
+        uv_indexes = ()
+        workspace_members = ()
+
     graph = _phase_a_fixpoint(
         graph,
         roots,
@@ -553,6 +926,12 @@ def _python_package_obligations(
         target_env=target_env,
         exclude_newer=exclude_newer,
         needed_extras=needed_extras,
+        declared_package_names=declared_package_names,
+        uv_sourced_names=uv_sourced_names,
+        uv_sources=uv_sources,
+        uv_indexes=uv_indexes,
+        workspace_members=workspace_members,
+        repo_path=repo_path,
     )
 
     # Stage 3a'/3a''/3b — auxiliary node stages run ONCE after convergence (they
@@ -658,6 +1037,7 @@ def build_dep_graph(
     exclude_newer: str | None = None,
     needed_extras: frozenset[str] = frozenset(),
     record_provider: RecordProvider | None = None,
+    uv_sources_enabled: bool = False,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -702,6 +1082,13 @@ def build_dep_graph(
     PyPI wheel reader (:func:`coverage.pypi_record_provider`) — so a not-yet-
     installed repair candidate is grounded from PyPI (P1.5, making production
     repair functional) while already-installed closure members stay network-free.
+
+    ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) -- see
+    :func:`_python_package_obligations`'s docstring for the full false-green
+    rationale for why this defaults OFF and what turning it on actually
+    means. Threaded straight through the ``ecosystems`` provider seam
+    (``EcosystemProvider.package_obligations`` accepts-and-ignores it for any
+    non-Python provider); this function never reads the environment itself.
     """
     # Function-local import breaks the build<->provider cycle: by the time this
     # runs, build.py is fully loaded, so ecosystems.python.provider (which imports
@@ -722,6 +1109,7 @@ def build_dep_graph(
         exclude_newer=exclude_newer,
         needed_extras=needed_extras,
         record_provider=record_provider,
+        uv_sources_enabled=uv_sources_enabled,
     )
     # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
     # provider-composition / test-visibility surface (spec extraction boundary).

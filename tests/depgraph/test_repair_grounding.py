@@ -11,6 +11,7 @@ from python_deps.depgraph.repair import (
     RepairDecision,
     Verdict,
     choose_provider,
+    declared_candidates,
     record_grounds,
 )
 from python_deps.import_mapping import normalize_package_name
@@ -81,6 +82,39 @@ def test_choose_provider_ambiguous_when_two_distinct_confirm():
     assert decision.dist is None
 
 
+def test_choose_provider_declared_source_does_not_break_a_variant_tie():
+    # A DECLARED candidate must NOT win a variant tie -- reverted after review.
+    #
+    # By construction, the only declarations that reach the repair ladder are ones the
+    # ROOT FILTER EXCLUDED (anything in scope became a root, was installed, and would
+    # not be a missing import). Gated is exactly where mutual exclusion lives:
+    #
+    #     [optional-dependencies]  cpu = ["foo"]   gpu = ["python-foo"]
+    #
+    # Both ship `foo`; select_roots rightly excludes BOTH. Letting the "declared" label
+    # break the tie would resurrect one arm of a mutually-exclusive pair from an extra
+    # the repo never activated -- the precise bug the gate exists to prevent.
+    prov = make_provider({"foo": {"foo"}, "python-foo": {"foo"}})
+    decision = choose_provider(
+        "foo",
+        [Candidate("foo", "declared_metadata"), Candidate("python-foo", "normalize")],
+        prov,
+    )
+    assert decision.verdict == Verdict.AMBIGUOUS
+    assert decision.dist is None
+
+
+def test_choose_provider_declared_source_accepted_when_it_is_the_only_confirm():
+    # The safe half stands: a declared dist that UNIQUELY confirms is accepted, exactly
+    # as any other single-confirm candidate would be. No variant is being picked.
+    prov = make_provider({"freezegun": {"freezegun"}})
+    decision = choose_provider(
+        "freezegun", [Candidate("freezegun", "declared_metadata")], prov
+    )
+    assert decision.verdict == Verdict.ACCEPT
+    assert decision.dist == "freezegun"
+
+
 def test_choose_provider_blind_only_defers_to_backstop():
     # Provider blind on the only candidate: never ACCEPT on blind alone;
     # surface it for P1.4's install backstop; UNRESOLVED with no backstop here.
@@ -133,3 +167,33 @@ def test_choose_provider_returns_repair_decision():
     prov = make_provider({"PyYAML": {"yaml"}})
     decision = choose_provider("yaml", [Candidate("PyYAML", "curated")], prov)
     assert isinstance(decision, RepairDecision)
+
+
+# --------------------------------------------------------------------------- #
+# FIX 2 (B3) — a declared_metadata candidate is EVIDENCE, not an auto-accept:
+# it must still survive the same RECORD-grounding discipline as every other
+# candidate rung.
+# --------------------------------------------------------------------------- #
+def test_declared_metadata_candidate_grounds_to_accept():
+    cands = [
+        Candidate(d, "declared_metadata")
+        for d in declared_candidates("freezegun", frozenset({"freezegun"}))
+    ]
+    prov = make_provider({"freezegun": {"freezegun"}})
+    decision = choose_provider("freezegun", cands, prov)
+    assert decision.verdict == Verdict.ACCEPT
+    assert decision.dist == "freezegun"
+
+
+def test_declared_metadata_candidate_denied_when_record_disagrees():
+    # Evidence is not proof: if the RECORD contents don't actually contain the
+    # import, grounding denies it like any other candidate -- never an
+    # auto-accept bypass.
+    cands = [
+        Candidate(d, "declared_metadata")
+        for d in declared_candidates("freezegun", frozenset({"freezegun"}))
+    ]
+    prov = make_provider({"freezegun": {"something_else"}})
+    decision = choose_provider("freezegun", cands, prov)
+    assert decision.verdict == Verdict.UNRESOLVED
+    assert decision.dist is None

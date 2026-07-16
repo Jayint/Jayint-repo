@@ -363,6 +363,78 @@ def test_render_dockerfile_pins_sha(tmp_path):
     assert "checkout" in df and "cafebabe" in df
 
 
+# ── FIX B1 — bake CONFIG values render_build_script left as `#@config-env`
+# markers into the Dockerfile as ENV (a setup.sh RUN layer cannot persist an
+# export into the image or the later `docker exec` pytest runs through) ──────
+
+def test_render_dockerfile_bakes_config_env_marker(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    setup_sh = (
+        "#!/usr/bin/env bash\n"
+        "#@config-env DJANGO_SETTINGS_MODULE=settings\n"
+        "set -Eeuo pipefail\n"
+    )
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", setup_sh=setup_sh)
+    assert 'ENV DJANGO_SETTINGS_MODULE="settings"' in df
+    # before the RUN that executes setup.sh, so any step in it observes the var too
+    assert df.index("DJANGO_SETTINGS_MODULE") < df.index("RUN bash /tmp/v3_setup.sh")
+
+
+def test_render_dockerfile_no_env_lines_when_no_markers(tmp_path):
+    # default setup_sh="" -> byte-identical to the pre-existing shape (no ENV
+    # lines at all, no behavior change for every repo without a Config need).
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r")
+    assert "ENV" not in df
+
+
+def test_render_dockerfile_bakes_multiple_config_env_markers_deterministically(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    setup_sh = (
+        "#@config-env REDIS_URL=redis://localhost:6379/0\n"
+        "#@config-env DJANGO_SETTINGS_MODULE=settings\n"
+    )
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", setup_sh=setup_sh)
+    assert 'ENV DJANGO_SETTINGS_MODULE="settings"' in df
+    assert 'ENV REDIS_URL="redis://localhost:6379/0"' in df
+    # sorted -> deterministic regardless of marker order in setup.sh
+    assert df.index("DJANGO_SETTINGS_MODULE") < df.index("REDIS_URL")
+
+
+def test_render_dockerfile_escapes_quotes_and_backslashes_in_config_value(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    setup_sh = '#@config-env GREETING=say "hi" \\ok\n'
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", setup_sh=setup_sh)
+    assert 'ENV GREETING="say \\"hi\\" \\\\ok"' in df
+
+
+def test_render_dockerfile_bakes_pythonpath_marker_bound_to_testbed(tmp_path):
+    # FIX 3a's fallback for a not-safely-installable project: the marker's own
+    # payload (an analysis-time path, e.g. /app or a local clone dir) is
+    # meaningless inside the eval image, so this always binds to /testbed --
+    # the one place THIS adapter's own Dockerfile ever clones the repo.
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    setup_sh = "#@pythonpath-env /some/local/clone/dir\n"
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", setup_sh=setup_sh)
+    assert 'ENV PYTHONPATH="/testbed:${PYTHONPATH}"' in df
+
+
+def test_render_dockerfile_no_pythonpath_env_without_marker(tmp_path):
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r", setup_sh="echo hi\n")
+    assert "PYTHONPATH" not in df
+
+
+def test_process_single_instance_threads_setup_sh_into_dockerfile(tmp_path):
+    # end-to-end: the setup.sh _run_v3 returns is the SAME text the Dockerfile
+    # renderer sees (after /app -> /testbed normalization), not a stale/empty one.
+    setup_text = "cd /app && echo x\n#@config-env DJANGO_SETTINGS_MODULE=settings\n"
+    a = _adapter(tmp_path, setup_text=setup_text)
+    r = a.process_single_instance(
+        {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
+    assert 'ENV DJANGO_SETTINGS_MODULE="settings"' in r["dockerfile"]
+
+
 # ── token telemetry relay (react loop [Tokens] lines are swallowed by the subprocess) ──────────
 
 def test_run_v3_relays_token_lines_and_writes_usage(tmp_path, monkeypatch, capsys):

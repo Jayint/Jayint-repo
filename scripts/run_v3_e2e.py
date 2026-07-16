@@ -186,6 +186,39 @@ def _include_services() -> bool:
     return os.getenv("V3_INCLUDE_SERVICES") == "1"
 
 
+def _uv_sources_enabled() -> bool:
+    """The V3_UV_SOURCES gate (default OFF). Read ONLY here, at the impure
+    orchestration boundary; build_dep_graph/build_advisory_for_repo stay pure
+    and take an explicit ``uv_sources_enabled`` argument (same convention as
+    ``_include_services`` above).
+
+    NOT SAFE for scored/benchmark runs when turned ON. Setting V3_UV_SOURCES=1
+    threads a repo's `[tool.uv.sources]` overrides (git/workspace/url/path/
+    index) into the resolver's synthetic pyproject so ``uv lock`` can resolve
+    them — but the package layer still installs everything by bare
+    ``name==version`` from (at least) six independent sites:
+    ``emit.py``'s ``_is_emittable`` (~line 84, blind to
+    ``data['uninstallable']``), ``probe.py``'s ``_install_cmd`` (bare
+    ``uv pip install --system ...`` with no ``--no-deps``, so an ordinary
+    public dependency's own transitive deps can drag in the public namesake
+    of a sourced package at install time), ``certify.py``'s ``certify``
+    (~line 90, flips MISSING -> SATISFIED off ANY successful
+    ``python -m pip show <name>``, also blind to ``uninstallable``),
+    ``resolve.py``'s ``resolve_closure`` (~line 637, a `[tool.uv.sources]`
+    override is a GLOBAL table applied over the whole resolved graph, so a
+    name that is only a transitive dependency can still lose its override),
+    and ``build_script.py``'s soft-requirements / pytest-bootstrap renders
+    (~lines 165, 397) plus ``populate.py``'s PEP-517 editable-install build
+    isolation (~line 52-60) — each can independently resolve a name this repo
+    overrode straight from public PyPI. So a non-PyPI package (a git fork, a
+    workspace member with no PyPI existence, a private-index package) can be
+    silently replaced by its public PyPI namesake and still score green. This
+    flag exists for DEVELOPMENT of the source-aware install layer, never for
+    a benchmarked/scored run — leave it off unless you are actively working
+    on that layer."""
+    return os.getenv("V3_UV_SOURCES") == "1"
+
+
 def _maybe_write_services_script(graph, args) -> None:
     """Write the service-start ENTRYPOINT-wrapper alongside setup.sh, iff the
     flag is on, a --services-out path was given, and the graph actually has a
@@ -253,6 +286,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         try:
             _advisory, graph = build_advisory_for_repo(
                 args.repo, base_image, target_python=choice.minor, classify=classify,
+                uv_sources_enabled=_uv_sources_enabled(),
             )
             n = sum(1 for _ in graph.nodes) if graph is not None else 0
             print(f"[v3] dep-graph: {n} nodes")

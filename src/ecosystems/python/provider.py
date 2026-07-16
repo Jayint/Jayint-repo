@@ -57,6 +57,7 @@ class PythonProvider:
         exclude_newer: str | None = None,
         needed_extras: frozenset[str] = frozenset(),
         record_provider: RecordProvider | None = None,
+        uv_sources_enabled: bool = False,
     ) -> tuple[DepGraph, list, object, str | None]:
         return _python_package_obligations(
             repo,
@@ -67,6 +68,7 @@ class PythonProvider:
             exclude_newer=exclude_newer,
             needed_extras=needed_extras,
             record_provider=record_provider,
+            uv_sources_enabled=uv_sources_enabled,
         )
 
     def native_obligations(self, graph: DepGraph, container_executor: Executor) -> DepGraph:

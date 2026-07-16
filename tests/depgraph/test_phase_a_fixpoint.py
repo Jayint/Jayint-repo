@@ -330,6 +330,110 @@ def test_fixpoint_if_guarded_not_re_added_but_unconditional_still_rescued(tmp_pa
 
 
 # --------------------------------------------------------------------------- #
+# "Also fix" bullet 2 — the repair ladder must never re-admit a
+# `[tool.uv.sources]`-carrying dependency through the ACCEPTANCE gate, even
+# when it only reaches candidacy via the `normalize` rung (independent of the
+# `declared_metadata` rung `_declared_package_names_for_repair` already
+# excludes it from).
+# --------------------------------------------------------------------------- #
+def test_fixpoint_never_repairs_uv_sourced_dependency_via_normalize_rung(tmp_path, caplog):
+    """`hogli` is declared ONLY in a non-activated optional-dependency group
+    with a `[tool.uv.sources]` git override -- `select_roots` correctly keeps
+    it OUT of this resolve's roots (Task 7 scope rule). The repo's app code
+    nonetheless imports it unconditionally, so Phase-A's coverage audit flags
+    it as an under-declaration and the repair ladder tries to ground it.
+    `_declared_package_names_for_repair` excludes `hogli` from the
+    `declared_metadata` rung, but `generate_candidates`'s `normalize` rung
+    proposes it anyway (it only reads the import name) -- and here a fake
+    RECORD provider CONFIRMS it, so `choose_provider` returns ACCEPT. The
+    fixpoint's acceptance gate must still refuse it: `hogli` must never
+    become an AUDIT root, which would resolve the unrelated public PyPI
+    package of that name instead of the pinned git fork."""
+    repo = _repo(
+        tmp_path,
+        "import requests\nimport hogli\n",
+        "[project]\n"
+        'name = "posthog"\n'
+        'version = "0.1.0"\n'
+        'dependencies = ["requests"]\n'
+        "\n"
+        "[project.optional-dependencies]\n"
+        'extra = ["hogli"]\n'
+        "\n"
+        "[tool.uv.sources]\n"
+        'hogli = { git = "https://github.com/example/hogli-fork" }\n',
+    )
+    ex = _fallback_executor(
+        ["requests==2.31.0\n    # via -r -\n"],
+        packages_dist=[_r(0, stdout='{"requests": ["requests"]}')],
+    )
+    # The fake RECORD provider CONFIRMS hogli provides top-level "hogli" --
+    # a real grounded confirm, proving the refusal is the acceptance gate,
+    # not a grounding failure.
+    provider = _provider({"requests": {"requests"}, "hogli": {"hogli"}})
+
+    with caplog.at_level(logging.WARNING):
+        graph, counter = _build_counting(repo, ex, provider)
+
+    assert graph.get(package_id("hogli", None)) is None
+    assert not any(n.name == "hogli" for n in _audit_packages(graph))
+    assert not any(n.name == "hogli" and n.type is NodeType.PACKAGE for n in graph.nodes)
+    # No second resolve round -- the candidate was rejected at acceptance, so
+    # the ladder never treated it as "a new pair" worth re-resolving for.
+    assert counter["resolve"] == 1
+    assert any("phase-A" in rec.message for rec in caplog.records)
+
+
+# --------------------------------------------------------------------------- #
+# Fix 1 (docs/superpowers/plans/2026-07-14-post-measurement-fixes.md): the SAME
+# acceptance-gate protection, pinned for a PEP 508 direct reference instead of
+# a `[tool.uv.sources]` override -- both feed the identical
+# `_uv_sourced_dist_names` union, so this proves the union actually reaches
+# the acceptance gate through the real `build_dep_graph` pipeline, not just
+# the unit-level frozenset.
+# --------------------------------------------------------------------------- #
+def test_fixpoint_never_repairs_direct_reference_dependency_via_normalize_rung(tmp_path, caplog):
+    """`kivymd` is declared ONLY in a non-activated optional-dependency group
+    as a PEP 508 direct reference (`kivymd @ git+...`) -- `select_roots`
+    correctly keeps it OUT of this resolve's roots. The repo's app code
+    nonetheless imports it unconditionally, so Phase-A's coverage audit flags
+    it as an under-declaration and the repair ladder tries to ground it via
+    the `normalize` rung (independent of the `declared_metadata` rung
+    `_declared_package_names_for_repair` already excludes it from). The
+    fixpoint's acceptance gate must still refuse it: `kivymd` must never
+    become an AUDIT root, which would resolve the unrelated public PyPI
+    package of that name instead of the git-pinned fork."""
+    repo = _repo(
+        tmp_path,
+        "import requests\nimport kivymd\n",
+        "[project]\n"
+        'name = "archipelago"\n'
+        'version = "0.1.0"\n'
+        'dependencies = ["requests"]\n'
+        "\n"
+        "[project.optional-dependencies]\n"
+        'extra = ["kivymd @ git+https://github.com/kivymd/KivyMD@5ff9d0d"]\n',
+    )
+    ex = _fallback_executor(
+        ["requests==2.31.0\n    # via -r -\n"],
+        packages_dist=[_r(0, stdout='{"requests": ["requests"]}')],
+    )
+    # The fake RECORD provider CONFIRMS kivymd provides top-level "kivymd" --
+    # a real grounded confirm, proving the refusal is the acceptance gate,
+    # not a grounding failure.
+    provider = _provider({"requests": {"requests"}, "kivymd": {"kivymd"}})
+
+    with caplog.at_level(logging.WARNING):
+        graph, counter = _build_counting(repo, ex, provider)
+
+    assert graph.get(package_id("kivymd", None)) is None
+    assert not any(n.name == "kivymd" for n in _audit_packages(graph))
+    assert not any(n.name == "kivymd" and n.type is NodeType.PACKAGE for n in graph.nodes)
+    assert counter["resolve"] == 1
+    assert any("phase-A" in rec.message for rec in caplog.records)
+
+
+# --------------------------------------------------------------------------- #
 # Correction 2b — attempted-set termination (oscillation)
 # --------------------------------------------------------------------------- #
 def test_fixpoint_attempted_set_stops_oscillation(tmp_path, caplog):

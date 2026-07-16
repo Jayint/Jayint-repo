@@ -161,19 +161,60 @@ _DEV_GROUP_DENYLIST: frozenset[str] = frozenset(
 )
 
 
+# FIX 1 (B2) — `optional_dependency` group names (`[project.optional-dependencies]`
+# / `setup.cfg` `extras_require`) that mean "tooling needed to run/lint/typecheck
+# the test suite", never a mutually-exclusive runtime FEATURE. Matched
+# case-insensitively against the normalized group name, same as
+# `_DEV_GROUP_DENYLIST`.
+#
+# Rationale for an ALLOWLIST (not a denylist, unlike dev_group): unlike PEP 735
+# `[dependency-groups]` / dev-requirements files — which are ALWAYS
+# build/test-time tooling by construction, so denylisting the few non-test
+# outliers (docs/release) is safe — `[project.optional-dependencies]` /
+# `extras_require` is the SAME syntax used for genuinely-optional runtime
+# features (`cpu`/`gpu`, `postgres`/`mysql`, `all`) that are often mutually
+# exclusive or heavy. Defaulting those to "in" would resurrect exactly the bug
+# `needed_extras`/`in_scope_extras` was built to prevent (`_in_test_scope`'s
+# docstring). So only the names below — which denote test/CI/lint/type-check
+# tooling in virtually every real-world manifest, and are never used to select
+# between mutually-exclusive backends — are default-included; everything else
+# (including `all`/`full`/`complete` bundles, which often DO pull in a heavy or
+# conflicting backend) stays gated behind `in_scope_extras` as before.
+#
+# Verified against the gold recipes this fix targets: `-e ".[ci]"` (feast),
+# `-e ".[test]"` (synthetic-data-generator), `-e ".[dev]"` (pretix),
+# `-e ".[pytest,dev]"` (DDNS) — every group name in those recipes is covered.
+_TEST_SCOPE_EXTRA_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "test", "tests", "testing",
+        "dev", "develop", "development",
+        "ci",
+        "lint", "linting",
+        "typing", "type-check", "mypy",
+        "check", "checks",
+        "qa",
+        "pytest",
+    }
+)
+
+
 def _in_test_scope(req, in_scope_extras: frozenset[str]) -> bool:
     """Testability-scope membership for a declared requirement (fixed policy).
 
     Single goal = run the tests, so the closure targets runtime ∪ dev/test groups
-    ∪ import-signalled feature extras:
+    ∪ test-scoped/import-signalled feature extras:
 
     * ``kind=="dependency"`` (runtime) -> always in.
     * ``kind=="optional_dependency"`` (feature extra) -> in IFF its group is a
       member of ``in_scope_extras`` (``needed_extras`` ∪ the repo's own
-      ``-e .[...]`` extras). Extras stay gated so mutually-exclusive groups
-      (cpu/gpu, conflicting DB drivers) can't collide the resolve — the bug
-      ``needed_extras`` was built to prevent. Extras the tests import but no
-      signal names are left to the Phase-A repair loop.
+      ``-e .[...]`` extras) OR ``_TEST_SCOPE_EXTRA_ALLOWLIST`` (a name-based
+      policy mirroring ``dev_group``'s default-include, for the handful of
+      group names — ``test``/``dev``/``ci``/``lint``/... — that mean "build
+      and test tooling" under this syntax too). Every OTHER feature extra
+      (``cpu``/``gpu``, conflicting DB drivers, ``all``/``full`` bundles) stays
+      gated: mutually-exclusive groups still can't collide the resolve — the
+      bug ``needed_extras`` was built to prevent — because those names are
+      deliberately NOT on the allowlist.
     * ``kind=="dev_group"`` (PEP 735 group / dev|test requirements file) -> in
       UNLESS its group is a docs/release group (``_DEV_GROUP_DENYLIST``):
       default-include dev/test/lint/typing (recall-first, gate-backstopped),
@@ -185,7 +226,7 @@ def _in_test_scope(req, in_scope_extras: frozenset[str]) -> bool:
         return True
     group = normalize_package_name(_requirement_group(getattr(req, "source", "")))
     if kind == "optional_dependency":
-        return group in in_scope_extras
+        return group in in_scope_extras or group in _TEST_SCOPE_EXTRA_ALLOWLIST
     if kind == "dev_group":
         return group not in _DEV_GROUP_DENYLIST
     return False
@@ -305,18 +346,23 @@ def select_roots(
     name).
 
     Fixed testability-scope policy (see :func:`_in_test_scope`): the closure
-    targets runtime ∪ dev/test groups ∪ import-signalled feature extras —
-    ``in_scope_extras = needed_extras ∪ evidence.used_extras`` (the caller's
-    override union'd with the repo's own ``-e .[...]`` self-install signals).
-    Dev/test groups (PEP 735 ``[dependency-groups]`` and dev/test requirements
-    files) are default-INCLUDED except the docs/release denylist
+    targets runtime ∪ dev/test groups ∪ test-scoped/import-signalled feature
+    extras — ``in_scope_extras = needed_extras ∪ evidence.used_extras`` (the
+    caller's override union'd with the repo's own ``-e .[...]`` self-install
+    signals). Dev/test groups (PEP 735 ``[dependency-groups]`` and dev/test
+    requirements files) are default-INCLUDED except the docs/release denylist
     (``_DEV_GROUP_DENYLIST``); ``kind=="optional_dependency"`` feature extras
-    STAY gated by ``in_scope_extras`` — mutually exclusive groups (e.g.
-    ``cpu``/``gpu``) must not both enter one resolve, which is why extras
-    are never default-included even though dev/test groups are. The default
-    (``needed_extras=frozenset()``) therefore no longer means "runtime only";
-    it means "runtime + dev/test groups + whatever extras the repo's own
-    ``-e .[...]`` lines already signal".
+    STAY gated by ``in_scope_extras`` UNLESS the group's own name is on
+    ``_TEST_SCOPE_EXTRA_ALLOWLIST`` (``test``/``dev``/``ci``/``lint``/... —
+    the same name-based default-include ``dev_group`` already gets, applied to
+    the ``[project.optional-dependencies]``/``extras_require`` syntax too, since
+    that syntax is where test deps most commonly live in the wild). Mutually
+    exclusive groups (e.g. ``cpu``/``gpu``) still must not both enter one
+    resolve — they are deliberately NOT on that allowlist, so they stay gated
+    exactly as before. The default (``needed_extras=frozenset()``) therefore no
+    longer means "runtime only"; it means "runtime + dev/test groups + the
+    test-scoped extras every repo declares regardless of syntax + whatever
+    other extras the repo's own ``-e .[...]`` lines already signal".
 
     ``target_env`` (Task 8 review fix), when given, additionally drops a
     manifest dependency whose PEP 508 environment marker evaluates False for

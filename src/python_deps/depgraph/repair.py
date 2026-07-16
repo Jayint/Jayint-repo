@@ -30,9 +30,16 @@ from typing import Callable
 
 from python_deps.import_mapping import (
     CURATED_IMPORT_TO_PACKAGE,
+    declared_metadata_match,
     normalize_package_name,
     top_level_import_name,
 )
+
+
+# The one rung that is EVIDENCE rather than a guess: a distribution the repo's own
+# manifest declares. Named once so generate_candidates and choose_provider cannot
+# drift apart on a bare string literal.
+DECLARED_SOURCE = "declared_metadata"
 
 
 @dataclass(frozen=True)
@@ -40,7 +47,7 @@ class Candidate:
     """A proposed distribution name and the rung that produced it."""
 
     dist: str
-    source: str  # "normalize" | "curated" | "llm"
+    source: str  # DECLARED_SOURCE | "normalize" | "curated" | "llm"
 
 
 class Verdict(enum.Enum):
@@ -89,19 +96,71 @@ def curated_candidates(import_name: str) -> list[str]:
     return [hit] if hit else []
 
 
+def declared_candidates(
+    import_name: str,
+    declared_package_names: "set[str] | frozenset[str] | None" = None,
+) -> list[str]:
+    """The repo's OWN declared distribution, if its name matches this import.
+
+    Reuses :func:`python_deps.import_mapping.declared_metadata_match` — the same rung
+    ``map_import_to_package`` already has. Returns ``[]`` when no declared name
+    matches, or when ``declared_package_names`` is ``None`` (the default), so every
+    existing caller keeps its old candidate set.
+
+    ⚠ KNOWN LIMITATION — this rung is currently near-redundant, and that is on
+    purpose rather than an oversight. ``declared_metadata_match`` matches by
+    NORMALIZED NAME EQUALITY (import top-level == distribution name), so it fires only
+    for ``freezegun`` -> ``freezegun``, never for ``yaml`` -> ``PyYAML`` or
+    ``psycopg2`` -> ``psycopg2-binary`` — precisely the import/distribution mismatches
+    that need help. And where it DOES fire, ``normalize_candidates`` already proposes
+    the same canonical name, so only the trace LABEL changes.
+
+    Making it useful needs a real design pass, not a wider matcher: a looser match
+    (substring/RECORD-grounded over declared dists) mostly lands in AMBIGUOUS anyway,
+    because the mechanical guessers frequently confirm too (a real ``jwt`` dist exists
+    alongside ``PyJWT``). Letting a declared candidate WIN that tie was tried and
+    reverted — see :func:`choose_provider` for why it is unsafe. The rung is kept as
+    the plumbing that a correct design will need.
+    """
+    match = declared_metadata_match(import_name, declared_package_names)
+    return [match] if match else []
+
+
 def generate_candidates(
     import_name: str,
     *,
+    declared_package_names: "set[str] | frozenset[str] | None" = None,
     llm: Callable[[str], list[str]] | None = None,
 ) -> list[Candidate]:
-    """Ordered candidate distributions: normalize -> curated -> (optional) llm.
+    """Ordered candidates: declared -> normalize -> curated -> (optional) llm.
 
-    Deterministic rungs come first (``normalize`` then ``curated``); the ``llm``
-    rung runs ONLY when an ``llm`` callable is injected, and its guesses land
-    last. Canon-deduped with the first (cheapest) source winning. ``llm``
-    defaults to ``None`` so the deterministic core never calls a model.
+    The ``declared`` rung runs FIRST — ABOVE the mechanical guessers — because
+    it is EVIDENCE (a distribution the repo's own manifest already declares,
+    in any group) rather than a name-transform or table-driven guess; when it
+    and a guesser rung land on the same canonical distribution, the declared
+    rung's label wins the canon-dedup below, so the trace records that the
+    candidate came from the manifest, not a guess. It fires only when a caller
+    passes ``declared_package_names`` (default ``None`` -> no declared
+    candidates, so every existing caller keeps its old candidate set/order
+    unchanged — this is an additive, backward-compatible rung).
+
+    Then the deterministic guessers (``normalize`` then ``curated``); the
+    ``llm`` rung runs ONLY when an ``llm`` callable is injected, and its
+    guesses land last. Canon-deduped with the first (cheapest/most-trusted)
+    source winning. ``llm`` defaults to ``None`` so the deterministic core
+    never calls a model.
+
+    Note: a declared candidate still must survive RECORD-grounding via
+    ``choose_provider`` like every other candidate — it is never auto-accepted.
+    Proposing a name the repo already wrote down is not the deleted
+    import-name-as-dist-name identity fallback: it names one of the repo's OWN
+    declared distributions, not the import's own spelling.
     """
     ordered: list[Candidate] = [
+        Candidate(dist, DECLARED_SOURCE)
+        for dist in declared_candidates(import_name, declared_package_names)
+    ]
+    ordered += [
         Candidate(dist, "normalize") for dist in normalize_candidates(import_name)
     ]
     ordered += [Candidate(dist, "curated") for dist in curated_candidates(import_name)]
@@ -232,6 +291,22 @@ def choose_provider(
 
     if len(confirmed) == 1:
         return RepairDecision(Verdict.ACCEPT, confirmed[0], ())
+    # A DECLARED confirm does NOT break a variant tie. This was tried and reverted;
+    # the reasoning is worth keeping so it is not re-attempted.
+    #
+    # It looks safe -- "the repo declared it, so it is evidence, not a guess" -- but a
+    # missing import's provider is, by construction, one the root filter EXCLUDED
+    # (anything in scope became a root, got installed, and would not be missing). So
+    # the only declarations reachable here are the gated ones, and gated is exactly
+    # where mutual exclusion lives:
+    #
+    #     [optional-dependencies]  cpu = ["foo"]   gpu = ["python-foo"]
+    #
+    # with a scanned ``import foo``, both wheels providing ``foo``. select_roots
+    # rightly excludes BOTH. A declared tie-break would then accept ``foo`` and add it
+    # as an audit root -- resurrecting one arm of a mutually-exclusive pair from an
+    # extra the repo never activated. AMBIGUOUS is the correct answer here: two
+    # variants confirm, and nothing in scope says which the project wants.
     if len(confirmed) > 1:
         return RepairDecision(Verdict.AMBIGUOUS, None, ())
     return RepairDecision(Verdict.UNRESOLVED, None, tuple(blind))

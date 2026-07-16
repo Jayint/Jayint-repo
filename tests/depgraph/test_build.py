@@ -632,3 +632,648 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     assert numpy is not None and numpy.discovered_by is DiscoveredBy.RESOLVER
 
 
+# --------------------------------------------------------------------------- #
+# Task 7 -- delete the `uv_non_pypi_source` retag (evidence.py) and the
+# `_reinstate_uv_sourced_roots` compensating pass it forced (build.py). A
+# `[tool.uv.sources]`-carrying dep now keeps its TRUE `kind` (`dependency` /
+# `optional_dependency` / `dev_group`), so `select_roots` alone applies the
+# same scope rules to it as to every other declared dependency -- no special
+# case, no post-selection bypass. `resolve.py` owns the low-level
+# rewriting/degrade mechanics that let the resolver honor the carried source
+# (see test_resolve.py); these tests cover build.py's wiring: (a) the
+# repair-ladder HIGH-bug protection stays keyed off `evidence.uv_sources`
+# (never any `kind` sentinel), and (b) a `[tool.uv.sources]`-carrying dep
+# reaches the real resolver root list -- and ONLY when in scope -- through
+# the real production call path (`build_dep_graph` ->
+# `_python_package_obligations` -> `select_roots` -> `_phase_a_fixpoint` ->
+# `resolve_closure`).
+# --------------------------------------------------------------------------- #
+def test_declared_package_names_for_repair_excludes_uv_sourced_names():
+    """The previously-found HIGH bug, pinned directly: a git-pinned
+    `acme-sdk` (present in `evidence.uv_sources`) must NEVER be handed to the
+    Phase-A repair ladder's `generate_candidates(declared_package_names=...)`
+    as a bare-PyPI repair candidate -- that would let an unsatisfied `import
+    acme_sdk` be "repaired" by installing the unrelated PUBLIC `acme-sdk`
+    from PyPI instead of the git-pinned fork the repo actually declared."""
+    from python_deps.depgraph.build import _declared_package_names_for_repair
+    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+
+    evidence = PythonDependencyEvidence(
+        repo_path="/repo",
+        declared_dependencies=[
+            PythonRequirement(name="acme-sdk", kind="dependency"),
+            PythonRequirement(name="requests", kind="dependency"),
+        ],
+        uv_sources={
+            "acme-sdk": (
+                {"git": "https://example.com/acme-sdk.git", "rev": "deadbeef"},
+            )
+        },
+    )
+
+    names = _declared_package_names_for_repair(evidence)
+    assert "acme-sdk" not in names
+    assert "requests" in names
+
+
+def test_declared_package_names_for_repair_keys_off_uv_sources_not_kind():
+    """The decoupling itself: a name carrying some unrelated/placeholder
+    `kind` string but with NO captured `uv_sources` entry is NOT protected by
+    `kind` alone -- only presence in `uv_sources` excludes it. Pins the
+    "keyed off uv_sources, not the kind string" requirement (evidence.py no
+    longer sets any retag sentinel at all; this placeholder kind stands in
+    for "any kind value whatsoever" to prove the exclusion never inspects
+    it)."""
+    from python_deps.depgraph.build import _declared_package_names_for_repair
+    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+
+    evidence = PythonDependencyEvidence(
+        repo_path="/repo",
+        declared_dependencies=[
+            PythonRequirement(name="orphan-sentinel", kind="some_other_kind"),
+        ],
+        uv_sources={},  # nothing captured for it
+    )
+    names = _declared_package_names_for_repair(evidence)
+    assert "orphan-sentinel" in names  # not excluded -- no uv_sources entry
+
+
+def _write_workspace_repo(tmp_path):
+    """A PostHog-shaped fixture: a workspace member ON DISK + a git-pinned
+    fork, both declared via `[tool.uv.sources]`."""
+    member_dir = tmp_path / "tools" / "hogli"
+    member_dir.mkdir(parents=True)
+    (tmp_path / "app.py").write_text("import requests\n")
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "posthog"\n'
+        'version = "0.1.0"\n'
+        'dependencies = ["hogli", "requests"]\n'
+        "\n"
+        "[tool.uv.workspace]\n"
+        'members = ["tools/hogli"]\n'
+        "\n"
+        "[tool.uv.sources]\n"
+        "hogli = { workspace = true }\n"
+    )
+    return member_dir
+
+
+def test_uv_sourced_runtime_dependency_is_a_root_via_select_roots_alone(tmp_path):
+    """`hogli` is declared as an ordinary runtime dependency
+    (`dependencies = ["hogli", "requests"]`); since evidence.py no longer
+    retags it, its `kind` stays `"dependency"` and `select_roots` includes it
+    on its own -- no post-selection reinstatement pass is needed (or exists)
+    to put it back."""
+    from python_deps.depgraph.roots import select_roots
+    from python_deps.depgraph.schema import DepGraph
+
+    _write_workspace_repo(tmp_path)
+
+    roots = select_roots(str(tmp_path), DepGraph())
+    dist_names = {dist for _import_id, dist in roots}
+    assert "hogli" in dist_names
+    assert "requests" in dist_names
+
+
+def test_uv_sourced_dependency_in_non_activated_optional_group_is_not_a_root(tmp_path):
+    """Scope-bypass regression (Task 7), stated directly against the
+    production root-selection path with no compensating pass in the way: a
+    `[tool.uv.sources]`-carrying dep declared ONLY in a NON-activated
+    optional-dependency group (e.g. a `gpu` extra the repo never asked for,
+    one arm of a mutually-exclusive `cpu`/`gpu` pair) must NOT become a
+    resolver root. This used to require a second assertion against
+    `_reinstate_uv_sourced_roots` (now deleted, since it bypassed exactly
+    this scope check); `select_roots` alone is now the ONLY thing that ever
+    produces roots, so this one call proves the bypass is gone for good."""
+    from python_deps.depgraph.roots import select_roots
+    from python_deps.depgraph.schema import DepGraph
+
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "proj"\n'
+        'version = "0.1.0"\n'
+        "\n"
+        "[project.optional-dependencies]\n"
+        'cpu = ["some-lib"]\n'
+        'gpu = ["some-lib-cuda"]\n'
+        "\n"
+        "[tool.uv.sources]\n"
+        'some-lib-cuda = { git = "https://example.com/some-lib-cuda.git" }\n'
+    )
+
+    # `gpu` is never activated (needed_extras defaults to empty).
+    roots = select_roots(str(tmp_path), DepGraph())
+    dist_names = {dist for _import_id, dist in roots}
+    assert "some-lib-cuda" not in dist_names, (
+        "a [tool.uv.sources]-carrying dep from a non-activated optional-"
+        "dependency group became a resolver root -- scope bypass regressed"
+    )
+
+    # Activating `gpu` (the caller explicitly asking for it) IS enough to
+    # bring it in -- proving the exclusion above is a real scope decision,
+    # not the dep being unconditionally unreachable.
+    activated = select_roots(str(tmp_path), DepGraph(), needed_extras=frozenset({"gpu"}))
+    activated_names = {dist for _import_id, dist in activated}
+    assert "some-lib-cuda" in activated_names
+
+
+def test_build_dep_graph_never_bare_installs_uv_sourced_root_through_real_pipeline(tmp_path):
+    """V3_UV_SOURCES=1 (flag ON — the known-unsafe, development-only path;
+    see ``_python_package_obligations``'s docstring). Gate 3, production
+    reachability proof: the REAL `build_dep_graph` call path --
+    `_python_package_obligations` -> `select_roots` -> `_phase_a_fixpoint` ->
+    `resolve_closure` -- must actually see `hogli` as a resolver root (not
+    just the isolated `select_roots` unit test above), AND the degraded
+    `uv pip compile` fallback (`uv lock` is forced to fail, same
+    SequencedFakeExecutor style as the fixpoint suite) must NEVER launder it
+    through as a bare requirement name -- `uv pip compile` has no
+    `[tool.uv.sources]` mechanism at all, so doing so would silently resolve
+    the public PyPI namesake instead of the pinned workspace member. This
+    replaces a prior version of this test that asserted the OPPOSITE (unsafe)
+    behavior -- `hogli` surviving into the bare compile command line -- which
+    pinned the false-green bug as "correct". Kept explicitly ON (the flag
+    defaults OFF -- see the sibling default-path test below) so this
+    source-aware machinery stays covered rather than deleted."""
+    from conftest import FakeExecutor  # type: ignore
+
+    _write_workspace_repo(tmp_path)
+
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+            "uv pip compile": CommandResult(
+                "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+            ),
+            "pip install": CommandResult("pip install", 0, "", ""),
+            "packages_distributions": CommandResult(
+                "packages_distributions", 0, '{"requests": ["requests"]}', ""
+            ),
+            "import requests": CommandResult("import requests", 0, "", ""),
+            "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            # hogli was never bare-installed (that's the whole point), so a
+            # REAL container's `pip show hogli` check would fail -- assert
+            # that honestly instead of relying on FakeExecutor's rc0 default.
+            "pip show hogli": CommandResult("pip show hogli", 1, "", "not found"),
+        },
+        default=CommandResult("", 0, "", ""),
+    )
+
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex, uv_sources_enabled=True)
+
+    compile_calls = [c for c in ex.calls if "uv pip compile" in c]
+    assert compile_calls, "uv pip compile fallback never ran"
+    # `hogli` must never appear in ANY command actually executed -- neither
+    # the bare `uv pip compile` heredoc body nor any `pip install` line (the
+    # `pip show hogli` CERTIFY check is fine -- it's a read-only probe, not
+    # an install, and it must correctly report hogli as absent).
+    install_or_compile_calls = [
+        c for c in ex.calls if "uv pip compile" in c or "pip install" in c
+    ]
+    assert not any("hogli" in c for c in install_or_compile_calls), (
+        "the workspace-sourced root 'hogli' reached a bare install/compile "
+        "command -- it would silently resolve the public PyPI namesake "
+        "instead of the pinned workspace member"
+    )
+    # It must still be VISIBLE in the graph -- degrade the certificate, never
+    # drop silently -- as a MISSING node carrying evidence of its real source.
+    hogli_nodes = [n for n in graph.nodes if n.name == "hogli"]
+    assert len(hogli_nodes) == 1
+    hogli = hogli_nodes[0]
+    assert hogli.state is State.MISSING
+    assert hogli.chosen_fix is None
+    assert hogli.evidence and "tool.uv.sources" in hogli.evidence
+
+
+# --------------------------------------------------------------------------- #
+# V3_UV_SOURCES default (flag OFF) -- the false-green vector fix. An
+# adversarial review proved the package layer cannot safely handle a
+# non-PyPI package (it installs by bare `name==version` from six independent
+# sites), so by default `hogli` must be excluded from resolve roots BEFORE it
+# ever reaches `resolve_closure` -- not merely kept out of the final install
+# command by the resolver's own machinery (the flag-ON test above).
+# --------------------------------------------------------------------------- #
+def test_build_dep_graph_excludes_uv_sourced_root_by_default(tmp_path):
+    """V3_UV_SOURCES defaults OFF: `build_dep_graph` called with no explicit
+    `uv_sources_enabled` must exclude `hogli` from resolve roots up front --
+    `uv lock`/`uv pip compile` must never even be ASKED to resolve it (unlike
+    the flag-ON path, which asks and then degrades). `requests` (an ordinary
+    declared dependency with no uv source) must still resolve normally,
+    proving the exclusion is scoped to the sourced name only."""
+    from conftest import FakeExecutor  # type: ignore
+
+    _write_workspace_repo(tmp_path)
+
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+            "uv pip compile": CommandResult(
+                "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+            ),
+            "pip install": CommandResult("pip install", 0, "", ""),
+            "packages_distributions": CommandResult(
+                "packages_distributions", 0, '{"requests": ["requests"]}', ""
+            ),
+            "import requests": CommandResult("import requests", 0, "", ""),
+            "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            # A REAL container would never even be asked `pip show hogli` --
+            # certify() must never run any check for the excluded node (see
+            # the check_command=None assertion below) -- but wire an rc-0
+            # "success" here anyway so a regression that DID run the check
+            # would be caught (rc0 flipping the node SATISFIED) rather than
+            # masked by an absent-by-luck response.
+            "pip show hogli": CommandResult("pip show hogli", 0, "", ""),
+        },
+        default=CommandResult("", 0, "", ""),
+    )
+
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)  # no flag -> default OFF
+
+    # hogli must never reach ANY resolve/install/compile command.
+    assert not any("hogli" in c for c in ex.calls), (
+        "the workspace-sourced root 'hogli' reached the executor at all -- "
+        "V3_UV_SOURCES=OFF must exclude it before resolve_closure runs"
+    )
+
+    hogli_nodes = [n for n in graph.nodes if n.name == "hogli"]
+    assert len(hogli_nodes) == 1
+    hogli = hogli_nodes[0]
+    assert hogli.state is State.MISSING
+    assert hogli.version is None
+    assert hogli.check_command is None
+    assert hogli.chosen_fix is None
+    assert hogli.data.get("uninstallable") is True
+    assert hogli.evidence and "tool.uv.sources" in hogli.evidence
+
+    # Not in the rendered setup.sh either -- the render layer's OWN gate
+    # (`_is_reciped`, version=None + uninstallable=True) independently keeps
+    # it out, but assert the observable artifact directly rather than trust
+    # that gate by inference.
+    from python_deps.depgraph.build_script import render_build_script
+
+    script = render_build_script(graph, ())
+    assert "hogli" not in script
+
+    # requests (no uv source) is unaffected -- proves scoping, not blanket breakage.
+    requests_nodes = [
+        n for n in graph.nodes if n.name == "requests" and n.type is NodeType.PACKAGE
+    ]
+    assert len(requests_nodes) == 1
+    assert requests_nodes[0].version == "2.32.3"
+
+
+def test_build_dep_graph_byte_identical_without_uv_sources_regardless_of_flag(tmp_path):
+    """A repo with NO `[tool.uv.sources]` at all must produce the IDENTICAL
+    graph (same node ids/states/versions) whether V3_UV_SOURCES is ON or
+    OFF -- the exclusion path is a documented no-op for this (the
+    overwhelmingly common) case."""
+    from conftest import FakeExecutor  # type: ignore
+
+    (tmp_path / "app.py").write_text("import requests\n")
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        'name = "proj"\n'
+        'version = "0.1.0"\n'
+        'dependencies = ["requests"]\n'
+    )
+
+    def _fresh_executor():
+        return FakeExecutor(
+            responses={
+                "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+                "uv pip compile": CommandResult(
+                    "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+                ),
+                "pip install": CommandResult("pip install", 0, "", ""),
+                "packages_distributions": CommandResult(
+                    "packages_distributions", 0, '{"requests": ["requests"]}', ""
+                ),
+                "import requests": CommandResult("import requests", 0, "", ""),
+                "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            },
+            default=CommandResult("", 0, "", ""),
+        )
+
+    def _signature(graph):
+        return sorted(
+            (n.id, n.type, n.name, n.version, n.state, n.check_command)
+            for n in graph.nodes
+        )
+
+    ex_off = _fresh_executor()
+    graph_off = build_dep_graph(str(tmp_path), ex_off, host_executor=ex_off)
+    ex_on = _fresh_executor()
+    graph_on = build_dep_graph(
+        str(tmp_path), ex_on, host_executor=ex_on, uv_sources_enabled=True
+    )
+
+    assert _signature(graph_off) == _signature(graph_on)
+
+
+# --------------------------------------------------------------------------- #
+# The two load-bearing guarantees of the default-OFF exclusion, pinned
+# directly against the actual emit.py / certify.py mechanics (read, never
+# assumed -- see `_excluded_uv_source_node`'s docstring). These are the whole
+# point of the fix: a MISSING sourced node must be un-emittable AND
+# un-certifiable, not merely "excluded from roots" in the abstract.
+# --------------------------------------------------------------------------- #
+def test_excluded_uv_source_node_cannot_be_emitted():
+    """`emit.next_deterministic_wave` (via `partition`/`_is_emittable`) must
+    never turn an excluded uv-sourced node into a `pip install` step.
+    `_is_emittable` has a SEPARATE, known blind spot to
+    `data['uninstallable']` (it never checks that key at all) -- this must
+    hold regardless, because `version=None` trips its FIRST check
+    (`if not node.version: return False`) before that blind spot is ever
+    reached."""
+    from python_deps.depgraph.build import _excluded_uv_source_node
+    from python_deps.depgraph.emit import next_deterministic_wave
+    from python_deps.depgraph.schema import DepGraph
+
+    node = _excluded_uv_source_node("hogli", ({"workspace": True},))
+    graph = DepGraph().with_node(node)
+
+    waves = next_deterministic_wave(graph)
+    assert waves == ()
+    for step in waves:  # belt-and-suspenders: even if a step DID emit, hogli must not be in it
+        assert "hogli" not in step.command
+
+
+def test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show():
+    """`certify.certify` flips MISSING -> SATISFIED off ANY rc-0
+    `check_command`, and (like `_is_emittable`) never consults
+    `data['uninstallable']` either -- so if the public namesake of an
+    excluded name got installed by an unrelated route and a REAL container's
+    `pip show hogli` returned rc 0, an ordinary MISSING Package node WOULD
+    flip SATISFIED. The excluded node must never be vulnerable to this: it
+    carries no `check_command` at all, so `certify` must never even invoke
+    the executor for it, regardless of what that executor would have said."""
+    from python_deps.depgraph.build import _excluded_uv_source_node
+    from python_deps.depgraph.certify import certify
+    from python_deps.depgraph.executor import CommandResult
+    from python_deps.depgraph.schema import DepGraph, State
+
+    node = _excluded_uv_source_node("hogli", ({"workspace": True},))
+    graph = DepGraph().with_node(node)
+
+    class _AlwaysOkExecutor:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        def run(self, command):
+            self.calls.append(command)
+            # A REAL container reporting the PUBLIC namesake as installed --
+            # exactly the false-green scenario this node must be immune to.
+            return CommandResult(command, 0, "Name: hogli\nVersion: 9.9.9\n", "")
+
+    executor = _AlwaysOkExecutor()
+    certified = certify(graph, node.id, executor)
+
+    assert executor.calls == [], (
+        "certify() ran a check for a node with no check_command -- it must "
+        "short-circuit before ever asking the executor anything"
+    )
+    result_node = certified.get(node.id)
+    assert result_node.state is State.MISSING
+
+
+# --------------------------------------------------------------------------- #
+# Fix 1 (docs/superpowers/plans/2026-07-14-post-measurement-fixes.md): a PEP
+# 508 direct reference (``name @ <url>``) is a non-PyPI source exactly like a
+# `[tool.uv.sources]` entry, just via inline syntax. ArchipelagoMW/Archipelago's
+# root requirements.txt declares `kivymd @ git+https://github.com/kivymd/
+# KivyMD@5ff9d0d`; before this fix `kivymd` vanished with no trace at all
+# (evidence.py's old "://" heuristic dropped it silently, never even reaching
+# `declared_dependencies`) -- these tests pin the SAME three guarantees the
+# `[tool.uv.sources]` exclusion above already has: excluded from resolve
+# roots, surfaced as an honest MISSING node, and protected from the repair
+# ladder -- reached through the REAL production call path
+# (`build_dep_graph` -> `_python_package_obligations`).
+# --------------------------------------------------------------------------- #
+def test_uv_sourced_dist_names_includes_direct_reference_sources():
+    from python_deps.depgraph.build import _uv_sourced_dist_names
+    from python_deps.models import PythonDependencyEvidence
+
+    evidence = PythonDependencyEvidence(
+        repo_path="/repo",
+        direct_reference_sources={"kivymd": "git+https://github.com/kivymd/KivyMD@5ff9d0d"},
+    )
+    names = _uv_sourced_dist_names(evidence)
+    assert "kivymd" in names
+
+
+def test_declared_package_names_for_repair_excludes_direct_reference_names():
+    # Mirrors test_declared_package_names_for_repair_excludes_uv_sourced_names
+    # above, but for a PEP 508 direct reference instead of a
+    # `[tool.uv.sources]` table entry: a git-pinned `kivymd` must never be
+    # "repaired" into the unrelated PUBLIC PyPI `kivymd`.
+    from python_deps.depgraph.build import _declared_package_names_for_repair
+    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+
+    evidence = PythonDependencyEvidence(
+        repo_path="/repo",
+        declared_dependencies=[
+            PythonRequirement(name="kivymd", kind="dependency"),
+            PythonRequirement(name="requests", kind="dependency"),
+        ],
+        direct_reference_sources={"kivymd": "git+https://github.com/kivymd/KivyMD@5ff9d0d"},
+    )
+    names = _declared_package_names_for_repair(evidence)
+    assert "kivymd" not in names
+    assert "requests" in names
+
+
+def test_excluded_direct_reference_node_cannot_be_emitted():
+    # Mirrors test_excluded_uv_source_node_cannot_be_emitted.
+    from python_deps.depgraph.build import _excluded_direct_reference_node
+    from python_deps.depgraph.emit import next_deterministic_wave
+    from python_deps.depgraph.schema import DepGraph
+
+    node = _excluded_direct_reference_node(
+        "kivymd", "git+https://github.com/kivymd/KivyMD@5ff9d0d"
+    )
+    graph = DepGraph().with_node(node)
+
+    waves = next_deterministic_wave(graph)
+    assert waves == ()
+    for step in waves:
+        assert "kivymd" not in step.command
+
+
+def test_excluded_direct_reference_node_cannot_be_certified_by_successful_pip_show():
+    # Mirrors test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show.
+    from python_deps.depgraph.build import _excluded_direct_reference_node
+    from python_deps.depgraph.certify import certify
+    from python_deps.depgraph.executor import CommandResult
+    from python_deps.depgraph.schema import DepGraph, State
+
+    node = _excluded_direct_reference_node(
+        "kivymd", "git+https://github.com/kivymd/KivyMD@5ff9d0d"
+    )
+    graph = DepGraph().with_node(node)
+
+    class _AlwaysOkExecutor:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        def run(self, command):
+            self.calls.append(command)
+            return CommandResult(command, 0, "Name: kivymd\nVersion: 2.1.1\n", "")
+
+    executor = _AlwaysOkExecutor()
+    certified = certify(graph, node.id, executor)
+
+    assert executor.calls == []
+    result_node = certified.get(node.id)
+    assert result_node.state is State.MISSING
+
+
+def _write_direct_reference_repo(tmp_path):
+    """Archipelago-shaped fixture: a root requirements.txt with ONE PEP 508
+    direct reference (`kivymd @ git+...`) plus several ordinary pinned deps --
+    the shape the plan's headline bug requires: one unresolvable root must
+    not poison the rest of the closure."""
+    (tmp_path / "app.py").write_text("import requests\n")
+    (tmp_path / "requirements.txt").write_text(
+        "kivymd @ git+https://github.com/kivymd/KivyMD@5ff9d0d\n"
+        "requests==2.32.3\n"
+    )
+
+
+def test_build_dep_graph_excludes_direct_reference_root_by_default(tmp_path):
+    from conftest import FakeExecutor  # type: ignore
+
+    _write_direct_reference_repo(tmp_path)
+
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+            "uv pip compile": CommandResult(
+                "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+            ),
+            "pip install": CommandResult("pip install", 0, "", ""),
+            "packages_distributions": CommandResult(
+                "packages_distributions", 0, '{"requests": ["requests"]}', ""
+            ),
+            "import requests": CommandResult("import requests", 0, "", ""),
+            "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            # A REAL container would never even be asked `pip show kivymd` --
+            # wired rc-0 anyway so a regression that DID run the check would
+            # be caught (flipping the node SATISFIED) instead of masked.
+            "pip show kivymd": CommandResult("pip show kivymd", 0, "", ""),
+        },
+        default=CommandResult("", 0, "", ""),
+    )
+
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)  # default flag OFF
+
+    assert not any("kivymd" in c for c in ex.calls), (
+        "the direct-reference root 'kivymd' reached the executor at all -- "
+        "it must be excluded before resolve_closure runs"
+    )
+
+    kivymd_nodes = [n for n in graph.nodes if n.name == "kivymd"]
+    assert len(kivymd_nodes) == 1
+    kivymd = kivymd_nodes[0]
+    assert kivymd.state is State.MISSING
+    assert kivymd.version is None
+    assert kivymd.check_command is None
+    assert kivymd.chosen_fix is None
+    assert kivymd.data.get("uninstallable") is True
+    assert kivymd.evidence and "git+https://github.com/kivymd/KivyMD@5ff9d0d" in kivymd.evidence
+
+    from python_deps.depgraph.build_script import render_build_script
+
+    script = render_build_script(graph, ())
+    assert "kivymd" not in script
+
+    # The headline bug: the OTHER ordinary dep in the same file still
+    # resolves -- one unresolvable direct reference no longer poisons the
+    # whole closure.
+    requests_nodes = [
+        n for n in graph.nodes if n.name == "requests" and n.type is NodeType.PACKAGE
+    ]
+    assert len(requests_nodes) == 1
+    assert requests_nodes[0].version == "2.32.3"
+
+
+def test_build_dep_graph_excludes_direct_reference_root_even_with_uv_sources_enabled(tmp_path):
+    # Fix 1 item 3: unlike a `[tool.uv.sources]` override, a PEP 508 direct
+    # reference has no `[tool.uv.sources]` table representation this codebase
+    # rewrites into the synthetic pyproject -- so (per the plan) it stays
+    # excluded regardless of V3_UV_SOURCES, rather than risk resolving the
+    # public PyPI namesake when the flag is on.
+    from conftest import FakeExecutor  # type: ignore
+
+    _write_direct_reference_repo(tmp_path)
+
+    ex = FakeExecutor(
+        responses={
+            "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+            "uv pip compile": CommandResult(
+                "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+            ),
+            "pip install": CommandResult("pip install", 0, "", ""),
+            "packages_distributions": CommandResult(
+                "packages_distributions", 0, '{"requests": ["requests"]}', ""
+            ),
+            "import requests": CommandResult("import requests", 0, "", ""),
+            "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            "pip show kivymd": CommandResult("pip show kivymd", 1, "", "not found"),
+        },
+        default=CommandResult("", 0, "", ""),
+    )
+
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex, uv_sources_enabled=True)
+
+    install_or_compile_calls = [
+        c for c in ex.calls if "uv pip compile" in c or "uv lock" in c or "pip install" in c
+    ]
+    assert not any("kivymd" in c for c in install_or_compile_calls), (
+        "the direct-reference root 'kivymd' reached a resolve/install command "
+        "even with V3_UV_SOURCES=1 -- it would silently resolve the public "
+        "PyPI namesake instead of the git-pinned fork"
+    )
+
+    kivymd_nodes = [n for n in graph.nodes if n.name == "kivymd"]
+    assert len(kivymd_nodes) == 1
+    assert kivymd_nodes[0].state is State.MISSING
+
+
+def test_build_dep_graph_byte_identical_without_direct_references_regardless_of_flag(tmp_path):
+    from conftest import FakeExecutor  # type: ignore
+
+    (tmp_path / "app.py").write_text("import requests\n")
+    (tmp_path / "requirements.txt").write_text("requests==2.32.3\n")
+
+    def _fresh_executor():
+        return FakeExecutor(
+            responses={
+                "uv lock": CommandResult("uv lock", 1, "", "lock unavailable"),
+                "uv pip compile": CommandResult(
+                    "uv pip compile", 0, "requests==2.32.3\n    # via -r -\n", ""
+                ),
+                "pip install": CommandResult("pip install", 0, "", ""),
+                "packages_distributions": CommandResult(
+                    "packages_distributions", 0, '{"requests": ["requests"]}', ""
+                ),
+                "import requests": CommandResult("import requests", 0, "", ""),
+                "pip show requests": CommandResult("pip show requests", 0, "", ""),
+            },
+            default=CommandResult("", 0, "", ""),
+        )
+
+    def _signature(graph):
+        return sorted(
+            (n.id, n.type, n.name, n.version, n.state, n.check_command)
+            for n in graph.nodes
+        )
+
+    ex_off = _fresh_executor()
+    graph_off = build_dep_graph(str(tmp_path), ex_off, host_executor=ex_off)
+    ex_on = _fresh_executor()
+    graph_on = build_dep_graph(
+        str(tmp_path), ex_on, host_executor=ex_on, uv_sources_enabled=True
+    )
+
+    assert _signature(graph_off) == _signature(graph_on)
+

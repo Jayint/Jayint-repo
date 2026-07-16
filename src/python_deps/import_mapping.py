@@ -68,6 +68,27 @@ def top_level_import_name(import_name: str) -> str:
     return import_name.split(".", 1)[0]
 
 
+def declared_metadata_match(
+    import_name: str, declared_package_names: "set[str] | frozenset[str] | None"
+) -> str | None:
+    """The repo's OWN declared distribution matching ``import_name``'s
+    top-level module by normalized-name equality, or ``None`` if none matches.
+
+    This is EVIDENCE, not a guess: it only ever returns a name the repo itself
+    wrote down as a dependency somewhere in its manifest (any group). Factored
+    out of :func:`map_import_to_package` so
+    ``depgraph.repair.generate_candidates`` (:func:`~python_deps.depgraph.repair.declared_candidates`)
+    can reuse the exact same rung as an additional candidate source, instead of
+    re-implementing (and risking drift from) this matching logic.
+    """
+    top_level = top_level_import_name(import_name)
+    declared_by_normalized_name = {
+        normalize_package_name(name): name for name in declared_package_names or set()
+    }
+    normalized_import = normalize_package_name(top_level)
+    return declared_by_normalized_name.get(normalized_import)
+
+
 def map_import_to_package(
     import_name: str,
     declared_package_names: set[str] | None = None,
@@ -82,14 +103,11 @@ def map_import_to_package(
             trust="high",
         )
 
-    declared_by_normalized_name = {
-        normalize_package_name(name): name for name in declared_package_names or set()
-    }
-    normalized_import = normalize_package_name(top_level)
-    if normalized_import in declared_by_normalized_name:
+    declared_match = declared_metadata_match(top_level, declared_package_names)
+    if declared_match is not None:
         return MappingResult(
             import_name=top_level,
-            package_name=declared_by_normalized_name[normalized_import],
+            package_name=declared_match,
             source="declared_metadata",
             trust="medium",
         )

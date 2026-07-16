@@ -19,6 +19,7 @@ if str(_SRC) not in sys.path:
 from python_deps.import_mapping import (  # noqa: E402
     MappingResult,
     UNRESOLVED_SOURCE,
+    declared_metadata_match,
     is_unresolved,
     map_import_to_package,
     unresolved_result,
@@ -87,3 +88,41 @@ def test_unmapped_import_is_unresolved_not_identity():
     assert r.package_name is None
     assert r.source == "unresolved"
     assert is_unresolved(r) is True
+
+
+# --------------------------------------------------------------------------- #
+# FIX 2 (B3) — declared_metadata_match factored out of map_import_to_package
+# so `depgraph.repair.generate_candidates` can reuse the SAME rung as an
+# evidence-grounded candidate source (never a fresh guess).
+# --------------------------------------------------------------------------- #
+def test_declared_metadata_match_returns_normalized_hit():
+    assert declared_metadata_match("freezegun", {"freezegun"}) == "freezegun"
+
+
+def test_declared_metadata_match_none_when_no_hit():
+    assert declared_metadata_match("freezegun", {"other-pkg"}) is None
+
+
+def test_declared_metadata_match_none_when_declared_is_none():
+    assert declared_metadata_match("freezegun", None) is None
+
+
+def test_declared_metadata_match_normalizes_separators():
+    # `import django_filters` should match a manifest-declared "django-filters".
+    assert (
+        declared_metadata_match("django_filters", {"django-filters"})
+        == "django-filters"
+    )
+
+
+def test_declared_metadata_match_uses_top_level_only():
+    assert declared_metadata_match("dateutil.parser", {"dateutil"}) == "dateutil"
+
+
+def test_map_import_to_package_still_uses_declared_metadata_match_rung():
+    # map_import_to_package's own declared_metadata rung must remain intact
+    # after the refactor that factors it out for repair.py's reuse.
+    r = map_import_to_package("myinternalthing", declared_package_names={"MyInternalThing"})
+    assert r.package_name == "MyInternalThing"
+    assert r.source == "declared_metadata"
+    assert r.trust == "medium"
