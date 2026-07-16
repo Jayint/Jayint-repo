@@ -79,7 +79,7 @@ The false-green flag must have an **owner**: a policy that treats config as the 
 
 ### Install-lane resolution: unresolved import → distribution (no identity fallback)
 
-When an external import has no provider after certified relink (`relink.flag_unresolved_imports`), the install lane must propose *which distribution* to install. Its safety rests on one invariant plus one mechanism.
+This fires inside the **Phase-A resolve↔repair fixpoint**, not as a separate later pass. Each round resolves the current roots into their transitive closure, installs it, and computes coverage as the RECORD-union over that whole closure (`resolved_record_coverage`, `build.py:408`) — so an import satisfied *transitively* (`import jinja2` under a declared `flask`) is already covered and never reaches here. Only the genuinely-undeclared-and-absent residue is "missing." For each such import the install lane proposes *which distribution* to install, adds the grounded winner as a **new root**, and re-resolves (pulling in its subtree). `relink.flag_unresolved_imports` at Stage 4a is the *terminal* flag for whatever still has no provider after every repair round. Its safety rests on one invariant plus one mechanism.
 
 **Invariant — no identity fallback.** An import name is *never* guessed to be its own distribution name. A candidate that grounds to nothing leaves the import honestly `unresolved`. This is the deleted `map_import_to_package` identity rung — and, notably, pipreqs' own `data.get(pkg, pkg)` default (take its *table*, not its fallback). Reinstating it is the wrong-install / self-install-false-green vector (memories `self-install-false-green-vector`, `phase2-identity-fallback-deletion`).
 
