@@ -73,13 +73,13 @@ The residue is `repo_modules.stem_collisions` — the difference between the bro
 
 1. Route **config-first**: apply the config bundle (editable install + rootdir), then check `python -c "import X"`.
 2. Only if still MISSING **and** the name is a plausible distribution, **fall through to install**.
-3. **Flag any collision-zone fallback install as a false-green risk.** Installing PyPI `azure` when the code meant the repo's own `azure` can pass tests against the wrong code (memory `self-install-false-green-vector`). Config-first ordering is the safety property; the certificate is the arbiter — never a static guess, never the LLM.
+3. **Flag any collision-zone fallback install as a false-green risk.** Installing PyPI `azure` when the code meant the repo's own `azure` can pass tests against the wrong code (memory `self-install-false-green-vector`). Config-first ordering is the safety property; the certificate is the arbiter — never a static guess, never the LLM. Concretely the arbiter is already built: `relink.py` runs `importlib.metadata.packages_distributions()` in the container post-install (the certified reverse index of installed dist → provided imports), and `relink.flag_unresolved_imports` — an import with no `Package` edge after relink and non-optional — is the "still MISSING" signal. An editable-installed first-party package appears in that same map, so `import myapp` resolves through the identical certified mechanism once the config cure runs: one certificate covers both lanes.
 
 The false-green flag must have an **owner**: a policy that treats config as the default cure and install as genuine last resort (or a human gate). A flag nothing consumes is just a log line.
 
 ## Kept / changed / net-new (code-grounded)
 
-**Kept** — `roots.select_roots` declared-only roots (`roots.py:393`, imports never generate roots); the certification axis (`schema.py` `Node` fields); `resolve_link.link_imports_to_packages` satisfied-by reconciliation (`resolve_link.py:93`, links to existing pkgs, never fabricates); the native overlay.
+**Kept** — `roots.select_roots` declared-only roots (`roots.py:393`, imports never generate roots); the certification axis (`schema.py` `Node` fields); **`relink.py`'s certified `Import→Package` edges from the post-install `packages_distributions()` map** — the *sole* build-path `satisfied-by` source (the static `resolve_link.link_imports_to_packages` is retired from the build path); `import_mapping.map_import_to_package` (15-entry curated table + declared-name equality) kept only as a *pre-install* best-effort guess for evidence/repair/classification; the native overlay.
 
 **Changed** —
 - **Route, don't drop.** `scan.scan_to_nodes` stops discarding first-party imports (`scan.py:163`); instead it emits `file` nodes and routes each import's `satisfied-by?` to a `file` (internal) or `pkg` (external) via the ladder. This rewrites construction on every already-passing repo → **regression-sweep gated** (memory `regression-sweep-is-the-gate`).
@@ -115,6 +115,6 @@ The false-green flag must have an **owner**: a policy that treats config as the 
 ## References
 
 - Memory: `envgraph-import-classification-approach`, `regression-sweep-is-the-gate`, `self-install-false-green-vector`, `package-layer-not-source-aware`, `front-load-complete-model-not-reactive`, `two-phase-declared-roots-construction-landed`.
-- Code today: `src/python_deps/depgraph/schema.py` (Node/Edge, NodeType, `tier`/`layer`), `scan.py` (import scan; drops first-party at :163), `repo_modules.py` (sys.path-accurate `top_level_names`, `stem_collisions`), `roots.py` (declared-only roots; `TODO(target-stdlib)`), `resolve_link.py` (satisfied-by reconciliation), `import_graph.py` (per-name findings with `source_files`).
+- Code today: `src/python_deps/depgraph/schema.py` (Node/Edge, NodeType, `tier`/`layer`), `scan.py` (import scan; drops first-party at :163), `repo_modules.py` (sys.path-accurate `top_level_names`, `stem_collisions`), `roots.py` (declared-only roots; `TODO(target-stdlib)`), `relink.py` (certified `satisfied-by` via post-install `packages_distributions()`; `flag_unresolved_imports`), `resolve_link.py` (retired static linker), `import_mapping.py` (curated table + `declared_metadata_match` name-equality), `import_graph.py` (per-name findings with `source_files`).
 - EnvGraph baseline: `method/envgraph/{graph/builder.py, graph/repo_builder.py, reasoners/llm.py, extractors/python_files.py}`.
 - Prior specs: `2026-07-16-collection-graph-simplification-design.md`, `2026-07-14-runtime-test-environment-construction-graph-design.md`, `2026-07-16-build-plan-certification-and-execution-evidence-graph-design.md`.
