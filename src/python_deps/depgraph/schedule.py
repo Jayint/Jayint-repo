@@ -42,7 +42,7 @@ def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False)
     return (
         node.state is State.MISSING
         and service_ok
-        and node.type is not NodeType.CONFIG   # advisory-only (tier 6); its DSN repoint is
+        and node.type is not NodeType.CONFIG   # advisory-only; its DSN repoint is
                                                # folded into the owning service's setup["bind"],
                                                # so a Config is never a scheduled obligation.
         and bool(node.check_command)              # the agent needs a host stop condition

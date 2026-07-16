@@ -24,9 +24,9 @@ class NodeType(enum.Enum):
     SYSTEM_LIB = "SystemLib"
     TOOL = "Tool"
     RUNTIME = "Runtime"
-    PLATFORM = "Platform"      # tier 1
-    SERVICE = "Service"        # tier 5
-    CONFIG = "Config"          # tier 6
+    PLATFORM = "Platform"
+    SERVICE = "Service"
+    CONFIG = "Config"
 
 
 class EdgeType(enum.Enum):

@@ -1,7 +1,7 @@
 """The two arm treatments, as strings appended to the repair scope.
 
 flat_list_context (C0.5) = the dependency INFORMATION with none of the structure.
-graph_context     (C1)   = the same needs, but typed + tiered + provenance + the
+graph_context     (C1)   = the same needs, but typed + provenance + the
                            chosen_fix hint + the requires-neighborhood (the STRUCTURE)."""
 from __future__ import annotations
 
