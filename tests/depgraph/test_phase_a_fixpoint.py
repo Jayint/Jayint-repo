@@ -297,7 +297,7 @@ def test_fixpoint_ambiguous_does_not_pick(tmp_path):
     guesser = lambda name, symbols: ["attr", "python-attr"] if name == "attr" else []  # noqa: E731
     provider, consulted = _recording_provider({"attr": {"attr"}, "python-attr": {"attr"}})
 
-    graph, _counter = _build_counting(repo, ex, provider, llm_dist_guesser=guesser)
+    graph, counter = _build_counting(repo, ex, provider, llm_dist_guesser=guesser)
 
     assert _audit_packages(graph) == []
     assert graph.get(package_id("attr", "1.0")) is None
@@ -307,6 +307,10 @@ def test_fixpoint_ambiguous_does_not_pick(tmp_path):
     # not skipped for lack of candidates).
     assert any(normalize_package_name(d) == "attr" for d in consulted)
     assert any(normalize_package_name(d) == "python-attr" for d in consulted)
+    # TEETH (effective no-pick): AMBIGUOUS must add NO root, so there is NO second
+    # resolve. A wrongful "pick-first" would add a root and force a re-resolve
+    # (resolve == 2); staying at 1 is what proves the fixpoint refrained.
+    assert counter["resolve"] == 1
 
 
 def test_fixpoint_optional_import_never_triggers_repair(tmp_path):
