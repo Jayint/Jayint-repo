@@ -19,6 +19,27 @@
 
 ---
 
+## Scope — where this plugs into the existing Phase-A loop
+
+**This plan does not build a loop. It replaces one step inside a loop that already exists.** The Phase-A resolve↔repair fixpoint (`build.py:346`, `_phase_a_fixpoint`) *is* the python-package-layer loop today; this plan changes **only step 4's candidate generation**. Steps 1, 2, 3, and 5 — resolve, install, coverage, and re-resolve-on-ACCEPT — are existing infrastructure and MUST NOT be modified by any task here.
+
+| # | loop step | code | this plan |
+|---|---|---|---|
+| 1 | resolve current roots → transitive closure, install it | `install_closure` (`build.py:404`) | untouched |
+| 2 | coverage = RECORD-union over the resolved closure | `resolved_record_coverage` (`build.py:408`) | untouched |
+| 3 | `missing` = non-optional imports the closure doesn't cover | `build.py:409-415` | untouched |
+| 4 | per missing import → propose candidates → ground → ACCEPT | `generate_candidates` → `choose_provider` (`build.py:429-432`) | **replaced — candidate *generation* only** (Tasks 1–6); `choose_provider` grounding **unchanged** |
+| 5 | ACCEPT adds root → re-resolve (pulls its subtree); loop until fixpoint / bound | `build.py:450` + loop control (`:456` attempted set, `:465` bound) | untouched |
+
+Consequences the tasks rely on:
+- **The re-resolve loop (step 5) is not implemented here — the plan's output *feeds* it.** A grounded ACCEPT becomes a root; adding it and re-resolving its transitive subtree (which may cover other missing imports for free) is existing behavior.
+- **Anti-oscillation is unchanged.** `generate_candidates` still returns `Candidate` objects carrying `.dist`, so the existing `attempted` set (`build.py:456`) and round bound (`build.py:465`) track the new candidates with no change.
+- **The only loop edit any task makes is the call site** at `build.py:429-432` (Task 5): change the arguments passed to `generate_candidates` (add `symbols`, thread `llm`). The surrounding loop body is not touched.
+
+**Scope boundary — install-lane only.** This is the *install-lane* half of the python-package layer ("external/undeclared import → which distribution"). The *config-lane* half — first-party import failures cured by editable-install/rootdir (the file-lane) — is a separate later unit, gated on the certificate-arbitration blocker, and is out of scope here. After this plan the fixpoint resolves external/undeclared imports via the new generator; first-party imports remain dropped at scan (old behavior) until the classifier / route-not-drop lands.
+
+---
+
 ## File structure
 
 - **Create** `src/python_deps/depgraph/data/pipreqs_mapping.txt` — the 1157-row `import:dist` table (vendored).
