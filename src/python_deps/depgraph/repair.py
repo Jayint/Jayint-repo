@@ -81,7 +81,7 @@ def generate_candidates(
     seen: set[str] = set()
     out: list[Candidate] = []
     for candidate in raw:
-        key = normalize_package_name(candidate.dist)
+        key = normalize_package_name(candidate.dist.strip())
         if key and key not in seen:
             seen.add(key)
             out.append(candidate)

@@ -47,6 +47,13 @@ def test_generate_canon_dedupes():
     assert len(cands) == 1
 
 
+def test_generate_skips_blank_llm_candidate():
+    def llm(name, symbols):
+        return ["   ", "", "valid-dist"]  # blank + whitespace-only must be dropped
+    cands = generate_candidates("zzz_unknown", llm=llm)
+    assert [(c.dist, c.source) for c in cands] == [("valid-dist", "llm")]
+
+
 # --------------------------------------------------------------------------- #
 # decide — 3-way self-check
 # --------------------------------------------------------------------------- #
