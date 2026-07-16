@@ -11,7 +11,6 @@ from python_deps.depgraph.repair import (
     RepairDecision,
     Verdict,
     choose_provider,
-    declared_candidates,
     record_grounds,
 )
 from python_deps.import_mapping import normalize_package_name
@@ -175,10 +174,10 @@ def test_choose_provider_returns_repair_decision():
 # candidate rung.
 # --------------------------------------------------------------------------- #
 def test_declared_metadata_candidate_grounds_to_accept():
-    cands = [
-        Candidate(d, "declared_metadata")
-        for d in declared_candidates("freezegun", frozenset({"freezegun"}))
-    ]
+    # A candidate labeled from the (retired) declared rung still grounds like any
+    # other: choose_provider is source-agnostic, so this exercises the grounding
+    # discipline, not the deleted generator.
+    cands = [Candidate("freezegun", "declared_metadata")]
     prov = make_provider({"freezegun": {"freezegun"}})
     decision = choose_provider("freezegun", cands, prov)
     assert decision.verdict == Verdict.ACCEPT
@@ -189,10 +188,7 @@ def test_declared_metadata_candidate_denied_when_record_disagrees():
     # Evidence is not proof: if the RECORD contents don't actually contain the
     # import, grounding denies it like any other candidate -- never an
     # auto-accept bypass.
-    cands = [
-        Candidate(d, "declared_metadata")
-        for d in declared_candidates("freezegun", frozenset({"freezegun"}))
-    ]
+    cands = [Candidate("freezegun", "declared_metadata")]
     prov = make_provider({"freezegun": {"something_else"}})
     decision = choose_provider("freezegun", cands, prov)
     assert decision.verdict == Verdict.UNRESOLVED

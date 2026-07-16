@@ -24,22 +24,19 @@ Invariants held here:
 from __future__ import annotations
 
 import enum
-import re
 from dataclasses import dataclass
 from typing import Callable
 
+from python_deps.depgraph.pipreqs_map import pipreqs_candidates
 from python_deps.import_mapping import (
-    CURATED_IMPORT_TO_PACKAGE,
-    declared_metadata_match,
     normalize_package_name,
     top_level_import_name,
 )
 
-
-# The one rung that is EVIDENCE rather than a guess: a distribution the repo's own
-# manifest declares. Named once so generate_candidates and choose_provider cannot
-# drift apart on a bare string literal.
-DECLARED_SOURCE = "declared_metadata"
+# The install-lane guesser seam: an INJECTED callable fed ``(import_name, symbols)``
+# that returns candidate distribution names on a pipreqs map MISS. Defaulting to
+# ``None`` keeps python_deps model-free — no model call originates here.
+DistGuesser = Callable[[str, tuple[str, ...]], list[str]]
 
 
 @dataclass(frozen=True)
@@ -47,7 +44,7 @@ class Candidate:
     """A proposed distribution name and the rung that produced it."""
 
     dist: str
-    source: str  # DECLARED_SOURCE | "normalize" | "curated" | "llm"
+    source: str  # "pipreqs" | "llm"
 
 
 class Verdict(enum.Enum):
@@ -58,120 +55,34 @@ class Verdict(enum.Enum):
     UNRESOLVED = "UNRESOLVED"
 
 
-def normalize_candidates(import_name: str) -> list[str]:
-    """Mechanical name variants for an import's top-level, canon-deduped.
-
-    Verbatim from the spike: ``top``, ``top.lower()``, dashed
-    (``[_.]+`` -> ``-``), ``python-<dashed>``, ``<dashed>-python``. The first
-    occurrence of each canonical form wins.
-    """
-    top = top_level_import_name(import_name)
-    dashed = re.sub(r"[_.]+", "-", top.lower())
-    raw = [top, top.lower(), dashed, f"python-{dashed}", f"{dashed}-python"]
-    seen: set[str] = set()
-    out: list[str] = []
-    for candidate in raw:
-        key = normalize_package_name(candidate)
-        if key not in seen:
-            seen.add(key)
-            out.append(candidate)
-    return out
-
-
-def curated_candidates(import_name: str) -> list[str]:
-    """The demoted curated remap, now an untrusted candidate source.
-
-    Looks up ``CURATED_IMPORT_TO_PACKAGE`` by the lowercased top-level import
-    name and returns ``[hit]`` when present, else ``[]``. The table is NO LONGER
-    a root authority — it contributes one candidate rung that still has to be
-    grounded downstream.
-
-    Note: the lookup key is ``top_level.lower()`` (mirroring
-    ``import_mapping.map_import_to_package``), not the packaging canonical form,
-    because the table is keyed by real import spellings — some of which keep
-    underscores (e.g. ``django_filters``) that canonicalization would mangle.
-    """
-    key = top_level_import_name(import_name).lower()
-    hit = CURATED_IMPORT_TO_PACKAGE.get(key)
-    return [hit] if hit else []
-
-
-def declared_candidates(
-    import_name: str,
-    declared_package_names: "set[str] | frozenset[str] | None" = None,
-) -> list[str]:
-    """The repo's OWN declared distribution, if its name matches this import.
-
-    Reuses :func:`python_deps.import_mapping.declared_metadata_match` — the same rung
-    ``map_import_to_package`` already has. Returns ``[]`` when no declared name
-    matches, or when ``declared_package_names`` is ``None`` (the default), so every
-    existing caller keeps its old candidate set.
-
-    ⚠ KNOWN LIMITATION — this rung is currently near-redundant, and that is on
-    purpose rather than an oversight. ``declared_metadata_match`` matches by
-    NORMALIZED NAME EQUALITY (import top-level == distribution name), so it fires only
-    for ``freezegun`` -> ``freezegun``, never for ``yaml`` -> ``PyYAML`` or
-    ``psycopg2`` -> ``psycopg2-binary`` — precisely the import/distribution mismatches
-    that need help. And where it DOES fire, ``normalize_candidates`` already proposes
-    the same canonical name, so only the trace LABEL changes.
-
-    Making it useful needs a real design pass, not a wider matcher: a looser match
-    (substring/RECORD-grounded over declared dists) mostly lands in AMBIGUOUS anyway,
-    because the mechanical guessers frequently confirm too (a real ``jwt`` dist exists
-    alongside ``PyJWT``). Letting a declared candidate WIN that tie was tried and
-    reverted — see :func:`choose_provider` for why it is unsafe. The rung is kept as
-    the plumbing that a correct design will need.
-    """
-    match = declared_metadata_match(import_name, declared_package_names)
-    return [match] if match else []
-
-
 def generate_candidates(
     import_name: str,
     *,
-    declared_package_names: "set[str] | frozenset[str] | None" = None,
-    llm: Callable[[str], list[str]] | None = None,
+    symbols: tuple[str, ...] = (),
+    llm: DistGuesser | None = None,
 ) -> list[Candidate]:
-    """Ordered candidates: declared -> normalize -> curated -> (optional) llm.
+    """Ordered candidates for an unresolved import: pipreqs map, else LLM.
 
-    The ``declared`` rung runs FIRST — ABOVE the mechanical guessers — because
-    it is EVIDENCE (a distribution the repo's own manifest already declares,
-    in any group) rather than a name-transform or table-driven guess; when it
-    and a guesser rung land on the same canonical distribution, the declared
-    rung's label wins the canon-dedup below, so the trace records that the
-    candidate came from the manifest, not a guess. It fires only when a caller
-    passes ``declared_package_names`` (default ``None`` -> no declared
-    candidates, so every existing caller keeps its old candidate set/order
-    unchanged — this is an additive, backward-compatible rung).
-
-    Then the deterministic guessers (``normalize`` then ``curated``); the
-    ``llm`` rung runs ONLY when an ``llm`` callable is injected, and its
-    guesses land last. Canon-deduped with the first (cheapest/most-trusted)
-    source winning. ``llm`` defaults to ``None`` so the deterministic core
-    never calls a model.
-
-    Note: a declared candidate still must survive RECORD-grounding via
-    ``choose_provider`` like every other candidate — it is never auto-accepted.
-    Proposing a name the repo already wrote down is not the deleted
-    import-name-as-dist-name identity fallback: it names one of the repo's OWN
-    declared distributions, not the import's own spelling.
+    Deterministic step 1 is the vendored pipreqs table; on a *miss* only, an
+    injected ``llm`` guesser fed ``(import_name, symbols)`` proposes. No other
+    source, and NEVER the import name itself (no identity fallback). Every
+    candidate is still RECORD-grounded by ``choose_provider`` — this function
+    only proposes. Canon-deduped, first spelling wins.
     """
-    ordered: list[Candidate] = [
-        Candidate(dist, DECLARED_SOURCE)
-        for dist in declared_candidates(import_name, declared_package_names)
-    ]
-    ordered += [
-        Candidate(dist, "normalize") for dist in normalize_candidates(import_name)
-    ]
-    ordered += [Candidate(dist, "curated") for dist in curated_candidates(import_name)]
-    if llm is not None:
-        ordered += [Candidate(dist, "llm") for dist in llm(import_name)]
+    top = top_level_import_name(import_name)
+    hits = pipreqs_candidates(top)
+    if hits:
+        raw = [Candidate(dist, "pipreqs") for dist in hits]
+    elif llm is not None:
+        raw = [Candidate(dist, "llm") for dist in llm(top, symbols)]
+    else:
+        raw = []
 
     seen: set[str] = set()
     out: list[Candidate] = []
-    for candidate in ordered:
+    for candidate in raw:
         key = normalize_package_name(candidate.dist)
-        if key not in seen:
+        if key and key not in seen:
             seen.add(key)
             out.append(candidate)
     return out
