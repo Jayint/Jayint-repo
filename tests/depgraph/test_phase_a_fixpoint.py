@@ -196,11 +196,16 @@ def test_fixpoint_default_composite_provider_repairs_via_pypi_fetch(tmp_path):
     from python_deps.depgraph.coverage import pypi_record_provider
 
     repo = _repo(tmp_path, "import yaml\n")
-    # PyYAML installs, so the container honestly reports yaml->PyYAML; Stage 4a
-    # certifies the edge (sole Import->Package source) so yaml is not flagged.
+    # The FIRST packages_distributions read (the memoized post-install container
+    # provider) is EMPTY: at round-1 repair time the pipreqs candidate (PyYAML) is
+    # NOT yet installed, so the cheap container reader is honestly BLIND for it and
+    # the composite MUST fall through to the PyPI wheel read to ground it (the whole
+    # point of P1.5). The later read reports yaml->PyYAML once PyYAML installs, so
+    # Stage 4a (sole Import->Package source) still certifies the edge and yaml is
+    # not flagged.
     ex = _fallback_executor(
         ["PyYAML==6.0\n    # via -r -\n"],
-        packages_dist=[_r(0, stdout='{"yaml": ["PyYAML"]}')],
+        packages_dist=[_r(0, stdout="{}"), _r(0, stdout='{"yaml": ["PyYAML"]}')],
     )
 
     fetch_calls = {"n": 0}
@@ -440,17 +445,21 @@ def test_fixpoint_attempted_set_stops_oscillation(tmp_path, caplog):
     """A grounded candidate is ACCEPTED then evicted by resolution (re-appears
     missing). The attempted-set prevents re-adding the same pair, so the loop
     stops (bounded), residue flagged, oscillation warning logged, no exception."""
-    repo = _repo(tmp_path, "import widget\n")
+    repo = _repo(tmp_path, "import yaml\n")
     # Round 2 closure is EMPTY (the added root failed to materialize == evicted).
     ex = _fallback_executor([""])
-    provider = _provider({"widget": {"widget"}})
+    # pipreqs maps yaml->pyyaml (a real non-identity entry the map carries), and
+    # this provider RECORD-confirms it, so the candidate is genuinely ACCEPTED in
+    # round 1 -- which is what makes the round-2 re-proposal hit the attempted-set.
+    provider = _provider({"pyyaml": {"yaml"}})
 
     with caplog.at_level(logging.WARNING):
         graph, counter = _build_counting(repo, ex, provider)
 
-    # widget was accepted once (round 1) then the pair was not re-added (round 2).
+    # yaml->pyyaml was accepted once (round 1) then the pair was not re-added
+    # (round 2) because it is already in the attempted-set.
     assert counter["resolve"] <= 2
-    assert graph.get(import_id("widget")).data.get("unresolved") is True
+    assert graph.get(import_id("yaml")).data.get("unresolved") is True
     assert _packages(graph) == []
     assert any("phase-A" in rec.message for rec in caplog.records)
 

@@ -593,15 +593,19 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     from python_deps.import_mapping import normalize_package_name as _norm
 
     (tmp_path / "app.py").write_text(
-        "import os\nimport cv2\nfrom PIL import Image\nimport psycopg2\n"
+        "import os\nimport cv2\nfrom PIL import Image\nimport bs4\n"
     )
     # NO pyproject.toml -> no manifest-declared roots. Repair is the only path
-    # that can populate the Package layer here.
+    # that can populate the Package layer here. All three imports are NON-identity
+    # names the pipreqs map actually carries (cv2->opencv-python, PIL->pillow,
+    # bs4->beautifulsoup4); an identity import whose name IS its dist (e.g.
+    # psycopg2) is deliberately NOT proposed by the map (the removed self-install
+    # false-green vector), so it would not be repaired here.
     round1 = (
         "numpy==1.26.4\n    # via opencv-python\n"
         "opencv-python==4.9.0.80\n    # via -r -\n"
         "Pillow==10.3.0\n    # via -r -\n"
-        "psycopg2==2.9.9\n    # via -r -\n"
+        "beautifulsoup4==4.12.3\n    # via -r -\n"
     )
     ex = SequencedFakeExecutor(
         responses={
@@ -611,7 +615,7 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
         },
         default=_r(0),
     )
-    provided = {"opencv-python": {"cv2"}, "Pillow": {"PIL"}, "psycopg2": {"psycopg2"}}
+    provided = {"opencv-python": {"cv2"}, "Pillow": {"PIL"}, "beautifulsoup4": {"bs4"}}
     norm = {_norm(k): v for k, v in provided.items()}
     provider = lambda dist: norm.get(_norm(dist))  # noqa: E731
 
@@ -622,7 +626,7 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     for dist, ver in (
         ("opencv-python", "4.9.0.80"),
         ("Pillow", "10.3.0"),
-        ("psycopg2", "2.9.9"),
+        ("beautifulsoup4", "4.12.3"),
     ):
         node = graph.get(package_id(dist, ver))
         assert node is not None, f"{dist} package missing after repair"
@@ -630,6 +634,25 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     # A transitive dep pulled in by a repaired root stays RESOLVER (not AUDIT).
     numpy = graph.get(package_id("numpy", "1.26.4"))
     assert numpy is not None and numpy.discovered_by is DiscoveredBy.RESOLVER
+
+
+def test_fixpoint_uses_pipreqs_candidate_via_grounding(monkeypatch):
+    """An unresolved import whose pipreqs dist RECORD-confirms is accepted as a root."""
+    from python_deps.depgraph import build as build_mod
+
+    # stub record provider: opencv-python's wheel provides top-level "cv2"
+    def fake_provider(dist):
+        return {"cv2"} if dist == "opencv-python" else set()
+
+    imp = build_mod.Node(  # a bare unresolved external import
+        id="import:cv2", type=build_mod.NodeType.IMPORT, name="cv2",
+        layer=build_mod.Layer.NAMING, discovered_by=build_mod.DiscoveredBy.STATIC_SCAN,
+    )
+    graph = build_mod.DepGraph(nodes=(imp,))
+    candidates = build_mod.generate_candidates("cv2")
+    decision = build_mod.choose_provider("cv2", candidates, fake_provider)
+    assert decision.verdict is build_mod.Verdict.ACCEPT
+    assert decision.dist == "opencv-python"
 
 
 # --------------------------------------------------------------------------- #

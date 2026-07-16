@@ -71,6 +71,7 @@ from python_deps.depgraph.probe import import_probe, install_closure
 from python_deps.depgraph.project_native_deps import project_native_obligations
 from python_deps.depgraph.relink import certified_import_links
 from python_deps.depgraph.repair import (
+    DistGuesser,
     RecordProvider,
     Verdict,
     choose_provider,
@@ -359,6 +360,7 @@ def _phase_a_fixpoint(
     uv_indexes: tuple[dict, ...] = (),
     workspace_members: tuple[str, ...] = (),
     repo_path: str | None = None,
+    llm: DistGuesser | None = None,
 ) -> DepGraph:
     """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
 
@@ -420,14 +422,14 @@ def _phase_a_fixpoint(
 
         new_pair = False
         for imp in missing:
-            # LLM stays OUT of the deterministic core (never pass an llm here).
-            # ``declared_package_names`` is EVERY distribution the manifest names, in
-            # ANY group — including groups select_roots filtered out of this resolve.
-            # It lets the ladder SELECT a declared dist rather than GUESS a name, and
-            # (in choose_provider) lets that declaration break a variant tie that
-            # grounding alone can only call AMBIGUOUS.
+            # Candidate generation: the vendored pipreqs import->dist table first
+            # (deterministic); ONLY on a map miss does the injected ``llm`` guesser
+            # propose, fed this import's used-symbols (``data["symbols"]``). When
+            # ``llm`` is None (the default), the path stays purely deterministic.
+            # Either way every candidate is still RECORD-grounded by
+            # ``choose_provider`` -- this only proposes names, never accepts them.
             candidates = generate_candidates(
-                imp.name, declared_package_names=declared_package_names, llm=None
+                imp.name, symbols=tuple(imp.data.get("symbols", ())), llm=llm
             )
             decision = choose_provider(imp.name, candidates, record_provider)
             if (
@@ -435,16 +437,14 @@ def _phase_a_fixpoint(
                 and decision.dist is not None
                 and (imp.name, decision.dist) not in attempted
                 and _canon(decision.dist) not in root_dists
-                # Gate/Also-fix 2: `generate_candidates` proposes the
-                # normalized import spelling REGARDLESS of
-                # `declared_package_names` (the `normalize`/`curated` rungs
-                # read only the import name), so excluding a uv-sourced name
-                # from that one rung (`_declared_package_names_for_repair`)
-                # is not enough -- it must also be rejected HERE, at
-                # acceptance, or an unactivated optional uv-sourced dependency
-                # whose import normalizes to its own dist name could still be
+                # Gate/Also-fix 2: `generate_candidates` proposes the pipreqs-mapped
+                # (or LLM-guessed) dist purely from the import name/symbols, with no
+                # knowledge of `_declared_package_names_for_repair`'s uv-source
+                # exclusion, so an unactivated optional uv-sourced dependency whose
+                # import happens to map to its own dist name could still be
                 # RECORD-confirmed and re-enter as a repaired root, silently
-                # resolving the unrelated public PyPI package in its place.
+                # resolving the unrelated public PyPI package in its place. It must
+                # therefore be rejected HERE, at acceptance, as well.
                 and _canon(decision.dist) not in uv_sourced_names
             ):
                 roots = roots + [(None, decision.dist)]
@@ -719,6 +719,7 @@ def _python_package_obligations(
     needed_extras: frozenset[str] = frozenset(),
     record_provider: RecordProvider | None = None,
     uv_sources_enabled: bool = False,
+    llm_dist_guesser: DistGuesser | None = None,
 ) -> tuple[DepGraph, list, object, str | None]:
     """Python PHASE 1 — VERBATIM move of build_dep_graph body lines 488-608.
 
@@ -932,6 +933,7 @@ def _python_package_obligations(
         uv_indexes=uv_indexes,
         workspace_members=workspace_members,
         repo_path=repo_path,
+        llm=llm_dist_guesser,
     )
 
     # Stage 3a'/3a''/3b — auxiliary node stages run ONCE after convergence (they
@@ -1038,6 +1040,7 @@ def build_dep_graph(
     needed_extras: frozenset[str] = frozenset(),
     record_provider: RecordProvider | None = None,
     uv_sources_enabled: bool = False,
+    llm_dist_guesser: DistGuesser | None = None,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
@@ -1089,6 +1092,16 @@ def build_dep_graph(
     means. Threaded straight through the ``ecosystems`` provider seam
     (``EcosystemProvider.package_obligations`` accepts-and-ignores it for any
     non-Python provider); this function never reads the environment itself.
+
+    ``llm_dist_guesser`` (default ``None``) is the injected install-lane dist
+    guesser the Phase-A repair fixpoint calls on a pipreqs map MISS, fed each
+    unresolved Import's used-symbols. ``None`` keeps repair purely deterministic
+    (byte-identical to the pre-guesser behavior). NOTE: threading it down to
+    :func:`_python_package_obligations` runs through the ``ecosystems`` provider
+    seam (``EcosystemProvider.package_obligations``), whose signature does not yet
+    carry this parameter, so it is NOT forwarded from here today; a caller wanting
+    a live guesser injects it at :func:`_python_package_obligations` /
+    ``PythonProvider.package_obligations`` directly. Wiring the seam is a follow-up.
     """
     # Function-local import breaks the build<->provider cycle: by the time this
     # runs, build.py is fully loaded, so ecosystems.python.provider (which imports
