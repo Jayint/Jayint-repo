@@ -83,7 +83,7 @@ Each step keeps already-passing repos green; the regression sweep is the gate (m
 1. **certify-by-import** (Stage 5) — independent, highest leverage, lands first.
 2. **drop `tier`** + **finish the install-lane candidate swap** — both independent (swap already in flight).
 3. **Additively add `file` nodes + edge-`scope`** — enum member + emission; keep the old Test-hub wiring; sweep stays green because nothing routes yet.
-4. **The coupled file lane** — build + prove the config-first arbitration owner → knowingly rewrite `test_construction_boundary.py`'s behavioral guard to the new invariant (a collision name is not install-accepted unless the config-cured certificate shows it does not resolve locally; test with a stubbed certificate) → flip route-not-drop (`scan.py:152-153`) + wire the classifier stage after Stage 2 + sequence the config-cure (`populate.py:57` editable install) before the install lane can accept a collision name + teach `relink._provided_imports` the `file` dst.
+4. **The coupled file lane** — build + prove the config-first arbitration owner → knowingly rewrite `test_construction_boundary.py`'s behavioral guard to the new invariant (a collision name is not install-accepted unless the config-cured certificate shows it does not resolve locally; test with a stubbed certificate) → flip route-not-drop (`scan.py:152-153`) + wire the classifier stage after Stage 2 + sequence the config-cure (`populate.py:57` editable install) before the install lane can accept a collision name + teach `relink._provided_imports` the `file` dst + add a one-line guard in `probe._probe_targets` (`probe.py:496`) skipping imports whose `satisfied-by` is a `file`, so native probing stays on package-backed imports only (a **preservation** measure — it keeps native detection behaving as today under the grown input set, not a detection change).
 5. **Delete the now-dead demoted-tier construction code** — Test/Runtime/Config/Service/Platform *emission*; enum members stay (superset); `config_scan` is repurposed, not deleted.
 
 Steps 1–3 make real progress on the measured problem with zero blocker exposure; step 4 is the one place the blocker is paid for; step 5 is cleanup that falls out for free.
@@ -91,6 +91,14 @@ Steps 1–3 make real progress on the measured problem with zero blocker exposur
 ## Regression-sweep gate (invariant)
 
 Every step above is a construction change on already-passing repos. Before any scored run: sweep the repos that currently PASS, not only the broken ones. Route-not-drop (step 4) rewrites construction on *every* repo and is the highest-risk step — it stays behind the arbitration owner and the rewritten tripwire, and is validated on the pass-repos before the old drop path is pruned.
+
+## Native-overlay invariants (pinned)
+
+Verified against code, restated so "preserved unchanged" is not misread:
+
+- **`Tool` and `SystemLib` are both actively-emitted node types** — not demoted, not merged. `probe.py` fabricates both live (`probe.py:440` `NodeType.TOOL`, `:468` `NodeType.SYSTEM_LIB`). The emitted set in the new model is `project · file · import · pkg · SystemLib · Tool`; the demoted-and-superset-retained set is `Test · Runtime · Config · Service · Platform`.
+- **The overlay is a flat one-hop fan-out off `pkg`** (`pkg → SystemLib`, `pkg → Tool`), siblings not a chain — there is no `SystemLib → Tool` edge. Both are **leaf sinks**, never `requires` sources: `EDGE_RULES["requires"]` (`schema.py:110-113`) lists `SystemLib`/`Tool` only in the destination set. The paired `-dev → runtime` relationship (e.g. `libpq-dev → libpq5`) is apt's to resolve transitively at install time, deliberately not a graph edge.
+- **Native detection logic is untouched.** No native module reads `.tier` (so the `tier` drop is invisible to it), and the discovery/resolution/ordering modules are not in the change list. The overlay's *only* contact with this integration is the `probe._probe_targets` input guard in step 4 above, which exists to keep that behavior constant under route-not-drop's grown import set.
 
 ## Open questions / to validate
 
