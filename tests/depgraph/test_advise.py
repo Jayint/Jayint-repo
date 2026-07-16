@@ -163,6 +163,74 @@ def test_build_advisory_degrades_gracefully(monkeypatch) -> None:
     assert graph is None
 
 
+def test_build_advisory_forwards_llm_dist_guesser(monkeypatch) -> None:
+    """build_advisory_for_repo must forward ``llm_dist_guesser`` straight through
+    to ``build_dep_graph`` (the single install-lane injection point). A spy on
+    ``advise.build_dep_graph`` records its kwargs; ``DockerExecutor`` is a no-op
+    context manager so no Docker is touched."""
+    import python_deps.depgraph.advise as advise_mod
+    from python_deps.depgraph.advise import build_advisory_for_repo
+    from python_deps.depgraph.schema import DepGraph
+
+    captured: dict = {}
+
+    def _spy_build_dep_graph(repo_path, scratch, **kwargs):
+        captured.update(kwargs)
+        return DepGraph()
+
+    class _NoopExecutor:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return object()  # scratch executor — the spy never touches it
+
+        def __exit__(self, *a):
+            return False
+
+    def _sentinel(import_name, symbols):  # a DistGuesser-shaped callable
+        return []
+
+    monkeypatch.setattr(advise_mod, "build_dep_graph", _spy_build_dep_graph)
+    monkeypatch.setattr(advise_mod, "DockerExecutor", _NoopExecutor)
+
+    advisory, graph = build_advisory_for_repo(
+        "/repo", "python:3.11-slim", llm_dist_guesser=_sentinel,
+    )
+    assert captured.get("llm_dist_guesser") is _sentinel
+    assert graph is not None
+
+
+def test_build_advisory_default_none_forwards_none(monkeypatch) -> None:
+    """With no guesser passed, the forwarded value is ``None`` — the deterministic
+    (pre-guesser) install-lane path, byte-identical to before this wiring."""
+    import python_deps.depgraph.advise as advise_mod
+    from python_deps.depgraph.advise import build_advisory_for_repo
+    from python_deps.depgraph.schema import DepGraph
+
+    captured: dict = {}
+
+    def _spy_build_dep_graph(repo_path, scratch, **kwargs):
+        captured.update(kwargs)
+        return DepGraph()
+
+    class _NoopExecutor:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(advise_mod, "build_dep_graph", _spy_build_dep_graph)
+    monkeypatch.setattr(advise_mod, "DockerExecutor", _NoopExecutor)
+
+    build_advisory_for_repo("/repo", "python:3.11-slim")
+    assert captured.get("llm_dist_guesser") is None
+
+
 def test_best_evidence_line_helper() -> None:
     assert _best_evidence_line(None) is None
     assert _best_evidence_line("") is None

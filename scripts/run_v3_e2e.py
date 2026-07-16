@@ -67,6 +67,9 @@ from src.envstate.snapshot import probe_env
 from src.envstate.manifest import parse_manifests
 from src.envstate.classify_services_clean import make_construction_classifier
 from src.envstate.base_image_selection import choose_base_image
+from src.envstate.llm_dist_guess import make_dist_guesser
+from src.envstate.llm_response import complete_with_retry
+from src.envstate.jsonutil import extract_json_object
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
 from python_deps.depgraph.advise import build_advisory_for_repo
@@ -282,11 +285,27 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
               f"(construction skipped, empty graph)")
     else:
         classify = make_construction_classifier(client, model, arch)
+        # Install-lane dist-guesser: proposes extra import->distribution
+        # candidates ONLY on a pipreqs MISS; every candidate is still
+        # RECORD-grounded downstream. temperature=0 is REQUIRED (determinism —
+        # the guesser caches per (import, symbols), so the run must not depend
+        # on sampling). Mirrors the orchestrator's `_complete` closure; built
+        # here at the orchestration boundary so `python_deps` stays LLM-free.
+        def _dist_complete_fn(messages):
+            text, _usage, _resp = complete_with_retry(
+                client, model, messages,
+                accept=lambda t: extract_json_object(t) is not None,
+                temperature=0, max_attempts=2,
+            )
+            return text
+
+        dist_guesser = make_dist_guesser(_dist_complete_fn)
         graph = None
         try:
             _advisory, graph = build_advisory_for_repo(
                 args.repo, base_image, target_python=choice.minor, classify=classify,
                 uv_sources_enabled=_uv_sources_enabled(),
+                llm_dist_guesser=dist_guesser,
             )
             n = sum(1 for _ in graph.nodes) if graph is not None else 0
             print(f"[v3] dep-graph: {n} nodes")

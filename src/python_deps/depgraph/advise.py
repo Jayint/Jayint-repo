@@ -20,6 +20,7 @@ from collections.abc import Callable
 from python_deps.depgraph.build import build_dep_graph
 from python_deps.depgraph.executor import DockerExecutor, Executor, LocalSubprocessExecutor
 from python_deps.depgraph.emit import partition
+from python_deps.depgraph.repair import DistGuesser
 from python_deps.depgraph.schema import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
 
 logger = logging.getLogger(__name__)
@@ -315,6 +316,7 @@ def build_advisory_for_repo(
     target_python: str | None = None,
     classify: Callable | None = None,
     uv_sources_enabled: bool = False,
+    llm_dist_guesser: DistGuesser | None = None,
 ) -> tuple[str, DepGraph | None]:
     """Build the dep graph in a fresh scratch container and render the advisory.
 
@@ -331,6 +333,13 @@ def build_advisory_for_repo(
     itself; the flag is read once at ``scripts/run_v3_e2e.py``'s
     ``_uv_sources_enabled`` (the impure orchestration boundary) and passed in
     here.
+
+    ``llm_dist_guesser`` (default ``None``) is likewise passed straight through
+    to :func:`build_dep_graph` — the injected install-lane dist-guesser
+    (``src.envstate.llm_dist_guess.make_dist_guesser``). ``None`` keeps the
+    deterministic pipreqs-only path; ``python_deps`` stays LLM-free, so the
+    guesser is constructed at the ``scripts/run_v3_e2e.py`` orchestration
+    boundary and passed in here.
     """
     try:
         host = host_executor or LocalSubprocessExecutor()
@@ -343,6 +352,7 @@ def build_advisory_for_repo(
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
                 uv_sources_enabled=uv_sources_enabled,
+                llm_dist_guesser=llm_dist_guesser,
             )
         if classify is not None:
             from ecosystems.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style

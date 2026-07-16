@@ -15,7 +15,8 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
     choice = BaseImageChoice("python:3.10-slim", "3.10", "linux/amd64", "auto: test")
     monkeypatch.setattr(e2e, "choose_base_image", lambda *a, **k: choice, raising=False)
 
-    def _fake_advisory(repo, image, *, host_executor=None, target_python=None, classify=None):
+    def _fake_advisory(repo, image, *, host_executor=None, target_python=None,
+                       classify=None, **k):
         seen["advisory_image"] = image
         seen["advisory_target_python"] = target_python
         return "", None
@@ -48,6 +49,34 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
     assert seen["map_image"] == "python:3.10-slim"
     assert seen["sandbox_image"] == "python:3.10-slim"
     assert seen["sandbox_platform"] == "linux/amd64"     # platform thread -> Sandbox(platform=...)
+
+
+# ── the live driver constructs the install-lane dist-guesser and injects it into
+# build_advisory_for_repo (→ build_dep_graph). Without this, Task 6's wiring could
+# silently be a no-op (guesser built but never passed, or never built at all). ──
+
+def test_run_constructs_and_forwards_dist_guesser(monkeypatch, tmp_path):
+    seen = _wire_common_fakes(monkeypatch)
+
+    def _capture_advisory(repo, image, *, host_executor=None, target_python=None,
+                          classify=None, llm_dist_guesser=None, **k):
+        seen["dist_guesser"] = llm_dist_guesser
+        return "", None
+    monkeypatch.setattr(e2e, "build_advisory_for_repo", _capture_advisory, raising=False)
+
+    class _FakeSandbox:
+        def __init__(self, **k):
+            self.container = None
+        def execute(self, *a, **k): return None
+        def exec_readonly(self, *a, **k): return None
+        def reset_to_base(self): return None
+        def run_install_script(self, *a, **k): return None
+    monkeypatch.setattr(e2e, "Sandbox", _FakeSandbox, raising=False)
+
+    e2e.main_with_args([str(tmp_path)])
+
+    assert seen["dist_guesser"] is not None        # constructed AND forwarded
+    assert callable(seen["dist_guesser"])          # a DistGuesser (import, symbols) -> list
 
 
 # ── _target_arch: the {dpkg, uname} dict is the sole guarantor that the arch
