@@ -369,8 +369,9 @@ def _phase_a_fixpoint(
     the FULL runtime import set against the resolved closure's RECORD-union
     coverage (Correction 3 — never ``packages_distributions``). A non-optional
     import that no resolved dist provides is repaired by grounding candidate dists
-    (deterministic normalize -> curated, RECORD-grounded via ``record_provider``;
-    NEVER an LLM) and, on an unambiguous ACCEPT, adding the dist as an AUDIT root
+    (from the vendored pipreqs map, else an injected LLM guesser on a map miss,
+    each RECORD-grounded via ``record_provider``) and, on an unambiguous ACCEPT,
+    adding the dist as an AUDIT root
     (``audit_root_names`` threads the repaired set into the resolve retry so a
     declared root is never evicted — Correction 2a) and re-resolving.
 
@@ -482,17 +483,17 @@ def _uv_sourced_dist_names(evidence) -> frozenset[str]:
 
     This is a real, previously-found HIGH bug's protection: a git-pinned
     ``acme-sdk`` must never be "repaired" into the unrelated, same-named
-    PUBLIC PyPI package. Used to exclude such names from BOTH the
-    ``declared_metadata`` repair rung (:func:`_declared_package_names_for_repair`)
-    AND the repair ladder's final ACCEPTANCE gate (:func:`_phase_a_fixpoint`) --
-    excluding it from the declared rung alone is not enough, because
-    ``repair.generate_candidates`` independently proposes the normalized
-    import spelling regardless of ``declared_package_names`` (its
-    ``normalize``/``curated`` rungs read only the import name), so an
-    unactivated optional uv-sourced dependency whose import happens to
-    normalize to its own dist name could still be RECORD-confirmed and
-    accepted as a repaired root through that other rung. Excluding it at
-    acceptance time closes that regardless of which rung proposed it.
+    PUBLIC PyPI package. Used to exclude such names at the repair ladder's
+    final ACCEPTANCE gate (:func:`_phase_a_fixpoint`) -- the old
+    ``declared_metadata`` repair rung no longer exists, so acceptance-time
+    exclusion is now where this protection lives. It is needed because
+    ``repair.generate_candidates`` proposes a distribution name from the
+    vendored pipreqs map (or the injected LLM guesser on a map miss)
+    independently of ``declared_package_names``, and that proposed name can
+    collide with a same-named public PyPI package: an unactivated optional
+    uv-sourced dependency whose import maps to its own dist name could still
+    be RECORD-confirmed and accepted as a repaired root. Excluding it at
+    acceptance time closes that regardless of how the candidate was proposed.
     """
     names = {normalize_package_name(name) for name in evidence.uv_sources}
     names |= {
@@ -686,7 +687,14 @@ def _exclude_direct_reference_roots(
 
 
 def _declared_package_names_for_repair(evidence) -> frozenset[str]:
-    """Declared distribution names eligible as Phase-A repair candidates.
+    """Declared distribution names, formerly eligible as Phase-A repair candidates.
+
+    NOTE: currently RETAINED PLUMBING -- this value is still computed and
+    threaded into :func:`_phase_a_fixpoint`, but is no longer consumed there
+    since the declared repair rung was removed (``repair.generate_candidates``
+    now proposes from the vendored pipreqs map, else an injected LLM guesser on
+    a map miss). Kept for a future consumer; the description below reflects its
+    original, now-dormant role.
 
     EVERY declared distribution, regardless of kind/group -- deliberately NOT
     the scope-filtered subset that reaches ``select_roots``. An unsatisfied
@@ -696,9 +704,8 @@ def _declared_package_names_for_repair(evidence) -> frozenset[str]:
 
     EXCLUDES any name :func:`_uv_sourced_dist_names` returns (see its
     docstring for why an uv-sourced dependency must never be "repaired" into
-    the unrelated same-named PUBLIC PyPI package) -- but this is only the
-    ``declared_metadata`` rung's half of that protection; see
-    :func:`_phase_a_fixpoint`'s acceptance gate for the other half.
+    the unrelated same-named PUBLIC PyPI package); the live half of that
+    protection now lives at :func:`_phase_a_fixpoint`'s acceptance gate.
     """
     excluded = _uv_sourced_dist_names(evidence)
     return frozenset(
